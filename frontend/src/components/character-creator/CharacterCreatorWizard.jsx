@@ -238,7 +238,11 @@ export const CharacterCreatorWizard = () => {
 
       {/* Step Indicator */}
       <div className="container mx-auto px-4 py-6">
-        <StepIndicator steps={STEPS} currentStep={currentStep} />
+        <StepIndicator 
+          steps={getVisibleSteps()} 
+          currentStep={cultureGetsVirtue(draft?.cultura_nombre) ? currentStep : 
+            currentStep > 5 ? currentStep - 1 : currentStep} 
+        />
       </div>
 
       {/* Step Content */}
