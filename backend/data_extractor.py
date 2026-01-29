@@ -141,35 +141,55 @@ def extract_backgrounds(wb: openpyxl.Workbook) -> List[Dict]:
     return backgrounds
 
 def extract_occupations(wb: openpyxl.Workbook) -> List[Dict]:
-    """Extract occupations/classes from Ocupaciones sheet"""
+    """Extract occupations/classes from Ocupaciones sheet with all questions and options"""
     sheet = wb['Ocupaciones']
     occupations = []
     
-    # Columns B-G contain the 6 main occupations
+    # Columns B-G (2-7) contain the 6 main occupations
     occupation_cols = {
-        2: "Explorador",
-        3: "Guerrero", 
-        4: "Lider",
-        5: "Maestro",
-        6: "Protector",
-        7: "Trotamundos"
+        2: "Buscador de tesoros",  # Explorador
+        3: "Campeón",              # Guerrero
+        4: "Capitán",              # Lider
+        5: "Erudito",              # Maestro
+        6: "Guardian",             # Protector
+        7: "Mensajero"             # Trotamundos
     }
     
-    for col, tipo in occupation_cols.items():
-        # Row 2: Vocación name
-        vocacion = clean_value(sheet.cell(row=2, column=col).value)
-        
+    for col, vocacion in occupation_cols.items():
         occupation = {
-            "tipo": tipo,
             "vocacion": vocacion,
+            "columna_excel": col,
             "dado_golpe": clean_value(sheet.cell(row=3, column=col).value),
             "puntos_golpe_nivel1": clean_value(sheet.cell(row=4, column=col).value),
             "caracteristicas_principales": [],
             "competencia_tiradas_salvacion": [],
-            "habilidades_disponibles": [],
-            "competencia_armaduras": [],
-            "competencia_armas": [],
-            "rasgos_por_nivel": {},
+            
+            # HABILIDADES A ELEGIR (filas 44-57)
+            "habilidades": {
+                "pregunta": clean_value(sheet.cell(row=44, column=col).value) or clean_value(sheet.cell(row=44, column=2).value),
+                "cantidad": clean_value(sheet.cell(row=45, column=col).value) or 0,
+                "opciones": []
+            },
+            
+            # ARMADURA (filas 60-70)
+            "armadura": {
+                "pregunta": clean_value(sheet.cell(row=60, column=col).value) or clean_value(sheet.cell(row=60, column=2).value),
+                "opcion_a": [],
+                "opcion_b": []
+            },
+            
+            # HERRAMIENTAS segundo bloque (filas 75-90)
+            "herramientas": {
+                "pregunta": clean_value(sheet.cell(row=75, column=col).value) or clean_value(sheet.cell(row=75, column=2).value),
+                "cantidad": clean_value(sheet.cell(row=76, column=col).value) or 0,
+                "opciones": []
+            },
+            
+            # ARMAS (5 bloques de preguntas)
+            "armas": [],
+            
+            # PERICIA (solo Explorador/Buscador de tesoros)
+            "pericia": None
         }
         
         # Características principales (rows 5-6)
@@ -183,6 +203,139 @@ def extract_occupations(wb: openpyxl.Workbook) -> List[Dict]:
             char = clean_value(sheet.cell(row=row, column=col).value)
             if char:
                 occupation["competencia_tiradas_salvacion"].append(char)
+        
+        # HABILIDADES disponibles (filas 46-57)
+        for row in range(46, 58):
+            skill = clean_value(sheet.cell(row=row, column=col).value)
+            if skill:
+                occupation["habilidades"]["opciones"].append(skill)
+        
+        # ARMADURA Opción A (filas 62-64)
+        for row in range(62, 65):
+            item = clean_value(sheet.cell(row=row, column=col).value)
+            if item:
+                occupation["armadura"]["opcion_a"].append(item)
+        
+        # ARMADURA Opción B (filas 66-70)
+        for row in range(66, 71):
+            item = clean_value(sheet.cell(row=row, column=col).value)
+            if item:
+                occupation["armadura"]["opcion_b"].append(item)
+        
+        # HERRAMIENTAS opciones (filas 77-90)
+        for row in range(77, 91):
+            tool = clean_value(sheet.cell(row=row, column=col).value)
+            if tool:
+                occupation["herramientas"]["opciones"].append(tool)
+        
+        # ARMA 1 (filas 95-102)
+        arma1_pregunta = clean_value(sheet.cell(row=95, column=col).value) or clean_value(sheet.cell(row=95, column=2).value)
+        arma1_cantidad = clean_value(sheet.cell(row=96, column=col).value) or 0
+        arma1_opciones = []
+        for row in range(97, 103):
+            item = clean_value(sheet.cell(row=row, column=col).value)
+            if item:
+                arma1_opciones.append(item)
+        if arma1_pregunta or arma1_opciones:
+            occupation["armas"].append({
+                "numero": 1,
+                "pregunta": arma1_pregunta,
+                "cantidad": arma1_cantidad,
+                "opciones": arma1_opciones,
+                "tipo": "simple"
+            })
+        
+        # ARMA 2 (filas 104-107)
+        arma2_pregunta = clean_value(sheet.cell(row=104, column=col).value) or clean_value(sheet.cell(row=104, column=2).value)
+        arma2_cantidad = clean_value(sheet.cell(row=105, column=col).value) or 0
+        arma2_opciones = []
+        for row in range(106, 108):
+            item = clean_value(sheet.cell(row=row, column=col).value)
+            if item:
+                arma2_opciones.append(item)
+        if arma2_pregunta or arma2_opciones:
+            occupation["armas"].append({
+                "numero": 2,
+                "pregunta": arma2_pregunta,
+                "cantidad": arma2_cantidad,
+                "opciones": arma2_opciones,
+                "tipo": "simple"
+            })
+        
+        # ARMA 3 (filas 109-121) - Tiene opción A/B
+        arma3_pregunta = clean_value(sheet.cell(row=109, column=col).value)
+        if arma3_pregunta:
+            arma3_opcion_a = []
+            for row in range(111, 114):
+                item = clean_value(sheet.cell(row=row, column=col).value)
+                if item:
+                    arma3_opcion_a.append(item)
+            
+            arma3_cantidad_b = clean_value(sheet.cell(row=115, column=col).value) or 0
+            arma3_opcion_b = []
+            for row in range(116, 122):
+                item = clean_value(sheet.cell(row=row, column=col).value)
+                if item:
+                    arma3_opcion_b.append(item)
+            
+            occupation["armas"].append({
+                "numero": 3,
+                "pregunta": arma3_pregunta,
+                "tipo": "ab",
+                "opcion_a": arma3_opcion_a,
+                "opcion_b": arma3_opcion_b,
+                "cantidad_b": arma3_cantidad_b
+            })
+        
+        # ARMA 4 (filas 123+) - si existe
+        arma4_pregunta = clean_value(sheet.cell(row=123, column=col).value)
+        if arma4_pregunta:
+            arma4_cantidad = clean_value(sheet.cell(row=124, column=col).value) or 0
+            arma4_opciones = []
+            for row in range(125, 135):
+                item = clean_value(sheet.cell(row=row, column=col).value)
+                if item:
+                    arma4_opciones.append(item)
+            occupation["armas"].append({
+                "numero": 4,
+                "pregunta": arma4_pregunta,
+                "cantidad": arma4_cantidad,
+                "opciones": arma4_opciones,
+                "tipo": "simple"
+            })
+        
+        # ARMA 5 (filas 151+) - si existe
+        arma5_pregunta = clean_value(sheet.cell(row=151, column=col).value)
+        if arma5_pregunta:
+            arma5_cantidad = clean_value(sheet.cell(row=152, column=col).value) or 0
+            arma5_opciones = []
+            for row in range(153, 165):
+                item = clean_value(sheet.cell(row=row, column=col).value)
+                if item:
+                    arma5_opciones.append(item)
+            occupation["armas"].append({
+                "numero": 5,
+                "pregunta": arma5_pregunta,
+                "cantidad": arma5_cantidad,
+                "opciones": arma5_opciones,
+                "tipo": "simple"
+            })
+        
+        # PERICIA - Solo para Buscador de tesoros (col 2)
+        if col == 2:
+            pericia_desc = clean_value(sheet.cell(row=194, column=col).value)
+            pericia_cantidad = clean_value(sheet.cell(row=195, column=col).value) or 0
+            pericia_opciones = []
+            for row in range(196, 210):
+                skill = clean_value(sheet.cell(row=row, column=col).value)
+                if skill and not skill.startswith(('Tu ', 'A nivel', 'ELEGIR')):
+                    pericia_opciones.append(skill)
+            
+            occupation["pericia"] = {
+                "descripcion": pericia_desc,
+                "cantidad": pericia_cantidad,
+                "opciones": pericia_opciones
+            }
         
         occupations.append(occupation)
     
