@@ -302,23 +302,11 @@ class TestFullCharacterCreationWithRasgos:
             )
             assert response.status_code == 200
             
-            # Step 5: Skills (skip for now, use defaults)
-            response = requests.patch(
-                f"{BASE_URL}/api/characters/draft/{draft_id}/step5",
-                json={"habilidades_elegidas": []}
-            )
-            assert response.status_code == 200
-            
-            # Step 6: Name - already set in step1, but update if needed
+            # Step 5: Virtue - SKIP for Elfos de Lindon (they don't get virtue)
+            # Step 6: Skills
             response = requests.patch(
                 f"{BASE_URL}/api/characters/draft/{draft_id}/step6",
-                json={
-                    "nombre": "TEST_Elrohir",
-                    "genero": "Hombre",
-                    "edad": 500,
-                    "altura": 180,
-                    "peso": 70
-                }
+                json={"habilidades": ["Historia", "Medicina"]}
             )
             assert response.status_code == 200
             
