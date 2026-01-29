@@ -1,13 +1,17 @@
 /**
  * Step 5: Virtue Selection
+ * Solo disponible para culturas específicas: Hombres del lago, Hombres de Bree, Beórnidas
  */
 import { useState, useEffect } from 'react';
-import { Loader2, ChevronLeft, Star, Sparkles } from 'lucide-react';
+import { Loader2, ChevronLeft, Star, Sparkles, AlertCircle } from 'lucide-react';
 import { getVirtues, updateDraftStep5 } from '@/services/api';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { cn } from '@/lib/utils';
+
+// Las culturas que obtienen virtud al nivel 1 según las reglas
+const CULTURAS_CON_VIRTUD = ['Hombres del lago', 'Hombres de Bree', 'Beornidas'];
 
 const Step5Virtue = ({ draftId, draft, onComplete, onBack }) => {
   const [virtues, setVirtues] = useState([]);
@@ -17,10 +21,16 @@ const Step5Virtue = ({ draftId, draft, onComplete, onBack }) => {
   const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState('cultural');
 
+  // Verificar si la cultura tiene derecho a virtud
+  const cultureHasVirtue = CULTURAS_CON_VIRTUD.includes(draft?.cultura_nombre);
+
   // Load virtues for culture
   useEffect(() => {
     const loadVirtues = async () => {
-      if (!draft?.cultura_nombre) return;
+      if (!draft?.cultura_nombre || !cultureHasVirtue) {
+        setLoading(false);
+        return;
+      }
       try {
         setLoading(true);
         const data = await getVirtues(null, draft.cultura_nombre, true);
@@ -33,7 +43,7 @@ const Step5Virtue = ({ draftId, draft, onComplete, onBack }) => {
       }
     };
     loadVirtues();
-  }, [draft?.cultura_nombre]);
+  }, [draft?.cultura_nombre, cultureHasVirtue]);
 
   // Separate cultural and common virtues
   const culturalVirtues = virtues.filter(v => !v.es_comun && v.cultura);
@@ -56,6 +66,51 @@ const Step5Virtue = ({ draftId, draft, onComplete, onBack }) => {
       setSaving(false);
     }
   };
+
+  // Si la cultura no tiene virtud, mostrar mensaje y permitir continuar
+  if (!cultureHasVirtue) {
+    return (
+      <div className="space-y-8" data-testid="step-5-virtue-skip">
+        <div className="text-center">
+          <h2 className="font-heading text-3xl text-[hsl(var(--gold))] text-glow-gold mb-2">
+            Virtudes
+          </h2>
+        </div>
+
+        <div className="card-parchment rounded-lg p-8 text-center">
+          <AlertCircle className="w-12 h-12 text-[hsl(var(--gold))] mx-auto mb-4" />
+          <h3 className="font-heading text-xl text-foreground mb-2">
+            Tu cultura no obtiene virtud inicial
+          </h3>
+          <p className="text-muted-foreground mb-4">
+            Solo los <span className="text-[hsl(var(--gold))]">Hombres del Lago</span>, 
+            <span className="text-[hsl(var(--gold))]"> Hombres de Bree</span> y 
+            <span className="text-[hsl(var(--gold))]"> Beórnidas</span> obtienen una virtud al nivel 1.
+          </p>
+          <p className="text-sm text-muted-foreground">
+            Podrás obtener virtudes más adelante al subir de nivel.
+          </p>
+        </div>
+
+        <div className="flex justify-between pt-4 pb-16">
+          <Button
+            variant="ghost"
+            onClick={onBack}
+            className="text-muted-foreground hover:text-foreground"
+          >
+            <ChevronLeft className="w-4 h-4 mr-2" />
+            Atrás
+          </Button>
+          <Button
+            onClick={() => onComplete({ ...draft, paso_actual: 6 })}
+            className="bg-[hsl(var(--gold))] hover:bg-[hsl(var(--gold-dim))] text-[hsl(var(--primary-foreground))] font-heading px-8"
+          >
+            Continuar sin Virtud
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   if (loading) {
     return (
@@ -118,7 +173,7 @@ const Step5Virtue = ({ draftId, draft, onComplete, onBack }) => {
           Elige tu Virtud
         </h2>
         <p className="text-muted-foreground">
-          Tu virtud representa un don especial o una habilidad única
+          Como {draft?.cultura_nombre}, obtienes una virtud al nivel 1
         </p>
       </div>
 
@@ -137,6 +192,14 @@ const Step5Virtue = ({ draftId, draft, onComplete, onBack }) => {
             </p>
           </div>
         </div>
+      </div>
+
+      {/* Info Banner */}
+      <div className="bg-[hsl(var(--magic-blue))/10] border border-[hsl(var(--magic-blue))/30] rounded-lg p-4">
+        <p className="text-sm text-[hsl(var(--magic-blue))]">
+          <Sparkles className="w-4 h-4 inline mr-2" />
+          Los {draft?.cultura_nombre} son una de las pocas culturas que obtienen una virtud al nivel 1.
+        </p>
       </div>
 
       {/* Virtue Tabs */}
@@ -179,7 +242,7 @@ const Step5Virtue = ({ draftId, draft, onComplete, onBack }) => {
         <TabsContent value="common" className="mt-4">
           <div className="card-parchment rounded-lg p-4">
             <p className="text-sm text-muted-foreground mb-4">
-              Virtudes disponibles para todas las culturas
+              Virtudes comunes disponibles para todas las culturas
             </p>
             <ScrollArea className="h-[350px] pr-4">
               <div className="grid md:grid-cols-2 gap-4">
