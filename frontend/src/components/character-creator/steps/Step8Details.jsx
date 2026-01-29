@@ -119,15 +119,24 @@ const Step8Details = ({ draftId, draft, onComplete, onBack }) => {
 
         {/* Rasgos automáticos del trasfondo */}
         <div className="grid md:grid-cols-2 gap-4">
-          {backgroundData?.rasgo_distintivo && (
+          {backgroundData?.rasgos?.length > 0 && (
             <div className="p-4 rounded-lg border border-[hsl(var(--gold))/30] bg-[hsl(var(--gold))/5]">
               <div className="flex items-center gap-2 mb-2">
                 <User className="w-4 h-4 text-[hsl(var(--gold))]" />
                 <span className="font-heading text-sm text-[hsl(var(--gold))]">
-                  Rasgo Distintivo
+                  Rasgos de Personalidad
                 </span>
               </div>
-              <p className="text-foreground">{backgroundData.rasgo_distintivo}</p>
+              <div className="flex flex-wrap gap-2">
+                {backgroundData.rasgos.map((rasgo, i) => (
+                  <span 
+                    key={i}
+                    className="text-sm px-3 py-1 rounded-full bg-[hsl(var(--gold))/20] text-[hsl(var(--gold))]"
+                  >
+                    {rasgo}
+                  </span>
+                ))}
+              </div>
             </div>
           )}
 
