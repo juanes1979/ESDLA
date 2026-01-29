@@ -1,9 +1,11 @@
 /**
  * Character Summary - Final review before creation
  */
-import { Loader2, Edit2, Check, User, Sword, Shield, Heart, Star, Crown } from 'lucide-react';
+import { useState } from 'react';
+import { Loader2, Edit2, Check, User, Sword, Shield, Heart, Star, Crown, FileDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { downloadCharacterPDF } from '@/utils/characterPDF';
 
 const getModifier = (score) => {
   const mod = Math.floor((score - 10) / 2);
