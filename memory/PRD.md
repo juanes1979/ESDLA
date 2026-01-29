@@ -140,16 +140,16 @@ Comprehensive web application for playing a modified "Lord of the Rings 5e" tabl
 
 ## Upcoming Tasks
 
-### 🔴 P0 - Frontend: Character Creator Wizard
-1. Create character creation wizard UI
-2. Implement all 9 steps with proper validation
-3. Apply dark Tolkien theme
-4. Name generator feature
+### 🔴 P0 - Complete Wizard Testing & Polish
+1. Test full 9-step flow end-to-end
+2. Add validation messages
+3. Improve mobile responsiveness
 
 ### 🟠 P1 - Character Sheet View
 1. Display complete character information
 2. HP/Shadow tracking
 3. Equipment management
+4. Level-up mechanics
 
 ### 🟡 P2 - Game Master Screen
 1. Campaign management
