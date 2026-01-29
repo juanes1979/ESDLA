@@ -13,20 +13,21 @@ import Step4Attributes from './steps/Step4Attributes';
 import Step5Virtue from './steps/Step5Virtue';
 import Step6Skills from './steps/Step6Skills';
 import Step7Equipment from './steps/Step7Equipment';
-import Step8Patron from './steps/Step8Patron';
-import Step9Details from './steps/Step9Details';
+import Step8Details from './steps/Step8Details';
 import CharacterSummary from './CharacterSummary';
+
+// Las culturas que obtienen virtud al nivel 1 según las reglas
+export const CULTURAS_CON_VIRTUD = ['Hombres del lago', 'Hombres de Bree', 'Beornidas'];
 
 const STEPS = [
   { num: 1, title: 'Cultura', description: 'Elige tu linaje' },
   { num: 2, title: 'Trasfondo', description: 'Tu historia pasada' },
   { num: 3, title: 'Ocupación', description: 'Tu vocación' },
   { num: 4, title: 'Atributos', description: 'Tus capacidades' },
-  { num: 5, title: 'Virtud', description: 'Tu don especial' },
+  { num: 5, title: 'Virtud', description: 'Tu don especial', conditional: true },
   { num: 6, title: 'Habilidades', description: 'Tus competencias' },
   { num: 7, title: 'Equipo', description: 'Tus posesiones' },
-  { num: 8, title: 'Mecenas', description: 'Tu protector' },
-  { num: 9, title: 'Detalles', description: 'Tu personalidad' },
+  { num: 8, title: 'Detalles', description: 'Tu personalidad' },
 ];
 
 export const CharacterCreatorWizard = () => {
@@ -69,16 +70,27 @@ export const CharacterCreatorWizard = () => {
     }
   }, [draftId]);
 
+  // Check if culture gets virtue at level 1
+  const cultureGetsVirtue = useCallback((cultureName) => {
+    return CULTURAS_CON_VIRTUD.includes(cultureName);
+  }, []);
+
   // Handle step completion
   const handleStepComplete = useCallback((updatedDraft) => {
     setDraft(updatedDraft);
-    const nextStep = updatedDraft.paso_actual || currentStep + 1;
+    let nextStep = updatedDraft.paso_actual || currentStep + 1;
+    
+    // Si estamos en paso 4 (atributos) y la cultura NO obtiene virtud, saltamos al paso 6
+    if (currentStep === 4 && !cultureGetsVirtue(updatedDraft.cultura_nombre)) {
+      nextStep = 6;
+    }
+    
     setCurrentStep(nextStep);
     
-    if (nextStep > 9) {
+    if (nextStep > 8) {
       setIsComplete(true);
     }
-  }, [currentStep]);
+  }, [currentStep, cultureGetsVirtue]);
 
   // Navigate to previous step
   const handleBack = useCallback(() => {
