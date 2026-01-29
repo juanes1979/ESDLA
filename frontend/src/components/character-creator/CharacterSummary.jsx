@@ -246,7 +246,7 @@ const CharacterSummary = ({ draft, onFinalize, onEdit, loading }) => {
       </div>
 
       {/* Actions */}
-      <div className="flex justify-center gap-4">
+      <div className="flex justify-center gap-4 flex-wrap">
         <Button
           variant="outline"
           onClick={onEdit}
@@ -255,6 +255,20 @@ const CharacterSummary = ({ draft, onFinalize, onEdit, loading }) => {
         >
           <Edit2 className="w-4 h-4 mr-2" />
           Editar
+        </Button>
+        <Button
+          variant="outline"
+          onClick={handleDownloadPDF}
+          disabled={generatingPDF}
+          className="border-[hsl(var(--magic-blue))] text-[hsl(var(--magic-blue))] hover:bg-[hsl(var(--magic-blue))/10]"
+          data-testid="download-pdf-btn"
+        >
+          {generatingPDF ? (
+            <Loader2 className="w-4 h-4 animate-spin mr-2" />
+          ) : (
+            <FileDown className="w-4 h-4 mr-2" />
+          )}
+          Descargar PDF (3 hojas)
         </Button>
         <Button
           onClick={onFinalize}
