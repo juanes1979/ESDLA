@@ -1,7 +1,7 @@
 /**
- * Step 4: Attributes Assignment
+ * Step 4: Attributes Assignment - FIXED
  */
-import { useState, useEffect } from 'react';
+import { useState, useCallback } from 'react';
 import { Loader2, ChevronLeft, Dices, Minus, Plus } from 'lucide-react';
 import { updateDraftStep4 } from '@/services/api';
 import { Button } from '@/components/ui/button';
@@ -25,44 +25,76 @@ const POINT_BUY_COSTS = {
 const getModifier = (score) => Math.floor((score - 10) / 2);
 const formatModifier = (mod) => mod >= 0 ? `+${mod}` : `${mod}`;
 
+// Roll 4d6 drop lowest
+const rollAttribute = () => {
+  const rolls = Array(4).fill(0).map(() => Math.floor(Math.random() * 6) + 1);
+  rolls.sort((a, b) => b - a);
+  return rolls.slice(0, 3).reduce((a, b) => a + b, 0);
+};
+
 const Step4Attributes = ({ draftId, draft, onComplete, onBack }) => {
   const [method, setMethod] = useState('standard_array');
-  const [attributes, setAttributes] = useState({
-    fuerza: 10,
-    destreza: 10,
-    constitucion: 10,
-    inteligencia: 10,
-    sabiduria: 10,
-    carisma: 10,
-  });
-  const [availableScores, setAvailableScores] = useState([...STANDARD_ARRAY]);
+  
+  // Standard array: track which scores are assigned to which attributes
+  const [standardAssignments, setStandardAssignments] = useState({});
   const [selectedSlot, setSelectedSlot] = useState(null);
+  
+  // Point buy attributes
+  const [pointBuyAttributes, setPointBuyAttributes] = useState({
+    fuerza: 8,
+    destreza: 8,
+    constitucion: 8,
+    inteligencia: 8,
+    sabiduria: 8,
+    carisma: 8,
+  });
+  
+  // Random roll attributes
+  const [randomAttributes, setRandomAttributes] = useState(null);
+  
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
 
   // Culture modifiers
   const cultureMods = draft?.mod_cultura || {};
 
-  // Calculate point buy remaining
-  const pointBuySpent = Object.values(attributes).reduce(
+  // Get current attributes based on method
+  const getCurrentAttributes = useCallback(() => {
+    if (method === 'standard_array') {
+      const attrs = { fuerza: 8, destreza: 8, constitucion: 8, inteligencia: 8, sabiduria: 8, carisma: 8 };
+      Object.entries(standardAssignments).forEach(([attrKey, score]) => {
+        attrs[attrKey] = score;
+      });
+      return attrs;
+    } else if (method === 'point_buy') {
+      return pointBuyAttributes;
+    } else if (method === 'random' && randomAttributes) {
+      return randomAttributes;
+    }
+    return { fuerza: 10, destreza: 10, constitucion: 10, inteligencia: 10, sabiduria: 10, carisma: 10 };
+  }, [method, standardAssignments, pointBuyAttributes, randomAttributes]);
+
+  // Get available scores for standard array
+  const getAvailableScores = useCallback(() => {
+    const usedScores = Object.values(standardAssignments);
+    return STANDARD_ARRAY.filter(score => !usedScores.includes(score));
+  }, [standardAssignments]);
+
+  // Point buy calculations
+  const pointBuySpent = Object.values(pointBuyAttributes).reduce(
     (sum, val) => sum + (POINT_BUY_COSTS[val] || 0), 0
   );
   const pointBuyRemaining = POINT_BUY_TOTAL - pointBuySpent;
 
-  // Reset attributes when method changes
-  useEffect(() => {
-    if (method === 'standard_array') {
-      setAttributes({
-        fuerza: 10,
-        destreza: 10,
-        constitucion: 10,
-        inteligencia: 10,
-        sabiduria: 10,
-        carisma: 10,
-      });
-      setAvailableScores([...STANDARD_ARRAY]);
-    } else if (method === 'point_buy') {
-      setAttributes({
+  // Change method
+  const handleMethodChange = (newMethod) => {
+    setMethod(newMethod);
+    setSelectedSlot(null);
+    
+    if (newMethod === 'standard_array') {
+      setStandardAssignments({});
+    } else if (newMethod === 'point_buy') {
+      setPointBuyAttributes({
         fuerza: 8,
         destreza: 8,
         constitucion: 8,
@@ -70,14 +102,9 @@ const Step4Attributes = ({ draftId, draft, onComplete, onBack }) => {
         sabiduria: 8,
         carisma: 8,
       });
-    } else if (method === 'random') {
-      // Roll 4d6 drop lowest for each attribute
-      const rollAttribute = () => {
-        const rolls = Array(4).fill(0).map(() => Math.floor(Math.random() * 6) + 1);
-        rolls.sort((a, b) => b - a);
-        return rolls.slice(0, 3).reduce((a, b) => a + b, 0);
-      };
-      setAttributes({
+    } else if (newMethod === 'random') {
+      // Roll new attributes
+      setRandomAttributes({
         fuerza: rollAttribute(),
         destreza: rollAttribute(),
         constitucion: rollAttribute(),
@@ -86,26 +113,43 @@ const Step4Attributes = ({ draftId, draft, onComplete, onBack }) => {
         carisma: rollAttribute(),
       });
     }
-    setSelectedSlot(null);
-  }, [method]);
+  };
+
+  // Reroll random attributes
+  const handleReroll = () => {
+    setRandomAttributes({
+      fuerza: rollAttribute(),
+      destreza: rollAttribute(),
+      constitucion: rollAttribute(),
+      inteligencia: rollAttribute(),
+      sabiduria: rollAttribute(),
+      carisma: rollAttribute(),
+    });
+  };
 
   // Handle standard array assignment
-  const handleAssignScore = (attrKey, score) => {
-    // If this attribute already has a non-default value, return it to available
-    const currentVal = attributes[attrKey];
-    if (STANDARD_ARRAY.includes(currentVal)) {
-      setAvailableScores(prev => [...prev, currentVal].sort((a, b) => b - a));
-    }
-
-    // Assign new score
-    setAttributes(prev => ({ ...prev, [attrKey]: score }));
-    setAvailableScores(prev => prev.filter((s, i) => i !== prev.indexOf(score)));
+  const handleAssignScore = (score) => {
+    if (!selectedSlot) return;
+    
+    setStandardAssignments(prev => ({
+      ...prev,
+      [selectedSlot]: score
+    }));
     setSelectedSlot(null);
+  };
+
+  // Remove assignment from standard array
+  const handleRemoveAssignment = (attrKey) => {
+    setStandardAssignments(prev => {
+      const newAssignments = { ...prev };
+      delete newAssignments[attrKey];
+      return newAssignments;
+    });
   };
 
   // Handle point buy adjustment
   const handlePointBuyAdjust = (attrKey, delta) => {
-    const currentVal = attributes[attrKey];
+    const currentVal = pointBuyAttributes[attrKey];
     const newVal = currentVal + delta;
     
     if (newVal < 8 || newVal > 15) return;
@@ -113,13 +157,16 @@ const Step4Attributes = ({ draftId, draft, onComplete, onBack }) => {
     const costDiff = (POINT_BUY_COSTS[newVal] || 0) - (POINT_BUY_COSTS[currentVal] || 0);
     if (costDiff > pointBuyRemaining) return;
     
-    setAttributes(prev => ({ ...prev, [attrKey]: newVal }));
+    setPointBuyAttributes(prev => ({ ...prev, [attrKey]: newVal }));
   };
 
   // Handle submit
   const handleSubmit = async () => {
+    const attributes = getCurrentAttributes();
+    
     try {
       setSaving(true);
+      setError(null);
       const updatedDraft = await updateDraftStep4(draftId, {
         atributos: attributes,
         metodo_asignacion: method,
@@ -127,14 +174,26 @@ const Step4Attributes = ({ draftId, draft, onComplete, onBack }) => {
       onComplete(updatedDraft);
     } catch (err) {
       console.error('Error saving step 4:', err);
-      setError('No se pudieron guardar los atributos');
+      setError('No se pudieron guardar los atributos. Intenta de nuevo.');
     } finally {
       setSaving(false);
     }
   };
 
-  // Check if all attributes are assigned (for standard array)
-  const isComplete = method !== 'standard_array' || availableScores.length === 0;
+  // Check if complete
+  const isComplete = () => {
+    if (method === 'standard_array') {
+      return Object.keys(standardAssignments).length === 6;
+    } else if (method === 'point_buy') {
+      return pointBuyRemaining >= 0;
+    } else if (method === 'random') {
+      return randomAttributes !== null;
+    }
+    return false;
+  };
+
+  const currentAttributes = getCurrentAttributes();
+  const availableScores = getAvailableScores();
 
   return (
     <div className="space-y-8" data-testid="step-4-attributes">
@@ -174,6 +233,9 @@ const Step4Attributes = ({ draftId, draft, onComplete, onBack }) => {
                   {attr.substring(0, 3).toUpperCase()} +{mod}
                 </span>
               ))}
+              {Object.values(cultureMods).every(v => !v || v === 0) && (
+                <span className="text-xs text-muted-foreground">Ninguno</span>
+              )}
             </div>
           </div>
         </div>
@@ -188,7 +250,7 @@ const Step4Attributes = ({ draftId, draft, onComplete, onBack }) => {
         ].map((m) => (
           <button
             key={m.id}
-            onClick={() => setMethod(m.id)}
+            onClick={() => handleMethodChange(m.id)}
             className={cn(
               'selection-card rounded-lg px-6 py-4 text-center',
               method === m.id && 'selected'
@@ -202,29 +264,35 @@ const Step4Attributes = ({ draftId, draft, onComplete, onBack }) => {
       </div>
 
       {/* Standard Array - Available Scores */}
-      {method === 'standard_array' && availableScores.length > 0 && (
+      {method === 'standard_array' && (
         <div className="card-parchment rounded-lg p-4">
           <p className="text-sm text-muted-foreground mb-3 text-center">
-            Haz clic en un atributo y luego en un valor para asignarlo:
+            {selectedSlot 
+              ? `Selecciona un valor para ${ATTRIBUTES.find(a => a.key === selectedSlot)?.name}:`
+              : 'Haz clic en un atributo y luego en un valor para asignarlo'}
           </p>
           <div className="flex justify-center gap-3">
-            {availableScores.map((score, i) => (
-              <button
-                key={i}
-                onClick={() => selectedSlot && handleAssignScore(selectedSlot, score)}
-                disabled={!selectedSlot}
-                className={cn(
-                  'w-14 h-14 rounded-lg border-2 flex items-center justify-center transition-all',
-                  'font-heading text-xl',
-                  selectedSlot
-                    ? 'border-[hsl(var(--gold))] bg-[hsl(var(--gold))/10] text-[hsl(var(--gold))] cursor-pointer hover:bg-[hsl(var(--gold))/20]'
-                    : 'border-border bg-secondary text-muted-foreground cursor-not-allowed'
-                )}
-                data-testid={`available-score-${score}`}
-              >
-                {score}
-              </button>
-            ))}
+            {availableScores.length > 0 ? (
+              availableScores.map((score, i) => (
+                <button
+                  key={`${score}-${i}`}
+                  onClick={() => handleAssignScore(score)}
+                  disabled={!selectedSlot}
+                  className={cn(
+                    'w-14 h-14 rounded-lg border-2 flex items-center justify-center transition-all',
+                    'font-heading text-xl',
+                    selectedSlot
+                      ? 'border-[hsl(var(--gold))] bg-[hsl(var(--gold))/10] text-[hsl(var(--gold))] cursor-pointer hover:bg-[hsl(var(--gold))/20]'
+                      : 'border-border bg-secondary text-muted-foreground cursor-not-allowed'
+                  )}
+                  data-testid={`available-score-${score}`}
+                >
+                  {score}
+                </button>
+              ))
+            ) : (
+              <p className="text-[hsl(var(--magic-blue))] font-heading">¡Todos los valores asignados!</p>
+            )}
           </div>
         </div>
       )}
@@ -243,23 +311,48 @@ const Step4Attributes = ({ draftId, draft, onComplete, onBack }) => {
         </div>
       )}
 
+      {/* Random - Reroll button */}
+      {method === 'random' && (
+        <div className="text-center">
+          <Button
+            variant="outline"
+            onClick={handleReroll}
+            className="border-[hsl(var(--gold))/50] hover:bg-[hsl(var(--gold))/10]"
+            data-testid="reroll-btn"
+          >
+            <Dices className="w-4 h-4 mr-2 text-[hsl(var(--gold))]" />
+            Volver a Tirar
+          </Button>
+        </div>
+      )}
+
       {/* Attributes Grid */}
       <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
         {ATTRIBUTES.map((attr) => {
-          const baseValue = attributes[attr.key];
+          const baseValue = currentAttributes[attr.key];
           const cultureMod = cultureMods[attr.key] || 0;
           const totalValue = baseValue + cultureMod;
           const modifier = getModifier(totalValue);
           const isSelected = selectedSlot === attr.key;
+          const isAssigned = method === 'standard_array' && standardAssignments[attr.key] !== undefined;
 
           return (
             <div
               key={attr.key}
-              onClick={() => method === 'standard_array' && setSelectedSlot(attr.key)}
+              onClick={() => {
+                if (method === 'standard_array') {
+                  if (isAssigned) {
+                    handleRemoveAssignment(attr.key);
+                  } else {
+                    setSelectedSlot(attr.key);
+                  }
+                }
+              }}
               className={cn(
                 'stat-box p-4 transition-all',
                 method === 'standard_array' && 'cursor-pointer hover:border-[hsl(var(--gold))/50]',
-                isSelected && 'border-[hsl(var(--gold))] ring-2 ring-[hsl(var(--gold))/30]'
+                isSelected && 'border-[hsl(var(--gold))] ring-2 ring-[hsl(var(--gold))/30]',
+                isAssigned && 'border-[hsl(var(--magic-blue))/50]'
               )}
               data-testid={`attribute-${attr.key}`}
             >
@@ -275,7 +368,7 @@ const Step4Attributes = ({ draftId, draft, onComplete, onBack }) => {
                 {method === 'point_buy' && (
                   <button
                     onClick={(e) => { e.stopPropagation(); handlePointBuyAdjust(attr.key, -1); }}
-                    disabled={baseValue <= 8}
+                    disabled={pointBuyAttributes[attr.key] <= 8}
                     className="w-8 h-8 rounded bg-secondary hover:bg-secondary/80 disabled:opacity-50 flex items-center justify-center"
                     data-testid={`${attr.key}-minus`}
                   >
@@ -293,12 +386,17 @@ const Step4Attributes = ({ draftId, draft, onComplete, onBack }) => {
                   <p className="stat-modifier">
                     Total: {totalValue} ({formatModifier(modifier)})
                   </p>
+                  {method === 'standard_array' && isAssigned && (
+                    <p className="text-xs text-[hsl(var(--magic-blue))] mt-1">
+                      (clic para quitar)
+                    </p>
+                  )}
                 </div>
 
                 {method === 'point_buy' && (
                   <button
                     onClick={(e) => { e.stopPropagation(); handlePointBuyAdjust(attr.key, 1); }}
-                    disabled={baseValue >= 15 || POINT_BUY_COSTS[baseValue + 1] - POINT_BUY_COSTS[baseValue] > pointBuyRemaining}
+                    disabled={pointBuyAttributes[attr.key] >= 15 || POINT_BUY_COSTS[pointBuyAttributes[attr.key] + 1] - POINT_BUY_COSTS[pointBuyAttributes[attr.key]] > pointBuyRemaining}
                     className="w-8 h-8 rounded bg-secondary hover:bg-secondary/80 disabled:opacity-50 flex items-center justify-center"
                     data-testid={`${attr.key}-plus`}
                   >
@@ -309,28 +407,13 @@ const Step4Attributes = ({ draftId, draft, onComplete, onBack }) => {
 
               {method === 'point_buy' && (
                 <p className="text-xs text-muted-foreground text-center mt-2">
-                  Coste: {POINT_BUY_COSTS[baseValue]} pts
+                  Coste: {POINT_BUY_COSTS[pointBuyAttributes[attr.key]]} pts
                 </p>
               )}
             </div>
           );
         })}
       </div>
-
-      {/* Reroll button for random */}
-      {method === 'random' && (
-        <div className="text-center">
-          <Button
-            variant="outline"
-            onClick={() => setMethod('random')} // Re-triggers the effect
-            className="border-[hsl(var(--gold))/50] hover:bg-[hsl(var(--gold))/10]"
-            data-testid="reroll-btn"
-          >
-            <Dices className="w-4 h-4 mr-2 text-[hsl(var(--gold))]" />
-            Volver a Tirar
-          </Button>
-        </div>
-      )}
 
       {/* Error Message */}
       {error && (
@@ -340,7 +423,7 @@ const Step4Attributes = ({ draftId, draft, onComplete, onBack }) => {
       )}
 
       {/* Navigation */}
-      <div className="flex justify-between pt-4">
+      <div className="flex justify-between pt-4 pb-16">
         <Button
           variant="ghost"
           onClick={onBack}
@@ -352,7 +435,7 @@ const Step4Attributes = ({ draftId, draft, onComplete, onBack }) => {
         </Button>
         <Button
           onClick={handleSubmit}
-          disabled={!isComplete || saving}
+          disabled={!isComplete() || saving}
           className="bg-[hsl(var(--gold))] hover:bg-[hsl(var(--gold-dim))] text-[hsl(var(--primary-foreground))] font-heading px-8"
           data-testid="step-4-next-btn"
         >
