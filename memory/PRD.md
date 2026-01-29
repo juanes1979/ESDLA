@@ -1,208 +1,80 @@
 # LOTR 5e RPG - Product Requirements Document
 
-## Overview
-Comprehensive web application for playing a modified "Lord of the Rings 5e" tabletop RPG based on user-provided Excel data (Utumno FINAL.xlsm).
+## Original Problem Statement
+Build a comprehensive web application to play a modified version of the "Lord of the Rings 5e" tabletop role-playing game. The core of the application is based on a detailed Excel file (`utumno.xlsm`) containing all game rules and data.
 
-## Core Features
+## Core Requirements
+1. **Character Creator:** Multi-step wizard for creating player characters
+2. **Character Sheet:** Digital character sheet with PDF export (3 pages)
+3. **Game Master (DM) Screen:** Dedicated interface for DM
+4. **Online Gameplay:** Map Display, Chat, Dice Rolling, Session Log
+5. **AI Integration:** Story/NPC generation using Emergent LLM Key
+6. **Data Management:** CRUD operations on game data
 
-### 1. Character Creator (P0 - In Progress)
-- Multi-step wizard for character creation
-- 9 steps: Culture → Background → Occupation → Attributes → Virtue → Skills → Equipment → Patron → Final Details
-- Data-driven from Excel files
+## What's Been Implemented
 
-### 2. Character Sheet (P1 - Future)
-- Complete digital character sheet
-- Evolves with character progression
+### Phase 1: Database & Backend (Complete)
+- ✅ MongoDB database seeded with data from Excel files
+- ✅ 19 cultures with characteristics (Nivel de Vida, modifiers)
+- ✅ 114 backgrounds with rasgos (personality traits)
+- ✅ 6 occupations (classes)
+- ✅ 100+ virtues (cultural and common)
+- ✅ Equipment: 32 weapons, 12 armors, 37 general items
+- ✅ FastAPI routes for all game data
 
-### 3. Game Master Screen (P2 - Future)
-- Player management
-- Adversary tracking
-- Map management
-- Event/story progression
+### Phase 2: Character Creator Wizard (Complete - 2026-01-29)
+- ✅ 8-step wizard (Patron step removed per user requirement)
+- ✅ Step 1: Culture selection with Nivel de Vida display
+- ✅ Step 2: Background selection with automatic filtering by culture
+- ✅ Step 3: Occupation selection
+- ✅ Step 4: Attribute assignment (dice rolling + standard array)
+- ✅ Step 5: Virtue selection (ONLY for Hombres del lago, Hombres de Bree, Beornidas)
+- ✅ Step 6: Skills selection
+- ✅ Step 7: AUTOMATIC equipment based on Nivel de Vida (Frugal/Común/Próspero)
+- ✅ Step 8: Personality details from Background rasgos + custom history
 
-### 4. Online Gameplay (P2 - Future)
-- Hexagonal grid maps with fog of war
-- Player/enemy tokens
-- Chat system (general, P2P, P2DM)
-- Dice rolling
-- Session logs
+### Key Game Rules Implemented
+1. **Virtudes al Nivel 1:** Solo 3 culturas (Hombres del lago, Hombres de Bree, Beórnidas)
+2. **Equipo Inicial por Nivel de Vida:**
+   - Frugal: Mochila, Petate, Utensilios cocina, Lata yesca, 10 raciones, 15mp
+   - Común: + Antorchas, Odre, Cuerda cáñamo 15m, 15mp
+   - Próspero: + Linterna sorda, 3 Aceite, Cram, Cuerda seda, Tienda, 20mp
+3. **Rasgos de Personalidad:** Automáticos del trasfondo (ej: "Animoso", "Señorial")
 
-### 5. AI Integration (P3 - Future)
-- Story generation
-- NPC responses
-- Random events
-- DM retains full control
+## Upcoming Tasks (P1)
+- [ ] PDF export of character sheet (3 pages)
+  - Page 1: Attributes, combat, skills, equipment
+  - Page 2: Community points, patron/heir, virtues, traditional equipment
+  - Page 3: Long text (occupations, backgrounds, history)
+- [ ] Interactive Character Sheet page (`CharacterSheetPage.jsx`)
+- [ ] Draft listing/management system (`CharactersListPage.jsx`)
 
-### 6. Data Management (P3 - Future)
-- CRUD for all game data
-- DM can add/edit cultures, occupations, items, etc.
+## Future Tasks (P2)
+- [ ] Game Master (DM) Screen
+- [ ] Online Gameplay Interface (Map, Tokens, Fog of War, Chat)
+- [ ] AI Integration for story/NPC generation (using Emergent LLM Key)
+- [ ] Game Rule Engines (Combat, Travel, etc.)
 
 ## Technical Stack
-- **Backend**: FastAPI + Python
-- **Frontend**: React + TailwindCSS + Shadcn/UI
-- **Database**: MongoDB
-- **Theme**: Dark, Tolkien-esque (Lord of the Rings)
+- **Backend:** FastAPI, Motor (async MongoDB), Pydantic
+- **Frontend:** React, Tailwind CSS, Shadcn UI
+- **Database:** MongoDB
+- **Data Source:** Excel files (openpyxl parsing)
 
----
+## Key Files
+- `/app/backend/data_extractor.py` - Excel parsing
+- `/app/backend/seed_database.py` - Database seeding
+- `/app/backend/routes/character_routes.py` - Character API
+- `/app/backend/routes/data_routes.py` - Game data API
+- `/app/frontend/src/components/character-creator/CharacterCreatorWizard.jsx` - Main wizard
+- `/app/frontend/src/components/character-creator/steps/` - Step components
 
-## Implementation Status
+## Testing
+- Backend: 16 tests passing (100%)
+- Frontend: All UI flows verified
+- Test reports: `/app/test_reports/iteration_3.json`
 
-### ✅ COMPLETED - Phase 1: Database (Dec 2025)
-
-### ✅ COMPLETED - Phase 2: Character Creator Frontend (Dec 2025)
-
-#### Components Created
-- **HomePage.jsx**: Landing page with dark tavern theme, "Tierras Medias" title
-- **CharacterCreatorWizard.jsx**: Main wizard component managing 9-step flow
-- **StepIndicator.jsx**: Visual progress indicator for 9 steps
-- **Step1Culture.jsx**: Culture selection with automatic name generator
-- **Step2Background.jsx**: Background selection by culture
-- **Step3Occupation.jsx**: Occupation/class selection with icons
-- **Step4Attributes.jsx**: Attribute assignment (standard array, point buy, random)
-- **Step5Virtue.jsx**: Cultural and common virtue selection
-- **Step6Skills.jsx**: Skill competency selection
-- **Step7Equipment.jsx**: Weapons, armors, and equipment selection
-- **Step8Patron.jsx**: Optional patron/mecenas selection
-- **Step9Details.jsx**: Personality traits, motivations, history
-- **CharacterSummary.jsx**: Final review before character creation
-
-#### Visual Theme Implemented
-- Dark tavern atmosphere (Poney Pisador style)
-- Gold/amber primary colors (torch light)
-- Blue magical accents
-- Cinzel + Crimson Text fonts (Tolkien-esque)
-- Torch glow effects and animations
-- Parchment-style cards with shadows
-
-#### Features Working
-- ✅ 9-step wizard navigation
-- ✅ Culture category filtering (Elfos, Enanos, Hombres, Hobbits)
-- ✅ Automatic name generator based on culture (genera nombre al seleccionar cultura)
-- ✅ Physical attributes auto-generated from culture (age, height, weight)
-- ✅ Characteristic modifiers applied from culture
-- ✅ Standard array, point buy, and random roll methods for attributes
-- ✅ Reroll button works for random attributes
-- ✅ Character sheet page with HP/Shadow tracking
-- ✅ Draft list and continue draft functionality
-- ✅ All data fetched from MongoDB via API
-
-#### Bug Fixes Applied (Dec 2025)
-- Fixed: Name field no longer mandatory - auto-generates when culture selected
-- Fixed: Standard array now correctly removes used values
-- Fixed: Reroll button generates new random values each time
-- Fixed: Added padding to avoid Emergent banner overlapping buttons
-- Changed: "TIERRAS MEDIAS" → "ESDLA", "5E EDITION" → "5e Mod"
-
-#### Test Results (iteration_1.json)
-- Backend: 100% (18/18 tests passed)
-- Frontend: 100% (all wizard flows working)
-
----
-
-### ✅ COMPLETED - Phase 1 (earlier): Database (Dec 2025)
-
-#### Data Extraction
-- Created `data_extractor.py` to parse Excel files
-- Extracted data from `utumno.xlsm`, `clima.xlsx`, `pnj.xlsx`, `tesoro.xlsx`
-
-#### MongoDB Collections Seeded
-| Collection | Count | Description |
-|------------|-------|-------------|
-| cultures | 19 | Player cultures (Elves, Dwarves, Men, Hobbits) |
-| backgrounds | 114 | Character backgrounds by culture |
-| occupations | 6 | Character classes/occupations |
-| virtues | 100 | Cultural and common virtues |
-| arts | 8 | Magic/special abilities |
-| patrons | 7 | Mecenas (patrons) |
-| equipment | 37 | General equipment items |
-| weapons | 32 | Weapons |
-| armors | 12 | Armor pieces |
-| shadow_rules | 1 | Shadow/corruption mechanics |
-| culture_names | 8 | Name generation data |
-
-#### API Endpoints Created
-**Game Data Routes** (`/api/data/`):
-- `GET /cultures` - List cultures (filter by categoria)
-- `GET /cultures/{id}` - Get single culture
-- `GET /backgrounds` - List backgrounds (filter by culture)
-- `GET /occupations` - List occupations
-- `GET /virtues` - List virtues (filter by culture, include common)
-- `GET /arts` - List arts
-- `GET /patrons` - List patrons
-- `GET /equipment` - General equipment
-- `GET /weapons` - Weapons
-- `GET /armors` - Armors
-- `GET /shadow-rules` - Shadow mechanics
-- `GET /names/{cultura}` - Name generation data
-
-**Character Routes** (`/api/characters/`):
-- `POST /draft` - Create new character draft
-- `GET /draft/{id}` - Get draft state
-- `PATCH /draft/{id}/step1-9` - Update each wizard step
-- `POST /draft/{id}/finalize` - Convert draft to character
-- `GET /` - List characters
-- `GET /{id}` - Get character
-- `DELETE /{id}` - Soft delete character
-- `PATCH /{id}/hp` - Update HP
-- `PATCH /{id}/shadow` - Update shadow points
-- `PATCH /{id}/xp` - Add experience
-
----
-
-## Upcoming Tasks
-
-### 🔴 P0 - Complete Wizard Testing & Polish
-1. Test full 9-step flow end-to-end
-2. Add validation messages
-3. Improve mobile responsiveness
-
-### 🟠 P1 - Character Sheet View
-1. Display complete character information
-2. HP/Shadow tracking
-3. Equipment management
-4. Level-up mechanics
-
-### 🟡 P2 - Game Master Screen
-1. Campaign management
-2. Player tracking
-3. NPC management
-
-### 🔵 P3 - Online Gameplay
-1. Map system
-2. Chat integration
-3. Dice roller
-4. AI integration (Emergent LLM Key)
-
----
-
-## Data Sources
-- `/app/data/utumno.xlsm` - Main game data
-- `/app/data/clima.xlsx` - Climate data
-- `/app/data/pnj.xlsx` - NPC data
-- `/app/data/tesoro.xlsx` - Treasure tables
-
-## File Structure
-```
-/app/
-├── backend/
-│   ├── server.py           # Main FastAPI app
-│   ├── models.py           # Pydantic models
-│   ├── data_extractor.py   # Excel parsing
-│   ├── seed_database.py    # Database seeder
-│   └── routes/
-│       ├── data_routes.py      # Game data API
-│       └── character_routes.py # Character API
-├── frontend/
-│   └── src/
-└── data/
-    ├── utumno.xlsm
-    ├── clima.xlsx
-    ├── pnj.xlsx
-    ├── tesoro.xlsx
-    └── extracted_data.json
-```
-
-## AI Integration Notes
-- Will use Emergent LLM Key for AI features
-- User prefers seamless integration without rate limits
-- To be implemented in Phase 3
+## User Preferences
+- Language: Español
+- Theme: Dark LOTR tavern aesthetic
+- AI Provider: Emergent LLM Key (confirmed)
