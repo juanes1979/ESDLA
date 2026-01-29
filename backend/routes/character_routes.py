@@ -272,7 +272,7 @@ async def update_draft_step2(draft_id: str, data: CharacterCreateStep2):
 
 @router.patch("/draft/{draft_id}/step3")
 async def update_draft_step3(draft_id: str, data: CharacterCreateStep3):
-    """Update draft with Step 3 data (occupation)"""
+    """Update draft with Step 3 data (occupation with skills, armor, weapons, expertise)"""
     occupation = await db.occupations.find_one({"_id": data.ocupacion_id})
     if not occupation:
         raise HTTPException(status_code=404, detail="Occupation not found")
@@ -283,17 +283,18 @@ async def update_draft_step3(draft_id: str, data: CharacterCreateStep3):
     
     update = {
         "ocupacion_id": data.ocupacion_id,
-        "ocupacion_tipo": occupation['tipo'],
         "vocacion_nombre": occupation['vocacion'],
         "dado_golpe": dado_golpe,
         "puntos_golpe_base": hp_inicial,
         "caracteristicas_principales": occupation.get('caracteristicas_principales', []),
         "competencias_ocupacion": {
             "tiradas_salvacion": occupation.get('competencia_tiradas_salvacion', []),
-            "armaduras": occupation.get('competencia_armaduras', []),
-            "armas": occupation.get('competencia_armas', []),
         },
-        "habilidades_disponibles": occupation.get('habilidades_disponibles', []),
+        # New fields for skills, armor, weapons, expertise
+        "habilidades_elegidas": data.habilidades_elegidas,
+        "pericia_elegida": data.pericia_elegida,
+        "equipo_ocupacion": data.equipo_ocupacion,
+        "armadura_elegida": data.armadura_elegida,
         "paso_actual": 4,
         "updated_at": now_utc(),
     }
