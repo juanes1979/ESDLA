@@ -211,7 +211,7 @@ const Step2Background = ({ draftId, draft, onComplete, onBack }) => {
       )}
 
       {/* Navigation */}
-      <div className="flex justify-between pt-4">
+      <div className="flex justify-between pt-4 pb-16">
         <Button
           variant="ghost"
           onClick={onBack}
