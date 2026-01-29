@@ -3060,294 +3060,435 @@
     "armas": [
       {
         "nombre": "Bastón",
-        "tipo": 2,
-        "precio": "mc",
-        "dano": 0.9,
+        "precio": 2,
+        "moneda": "mc",
+        "peso_kg": 0.9,
         "tipo_dano": "contundente",
-        "peso_kg": "1d4",
-        "propiedades": 12
+        "dano": "1d4",
+        "herida": 12,
+        "alcance": "C/C"
       },
       {
         "nombre": "Garrote",
-        "tipo": 1,
-        "precio": "mc",
-        "dano": 0.9,
+        "precio": 1,
+        "moneda": "mc",
+        "peso_kg": 0.9,
         "tipo_dano": "contundente",
-        "peso_kg": "1d4",
-        "propiedades": 12
+        "dano": "1d4",
+        "herida": 12,
+        "alcance": "C/C"
       },
       {
         "nombre": "Gran garrote",
-        "tipo": 2,
-        "precio": "mc",
-        "dano": 4.5,
+        "precio": 2,
+        "moneda": "mc",
+        "peso_kg": 4.5,
         "tipo_dano": "contundente",
-        "peso_kg": "1d8",
-        "propiedades": 14
+        "dano": "1d8",
+        "herida": 14,
+        "alcance": "C/C"
       },
       {
         "nombre": "Hacha",
-        "tipo": 5,
-        "precio": "mp",
-        "dano": 1.35,
+        "precio": 5,
+        "moneda": "mp",
+        "peso_kg": 1.35,
         "tipo_dano": "cortante",
-        "peso_kg": "1d6",
-        "propiedades": 18
+        "dano": "1d6",
+        "herida": 18,
+        "alcance": "C/C"
       },
       {
         "nombre": "Hoz",
-        "tipo": 1,
-        "precio": "mp",
-        "dano": 1,
+        "precio": 1,
+        "moneda": "mp",
+        "peso_kg": 1,
         "tipo_dano": "cortante",
-        "peso_kg": "1d4",
-        "propiedades": 12
+        "dano": "1d4",
+        "herida": 12,
+        "alcance": "C/C"
       },
       {
         "nombre": "Maza",
-        "tipo": 1,
-        "precio": "mp",
-        "dano": 2,
+        "precio": 1,
+        "moneda": "mp",
+        "peso_kg": 2,
         "tipo_dano": "contundente",
-        "peso_kg": "1d6",
-        "propiedades": 14
+        "dano": "1d6",
+        "herida": 14,
+        "alcance": "C/C"
       },
       {
         "nombre": "Martillo",
-        "tipo": 2,
-        "precio": "mp",
-        "dano": 1.35,
+        "precio": 2,
+        "moneda": "mp",
+        "peso_kg": 1.35,
         "tipo_dano": "contundente",
-        "peso_kg": "1d6",
-        "propiedades": 14
+        "dano": "1d6",
+        "herida": 14,
+        "alcance": "C/C"
       },
       {
         "nombre": "Daga",
-        "tipo": 2,
-        "precio": "mp",
-        "dano": 0.45,
+        "precio": 2,
+        "moneda": "mp",
+        "peso_kg": 0.45,
         "tipo_dano": "perforante",
-        "peso_kg": "1d4",
-        "propiedades": 14
+        "dano": "1d4",
+        "herida": 14,
+        "alcance": "C/C"
       },
       {
         "nombre": "Armas sencillas a distancia",
-        "tipo": null,
         "precio": null,
-        "dano": null,
-        "tipo_dano": null,
+        "moneda": null,
         "peso_kg": null,
-        "propiedades": null
+        "tipo_dano": null,
+        "dano": null,
+        "herida": null,
+        "alcance": null
       },
       {
         "nombre": "Daga",
-        "tipo": 2,
-        "precio": "mp",
-        "dano": 0.45,
+        "precio": 2,
+        "moneda": "mp",
+        "peso_kg": 0.45,
         "tipo_dano": "arrojadiza",
-        "peso_kg": "1d4",
-        "propiedades": 14
+        "dano": "1d4",
+        "herida": 14,
+        "alcance": "3/15"
       },
       {
         "nombre": "Hacha de mano",
-        "tipo": 5,
-        "precio": "mp",
-        "dano": 0.9,
+        "precio": 5,
+        "moneda": "mp",
+        "peso_kg": 0.9,
         "tipo_dano": "arrojadiza",
-        "peso_kg": "1d6",
-        "propiedades": 18
+        "dano": "1d6",
+        "herida": 18,
+        "alcance": "3/15"
       },
       {
         "nombre": "Lanza",
-        "tipo": 1,
-        "precio": "mp",
-        "dano": 1.35,
+        "precio": 1,
+        "moneda": "mp",
+        "peso_kg": 1.35,
         "tipo_dano": "arrojadiza",
-        "peso_kg": "1d6",
-        "propiedades": 15
+        "dano": "1d6",
+        "herida": 15,
+        "alcance": "5/20"
       },
       {
         "nombre": "Lanza corta",
-        "tipo": 5,
-        "precio": "mc",
-        "dano": 0.9,
+        "precio": 5,
+        "moneda": "mc",
+        "peso_kg": 0.9,
         "tipo_dano": "arrojadiza",
-        "peso_kg": "1d6",
-        "propiedades": 14
+        "dano": "1d6",
+        "herida": 14,
+        "alcance": "3/35"
       },
       {
         "nombre": "Arco",
-        "tipo": 25,
-        "precio": "mp",
-        "dano": 0.9,
+        "precio": 25,
+        "moneda": "mp",
+        "peso_kg": 0.9,
         "tipo_dano": "distancia",
-        "peso_kg": "1d6",
-        "propiedades": 14
+        "dano": "1d6",
+        "herida": 14,
+        "alcance": "10/100"
       },
       {
         "nombre": "Armas marciales cuerpo a cuerpo",
-        "tipo": null,
         "precio": null,
-        "dano": null,
-        "tipo_dano": null,
+        "moneda": null,
         "peso_kg": null,
-        "propiedades": null
+        "tipo_dano": null,
+        "dano": null,
+        "herida": null,
+        "alcance": null
       },
       {
         "nombre": "Espada",
-        "tipo": 15,
-        "precio": "mp",
-        "dano": 0.9,
+        "precio": 15,
+        "moneda": "mp",
+        "peso_kg": 0.9,
         "tipo_dano": "cortante",
-        "peso_kg": "1d6",
-        "propiedades": 16
+        "dano": "1d6",
+        "herida": 16,
+        "alcance": "C/C"
       },
       {
         "nombre": "Espada corta",
-        "tipo": 10,
-        "precio": "mp",
-        "dano": 0.9,
+        "precio": 10,
+        "moneda": "mp",
+        "peso_kg": 0.9,
         "tipo_dano": "perforante",
-        "peso_kg": "1d6",
-        "propiedades": 14
+        "dano": "1d6",
+        "herida": 14,
+        "alcance": "C/C"
       },
       {
         "nombre": "Espada larga",
-        "tipo": 20,
-        "precio": "mp",
-        "dano": 1.35,
+        "precio": 20,
+        "moneda": "mp",
+        "peso_kg": 1.35,
         "tipo_dano": "cortante",
-        "peso_kg": "1d8",
-        "propiedades": 17
+        "dano": "1d8",
+        "herida": 17,
+        "alcance": "C/C"
       },
       {
         "nombre": "Cimitarra",
-        "tipo": 15,
-        "precio": "mp",
-        "dano": 1.2,
+        "precio": 15,
+        "moneda": "mp",
+        "peso_kg": 1.2,
         "tipo_dano": "cortante",
-        "peso_kg": "1d6",
-        "propiedades": 16
+        "dano": "1d6",
+        "herida": 16,
+        "alcance": "C/C"
       },
       {
         "nombre": "Estoque",
-        "tipo": 15,
-        "precio": "mp",
-        "dano": 1,
+        "precio": 15,
+        "moneda": "mp",
+        "peso_kg": 1,
         "tipo_dano": "perforante",
-        "peso_kg": "1d8",
-        "propiedades": 17
+        "dano": "1d8",
+        "herida": 17,
+        "alcance": "C/C"
       },
       {
         "nombre": "Flajelo",
-        "tipo": 10,
-        "precio": "mp",
-        "dano": 1.5,
+        "precio": 10,
+        "moneda": "mp",
+        "peso_kg": 1.5,
         "tipo_dano": "contundente",
-        "peso_kg": "1d6",
-        "propiedades": 18
+        "dano": "1d6",
+        "herida": 18,
+        "alcance": "C/C"
       },
       {
         "nombre": "Hacha a dos manos",
-        "tipo": 30,
-        "precio": "mp",
-        "dano": 3.5,
+        "precio": 30,
+        "moneda": "mp",
+        "peso_kg": 3.5,
         "tipo_dano": "cortante",
-        "peso_kg": "1d12",
-        "propiedades": 19
+        "dano": "1d12",
+        "herida": 19,
+        "alcance": "C/C"
       },
       {
         "nombre": "Lanza de caballería",
-        "tipo": 20,
-        "precio": "mp",
-        "dano": 3,
+        "precio": 20,
+        "moneda": "mp",
+        "peso_kg": 3,
         "tipo_dano": "perforante",
-        "peso_kg": "1d12",
-        "propiedades": 20
+        "dano": "1d12",
+        "herida": 20,
+        "alcance": "C/C"
       },
       {
         "nombre": "Látigo",
-        "tipo": 10,
-        "precio": "mp",
-        "dano": 1,
+        "precio": 10,
+        "moneda": "mp",
+        "peso_kg": 1,
         "tipo_dano": "cortante",
-        "peso_kg": "1d4",
-        "propiedades": 12
+        "dano": "1d4",
+        "herida": 12,
+        "alcance": "C/C"
       },
       {
         "nombre": "Gran hacha",
-        "tipo": 30,
-        "precio": "mp",
-        "dano": 3.15,
+        "precio": 30,
+        "moneda": "mp",
+        "peso_kg": 3.15,
         "tipo_dano": "cortante",
-        "peso_kg": "1d12",
-        "propiedades": 20
+        "dano": "1d12",
+        "herida": 20,
+        "alcance": "C/C"
       },
       {
         "nombre": "Hacha de guerra",
-        "tipo": 10,
-        "precio": "mp",
-        "dano": 1.8,
+        "precio": 10,
+        "moneda": "mp",
+        "peso_kg": 1.8,
         "tipo_dano": "cortante",
-        "peso_kg": "1d8",
-        "propiedades": 20
+        "dano": "1d8",
+        "herida": 20,
+        "alcance": "C/C"
       },
       {
         "nombre": "Lanza pesada",
-        "tipo": 20,
-        "precio": "mp",
-        "dano": 2.7,
+        "precio": 20,
+        "moneda": "mp",
+        "peso_kg": 2.7,
         "tipo_dano": "perforante",
-        "peso_kg": "1d12",
-        "propiedades": 17
+        "dano": "1d12",
+        "herida": 17,
+        "alcance": "C/C"
       },
       {
         "nombre": "Martillo pesado",
-        "tipo": 10,
-        "precio": "mp",
-        "dano": 1.8,
+        "precio": 10,
+        "moneda": "mp",
+        "peso_kg": 1.8,
         "tipo_dano": "contundente",
-        "peso_kg": "1d8",
-        "propiedades": 18
+        "dano": "1d8",
+        "herida": 18,
+        "alcance": "C/C"
       },
       {
         "nombre": "Piqueta",
-        "tipo": 10,
-        "precio": "mp",
-        "dano": 4.5,
+        "precio": 10,
+        "moneda": "mp",
+        "peso_kg": 4.5,
         "tipo_dano": "perforante",
-        "peso_kg": "1d12",
-        "propiedades": 18
+        "dano": "1d12",
+        "herida": 18,
+        "alcance": "C/C"
       },
       {
         "nombre": "Armas marciales a distancia",
-        "tipo": null,
         "precio": null,
-        "dano": null,
-        "tipo_dano": null,
+        "moneda": null,
         "peso_kg": null,
-        "propiedades": null
+        "tipo_dano": null,
+        "dano": null,
+        "herida": null,
+        "alcance": null
       },
       {
         "nombre": "Arco largo",
-        "tipo": 50,
-        "precio": "mp",
-        "dano": 1.35,
+        "precio": 50,
+        "moneda": "mp",
+        "peso_kg": 1.35,
         "tipo_dano": "distancia",
-        "peso_kg": "1d8",
-        "propiedades": 16
+        "dano": "1d8",
+        "herida": 16,
+        "alcance": "20/180"
       },
       {
         "nombre": "Ballesta",
-        "tipo": 65,
-        "precio": "mp",
-        "dano": 4.5,
+        "precio": 65,
+        "moneda": "mp",
+        "peso_kg": 4.5,
         "tipo_dano": "distancia",
-        "peso_kg": "1d10",
-        "propiedades": 16
+        "dano": "1d10",
+        "herida": 16,
+        "alcance": "10/150"
       }
     ],
-    "armaduras": []
+    "armaduras": [
+      {
+        "nombre": "Coleto de cuero",
+        "precio": 10,
+        "moneda": "mp",
+        "clase_armadura": 3.6,
+        "peso_kg": "1 + mod. Des. (máx. 4)",
+        "requisito_fuerza": 11,
+        "desventaja_sigilo": null
+      },
+      {
+        "nombre": "Jubón reforzado de cuero",
+        "precio": 45,
+        "moneda": "mp",
+        "clase_armadura": 4.5,
+        "peso_kg": "2 + mod. Des. (máx. 3)",
+        "requisito_fuerza": 12,
+        "desventaja_sigilo": null
+      },
+      {
+        "nombre": "Armaduras medias",
+        "precio": null,
+        "moneda": null,
+        "clase_armadura": null,
+        "peso_kg": null,
+        "requisito_fuerza": null,
+        "desventaja_sigilo": null
+      },
+      {
+        "nombre": "Pieles",
+        "precio": 10,
+        "moneda": "mp",
+        "clase_armadura": 5.4,
+        "peso_kg": "2 + mod. Des. (máx. 2)",
+        "requisito_fuerza": 12,
+        "desventaja_sigilo": null
+      },
+      {
+        "nombre": "Camisote de mallas",
+        "precio": 50,
+        "moneda": "mp",
+        "clase_armadura": 9,
+        "peso_kg": "3 + mod. Des. (máx. 2)",
+        "requisito_fuerza": 13,
+        "desventaja_sigilo": null
+      },
+      {
+        "nombre": "Armadura de escamas",
+        "precio": 50,
+        "moneda": "mp",
+        "clase_armadura": 18,
+        "peso_kg": "4 + mod. Des. (máx. 2)",
+        "requisito_fuerza": 14,
+        "desventaja_sigilo": "Desventaja"
+      },
+      {
+        "nombre": "Armaduras pesadas",
+        "precio": null,
+        "moneda": null,
+        "clase_armadura": null,
+        "peso_kg": null,
+        "requisito_fuerza": null,
+        "desventaja_sigilo": null
+      },
+      {
+        "nombre": "Cota de anillas",
+        "precio": 50,
+        "moneda": "mp",
+        "clase_armadura": 22.5,
+        "peso_kg": 5,
+        "requisito_fuerza": 15,
+        "desventaja_sigilo": "Desventaja"
+      },
+      {
+        "nombre": "Cota de mallas",
+        "precio": 75,
+        "moneda": "mp",
+        "clase_armadura": 24.75,
+        "peso_kg": 6,
+        "requisito_fuerza": 16,
+        "desventaja_sigilo": "Desventaja"
+      },
+      {
+        "nombre": "Loriga de mallas",
+        "precio": 2,
+        "moneda": "mo",
+        "clase_armadura": 27,
+        "peso_kg": 7,
+        "requisito_fuerza": 17,
+        "desventaja_sigilo": "Desventaja"
+      },
+      {
+        "nombre": "Escudos",
+        "precio": null,
+        "moneda": null,
+        "clase_armadura": null,
+        "peso_kg": null,
+        "requisito_fuerza": null,
+        "desventaja_sigilo": null
+      },
+      {
+        "nombre": "Escudo",
+        "precio": 10,
+        "moneda": "mp",
+        "clase_armadura": 2.7,
+        "peso_kg": 2,
+        "requisito_fuerza": 2,
+        "desventaja_sigilo": null
+      }
+    ]
   },
   "artes": [
     {
