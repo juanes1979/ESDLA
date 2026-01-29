@@ -77,10 +77,21 @@ Comprehensive web application for playing a modified "Lord of the Rings 5e" tabl
 #### Features Working
 - ✅ 9-step wizard navigation
 - ✅ Culture category filtering (Elfos, Enanos, Hombres, Hobbits)
-- ✅ Automatic name generator based on culture
+- ✅ Automatic name generator based on culture (genera nombre al seleccionar cultura)
 - ✅ Physical attributes auto-generated from culture (age, height, weight)
 - ✅ Characteristic modifiers applied from culture
+- ✅ Standard array, point buy, and random roll methods for attributes
+- ✅ Reroll button works for random attributes
+- ✅ Character sheet page with HP/Shadow tracking
+- ✅ Draft list and continue draft functionality
 - ✅ All data fetched from MongoDB via API
+
+#### Bug Fixes Applied (Dec 2025)
+- Fixed: Name field no longer mandatory - auto-generates when culture selected
+- Fixed: Standard array now correctly removes used values
+- Fixed: Reroll button generates new random values each time
+- Fixed: Added padding to avoid Emergent banner overlapping buttons
+- Changed: "TIERRAS MEDIAS" → "ESDLA", "5E EDITION" → "5e Mod"
 
 #### Test Results (iteration_1.json)
 - Backend: 100% (18/18 tests passed)
