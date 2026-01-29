@@ -133,24 +133,35 @@ async def seed_backgrounds(db, data: dict, culture_id_map: dict):
 
 
 async def seed_occupations(db, data: dict):
-    """Seed occupations collection"""
+    """Seed occupations collection with full weapon/armor/skill selection data"""
     occupations = data.get('ocupaciones', [])
     documents = []
     
     for occ in occupations:
         doc = {
             "_id": generate_id(),
-            "tipo": occ['tipo'],
             "vocacion": occ['vocacion'],
+            "columna_excel": occ.get('columna_excel'),
             "dado_golpe": occ.get('dado_golpe'),
             "puntos_golpe_nivel1": int(occ['puntos_golpe_nivel1']) if occ.get('puntos_golpe_nivel1') else None,
             "caracteristicas_principales": occ.get('caracteristicas_principales', []),
             "competencia_tiradas_salvacion": occ.get('competencia_tiradas_salvacion', []),
-            "habilidades_disponibles": occ.get('habilidades_disponibles', []),
-            "num_habilidades_elegir": 2,
-            "competencia_armaduras": occ.get('competencia_armaduras', []),
-            "competencia_armas": occ.get('competencia_armas', []),
-            "rasgos_por_nivel": [],
+            
+            # Habilidades a elegir
+            "habilidades": occ.get('habilidades', {}),
+            
+            # Armadura con opciones A/B
+            "armadura": occ.get('armadura', {}),
+            
+            # Herramientas a elegir
+            "herramientas": occ.get('herramientas', {}),
+            
+            # Armas (múltiples preguntas/bloques)
+            "armas": occ.get('armas', []),
+            
+            # Pericia (solo Buscador de tesoros)
+            "pericia": occ.get('pericia'),
+            
             "created_at": now_utc(),
             "updated_at": now_utc(),
         }
