@@ -128,15 +128,15 @@ class TestCharacterCreationFlowElfosLindon:
         elfos_lindon = next((c for c in cultures if c["nombre"] == "Elfos de Lindon"), None)
         assert elfos_lindon is not None
         
-        # Create draft
-        response = requests.post(f"{BASE_URL}/api/characters/drafts")
+        # Create draft (endpoint is /draft singular)
+        response = requests.post(f"{BASE_URL}/api/characters/draft")
         assert response.status_code == 200
         draft = response.json()
         draft_id = draft["id"]
         
         # Step 1: Set culture
         response = requests.put(
-            f"{BASE_URL}/api/characters/drafts/{draft_id}/step1",
+            f"{BASE_URL}/api/characters/draft/{draft_id}/step1",
             json={"cultura_id": elfos_lindon["id"]}
         )
         assert response.status_code == 200
@@ -145,7 +145,7 @@ class TestCharacterCreationFlowElfosLindon:
         assert draft["nivel_vida"] == "Frugal"
         
         # Cleanup
-        requests.delete(f"{BASE_URL}/api/characters/drafts/{draft_id}")
+        requests.delete(f"{BASE_URL}/api/characters/draft/{draft_id}")
     
     def test_elfos_lindon_backgrounds_have_rasgos(self):
         """Verify Elfos de Lindon backgrounds have rasgos"""
@@ -247,22 +247,22 @@ class TestFullCharacterCreationWithRasgos:
         occupations = response.json()["occupations"]
         occupation = occupations[0]
         
-        # Create draft
-        response = requests.post(f"{BASE_URL}/api/characters/drafts")
+        # Create draft (endpoint is /draft singular)
+        response = requests.post(f"{BASE_URL}/api/characters/draft")
         assert response.status_code == 200
         draft_id = response.json()["id"]
         
         try:
             # Step 1: Culture
             response = requests.put(
-                f"{BASE_URL}/api/characters/drafts/{draft_id}/step1",
+                f"{BASE_URL}/api/characters/draft/{draft_id}/step1",
                 json={"cultura_id": elfos_lindon["id"]}
             )
             assert response.status_code == 200
             
             # Step 2: Background
             response = requests.put(
-                f"{BASE_URL}/api/characters/drafts/{draft_id}/step2",
+                f"{BASE_URL}/api/characters/draft/{draft_id}/step2",
                 json={"trasfondo_id": bg_with_rasgos["id"]}
             )
             assert response.status_code == 200
@@ -274,14 +274,14 @@ class TestFullCharacterCreationWithRasgos:
             
             # Step 3: Occupation
             response = requests.put(
-                f"{BASE_URL}/api/characters/drafts/{draft_id}/step3",
+                f"{BASE_URL}/api/characters/draft/{draft_id}/step3",
                 json={"ocupacion_id": occupation["id"]}
             )
             assert response.status_code == 200
             
             # Step 4: Attributes (use default point buy)
             response = requests.put(
-                f"{BASE_URL}/api/characters/drafts/{draft_id}/step4",
+                f"{BASE_URL}/api/characters/draft/{draft_id}/step4",
                 json={
                     "fuerza": 10,
                     "destreza": 10,
@@ -295,14 +295,14 @@ class TestFullCharacterCreationWithRasgos:
             
             # Step 5: Skills (skip for now, use defaults)
             response = requests.put(
-                f"{BASE_URL}/api/characters/drafts/{draft_id}/step5",
+                f"{BASE_URL}/api/characters/draft/{draft_id}/step5",
                 json={"habilidades_elegidas": []}
             )
             assert response.status_code == 200
             
             # Step 6: Name
             response = requests.put(
-                f"{BASE_URL}/api/characters/drafts/{draft_id}/step6",
+                f"{BASE_URL}/api/characters/draft/{draft_id}/step6",
                 json={
                     "nombre": "TEST_Elrohir",
                     "genero": "Hombre",
@@ -315,7 +315,7 @@ class TestFullCharacterCreationWithRasgos:
             
             # Step 7: Equipment
             response = requests.put(
-                f"{BASE_URL}/api/characters/drafts/{draft_id}/step7",
+                f"{BASE_URL}/api/characters/draft/{draft_id}/step7",
                 json={
                     "inventario": [],
                     "dinero": {"mp": 15, "mo": 0, "mc": 0}
@@ -325,7 +325,7 @@ class TestFullCharacterCreationWithRasgos:
             
             # Step 8: Details (rasgo_distintivo comes from background)
             response = requests.put(
-                f"{BASE_URL}/api/characters/drafts/{draft_id}/step9",
+                f"{BASE_URL}/api/characters/draft/{draft_id}/step9",
                 json={
                     "rasgo_distintivo": bg_with_rasgos["rasgo_distintivo"],
                     "historia": "Test character history"
@@ -334,7 +334,7 @@ class TestFullCharacterCreationWithRasgos:
             assert response.status_code == 200
             
             # Finalize
-            response = requests.post(f"{BASE_URL}/api/characters/drafts/{draft_id}/finalize")
+            response = requests.post(f"{BASE_URL}/api/characters/draft/{draft_id}/finalize")
             assert response.status_code == 200
             
             character = response.json()
@@ -347,7 +347,7 @@ class TestFullCharacterCreationWithRasgos:
             
         finally:
             # Cleanup draft if still exists
-            requests.delete(f"{BASE_URL}/api/characters/drafts/{draft_id}")
+            requests.delete(f"{BASE_URL}/api/characters/draft/{draft_id}")
 
 
 if __name__ == "__main__":
