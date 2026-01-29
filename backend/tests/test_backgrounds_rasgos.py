@@ -134,10 +134,13 @@ class TestCharacterCreationFlowElfosLindon:
         draft = response.json()
         draft_id = draft["id"]
         
-        # Step 1: Set culture (use PATCH not PUT)
+        # Step 1: Set culture (use PATCH not PUT) - requires nombre field
         response = requests.patch(
             f"{BASE_URL}/api/characters/draft/{draft_id}/step1",
-            json={"cultura_id": elfos_lindon["id"]}
+            json={
+                "nombre": "TEST_ElfLindon",
+                "cultura_id": elfos_lindon["id"]
+            }
         )
         assert response.status_code == 200
         draft = response.json()
@@ -253,10 +256,13 @@ class TestFullCharacterCreationWithRasgos:
         draft_id = response.json()["id"]
         
         try:
-            # Step 1: Culture (use PATCH not PUT)
+            # Step 1: Culture (use PATCH not PUT) - requires nombre field
             response = requests.patch(
                 f"{BASE_URL}/api/characters/draft/{draft_id}/step1",
-                json={"cultura_id": elfos_lindon["id"]}
+                json={
+                    "nombre": "TEST_Elrohir",
+                    "cultura_id": elfos_lindon["id"]
+                }
             )
             assert response.status_code == 200
             
@@ -300,7 +306,7 @@ class TestFullCharacterCreationWithRasgos:
             )
             assert response.status_code == 200
             
-            # Step 6: Name
+            # Step 6: Name - already set in step1, but update if needed
             response = requests.patch(
                 f"{BASE_URL}/api/characters/draft/{draft_id}/step6",
                 json={
@@ -323,7 +329,7 @@ class TestFullCharacterCreationWithRasgos:
             )
             assert response.status_code == 200
             
-            # Step 8: Details (rasgo_distintivo comes from background)
+            # Step 8/9: Details (rasgo_distintivo comes from background)
             response = requests.patch(
                 f"{BASE_URL}/api/characters/draft/{draft_id}/step9",
                 json={
