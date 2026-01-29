@@ -95,9 +95,14 @@ export const CharacterCreatorWizard = () => {
   // Navigate to previous step
   const handleBack = useCallback(() => {
     if (currentStep > 1) {
-      setCurrentStep(currentStep - 1);
+      let prevStep = currentStep - 1;
+      // Si estamos en paso 6 y la cultura NO obtiene virtud, volvemos al paso 4
+      if (currentStep === 6 && !cultureGetsVirtue(draft?.cultura_nombre)) {
+        prevStep = 4;
+      }
+      setCurrentStep(prevStep);
     }
-  }, [currentStep]);
+  }, [currentStep, cultureGetsVirtue, draft?.cultura_nombre]);
 
   // Finalize character
   const handleFinalize = useCallback(async () => {
@@ -142,18 +147,32 @@ export const CharacterCreatorWizard = () => {
       case 4:
         return <Step4Attributes {...commonProps} />;
       case 5:
-        return <Step5Virtue {...commonProps} />;
+        // Solo se muestra si la cultura tiene virtud
+        if (cultureGetsVirtue(draft?.cultura_nombre)) {
+          return <Step5Virtue {...commonProps} />;
+        }
+        // Si no, saltamos automáticamente
+        return <Step6Skills {...commonProps} />;
       case 6:
         return <Step6Skills {...commonProps} />;
       case 7:
         return <Step7Equipment {...commonProps} />;
       case 8:
-        return <Step8Patron {...commonProps} />;
-      case 9:
-        return <Step9Details {...commonProps} />;
+        return <Step8Details {...commonProps} />;
       default:
         return null;
     }
+  };
+
+  // Get visible steps for indicator (filter out conditional if not applicable)
+  const getVisibleSteps = () => {
+    if (!draft?.cultura_nombre) return STEPS;
+    if (cultureGetsVirtue(draft.cultura_nombre)) return STEPS;
+    // Filter out virtue step for cultures that don't get it
+    return STEPS.filter(s => s.num !== 5).map((s, i) => ({
+      ...s,
+      num: i + 1 // Renumber
+    }));
   };
 
   if (loading && !draft) {
