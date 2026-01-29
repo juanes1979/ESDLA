@@ -2504,8 +2504,8 @@
   ],
   "ocupaciones": [
     {
-      "tipo": "Explorador",
       "vocacion": "Buscador de tesoros",
+      "columna_excel": 2,
       "dado_golpe": "1d8",
       "puntos_golpe_nivel1": 8,
       "caracteristicas_principales": [
@@ -2515,14 +2515,122 @@
         "DESTREZA",
         "INTELIGENCIA"
       ],
-      "habilidades_disponibles": [],
-      "competencia_armaduras": [],
-      "competencia_armas": [],
-      "rasgos_por_nivel": {}
+      "habilidades": {
+        "pregunta": "La ocupación elegida durante tu preparación, te ha otorgado unas habilidades relacionadas para poder ejercer tu vocación. Elige la que más te cuadre con tu personaje:",
+        "cantidad": 4,
+        "opciones": [
+          "Acertijos (Int)",
+          "Acrobacias (Des)",
+          "Atletismo (Fue)",
+          "Engaño (Car)",
+          "Investigación (Int)",
+          "Juego de manos (Des)",
+          "Percepción (Sab)",
+          "Perspicacia (Sab)",
+          "Persuasión (Car)",
+          "Saber antiguo (Int)",
+          "Sigilo (Des)",
+          "Viajar (Sab)"
+        ]
+      },
+      "armadura": {
+        "pregunta": "Durante tu preparación te has provisto de un pequeño equipo de protección. Elige el que más te convenga:",
+        "opcion_a": [
+          "Coleto de cuero"
+        ],
+        "opcion_b": [
+          "Coleto de cuero"
+        ]
+      },
+      "herramientas": {
+        "pregunta": "Has reunido unas herramientas en el pasar de tu juventud, ¿Cuáles?",
+        "cantidad": 1,
+        "opciones": [
+          "Herramientas de alfarería",
+          "Herramientas de cantería",
+          "Herramientas de cartografía",
+          "Herramientas de herrería",
+          "Herramientas de joyería",
+          "Herramientas de marroquinería",
+          "Herramientas de soplado de vidrio",
+          "Herramientas de tallar madera",
+          "Herramientas de tejeduría",
+          "Herramientas de zapatería",
+          "Suministros de caligrafía",
+          "Suministros de carpintería",
+          "Suministros de cervecería",
+          "Suministros de pintura"
+        ]
+      },
+      "armas": [
+        {
+          "numero": 1,
+          "pregunta": "Armas… siempre a punto para la aventura. Elige una de estas:",
+          "cantidad": 1,
+          "opciones": [
+            "Bastón",
+            "Garrote",
+            "Maza",
+            "Hacha pequeña",
+            "Martillo",
+            "Daga"
+          ],
+          "tipo": "simple"
+        },
+        {
+          "numero": 2,
+          "pregunta": "Que bonito es el reflejo de la luna en una buena espada… ¿Qué te gusta más, una espada corta sutil y ligera o una normal para ser también sutil o además versátil a dos manos?",
+          "cantidad": 1,
+          "opciones": [
+            "Espada corta",
+            "Espada"
+          ],
+          "tipo": "simple"
+        },
+        {
+          "numero": 3,
+          "pregunta": "Elige entre (A) un arco y un carcaj con 20 flechas o (B) un arma sencilla cuerpo a cuerpo",
+          "tipo": "ab",
+          "opcion_a": [
+            "Arco",
+            "Carcaj",
+            "Flecha (20)"
+          ],
+          "opcion_b": [
+            "Bastón",
+            "Garrote",
+            "Maza",
+            "Hacha",
+            "Martillo",
+            "Daga"
+          ],
+          "cantidad_b": 1
+        }
+      ],
+      "pericia": {
+        "descripcion": "Tu bonificador por competencia se duplica para cualquier prueba de aptitud que realices utilizando cualquiera de las competencias elegidas. A nivel 9, puedes elegir otras dos competencias (con habilidades o herramientas) en las que obtener este beneficio.",
+        "cantidad": 2,
+        "opciones": [
+          "Acertijos (Int)",
+          "Acrobacias (Des)",
+          "Atletismo (Fue)",
+          "Engaño (Car)",
+          "Explorar (Sab)",
+          "Interpretación (Car)",
+          "Intimidación (Car)",
+          "Investigación (Int)",
+          "Juego de manos (Des)",
+          "Medicina (Int)",
+          "Naturaleza (Int)",
+          "Percepción (Sab)",
+          "Perspicacia (Sab)",
+          "Persuasión (Car)"
+        ]
+      }
     },
     {
-      "tipo": "Guerrero",
       "vocacion": "Campeón",
+      "columna_excel": 3,
       "dado_golpe": "1d10",
       "puntos_golpe_nivel1": 10,
       "caracteristicas_principales": [
@@ -2533,14 +2641,94 @@
         "FUERZA",
         "CONSTITUCIÓN"
       ],
-      "habilidades_disponibles": [],
-      "competencia_armaduras": [],
-      "competencia_armas": [],
-      "rasgos_por_nivel": {}
+      "habilidades": {
+        "pregunta": "La ocupación elegida durante tu preparación, te ha otorgado unas habilidades relacionadas para poder ejercer tu vocación. Elige la que más te cuadre con tu personaje:",
+        "cantidad": 2,
+        "opciones": [
+          "Acrobacias (Des)",
+          "Atletismo (Fue)",
+          "Cazar (Sab)",
+          "Intimidación (Car)",
+          "Percepción (Sab)",
+          "Trato con animales (Sab)"
+        ]
+      },
+      "armadura": {
+        "pregunta": "Durante tu preparación te has provisto de un pequeño equipo de protección. Elige el que más te convenga:",
+        "opcion_a": [
+          "Cota de anillas",
+          "Pieles"
+        ],
+        "opcion_b": [
+          "Coleto de cuero",
+          "Arco largo",
+          "Carcaj",
+          "Flechas (20)"
+        ]
+      },
+      "herramientas": {
+        "pregunta": "Has reunido unas herramientas en el pasar de tu juventud, ¿Cuáles?",
+        "cantidad": 0,
+        "opciones": []
+      },
+      "armas": [
+        {
+          "numero": 1,
+          "pregunta": "Armas… siempre a punto para la aventura. Elige una de estas:",
+          "cantidad": 0,
+          "opciones": [],
+          "tipo": "simple"
+        },
+        {
+          "numero": 2,
+          "pregunta": "Que bonito es el reflejo de la luna en una buena espada… ¿Qué te gusta más, una espada corta sutil y ligera o una normal para ser también sutil o además versátil a dos manos?",
+          "cantidad": 0,
+          "opciones": [],
+          "tipo": "simple"
+        },
+        {
+          "numero": 3,
+          "pregunta": "Elige entre (A) un arco y un carcaj con 20 flechas o (B) dos armas sencillas cuerpo a cuerpo",
+          "tipo": "ab",
+          "opcion_a": [
+            "Arco",
+            "Carcaj",
+            "Flecha (20)"
+          ],
+          "opcion_b": [
+            "Bastón",
+            "Garrote",
+            "Maza",
+            "Hacha",
+            "Martillo",
+            "Daga"
+          ],
+          "cantidad_b": 2
+        },
+        {
+          "numero": 4,
+          "pregunta": "Elige entre (A) un arma marcial cuerpo a cuerpo y un escudo o (B) un arma marcial cuerpo a cuerpo y un arma sencilla cuerpo a cuerpo",
+          "cantidad": "A",
+          "opciones": [
+            "Espada",
+            "Espada corta",
+            "Espada larga",
+            "Gran hacha",
+            "Hacha de guerra",
+            "Lanza pesada",
+            "Martillo pesado",
+            "Piqueta",
+            "Incluyendo",
+            "Escudo"
+          ],
+          "tipo": "simple"
+        }
+      ],
+      "pericia": null
     },
     {
-      "tipo": "Lider",
       "vocacion": "Capitán",
+      "columna_excel": 4,
       "dado_golpe": "1d10",
       "puntos_golpe_nivel1": 10,
       "caracteristicas_principales": [
@@ -2551,14 +2739,92 @@
         "CONSTITUCIÓN",
         "CARISMA"
       ],
-      "habilidades_disponibles": [],
-      "competencia_armaduras": [],
-      "competencia_armas": [],
-      "rasgos_por_nivel": {}
+      "habilidades": {
+        "pregunta": "La ocupación elegida durante tu preparación, te ha otorgado unas habilidades relacionadas para poder ejercer tu vocación. Elige la que más te cuadre con tu personaje:",
+        "cantidad": 2,
+        "opciones": [
+          "Atletismo (Fue)",
+          "Intimidación (Car)",
+          "Perspicacia (Sab)",
+          "Persuasión (Car)",
+          "Trato con animales (Sab)",
+          "Viajar (Sab)"
+        ]
+      },
+      "armadura": {
+        "pregunta": "Durante tu preparación te has provisto de un pequeño equipo de protección. Elige el que más te convenga:",
+        "opcion_a": [
+          "Cota de anillas"
+        ],
+        "opcion_b": [
+          "Pieles"
+        ]
+      },
+      "herramientas": {
+        "pregunta": "Has reunido unas herramientas en el pasar de tu juventud, ¿Cuáles?",
+        "cantidad": 0,
+        "opciones": []
+      },
+      "armas": [
+        {
+          "numero": 1,
+          "pregunta": "Armas… siempre a punto para la aventura. Elige una de estas:",
+          "cantidad": 0,
+          "opciones": [],
+          "tipo": "simple"
+        },
+        {
+          "numero": 2,
+          "pregunta": "Que bonito es el reflejo de la luna en una buena espada… ¿Qué te gusta más, una espada corta sutil y ligera o una normal para ser también sutil o además versátil a dos manos?",
+          "cantidad": 0,
+          "opciones": [],
+          "tipo": "simple"
+        },
+        {
+          "numero": 3,
+          "pregunta": "Elige entre (A) un arco y un carcaj con 20 flechas o (B) dos armas sencillas cuerpo a cuerpo",
+          "tipo": "ab",
+          "opcion_a": [
+            "Arco",
+            "Carcaj",
+            "Flecha (20)"
+          ],
+          "opcion_b": [
+            "Bastón",
+            "Garrote",
+            "Maza",
+            "Hacha",
+            "Martillo",
+            "Daga"
+          ],
+          "cantidad_b": 2
+        },
+        {
+          "numero": 5,
+          "pregunta": "Elige entre (A) un arma marcial cuerpo a cuerpo y un escudo o (B) un arma marcial cuerpo a cuerpo y un arma sencilla cuerpo a cuerpo",
+          "cantidad": "A",
+          "opciones": [
+            "Espada",
+            "Espada corta",
+            "Espada larga",
+            "Cimitarra",
+            "Estoque",
+            "Flajelo",
+            "Hacha a dos manos",
+            "Lanza de caballería",
+            "Látigo",
+            "Gran hacha",
+            "Hacha de guerra",
+            "Lanza pesada"
+          ],
+          "tipo": "simple"
+        }
+      ],
+      "pericia": null
     },
     {
-      "tipo": "Maestro",
       "vocacion": "Erudito",
+      "columna_excel": 5,
       "dado_golpe": "1d8",
       "puntos_golpe_nivel1": 8,
       "caracteristicas_principales": [
@@ -2569,14 +2835,74 @@
         "INTELIGENCIA",
         "SABIDURÍA"
       ],
-      "habilidades_disponibles": [],
-      "competencia_armaduras": [],
-      "competencia_armas": [],
-      "rasgos_por_nivel": {}
+      "habilidades": {
+        "pregunta": "La ocupación elegida durante tu preparación, te ha otorgado unas habilidades relacionadas para poder ejercer tu vocación. Elige la que más te cuadre con tu personaje:",
+        "cantidad": 3,
+        "opciones": [
+          "Acertijos (Int)",
+          "Interpretación (Car)",
+          "Investigación (Int)",
+          "Medicina (Int)",
+          "Naturaleza (Int)",
+          "Perspicacia (Sab)",
+          "Saber antiguo (Int)",
+          "Trato con animales (Sab)",
+          "Viajar (Sab)"
+        ]
+      },
+      "armadura": {
+        "pregunta": "Durante tu preparación te has provisto de un pequeño equipo de protección. Elige el que más te convenga:",
+        "opcion_a": [],
+        "opcion_b": []
+      },
+      "herramientas": {
+        "pregunta": "Has reunido unas herramientas en el pasar de tu juventud, ¿Cuáles?",
+        "cantidad": 2,
+        "opciones": [
+          "Herramientas de alfarería",
+          "Herramientas de cantería",
+          "Herramientas de cartografía",
+          "Herramientas de herrería",
+          "Herramientas de joyería",
+          "Herramientas de marroquinería",
+          "Herramientas de soplado de vidrio",
+          "Herramientas de tallar madera",
+          "Herramientas de tejeduría",
+          "Herramientas de zapatería",
+          "Suministros de caligrafía",
+          "Suministros de carpintería",
+          "Suministros de cervecería",
+          "Suministros de pintura"
+        ]
+      },
+      "armas": [
+        {
+          "numero": 1,
+          "pregunta": "Armas… siempre a punto para la aventura. Elige una de estas:",
+          "cantidad": 1,
+          "opciones": [
+            "Bastón",
+            "Garrote",
+            "Maza",
+            "Hacha pequeña",
+            "Martillo",
+            "Daga"
+          ],
+          "tipo": "simple"
+        },
+        {
+          "numero": 2,
+          "pregunta": "Que bonito es el reflejo de la luna en una buena espada… ¿Qué te gusta más, una espada corta sutil y ligera o una normal para ser también sutil o además versátil a dos manos?",
+          "cantidad": 0,
+          "opciones": [],
+          "tipo": "simple"
+        }
+      ],
+      "pericia": null
     },
     {
-      "tipo": "Protector",
       "vocacion": "Guardian",
+      "columna_excel": 6,
       "dado_golpe": "1d10",
       "puntos_golpe_nivel1": 10,
       "caracteristicas_principales": [
@@ -2587,14 +2913,93 @@
         "FUERZA",
         "SABIDURÍA"
       ],
-      "habilidades_disponibles": [],
-      "competencia_armaduras": [],
-      "competencia_armas": [],
-      "rasgos_por_nivel": {}
+      "habilidades": {
+        "pregunta": "La ocupación elegida durante tu preparación, te ha otorgado unas habilidades relacionadas para poder ejercer tu vocación. Elige la que más te cuadre con tu personaje:",
+        "cantidad": 3,
+        "opciones": [
+          "Atletismo (Fue)",
+          "Cazar (Sab)",
+          "Explorar (Sab)",
+          "Investigación (Int)",
+          "Naturaleza (Int)",
+          "Perspicacia (Sab)",
+          "Percepción (Sab)",
+          "Trato con animales (Sab)",
+          "Viajar (Sab)"
+        ]
+      },
+      "armadura": {
+        "pregunta": "Durante tu preparación te has provisto de un pequeño equipo de protección. Elige el que más te convenga:",
+        "opcion_a": [
+          "Coleto de cuero"
+        ],
+        "opcion_b": [
+          "Pieles"
+        ]
+      },
+      "herramientas": {
+        "pregunta": "Has reunido unas herramientas en el pasar de tu juventud, ¿Cuáles?",
+        "cantidad": 0,
+        "opciones": []
+      },
+      "armas": [
+        {
+          "numero": 1,
+          "pregunta": "Armas… siempre a punto para la aventura. Elige una de estas:",
+          "cantidad": 0,
+          "opciones": [],
+          "tipo": "simple"
+        },
+        {
+          "numero": 2,
+          "pregunta": "Que bonito es el reflejo de la luna en una buena espada… ¿Qué te gusta más, una espada corta sutil y ligera o una normal para ser también sutil o además versátil a dos manos?",
+          "cantidad": 0,
+          "opciones": [],
+          "tipo": "simple"
+        },
+        {
+          "numero": 3,
+          "pregunta": "Elige entre (A) un arco y un carcaj con 20 flechas o (B) dos armas sencillas cuerpo a cuerpo",
+          "tipo": "ab",
+          "opcion_a": [
+            "Arco largo",
+            "Carcaj",
+            "Flecha (20)"
+          ],
+          "opcion_b": [
+            "Bastón",
+            "Garrote",
+            "Maza",
+            "Hacha",
+            "Martillo",
+            "Daga"
+          ],
+          "cantidad_b": 2
+        },
+        {
+          "numero": 4,
+          "pregunta": "Elige entre (A) un arma marcial cuerpo a cuerpo y un escudo o (B) un arma marcial cuerpo a cuerpo y un arma sencilla cuerpo a cuerpo",
+          "cantidad": "A",
+          "opciones": [
+            "Espada",
+            "Espada corta",
+            "Espada larga",
+            "Gran hacha",
+            "Hacha de guerra",
+            "Lanza pesada",
+            "Martillo pesado",
+            "Piqueta",
+            "Incluyendo",
+            "Escudo"
+          ],
+          "tipo": "simple"
+        }
+      ],
+      "pericia": null
     },
     {
-      "tipo": "Trotamundos",
       "vocacion": "Mensajero",
+      "columna_excel": 7,
       "dado_golpe": "1d8",
       "puntos_golpe_nivel1": 8,
       "caracteristicas_principales": [
@@ -2605,10 +3010,82 @@
         "DESTREZA",
         "CARISMA"
       ],
-      "habilidades_disponibles": [],
-      "competencia_armaduras": [],
-      "competencia_armas": [],
-      "rasgos_por_nivel": {}
+      "habilidades": {
+        "pregunta": "La ocupación elegida durante tu preparación, te ha otorgado unas habilidades relacionadas para poder ejercer tu vocación. Elige la que más te cuadre con tu personaje:",
+        "cantidad": 4,
+        "opciones": [
+          "Acertijos (Int)",
+          "Cazar (Sab)",
+          "Explorar (Sab)",
+          "Interpretación (Car)",
+          "Intimidación (Car)",
+          "Percepción (Sab)",
+          "Perspicacia (Sab)",
+          "Persuasión (Car)",
+          "Saber antiguo (Int)",
+          "Sigilo (Des)",
+          "Trato con animales (Sab)",
+          "Viajar (Sab)"
+        ]
+      },
+      "armadura": {
+        "pregunta": "Durante tu preparación te has provisto de un pequeño equipo de protección. Elige el que más te convenga:",
+        "opcion_a": [
+          "Coleto de cuero"
+        ],
+        "opcion_b": [
+          "Arco largo",
+          "Carcaj",
+          "Flechas (20)"
+        ]
+      },
+      "herramientas": {
+        "pregunta": "Has reunido unas herramientas en el pasar de tu juventud, ¿Cuáles?",
+        "cantidad": 1,
+        "opciones": [
+          "Herramientas de alfarería",
+          "Herramientas de cantería",
+          "Herramientas de cartografía",
+          "Herramientas de herrería",
+          "Herramientas de joyería",
+          "Herramientas de marroquinería",
+          "Herramientas de soplado de vidrio",
+          "Herramientas de tallar madera",
+          "Herramientas de tejeduría",
+          "Herramientas de zapatería",
+          "Suministros de caligrafía",
+          "Suministros de carpintería",
+          "Suministros de cervecería",
+          "Suministros de pintura"
+        ]
+      },
+      "armas": [
+        {
+          "numero": 1,
+          "pregunta": "Armas… siempre a punto para la aventura. Elige una de estas:",
+          "cantidad": 1,
+          "opciones": [
+            "Bastón",
+            "Garrote",
+            "Maza",
+            "Hacha pequeña",
+            "Martillo",
+            "Daga"
+          ],
+          "tipo": "simple"
+        },
+        {
+          "numero": 2,
+          "pregunta": "Que bonito es el reflejo de la luna en una buena espada… ¿Qué te gusta más, una espada corta sutil y ligera o una normal para ser también sutil o además versátil a dos manos?",
+          "cantidad": 1,
+          "opciones": [
+            "Espada corta",
+            "Espada"
+          ],
+          "tipo": "simple"
+        }
+      ],
+      "pericia": null
     }
   ],
   "virtudes": [
