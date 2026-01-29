@@ -1,8 +1,8 @@
 /**
- * Step 1: Culture Selection with Name Generator
+ * Step 1: Culture Selection with Auto Name Generator
  */
 import { useState, useEffect } from 'react';
-import { Loader2, Shuffle, User, ChevronDown } from 'lucide-react';
+import { Loader2, Shuffle } from 'lucide-react';
 import { getCultures, getCultureNames, updateDraftStep1, generateRandomName } from '@/services/api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -52,20 +52,25 @@ const Step1Culture = ({ draftId, draft, onComplete, onBack }) => {
     loadCultures();
   }, []);
 
-  // Load name data when culture changes
+  // Load name data and auto-generate name when culture changes
   useEffect(() => {
-    const loadNameData = async () => {
+    const loadNameDataAndGenerateName = async () => {
       if (!selectedCulture) return;
       try {
         const data = await getCultureNames(selectedCulture.nombre);
         setNameData(data);
+        // Auto-generate name when culture is selected
+        if (data && !characterName) {
+          const name = generateRandomName(data, gender);
+          if (name) setCharacterName(name);
+        }
       } catch (err) {
         console.error('Error loading names:', err);
         setNameData(null);
       }
     };
-    loadNameData();
-  }, [selectedCulture]);
+    loadNameDataAndGenerateName();
+  }, [selectedCulture]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Filter cultures by category
   const filteredCultures = selectedCategory
@@ -80,10 +85,20 @@ const Step1Culture = ({ draftId, draft, onComplete, onBack }) => {
     }
   };
 
+  // Regenerate name when gender changes
+  const handleGenderChange = (newGender) => {
+    setGender(newGender);
+    if (nameData) {
+      const name = generateRandomName(nameData, newGender);
+      if (name) setCharacterName(name);
+    }
+  };
+
   // Handle category selection
   const handleCategorySelect = (categoryId) => {
     setSelectedCategory(categoryId);
     setSelectedCulture(null);
+    setCharacterName(''); // Reset name when changing category
   };
 
   // Handle culture selection
@@ -91,14 +106,23 @@ const Step1Culture = ({ draftId, draft, onComplete, onBack }) => {
     setSelectedCulture(culture);
   };
 
-  // Handle submit
+  // Handle submit - name will be auto-generated if empty
   const handleSubmit = async () => {
-    if (!selectedCulture || !characterName.trim()) return;
+    if (!selectedCulture) return;
+
+    // Generate name if not provided
+    let finalName = characterName.trim();
+    if (!finalName && nameData) {
+      finalName = generateRandomName(nameData, gender);
+    }
+    if (!finalName) {
+      finalName = `${selectedCulture.nombre} Aventurero`;
+    }
 
     try {
       setSaving(true);
       const updatedDraft = await updateDraftStep1(draftId, {
-        nombre: characterName.trim(),
+        nombre: finalName,
         jugador: playerName.trim() || null,
         cultura_id: selectedCulture.id,
       });
@@ -131,74 +155,6 @@ const Step1Culture = ({ draftId, draft, onComplete, onBack }) => {
         </p>
       </div>
 
-      {/* Name Input Section */}
-      <div className="card-parchment rounded-lg p-6">
-        <div className="grid md:grid-cols-2 gap-6">
-          {/* Character Name */}
-          <div className="space-y-2">
-            <Label htmlFor="characterName" className="text-[hsl(var(--parchment))]">
-              Nombre del Personaje *
-            </Label>
-            <div className="flex gap-2">
-              <Input
-                id="characterName"
-                value={characterName}
-                onChange={(e) => setCharacterName(e.target.value)}
-                placeholder="Escribe o genera un nombre..."
-                className="bg-[hsl(var(--input))] border-border"
-                data-testid="character-name-input"
-              />
-              <Button
-                type="button"
-                variant="outline"
-                size="icon"
-                onClick={handleGenerateName}
-                disabled={!nameData}
-                title="Generar nombre aleatorio"
-                className="border-[hsl(var(--gold))/50] hover:bg-[hsl(var(--gold))/10]"
-                data-testid="generate-name-btn"
-              >
-                <Shuffle className="w-4 h-4 text-[hsl(var(--gold))]" />
-              </Button>
-            </div>
-            {selectedCulture && nameData && (
-              <p className="text-xs text-muted-foreground">
-                Haz clic en el dado para generar un nombre {selectedCulture.nombre.toLowerCase()}
-              </p>
-            )}
-          </div>
-
-          {/* Player Name & Gender */}
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="playerName" className="text-[hsl(var(--parchment))]">
-                Nombre del Jugador (opcional)
-              </Label>
-              <Input
-                id="playerName"
-                value={playerName}
-                onChange={(e) => setPlayerName(e.target.value)}
-                placeholder="Tu nombre real..."
-                className="bg-[hsl(var(--input))] border-border"
-                data-testid="player-name-input"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label className="text-[hsl(var(--parchment))]">Género (para nombres)</Label>
-              <Select value={gender} onValueChange={setGender}>
-                <SelectTrigger className="bg-[hsl(var(--input))] border-border" data-testid="gender-select">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="hombre">Masculino</SelectItem>
-                  <SelectItem value="mujer">Femenino</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-        </div>
-      </div>
-
       {/* Category Selection */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {CULTURE_CATEGORIES.map((category) => (
@@ -223,7 +179,7 @@ const Step1Culture = ({ draftId, draft, onComplete, onBack }) => {
           <h3 className="font-heading text-xl text-[hsl(var(--gold))] mb-4">
             Culturas de {CULTURE_CATEGORIES.find(c => c.id === selectedCategory)?.name}
           </h3>
-          <ScrollArea className="h-[400px] pr-4">
+          <ScrollArea className="h-[350px] pr-4">
             <div className="space-y-3">
               {filteredCultures.map((culture) => (
                 <button
@@ -304,6 +260,84 @@ const Step1Culture = ({ draftId, draft, onComplete, onBack }) => {
         </div>
       )}
 
+      {/* Name Input Section - Only shows after culture is selected */}
+      {selectedCulture && (
+        <div className="card-parchment rounded-lg p-6 animate-slide-up">
+          <h3 className="font-heading text-xl text-[hsl(var(--gold))] mb-4">
+            Personaliza tu Personaje
+          </h3>
+          <div className="grid md:grid-cols-2 gap-6">
+            {/* Character Name */}
+            <div className="space-y-2">
+              <Label htmlFor="characterName" className="text-[hsl(var(--parchment))]">
+                Nombre del Personaje
+              </Label>
+              <div className="flex gap-2">
+                <Input
+                  id="characterName"
+                  value={characterName}
+                  onChange={(e) => setCharacterName(e.target.value)}
+                  placeholder="Nombre generado automáticamente..."
+                  className="bg-[hsl(var(--input))] border-border"
+                  data-testid="character-name-input"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  onClick={handleGenerateName}
+                  disabled={!nameData}
+                  title="Generar otro nombre aleatorio"
+                  className="border-[hsl(var(--gold))/50] hover:bg-[hsl(var(--gold))/10]"
+                  data-testid="generate-name-btn"
+                >
+                  <Shuffle className="w-4 h-4 text-[hsl(var(--gold))]" />
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Se generará un nombre aleatorio si lo dejas vacío
+              </p>
+            </div>
+
+            {/* Player Name & Gender */}
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="playerName" className="text-[hsl(var(--parchment))]">
+                  Nombre del Jugador (opcional)
+                </Label>
+                <Input
+                  id="playerName"
+                  value={playerName}
+                  onChange={(e) => setPlayerName(e.target.value)}
+                  placeholder="Tu nombre real..."
+                  className="bg-[hsl(var(--input))] border-border"
+                  data-testid="player-name-input"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-[hsl(var(--parchment))]">Género (para nombres)</Label>
+                <Select value={gender} onValueChange={handleGenderChange}>
+                  <SelectTrigger className="bg-[hsl(var(--input))] border-border" data-testid="gender-select">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="hombre">Masculino</SelectItem>
+                    <SelectItem value="mujer">Femenino</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </div>
+          
+          {/* Selected culture summary */}
+          <div className="mt-4 pt-4 border-t border-border/50">
+            <p className="text-sm text-muted-foreground">
+              <span className="text-[hsl(var(--gold))]">Cultura seleccionada:</span> {selectedCulture.nombre}
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Error Message */}
       {error && (
         <div className="p-4 bg-[hsl(var(--destructive))/20] border border-[hsl(var(--destructive))/50] rounded-lg text-center">
@@ -312,10 +346,10 @@ const Step1Culture = ({ draftId, draft, onComplete, onBack }) => {
       )}
 
       {/* Navigation */}
-      <div className="flex justify-end pt-4">
+      <div className="flex justify-end pt-4 pb-16">
         <Button
           onClick={handleSubmit}
-          disabled={!selectedCulture || !characterName.trim() || saving}
+          disabled={!selectedCulture || saving}
           className="bg-[hsl(var(--gold))] hover:bg-[hsl(var(--gold-dim))] text-[hsl(var(--primary-foreground))] font-heading px-8"
           data-testid="step-1-next-btn"
         >
