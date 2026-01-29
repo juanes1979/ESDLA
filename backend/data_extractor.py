@@ -255,6 +255,7 @@ def extract_equipment(wb: openpyxl.Workbook) -> Dict[str, List[Dict]]:
         equipment["equipo_general"].append(item)
     
     # Parse weapons (columns starting at N = 14)
+    # Structure: Arma(14), Uds(15), Mon(16), Peso(17), Modificador/TipoDano(18), Daño(19), Herida(20), Distancia(21)
     for row in range(3, 100):
         name = clean_value(sheet.cell(row=row, column=14).value)
         if not name or name == 'Arma':
@@ -262,14 +263,32 @@ def extract_equipment(wb: openpyxl.Workbook) -> Dict[str, List[Dict]]:
         
         weapon = {
             "nombre": name,
-            "tipo": clean_value(sheet.cell(row=row, column=15).value),
-            "precio": clean_value(sheet.cell(row=row, column=16).value),
-            "dano": clean_value(sheet.cell(row=row, column=17).value),
+            "precio": clean_value(sheet.cell(row=row, column=15).value),
+            "moneda": clean_value(sheet.cell(row=row, column=16).value),
+            "peso_kg": clean_value(sheet.cell(row=row, column=17).value),
             "tipo_dano": clean_value(sheet.cell(row=row, column=18).value),
-            "peso_kg": clean_value(sheet.cell(row=row, column=19).value),
-            "propiedades": clean_value(sheet.cell(row=row, column=20).value),
+            "dano": clean_value(sheet.cell(row=row, column=19).value),
+            "herida": clean_value(sheet.cell(row=row, column=20).value),
+            "alcance": clean_value(sheet.cell(row=row, column=21).value),
         }
         equipment["armas"].append(weapon)
+    
+    # Parse armors (columns starting at W = 23)
+    for row in range(3, 50):
+        name = clean_value(sheet.cell(row=row, column=23).value)
+        if not name or name == 'Armadura':
+            continue
+        
+        armor = {
+            "nombre": name,
+            "precio": clean_value(sheet.cell(row=row, column=24).value),
+            "moneda": clean_value(sheet.cell(row=row, column=25).value),
+            "clase_armadura": clean_value(sheet.cell(row=row, column=26).value),
+            "peso_kg": clean_value(sheet.cell(row=row, column=27).value),
+            "requisito_fuerza": clean_value(sheet.cell(row=row, column=28).value),
+            "desventaja_sigilo": clean_value(sheet.cell(row=row, column=29).value),
+        }
+        equipment["armaduras"].append(armor)
     
     return equipment
 
