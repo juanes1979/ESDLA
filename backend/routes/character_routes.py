@@ -143,6 +143,13 @@ class CharacterDraft(BaseModel):
 
 # === CHARACTER CREATION ENDPOINTS ===
 
+@router.get("/drafts")
+async def list_character_drafts():
+    """List all character drafts"""
+    drafts = await db.character_drafts.find({"estado": "borrador"}).to_list(100)
+    return {"drafts": serialize_docs(drafts)}
+
+
 @router.post("/draft")
 async def create_character_draft():
     """Create a new character draft for the wizard"""
@@ -155,6 +162,15 @@ async def create_character_draft():
     }
     await db.character_drafts.insert_one(draft)
     return serialize_doc(draft)
+
+
+@router.delete("/draft/{draft_id}")
+async def delete_character_draft(draft_id: str):
+    """Delete a character draft"""
+    result = await db.character_drafts.delete_one({"_id": draft_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Draft not found")
+    return {"message": "Draft deleted"}
 
 
 @router.get("/draft/{draft_id}")
