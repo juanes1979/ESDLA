@@ -134,8 +134,8 @@ class TestCharacterCreationFlowElfosLindon:
         draft = response.json()
         draft_id = draft["id"]
         
-        # Step 1: Set culture
-        response = requests.put(
+        # Step 1: Set culture (use PATCH not PUT)
+        response = requests.patch(
             f"{BASE_URL}/api/characters/draft/{draft_id}/step1",
             json={"cultura_id": elfos_lindon["id"]}
         )
@@ -253,15 +253,15 @@ class TestFullCharacterCreationWithRasgos:
         draft_id = response.json()["id"]
         
         try:
-            # Step 1: Culture
-            response = requests.put(
+            # Step 1: Culture (use PATCH not PUT)
+            response = requests.patch(
                 f"{BASE_URL}/api/characters/draft/{draft_id}/step1",
                 json={"cultura_id": elfos_lindon["id"]}
             )
             assert response.status_code == 200
             
             # Step 2: Background
-            response = requests.put(
+            response = requests.patch(
                 f"{BASE_URL}/api/characters/draft/{draft_id}/step2",
                 json={"trasfondo_id": bg_with_rasgos["id"]}
             )
@@ -273,14 +273,14 @@ class TestFullCharacterCreationWithRasgos:
                 f"Expected rasgo_trasfondo={bg_with_rasgos['rasgo_distintivo']}, got {draft.get('rasgo_trasfondo')}"
             
             # Step 3: Occupation
-            response = requests.put(
+            response = requests.patch(
                 f"{BASE_URL}/api/characters/draft/{draft_id}/step3",
                 json={"ocupacion_id": occupation["id"]}
             )
             assert response.status_code == 200
             
             # Step 4: Attributes (use default point buy)
-            response = requests.put(
+            response = requests.patch(
                 f"{BASE_URL}/api/characters/draft/{draft_id}/step4",
                 json={
                     "fuerza": 10,
@@ -294,14 +294,14 @@ class TestFullCharacterCreationWithRasgos:
             assert response.status_code == 200
             
             # Step 5: Skills (skip for now, use defaults)
-            response = requests.put(
+            response = requests.patch(
                 f"{BASE_URL}/api/characters/draft/{draft_id}/step5",
                 json={"habilidades_elegidas": []}
             )
             assert response.status_code == 200
             
             # Step 6: Name
-            response = requests.put(
+            response = requests.patch(
                 f"{BASE_URL}/api/characters/draft/{draft_id}/step6",
                 json={
                     "nombre": "TEST_Elrohir",
@@ -314,7 +314,7 @@ class TestFullCharacterCreationWithRasgos:
             assert response.status_code == 200
             
             # Step 7: Equipment
-            response = requests.put(
+            response = requests.patch(
                 f"{BASE_URL}/api/characters/draft/{draft_id}/step7",
                 json={
                     "inventario": [],
@@ -324,7 +324,7 @@ class TestFullCharacterCreationWithRasgos:
             assert response.status_code == 200
             
             # Step 8: Details (rasgo_distintivo comes from background)
-            response = requests.put(
+            response = requests.patch(
                 f"{BASE_URL}/api/characters/draft/{draft_id}/step9",
                 json={
                     "rasgo_distintivo": bg_with_rasgos["rasgo_distintivo"],
