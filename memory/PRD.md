@@ -49,6 +49,47 @@ Comprehensive web application for playing a modified "Lord of the Rings 5e" tabl
 
 ### ✅ COMPLETED - Phase 1: Database (Dec 2025)
 
+### ✅ COMPLETED - Phase 2: Character Creator Frontend (Dec 2025)
+
+#### Components Created
+- **HomePage.jsx**: Landing page with dark tavern theme, "Tierras Medias" title
+- **CharacterCreatorWizard.jsx**: Main wizard component managing 9-step flow
+- **StepIndicator.jsx**: Visual progress indicator for 9 steps
+- **Step1Culture.jsx**: Culture selection with automatic name generator
+- **Step2Background.jsx**: Background selection by culture
+- **Step3Occupation.jsx**: Occupation/class selection with icons
+- **Step4Attributes.jsx**: Attribute assignment (standard array, point buy, random)
+- **Step5Virtue.jsx**: Cultural and common virtue selection
+- **Step6Skills.jsx**: Skill competency selection
+- **Step7Equipment.jsx**: Weapons, armors, and equipment selection
+- **Step8Patron.jsx**: Optional patron/mecenas selection
+- **Step9Details.jsx**: Personality traits, motivations, history
+- **CharacterSummary.jsx**: Final review before character creation
+
+#### Visual Theme Implemented
+- Dark tavern atmosphere (Poney Pisador style)
+- Gold/amber primary colors (torch light)
+- Blue magical accents
+- Cinzel + Crimson Text fonts (Tolkien-esque)
+- Torch glow effects and animations
+- Parchment-style cards with shadows
+
+#### Features Working
+- ✅ 9-step wizard navigation
+- ✅ Culture category filtering (Elfos, Enanos, Hombres, Hobbits)
+- ✅ Automatic name generator based on culture
+- ✅ Physical attributes auto-generated from culture (age, height, weight)
+- ✅ Characteristic modifiers applied from culture
+- ✅ All data fetched from MongoDB via API
+
+#### Test Results (iteration_1.json)
+- Backend: 100% (18/18 tests passed)
+- Frontend: 100% (all wizard flows working)
+
+---
+
+### ✅ COMPLETED - Phase 1 (earlier): Database (Dec 2025)
+
 #### Data Extraction
 - Created `data_extractor.py` to parse Excel files
 - Extracted data from `utumno.xlsm`, `clima.xlsx`, `pnj.xlsx`, `tesoro.xlsx`
