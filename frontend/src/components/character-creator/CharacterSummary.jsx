@@ -13,6 +13,19 @@ const getModifier = (score) => {
 };
 
 const CharacterSummary = ({ draft, onFinalize, onEdit, loading }) => {
+  const [generatingPDF, setGeneratingPDF] = useState(false);
+
+  const handleDownloadPDF = async () => {
+    try {
+      setGeneratingPDF(true);
+      await downloadCharacterPDF(draft);
+    } catch (err) {
+      console.error('Error generating PDF:', err);
+    } finally {
+      setGeneratingPDF(false);
+    }
+  };
+
   if (!draft) return null;
 
   const attributes = draft.atributos_finales || {};
