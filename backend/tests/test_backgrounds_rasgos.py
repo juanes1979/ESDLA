@@ -292,12 +292,15 @@ class TestFullCharacterCreationWithRasgos:
             response = requests.patch(
                 f"{BASE_URL}/api/characters/draft/{draft_id}/step4",
                 json={
-                    "fuerza": 10,
-                    "destreza": 10,
-                    "constitucion": 10,
-                    "inteligencia": 10,
-                    "sabiduria": 10,
-                    "carisma": 10
+                    "atributos": {
+                        "fuerza": 10,
+                        "destreza": 10,
+                        "constitucion": 10,
+                        "inteligencia": 10,
+                        "sabiduria": 10,
+                        "carisma": 10
+                    },
+                    "metodo_asignacion": "point_buy"
                 }
             )
             assert response.status_code == 200
