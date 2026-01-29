@@ -352,7 +352,7 @@ async def update_draft_step4(draft_id: str, data: CharacterCreateStep4):
 
 @router.patch("/draft/{draft_id}/step5")
 async def update_draft_step5(draft_id: str, data: CharacterCreateStep5):
-    """Update draft with Step 5 data (virtue)"""
+    """Update draft with Step 5 data (virtue) - Solo para culturas que obtienen virtud"""
     virtue = await db.virtues.find_one({"_id": data.virtud_id})
     if not virtue:
         raise HTTPException(status_code=404, detail="Virtue not found")
@@ -376,7 +376,7 @@ async def update_draft_step5(draft_id: str, data: CharacterCreateStep5):
         "virtud_descripcion": virtue.get('descripcion'),
         "rasgos_virtud": virtue.get('rasgos_hoja_pj'),
         "atributos_finales": atributos,
-        "paso_actual": 6,
+        "paso_actual": 6,  # Sigue al paso de habilidades
         "updated_at": now_utc(),
     }
     
@@ -412,11 +412,11 @@ async def update_draft_step6(draft_id: str, data: CharacterCreateStep6):
 
 @router.patch("/draft/{draft_id}/step7")
 async def update_draft_step7(draft_id: str, data: CharacterCreateStep7):
-    """Update draft with Step 7 data (equipment)"""
+    """Update draft with Step 7 data (equipment - automático según nivel de vida)"""
     update = {
         "inventario": [item.model_dump() for item in data.inventario],
         "dinero": data.dinero,
-        "paso_actual": 8,
+        "paso_actual": 8,  # Ahora hay 8 pasos, no 9
         "updated_at": now_utc(),
     }
     
@@ -462,13 +462,13 @@ async def update_draft_step8(draft_id: str, data: CharacterCreateStep8):
 
 @router.patch("/draft/{draft_id}/step9")
 async def update_draft_step9(draft_id: str, data: CharacterCreateStep9):
-    """Update draft with Step 9 data (final details)"""
+    """Update draft with Step 9/8 data (final details - rasgos del trasfondo + historia)"""
     update = {
         "rasgo_distintivo": data.rasgo_distintivo,
         "defecto": data.defecto,
         "motivacion": data.motivacion,
         "historia": data.historia,
-        "paso_actual": 10,  # Complete
+        "paso_actual": 9,  # Complete (8 pasos + 1 = finalizado)
         "updated_at": now_utc(),
     }
     
