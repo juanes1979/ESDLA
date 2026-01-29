@@ -232,6 +232,26 @@ async def seed_patrons(db, data: dict):
     print(f"Seeded {len(documents)} patrons")
 
 
+def safe_float(val):
+    """Safely convert value to float"""
+    if val is None:
+        return None
+    try:
+        return float(val)
+    except (ValueError, TypeError):
+        return None
+
+
+def safe_int(val):
+    """Safely convert value to int"""
+    if val is None:
+        return None
+    try:
+        return int(val)
+    except (ValueError, TypeError):
+        return None
+
+
 async def seed_equipment(db, data: dict):
     """Seed equipment collections"""
     equipo = data.get('equipo', {})
@@ -246,9 +266,9 @@ async def seed_equipment(db, data: dict):
             "_id": generate_id(),
             "nombre": tool['nombre'],
             "tipo": "herramienta",
-            "precio": float(tool['precio']) if tool.get('precio') else None,
+            "precio": safe_float(tool.get('precio')),
             "moneda": tool.get('moneda'),
-            "peso_kg": float(tool['peso_kg']) if tool.get('peso_kg') else None,
+            "peso_kg": safe_float(tool.get('peso_kg')),
             "created_at": now_utc(),
             "updated_at": now_utc(),
         }
@@ -268,9 +288,9 @@ async def seed_equipment(db, data: dict):
             "_id": generate_id(),
             "nombre": item['nombre'],
             "tipo": "equipo_general",
-            "precio": float(item['precio']) if item.get('precio') else None,
+            "precio": safe_float(item.get('precio')),
             "moneda": item.get('moneda'),
-            "peso_kg": float(item['peso_kg']) if item.get('peso_kg') else None,
+            "peso_kg": safe_float(item.get('peso_kg')),
             "created_at": now_utc(),
             "updated_at": now_utc(),
         }
@@ -290,12 +310,13 @@ async def seed_equipment(db, data: dict):
             "_id": generate_id(),
             "nombre": weapon['nombre'],
             "tipo": "arma",
-            "tipo_arma": weapon.get('tipo'),
-            "precio": float(weapon['precio']) if weapon.get('precio') else None,
-            "dano": weapon.get('dano'),
+            "precio": safe_float(weapon.get('precio')),
+            "moneda": weapon.get('moneda'),
+            "peso_kg": safe_float(weapon.get('peso_kg')),
             "tipo_dano": weapon.get('tipo_dano'),
-            "peso_kg": float(weapon['peso_kg']) if weapon.get('peso_kg') else None,
-            "propiedades": weapon.get('propiedades'),
+            "dano": weapon.get('dano'),
+            "herida": safe_int(weapon.get('herida')),
+            "alcance": weapon.get('alcance'),
             "created_at": now_utc(),
             "updated_at": now_utc(),
         }
@@ -304,6 +325,31 @@ async def seed_equipment(db, data: dict):
     if weapon_docs:
         await db.weapons.insert_many(weapon_docs)
     print(f"Seeded {len(weapon_docs)} weapons")
+    
+    # Seed armors
+    armors = equipo.get('armaduras', [])
+    armor_docs = []
+    for armor in armors:
+        if not armor.get('nombre'):
+            continue
+        doc = {
+            "_id": generate_id(),
+            "nombre": armor['nombre'],
+            "tipo": "armadura",
+            "precio": safe_float(armor.get('precio')),
+            "moneda": armor.get('moneda'),
+            "clase_armadura": safe_int(armor.get('clase_armadura')),
+            "peso_kg": safe_float(armor.get('peso_kg')),
+            "requisito_fuerza": safe_int(armor.get('requisito_fuerza')),
+            "desventaja_sigilo": armor.get('desventaja_sigilo') == 'Si' or armor.get('desventaja_sigilo') == True,
+            "created_at": now_utc(),
+            "updated_at": now_utc(),
+        }
+        armor_docs.append(doc)
+    
+    if armor_docs:
+        await db.armors.insert_many(armor_docs)
+    print(f"Seeded {len(armor_docs)} armors")
 
 
 async def seed_shadow_rules(db, data: dict):
