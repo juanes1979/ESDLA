@@ -39,11 +39,11 @@ const HomePage = () => {
             {/* Logo/Title */}
             <div className="mb-8">
               <h1 className="font-heading text-5xl md:text-7xl text-[hsl(var(--gold))] text-glow-gold mb-4">
-                Tierras Medias
+                ESDLA
               </h1>
               <div className="divider-ornament mb-4">
                 <span className="text-muted-foreground text-sm font-heading tracking-widest">
-                  5E EDITION
+                  5e Mod
                 </span>
               </div>
               <p className="text-xl text-muted-foreground max-w-xl mx-auto">
