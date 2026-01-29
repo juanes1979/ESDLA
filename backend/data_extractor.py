@@ -384,15 +384,21 @@ def extract_names_by_culture(wb: openpyxl.Workbook) -> Dict[str, Dict]:
     sheet = wb['Nombres']
     names_data = {}
     
-    # Row 1 has culture names
+    # Row 1 has culture names at every 5th column (1, 6, 11, 16, etc.)
+    # Structure per culture (5 columns):
+    # Col n: Culture name (row 1), Hombre (row 2), Prefijos (row 3), data starts row 4
+    # Col n+1: Sufijos for Hombre
+    # Col n+2: Mujer Prefijos
+    # Col n+3: Mujer Sufijos
+    # Col n+4: Apellidos
+    
     current_col = 1
     while current_col <= sheet.max_column:
         culture_name = clean_value(sheet.cell(row=1, column=current_col).value)
-        if not culture_name:
+        if not culture_name or culture_name == 'Apellidos':
             current_col += 1
             continue
         
-        # Each culture spans multiple columns for male/female prefixes/suffixes
         names_data[culture_name] = {
             "hombre": {"prefijos": [], "sufijos": []},
             "mujer": {"prefijos": [], "sufijos": []},
@@ -400,16 +406,30 @@ def extract_names_by_culture(wb: openpyxl.Workbook) -> Dict[str, Dict]:
         }
         
         # Extract prefixes/suffixes from rows 4+
-        for row in range(4, sheet.max_row + 1):
+        for row in range(4, min(sheet.max_row + 1, 60)):  # Limit to 56 rows of names
+            # Hombre prefijos (col n)
             prefix_m = clean_value(sheet.cell(row=row, column=current_col).value)
+            # Hombre sufijos (col n+1)
             suffix_m = clean_value(sheet.cell(row=row, column=current_col + 1).value)
+            # Mujer prefijos (col n+2)
+            prefix_f = clean_value(sheet.cell(row=row, column=current_col + 2).value)
+            # Mujer sufijos (col n+3)
+            suffix_f = clean_value(sheet.cell(row=row, column=current_col + 3).value)
+            # Apellidos (col n+4)
+            apellido = clean_value(sheet.cell(row=row, column=current_col + 4).value)
             
             if prefix_m:
                 names_data[culture_name]["hombre"]["prefijos"].append(prefix_m)
             if suffix_m:
                 names_data[culture_name]["hombre"]["sufijos"].append(suffix_m)
+            if prefix_f:
+                names_data[culture_name]["mujer"]["prefijos"].append(prefix_f)
+            if suffix_f:
+                names_data[culture_name]["mujer"]["sufijos"].append(suffix_f)
+            if apellido:
+                names_data[culture_name]["apellidos"].append(apellido)
         
-        current_col += 6  # Move to next culture block
+        current_col += 5  # Move to next culture block (every 5 columns)
     
     return names_data
 
