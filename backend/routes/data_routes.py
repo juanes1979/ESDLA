@@ -1,0 +1,257 @@
+"""
+Game Data API Routes
+Endpoints for retrieving game data (cultures, backgrounds, occupations, etc.)
+"""
+from fastapi import APIRouter, HTTPException, Query
+from typing import List, Optional
+from motor.motor_asyncio import AsyncIOMotorClient
+import os
+from dotenv import load_dotenv
+from pathlib import Path
+
+ROOT_DIR = Path(__file__).parent.parent
+load_dotenv(ROOT_DIR / '.env')
+
+router = APIRouter(prefix="/data", tags=["Game Data"])
+
+# MongoDB connection
+mongo_url = os.environ['MONGO_URL']
+client = AsyncIOMotorClient(mongo_url)
+db = client[os.environ['DB_NAME']]
+
+
+def serialize_doc(doc: dict) -> dict:
+    """Convert MongoDB document to JSON-serializable format"""
+    if doc is None:
+        return None
+    result = {k: v for k, v in doc.items() if k != '_id'}
+    result['id'] = str(doc['_id'])
+    return result
+
+
+def serialize_docs(docs: list) -> list:
+    """Convert list of MongoDB documents"""
+    return [serialize_doc(doc) for doc in docs]
+
+
+# === CULTURES ===
+
+@router.get("/cultures")
+async def get_cultures(categoria: Optional[str] = None):
+    """Get all cultures, optionally filtered by category (ELFOS, ENANOS, HOMBRES, HOBBITS)"""
+    query = {}
+    if categoria:
+        query["categoria"] = categoria.upper()
+    
+    cultures = await db.cultures.find(query).to_list(100)
+    return {"cultures": serialize_docs(cultures)}
+
+
+@router.get("/cultures/{culture_id}")
+async def get_culture(culture_id: str):
+    """Get a specific culture by ID"""
+    culture = await db.cultures.find_one({"_id": culture_id})
+    if not culture:
+        raise HTTPException(status_code=404, detail="Culture not found")
+    return serialize_doc(culture)
+
+
+@router.get("/cultures/categories/list")
+async def get_culture_categories():
+    """Get list of culture categories"""
+    categories = await db.cultures.distinct("categoria")
+    return {"categories": [c for c in categories if c]}
+
+
+# === BACKGROUNDS ===
+
+@router.get("/backgrounds")
+async def get_backgrounds(culture_id: Optional[str] = None, cultura: Optional[str] = None):
+    """Get backgrounds, optionally filtered by culture"""
+    query = {}
+    if culture_id:
+        query["culture_id"] = culture_id
+    if cultura:
+        query["cultura"] = cultura
+    
+    backgrounds = await db.backgrounds.find(query).to_list(200)
+    return {"backgrounds": serialize_docs(backgrounds)}
+
+
+@router.get("/backgrounds/{background_id}")
+async def get_background(background_id: str):
+    """Get a specific background by ID"""
+    background = await db.backgrounds.find_one({"_id": background_id})
+    if not background:
+        raise HTTPException(status_code=404, detail="Background not found")
+    return serialize_doc(background)
+
+
+# === OCCUPATIONS ===
+
+@router.get("/occupations")
+async def get_occupations():
+    """Get all occupations/classes"""
+    occupations = await db.occupations.find({}).to_list(20)
+    return {"occupations": serialize_docs(occupations)}
+
+
+@router.get("/occupations/{occupation_id}")
+async def get_occupation(occupation_id: str):
+    """Get a specific occupation by ID"""
+    occupation = await db.occupations.find_one({"_id": occupation_id})
+    if not occupation:
+        raise HTTPException(status_code=404, detail="Occupation not found")
+    return serialize_doc(occupation)
+
+
+# === VIRTUES ===
+
+@router.get("/virtues")
+async def get_virtues(
+    culture_id: Optional[str] = None,
+    cultura: Optional[str] = None,
+    include_common: bool = True
+):
+    """Get virtues, optionally filtered by culture. By default includes common virtues."""
+    query = {}
+    
+    if culture_id or cultura:
+        # Build OR query: specific culture OR common virtues
+        conditions = []
+        if culture_id:
+            conditions.append({"culture_id": culture_id})
+        if cultura:
+            conditions.append({"cultura": cultura})
+        if include_common:
+            conditions.append({"es_comun": True})
+        query["$or"] = conditions
+    
+    virtues = await db.virtues.find(query).to_list(200)
+    return {"virtues": serialize_docs(virtues)}
+
+
+@router.get("/virtues/{virtue_id}")
+async def get_virtue(virtue_id: str):
+    """Get a specific virtue by ID"""
+    virtue = await db.virtues.find_one({"_id": virtue_id})
+    if not virtue:
+        raise HTTPException(status_code=404, detail="Virtue not found")
+    return serialize_doc(virtue)
+
+
+# === ARTS ===
+
+@router.get("/arts")
+async def get_arts():
+    """Get all arts/magic abilities"""
+    arts = await db.arts.find({}).to_list(50)
+    return {"arts": serialize_docs(arts)}
+
+
+@router.get("/arts/{art_id}")
+async def get_art(art_id: str):
+    """Get a specific art by ID"""
+    art = await db.arts.find_one({"_id": art_id})
+    if not art:
+        raise HTTPException(status_code=404, detail="Art not found")
+    return serialize_doc(art)
+
+
+# === PATRONS ===
+
+@router.get("/patrons")
+async def get_patrons():
+    """Get all patrons/mecenas"""
+    patrons = await db.patrons.find({}).to_list(50)
+    return {"patrons": serialize_docs(patrons)}
+
+
+@router.get("/patrons/{patron_id}")
+async def get_patron(patron_id: str):
+    """Get a specific patron by ID"""
+    patron = await db.patrons.find_one({"_id": patron_id})
+    if not patron:
+        raise HTTPException(status_code=404, detail="Patron not found")
+    return serialize_doc(patron)
+
+
+# === EQUIPMENT ===
+
+@router.get("/equipment")
+async def get_equipment(tipo: Optional[str] = None):
+    """Get general equipment items"""
+    query = {}
+    if tipo:
+        query["tipo"] = tipo
+    
+    equipment = await db.equipment.find(query).to_list(500)
+    return {"equipment": serialize_docs(equipment)}
+
+
+@router.get("/weapons")
+async def get_weapons():
+    """Get all weapons"""
+    weapons = await db.weapons.find({}).to_list(100)
+    return {"weapons": serialize_docs(weapons)}
+
+
+@router.get("/weapons/{weapon_id}")
+async def get_weapon(weapon_id: str):
+    """Get a specific weapon by ID"""
+    weapon = await db.weapons.find_one({"_id": weapon_id})
+    if not weapon:
+        raise HTTPException(status_code=404, detail="Weapon not found")
+    return serialize_doc(weapon)
+
+
+@router.get("/armors")
+async def get_armors():
+    """Get all armors"""
+    armors = await db.armors.find({}).to_list(50)
+    return {"armors": serialize_docs(armors)}
+
+
+@router.get("/armors/{armor_id}")
+async def get_armor(armor_id: str):
+    """Get a specific armor by ID"""
+    armor = await db.armors.find_one({"_id": armor_id})
+    if not armor:
+        raise HTTPException(status_code=404, detail="Armor not found")
+    return serialize_doc(armor)
+
+
+@router.get("/tools")
+async def get_tools():
+    """Get all tools"""
+    tools = await db.tools.find({}).to_list(100)
+    return {"tools": serialize_docs(tools)}
+
+
+# === SHADOW RULES ===
+
+@router.get("/shadow-rules")
+async def get_shadow_rules():
+    """Get shadow/corruption rules"""
+    rules = await db.shadow_rules.find_one({})
+    if rules:
+        return serialize_doc(rules)
+    return {"fuentes_pavor": [], "fuentes_avaricia": [], "fuentes_desesperacion": []}
+
+
+# === NAME GENERATION ===
+
+@router.get("/names/{cultura}")
+async def get_culture_names(cultura: str):
+    """Get name generation data for a specific culture"""
+    names = await db.culture_names.find_one({"cultura": cultura})
+    if not names:
+        raise HTTPException(status_code=404, detail="Name data not found for this culture")
+    return serialize_doc(names)
+
+
+@router.get("/names")
+async def get_all_culture_names():
+    """Get all culture name data"""
+    names = await db.culture_names.find({}).to_list(50)
+    return {"names": serialize_docs(names)}
