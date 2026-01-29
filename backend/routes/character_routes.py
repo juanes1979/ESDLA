@@ -1,0 +1,647 @@
+"""
+Character API Routes
+Endpoints for character creation and management
+"""
+from fastapi import APIRouter, HTTPException, Body
+from typing import List, Optional, Dict, Any
+from pydantic import BaseModel, Field
+from motor.motor_asyncio import AsyncIOMotorClient
+import os
+import uuid
+from datetime import datetime, timezone
+from dotenv import load_dotenv
+from pathlib import Path
+import random
+
+ROOT_DIR = Path(__file__).parent.parent
+load_dotenv(ROOT_DIR / '.env')
+
+router = APIRouter(prefix="/characters", tags=["Characters"])
+
+# MongoDB connection
+mongo_url = os.environ['MONGO_URL']
+client = AsyncIOMotorClient(mongo_url)
+db = client[os.environ['DB_NAME']]
+
+
+def generate_id():
+    return str(uuid.uuid4())
+
+
+def now_utc():
+    return datetime.now(timezone.utc).isoformat()
+
+
+def serialize_doc(doc: dict) -> dict:
+    """Convert MongoDB document to JSON-serializable format"""
+    if doc is None:
+        return None
+    result = {k: v for k, v in doc.items() if k != '_id'}
+    result['id'] = str(doc['_id'])
+    return result
+
+
+def serialize_docs(docs: list) -> list:
+    return [serialize_doc(doc) for doc in docs]
+
+
+# === REQUEST/RESPONSE MODELS ===
+
+class CharacterAttributes(BaseModel):
+    fuerza: int = 10
+    destreza: int = 10
+    constitucion: int = 10
+    inteligencia: int = 10
+    sabiduria: int = 10
+    carisma: int = 10
+
+
+class CharacterSkill(BaseModel):
+    nombre: str
+    atributo_base: str
+    competente: bool = False
+
+
+class EquipmentItem(BaseModel):
+    item_id: str
+    nombre: str
+    cantidad: int = 1
+    equipado: bool = False
+
+
+class CharacterCreateStep1(BaseModel):
+    """Step 1: Basic info and Culture selection"""
+    nombre: str
+    jugador: Optional[str] = None
+    cultura_id: str
+
+
+class CharacterCreateStep2(BaseModel):
+    """Step 2: Background selection"""
+    trasfondo_id: str
+
+
+class CharacterCreateStep3(BaseModel):
+    """Step 3: Occupation selection"""
+    ocupacion_id: str
+
+
+class CharacterCreateStep4(BaseModel):
+    """Step 4: Attributes assignment"""
+    atributos: CharacterAttributes
+    # Method used: standard_array, point_buy, random
+    metodo_asignacion: str = "standard_array"
+
+
+class CharacterCreateStep5(BaseModel):
+    """Step 5: Virtue selection"""
+    virtud_id: str
+
+
+class CharacterCreateStep6(BaseModel):
+    """Step 6: Skills selection"""
+    habilidades: List[str]  # List of skill names
+
+
+class CharacterCreateStep7(BaseModel):
+    """Step 7: Equipment selection"""
+    inventario: List[EquipmentItem] = []
+    dinero: Dict[str, int] = {"mp": 0, "mo": 0, "mc": 0}
+
+
+class CharacterCreateStep8(BaseModel):
+    """Step 8: Patron selection (optional)"""
+    patron_id: Optional[str] = None
+
+
+class CharacterCreateStep9(BaseModel):
+    """Step 9: Final details"""
+    rasgo_distintivo: Optional[str] = None
+    defecto: Optional[str] = None
+    motivacion: Optional[str] = None
+    historia: Optional[str] = None
+
+
+class CharacterDraft(BaseModel):
+    """Full character draft during creation wizard"""
+    paso_actual: int = 1
+    nombre: Optional[str] = None
+    jugador: Optional[str] = None
+    cultura_id: Optional[str] = None
+    trasfondo_id: Optional[str] = None
+    ocupacion_id: Optional[str] = None
+    atributos: Optional[CharacterAttributes] = None
+    virtud_id: Optional[str] = None
+    habilidades: List[str] = []
+    inventario: List[EquipmentItem] = []
+    dinero: Dict[str, int] = {"mp": 0, "mo": 0, "mc": 0}
+    patron_id: Optional[str] = None
+    rasgo_distintivo: Optional[str] = None
+    defecto: Optional[str] = None
+    motivacion: Optional[str] = None
+
+
+# === CHARACTER CREATION ENDPOINTS ===
+
+@router.post("/draft")
+async def create_character_draft():
+    """Create a new character draft for the wizard"""
+    draft = {
+        "_id": generate_id(),
+        "paso_actual": 1,
+        "estado": "borrador",
+        "created_at": now_utc(),
+        "updated_at": now_utc(),
+    }
+    await db.character_drafts.insert_one(draft)
+    return serialize_doc(draft)
+
+
+@router.get("/draft/{draft_id}")
+async def get_character_draft(draft_id: str):
+    """Get current state of a character draft"""
+    draft = await db.character_drafts.find_one({"_id": draft_id})
+    if not draft:
+        raise HTTPException(status_code=404, detail="Draft not found")
+    return serialize_doc(draft)
+
+
+@router.patch("/draft/{draft_id}/step1")
+async def update_draft_step1(draft_id: str, data: CharacterCreateStep1):
+    """Update draft with Step 1 data (name and culture)"""
+    # Verify culture exists
+    culture = await db.cultures.find_one({"_id": data.cultura_id})
+    if not culture:
+        raise HTTPException(status_code=404, detail="Culture not found")
+    
+    # Generate physical attributes based on culture
+    edad = random.randint(culture.get('edad_min', 18) or 18, culture.get('edad_max', 80) or 80)
+    altura = random.randint(culture.get('altura_min', 150) or 150, culture.get('altura_max', 200) or 200)
+    peso_base = altura - 100  # Simple calculation
+    mod_peso = culture.get('mod_peso_porcentaje', 0) or 0
+    peso = round(peso_base * (1 + mod_peso / 100), 1)
+    
+    update = {
+        "nombre": data.nombre,
+        "jugador": data.jugador,
+        "cultura_id": data.cultura_id,
+        "cultura_nombre": culture['nombre'],
+        "categoria_cultura": culture.get('categoria'),
+        "edad": edad,
+        "altura_cm": altura,
+        "peso_kg": peso,
+        "tamano": culture.get('tamano', 'Mediano'),
+        "velocidad": culture.get('velocidad', 9.0),
+        "nivel_vida": culture.get('nivel_vida'),
+        # Culture characteristic modifiers
+        "mod_cultura": {
+            "fuerza": culture.get('mod_fuerza', 0),
+            "destreza": culture.get('mod_destreza', 0),
+            "constitucion": culture.get('mod_constitucion', 0),
+            "inteligencia": culture.get('mod_inteligencia', 0),
+            "sabiduria": culture.get('mod_sabiduria', 0),
+            "carisma": culture.get('mod_carisma', 0),
+        },
+        "paso_actual": 2,
+        "updated_at": now_utc(),
+    }
+    
+    result = await db.character_drafts.update_one(
+        {"_id": draft_id},
+        {"$set": update}
+    )
+    
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Draft not found")
+    
+    draft = await db.character_drafts.find_one({"_id": draft_id})
+    return serialize_doc(draft)
+
+
+@router.patch("/draft/{draft_id}/step2")
+async def update_draft_step2(draft_id: str, data: CharacterCreateStep2):
+    """Update draft with Step 2 data (background)"""
+    background = await db.backgrounds.find_one({"_id": data.trasfondo_id})
+    if not background:
+        raise HTTPException(status_code=404, detail="Background not found")
+    
+    update = {
+        "trasfondo_id": data.trasfondo_id,
+        "trasfondo_nombre": background['nombre'],
+        "competencias_trasfondo": {
+            "habilidades": background.get('competencias_habilidades', []),
+            "herramientas": background.get('competencias_herramientas', []),
+            "idiomas": background.get('idiomas', []),
+        },
+        "equipo_trasfondo": background.get('equipo_inicial', []),
+        "paso_actual": 3,
+        "updated_at": now_utc(),
+    }
+    
+    result = await db.character_drafts.update_one(
+        {"_id": draft_id},
+        {"$set": update}
+    )
+    
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Draft not found")
+    
+    draft = await db.character_drafts.find_one({"_id": draft_id})
+    return serialize_doc(draft)
+
+
+@router.patch("/draft/{draft_id}/step3")
+async def update_draft_step3(draft_id: str, data: CharacterCreateStep3):
+    """Update draft with Step 3 data (occupation)"""
+    occupation = await db.occupations.find_one({"_id": data.ocupacion_id})
+    if not occupation:
+        raise HTTPException(status_code=404, detail="Occupation not found")
+    
+    # Calculate initial HP
+    dado_golpe = occupation.get('dado_golpe', '1d8')
+    hp_inicial = int(occupation.get('puntos_golpe_nivel1', 8) or 8)
+    
+    update = {
+        "ocupacion_id": data.ocupacion_id,
+        "ocupacion_tipo": occupation['tipo'],
+        "vocacion_nombre": occupation['vocacion'],
+        "dado_golpe": dado_golpe,
+        "puntos_golpe_base": hp_inicial,
+        "caracteristicas_principales": occupation.get('caracteristicas_principales', []),
+        "competencias_ocupacion": {
+            "tiradas_salvacion": occupation.get('competencia_tiradas_salvacion', []),
+            "armaduras": occupation.get('competencia_armaduras', []),
+            "armas": occupation.get('competencia_armas', []),
+        },
+        "habilidades_disponibles": occupation.get('habilidades_disponibles', []),
+        "paso_actual": 4,
+        "updated_at": now_utc(),
+    }
+    
+    result = await db.character_drafts.update_one(
+        {"_id": draft_id},
+        {"$set": update}
+    )
+    
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Draft not found")
+    
+    draft = await db.character_drafts.find_one({"_id": draft_id})
+    return serialize_doc(draft)
+
+
+@router.patch("/draft/{draft_id}/step4")
+async def update_draft_step4(draft_id: str, data: CharacterCreateStep4):
+    """Update draft with Step 4 data (attributes)"""
+    # Get draft to apply culture modifiers
+    draft = await db.character_drafts.find_one({"_id": draft_id})
+    if not draft:
+        raise HTTPException(status_code=404, detail="Draft not found")
+    
+    mod_cultura = draft.get('mod_cultura', {})
+    
+    # Apply culture modifiers to base attributes
+    atributos_finales = {
+        "fuerza": data.atributos.fuerza + mod_cultura.get('fuerza', 0),
+        "destreza": data.atributos.destreza + mod_cultura.get('destreza', 0),
+        "constitucion": data.atributos.constitucion + mod_cultura.get('constitucion', 0),
+        "inteligencia": data.atributos.inteligencia + mod_cultura.get('inteligencia', 0),
+        "sabiduria": data.atributos.sabiduria + mod_cultura.get('sabiduria', 0),
+        "carisma": data.atributos.carisma + mod_cultura.get('carisma', 0),
+    }
+    
+    # Calculate HP with constitution modifier
+    con_mod = (atributos_finales['constitucion'] - 10) // 2
+    hp_base = draft.get('puntos_golpe_base', 8)
+    hp_final = hp_base + con_mod
+    
+    update = {
+        "atributos_base": data.atributos.model_dump(),
+        "atributos_finales": atributos_finales,
+        "metodo_asignacion": data.metodo_asignacion,
+        "puntos_golpe_max": hp_final,
+        "puntos_golpe_actual": hp_final,
+        "paso_actual": 5,
+        "updated_at": now_utc(),
+    }
+    
+    await db.character_drafts.update_one(
+        {"_id": draft_id},
+        {"$set": update}
+    )
+    
+    draft = await db.character_drafts.find_one({"_id": draft_id})
+    return serialize_doc(draft)
+
+
+@router.patch("/draft/{draft_id}/step5")
+async def update_draft_step5(draft_id: str, data: CharacterCreateStep5):
+    """Update draft with Step 5 data (virtue)"""
+    virtue = await db.virtues.find_one({"_id": data.virtud_id})
+    if not virtue:
+        raise HTTPException(status_code=404, detail="Virtue not found")
+    
+    # Get current draft to apply virtue bonuses
+    draft = await db.character_drafts.find_one({"_id": draft_id})
+    if not draft:
+        raise HTTPException(status_code=404, detail="Draft not found")
+    
+    # Apply virtue attribute increases
+    atributos = draft.get('atributos_finales', {})
+    aumentos = virtue.get('aumentos_caracteristica', {})
+    
+    for attr, bonus in aumentos.items():
+        if attr in atributos:
+            atributos[attr] += bonus
+    
+    update = {
+        "virtud_id": data.virtud_id,
+        "virtud_nombre": virtue['nombre'],
+        "virtud_descripcion": virtue.get('descripcion'),
+        "rasgos_virtud": virtue.get('rasgos_hoja_pj'),
+        "atributos_finales": atributos,
+        "paso_actual": 6,
+        "updated_at": now_utc(),
+    }
+    
+    await db.character_drafts.update_one(
+        {"_id": draft_id},
+        {"$set": update}
+    )
+    
+    draft = await db.character_drafts.find_one({"_id": draft_id})
+    return serialize_doc(draft)
+
+
+@router.patch("/draft/{draft_id}/step6")
+async def update_draft_step6(draft_id: str, data: CharacterCreateStep6):
+    """Update draft with Step 6 data (skills)"""
+    update = {
+        "habilidades_elegidas": data.habilidades,
+        "paso_actual": 7,
+        "updated_at": now_utc(),
+    }
+    
+    result = await db.character_drafts.update_one(
+        {"_id": draft_id},
+        {"$set": update}
+    )
+    
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Draft not found")
+    
+    draft = await db.character_drafts.find_one({"_id": draft_id})
+    return serialize_doc(draft)
+
+
+@router.patch("/draft/{draft_id}/step7")
+async def update_draft_step7(draft_id: str, data: CharacterCreateStep7):
+    """Update draft with Step 7 data (equipment)"""
+    update = {
+        "inventario": [item.model_dump() for item in data.inventario],
+        "dinero": data.dinero,
+        "paso_actual": 8,
+        "updated_at": now_utc(),
+    }
+    
+    result = await db.character_drafts.update_one(
+        {"_id": draft_id},
+        {"$set": update}
+    )
+    
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Draft not found")
+    
+    draft = await db.character_drafts.find_one({"_id": draft_id})
+    return serialize_doc(draft)
+
+
+@router.patch("/draft/{draft_id}/step8")
+async def update_draft_step8(draft_id: str, data: CharacterCreateStep8):
+    """Update draft with Step 8 data (patron)"""
+    update = {
+        "paso_actual": 9,
+        "updated_at": now_utc(),
+    }
+    
+    if data.patron_id:
+        patron = await db.patrons.find_one({"_id": data.patron_id})
+        if not patron:
+            raise HTTPException(status_code=404, detail="Patron not found")
+        update["patron_id"] = data.patron_id
+        update["patron_nombre"] = patron['nombre']
+        update["puntos_comunidad"] = patron.get('puntos_comunidad', 0)
+    
+    result = await db.character_drafts.update_one(
+        {"_id": draft_id},
+        {"$set": update}
+    )
+    
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Draft not found")
+    
+    draft = await db.character_drafts.find_one({"_id": draft_id})
+    return serialize_doc(draft)
+
+
+@router.patch("/draft/{draft_id}/step9")
+async def update_draft_step9(draft_id: str, data: CharacterCreateStep9):
+    """Update draft with Step 9 data (final details)"""
+    update = {
+        "rasgo_distintivo": data.rasgo_distintivo,
+        "defecto": data.defecto,
+        "motivacion": data.motivacion,
+        "historia": data.historia,
+        "paso_actual": 10,  # Complete
+        "updated_at": now_utc(),
+    }
+    
+    result = await db.character_drafts.update_one(
+        {"_id": draft_id},
+        {"$set": update}
+    )
+    
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Draft not found")
+    
+    draft = await db.character_drafts.find_one({"_id": draft_id})
+    return serialize_doc(draft)
+
+
+@router.post("/draft/{draft_id}/finalize")
+async def finalize_character(draft_id: str):
+    """Convert a completed draft into a final character"""
+    draft = await db.character_drafts.find_one({"_id": draft_id})
+    if not draft:
+        raise HTTPException(status_code=404, detail="Draft not found")
+    
+    # Validate draft is complete enough
+    required_fields = ['nombre', 'cultura_id', 'trasfondo_id', 'ocupacion_id', 'atributos_finales', 'virtud_id']
+    missing = [f for f in required_fields if not draft.get(f)]
+    if missing:
+        raise HTTPException(
+            status_code=400, 
+            detail=f"Draft incomplete. Missing: {', '.join(missing)}"
+        )
+    
+    # Create final character document
+    character = {
+        "_id": generate_id(),
+        "nombre": draft['nombre'],
+        "jugador": draft.get('jugador'),
+        # Culture
+        "cultura_id": draft['cultura_id'],
+        "cultura_nombre": draft['cultura_nombre'],
+        "categoria_cultura": draft.get('categoria_cultura'),
+        "edad": draft.get('edad'),
+        "altura_cm": draft.get('altura_cm'),
+        "peso_kg": draft.get('peso_kg'),
+        "tamano": draft.get('tamano'),
+        "velocidad": draft.get('velocidad'),
+        # Background
+        "trasfondo_id": draft['trasfondo_id'],
+        "trasfondo_nombre": draft['trasfondo_nombre'],
+        # Occupation
+        "ocupacion_id": draft['ocupacion_id'],
+        "ocupacion_tipo": draft.get('ocupacion_tipo'),
+        "vocacion_nombre": draft.get('vocacion_nombre'),
+        "dado_golpe": draft.get('dado_golpe'),
+        # Attributes
+        "atributos": draft['atributos_finales'],
+        # Virtue
+        "virtud_id": draft['virtud_id'],
+        "virtud_nombre": draft.get('virtud_nombre'),
+        "rasgos_virtud": draft.get('rasgos_virtud'),
+        # Skills and competencies
+        "habilidades": draft.get('habilidades_elegidas', []),
+        "competencias": {
+            "tiradas_salvacion": draft.get('competencias_ocupacion', {}).get('tiradas_salvacion', []),
+            "armaduras": draft.get('competencias_ocupacion', {}).get('armaduras', []),
+            "armas": draft.get('competencias_ocupacion', {}).get('armas', []),
+            "habilidades_trasfondo": draft.get('competencias_trasfondo', {}).get('habilidades', []),
+            "herramientas": draft.get('competencias_trasfondo', {}).get('herramientas', []),
+            "idiomas": draft.get('competencias_trasfondo', {}).get('idiomas', []),
+        },
+        # Equipment
+        "inventario": draft.get('inventario', []),
+        "dinero": draft.get('dinero', {"mp": 0, "mo": 0, "mc": 0}),
+        # Combat stats
+        "puntos_golpe_max": draft.get('puntos_golpe_max', 8),
+        "puntos_golpe_actual": draft.get('puntos_golpe_actual', 8),
+        "clase_armadura": 10 + ((draft.get('atributos_finales', {}).get('destreza', 10) - 10) // 2),
+        # Patron
+        "patron_id": draft.get('patron_id'),
+        "patron_nombre": draft.get('patron_nombre'),
+        "puntos_comunidad": draft.get('puntos_comunidad', 0),
+        # Personal details
+        "rasgo_distintivo": draft.get('rasgo_distintivo'),
+        "defecto": draft.get('defecto'),
+        "motivacion": draft.get('motivacion'),
+        "historia": draft.get('historia'),
+        # Progression
+        "nivel": 1,
+        "experiencia": 0,
+        # Shadow
+        "puntos_sombra": 0,
+        "puntos_sombra_permanentes": 0,
+        # Meta
+        "estado": "activo",
+        "created_at": now_utc(),
+        "updated_at": now_utc(),
+    }
+    
+    # Insert character and delete draft
+    await db.characters.insert_one(character)
+    await db.character_drafts.delete_one({"_id": draft_id})
+    
+    return serialize_doc(character)
+
+
+# === CHARACTER MANAGEMENT ENDPOINTS ===
+
+@router.get("/")
+async def list_characters(jugador: Optional[str] = None, campaign_id: Optional[str] = None):
+    """List all characters, optionally filtered"""
+    query = {"estado": "activo"}
+    if jugador:
+        query["jugador"] = jugador
+    if campaign_id:
+        query["campaign_id"] = campaign_id
+    
+    characters = await db.characters.find(query).to_list(100)
+    return {"characters": serialize_docs(characters)}
+
+
+@router.get("/{character_id}")
+async def get_character(character_id: str):
+    """Get a specific character by ID"""
+    character = await db.characters.find_one({"_id": character_id})
+    if not character:
+        raise HTTPException(status_code=404, detail="Character not found")
+    return serialize_doc(character)
+
+
+@router.delete("/{character_id}")
+async def delete_character(character_id: str):
+    """Soft delete a character"""
+    result = await db.characters.update_one(
+        {"_id": character_id},
+        {"$set": {"estado": "eliminado", "updated_at": now_utc()}}
+    )
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Character not found")
+    return {"message": "Character deleted"}
+
+
+@router.patch("/{character_id}/hp")
+async def update_character_hp(character_id: str, hp_change: int = Body(..., embed=True)):
+    """Update character's current HP (positive to heal, negative for damage)"""
+    character = await db.characters.find_one({"_id": character_id})
+    if not character:
+        raise HTTPException(status_code=404, detail="Character not found")
+    
+    new_hp = max(0, min(
+        character.get('puntos_golpe_max', 0),
+        character.get('puntos_golpe_actual', 0) + hp_change
+    ))
+    
+    await db.characters.update_one(
+        {"_id": character_id},
+        {"$set": {"puntos_golpe_actual": new_hp, "updated_at": now_utc()}}
+    )
+    
+    return {"puntos_golpe_actual": new_hp}
+
+
+@router.patch("/{character_id}/shadow")
+async def update_character_shadow(character_id: str, shadow_change: int = Body(..., embed=True)):
+    """Update character's shadow points"""
+    character = await db.characters.find_one({"_id": character_id})
+    if not character:
+        raise HTTPException(status_code=404, detail="Character not found")
+    
+    new_shadow = max(0, character.get('puntos_sombra', 0) + shadow_change)
+    
+    await db.characters.update_one(
+        {"_id": character_id},
+        {"$set": {"puntos_sombra": new_shadow, "updated_at": now_utc()}}
+    )
+    
+    return {"puntos_sombra": new_shadow}
+
+
+@router.patch("/{character_id}/xp")
+async def add_experience(character_id: str, xp: int = Body(..., embed=True)):
+    """Add experience points to character"""
+    character = await db.characters.find_one({"_id": character_id})
+    if not character:
+        raise HTTPException(status_code=404, detail="Character not found")
+    
+    new_xp = character.get('experiencia', 0) + xp
+    
+    await db.characters.update_one(
+        {"_id": character_id},
+        {"$set": {"experiencia": new_xp, "updated_at": now_utc()}}
+    )
+    
+    return {"experiencia": new_xp}
