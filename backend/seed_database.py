@@ -120,6 +120,7 @@ async def seed_backgrounds(db, data: dict, culture_id_map: dict):
             "competencias_herramientas": bg.get('competencias_herramientas', []),
             "idiomas": bg.get('idiomas', []),
             "equipo_inicial": bg.get('equipo_inicial', []),
+            "rasgos": bg.get('rasgos', []),
             "rasgo_distintivo": bg.get('rasgo_distintivo'),
             "created_at": now_utc(),
             "updated_at": now_utc(),
