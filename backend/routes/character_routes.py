@@ -491,8 +491,8 @@ async def finalize_character(draft_id: str):
     if not draft:
         raise HTTPException(status_code=404, detail="Draft not found")
     
-    # Validate draft is complete enough
-    required_fields = ['nombre', 'cultura_id', 'trasfondo_id', 'ocupacion_id', 'atributos_finales', 'virtud_id']
+    # Validate draft is complete enough - virtud es opcional (solo 3 culturas la obtienen)
+    required_fields = ['nombre', 'cultura_id', 'trasfondo_id', 'ocupacion_id', 'atributos_finales']
     missing = [f for f in required_fields if not draft.get(f)]
     if missing:
         raise HTTPException(
