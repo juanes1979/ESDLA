@@ -91,7 +91,10 @@ def extract_backgrounds(wb: openpyxl.Workbook) -> List[Dict]:
     # Row 2: Culture groups (ELFOS, ENANOS, etc.)
     # Row 3: Subcultures
     # Row 4: Background names
-    # Row 5+: Background details
+    # Row 5: Description
+    # Rows 6-7: Skill competencies
+    # Row 11: Tool competencies
+    # Row 16-17: Rasgos (traits)
     
     current_col = 2
     while current_col <= sheet.max_column:
@@ -102,6 +105,13 @@ def extract_backgrounds(wb: openpyxl.Workbook) -> List[Dict]:
             current_col += 1
             continue
         
+        # Extract traits from rows 16-17
+        rasgos = []
+        for row in [16, 17]:
+            rasgo = clean_value(sheet.cell(row=row, column=current_col).value)
+            if rasgo and rasgo not in rasgos:
+                rasgos.append(rasgo)
+        
         background = {
             "nombre": bg_name,
             "cultura": subculture,
@@ -110,14 +120,20 @@ def extract_backgrounds(wb: openpyxl.Workbook) -> List[Dict]:
             "competencias_herramientas": [],
             "idiomas": [],
             "equipo_inicial": [],
-            "rasgo_distintivo": None,
+            "rasgos": rasgos,  # Lista de rasgos del trasfondo
+            "rasgo_distintivo": rasgos[0] if rasgos else None,  # Primer rasgo como distintivo
         }
         
         # Extract skill competencies (rows 6-7 typically)
         for row in range(6, 9):
             skill = clean_value(sheet.cell(row=row, column=current_col).value)
-            if skill and not skill.startswith(('Herramienta', 'Idioma', 'Equipo')):
+            if skill and not skill.startswith(('Herramienta', 'Idioma', 'Equipo', 'herramienta')):
                 background["competencias_habilidades"].append(skill)
+        
+        # Extract tool competencies (row 11)
+        tool = clean_value(sheet.cell(row=11, column=current_col).value)
+        if tool:
+            background["competencias_herramientas"].append(tool)
         
         backgrounds.append(background)
         current_col += 1
