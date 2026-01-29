@@ -82,8 +82,12 @@ class CharacterCreateStep2(BaseModel):
 
 
 class CharacterCreateStep3(BaseModel):
-    """Step 3: Occupation selection"""
+    """Step 3: Occupation selection with skills, armor, weapons, and expertise"""
     ocupacion_id: str
+    habilidades_elegidas: List[str] = []
+    pericia_elegida: List[str] = []
+    equipo_ocupacion: List[str] = []
+    armadura_elegida: Optional[str] = None  # 'A' or 'B'
 
 
 class CharacterCreateStep4(BaseModel):
