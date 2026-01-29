@@ -524,8 +524,8 @@ async def finalize_character(draft_id: str):
         "dado_golpe": draft.get('dado_golpe'),
         # Attributes
         "atributos": draft['atributos_finales'],
-        # Virtue
-        "virtud_id": draft['virtud_id'],
+        # Virtue (optional - only 3 cultures get virtue at level 1)
+        "virtud_id": draft.get('virtud_id'),
         "virtud_nombre": draft.get('virtud_nombre'),
         "rasgos_virtud": draft.get('rasgos_virtud'),
         # Skills and competencies
