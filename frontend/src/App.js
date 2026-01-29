@@ -4,6 +4,8 @@ import { Toaster } from "@/components/ui/sonner";
 
 // Pages
 import HomePage from "@/pages/HomePage";
+import CharacterSheetPage from "@/pages/CharacterSheetPage";
+import CharactersListPage from "@/pages/CharactersListPage";
 import { CharacterCreatorWizard } from "@/components/character-creator";
 
 function App() {
@@ -13,6 +15,8 @@ function App() {
         <Routes>
           <Route path="/" element={<HomePage />} />
           <Route path="/create-character" element={<CharacterCreatorWizard />} />
+          <Route path="/character/:characterId" element={<CharacterSheetPage />} />
+          <Route path="/characters" element={<CharactersListPage />} />
         </Routes>
       </BrowserRouter>
       <Toaster />
