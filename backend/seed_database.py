@@ -357,14 +357,21 @@ async def seed_shadow_rules(db, data: dict):
     shadow = data.get('sombra', {})
     
     def convert_sources(sources):
-        return [
-            {
+        result = []
+        for s in sources:
+            if not s.get('fuente'):
+                continue
+            # Skip header rows
+            if 'FUENTE' in str(s.get('fuente', '')).upper():
+                continue
+            if 'PUNTOS DE SOMBRA' in str(s.get('puntos_sombra', '')).upper():
+                continue
+            result.append({
                 "fuente": s.get('fuente', ''),
                 "ejemplo": s.get('ejemplo'),
-                "puntos_sombra": int(s['puntos_sombra']) if s.get('puntos_sombra') else None
-            }
-            for s in sources if s.get('fuente')
-        ]
+                "puntos_sombra": safe_int(s.get('puntos_sombra'))
+            })
+        return result
     
     doc = {
         "_id": generate_id(),
