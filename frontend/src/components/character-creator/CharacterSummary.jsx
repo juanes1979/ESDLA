@@ -332,34 +332,72 @@ const CharacterSummary = ({ draft, onFinalize, onEdit, loading }) => {
           </h3>
           
           {(() => {
-            // Weight data for common items (in kg)
+            // CORRECT Weight data from Excel (in kg)
             const ITEM_WEIGHTS = {
-              // Weapons (kg)
-              'daga': 0.5, 'espada corta': 1, 'espada': 1.5, 'espada larga': 1.5, 'espada ancha': 1.5,
-              'hacha': 2, 'hacha de batalla': 2, 'maza': 2, 'martillo': 1, 'lanza': 1.5,
-              'arco': 1, 'arco corto': 1, 'arco largo': 1, 'honda': 0,
-              // Armor (kg)
-              'armadura de cuero': 5, 'coleto de cuero': 5, 'armadura ligera': 5,
-              'cota de mallas': 18, 'armadura de mallas': 18, 'cota de escamas': 20,
-              'armadura media': 12, 'armadura pesada': 30,
-              'escudo': 3, 'escudo grande': 3, 'escudo pequeño': 2,
+              // Weapons (from Excel Equipo sheet)
+              'daga': 0.45,
+              'espada corta': 0.9, 'espada': 0.9,
+              'espada larga': 1.35, 'espada ancha': 1.35,
+              'hacha de mano': 0.9, 'hacha': 0.9,
+              'hacha de guerra': 1.8, 'hacha a dos manos': 3.5, 'gran hacha': 3.15,
+              'maza': 1.8, 'martillo': 1.35, 'martillo pesado': 1.8,
+              'lanza': 1.35, 'lanza corta': 0.9, 'lanza pesada': 2.7,
+              'arco': 0.9, 'arco corto': 0.9, 'arco largo': 1.35,
+              'ballesta': 4.5, 'honda': 0,
+              'cimitarra': 1.2, 'estoque': 1, 'flajelo': 1.5, 'látigo': 1,
+              'piqueta': 4.5,
+              // Armor (from Excel)
+              'coleto de cuero': 3.6, 'armadura de cuero': 3.6,
+              'jubón reforzado': 4.5, 'pieles': 5.4,
+              'camisote de mallas': 9,
+              'armadura de escamas': 18,
+              'cota de anillas': 22.5,
+              'cota de mallas': 24.75,
+              'loriga de mallas': 27,
+              'escudo': 2.7, 'escudo grande': 2.7, 'escudo pequeño': 1.8,
               // General equipment (kg)
-              'mochila': 2.5, 'petate': 3.5, 'utensilios de cocina': 4, 'lata de yesca': 0.5,
-              'raciones': 1, 'antorchas': 0.5, 'odre': 2.5, 'cuerda': 5, 'tienda': 9,
-              'linterna': 1, 'aceite': 0.5,
+              'mochila': 2.25, 'petate': 3.15, 'utensilios de cocina': 3.6, 'útiles de cocina': 3.6,
+              'lata de yesca': 0.45,
+              'raciones': 0.6, 'raciones (1 día)': 0.6, // Updated as requested
+              'antorchas': 0.45, 'odre': 2.25, 
+              'cuerda de cáñamo': 4.5, 'cuerda de seda': 2.25, 'cuerda': 4.5,
+              'tienda': 9, 'tienda para 2 personas': 9,
+              'linterna': 0.9, 'linterna sorda': 0.9, 'aceite': 0.45,
+              // Clothing
+              'botas de viaje': 1, 'botas de buena piel': 1.2, 'botas de cuero': 1,
+              'capa de viaje': 1, 'muda común': 1.5, 'muda de viajero': 2, 'muda fina': 1.8,
               // Tools (kg)
-              'herramientas de ladrón': 0.5, 'herramientas de herrero': 4, 'herramientas de carpintero': 3,
-              'instrumentos musicales': 1.5,
+              'herramientas de ladrón': 0.45, 'herramientas de herrero': 3.6, 
+              'herramientas de carpintero': 2.7, 'herramientas de curtidor': 2.25,
+              'herramientas de alfarero': 1.35, 'herramientas de joyero': 0.9,
+              'instrumentos musicales': 1.35,
             };
             
-            // Helper to estimate weight
-            const getItemWeight = (name) => {
+            // Size multiplier for weight (Small = half, Large = double)
+            const tamanio = draft.tamanio || 'Mediano';
+            const sizeMultiplier = tamanio === 'Pequeño' ? 0.5 : (tamanio === 'Grande' ? 2 : 1);
+            
+            // Helper to get weight with size adjustment for armor/clothing
+            const getItemWeight = (name, isArmorOrClothing = false) => {
               if (!name) return 0;
               const lowerName = name.toLowerCase();
               for (const [key, weight] of Object.entries(ITEM_WEIGHTS)) {
-                if (lowerName.includes(key)) return weight;
+                if (lowerName.includes(key)) {
+                  // Apply size multiplier only for armor and clothing
+                  return isArmorOrClothing ? weight * sizeMultiplier : weight;
+                }
               }
-              return 0.5; // Default weight
+              return 0.25; // Default weight
+            };
+            
+            // Check if item is armor or clothing
+            const isArmorOrClothing = (name) => {
+              if (!name) return false;
+              const lower = name.toLowerCase();
+              return lower.includes('armadura') || lower.includes('coleto') || lower.includes('cota') ||
+                     lower.includes('escudo') || lower.includes('pieles') || lower.includes('camisote') ||
+                     lower.includes('botas') || lower.includes('capa') || lower.includes('muda') ||
+                     lower.includes('jubón') || lower.includes('loriga');
             };
             
             // Collect all equipment
@@ -370,7 +408,7 @@ const CharacterSummary = ({ draft, onFinalize, onEdit, loading }) => {
             const occupationItems = draft.equipo_ocupacion || [];
             occupationItems.forEach(item => {
               const name = typeof item === 'string' ? item : (item?.nombre || '');
-              const weight = getItemWeight(name);
+              const weight = getItemWeight(name, isArmorOrClothing(name));
               if (name) {
                 allEquipment.push({ name, type: 'ocupacion', weight });
                 totalWeight += weight;
@@ -381,7 +419,7 @@ const CharacterSummary = ({ draft, onFinalize, onEdit, loading }) => {
             const tools = draft.herramientas_elegidas_ocupacion || [];
             tools.forEach(tool => {
               const name = typeof tool === 'string' ? tool : '';
-              const weight = getItemWeight(name);
+              const weight = getItemWeight(name, false);
               if (name) {
                 allEquipment.push({ name, type: 'herramienta', weight });
                 totalWeight += weight;
@@ -393,7 +431,7 @@ const CharacterSummary = ({ draft, onFinalize, onEdit, loading }) => {
             inventory.forEach(item => {
               const name = typeof item === 'string' ? item : (item?.nombre || '');
               const qty = item?.cantidad || 1;
-              const weight = getItemWeight(name) * qty;
+              const weight = getItemWeight(name, isArmorOrClothing(name)) * qty;
               if (name) {
                 allEquipment.push({ name: `${name}${qty > 1 ? ` (x${qty})` : ''}`, type: 'general', weight });
                 totalWeight += weight;
@@ -404,31 +442,71 @@ const CharacterSummary = ({ draft, onFinalize, onEdit, loading }) => {
             const bgEquip = draft.equipo_trasfondo || [];
             bgEquip.forEach(item => {
               const name = typeof item === 'string' ? item : (item?.nombre || '');
-              const weight = getItemWeight(name);
+              const weight = getItemWeight(name, isArmorOrClothing(name));
               if (name) {
                 allEquipment.push({ name, type: 'trasfondo', weight });
                 totalWeight += weight;
               }
             });
             
-            // Calculate encumbrance (in kg, based on Fuerza)
+            // Calculate coin weight (0.9 grams = 0.0009 kg per coin)
+            const COIN_WEIGHT_KG = 0.0009;
+            const totalCoins = (draft.dinero?.mp || 0) + (draft.dinero?.mo || 0) + 
+                              (draft.dinero?.mc || 0) + (draft.dinero?.me || 0);
+            const coinWeight = totalCoins * COIN_WEIGHT_KG;
+            totalWeight += coinWeight;
+            
+            // ENCUMBRANCE RULES (metric system)
             const attrs = draft.caracteristicas || draft.atributos_finales || {};
             const fuerza = attrs.fuerza || 10;
-            const capacidadCarga = fuerza * 7.5; // Normal carrying capacity in kg (15 lb ≈ 7.5 kg per STR)
-            const pesoEstorbo = fuerza * 2.5; // Encumbered threshold (5 lb ≈ 2.5 kg per STR)
-            const pesoPesado = fuerza * 5; // Heavily encumbered threshold (10 lb ≈ 5 kg per STR)
             
-            // Double capacity if culture has it
-            const capacidadFinal = draft.capacidad_carga_x2 ? capacidadCarga * 2 : capacidadCarga;
+            // Base values for Medium creatures
+            let capacidadCarga = fuerza * 6.8;        // Max carrying capacity
+            let capacidadEmpujar = fuerza * 13.6;    // Push/drag/lift capacity
+            let pesoCargado = fuerza * 2.3;          // Encumbered threshold
+            let pesoMuyCargado = fuerza * 4.5;       // Heavily encumbered threshold
             
-            let estorboStatus = 'normal';
+            // Size adjustments
+            if (tamanio === 'Grande') {
+              capacidadCarga *= 2;
+              capacidadEmpujar *= 2;
+              pesoCargado *= 2;
+              pesoMuyCargado *= 2;
+            } else if (tamanio === 'Pequeño') {
+              capacidadCarga /= 2;
+              capacidadEmpujar /= 2;
+              pesoCargado /= 2;
+              pesoMuyCargado /= 2;
+            }
+            
+            // Double capacity if culture has it (e.g., Hobbits)
+            if (draft.capacidad_carga_x2) {
+              capacidadCarga *= 2;
+              capacidadEmpujar *= 2;
+            }
+            
+            let estorboStatus = '';
             let estorboColor = 'text-green-500';
-            if (totalWeight > pesoPesado) {
-              estorboStatus = 'Muy estorbado (-6 m velocidad)';
+            let estorboPenalties = [];
+            
+            if (totalWeight > pesoMuyCargado) {
+              estorboStatus = 'Muy Cargado';
               estorboColor = 'text-red-500';
-            } else if (totalWeight > pesoEstorbo) {
-              estorboStatus = 'Estorbado (-3 m velocidad)';
+              estorboPenalties = [
+                '−6 m velocidad',
+                'Desventaja en ataques (FUE/DES)',
+                'Desventaja en salvaciones (FUE/DES/CON)',
+                'Desventaja en pruebas de característica'
+              ];
+            } else if (totalWeight > pesoCargado) {
+              estorboStatus = 'Cargado';
               estorboColor = 'text-yellow-500';
+              estorboPenalties = [
+                '−3 m velocidad',
+                'Desventaja en Atletismo',
+                'Desventaja en Acrobacias',
+                'Desventaja en salvaciones vs fatiga'
+              ];
             } else {
               estorboStatus = 'Sin estorbo';
             }
@@ -443,7 +521,7 @@ const CharacterSummary = ({ draft, onFinalize, onEdit, loading }) => {
                       {allEquipment.filter(e => e.type === 'ocupacion').map((item, i) => (
                         <div key={i} className="flex justify-between text-sm">
                           <span className="text-foreground">{item.name}</span>
-                          <span className="text-muted-foreground">{item.weight} kg</span>
+                          <span className="text-muted-foreground">{item.weight.toFixed(2)} kg</span>
                         </div>
                       ))}
                     </div>
@@ -458,7 +536,7 @@ const CharacterSummary = ({ draft, onFinalize, onEdit, loading }) => {
                       {allEquipment.filter(e => e.type === 'herramienta').map((item, i) => (
                         <div key={i} className="flex justify-between text-sm">
                           <span className="text-foreground">{item.name}</span>
-                          <span className="text-muted-foreground">{item.weight} kg</span>
+                          <span className="text-muted-foreground">{item.weight.toFixed(2)} kg</span>
                         </div>
                       ))}
                     </div>
@@ -473,7 +551,7 @@ const CharacterSummary = ({ draft, onFinalize, onEdit, loading }) => {
                       {allEquipment.filter(e => e.type === 'general' || e.type === 'trasfondo').map((item, i) => (
                         <div key={i} className="flex justify-between text-sm">
                           <span className="text-muted-foreground">{item.name}</span>
-                          <span className="text-muted-foreground">{item.weight} kg</span>
+                          <span className="text-muted-foreground">{item.weight.toFixed(2)} kg</span>
                         </div>
                       ))}
                     </div>
@@ -481,36 +559,74 @@ const CharacterSummary = ({ draft, onFinalize, onEdit, loading }) => {
                 )}
                 
                 {/* Money */}
-                <div className="bg-[hsl(var(--gold))/10] rounded-lg p-3 flex items-center justify-between">
-                  <span className="text-sm text-[hsl(var(--gold))]">💰 Dinero</span>
-                  <span className="font-heading text-[hsl(var(--gold))]">
-                    {draft.dinero?.mp || 0} mp · {draft.dinero?.mo || 0} mo · {draft.dinero?.mc || 0} mc
-                  </span>
+                <div className="bg-[hsl(var(--gold))/10] rounded-lg p-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-[hsl(var(--gold))]">💰 Dinero</span>
+                    <span className="font-heading text-[hsl(var(--gold))]">
+                      {draft.dinero?.mp || 0} mp · {draft.dinero?.mo || 0} mo · {draft.dinero?.me || 0} me · {draft.dinero?.mc || 0} mc
+                    </span>
+                  </div>
+                  {totalCoins > 0 && (
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Peso monedas: {(coinWeight * 1000).toFixed(1)} g ({coinWeight.toFixed(3)} kg)
+                    </p>
+                  )}
                 </div>
                 
                 {/* Weight and Encumbrance */}
                 <div className="bg-black/20 rounded-lg p-4 border border-border">
                   <div className="flex justify-between items-center mb-2">
                     <span className="text-sm text-foreground font-heading">Peso Total</span>
-                    <span className="text-lg font-heading text-[hsl(var(--gold))]">{totalWeight.toFixed(1)} kg</span>
+                    <span className="text-lg font-heading text-[hsl(var(--gold))]">{totalWeight.toFixed(2)} kg</span>
                   </div>
-                  <div className="w-full bg-secondary rounded-full h-3 mb-2">
+                  
+                  {/* Progress bar */}
+                  <div className="w-full bg-secondary rounded-full h-3 mb-2 relative">
+                    {/* Cargado marker */}
+                    <div 
+                      className="absolute h-3 w-0.5 bg-yellow-500 z-10"
+                      style={{ left: `${Math.min((pesoCargado / capacidadCarga) * 100, 100)}%` }}
+                    />
+                    {/* Muy Cargado marker */}
+                    <div 
+                      className="absolute h-3 w-0.5 bg-red-500 z-10"
+                      style={{ left: `${Math.min((pesoMuyCargado / capacidadCarga) * 100, 100)}%` }}
+                    />
+                    {/* Current weight */}
                     <div 
                       className={`h-3 rounded-full transition-all ${
-                        totalWeight > pesoPesado ? 'bg-red-500' :
-                        totalWeight > pesoEstorbo ? 'bg-yellow-500' : 'bg-green-500'
+                        totalWeight > pesoMuyCargado ? 'bg-red-500' :
+                        totalWeight > pesoCargado ? 'bg-yellow-500' : 'bg-green-500'
                       }`}
-                      style={{ width: `${Math.min((totalWeight / capacidadFinal) * 100, 100)}%` }}
+                      style={{ width: `${Math.min((totalWeight / capacidadCarga) * 100, 100)}%` }}
                     />
                   </div>
-                  <div className="flex justify-between text-xs text-muted-foreground">
-                    <span>Estorbo: {pesoEstorbo.toFixed(0)} kg</span>
-                    <span>Pesado: {pesoPesado.toFixed(0)} kg</span>
-                    <span>Máx: {capacidadFinal.toFixed(0)} kg</span>
+                  
+                  {/* Thresholds */}
+                  <div className="grid grid-cols-3 text-xs text-muted-foreground mb-2">
+                    <span>Cargado: {pesoCargado.toFixed(1)} kg</span>
+                    <span className="text-center">Muy Cargado: {pesoMuyCargado.toFixed(1)} kg</span>
+                    <span className="text-right">Máx: {capacidadCarga.toFixed(1)} kg</span>
                   </div>
-                  <p className={`text-center text-sm mt-2 font-medium ${estorboColor}`}>
-                    {estorboStatus}
-                  </p>
+                  
+                  {/* Status */}
+                  <div className={`text-center p-2 rounded ${estorboColor} bg-black/30`}>
+                    <p className="font-heading">{estorboStatus}</p>
+                    {estorboPenalties.length > 0 && (
+                      <div className="text-xs mt-1 space-y-0.5">
+                        {estorboPenalties.map((p, i) => (
+                          <p key={i}>{p}</p>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  
+                  {/* Size note */}
+                  {tamanio !== 'Mediano' && (
+                    <p className="text-xs text-muted-foreground text-center mt-2">
+                      Tamaño {tamanio}: capacidades {tamanio === 'Pequeño' ? '÷2' : '×2'}
+                    </p>
+                  )}
                 </div>
               </div>
             );
