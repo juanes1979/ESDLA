@@ -222,12 +222,13 @@ const Step3Occupation = ({ draftId, draft, onComplete, onBack }) => {
   const handleWeaponSelection = (armaIndex, selection) => {
     const arma = occupationData.armas[armaIndex];
     
-    if (arma.tipo === 'ab') {
-      // A/B selection
+    if (arma.tipo === 'ab' || arma.tipo === 'ab_complex') {
+      // A/B selection - just store the choice
       setWeaponSelections(prev => ({
         ...prev,
         [`arma${arma.numero}`]: selection, // 'A' or 'B'
-        [`arma${arma.numero}_items`]: selection === 'A' ? arma.opcion_a : []
+        // For ab_complex, we don't auto-fill items - user must choose
+        [`arma${arma.numero}_items`]: arma.tipo === 'ab' && selection === 'A' ? arma.opcion_a : []
       }));
     } else {
       // Simple selection - toggle item
@@ -264,6 +265,21 @@ const Step3Occupation = ({ draftId, draft, onComplete, onBack }) => {
     });
   };
 
+  // Handle ab_complex selections (for complex weapon choices)
+  const handleComplexWeaponSelection = (armaIndex, optionKey, item) => {
+    const arma = occupationData.armas[armaIndex];
+    const key = `arma${arma.numero}_${optionKey}`;
+    
+    setWeaponSelections(prev => {
+      const current = prev[key] || [];
+      if (current.includes(item)) {
+        return { ...prev, [key]: current.filter(i => i !== item) };
+      }
+      // Only allow 1 selection per slot
+      return { ...prev, [key]: [item] };
+    });
+  };
+
   // Final submit
   const handleFinalSubmit = async () => {
     try {
@@ -282,12 +298,25 @@ const Step3Occupation = ({ draftId, draft, onComplete, onBack }) => {
       // Add weapons
       occupationData.armas?.forEach((arma, index) => {
         const key = `arma${arma.numero}`;
+        const choice = weaponSelections[key];
+        
         if (arma.tipo === 'ab') {
-          const choice = weaponSelections[key];
           if (choice === 'A') {
             equipoSeleccionado.push(...(arma.opcion_a || []));
           } else if (choice === 'B') {
             equipoSeleccionado.push(...(weaponSelections[`${key}_b_items`] || []));
+          }
+        } else if (arma.tipo === 'ab_complex') {
+          if (choice === 'A') {
+            // Option A: selected weapon + extra_siempre
+            equipoSeleccionado.push(...(weaponSelections[`${key}_a_items`] || []));
+            if (arma.opcion_a?.extra_siempre) {
+              equipoSeleccionado.push(arma.opcion_a.extra_siempre);
+            }
+          } else if (choice === 'B') {
+            // Option B: opciones_1 + opciones_2
+            equipoSeleccionado.push(...(weaponSelections[`${key}_b1_items`] || []));
+            equipoSeleccionado.push(...(weaponSelections[`${key}_b2_items`] || []));
           }
         } else {
           equipoSeleccionado.push(...(weaponSelections[key] || []));
