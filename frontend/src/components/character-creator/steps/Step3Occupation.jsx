@@ -329,21 +329,24 @@ const Step3Occupation = ({ draftId, draft, onComplete, onBack }) => {
   // Render sub-step indicator
   const renderSubStepIndicator = () => {
     const steps = [
-      { id: 0, label: 'Ocupación' },
-      { id: 1, label: 'Habilidades' },
+      { id: SUB_STEPS.SELECT_OCCUPATION, label: 'Ocupación' },
     ];
+    if (hasTools) {
+      steps.push({ id: SUB_STEPS.SELECT_TOOLS, label: 'Herramientas' });
+    }
+    steps.push({ id: SUB_STEPS.SELECT_SKILLS, label: 'Habilidades' });
     if (occupationData.armadura?.opcion_a?.length > 0) {
-      steps.push({ id: 2, label: 'Armadura' });
+      steps.push({ id: SUB_STEPS.SELECT_ARMOR, label: 'Armadura' });
     }
     if (occupationData.armas?.length > 0) {
-      steps.push({ id: 3, label: 'Armas' });
+      steps.push({ id: SUB_STEPS.SELECT_WEAPONS, label: 'Armas' });
     }
     if (hasExpertise) {
-      steps.push({ id: 4, label: 'Pericia' });
+      steps.push({ id: SUB_STEPS.SELECT_EXPERTISE, label: 'Pericia' });
     }
 
     return (
-      <div className="flex justify-center gap-2 mb-6">
+      <div className="flex justify-center gap-2 mb-6 flex-wrap">
         {steps.map((step, index) => (
           <div 
             key={step.id}
