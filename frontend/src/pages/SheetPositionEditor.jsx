@@ -434,6 +434,7 @@ const SheetPositionEditor = () => {
               </div>
             ))}
           </div>
+          </div>
         </div>
 
         {/* Sidebar - Position List */}
