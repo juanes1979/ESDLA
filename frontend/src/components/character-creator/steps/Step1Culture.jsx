@@ -128,6 +128,9 @@ const Step1Culture = ({ draftId, draft, onComplete, onBack }) => {
     fuerza: 8, destreza: 8, constitucion: 8,
     inteligencia: 8, sabiduria: 8, carisma: 8
   });
+  
+  // Extra free characteristic improvement (for cultures like Dunedain)
+  const [mejoraExtraLibre, setMejoraExtraLibre] = useState(null); // 'fuerza', 'destreza', etc.
   const [noldorBonus, setNoldorBonus] = useState(null); // Selected characteristic for Noldor
   
   // Culture selections
