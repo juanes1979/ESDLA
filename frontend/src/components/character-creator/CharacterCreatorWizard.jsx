@@ -88,17 +88,28 @@ export const CharacterCreatorWizard = () => {
     }
   }, [currentStep, cultureGetsVirtue]);
 
-  // Navigate to previous step
-  const handleBack = useCallback(() => {
+  // Navigate to previous step - RESET current step data to prevent duplicates
+  const handleBack = useCallback(async () => {
     if (currentStep > 1) {
       let prevStep = currentStep - 1;
       // Si estamos en paso 6 y la cultura NO obtiene virtud, volvemos al paso 4
       if (currentStep === 6 && !cultureGetsVirtue(draft?.cultura_nombre)) {
         prevStep = 4;
       }
+      
+      // Reset current step data in draft to prevent duplicates when re-selecting
+      // We'll update the paso_actual in backend so next time it loads fresh
+      try {
+        // Fetch fresh draft data without accumulating selections
+        const freshDraft = await getCharacterDraft(draftId);
+        setDraft(freshDraft);
+      } catch (err) {
+        console.error('Error refreshing draft on back:', err);
+      }
+      
       setCurrentStep(prevStep);
     }
-  }, [currentStep, cultureGetsVirtue, draft?.cultura_nombre]);
+  }, [currentStep, cultureGetsVirtue, draft?.cultura_nombre, draftId]);
 
   // Finalize character
   const handleFinalize = useCallback(async () => {
