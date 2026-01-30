@@ -8,7 +8,7 @@ import {
   Swords, Star, Book, Crown, Package, Scroll, Edit2,
   Plus, Minus, Save
 } from 'lucide-react';
-import { getCharacter, deleteCharacter } from '@/services/api';
+import { getCharacter, deleteCharacter, getOccupations } from '@/services/api';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
