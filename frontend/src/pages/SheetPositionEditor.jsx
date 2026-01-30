@@ -355,14 +355,16 @@ const SheetPositionEditor = () => {
         {/* Sheet Container */}
         <div 
           ref={containerRef}
-          className="flex-1 flex justify-center py-8 overflow-auto"
+          className="flex-1 flex justify-center items-start py-8 overflow-auto"
           style={{ maxHeight: 'calc(100vh - 64px)' }}
         >
           <div 
-            className="relative bg-white shadow-2xl cursor-crosshair"
+            className="relative bg-white shadow-2xl cursor-crosshair flex-shrink-0"
             style={{
               width: SHEET_WIDTH * scale,
               height: SHEET_HEIGHT * scale,
+              aspectRatio: `${SHEET_WIDTH} / ${SHEET_HEIGHT}`, // Mantiene proporción DIN A4
+              minWidth: SHEET_WIDTH * scale, // Evita que se comprima
             }}
             onClick={handleSheetClick}
           >
@@ -370,8 +372,9 @@ const SheetPositionEditor = () => {
             <img
               src={`/assets/sheets/sheet_page${currentPage}_web.png`}
               alt={`Character Sheet Page ${currentPage}`}
-              className="absolute inset-0 w-full h-full pointer-events-none select-none"
+              className="absolute inset-0 w-full h-full pointer-events-none select-none object-contain"
               draggable={false}
+              style={{ aspectRatio: `${SHEET_WIDTH} / ${SHEET_HEIGHT}` }}
             />
 
             {/* Editable text fields at each position */}
