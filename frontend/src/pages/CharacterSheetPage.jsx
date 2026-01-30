@@ -369,40 +369,76 @@ const CharacterSheetPage = () => {
               <h3 className="font-heading text-lg text-[hsl(var(--magic-blue))] mb-3">
                 Competencias
               </h3>
-              <div className="space-y-2 text-sm">
-                {character.competencias?.tiradas_salvacion?.length > 0 && (
-                  <div>
-                    <span className="text-muted-foreground">Tiradas de salvación: </span>
-                    <span className="text-foreground">
-                      {character.competencias.tiradas_salvacion.join(', ')}
-                    </span>
+              {(() => {
+                // Known weapon types to filter
+                const weaponKeywords = ['armas sencillas', 'armas marciales', 'espada', 'daga', 'hacha', 
+                  'maza', 'martillo', 'lanza', 'arco', 'ballesta', 'honda', 'bastón'];
+                const armorKeywords = ['armaduras ligeras', 'armaduras medias', 'armaduras pesadas', 
+                  'escudos', 'coleto', 'cota', 'pieles'];
+                
+                // Filter weapons - only items that look like weapon types, not descriptions
+                const filterWeapons = (items) => {
+                  if (!items) return [];
+                  return items.filter(item => {
+                    if (!item || typeof item !== 'string') return false;
+                    const lower = item.toLowerCase();
+                    // Must match a weapon keyword AND be reasonably short (< 50 chars)
+                    return item.length < 50 && weaponKeywords.some(kw => lower.includes(kw));
+                  });
+                };
+                
+                // Filter armors - only items that look like armor types
+                const filterArmors = (items) => {
+                  if (!items) return [];
+                  return items.filter(item => {
+                    if (!item || typeof item !== 'string') return false;
+                    const lower = item.toLowerCase();
+                    return item.length < 50 && armorKeywords.some(kw => lower.includes(kw));
+                  });
+                };
+                
+                const armas = filterWeapons(character.competencias?.armas);
+                const armaduras = filterArmors(character.competencias?.armaduras);
+                const tiradas = character.competencias?.tiradas_salvacion || [];
+                const idiomas = character.competencias?.idiomas || [];
+                
+                return (
+                  <div className="space-y-2 text-sm">
+                    {tiradas.length > 0 && (
+                      <div>
+                        <span className="text-muted-foreground">Tiradas de salvación: </span>
+                        <span className="text-foreground uppercase font-medium">
+                          {tiradas.join(', ')}
+                        </span>
+                      </div>
+                    )}
+                    {armaduras.length > 0 && (
+                      <div>
+                        <span className="text-muted-foreground">Armaduras: </span>
+                        <span className="text-foreground">
+                          {armaduras.join(', ')}
+                        </span>
+                      </div>
+                    )}
+                    {armas.length > 0 && (
+                      <div>
+                        <span className="text-muted-foreground">Armas: </span>
+                        <span className="text-foreground">
+                          {armas.join(', ')}
+                        </span>
+                      </div>
+                    )}
+                    {idiomas.length > 0 && (
+                      <div>
+                        <span className="text-muted-foreground">Idiomas: </span>
+                        <span className="text-foreground uppercase">
+                          {idiomas.join(', ')}
+                        </span>
+                      </div>
+                    )}
                   </div>
-                )}
-                {character.competencias?.armaduras?.length > 0 && (
-                  <div>
-                    <span className="text-muted-foreground">Armaduras: </span>
-                    <span className="text-foreground">
-                      {character.competencias.armaduras.join(', ')}
-                    </span>
-                  </div>
-                )}
-                {character.competencias?.armas?.length > 0 && (
-                  <div>
-                    <span className="text-muted-foreground">Armas: </span>
-                    <span className="text-foreground">
-                      {character.competencias.armas.join(', ')}
-                    </span>
-                  </div>
-                )}
-                {character.competencias?.idiomas?.length > 0 && (
-                  <div>
-                    <span className="text-muted-foreground">Idiomas: </span>
-                    <span className="text-foreground">
-                      {character.competencias.idiomas.join(', ')}
-                    </span>
-                  </div>
-                )}
-              </div>
+                );
+              })()}
             </div>
           </div>
 
