@@ -305,11 +305,19 @@ export const generateCharacterPDF = async (character) => {
 
   doc.setFontSize(9);
   doc.setTextColor(...textLight);
+  let traitY = virtY + 15;
+  
   if (character.rasgo_distintivo) {
-    doc.text(`• ${character.rasgo_distintivo}`, margin, virtY + 15);
+    const rasgo1 = typeof character.rasgo_distintivo === 'object' 
+      ? character.rasgo_distintivo.nombre 
+      : character.rasgo_distintivo;
+    doc.text(`• ${rasgo1}`, margin, traitY);
+    traitY += 8;
   }
-  if (character.defecto) {
-    doc.text(`• ${character.defecto}`, margin, virtY + 23);
+  if (character.rasgo_distintivo_2 || character.defecto) {
+    const rasgo2 = character.rasgo_distintivo_2 || character.defecto;
+    const rasgo2Text = typeof rasgo2 === 'object' ? rasgo2.nombre : rasgo2;
+    doc.text(`• ${rasgo2Text}`, margin, traitY);
   }
 
   // TRADITIONAL EQUIPMENT
