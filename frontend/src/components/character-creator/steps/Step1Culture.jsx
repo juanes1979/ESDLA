@@ -959,13 +959,13 @@ const Step1Culture = ({ draftId, draft, onComplete, onBack }) => {
         )}
 
         {/* Free Characteristic Improvement (Dunedain) */}
-        {selectedCulture?.mejora_extra_libre && assignmentMethod && (
+        {selectedCulture?.bonificador_a_eleccion && assignmentMethod && (
           <div className="card-parchment rounded-lg p-4 border-2 border-[hsl(var(--torch-orange))]">
             <h4 className="font-heading text-lg text-[hsl(var(--torch-orange))] mb-2">
-              Mejora de Característica Libre
+              Mejora de Característica Libre (Dúnedain)
             </h4>
             <p className="text-sm text-muted-foreground mb-4">
-              {selectedCulture.mejora_extra_descripcion || 'Aumenta en 1 una puntuación de característica a tu elección'}
+              Aumenta en 1 una puntuación de característica a tu elección
             </p>
             <div className="grid grid-cols-3 md:grid-cols-6 gap-2">
               {CHARACTERISTIC_NAMES.map((char) => (
