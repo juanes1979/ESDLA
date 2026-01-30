@@ -355,100 +355,135 @@ const InteractiveCharacterSheet = () => {
               {/* Character Name */}
               <DisplayField 
                 value={character.nombre} 
-                x={130} y={95} width={280} 
-                scale={scale} fontSize={18} align="left" bold
+                x={130} y={128} width={350} 
+                scale={scale} fontSize={16} align="left" bold
               />
               
               {/* Occupation and Level */}
               <DisplayField 
                 value={`${character.vocacion_nombre || ''} Nivel ${character.nivel || 1}`} 
-                x={130} y={118} width={280} 
-                scale={scale} fontSize={12} align="left"
+                x={130} y={148} width={350} 
+                scale={scale} fontSize={11} align="left"
               />
               
               {/* Culture */}
               <DisplayField 
                 value={character.cultura_nombre} 
-                x={470} y={95} width={200} 
-                scale={scale} fontSize={14} align="left"
+                x={130} y={210} width={200} 
+                scale={scale} fontSize={12} align="left"
               />
               
               {/* Experience */}
               <DisplayField 
                 value={editableFields.experiencia || 0} 
-                x={1420} y={118} width={100} 
-                scale={scale} fontSize={14} align="center"
+                x={1070} y={210} width={100} 
+                scale={scale} fontSize={12} align="center"
               />
 
               {/* === ATTRIBUTES SECTION (Left column) === */}
-              {/* Fuerza */}
-              <DisplayField value={attrs.fuerza || 10} x={58} y={295} width={55} scale={scale} fontSize={22} align="center" bold />
-              <DisplayField value={getModifier(attrs.fuerza || 10)} x={58} y={360} width={55} scale={scale} fontSize={16} align="center" bold />
+              {/* Fuerza - Value in diamond, modifier below */}
+              <DisplayField value={attrs.fuerza || 10} x={55} y={270} width={45} scale={scale} fontSize={18} align="center" bold />
+              <DisplayField value={getModifier(attrs.fuerza || 10)} x={55} y={320} width={45} scale={scale} fontSize={14} align="center" bold />
               
               {/* Destreza */}
-              <DisplayField value={attrs.destreza || 10} x={58} y={448} width={55} scale={scale} fontSize={22} align="center" bold />
-              <DisplayField value={getModifier(attrs.destreza || 10)} x={58} y={513} width={55} scale={scale} fontSize={16} align="center" bold />
+              <DisplayField value={attrs.destreza || 10} x={55} y={392} width={45} scale={scale} fontSize={18} align="center" bold />
+              <DisplayField value={getModifier(attrs.destreza || 10)} x={55} y={442} width={45} scale={scale} fontSize={14} align="center" bold />
               
               {/* Constitución */}
-              <DisplayField value={attrs.constitucion || 10} x={58} y={600} width={55} scale={scale} fontSize={22} align="center" bold />
-              <DisplayField value={getModifier(attrs.constitucion || 10)} x={58} y={665} width={55} scale={scale} fontSize={16} align="center" bold />
+              <DisplayField value={attrs.constitucion || 10} x={55} y={514} width={45} scale={scale} fontSize={18} align="center" bold />
+              <DisplayField value={getModifier(attrs.constitucion || 10)} x={55} y={564} width={45} scale={scale} fontSize={14} align="center" bold />
               
               {/* Inteligencia */}
-              <DisplayField value={attrs.inteligencia || 10} x={58} y={753} width={55} scale={scale} fontSize={22} align="center" bold />
-              <DisplayField value={getModifier(attrs.inteligencia || 10)} x={58} y={818} width={55} scale={scale} fontSize={16} align="center" bold />
+              <DisplayField value={attrs.inteligencia || 10} x={55} y={636} width={45} scale={scale} fontSize={18} align="center" bold />
+              <DisplayField value={getModifier(attrs.inteligencia || 10)} x={55} y={686} width={45} scale={scale} fontSize={14} align="center" bold />
               
               {/* Sabiduría */}
-              <DisplayField value={attrs.sabiduria || 10} x={58} y={905} width={55} scale={scale} fontSize={22} align="center" bold />
-              <DisplayField value={getModifier(attrs.sabiduria || 10)} x={58} y={970} width={55} scale={scale} fontSize={16} align="center" bold />
+              <DisplayField value={attrs.sabiduria || 10} x={55} y={758} width={45} scale={scale} fontSize={18} align="center" bold />
+              <DisplayField value={getModifier(attrs.sabiduria || 10)} x={55} y={808} width={45} scale={scale} fontSize={14} align="center" bold />
               
               {/* Carisma */}
-              <DisplayField value={attrs.carisma || 10} x={58} y={1058} width={55} scale={scale} fontSize={22} align="center" bold />
-              <DisplayField value={getModifier(attrs.carisma || 10)} x={58} y={1123} width={55} scale={scale} fontSize={16} align="center" bold />
+              <DisplayField value={attrs.carisma || 10} x={55} y={880} width={45} scale={scale} fontSize={18} align="center" bold />
+              <DisplayField value={getModifier(attrs.carisma || 10)} x={55} y={930} width={45} scale={scale} fontSize={14} align="center" bold />
 
               {/* === INSPIRATION & PROFICIENCY === */}
-              {/* Inspiración */}
-              <DisplayField value={editableFields.inspiracion || 0} x={215} y={295} width={40} scale={scale} fontSize={18} align="center" bold />
+              {/* Inspiración (first diamond in center section) */}
+              <DisplayField value={editableFields.inspiracion || 0} x={192} y={270} width={35} scale={scale} fontSize={16} align="center" bold />
               
-              {/* Proficiency Bonus */}
-              <DisplayField value={`+${bonificadorCompetencia}`} x={320} y={295} width={40} scale={scale} fontSize={18} align="center" bold />
+              {/* Proficiency Bonus (second diamond) */}
+              <DisplayField value={`+${bonificadorCompetencia}`} x={192} y={355} width={35} scale={scale} fontSize={16} align="center" bold />
+
+              {/* === SAVING THROWS === */}
+              {['Fuerza', 'Destreza', 'Constitución', 'Inteligencia', 'Sabiduría', 'Carisma'].map((attr, index) => {
+                const attrKey = attr.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+                const yPos = 472 + (index * 24);
+                const hasSaveProficiency = character.competencias?.tiradas_salvacion?.some(
+                  t => t.toLowerCase() === attr.toLowerCase() || t.toLowerCase() === attrKey
+                );
+                const attrValue = attrs[attrKey] || attrs[attr.toLowerCase()] || 10;
+                const saveMod = Math.floor((attrValue - 10) / 2) + (hasSaveProficiency ? bonificadorCompetencia : 0);
+                
+                return (
+                  <div key={attr}>
+                    {/* Proficiency circle */}
+                    <div
+                      className={cn(
+                        "absolute rounded-full",
+                        hasSaveProficiency ? "bg-black" : "border border-black/40"
+                      )}
+                      style={{
+                        left: `${148 * scale}px`,
+                        top: `${yPos * scale}px`,
+                        width: `${8 * scale}px`,
+                        height: `${8 * scale}px`,
+                      }}
+                    />
+                    {/* Modifier */}
+                    <DisplayField 
+                      value={saveMod >= 0 ? `+${saveMod}` : saveMod} 
+                      x={160} y={yPos - 4} width={25} 
+                      scale={scale} fontSize={10} align="center"
+                    />
+                  </div>
+                );
+              })}
 
               {/* === COMBAT STATS === */}
               {/* Armor Class */}
-              <DisplayField value={character.clase_armadura || 10} x={477} y={325} width={70} scale={scale} fontSize={24} align="center" bold />
+              <DisplayField value={character.clase_armadura || 10} x={302} y={300} width={60} scale={scale} fontSize={20} align="center" bold />
               
               {/* Initiative */}
-              <DisplayField value={getModifier(attrs.destreza || 10)} x={595} y={325} width={70} scale={scale} fontSize={20} align="center" bold />
+              <DisplayField value={getModifier(attrs.destreza || 10)} x={382} y={300} width={60} scale={scale} fontSize={18} align="center" bold />
               
               {/* Speed */}
-              <DisplayField value={`${character.velocidad || 9}`} x={712} y={325} width={70} scale={scale} fontSize={20} align="center" bold />
+              <DisplayField value={`${character.velocidad || 9}`} x={462} y={300} width={60} scale={scale} fontSize={18} align="center" bold />
 
               {/* === HIT POINTS === */}
               {/* Max HP */}
-              <DisplayField value={character.puntos_golpe_max || 0} x={570} y={428} width={80} scale={scale} fontSize={14} align="center" />
+              <DisplayField value={character.puntos_golpe_max || 0} x={320} y={400} width={80} scale={scale} fontSize={12} align="center" />
               
               {/* Temp HP */}
-              <DisplayField value={editableFields.puntos_golpe_temp || ''} x={720} y={428} width={60} scale={scale} fontSize={14} align="center" />
+              <DisplayField value={editableFields.puntos_golpe_temp || ''} x={430} y={445} width={60} scale={scale} fontSize={12} align="center" />
               
-              {/* Current HP (large number in center) */}
+              {/* Current HP (large editable number in center) */}
               <input
                 type="number"
                 value={editableFields.puntos_golpe_actual}
                 onChange={(e) => updateField('puntos_golpe_actual', parseInt(e.target.value) || 0)}
                 className="absolute bg-transparent border-none outline-none text-black font-bold text-center"
                 style={{
-                  left: `${540 * scale}px`,
-                  top: `${520 * scale}px`,
-                  width: `${150 * scale}px`,
-                  fontSize: `${36 * scale}px`,
+                  left: `${320 * scale}px`,
+                  top: `${490 * scale}px`,
+                  width: `${120 * scale}px`,
+                  fontSize: `${28 * scale}px`,
                 }}
               />
 
               {/* Hit Dice */}
-              <DisplayField value={`${character.nivel || 1}${character.dado_golpe || 'd8'}`} x={485} y={730} width={100} scale={scale} fontSize={16} align="center" />
+              <DisplayField value={`${character.nivel || 1}${character.dado_golpe || 'd8'}`} x={302} y={600} width={80} scale={scale} fontSize={14} align="center" />
 
               {/* === SKILLS SECTION === */}
               {SKILLS_ORDER.map((skill, index) => {
-                const yPos = 380 + (index * 36.5);
+                const yPos = 645 + (index * 26);
                 const hasProficiency = hasSkillProficiency(skill);
                 const modifier = getSkillModifier(skill);
                 
@@ -458,20 +493,20 @@ const InteractiveCharacterSheet = () => {
                     <div
                       className={cn(
                         "absolute rounded-full",
-                        hasProficiency ? "bg-black" : "border border-black/50"
+                        hasProficiency ? "bg-black" : "border border-black/40"
                       )}
                       style={{
-                        left: `${155 * scale}px`,
+                        left: `${148 * scale}px`,
                         top: `${yPos * scale}px`,
-                        width: `${10 * scale}px`,
-                        height: `${10 * scale}px`,
+                        width: `${8 * scale}px`,
+                        height: `${8 * scale}px`,
                       }}
                     />
                     {/* Modifier value */}
                     <DisplayField 
                       value={modifier} 
-                      x={175} y={yPos - 5} width={30} 
-                      scale={scale} fontSize={12} align="center" bold
+                      x={160} y={yPos - 4} width={25} 
+                      scale={scale} fontSize={10} align="center"
                     />
                   </div>
                 );
@@ -480,36 +515,17 @@ const InteractiveCharacterSheet = () => {
               {/* Passive Perception */}
               <DisplayField 
                 value={10 + parseInt(getSkillModifier('Percepción'))} 
-                x={57} y={1215} width={50} 
-                scale={scale} fontSize={16} align="center" bold
+                x={148} y={1165} width={40} 
+                scale={scale} fontSize={14} align="center" bold
               />
 
-              {/* === SHADOW SECTION === */}
+              {/* === SHADOW SECTION (Right side) === */}
               {/* Shadow Score */}
               <DisplayField 
                 value={editableFields.sombra_puntuacion || 0} 
-                x={860} y={295} width={50} 
-                scale={scale} fontSize={20} align="center" bold
+                x={570} y={445} width={40} 
+                scale={scale} fontSize={18} align="center" bold
               />
-
-              {/* === SAVING THROWS === */}
-              {/* Display saving throw proficiencies */}
-              {['fuerza', 'destreza', 'constitucion', 'inteligencia', 'sabiduria', 'carisma'].map((attr, index) => {
-                const yPos = 295 + (index * 18);
-                const hasSaveProficiency = character.competencias?.tiradas_salvacion?.includes(
-                  attr.charAt(0).toUpperCase() + attr.slice(1)
-                ) || character.competencias?.tiradas_salvacion?.includes(attr.toUpperCase());
-                const saveMod = Math.floor(((attrs[attr] || 10) - 10) / 2) + (hasSaveProficiency ? bonificadorCompetencia : 0);
-                
-                return (
-                  <DisplayField 
-                    key={attr}
-                    value={saveMod >= 0 ? `+${saveMod}` : saveMod} 
-                    x={230} y={yPos} width={25} 
-                    scale={scale} fontSize={10} align="center"
-                  />
-                );
-              })}
 
             </>
           )}
