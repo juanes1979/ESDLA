@@ -70,10 +70,47 @@ class EquipmentItem(BaseModel):
 
 
 class CharacterCreateStep1(BaseModel):
-    """Step 1: Basic info and Culture selection"""
+    """Step 1: Complete Culture selection with all physical data and selections"""
+    cultura_id: str
     nombre: str
     jugador: Optional[str] = None
-    cultura_id: str
+    
+    # Physical data
+    genero: Optional[str] = 'hombre'
+    edad: Optional[int] = None
+    altura_cm: Optional[int] = None
+    peso_kg: Optional[float] = None
+    ojos: Optional[str] = None
+    piel: Optional[str] = None
+    pelo: Optional[str] = None
+    
+    # Culture data
+    raza: Optional[str] = None
+    velocidad: Optional[int] = None
+    descanso: Optional[int] = None
+    tamanio: Optional[str] = None
+    nivel_vida: Optional[str] = None
+    
+    # Characteristics
+    caracteristicas: Optional[Dict[str, int]] = None
+    mejora_noldor: Optional[str] = None  # Selected characteristic for Noldor bonus
+    
+    # Skills and competencies
+    habilidades_puntuaciones: Optional[Dict[str, int]] = None
+    competencias_habilidades: Optional[List[str]] = None
+    rasgos_culturales: Optional[List[str]] = None
+    idiomas: Optional[List[str]] = None
+    
+    # Culture selections
+    competencia_habilidad_cultura: Optional[str] = None
+    competencia_herramienta_1: Optional[str] = None
+    competencias_herramientas_2: Optional[List[str]] = None
+    competencia_adicional: Optional[str] = None
+    
+    # Special features
+    pg_extra_nivel: Optional[int] = None
+    capacidad_carga_x2: Optional[int] = None
+    tiene_virtud_inicial: Optional[bool] = False
 
 
 class CharacterCreateStep2(BaseModel):
