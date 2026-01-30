@@ -206,16 +206,7 @@ const Step1Culture = ({ draftId, draft, onComplete, onBack }) => {
     setPiel(randomFrom(rasgos.piel || []));
     setPelo(randomFrom(rasgos.pelo || []));
     
-    // Calculate characteristics (base 8 + bonuses)
-    const bonuses = selectedCulture.bonificadores_caracteristicas || {};
-    setCaracteristicas({
-      fuerza: 8 + (bonuses.fuerza || 0),
-      destreza: 8 + (bonuses.destreza || 0),
-      constitucion: 8 + (bonuses.constitucion || 0),
-      inteligencia: 8 + (bonuses.inteligencia || 0),
-      sabiduria: 8 + (bonuses.sabiduria || 0),
-      carisma: 8 + (bonuses.carisma || 0),
-    });
+    // DON'T calculate final characteristics yet - wait for base assignment
   };
 
   // Regenerate name
@@ -251,9 +242,84 @@ const Step1Culture = ({ draftId, draft, onComplete, onBack }) => {
     setCurrentSubStep(SUB_STEPS.PHYSICAL_DATA);
   };
 
-  // Handle continuing to characteristics
+  // Handle continuing to characteristics ASSIGNMENT
   const handlePhysicalContinue = () => {
-    setCurrentSubStep(SUB_STEPS.CHARACTERISTICS);
+    setCurrentSubStep(SUB_STEPS.ASSIGN_CHARACTERISTICS);
+  };
+
+  // Roll 4d6 drop lowest
+  const rollDice = () => {
+    const rolls = [];
+    for (let i = 0; i < 6; i++) {
+      const dice = [
+        Math.floor(Math.random() * 6) + 1,
+        Math.floor(Math.random() * 6) + 1,
+        Math.floor(Math.random() * 6) + 1,
+        Math.floor(Math.random() * 6) + 1,
+      ];
+      dice.sort((a, b) => b - a);
+      rolls.push(dice[0] + dice[1] + dice[2]); // Drop lowest
+    }
+    rolls.sort((a, b) => b - a);
+    setDiceRolls(rolls);
+    setDiceAssignment({});
+  };
+
+  // Get base characteristics based on assignment method
+  const getBaseCharacteristics = () => {
+    if (assignmentMethod === 'standard') {
+      const base = { fuerza: 8, destreza: 8, constitucion: 8, inteligencia: 8, sabiduria: 8, carisma: 8 };
+      Object.entries(standardArrayAssignment).forEach(([char, value]) => {
+        base[char] = value;
+      });
+      return base;
+    } else if (assignmentMethod === 'points') {
+      return { ...baseCaracteristicas };
+    } else if (assignmentMethod === 'dice' && diceRolls) {
+      const base = { fuerza: 8, destreza: 8, constitucion: 8, inteligencia: 8, sabiduria: 8, carisma: 8 };
+      Object.entries(diceAssignment).forEach(([char, rollIndex]) => {
+        if (rollIndex !== undefined && diceRolls[rollIndex]) {
+          base[char] = diceRolls[rollIndex];
+        }
+      });
+      return base;
+    }
+    return { fuerza: 8, destreza: 8, constitucion: 8, inteligencia: 8, sabiduria: 8, carisma: 8 };
+  };
+
+  // Check if assignment is complete
+  const isAssignmentComplete = () => {
+    if (!assignmentMethod) return false;
+    if (assignmentMethod === 'standard') {
+      return Object.keys(standardArrayAssignment).length === 6;
+    } else if (assignmentMethod === 'points') {
+      return pointsRemaining === 0;
+    } else if (assignmentMethod === 'dice') {
+      return diceRolls && Object.keys(diceAssignment).length === 6;
+    }
+    return false;
+  };
+
+  // Handle continuing to characteristics SUMMARY (after assignment)
+  const handleAssignmentContinue = () => {
+    if (!isAssignmentComplete()) {
+      setError('Debes completar la asignación de características');
+      return;
+    }
+    
+    // Calculate final characteristics = base + culture bonuses
+    const base = getBaseCharacteristics();
+    const bonuses = selectedCulture?.bonificadores_caracteristicas || {};
+    setCaracteristicas({
+      fuerza: base.fuerza + (bonuses.fuerza || 0),
+      destreza: base.destreza + (bonuses.destreza || 0),
+      constitucion: base.constitucion + (bonuses.constitucion || 0),
+      inteligencia: base.inteligencia + (bonuses.inteligencia || 0),
+      sabiduria: base.sabiduria + (bonuses.sabiduria || 0),
+      carisma: base.carisma + (bonuses.carisma || 0),
+    });
+    setBaseCaracteristicas(base);
+    setCurrentSubStep(SUB_STEPS.CHARACTERISTICS_SUMMARY);
   };
 
   // Handle continuing to selections
