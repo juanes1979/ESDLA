@@ -393,6 +393,28 @@ const SheetPositionEditor = () => {
                     </div>
                   </div>
 
+                  {/* X/Y Position inputs */}
+                  <div className="grid grid-cols-2 gap-2 mb-2">
+                    <div>
+                      <label className="text-xs text-muted-foreground">X</label>
+                      <Input
+                        type="number"
+                        value={pos.x}
+                        onChange={(e) => updatePosition(pos.id, 'x', parseInt(e.target.value) || 0)}
+                        className="h-7 text-xs bg-black/30 border-border/50 font-mono"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs text-muted-foreground">Y</label>
+                      <Input
+                        type="number"
+                        value={pos.y}
+                        onChange={(e) => updatePosition(pos.id, 'y', parseInt(e.target.value) || 0)}
+                        className="h-7 text-xs bg-black/30 border-border/50 font-mono"
+                      />
+                    </div>
+                  </div>
+
                   {/* Field name input */}
                   <div className="relative mb-2">
                     <Input
