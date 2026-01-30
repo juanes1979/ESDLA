@@ -1,15 +1,12 @@
 /**
  * Step 7: Equipment Selection
  * El equipo inicial se asigna AUTOMÁTICAMENTE según el Nivel de Vida de la cultura
- * El jugador puede añadir equipo adicional si lo desea
+ * NO hay selección de equipo adicional durante la creación de personaje
  */
-import { useState, useEffect, useMemo } from 'react';
-import { Loader2, ChevronLeft, Package, Coins, Sword, Shield, CheckCircle } from 'lucide-react';
-import { getWeapons, getArmors, updateDraftStep7 } from '@/services/api';
+import { useState, useMemo } from 'react';
+import { Loader2, ChevronLeft, Package, Coins } from 'lucide-react';
+import { updateDraftStep7 } from '@/services/api';
 import { Button } from '@/components/ui/button';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { cn } from '@/lib/utils';
 
 // Equipo inicial según Nivel de Vida (según las reglas del juego)
 const EQUIPO_POR_NIVEL_VIDA = {
@@ -57,11 +54,6 @@ const EQUIPO_POR_NIVEL_VIDA = {
 };
 
 const Step7Equipment = ({ draftId, draft, onComplete, onBack }) => {
-  const [weapons, setWeapons] = useState([]);
-  const [armors, setArmors] = useState([]);
-  const [selectedWeapons, setSelectedWeapons] = useState([]);
-  const [selectedArmors, setSelectedArmors] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
 
@@ -73,84 +65,19 @@ const Step7Equipment = ({ draftId, draft, onComplete, onBack }) => {
     return EQUIPO_POR_NIVEL_VIDA[nivelVida] || EQUIPO_POR_NIVEL_VIDA['Común'];
   }, [nivelVida]);
 
-  // Load weapons and armors for optional selection
-  useEffect(() => {
-    const loadData = async () => {
-      try {
-        setLoading(true);
-        const [weaponData, armorData] = await Promise.all([
-          getWeapons(),
-          getArmors(),
-        ]);
-        setWeapons(weaponData);
-        setArmors(armorData);
-      } catch (err) {
-        console.error('Error loading equipment:', err);
-        setError('No se pudo cargar el equipo');
-      } finally {
-        setLoading(false);
-      }
-    };
-    loadData();
-  }, []);
-
-  // Toggle weapon selection
-  const toggleWeapon = (weapon) => {
-    setSelectedWeapons(prev => {
-      const exists = prev.find(w => w.id === weapon.id);
-      if (exists) {
-        return prev.filter(w => w.id !== weapon.id);
-      }
-      return [...prev, weapon];
-    });
-  };
-
-  // Toggle armor selection
-  const toggleArmor = (armor) => {
-    setSelectedArmors(prev => {
-      const exists = prev.find(a => a.id === armor.id);
-      if (exists) {
-        return prev.filter(a => a.id !== armor.id);
-      }
-      return [...prev, armor];
-    });
-  };
-
-  // Handle submit
+  // Handle submit - only automatic equipment, no optional items
   const handleSubmit = async () => {
     try {
       setSaving(true);
       
-      // Combinar equipo automático con armas/armaduras seleccionadas
-      const inventario = [
-        // Equipo automático del nivel de vida
-        ...equipoAutomatico.items.map(item => ({
-          item_id: `auto-${item.nombre.toLowerCase().replace(/\s/g, '-')}`,
-          nombre: item.nombre,
-          cantidad: item.cantidad,
-          equipado: false,
-          origen: 'nivel_vida'
-        })),
-        // Armas seleccionadas
-        ...selectedWeapons.map(w => ({
-          item_id: w.id,
-          nombre: w.nombre,
-          cantidad: 1,
-          equipado: false,
-          tipo: 'arma',
-          dano: w.dano,
-          tipo_dano: w.tipo_dano
-        })),
-        // Armaduras seleccionadas  
-        ...selectedArmors.map(a => ({
-          item_id: a.id,
-          nombre: a.nombre,
-          cantidad: 1,
-          equipado: false,
-          tipo: 'armadura',
-          clase_armadura: a.clase_armadura
-        }))
-      ];
+      // Solo equipo automático del nivel de vida
+      const inventario = equipoAutomatico.items.map(item => ({
+        item_id: `auto-${item.nombre.toLowerCase().replace(/\s/g, '-')}`,
+        nombre: item.nombre,
+        cantidad: item.cantidad,
+        equipado: false,
+        origen: 'nivel_vida'
+      }));
       
       const updatedDraft = await updateDraftStep7(draftId, {
         inventario,
@@ -163,80 +90,6 @@ const Step7Equipment = ({ draftId, draft, onComplete, onBack }) => {
     } finally {
       setSaving(false);
     }
-  };
-
-  if (loading) {
-    return (
-      <div className="card-parchment rounded-lg p-8 flex items-center justify-center min-h-[400px]">
-        <Loader2 className="w-8 h-8 animate-spin text-[hsl(var(--gold))]" />
-      </div>
-    );
-  }
-
-  const renderWeaponCard = (weapon) => {
-    const isSelected = selectedWeapons.some(w => w.id === weapon.id);
-    
-    return (
-      <button
-        key={weapon.id}
-        onClick={() => toggleWeapon(weapon)}
-        className={cn(
-          'p-3 rounded-lg border text-left transition-all w-full',
-          isSelected 
-            ? 'bg-[hsl(var(--gold))/15] border-[hsl(var(--gold))]' 
-            : 'bg-secondary border-border hover:border-[hsl(var(--gold))/50]'
-        )}
-        data-testid={`weapon-${weapon.id}`}
-      >
-        <div className="flex justify-between items-start">
-          <span className={cn(
-            'font-medium text-sm',
-            isSelected ? 'text-foreground' : 'text-muted-foreground'
-          )}>
-            {weapon.nombre}
-          </span>
-          {isSelected && <CheckCircle className="w-4 h-4 text-[hsl(var(--gold))]" />}
-        </div>
-        {weapon.dano && (
-          <p className="text-xs text-muted-foreground mt-1">
-            Daño: {weapon.dano} {weapon.tipo_dano}
-          </p>
-        )}
-      </button>
-    );
-  };
-
-  const renderArmorCard = (armor) => {
-    const isSelected = selectedArmors.some(a => a.id === armor.id);
-    
-    return (
-      <button
-        key={armor.id}
-        onClick={() => toggleArmor(armor)}
-        className={cn(
-          'p-3 rounded-lg border text-left transition-all w-full',
-          isSelected 
-            ? 'bg-[hsl(var(--gold))/15] border-[hsl(var(--gold))]' 
-            : 'bg-secondary border-border hover:border-[hsl(var(--gold))/50]'
-        )}
-        data-testid={`armor-${armor.id}`}
-      >
-        <div className="flex justify-between items-start">
-          <span className={cn(
-            'font-medium text-sm',
-            isSelected ? 'text-foreground' : 'text-muted-foreground'
-          )}>
-            {armor.nombre}
-          </span>
-          {isSelected && <CheckCircle className="w-4 h-4 text-[hsl(var(--gold))]" />}
-        </div>
-        {armor.clase_armadura && (
-          <p className="text-xs text-muted-foreground mt-1">
-            CA: {armor.clase_armadura}
-          </p>
-        )}
-      </button>
-    );
   };
 
   return (
@@ -313,69 +166,45 @@ const Step7Equipment = ({ draftId, draft, onComplete, onBack }) => {
         </div>
       </div>
 
-      {/* Optional: Additional Weapons & Armor Selection */}
-      <div className="card-parchment rounded-lg p-4">
-        <h3 className="font-heading text-lg text-[hsl(var(--magic-blue))] mb-4">
-          Armas y Armaduras Opcionales
-        </h3>
-        <p className="text-sm text-muted-foreground mb-4">
-          Puedes seleccionar armas y armaduras adicionales según tu ocupación y preferencias.
-        </p>
-
-        <Tabs defaultValue="weapons" className="w-full">
-          <TabsList className="grid w-full grid-cols-2 bg-secondary">
-            <TabsTrigger value="weapons" className="font-heading data-[state=active]:bg-[hsl(var(--gold))/20]">
-              <Sword className="w-4 h-4 mr-2" />
-              Armas ({selectedWeapons.length})
-            </TabsTrigger>
-            <TabsTrigger value="armors" className="font-heading data-[state=active]:bg-[hsl(var(--gold))/20]">
-              <Shield className="w-4 h-4 mr-2" />
-              Armaduras ({selectedArmors.length})
-            </TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="weapons" className="mt-4">
-            <ScrollArea className="h-[250px] pr-4">
-              <div className="grid md:grid-cols-2 gap-2">
-                {weapons.map(weapon => renderWeaponCard(weapon))}
-              </div>
-            </ScrollArea>
-          </TabsContent>
-
-          <TabsContent value="armors" className="mt-4">
-            <ScrollArea className="h-[250px] pr-4">
-              <div className="grid md:grid-cols-2 gap-2">
-                {armors.map(armor => renderArmorCard(armor))}
-              </div>
-            </ScrollArea>
-          </TabsContent>
-        </Tabs>
-      </div>
-
-      {/* Selected Additional Items Summary */}
-      {(selectedWeapons.length > 0 || selectedArmors.length > 0) && (
-        <div className="card-parchment rounded-lg p-4">
-          <h3 className="font-heading text-lg text-[hsl(var(--magic-blue))] mb-3">
-            Equipo Adicional Seleccionado
+      {/* Equipment from Occupation */}
+      {draft?.equipo_ocupacion?.length > 0 && (
+        <div className="card-parchment rounded-lg p-6">
+          <h3 className="font-heading text-xl text-[hsl(var(--magic-blue))] mb-4">
+            Equipo de Ocupación
           </h3>
-          <div className="flex flex-wrap gap-2">
-            {selectedWeapons.map(w => (
-              <span
-                key={w.id}
-                className="px-3 py-1 rounded-full bg-[hsl(var(--gold))/20] text-[hsl(var(--gold))] text-sm flex items-center gap-1"
+          <p className="text-sm text-muted-foreground mb-4">
+            Este equipo viene incluido por tu ocupación de {draft?.vocacion_nombre}
+          </p>
+          <div className="grid md:grid-cols-2 gap-3">
+            {draft.equipo_ocupacion.map((item, index) => (
+              <div 
+                key={index}
+                className="flex items-center p-3 rounded-lg bg-[hsl(var(--magic-blue))/10] border border-[hsl(var(--magic-blue))/30]"
               >
-                <Sword className="w-3 h-3" />
-                {w.nombre}
-              </span>
+                <span className="text-foreground">{item}</span>
+              </div>
             ))}
-            {selectedArmors.map(a => (
-              <span
-                key={a.id}
-                className="px-3 py-1 rounded-full bg-[hsl(var(--magic-blue))/20] text-[hsl(var(--magic-blue))] text-sm flex items-center gap-1"
+          </div>
+        </div>
+      )}
+
+      {/* Equipment from Background */}
+      {draft?.equipo_trasfondo?.length > 0 && (
+        <div className="card-parchment rounded-lg p-6">
+          <h3 className="font-heading text-xl text-[hsl(var(--torch-orange))] mb-4">
+            Equipo de Trasfondo
+          </h3>
+          <p className="text-sm text-muted-foreground mb-4">
+            Este equipo viene incluido por tu trasfondo de {draft?.trasfondo_nombre}
+          </p>
+          <div className="grid md:grid-cols-2 gap-3">
+            {draft.equipo_trasfondo.map((item, index) => (
+              <div 
+                key={index}
+                className="flex items-center p-3 rounded-lg bg-[hsl(var(--torch-orange))/10] border border-[hsl(var(--torch-orange))/30]"
               >
-                <Shield className="w-3 h-3" />
-                {a.nombre}
-              </span>
+                <span className="text-foreground">{typeof item === 'string' ? item : item.nombre}</span>
+              </div>
             ))}
           </div>
         </div>
