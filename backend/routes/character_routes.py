@@ -114,8 +114,12 @@ class CharacterCreateStep1(BaseModel):
 
 
 class CharacterCreateStep2(BaseModel):
-    """Step 2: Background selection"""
+    """Step 2: Background selection with skill and tool selections"""
     trasfondo_id: str
+    trasfondo_nombre: Optional[str] = None
+    competencias_habilidades_trasfondo: Optional[List[str]] = []
+    competencias_herramientas_trasfondo: Optional[List[str]] = []
+    rasgos_trasfondo: Optional[List[Any]] = []
 
 
 class CharacterCreateStep3(BaseModel):
@@ -298,20 +302,31 @@ async def update_draft_step1(draft_id: str, data: CharacterCreateStep1):
 
 @router.patch("/draft/{draft_id}/step2")
 async def update_draft_step2(draft_id: str, data: CharacterCreateStep2):
-    """Update draft with Step 2 data (background)"""
+    """Update draft with Step 2 data (background with skills and tools selections)"""
     background = await db.backgrounds.find_one({"_id": data.trasfondo_id})
     if not background:
         raise HTTPException(status_code=404, detail="Background not found")
     
+    # Use data from frontend if provided, otherwise fall back to background defaults
+    habilidades_trasfondo = data.competencias_habilidades_trasfondo if data.competencias_habilidades_trasfondo else (
+        background.get('competencias_habilidades_auto', [])
+    )
+    herramientas_trasfondo = data.competencias_herramientas_trasfondo if data.competencias_herramientas_trasfondo else (
+        background.get('competencias_herramientas_1', []) + background.get('competencias_herramientas_2', [])
+    )
+    
     update = {
         "trasfondo_id": data.trasfondo_id,
-        "trasfondo_nombre": background['nombre'],
+        "trasfondo_nombre": data.trasfondo_nombre or background['nombre'],
         "competencias_trasfondo": {
-            "habilidades": background.get('competencias_habilidades', []),
-            "herramientas": background.get('competencias_herramientas', []),
+            "habilidades": habilidades_trasfondo,
+            "herramientas": herramientas_trasfondo,
             "idiomas": background.get('idiomas', []),
         },
+        # Also store at top level for easier access during filtering
+        "competencias_habilidades_trasfondo": habilidades_trasfondo,
         "equipo_trasfondo": background.get('equipo_inicial', []),
+        "rasgos_trasfondo": data.rasgos_trasfondo if data.rasgos_trasfondo else background.get('rasgos_descripciones', []),
         "paso_actual": 3,
         "updated_at": now_utc(),
     }
