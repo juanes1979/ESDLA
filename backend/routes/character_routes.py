@@ -600,8 +600,14 @@ async def finalize_character(draft_id: str):
         raise HTTPException(status_code=404, detail="Draft not found")
     
     # Validate draft is complete enough - virtud es opcional (solo 3 culturas la obtienen)
-    required_fields = ['nombre', 'cultura_id', 'trasfondo_id', 'ocupacion_id', 'atributos_finales']
+    required_fields = ['nombre', 'cultura_id', 'trasfondo_id', 'ocupacion_id']
+    # Check for characteristics (might be in 'caracteristicas' or 'atributos_finales')
+    has_attributes = draft.get('caracteristicas') or draft.get('atributos_finales')
+    
     missing = [f for f in required_fields if not draft.get(f)]
+    if not has_attributes:
+        missing.append('caracteristicas')
+    
     if missing:
         raise HTTPException(
             status_code=400, 
@@ -609,6 +615,9 @@ async def finalize_character(draft_id: str):
         )
     
     # Create final character document
+    # Use 'caracteristicas' or 'atributos_finales' (depending on which exists)
+    final_attributes = draft.get('caracteristicas') or draft.get('atributos_finales', {})
+    
     character = {
         "_id": generate_id(),
         "nombre": draft['nombre'],
@@ -617,49 +626,59 @@ async def finalize_character(draft_id: str):
         "cultura_id": draft['cultura_id'],
         "cultura_nombre": draft['cultura_nombre'],
         "categoria_cultura": draft.get('categoria_cultura'),
+        "genero": draft.get('genero'),
         "edad": draft.get('edad'),
         "altura_cm": draft.get('altura_cm'),
         "peso_kg": draft.get('peso_kg'),
-        "tamano": draft.get('tamano'),
+        "ojos": draft.get('ojos'),
+        "piel": draft.get('piel'),
+        "pelo": draft.get('pelo'),
+        "tamano": draft.get('tamanio'),
         "velocidad": draft.get('velocidad'),
+        "nivel_vida": draft.get('nivel_vida'),
         # Background
         "trasfondo_id": draft['trasfondo_id'],
-        "trasfondo_nombre": draft['trasfondo_nombre'],
+        "trasfondo_nombre": draft.get('trasfondo_nombre'),
         # Occupation
         "ocupacion_id": draft['ocupacion_id'],
         "ocupacion_tipo": draft.get('ocupacion_tipo'),
         "vocacion_nombre": draft.get('vocacion_nombre'),
         "dado_golpe": draft.get('dado_golpe'),
         # Attributes
-        "atributos": draft['atributos_finales'],
+        "atributos": final_attributes,
         # Virtue (optional - only 3 cultures get virtue at level 1)
         "virtud_id": draft.get('virtud_id'),
         "virtud_nombre": draft.get('virtud_nombre'),
         "rasgos_virtud": draft.get('rasgos_virtud'),
-        # Skills and competencies
-        "habilidades": draft.get('habilidades_elegidas', []),
+        # ALL Skills and competencies consolidated
+        "habilidades_competencia": draft.get('habilidades_competencia', []),
+        "habilidades_elegidas_ocupacion": draft.get('habilidades_elegidas_ocupacion', []),
+        "pericia_elegida": draft.get('pericia_elegida', []),
         "competencias": {
             "tiradas_salvacion": draft.get('competencias_ocupacion', {}).get('tiradas_salvacion', []),
             "armaduras": draft.get('competencias_ocupacion', {}).get('armaduras', []),
             "armas": draft.get('competencias_ocupacion', {}).get('armas', []),
+            "habilidades_cultura": draft.get('competencias_habilidades_cultura', []),
             "habilidades_trasfondo": draft.get('competencias_trasfondo', {}).get('habilidades', []),
             "herramientas": draft.get('competencias_trasfondo', {}).get('herramientas', []),
-            "idiomas": draft.get('competencias_trasfondo', {}).get('idiomas', []),
+            "idiomas": draft.get('idiomas', []),
         },
-        # Equipment
+        # Equipment from all sources
         "inventario": draft.get('inventario', []),
+        "equipo_ocupacion": draft.get('equipo_ocupacion', []),
+        "herramientas_elegidas_ocupacion": draft.get('herramientas_elegidas_ocupacion', []),
         "dinero": draft.get('dinero', {"mp": 0, "mo": 0, "mc": 0}),
         # Combat stats
-        "puntos_golpe_max": draft.get('puntos_golpe_max', 8),
-        "puntos_golpe_actual": draft.get('puntos_golpe_actual', 8),
-        "clase_armadura": 10 + ((draft.get('atributos_finales', {}).get('destreza', 10) - 10) // 2),
+        "puntos_golpe_max": draft.get('puntos_golpe_base', 8),
+        "puntos_golpe_actual": draft.get('puntos_golpe_base', 8),
+        "clase_armadura": 10 + ((final_attributes.get('destreza', 10) - 10) // 2),
         # Patron
         "patron_id": draft.get('patron_id'),
         "patron_nombre": draft.get('patron_nombre'),
         "puntos_comunidad": draft.get('puntos_comunidad', 0),
-        # Personal details
+        # Personal details - TWO distinctive traits
         "rasgo_distintivo": draft.get('rasgo_distintivo'),
-        "defecto": draft.get('defecto'),
+        "rasgo_distintivo_2": draft.get('rasgo_distintivo_2'),  # Second trait
         "motivacion": draft.get('motivacion'),
         "historia": draft.get('historia'),
         # Progression
