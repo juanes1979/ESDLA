@@ -119,9 +119,9 @@ const Step8Details = ({ draftId, draft, onComplete, onBack }) => {
           </h3>
         </div>
 
-        {/* Show BOTH personality traits as "Rasgos Distintivos" */}
-        <div className="grid md:grid-cols-2 gap-4">
-          {backgroundData?.rasgos?.map((rasgo, index) => (
+        {/* Show BOTH personality traits as "Rasgos Distintivos" with descriptions */}
+        <div className="space-y-4">
+          {backgroundData?.rasgos_descripciones?.map((rasgo, index) => (
             <div 
               key={index}
               className="p-4 rounded-lg border border-[hsl(var(--gold))/30] bg-[hsl(var(--gold))/5]"
@@ -132,12 +132,39 @@ const Step8Details = ({ draftId, draft, onComplete, onBack }) => {
                   Rasgo Distintivo {index + 1}
                 </span>
               </div>
-              <p className="text-lg font-medium text-foreground">{rasgo}</p>
+              <p className="text-lg font-medium text-foreground">
+                {typeof rasgo === 'object' ? rasgo.nombre : rasgo}
+              </p>
+              {typeof rasgo === 'object' && rasgo.descripcion && (
+                <p className="text-sm text-muted-foreground mt-2 italic">
+                  {rasgo.descripcion}
+                </p>
+              )}
             </div>
           ))}
           
-          {(!backgroundData?.rasgos || backgroundData.rasgos.length === 0) && (
-            <p className="text-muted-foreground col-span-2 text-center py-4">
+          {/* Fallback to simple rasgos if rasgos_descripciones not available */}
+          {(!backgroundData?.rasgos_descripciones || backgroundData.rasgos_descripciones.length === 0) && 
+           backgroundData?.rasgos?.map((rasgo, index) => (
+            <div 
+              key={index}
+              className="p-4 rounded-lg border border-[hsl(var(--gold))/30] bg-[hsl(var(--gold))/5]"
+            >
+              <div className="flex items-center gap-2 mb-2">
+                <Star className="w-4 h-4 text-[hsl(var(--gold))]" />
+                <span className="font-heading text-sm text-[hsl(var(--gold))]">
+                  Rasgo Distintivo {index + 1}
+                </span>
+              </div>
+              <p className="text-lg font-medium text-foreground">
+                {typeof rasgo === 'object' ? rasgo.nombre : rasgo}
+              </p>
+            </div>
+          ))}
+          
+          {(!backgroundData?.rasgos_descripciones || backgroundData.rasgos_descripciones.length === 0) &&
+           (!backgroundData?.rasgos || backgroundData.rasgos.length === 0) && (
+            <p className="text-muted-foreground text-center py-4">
               No hay rasgos de personalidad definidos para este trasfondo
             </p>
           )}
