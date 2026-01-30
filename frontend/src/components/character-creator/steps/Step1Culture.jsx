@@ -914,8 +914,10 @@ const Step1Culture = ({ draftId, draft, onComplete, onBack }) => {
                   baseValue = diceAssignment[char] !== undefined ? diceRolls[diceAssignment[char]] : 8;
                 }
                 
-                const bonus = selectedCulture?.bonificadores_caracteristicas?.[char] || 0;
-                const total = baseValue + bonus;
+                const cultureBonus = selectedCulture?.bonificadores_caracteristicas?.[char] || 0;
+                const extraBonus = mejoraExtraLibre === char ? 1 : 0;
+                const totalBonus = cultureBonus + extraBonus;
+                const total = baseValue + totalBonus;
                 const modifier = Math.floor((total - 10) / 2);
                 
                 return (
@@ -932,14 +934,45 @@ const Step1Culture = ({ draftId, draft, onComplete, onBack }) => {
                     )}>
                       ({modifier >= 0 ? '+' : ''}{modifier})
                     </div>
-                    {bonus > 0 && (
+                    {totalBonus > 0 && (
                       <div className="text-xs text-[hsl(var(--magic-blue))] mt-1">
-                        {baseValue} + {bonus}
+                        {baseValue} + {totalBonus}
                       </div>
                     )}
                   </div>
                 );
               })}
+            </div>
+          </div>
+        )}
+
+        {/* Free Characteristic Improvement (Dunedain) */}
+        {selectedCulture?.mejora_extra_libre && assignmentMethod && (
+          <div className="card-parchment rounded-lg p-4 border-2 border-[hsl(var(--torch-orange))]">
+            <h4 className="font-heading text-lg text-[hsl(var(--torch-orange))] mb-2">
+              Mejora de Característica Libre
+            </h4>
+            <p className="text-sm text-muted-foreground mb-4">
+              {selectedCulture.mejora_extra_descripcion || 'Aumenta en 1 una puntuación de característica a tu elección'}
+            </p>
+            <div className="grid grid-cols-3 md:grid-cols-6 gap-2">
+              {CHARACTERISTIC_NAMES.map((char) => (
+                <button
+                  key={char}
+                  onClick={() => setMejoraExtraLibre(char)}
+                  className={cn(
+                    "p-3 rounded-lg border text-center transition-all",
+                    mejoraExtraLibre === char
+                      ? "bg-[hsl(var(--torch-orange))/20] border-[hsl(var(--torch-orange))] text-[hsl(var(--torch-orange))]"
+                      : "bg-secondary border-border hover:border-[hsl(var(--torch-orange))/50]"
+                  )}
+                >
+                  <span className="font-heading text-sm">
+                    {CHARACTERISTIC_LABELS[char]?.split(' ')[0]}
+                  </span>
+                  <span className="block text-xs text-muted-foreground">+1</span>
+                </button>
+              ))}
             </div>
           </div>
         )}
