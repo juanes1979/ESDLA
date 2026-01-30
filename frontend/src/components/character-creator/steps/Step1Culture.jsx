@@ -315,8 +315,8 @@ const Step1Culture = ({ draftId, draft, onComplete, onBack }) => {
         tiene_virtud_inicial: selectedCulture.tiene_virtud_inicial,
       };
       
-      await updateDraftStep1(draftId, updateData);
-      onComplete(updateData);
+      const updatedDraft = await updateDraftStep1(draftId, updateData);
+      onComplete(updatedDraft);
     } catch (err) {
       console.error('Error saving:', err);
       setError('Error al guardar los datos');
