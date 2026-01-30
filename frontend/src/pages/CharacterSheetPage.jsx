@@ -455,37 +455,25 @@ const CharacterSheetPage = () => {
                 Competencias
               </h3>
               {(() => {
-                // Known weapon types to filter
-                const weaponKeywords = ['armas sencillas', 'armas marciales', 'espada', 'daga', 'hacha', 
-                  'maza', 'martillo', 'lanza', 'arco', 'ballesta', 'honda', 'bastón'];
-                const armorKeywords = ['armaduras ligeras', 'armaduras medias', 'armaduras pesadas', 
-                  'escudos', 'coleto', 'cota', 'pieles'];
+                // Get proficiencies from character or fallback to occupation data
+                const competencias = character.competencias || {};
                 
-                // Filter weapons - only items that look like weapon types, not descriptions
-                const filterWeapons = (items) => {
-                  if (!items) return [];
-                  return items.filter(item => {
-                    if (!item || typeof item !== 'string') return false;
-                    const lower = item.toLowerCase();
-                    // Must match a weapon keyword AND be reasonably short (< 50 chars)
-                    return item.length < 50 && weaponKeywords.some(kw => lower.includes(kw));
-                  });
-                };
+                // Use occupation data as fallback for old characters
+                let armas = competencias.armas || [];
+                let armaduras = competencias.armaduras || [];
+                let tiradas = competencias.tiradas_salvacion || [];
+                const idiomas = competencias.idiomas || [];
                 
-                // Filter armors - only items that look like armor types
-                const filterArmors = (items) => {
-                  if (!items) return [];
-                  return items.filter(item => {
-                    if (!item || typeof item !== 'string') return false;
-                    const lower = item.toLowerCase();
-                    return item.length < 50 && armorKeywords.some(kw => lower.includes(kw));
-                  });
-                };
-                
-                const armas = filterWeapons(character.competencias?.armas);
-                const armaduras = filterArmors(character.competencias?.armaduras);
-                const tiradas = character.competencias?.tiradas_salvacion || [];
-                const idiomas = character.competencias?.idiomas || [];
+                // Fallback to occupation if character data is empty
+                if (occupation && armas.length === 0) {
+                  armas = occupation.competencia_armas || [];
+                }
+                if (occupation && armaduras.length === 0) {
+                  armaduras = occupation.competencia_armaduras || [];
+                }
+                if (occupation && tiradas.length === 0) {
+                  tiradas = occupation.tiradas_salvacion || [];
+                }
                 
                 return (
                   <div className="space-y-2 text-sm">
@@ -520,6 +508,9 @@ const CharacterSheetPage = () => {
                           {idiomas.join(', ')}
                         </span>
                       </div>
+                    )}
+                    {armas.length === 0 && armaduras.length === 0 && tiradas.length === 0 && (
+                      <p className="text-muted-foreground italic">Sin competencias registradas</p>
                     )}
                   </div>
                 );
