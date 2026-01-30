@@ -112,7 +112,18 @@ const Step1Culture = ({ draftId, draft, onComplete, onBack }) => {
   const [piel, setPiel] = useState('');
   const [pelo, setPelo] = useState('');
   
-  // Characteristic scores (base 8 + culture bonuses)
+  // Characteristic assignment method
+  const [assignmentMethod, setAssignmentMethod] = useState(null); // 'standard', 'points', 'dice'
+  const [baseCaracteristicas, setBaseCaracteristicas] = useState({
+    fuerza: 8, destreza: 8, constitucion: 8,
+    inteligencia: 8, sabiduria: 8, carisma: 8
+  });
+  const [standardArrayAssignment, setStandardArrayAssignment] = useState({}); // {fuerza: 15, ...}
+  const [pointsRemaining, setPointsRemaining] = useState(27);
+  const [diceRolls, setDiceRolls] = useState(null); // Array of 6 rolled values
+  const [diceAssignment, setDiceAssignment] = useState({}); // {fuerza: 0, ...} index into diceRolls
+  
+  // Final characteristics with culture bonuses
   const [caracteristicas, setCaracteristicas] = useState({
     fuerza: 8, destreza: 8, constitucion: 8,
     inteligencia: 8, sabiduria: 8, carisma: 8
