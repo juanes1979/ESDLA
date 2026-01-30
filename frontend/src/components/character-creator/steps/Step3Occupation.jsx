@@ -190,6 +190,34 @@ const Step3Occupation = ({ draftId, draft, onComplete, onBack }) => {
     });
   };
 
+  // Toggle tool selection for tools1
+  const toggleTool1 = (tool) => {
+    const maxTools = occupationData.herramientas_1?.cantidad || 1;
+    setSelectedTools1(prev => {
+      if (prev.includes(tool)) {
+        return prev.filter(t => t !== tool);
+      }
+      if (prev.length >= maxTools) {
+        return prev;
+      }
+      return [...prev, tool];
+    });
+  };
+
+  // Toggle tool selection for tools2
+  const toggleTool2 = (tool) => {
+    const maxTools = occupationData.herramientas_2?.cantidad || 1;
+    setSelectedTools2(prev => {
+      if (prev.includes(tool)) {
+        return prev.filter(t => t !== tool);
+      }
+      if (prev.length >= maxTools) {
+        return prev;
+      }
+      return [...prev, tool];
+    });
+  };
+
   // Handle weapon selection for current weapon block
   const handleWeaponSelection = (armaIndex, selection) => {
     const arma = occupationData.armas[armaIndex];
