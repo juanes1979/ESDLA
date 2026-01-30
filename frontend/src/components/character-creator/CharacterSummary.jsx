@@ -624,7 +624,7 @@ const CharacterSummary = ({ draft, onFinalize, onEdit, loading }) => {
                   {/* Size note */}
                   {tamanio !== 'Mediano' && (
                     <p className="text-xs text-muted-foreground text-center mt-2">
-                      Tamaño {tamanio}: capacidades {tamanio === 'Pequeño' ? '÷2' : '×2'}
+                      Tamaño {tamanio}: capacidades {tamanio === 'Pequeño' ? '÷1.5' : '×1.5'}
                     </p>
                   )}
                 </div>
