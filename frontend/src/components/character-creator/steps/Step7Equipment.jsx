@@ -42,7 +42,7 @@ const EQUIPO_POR_NIVEL_VIDA = {
       { nombre: 'Capa de viaje', cantidad: 1 },
       { nombre: 'Muda de viajero', cantidad: 1 },
     ],
-    dinero: { mp: 0, mo: 0, me: 0, mc: 0 }, // Base sin ocupación
+    dinero: { mp: 15, mo: 0, me: 0, mc: 0 }, // 15 mp por nivel Común
     descripcion: 'Equipo estándar para un aventurero. Tu cultura tiene recursos moderados.'
   },
   'Próspero': {
@@ -63,7 +63,7 @@ const EQUIPO_POR_NIVEL_VIDA = {
       { nombre: 'Muda fina', cantidad: 1 },
       { nombre: 'Muda de viajero', cantidad: 1 },
     ],
-    dinero: { mp: 0, mo: 0, me: 0, mc: 0 }, // Base sin ocupación
+    dinero: { mp: 20, mo: 0, me: 0, mc: 0 }, // 20 mp por nivel Próspero
     descripcion: 'Equipo de alta calidad. Tu cultura goza de riqueza y comodidades.'
   }
 };
