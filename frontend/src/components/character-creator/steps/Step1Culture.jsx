@@ -1122,27 +1122,16 @@ const Step1Culture = ({ draftId, draft, onComplete, onBack }) => {
           </div>
         )}
 
-        {/* Culture Bonuses Preview */}
-        {assignmentMethod && (
-          <div className="card-parchment rounded-lg p-4">
-            <h4 className="font-heading text-lg text-[hsl(var(--gold))] mb-4">
-              Bonificadores de {selectedCulture?.nombre}
-            </h4>
-            <div className="flex flex-wrap gap-2">
-              {Object.entries(selectedCulture?.bonificadores_caracteristicas || {}).map(([attr, bonus]) =>
-                bonus > 0 && (
-                  <span key={attr} className="text-sm bg-[hsl(var(--magic-blue))/20] text-[hsl(var(--magic-blue))] px-3 py-1 rounded">
-                    {CHARACTERISTIC_LABELS[attr]?.split(' ')[0]} +{bonus}
-                  </span>
-                )
-              )}
-              {!Object.values(selectedCulture?.bonificadores_caracteristicas || {}).some(v => v > 0) && (
-                <span className="text-sm text-muted-foreground">Sin bonificadores</span>
-              )}
-            </div>
-            <p className="text-xs text-muted-foreground mt-2">
-              Estos bonificadores se sumarán a tus características base
-            </p>
+        {/* Culture Bonuses Summary - simplified since we show totals above */}
+        {assignmentMethod && Object.values(selectedCulture?.bonificadores_caracteristicas || {}).some(v => v > 0) && (
+          <div className="text-center text-sm text-muted-foreground">
+            <span className="text-[hsl(var(--magic-blue))]">
+              Bonificadores de {selectedCulture?.nombre}:{' '}
+              {Object.entries(selectedCulture?.bonificadores_caracteristicas || {})
+                .filter(([, bonus]) => bonus > 0)
+                .map(([attr, bonus]) => `${CHARACTERISTIC_LABELS[attr]?.split(' ')[0]} +${bonus}`)
+                .join(', ')}
+            </span>
           </div>
         )}
 
