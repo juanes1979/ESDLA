@@ -3,83 +3,120 @@
 ## Original Problem Statement
 Build a comprehensive web application to play a modified version of the "Lord of the Rings 5e" tabletop role-playing game based on the Excel file `utumno.xlsm`.
 
-## What's Been Implemented (2026-01-29)
+## Current State (2026-01-30)
 
-### Phase 1: Database & Backend ✅
-- MongoDB with 19 cultures, 114 backgrounds, 6 occupations, 100+ virtues
-- Full data extraction from Excel with all rules
+### ✅ COMPLETED: Data Extraction & Database
+- **New Complete Extractor** (`/app/backend/data_extractor_complete.py`) - WORKING
+- **New Database Seeder** (`/app/backend/seed_database_complete.py`) - WORKING
+- Successfully extracted and seeded:
+  - 19 Cultures with complete data (bonificadores, rasgos físicos, idiomas, etc.)
+  - 114 Backgrounds with trait descriptions
+  - 6 Occupations with full weapon/armor/skill selection data
+  - 100 Virtues with all bonuses and selection options
+  - 19 Name sets for character name generation
+  - Equipment lists (instruments, games)
 
-### Phase 2: Character Creator ✅ (Major Refactoring)
+### ✅ COMPLETED: Frontend Step 1 - Culture
+- Category selection (Elfos, Enanos, Hombres, Hobbits)
+- Culture list with new data structure (using `raza` field)
+- Characteristic bonuses displayed correctly (bonificadores_caracteristicas)
+- Name generation working
+- Physical attributes (edad, altura, peso using IMC formula)
 
-**Step 1: Culture**
-- 19 cultures with Nivel de Vida (Frugal/Común/Próspero)
-- Automatic name generation from Excel prefixes/suffixes
-- Physical attributes (eyes, skin, hair)
+### ✅ COMPLETED: API Routes
+- `/api/data/cultures` - Returns complete culture data
+- `/api/data/backgrounds` - Returns backgrounds filtered by culture
+- `/api/data/occupations` - Returns occupations with weapon/armor data
+- `/api/data/virtues` - Returns virtues filtered by culture/type
+- `/api/data/equipment-lists` - Returns instruments and games lists
+- `/api/data/trait-descriptions` - Returns personality trait descriptions
+- `/api/characters/draft/*` - Character draft CRUD operations
 
-**Step 2: Background**  
-- Filtered by culture
-- 2 personality traits (rasgos) per background
-- History from background description
+## 🔶 IN PROGRESS: Frontend Refactor
 
-**Step 3: Occupation** ✅ REFACTORED
-- 6 occupations: Buscador de tesoros, Campeón, Capitán, Erudito, Guardian, Mensajero
-- Sub-steps:
-  1. Select occupation
-  2. Choose skills (4 for Buscador, 2-3 for others)
-  3. Choose armor (Option A or B)
-  4. Choose weapons (3-4 sequential questions with A/B options)
-  5. Choose expertise (ONLY for Buscador de tesoros - 2 skills)
+### Step 2 - Background (Needs Update)
+- Currently shows backgrounds but needs:
+  - Auto competencies display
+  - Skills to choose selection
+  - Tool selection (Instruments/Games sub-selection)
+  - Traits with descriptions
 
-**Step 4: Attributes**
-- Dice rolling with 3 block options
-- Standard array alternative
-- Characteristic assignment
+### Step 3 - Occupation (MAJOR REFACTOR NEEDED)
+Following the user's detailed plan:
+1. Select occupation
+2. Choose skills (quantity per occupation)
+3. Choose armor (Option A or B)
+4. Choose weapons (3-5 sequential blocks, some A/B)
+5. Choose expertise (ONLY for Buscador de tesoros)
 
-**Step 5: Virtue** (Conditional)
+### Step 4 - Attributes
+- Working but needs virtue bonus integration
+
+### Step 5 - Virtue (Conditional)
 - ONLY for: Hombres del lago, Hombres de Bree, Beórnidas
-- Other cultures skip this step
+- Needs complete rewrite per plan
 
-**Step 6: Skills**
-- Skill bonuses calculated
+### Steps 6-8 - Skills, Equipment, Details
+- Need updates to use new data structure
 
-**Step 7: Equipment**
-- Automatic based on Nivel de Vida
-- Additional weapon/armor from occupation
+## 📋 MASTER PLAN (User Approved)
 
-**Step 8: Details** ✅ FIXED
-- Shows BOTH personality traits from background
-- History from background description
-- Competencies display
+### PHASE 1: CULTURE (30 fields)
+- Race → Subculture → Description → Age/Height/Weight → Physical traits
+- Speed/Rest/Size/Level of life → Name generation
+- Characteristic bonuses → Noldor improvement → Skills/Competencies
+- Cultural traits → Languages → Tool competencies
 
-### Phase 3: PDF Export ✅ NEW
-- 3-page PDF matching user's templates
-- Page 1: Attributes, Combat, Skills, Equipment, Shadow
-- Page 2: Community Points, Virtues, Background
-- Page 3: Story History (long texts)
+### PHASE 2: BACKGROUND (10 fields)
+- Background selection → Description → Auto competencies
+- Skills to choose → Tools (Instruments/Games sub-selection)
+- 2 Traits with descriptions
 
-## Key Game Rules Implemented
-1. **Virtudes nivel 1:** Solo 3 culturas específicas
-2. **Equipo por Nivel de Vida:** Frugal/Común/Próspero
-3. **Pericia:** Solo Buscador de tesoros (2 habilidades x2)
-4. **Armas/Armaduras:** Preguntas A/B según ocupación
-5. **Rasgos:** 2 por trasfondo, automáticos
+### PHASE 3: OCCUPATION (30 fields)
+- Occupation selection → Hit die → HP → Saves → Weapon/Armor competencies
+- Skills selection (variable quantity) → Armor A/B selection
+- 5 Weapon blocks (simple or A/B) → NO REPEAT WEAPONS
+- Special features (Expertise for Explorer) → Occupation traits
+- Future paths (level 3) → Favored skills
 
-## Upcoming Tasks (P1)
-- [ ] Interactive Character Sheet page
-- [ ] Draft listing/management
-- [ ] Full skill list with calculated bonuses
+### PHASE 4: VIRTUE (Conditional)
+- Only for 3 cultures at level 1, or on level up
+- Filter by culture + COMMON
+- Fixed and selectable bonuses
+- Exclude already-owned competencies
 
-## Future Tasks (P2)
-- Game Master (DM) Screen
-- Online Gameplay (Map, Chat, Dice)
-- AI Integration (Emergent LLM Key - confirmed)
+## ⚠️ CRITICAL RULES
+1. Weapons DO NOT repeat across blocks
+2. Skill competencies DO NOT repeat across phases
+3. Tool competencies DO NOT repeat
+4. Expertise ONLY from already-competent skills
+5. Instruments/Games trigger sub-selection
+6. Save ALL data including descriptions
+7. Virtues filter by culture + COMMON
+8. Virtues exclude existing competencies
 
 ## Technical Stack
-- Backend: FastAPI, Motor, MongoDB
-- Frontend: React, Tailwind, Shadcn UI
-- PDF: jsPDF
+- **Backend:** FastAPI, Motor, MongoDB
+- **Frontend:** React, Tailwind, Shadcn UI
+- **PDF:** jsPDF, html2canvas
+- **Data:** openpyxl for Excel parsing
 
 ## Key Files
-- `/app/backend/data_extractor.py` - Excel parsing with occupation questions
-- `/app/frontend/src/components/character-creator/steps/Step3Occupation.jsx` - Multi-step with A/B
-- `/app/frontend/src/utils/characterPDF.js` - 3-page PDF generator
+- `/app/backend/data_extractor_complete.py` - Main data extractor
+- `/app/backend/seed_database_complete.py` - Database seeder
+- `/app/data/extracted_data_complete.json` - Extracted JSON data
+- `/app/frontend/src/components/character-creator/` - Wizard components
+
+## Next Priority Tasks
+1. **P0:** Refactor Step3Occupation.jsx for complete weapon/armor flow
+2. **P0:** Implement Step5Virtue.jsx for virtue selection
+3. **P1:** Update Step2Background.jsx for trait descriptions
+4. **P1:** Implement PDF generation in characterPDF.js
+5. **P2:** Add full skill list display with calculated bonuses
+
+## Future Features
+- Interactive Character Sheet Page
+- Character Listing (Drafts & Completed)
+- Game Master Screen
+- Online Gameplay (Map, Chat, Dice)
+- AI Integration (Emergent LLM Key)
