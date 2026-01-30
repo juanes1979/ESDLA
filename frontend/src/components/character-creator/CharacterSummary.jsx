@@ -219,11 +219,32 @@ const CharacterSummary = ({ draft, onFinalize, onEdit, loading }) => {
         )}
 
         {/* Equipment Summary */}
-        {(draft.inventario?.length > 0 || (draft.dinero?.mp > 0 || draft.dinero?.mo > 0)) && (
+        {(draft.inventario?.length > 0 || draft.equipo_ocupacion?.length > 0 || draft.armadura_elegida || draft.herramientas_elegidas_ocupacion?.length > 0 || (draft.dinero?.mp > 0 || draft.dinero?.mo > 0)) && (
           <div className="mt-6">
             <h3 className="font-heading text-lg text-[hsl(var(--gold))] mb-3">
               Equipo
             </h3>
+            
+            {/* Occupation Equipment (weapons, armor, tools) */}
+            {(draft.equipo_ocupacion?.length > 0 || draft.herramientas_elegidas_ocupacion?.length > 0) && (
+              <div className="bg-[hsl(var(--magic-blue))/10] rounded-lg p-3 mb-3">
+                <p className="text-xs text-[hsl(var(--magic-blue))] font-heading mb-2">Equipo de {draft.vocacion_nombre}</p>
+                <div className="flex flex-wrap gap-2">
+                  {draft.equipo_ocupacion?.map((item, i) => (
+                    <span key={`occ-${i}`} className="text-sm px-2 py-1 rounded bg-[hsl(var(--magic-blue))/20] text-[hsl(var(--magic-blue))]">
+                      {typeof item === 'string' ? item : item.nombre}
+                    </span>
+                  ))}
+                  {draft.herramientas_elegidas_ocupacion?.map((tool, i) => (
+                    <span key={`tool-${i}`} className="text-sm px-2 py-1 rounded bg-secondary text-muted-foreground">
+                      {tool}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+            
+            {/* General inventory */}
             <div className="bg-secondary rounded-lg p-3">
               {draft.inventario?.length > 0 && (
                 <div className="flex flex-wrap gap-2 mb-2">
@@ -239,6 +260,7 @@ const CharacterSummary = ({ draft, onFinalize, onEdit, loading }) => {
                 {draft.dinero?.mp > 0 && <span>{draft.dinero.mp} mp</span>}
                 {draft.dinero?.mo > 0 && <span>{draft.dinero.mo} mo</span>}
                 {draft.dinero?.mc > 0 && <span>{draft.dinero.mc} mc</span>}
+                {(!draft.dinero?.mp && !draft.dinero?.mo && !draft.dinero?.mc) && <span className="text-muted-foreground">Sin monedas</span>}
               </div>
             </div>
           </div>
