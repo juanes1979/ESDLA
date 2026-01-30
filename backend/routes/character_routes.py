@@ -573,7 +573,7 @@ async def update_draft_step9(draft_id: str, data: CharacterCreateStep9):
     """Update draft with Step 9/8 data (final details - rasgos del trasfondo + historia)"""
     update = {
         "rasgo_distintivo": data.rasgo_distintivo,
-        "defecto": data.defecto,
+        "rasgo_distintivo_2": data.rasgo_distintivo_2,  # Second distinctive trait
         "motivacion": data.motivacion,
         "historia": data.historia,
         "paso_actual": 9,  # Complete (8 pasos + 1 = finalizado)
