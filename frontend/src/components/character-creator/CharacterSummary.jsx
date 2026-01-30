@@ -494,17 +494,17 @@ const CharacterSummary = ({ draft, onFinalize, onEdit, loading }) => {
               estorboColor = 'text-red-500';
               estorboPenalties = [
                 '−6 m velocidad',
-                'Desventaja en ataques',
-                'Desventaja en salvaciones',
-                'Desventaja en pruebas de FUE/DES/CON'
+                'Desventaja en pruebas de característica (FUE/DES/CON)',
+                'Desventaja en tiradas de ataque',
+                'Desventaja en tiradas de salvación (FUE/DES/CON)'
               ];
             } else if (totalWeight > pesoCargado) {
               estorboStatus = 'Cargado';
               estorboColor = 'text-yellow-500';
               estorboPenalties = [
                 '−3 m velocidad',
-                'Desventaja en Atletismo',
-                'Desventaja en Acrobacias',
+                'Desventaja en Atletismo (Fue)',
+                'Desventaja en Acrobacias (Des)',
                 'Desventaja en salvaciones vs fatiga'
               ];
             } else {
