@@ -18,10 +18,10 @@ import {
 import { cn } from '@/lib/utils';
 
 const CULTURE_CATEGORIES = [
-  { id: 'ELFOS', name: 'Elfos', icon: '🌿' },
-  { id: 'ENANOS', name: 'Enanos', icon: '⛏️' },
-  { id: 'HOMBRES', name: 'Hombres', icon: '⚔️' },
-  { id: 'HOBBITS', name: 'Hobbits', icon: '🍃' },
+  { id: 'Elfos', name: 'Elfos', icon: '🌿' },
+  { id: 'Enanos', name: 'Enanos', icon: '⛏️' },
+  { id: 'Hombres', name: 'Hombres', icon: '⚔️' },
+  { id: 'Hobbits', name: 'Hobbits', icon: '🍃' },
 ];
 
 const Step1Culture = ({ draftId, draft, onComplete, onBack }) => {
