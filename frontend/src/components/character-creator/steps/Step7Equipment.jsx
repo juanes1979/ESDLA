@@ -18,8 +18,8 @@ const EQUIPO_POR_NIVEL_VIDA = {
       { nombre: 'Lata de yesca', cantidad: 1 },
       { nombre: 'Raciones (1 día)', cantidad: 10 },
     ],
-    dinero: { mp: 15, mo: 0, mc: 0 },
-    descripcion: 'Equipo básico para supervivencia. Tu cultura vive de forma austera.'
+    dinero: { mp: 0, mo: 0, mc: 0 },
+    descripcion: 'Equipo básico para supervivencia. Tu cultura vive de forma austera, sin monedas.'
   },
   'Común': {
     items: [

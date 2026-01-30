@@ -204,7 +204,7 @@ const CharacterSummary = ({ draft, onFinalize, onEdit, loading }) => {
               )}
               {draft.defecto && (
                 <div className="bg-secondary rounded-lg p-3">
-                  <p className="text-xs text-muted-foreground">Defecto</p>
+                  <p className="text-xs text-muted-foreground">Rasgo Distintivo 2</p>
                   <p className="text-sm text-foreground">{draft.defecto}</p>
                 </div>
               )}
