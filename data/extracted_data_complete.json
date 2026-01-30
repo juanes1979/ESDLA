@@ -1,5 +1,5 @@
 {
-  "extracted_at": "2026-01-30T09:31:08.547554+00:00",
+  "extracted_at": "2026-01-30T17:08:45.368455+00:00",
   "cultures": [
     {
       "nombre": "Elfos de Lindon",
@@ -5401,15 +5401,15 @@
       "competencia_armas": [
         "Armas sencillas",
         "Espada corta",
-        "Espada",
-        "Armaduras ligeras",
-        "Has escogido buscar lo que está perdido, aún si eso significa tener que enfrentarte a peligros indescriptibles",
-        "El mundo ha visto pasar la gloria de muchos reyes enanos y señores elfos, y su herencia está ahora enterrada en mazmorras infestadas de orcos. Los botines de oro y joyas, custodiados por bestias terribles, atraen a todos los que se atreven a buscarlos. Intentas recuperar lo que se ha perdido, incluso cuando eso significa enfrentarse a peligros indescriptibles.",
-        "MAL DEL DRAGÓN"
+        "Espada"
       ],
       "competencia_armaduras": [
-        "Te encuentras en el camino en busca de riquezas perdidas. Corres el riesgo de contraer la antigua enfermedad capaz de convertir una montaña de oro encantado en amargas cenizas. A medida que la Sombra se apodera de tu corazón, el mundo se empieza a limitar a ti y a tus celosamente guardadas posesiones."
+        "Armaduras ligeras"
       ],
+      "descripcion_corta": "Has escogido buscar lo que está perdido, aún si eso significa tener que enfrentarte a peligros indescriptibles",
+      "descripcion_larga": "El mundo ha visto pasar la gloria de muchos reyes enanos y señores elfos, y su herencia está ahora enterrada en mazmorras infestadas de orcos. Los botines de oro y joyas, custodiados por bestias terribles, atraen a todos los que se atreven a buscarlos. Intentas recuperar lo que se ha perdido, incluso cuando eso significa enfrentarse a peligros indescriptibles.",
+      "maldicion_nombre": "MAL DEL DRAGÓN",
+      "maldicion_descripcion": "Te encuentras en el camino en busca de riquezas perdidas. Corres el riesgo de contraer la antigua enfermedad capaz de convertir una montaña de oro encantado en amargas cenizas. A medida que la Sombra se apodera de tu corazón, el mundo se empieza a limitar a ti y a tus celosamente guardadas posesiones.",
       "herramientas_1": {
         "pregunta": "La ocupación elegida durante tu preparación, te ha otorgado herramientas adecuadas para ejercerla adecuadamente. Elige la que más te cuadre con tu personaje:",
         "cantidad": 1,
@@ -5605,18 +5605,18 @@
       ],
       "competencia_armas": [
         "Armas sencillas",
-        "Armas marciales",
+        "Armas marciales"
+      ],
+      "competencia_armaduras": [
         "Armaduras ligeras",
         "Armaduras medias",
         "Armaduras pesadas",
-        "Escudos",
-        "Guerrero feroz, hábil con diversas armas y armaduras",
-        "Consideras que solo hay una forma de oponerse al regreso de la Sombra, y es conquistarla con la fuerza de las armas. Eres reconocido como un guerrero entre tu pueblo, un valiente luchador que se lanza a la batalla. Para ti, el camino de la aventura conduce directamente a dondequiera que tus enemigos ronden o se escondan.",
-        "MALDICIÓN DE LA VENGANZA"
+        "Escudos"
       ],
-      "competencia_armaduras": [
-        "Quienes viven de la espada están siempre tentados a desenvainarla, literal o figuradamente, cuando su voluntad se ve frustrada o cuando consideran que un insulto ha mancillado su honor.   medida que la corrupción se extiende en su espíritu, su comportamiento empeora, lo que lleva a reacciones violentas más extremas."
-      ],
+      "descripcion_corta": "Guerrero feroz, hábil con diversas armas y armaduras",
+      "descripcion_larga": "Consideras que solo hay una forma de oponerse al regreso de la Sombra, y es conquistarla con la fuerza de las armas. Eres reconocido como un guerrero entre tu pueblo, un valiente luchador que se lanza a la batalla. Para ti, el camino de la aventura conduce directamente a dondequiera que tus enemigos ronden o se escondan.",
+      "maldicion_nombre": "MALDICIÓN DE LA VENGANZA",
+      "maldicion_descripcion": "Quienes viven de la espada están siempre tentados a desenvainarla, literal o figuradamente, cuando su voluntad se ve frustrada o cuando consideran que un insulto ha mancillado su honor.   medida que la corrupción se extiende en su espíritu, su comportamiento empeora, lo que lleva a reacciones violentas más extremas.",
       "herramientas_1": {
         "pregunta": "La ocupación elegida durante tu preparación, te ha otorgado herramientas adecuadas para ejercerla adecuadamente. Elige la que más te cuadre con tu personaje:",
         "cantidad": 0,
@@ -5781,18 +5781,18 @@
       ],
       "competencia_armas": [
         "Armas sencillas",
-        "Armas marciales",
+        "Armas marciales"
+      ],
+      "competencia_armaduras": [
         "Armaduras ligeras",
         "Armaduras medias",
         "Armaduras pesadas",
-        "Escudos",
-        "Valiente combatiente con capacidad de liderazgo heróico",
-        "Cuando el mundo está al borde de la ruina, el deber de todas las personas valerosas es levantarse y asumir el liderazgo, sea cual sea el riesgo. Has elegido poner tus capacidades al servicio de los demás, para guiarles en esta hora oscura. Sin embargo, no quieres que acaten tus órdenes por miedo u obediencia: quieres que te sigan porque confían en ti.",
-        "ATRACCIÓN DEL PODER"
+        "Escudos"
       ],
-      "competencia_armaduras": [
-        "En tu posición de autoridad, ya sea por tu rango, linaje o categoría, puedes acabar confundiendo tu propio enaltecimiento con el bien mayor de las personas a las que  deberías guiar o mantener a salvo. El poder es la tentación por excelencia, y proporciona a la Sombra una forma fácil de ganarse tu corazón se lo deseas."
-      ],
+      "descripcion_corta": "Valiente combatiente con capacidad de liderazgo heróico",
+      "descripcion_larga": "Cuando el mundo está al borde de la ruina, el deber de todas las personas valerosas es levantarse y asumir el liderazgo, sea cual sea el riesgo. Has elegido poner tus capacidades al servicio de los demás, para guiarles en esta hora oscura. Sin embargo, no quieres que acaten tus órdenes por miedo u obediencia: quieres que te sigan porque confían en ti.",
+      "maldicion_nombre": "ATRACCIÓN DEL PODER",
+      "maldicion_descripcion": "En tu posición de autoridad, ya sea por tu rango, linaje o categoría, puedes acabar confundiendo tu propio enaltecimiento con el bien mayor de las personas a las que  deberías guiar o mantener a salvo. El poder es la tentación por excelencia, y proporciona a la Sombra una forma fácil de ganarse tu corazón se lo deseas.",
       "herramientas_1": {
         "pregunta": "La ocupación elegida durante tu preparación, te ha otorgado herramientas adecuadas para ejercerla adecuadamente. Elige la que más te cuadre con tu personaje:",
         "cantidad": 0,
@@ -5970,15 +5970,15 @@
         "SABIDURÍA"
       ],
       "competencia_armas": [
-        "Armas sencillas",
-        "Armaduras ligeras",
-        "Maestro de la erudición, familiarizado tanto con la sabiduría antigua como con las artes curativas",
-        "Para ti, el conocimiento hace del mundo salvaje un lugar menos amenazante. Los mapas amarillentos de los libros perdidos sustituyen el miedo a lo desconocido por la curiosidad y el asombro, y las canciones compuestas en épocas pasadas fortalecen el corazón más débil. El amor por el aprendizaje guía cada uno de tus pasos e ilumina el camino para ti y para los que escuchan tus consejos.",
-        "ATRACCIÓN DE LOS SECRETOS"
+        "Armas sencillas"
       ],
       "competencia_armaduras": [
-        "La inquietud y la curiosidad son virtudes deseables, pero el conocimiento puede utilizarse de forma maliciosa, y las personas cultas pueden despreciar a los demás por considerarlos necios ignorantes. Los secretos son peligrosos, ya que el propio deseo de descubrirlos puede corromper el corazón."
+        "Armaduras ligeras"
       ],
+      "descripcion_corta": "Maestro de la erudición, familiarizado tanto con la sabiduría antigua como con las artes curativas",
+      "descripcion_larga": "Para ti, el conocimiento hace del mundo salvaje un lugar menos amenazante. Los mapas amarillentos de los libros perdidos sustituyen el miedo a lo desconocido por la curiosidad y el asombro, y las canciones compuestas en épocas pasadas fortalecen el corazón más débil. El amor por el aprendizaje guía cada uno de tus pasos e ilumina el camino para ti y para los que escuchan tus consejos.",
+      "maldicion_nombre": "ATRACCIÓN DE LOS SECRETOS",
+      "maldicion_descripcion": "La inquietud y la curiosidad son virtudes deseables, pero el conocimiento puede utilizarse de forma maliciosa, y las personas cultas pueden despreciar a los demás por considerarlos necios ignorantes. Los secretos son peligrosos, ya que el propio deseo de descubrirlos puede corromper el corazón.",
       "herramientas_1": {
         "pregunta": "La ocupación elegida durante tu preparación, te ha otorgado herramientas adecuadas para ejercerla adecuadamente. Elige la que más te cuadre con tu personaje:",
         "cantidad": 2,
@@ -6132,17 +6132,17 @@
       ],
       "competencia_armas": [
         "Armas sencillas",
-        "Armas marciales",
-        "Armaduras ligeras",
-        "Armaduras medias",
-        "Escudos",
-        "Protector de los débiles que combina destreza marcial y conocimiento de la tierra",
-        "En esta época del mundo, en la que las sombras se hacen más profundas a cada año que pasa, has jurado proteger a todos los que no pueden defenderse por sí mismos. A menudo, tu elección te obliga a abandonar las zonas civilizadas para proteger mejor a sus habitantes de lo que acecha justo al otro lado de sus vallas. Esto te ha convertido en un extraño a los ojos de la gente común, una figura tan amenazante como aquello de lo que les proteges.",
-        "CAMINO DE LA DESESPERACIÓN:"
+        "Armas marciales"
       ],
       "competencia_armaduras": [
-        "La inseguridad en ti mismo es a menudo la forma que la Sombra elige para llegar al corazón de los que se oponen a ella. Porque sabes que el Enemigo es fuerte y terrible y que aquellos a los que proteges son demasiado débiles para valerse por sí mismos. Te preguntas: ¿será mi fuerza suficiente para prevalecer, o arrastraré a los inocentes a la derrota?"
+        "Armaduras ligeras",
+        "Armaduras medias",
+        "Escudos"
       ],
+      "descripcion_corta": "Protector de los débiles que combina destreza marcial y conocimiento de la tierra",
+      "descripcion_larga": "En esta época del mundo, en la que las sombras se hacen más profundas a cada año que pasa, has jurado proteger a todos los que no pueden defenderse por sí mismos. A menudo, tu elección te obliga a abandonar las zonas civilizadas para proteger mejor a sus habitantes de lo que acecha justo al otro lado de sus vallas. Esto te ha convertido en un extraño a los ojos de la gente común, una figura tan amenazante como aquello de lo que les proteges.",
+      "maldicion_nombre": "CAMINO DE LA DESESPERACIÓN:",
+      "maldicion_descripcion": "La inseguridad en ti mismo es a menudo la forma que la Sombra elige para llegar al corazón de los que se oponen a ella. Porque sabes que el Enemigo es fuerte y terrible y que aquellos a los que proteges son demasiado débiles para valerse por sí mismos. Te preguntas: ¿será mi fuerza suficiente para prevalecer, o arrastraré a los inocentes a la derrota?",
       "herramientas_1": {
         "pregunta": "La ocupación elegida durante tu preparación, te ha otorgado herramientas adecuadas para ejercerla adecuadamente. Elige la que más te cuadre con tu personaje:",
         "cantidad": 0,
@@ -6312,15 +6312,15 @@
       "competencia_armas": [
         "Armas sencillas",
         "Espada corta",
-        "Espada",
-        "Armaduras ligeras",
-        "Viajero experimentado y consejero, que lleva noticias a tierras lejanas",
-        "Los Sabios sostienen que se avecinan días aciagos y que, para mantener la esperanza, todos los que luchan contra el Enemigo deben ser como uno solo. Sin embargo, muchas millas y siglos de aislamiento separan a los Pueblos Libres, y el distanciamiento genera desconfianza. Has decidido que es tu deber viajar a tierras lejanas, llevando noticias y advirtiendo a la gente del peligro que se avecina.",
-        "LOCURA DEL TROTAMUNDOS"
+        "Espada"
       ],
       "competencia_armaduras": [
-        "Viajar lejos puede ser el deber que ha elegido un mensajero, pero conlleva el riesgo de no encontrar nunca un lugar por el que luchar. Es cierto que el camino sigue y sigue, pero ¿hacia dónde?"
+        "Armaduras ligeras"
       ],
+      "descripcion_corta": "Viajero experimentado y consejero, que lleva noticias a tierras lejanas",
+      "descripcion_larga": "Los Sabios sostienen que se avecinan días aciagos y que, para mantener la esperanza, todos los que luchan contra el Enemigo deben ser como uno solo. Sin embargo, muchas millas y siglos de aislamiento separan a los Pueblos Libres, y el distanciamiento genera desconfianza. Has decidido que es tu deber viajar a tierras lejanas, llevando noticias y advirtiendo a la gente del peligro que se avecina.",
+      "maldicion_nombre": "LOCURA DEL TROTAMUNDOS",
+      "maldicion_descripcion": "Viajar lejos puede ser el deber que ha elegido un mensajero, pero conlleva el riesgo de no encontrar nunca un lugar por el que luchar. Es cierto que el camino sigue y sigue, pero ¿hacia dónde?",
       "herramientas_1": {
         "pregunta": "La ocupación elegida durante tu preparación, te ha otorgado herramientas adecuadas para ejercerla adecuadamente. Elige la que más te cuadre con tu personaje:",
         "cantidad": 1,
@@ -13131,6 +13131,1095 @@
       "Trompeta",
       "Viola",
       "Violín"
+    ],
+    "herramientas": [
+      {
+        "nombre": "Herramientas de alfarería",
+        "precio": 10,
+        "moneda": "mp",
+        "peso_kg": 1.35
+      },
+      {
+        "nombre": "Herramientas de cantería",
+        "precio": 10,
+        "moneda": "mp",
+        "peso_kg": 3.6
+      },
+      {
+        "nombre": "Herramientas de cartografía",
+        "precio": 15,
+        "moneda": "mp",
+        "peso_kg": 2.7
+      },
+      {
+        "nombre": "Herramientas de herrería",
+        "precio": 20,
+        "moneda": "mp",
+        "peso_kg": 3.6
+      },
+      {
+        "nombre": "Herramientas de joyería",
+        "precio": 25,
+        "moneda": "mp",
+        "peso_kg": 0.9
+      },
+      {
+        "nombre": "Herramientas de ladrones",
+        "precio": 25,
+        "moneda": "mp",
+        "peso_kg": 0.45
+      },
+      {
+        "nombre": "Herramientas de marroquinería",
+        "precio": 5,
+        "moneda": "mp",
+        "peso_kg": 2.25
+      },
+      {
+        "nombre": "Herramientas de navegación",
+        "precio": 25,
+        "moneda": "mp",
+        "peso_kg": 0.9
+      },
+      {
+        "nombre": "Herramientas de soplado de vidrio",
+        "precio": 30,
+        "moneda": "mp",
+        "peso_kg": 2.25
+      },
+      {
+        "nombre": "Herramientas de tallar madera",
+        "precio": 1,
+        "moneda": "mp",
+        "peso_kg": 2.25
+      },
+      {
+        "nombre": "Herramientas de tejeduría",
+        "precio": 1,
+        "moneda": "mp",
+        "peso_kg": 2.25
+      },
+      {
+        "nombre": "Herramientas de zapatería",
+        "precio": 5,
+        "moneda": "mp",
+        "peso_kg": 2.25
+      },
+      {
+        "nombre": "Pipa",
+        "precio": 1,
+        "moneda": "mp",
+        "peso_kg": 0.225
+      },
+      {
+        "nombre": "Suministros de caligrafía",
+        "precio": 10,
+        "moneda": "mp",
+        "peso_kg": 2.25
+      },
+      {
+        "nombre": "Suministros de carpintería",
+        "precio": 8,
+        "moneda": "mp",
+        "peso_kg": 2.7
+      },
+      {
+        "nombre": "Suministros de cervecería",
+        "precio": 20,
+        "moneda": "mp",
+        "peso_kg": 4.05
+      },
+      {
+        "nombre": "Suministros de pintura",
+        "precio": 10,
+        "moneda": "mp",
+        "peso_kg": 2.25
+      }
+    ],
+    "equipo_general": [
+      {
+        "nombre": "abono orgánico (saco)",
+        "precio": 3,
+        "moneda": "me",
+        "peso_kg": 20.0
+      },
+      {
+        "nombre": "Aceite (frasco)",
+        "precio": 1,
+        "moneda": "mc",
+        "peso_kg": 0.45
+      },
+      {
+        "nombre": "Anillo de sello",
+        "precio": 5,
+        "moneda": "mp",
+        "peso_kg": 0.1
+      },
+      {
+        "nombre": "Antorchas (paquete de 10)",
+        "precio": 1,
+        "moneda": "mc",
+        "peso_kg": 4.5
+      },
+      {
+        "nombre": "Aparejo de poleas",
+        "precio": 1,
+        "moneda": "mp",
+        "peso_kg": 1.8
+      },
+      {
+        "nombre": "Aparejos de pesca",
+        "precio": 1,
+        "moneda": "mp",
+        "peso_kg": 1.8
+      },
+      {
+        "nombre": "arado simple",
+        "precio": 2,
+        "moneda": "mc",
+        "peso_kg": 40.0
+      },
+      {
+        "nombre": "azada",
+        "precio": 5,
+        "moneda": "me",
+        "peso_kg": 2.0
+      },
+      {
+        "nombre": "Balanza de mercader",
+        "precio": 5,
+        "moneda": "mp",
+        "peso_kg": 1.35
+      },
+      {
+        "nombre": "Barril",
+        "precio": 2,
+        "moneda": "mp",
+        "peso_kg": 31.5
+      },
+      {
+        "nombre": "Bolsa",
+        "precio": 5,
+        "moneda": "mc",
+        "peso_kg": 0.45
+      },
+      {
+        "nombre": "Botas acolchonadas",
+        "precio": 1,
+        "moneda": "mp",
+        "peso_kg": 1.2
+      },
+      {
+        "nombre": "botas bastas",
+        "precio": 5,
+        "moneda": "me",
+        "peso_kg": 1.0
+      },
+      {
+        "nombre": "Botas con clavos",
+        "precio": 1,
+        "moneda": "mp",
+        "peso_kg": 1.5
+      },
+      {
+        "nombre": "botas de buena piel",
+        "precio": 1,
+        "moneda": "mc",
+        "peso_kg": 1.2
+      },
+      {
+        "nombre": "Botas de cuero",
+        "precio": 1,
+        "moneda": "mp",
+        "peso_kg": 1.0
+      },
+      {
+        "nombre": "botas de viaje",
+        "precio": 1,
+        "moneda": "mc",
+        "peso_kg": 1.0
+      },
+      {
+        "nombre": "Botella de cristal",
+        "precio": 2,
+        "moneda": "mp",
+        "peso_kg": 0.9
+      },
+      {
+        "nombre": "Cadena (10 pies)",
+        "precio": 5,
+        "moneda": "mp",
+        "peso_kg": 4.5
+      },
+      {
+        "nombre": "Campana",
+        "precio": 1,
+        "moneda": "mp",
+        "peso_kg": 0.1
+      },
+      {
+        "nombre": "Canasto",
+        "precio": 4,
+        "moneda": "mc",
+        "peso_kg": 0.9
+      },
+      {
+        "nombre": "Caña de pescar",
+        "precio": 1,
+        "moneda": "mp",
+        "peso_kg": 1.5
+      },
+      {
+        "nombre": "Capa de camuflaje",
+        "precio": 1,
+        "moneda": "mp",
+        "peso_kg": 1.0
+      },
+      {
+        "nombre": "capa de lana basta",
+        "precio": 5,
+        "moneda": "me",
+        "peso_kg": 2.0
+      },
+      {
+        "nombre": "capa de lana buena",
+        "precio": 1,
+        "moneda": "mc",
+        "peso_kg": 2.5
+      },
+      {
+        "nombre": "Capa de viaje",
+        "precio": 1,
+        "moneda": "mp",
+        "peso_kg": 1.2
+      },
+      {
+        "nombre": "capa forrada",
+        "precio": 3,
+        "moneda": "mc",
+        "peso_kg": 3.0
+      },
+      {
+        "nombre": "Capucha de sigilo",
+        "precio": 1,
+        "moneda": "mp",
+        "peso_kg": 0.5
+      },
+      {
+        "nombre": "Carcaj",
+        "precio": 1,
+        "moneda": "mp",
+        "peso_kg": 0.45
+      },
+      {
+        "nombre": "Cerradura",
+        "precio": 10,
+        "moneda": "mp",
+        "peso_kg": 0.45
+      },
+      {
+        "nombre": "Cofre",
+        "precio": 5,
+        "moneda": "mp",
+        "peso_kg": 11.25
+      },
+      {
+        "nombre": "Cubo",
+        "precio": 1,
+        "moneda": "mc",
+        "peso_kg": 0.9
+      },
+      {
+        "nombre": "Cuerda de cáñamo (1 m)",
+        "precio": 1,
+        "moneda": "mc",
+        "peso_kg": 0.3
+      },
+      {
+        "nombre": "Cuerda de cáñamo (5 m)",
+        "precio": 5,
+        "moneda": "mc",
+        "peso_kg": 1.5
+      },
+      {
+        "nombre": "Cuerda de cáñamo (10 m)",
+        "precio": 1,
+        "moneda": "mp",
+        "peso_kg": 3.0
+      },
+      {
+        "nombre": "Cuerda de cáñamo (15 m)",
+        "precio": 1,
+        "moneda": "mp",
+        "peso_kg": 4.5
+      },
+      {
+        "nombre": "Cuerda de cáñamo (20 m)",
+        "precio": 2,
+        "moneda": "mp",
+        "peso_kg": 6.0
+      },
+      {
+        "nombre": "Cuerda de seda (1 m)",
+        "precio": 1,
+        "moneda": "mp",
+        "peso_kg": 0.15
+      },
+      {
+        "nombre": "Cuerda de seda (5 m)",
+        "precio": 4,
+        "moneda": "mp",
+        "peso_kg": 0.75
+      },
+      {
+        "nombre": "Cuerda de seda (10 m)",
+        "precio": 7,
+        "moneda": "mp",
+        "peso_kg": 1.5
+      },
+      {
+        "nombre": "Cuerda de seda (15 m)",
+        "precio": 10,
+        "moneda": "mp",
+        "peso_kg": 2.25
+      },
+      {
+        "nombre": "Cuerda de seda (20 m)",
+        "precio": 14,
+        "moneda": "mp",
+        "peso_kg": 3.0
+      },
+      {
+        "nombre": "Cuerda reforzada (1 m)",
+        "precio": 2,
+        "moneda": "mc",
+        "peso_kg": 0.35
+      },
+      {
+        "nombre": "Cuerda reforzada (5 m)",
+        "precio": 1,
+        "moneda": "mp",
+        "peso_kg": 1.8
+      },
+      {
+        "nombre": "Cuerda reforzada (10 m)",
+        "precio": 2,
+        "moneda": "mp",
+        "peso_kg": 3.5
+      },
+      {
+        "nombre": "Equipo de escalada",
+        "precio": 25,
+        "moneda": "mp",
+        "peso_kg": 5.4
+      },
+      {
+        "nombre": "Equipo de sanador",
+        "precio": 5,
+        "moneda": "mp",
+        "peso_kg": 1.35
+      },
+      {
+        "nombre": "Escalera (10 pies)",
+        "precio": 1,
+        "moneda": "mc",
+        "peso_kg": 11.25
+      },
+      {
+        "nombre": "Espejo de acero",
+        "precio": 5,
+        "moneda": "mp",
+        "peso_kg": 0.225
+      },
+      {
+        "nombre": "estiércol seco (saco)",
+        "precio": 2,
+        "moneda": "me",
+        "peso_kg": 25.0
+      },
+      {
+        "nombre": "Estuche para mapas o pergaminos",
+        "precio": 1,
+        "moneda": "mp",
+        "peso_kg": 0.45
+      },
+      {
+        "nombre": "Flecha (20)",
+        "precio": 1,
+        "moneda": "mp",
+        "peso_kg": 0.45
+      },
+      {
+        "nombre": "Frasco o vaso",
+        "precio": 1,
+        "moneda": "mc",
+        "peso_kg": 0.45
+      },
+      {
+        "nombre": "Garfio de escalada",
+        "precio": 1,
+        "moneda": "mp",
+        "peso_kg": 0.9
+      },
+      {
+        "nombre": "Grilletes",
+        "precio": 2,
+        "moneda": "mp",
+        "peso_kg": 2.7
+      },
+      {
+        "nombre": "guantes de trabajo",
+        "precio": 2,
+        "moneda": "me",
+        "peso_kg": 0.3
+      },
+      {
+        "nombre": "Jabón",
+        "precio": 1,
+        "moneda": "mc",
+        "peso_kg": 0.1
+      },
+      {
+        "nombre": "Jarra o cántaro",
+        "precio": 1,
+        "moneda": "mc",
+        "peso_kg": 1.8
+      },
+      {
+        "nombre": "Lacre",
+        "precio": 5,
+        "moneda": "mc",
+        "peso_kg": 0.1
+      },
+      {
+        "nombre": "Lámpara",
+        "precio": 5,
+        "moneda": "mc",
+        "peso_kg": 0.45
+      },
+      {
+        "nombre": "Lata de yesca",
+        "precio": 5,
+        "moneda": "mc",
+        "peso_kg": 0.45
+      },
+      {
+        "nombre": "Libro",
+        "precio": 25,
+        "moneda": "mp",
+        "peso_kg": 2.25
+      },
+      {
+        "nombre": "Linterna de ojo de buey",
+        "precio": 10,
+        "moneda": "mp",
+        "peso_kg": 0.9
+      },
+      {
+        "nombre": "Linterna sorda",
+        "precio": 5,
+        "moneda": "mp",
+        "peso_kg": 0.9
+      },
+      {
+        "nombre": "Lupa",
+        "precio": 1,
+        "moneda": "mo",
+        "peso_kg": 0.15
+      },
+      {
+        "nombre": "Manta",
+        "precio": 5,
+        "moneda": "mc",
+        "peso_kg": 1.35
+      },
+      {
+        "nombre": "Manto grueso",
+        "precio": 1,
+        "moneda": "mp",
+        "peso_kg": 2.0
+      },
+      {
+        "nombre": "Mochila",
+        "precio": 2,
+        "moneda": "mp",
+        "peso_kg": 1.35
+      },
+      {
+        "nombre": "Muda común",
+        "precio": 5,
+        "moneda": "mc",
+        "peso_kg": 1.35
+      },
+      {
+        "nombre": "Muda de viajero",
+        "precio": 2,
+        "moneda": "mp",
+        "peso_kg": 1.8
+      },
+      {
+        "nombre": "Muda fina",
+        "precio": 15,
+        "moneda": "mp",
+        "peso_kg": 2.7
+      },
+      {
+        "nombre": "Odre (lleno)",
+        "precio": 2,
+        "moneda": "mc",
+        "peso_kg": 1.35
+      },
+      {
+        "nombre": "Olla o sartén, de hierro",
+        "precio": 2,
+        "moneda": "mp",
+        "peso_kg": 4.5
+      },
+      {
+        "nombre": "Pala",
+        "precio": 2,
+        "moneda": "mp",
+        "peso_kg": 1.35
+      },
+      {
+        "nombre": "Palo (10 pies)",
+        "precio": 1,
+        "moneda": "mc",
+        "peso_kg": 3.15
+      },
+      {
+        "nombre": "Pañuelo de bolsillo",
+        "precio": 1,
+        "moneda": "mc",
+        "peso_kg": 0.01
+      },
+      {
+        "nombre": "Pergamino (una hoja)",
+        "precio": 1,
+        "moneda": "mc",
+        "peso_kg": 0.01
+      },
+      {
+        "nombre": "Petate",
+        "precio": 1,
+        "moneda": "mp",
+        "peso_kg": 3.15
+      },
+      {
+        "nombre": "Pico de minero",
+        "precio": 2,
+        "moneda": "mp",
+        "peso_kg": 4.5
+      },
+      {
+        "nombre": "Piedras de afilar",
+        "precio": 1,
+        "moneda": "mc",
+        "peso_kg": 0.5
+      },
+      {
+        "nombre": "Pluma de escritura",
+        "precio": 1,
+        "moneda": "mc",
+        "peso_kg": 0.15
+      },
+      {
+        "nombre": "Raciones (1 día)",
+        "precio": 5,
+        "moneda": "mc",
+        "peso_kg": 0.9
+      },
+      {
+        "nombre": "Raciones de cram* (1 día)",
+        "precio": 1,
+        "moneda": "mp",
+        "peso_kg": 0.45
+      },
+      {
+        "nombre": "rastrillo",
+        "precio": 5,
+        "moneda": "me",
+        "peso_kg": 1.5
+      },
+      {
+        "nombre": "Reloj de arena",
+        "precio": 25,
+        "moneda": "mp",
+        "peso_kg": 0.45
+      },
+      {
+        "nombre": "Saco",
+        "precio": 1,
+        "moneda": "mc",
+        "peso_kg": 0.225
+      },
+      {
+        "nombre": "Sandalias de cuero",
+        "precio": 1,
+        "moneda": "mc",
+        "peso_kg": 0.5
+      },
+      {
+        "nombre": "semillas de cebada",
+        "precio": 3,
+        "moneda": "me",
+        "peso_kg": 10.0
+      },
+      {
+        "nombre": "semillas de hierbas medicinales",
+        "precio": 2,
+        "moneda": "mc",
+        "peso_kg": 2.0
+      },
+      {
+        "nombre": "semillas de trigo (saco)",
+        "precio": 3,
+        "moneda": "me",
+        "peso_kg": 10.0
+      },
+      {
+        "nombre": "semillas de verduras",
+        "precio": 8,
+        "moneda": "me",
+        "peso_kg": 5.0
+      },
+      {
+        "nombre": "Silbato de señales",
+        "precio": 1,
+        "moneda": "mc",
+        "peso_kg": 0.05
+      },
+      {
+        "nombre": "Sombrero ancho",
+        "precio": 1,
+        "moneda": "mc",
+        "peso_kg": 0.3
+      },
+      {
+        "nombre": "Tienda para 2 personas",
+        "precio": 2,
+        "moneda": "mp",
+        "peso_kg": 9.0
+      },
+      {
+        "nombre": "Tinta (vial de 1 onza)",
+        "precio": 10,
+        "moneda": "mp",
+        "peso_kg": 0.03
+      },
+      {
+        "nombre": "Tiza (10 trozos)",
+        "precio": 1,
+        "moneda": "mc",
+        "peso_kg": 0.1
+      },
+      {
+        "nombre": "Túnica",
+        "precio": 1,
+        "moneda": "mp",
+        "peso_kg": 1.8
+      },
+      {
+        "nombre": "túnica basta",
+        "precio": 3,
+        "moneda": "me",
+        "peso_kg": 1.5
+      },
+      {
+        "nombre": "túnica común",
+        "precio": 5,
+        "moneda": "me",
+        "peso_kg": 1.8
+      },
+      {
+        "nombre": "Túnica de gala",
+        "precio": 1,
+        "moneda": "mp",
+        "peso_kg": 1.0
+      },
+      {
+        "nombre": "Túnica de viaje",
+        "precio": 1,
+        "moneda": "mp",
+        "peso_kg": 1.5
+      },
+      {
+        "nombre": "túnica fina",
+        "precio": 2,
+        "moneda": "mc",
+        "peso_kg": 1.5
+      },
+      {
+        "nombre": "Utensilios de cocina",
+        "precio": 2,
+        "moneda": "mc",
+        "peso_kg": 0.45
+      },
+      {
+        "nombre": "Vela (paquete de 10)",
+        "precio": 1,
+        "moneda": "mc",
+        "peso_kg": 0.5
+      },
+      {
+        "nombre": "vestido burgués",
+        "precio": 4,
+        "moneda": "mp",
+        "peso_kg": 2.5
+      },
+      {
+        "nombre": "vestido campesino",
+        "precio": 1,
+        "moneda": "mp",
+        "peso_kg": 2.0
+      },
+      {
+        "nombre": "vestido noble",
+        "precio": 9,
+        "moneda": "mp",
+        "peso_kg": 3.0
+      },
+      {
+        "nombre": "Vial",
+        "precio": 1,
+        "moneda": "mp",
+        "peso_kg": 0.01
+      },
+      {
+        "nombre": "Pollo, porción",
+        "precio": 1,
+        "moneda": "mc",
+        "peso_kg": 0.25
+      },
+      {
+        "nombre": "Cerdo, porción",
+        "precio": 1,
+        "moneda": "mc",
+        "peso_kg": 0.3
+      },
+      {
+        "nombre": "Ternera, porción",
+        "precio": 2,
+        "moneda": "mc",
+        "peso_kg": 0.3
+      },
+      {
+        "nombre": "Cordero, porción",
+        "precio": 2,
+        "moneda": "mc",
+        "peso_kg": 0.3
+      },
+      {
+        "nombre": "Pato, porción",
+        "precio": 2,
+        "moneda": "mc",
+        "peso_kg": 0.3
+      },
+      {
+        "nombre": "Cerveza o hidromiel, vaso",
+        "precio": 3,
+        "moneda": "me",
+        "peso_kg": 0.3
+      }
+    ],
+    "armas": [
+      {
+        "nombre": "Bastón",
+        "precio": 2,
+        "moneda": "mc",
+        "peso_kg": 0.9,
+        "modificador": "contundente",
+        "dano": "1d4"
+      },
+      {
+        "nombre": "Garrote",
+        "precio": 1,
+        "moneda": "mc",
+        "peso_kg": 0.9,
+        "modificador": "contundente",
+        "dano": "1d4"
+      },
+      {
+        "nombre": "Gran garrote",
+        "precio": 2,
+        "moneda": "mc",
+        "peso_kg": 4.5,
+        "modificador": "contundente",
+        "dano": "1d8"
+      },
+      {
+        "nombre": "Hacha",
+        "precio": 5,
+        "moneda": "mp",
+        "peso_kg": 1.35,
+        "modificador": "cortante",
+        "dano": "1d6"
+      },
+      {
+        "nombre": "Hoz",
+        "precio": 1,
+        "moneda": "mp",
+        "peso_kg": 1.0,
+        "modificador": "cortante",
+        "dano": "1d4"
+      },
+      {
+        "nombre": "Maza",
+        "precio": 1,
+        "moneda": "mp",
+        "peso_kg": 2.0,
+        "modificador": "contundente",
+        "dano": "1d6"
+      },
+      {
+        "nombre": "Martillo",
+        "precio": 2,
+        "moneda": "mp",
+        "peso_kg": 1.35,
+        "modificador": "contundente",
+        "dano": "1d6"
+      },
+      {
+        "nombre": "Daga",
+        "precio": 2,
+        "moneda": "mp",
+        "peso_kg": 0.45,
+        "modificador": "perforante",
+        "dano": "1d4"
+      },
+      {
+        "nombre": "Daga",
+        "precio": 2,
+        "moneda": "mp",
+        "peso_kg": 0.45,
+        "modificador": "arrojadiza",
+        "dano": "1d4"
+      },
+      {
+        "nombre": "Hacha de mano",
+        "precio": 5,
+        "moneda": "mp",
+        "peso_kg": 0.9,
+        "modificador": "arrojadiza",
+        "dano": "1d6"
+      },
+      {
+        "nombre": "Lanza",
+        "precio": 1,
+        "moneda": "mp",
+        "peso_kg": 1.35,
+        "modificador": "arrojadiza",
+        "dano": "1d6"
+      },
+      {
+        "nombre": "Lanza corta",
+        "precio": 5,
+        "moneda": "mc",
+        "peso_kg": 0.9,
+        "modificador": "arrojadiza",
+        "dano": "1d6"
+      },
+      {
+        "nombre": "Arco",
+        "precio": 25,
+        "moneda": "mp",
+        "peso_kg": 0.9,
+        "modificador": "distancia",
+        "dano": "1d6"
+      },
+      {
+        "nombre": "Espada",
+        "precio": 15,
+        "moneda": "mp",
+        "peso_kg": 0.9,
+        "modificador": "cortante",
+        "dano": "1d6"
+      },
+      {
+        "nombre": "Espada corta",
+        "precio": 10,
+        "moneda": "mp",
+        "peso_kg": 0.9,
+        "modificador": "perforante",
+        "dano": "1d6"
+      },
+      {
+        "nombre": "Espada larga",
+        "precio": 20,
+        "moneda": "mp",
+        "peso_kg": 1.35,
+        "modificador": "cortante",
+        "dano": "1d8"
+      },
+      {
+        "nombre": "Cimitarra",
+        "precio": 15,
+        "moneda": "mp",
+        "peso_kg": 1.2,
+        "modificador": "cortante",
+        "dano": "1d6"
+      },
+      {
+        "nombre": "Estoque",
+        "precio": 15,
+        "moneda": "mp",
+        "peso_kg": 1.0,
+        "modificador": "perforante",
+        "dano": "1d8"
+      },
+      {
+        "nombre": "Flajelo",
+        "precio": 10,
+        "moneda": "mp",
+        "peso_kg": 1.5,
+        "modificador": "contundente",
+        "dano": "1d6"
+      },
+      {
+        "nombre": "Hacha a dos manos",
+        "precio": 30,
+        "moneda": "mp",
+        "peso_kg": 3.5,
+        "modificador": "cortante",
+        "dano": "1d12"
+      },
+      {
+        "nombre": "Lanza de caballería",
+        "precio": 20,
+        "moneda": "mp",
+        "peso_kg": 3.0,
+        "modificador": "perforante",
+        "dano": "1d12"
+      },
+      {
+        "nombre": "Látigo",
+        "precio": 10,
+        "moneda": "mp",
+        "peso_kg": 1.0,
+        "modificador": "cortante",
+        "dano": "1d4"
+      },
+      {
+        "nombre": "Gran hacha",
+        "precio": 30,
+        "moneda": "mp",
+        "peso_kg": 3.15,
+        "modificador": "cortante",
+        "dano": "1d12"
+      },
+      {
+        "nombre": "Hacha de guerra",
+        "precio": 10,
+        "moneda": "mp",
+        "peso_kg": 1.8,
+        "modificador": "cortante",
+        "dano": "1d8"
+      },
+      {
+        "nombre": "Lanza pesada",
+        "precio": 20,
+        "moneda": "mp",
+        "peso_kg": 2.7,
+        "modificador": "perforante",
+        "dano": "1d12"
+      },
+      {
+        "nombre": "Martillo pesado",
+        "precio": 10,
+        "moneda": "mp",
+        "peso_kg": 1.8,
+        "modificador": "contundente",
+        "dano": "1d8"
+      },
+      {
+        "nombre": "Piqueta",
+        "precio": 10,
+        "moneda": "mp",
+        "peso_kg": 4.5,
+        "modificador": "perforante",
+        "dano": "1d12"
+      },
+      {
+        "nombre": "Arco largo",
+        "precio": 50,
+        "moneda": "mp",
+        "peso_kg": 1.35,
+        "modificador": "distancia",
+        "dano": "1d8"
+      },
+      {
+        "nombre": "Ballesta",
+        "precio": 65,
+        "moneda": "mp",
+        "peso_kg": 4.5,
+        "modificador": "distancia",
+        "dano": "1d10"
+      }
+    ],
+    "armaduras": [
+      {
+        "nombre": "Coleto de cuero",
+        "precio": 10,
+        "moneda": "mp",
+        "peso_kg": 3.6,
+        "clase_armadura": "1 + mod. Des. (máx. 4)"
+      },
+      {
+        "nombre": "Jubón reforzado de cuero",
+        "precio": 45,
+        "moneda": "mp",
+        "peso_kg": 4.5,
+        "clase_armadura": "2 + mod. Des. (máx. 3)"
+      },
+      {
+        "nombre": "Pieles",
+        "precio": 10,
+        "moneda": "mp",
+        "peso_kg": 5.4,
+        "clase_armadura": "2 + mod. Des. (máx. 2)"
+      },
+      {
+        "nombre": "Camisote de mallas",
+        "precio": 50,
+        "moneda": "mp",
+        "peso_kg": 9.0,
+        "clase_armadura": "3 + mod. Des. (máx. 2)"
+      },
+      {
+        "nombre": "Armadura de escamas",
+        "precio": 50,
+        "moneda": "mp",
+        "peso_kg": 18.0,
+        "clase_armadura": "4 + mod. Des. (máx. 2)"
+      },
+      {
+        "nombre": "Cota de anillas",
+        "precio": 50,
+        "moneda": "mp",
+        "peso_kg": 22.5,
+        "clase_armadura": "5"
+      },
+      {
+        "nombre": "Cota de mallas",
+        "precio": 75,
+        "moneda": "mp",
+        "peso_kg": 24.75,
+        "clase_armadura": "6"
+      },
+      {
+        "nombre": "Loriga de mallas",
+        "precio": 2,
+        "moneda": "mo",
+        "peso_kg": 27.0,
+        "clase_armadura": "7"
+      },
+      {
+        "nombre": "Escudo",
+        "precio": 10,
+        "moneda": "mp",
+        "peso_kg": 2.7,
+        "clase_armadura": "2"
+      }
     ]
   }
 }
