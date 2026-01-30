@@ -20,14 +20,12 @@ import CharacterSummary from './CharacterSummary';
 export const CULTURAS_CON_VIRTUD = ['Hombres del lago', 'Hombres de Bree', 'Beornidas'];
 
 const STEPS = [
-  { num: 1, title: 'Cultura', description: 'Elige tu linaje' },
+  { num: 1, title: 'Cultura', description: 'Elige tu linaje y asigna atributos' },
   { num: 2, title: 'Trasfondo', description: 'Tu historia pasada' },
-  { num: 3, title: 'Ocupación', description: 'Tu vocación' },
-  { num: 4, title: 'Atributos', description: 'Tus capacidades' },
-  { num: 5, title: 'Virtud', description: 'Tu don especial', conditional: true },
-  { num: 6, title: 'Habilidades', description: 'Tus competencias' },
-  { num: 7, title: 'Equipo', description: 'Tus posesiones' },
-  { num: 8, title: 'Detalles', description: 'Tu personalidad' },
+  { num: 3, title: 'Ocupación', description: 'Tu vocación y habilidades' },
+  { num: 4, title: 'Virtud', description: 'Tu don especial', conditional: true },
+  { num: 5, title: 'Equipo', description: 'Tus posesiones' },
+  { num: 6, title: 'Detalles', description: 'Tu personalidad' },
 ];
 
 export const CharacterCreatorWizard = () => {
