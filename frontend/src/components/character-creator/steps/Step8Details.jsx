@@ -40,12 +40,12 @@ const Step8Details = ({ draftId, draft, onComplete, onBack }) => {
     try {
       setSaving(true);
       
-      // Los rasgos vienen del trasfondo (ambos)
+      // Los rasgos vienen del trasfondo (ambos son rasgos distintivos)
       const rasgos = backgroundData?.rasgos || [];
       
       const updatedDraft = await updateDraftStep9(draftId, {
         rasgo_distintivo: rasgos[0] || null,
-        defecto: rasgos[1] || null, // Segundo rasgo
+        rasgo_distintivo_2: rasgos[1] || null, // Segundo rasgo distintivo (antes era "defecto")
         motivacion: null,
         historia: backgroundData?.descripcion || null, // Historia viene del trasfondo
       });
@@ -107,7 +107,7 @@ const Step8Details = ({ draftId, draft, onComplete, onBack }) => {
           </h3>
         </div>
 
-        {/* Show BOTH personality traits */}
+        {/* Show BOTH personality traits as "Rasgos Distintivos" */}
         <div className="grid md:grid-cols-2 gap-4">
           {backgroundData?.rasgos?.map((rasgo, index) => (
             <div 
@@ -117,7 +117,7 @@ const Step8Details = ({ draftId, draft, onComplete, onBack }) => {
               <div className="flex items-center gap-2 mb-2">
                 <Star className="w-4 h-4 text-[hsl(var(--gold))]" />
                 <span className="font-heading text-sm text-[hsl(var(--gold))]">
-                  Rasgo {index + 1}
+                  Rasgo Distintivo {index + 1}
                 </span>
               </div>
               <p className="text-lg font-medium text-foreground">{rasgo}</p>
