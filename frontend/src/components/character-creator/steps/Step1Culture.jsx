@@ -218,37 +218,36 @@ const Step1Culture = ({ draftId, draft, onComplete, onBack }) => {
                   </div>
                   
                   {/* Characteristic modifiers */}
-                  {(culture.mod_fuerza || culture.mod_destreza || culture.mod_constitucion || 
-                    culture.mod_inteligencia || culture.mod_sabiduria || culture.mod_carisma) && (
+                  {culture.bonificadores_caracteristicas && Object.values(culture.bonificadores_caracteristicas).some(v => v > 0) && (
                     <div className="mt-3 pt-3 border-t border-border/50 flex flex-wrap gap-2">
-                      {culture.mod_fuerza > 0 && (
+                      {culture.bonificadores_caracteristicas.fuerza > 0 && (
                         <span className="text-xs bg-[hsl(var(--magic-blue))/20] text-[hsl(var(--magic-blue))] px-2 py-0.5 rounded">
-                          FUE +{culture.mod_fuerza}
+                          FUE +{culture.bonificadores_caracteristicas.fuerza}
                         </span>
                       )}
-                      {culture.mod_destreza > 0 && (
+                      {culture.bonificadores_caracteristicas.destreza > 0 && (
                         <span className="text-xs bg-[hsl(var(--magic-blue))/20] text-[hsl(var(--magic-blue))] px-2 py-0.5 rounded">
-                          DES +{culture.mod_destreza}
+                          DES +{culture.bonificadores_caracteristicas.destreza}
                         </span>
                       )}
-                      {culture.mod_constitucion > 0 && (
+                      {culture.bonificadores_caracteristicas.constitucion > 0 && (
                         <span className="text-xs bg-[hsl(var(--magic-blue))/20] text-[hsl(var(--magic-blue))] px-2 py-0.5 rounded">
-                          CON +{culture.mod_constitucion}
+                          CON +{culture.bonificadores_caracteristicas.constitucion}
                         </span>
                       )}
-                      {culture.mod_inteligencia > 0 && (
+                      {culture.bonificadores_caracteristicas.inteligencia > 0 && (
                         <span className="text-xs bg-[hsl(var(--magic-blue))/20] text-[hsl(var(--magic-blue))] px-2 py-0.5 rounded">
-                          INT +{culture.mod_inteligencia}
+                          INT +{culture.bonificadores_caracteristicas.inteligencia}
                         </span>
                       )}
-                      {culture.mod_sabiduria > 0 && (
+                      {culture.bonificadores_caracteristicas.sabiduria > 0 && (
                         <span className="text-xs bg-[hsl(var(--magic-blue))/20] text-[hsl(var(--magic-blue))] px-2 py-0.5 rounded">
-                          SAB +{culture.mod_sabiduria}
+                          SAB +{culture.bonificadores_caracteristicas.sabiduria}
                         </span>
                       )}
-                      {culture.mod_carisma > 0 && (
+                      {culture.bonificadores_caracteristicas.carisma > 0 && (
                         <span className="text-xs bg-[hsl(var(--magic-blue))/20] text-[hsl(var(--magic-blue))] px-2 py-0.5 rounded">
-                          CAR +{culture.mod_carisma}
+                          CAR +{culture.bonificadores_caracteristicas.carisma}
                         </span>
                       )}
                     </div>
