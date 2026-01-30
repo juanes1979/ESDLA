@@ -1098,19 +1098,24 @@ const Step3Occupation = ({ draftId, draft, onComplete, onBack }) => {
   // Render expertise selection (only for Buscador de tesoros)
   const renderExpertiseSelection = () => {
     // CRITICAL: Expertise can ONLY be selected from skills where character ALREADY HAS COMPETENCY
-    // This is NOT from especial_opciones - it's from the character's existing skill proficiencies
+    // This includes ALL skills from culture + background + occupation
     
     // Collect ALL skills the character is proficient in from:
-    // 1. Culture skills
+    // 1. Culture skills (automatic and chosen)
     // 2. Background skills  
     // 3. Occupation skills just selected in this step
     const allCompetentSkills = [
-      // Culture competencies
+      // Culture competencies - automatic
       ...(draft?.competencias_habilidades_cultura || []),
+      // Culture competencies - single choice
       ...(draft?.competencia_habilidad_cultura ? [draft.competencia_habilidad_cultura] : []),
-      // Background competencies
+      // Culture competencies - "herramientas_2" which contains SKILLS for some cultures like Dunedain
+      ...(draft?.competencias_herramientas_2 || []),
+      // Background competencies - from competencias_trasfondo
+      ...(draft?.competencias_trasfondo?.habilidades || []),
+      // Background competencies - chosen
       ...(draft?.competencias_habilidades_trasfondo || []),
-      // Occupation skills just selected
+      // Occupation skills just selected in this step
       ...selectedSkills,
       // Also from consolidated habilidades_competencia if exists
       ...(draft?.habilidades_competencia || []),
