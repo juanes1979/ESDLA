@@ -3,12 +3,15 @@
  * Click anywhere on the sheet to get x, y coordinates and assign field names
  * Now with live preview of text in each field
  */
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Copy, Check, ZoomIn, ZoomOut, ChevronLeft, ChevronRight, Download, Trash2, Eye, EyeOff } from 'lucide-react';
+import { ArrowLeft, Copy, Check, ZoomIn, ZoomOut, ChevronLeft, ChevronRight, Download, Trash2, Eye, EyeOff, Save, Upload } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
+
+// LocalStorage key for saving work
+const STORAGE_KEY = 'sheet-editor-positions';
 
 // Sheet dimensions (based on PDF converted images 1701x2197)
 const SHEET_WIDTH = 1701;
