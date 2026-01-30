@@ -86,6 +86,22 @@ const Step2Background = ({ draftId, draft, onComplete, onBack }) => {
       setSaving(true);
       setError(null);
       
+      // Build equipment list from background
+      const equipoTrasfondo = [];
+      
+      // Add any selected tools as equipment (juegos, instrumentos musicales)
+      if (selectedTool1) {
+        equipoTrasfondo.push(selectedTool1);
+      }
+      if (selectedTool2) {
+        equipoTrasfondo.push(selectedTool2);
+      }
+      
+      // Add any automatic equipment from background if exists
+      if (selectedBackground.equipo) {
+        equipoTrasfondo.push(...(Array.isArray(selectedBackground.equipo) ? selectedBackground.equipo : [selectedBackground.equipo]));
+      }
+      
       const updateData = {
         trasfondo_id: selectedBackground.id,
         trasfondo_nombre: selectedBackground.nombre,
@@ -100,6 +116,7 @@ const Step2Background = ({ draftId, draft, onComplete, onBack }) => {
           ...(selectedTool2 ? [selectedTool2] : []),
         ],
         rasgos_trasfondo: selectedBackground.rasgos_descripciones || [],
+        equipo_trasfondo: equipoTrasfondo, // Add selected items as equipment
       };
       
       const updatedDraft = await updateDraftStep2(draftId, updateData);
