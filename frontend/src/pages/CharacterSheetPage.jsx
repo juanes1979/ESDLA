@@ -137,7 +137,7 @@ const CharacterSheetPage = () => {
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <Button
             variant="ghost"
-            onClick={() => navigate('/')}
+            onClick={() => navigate('/characters')}
             className="text-muted-foreground hover:text-foreground"
             data-testid="back-btn"
           >
@@ -147,14 +147,25 @@ const CharacterSheetPage = () => {
           <h1 className="font-heading text-2xl text-[hsl(var(--gold))] text-glow-gold">
             Hoja de Personaje
           </h1>
-          <Button
-            variant="ghost"
-            onClick={handleDelete}
-            className="text-muted-foreground hover:text-[hsl(var(--destructive))]"
-            data-testid="delete-btn"
-          >
-            Eliminar
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              onClick={() => navigate(`/character/${characterId}/sheet`)}
+              className="border-[hsl(var(--gold))/50] hover:bg-[hsl(var(--gold))/10]"
+              data-testid="official-sheet-btn"
+            >
+              <FileText className="w-4 h-4 mr-2" />
+              Ficha Oficial
+            </Button>
+            <Button
+              variant="ghost"
+              onClick={handleDelete}
+              className="text-muted-foreground hover:text-[hsl(var(--destructive))]"
+              data-testid="delete-btn"
+            >
+              Eliminar
+            </Button>
+          </div>
         </div>
       </header>
 
