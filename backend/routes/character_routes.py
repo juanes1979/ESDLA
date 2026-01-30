@@ -181,7 +181,7 @@ class CharacterDraft(BaseModel):
     virtud_id: Optional[str] = None
     habilidades: List[str] = []
     inventario: List[EquipmentItem] = []
-    dinero: Dict[str, int] = {"mp": 0, "mo": 0, "mc": 0}
+    dinero: Dict[str, int] = {"mp": 0, "mo": 0, "me": 0, "mc": 0}
     patron_id: Optional[str] = None
     rasgo_distintivo: Optional[str] = None
     defecto: Optional[str] = None
