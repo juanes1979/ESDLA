@@ -6,7 +6,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { 
   Loader2, ArrowLeft, Heart, Shield, Footprints, Eye, 
   Swords, Star, Book, Crown, Package, Scroll, Edit2,
-  Plus, Minus, Save
+  Plus, Minus, Save, FileText, Printer
 } from 'lucide-react';
 import { getCharacter, deleteCharacter, getOccupations } from '@/services/api';
 import { Button } from '@/components/ui/button';
