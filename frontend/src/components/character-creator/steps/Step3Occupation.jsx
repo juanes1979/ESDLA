@@ -1,9 +1,9 @@
 /**
  * Step 3: Occupation/Class Selection with all sub-questions
- * Includes: skills, armor (A/B), weapons, and expertise selection
+ * Includes: tools, skills, armor (A/B), weapons, and expertise selection
  */
 import { useState, useEffect, useMemo } from 'react';
-import { Loader2, ChevronLeft, ChevronRight, Sword, Shield, BookOpen, Compass, Crown, Wind, CheckCircle, Star } from 'lucide-react';
+import { Loader2, ChevronLeft, ChevronRight, ChevronDown, Sword, Shield, BookOpen, Compass, Crown, Wind, CheckCircle, Star, Check } from 'lucide-react';
 import { getOccupations, updateDraftStep3 } from '@/services/api';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
