@@ -93,6 +93,11 @@ export const getArmors = async () => {
   return response.data.armors;
 };
 
+export const getEquipmentLists = async () => {
+  const response = await api.get('/data/equipment-lists');
+  return response.data;
+};
+
 export const getCultureNames = async (cultura) => {
   const response = await api.get(`/data/names/${encodeURIComponent(cultura)}`);
   return response.data;
