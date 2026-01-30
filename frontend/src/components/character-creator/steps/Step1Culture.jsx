@@ -305,7 +305,7 @@ const Step1Culture = ({ draftId, draft, onComplete, onBack }) => {
       {/* Race Categories */}
       <div>
         <Label className="text-[hsl(var(--gold))] font-heading mb-3 block">Selecciona tu Raza</Label>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {CULTURE_CATEGORIES.map((category) => (
             <button
               key={category.id}
@@ -315,13 +315,20 @@ const Step1Culture = ({ draftId, draft, onComplete, onBack }) => {
                 setExpandedCulture(null);
               }}
               className={cn(
-                "selection-card p-4 rounded-lg text-center transition-all",
+                "selection-card p-4 rounded-lg text-center transition-all overflow-hidden",
                 selectedCategory === category.id && "selected"
               )}
               data-testid={`category-${category.id}`}
             >
-              <span className="text-3xl mb-2 block">{category.icon}</span>
-              <span className="font-heading text-sm">{category.name}</span>
+              <div className="w-full h-32 mb-2 rounded-lg overflow-hidden bg-black/20">
+                <img 
+                  src={category.image} 
+                  alt={category.name}
+                  className="w-full h-full object-cover object-top"
+                  onError={(e) => { e.target.style.display = 'none'; }}
+                />
+              </div>
+              <span className="font-heading text-lg">{category.name}</span>
             </button>
           ))}
         </div>
