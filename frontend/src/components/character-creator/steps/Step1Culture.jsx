@@ -359,7 +359,7 @@ const Step1Culture = ({ draftId, draft, onComplete, onBack }) => {
     }
     
     // Validate free characteristic improvement if needed
-    if (selectedCulture?.mejora_extra_libre && !mejoraExtraLibre) {
+    if (selectedCulture?.bonificador_a_eleccion && !mejoraExtraLibre) {
       setError('Debes elegir una característica para la mejora extra');
       return;
     }
