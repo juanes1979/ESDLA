@@ -75,7 +75,10 @@ const Step3Occupation = ({ draftId, draft, onComplete, onBack }) => {
   // Handle occupation selection
   const handleOccupationSelect = (occ) => {
     setSelectedOccupation(occ);
+    setExpandedOccupation(expandedOccupation === occ.id ? null : occ.id);
     // Reset all sub-selections
+    setSelectedTools1([]);
+    setSelectedTools2([]);
     setSelectedSkills([]);
     setSelectedArmor(null);
     setWeaponSelections({});
