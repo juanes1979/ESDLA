@@ -205,8 +205,8 @@ def extract_cultures_complete(wb: openpyxl.Workbook) -> List[Dict]:
         culture["nivel_vida"] = clean_value(culturas_sheet.cell(row=row_culturas, column=11).value) or "Común"
         culture["descripcion_nivel_vida"] = clean_value(culturas_sheet.cell(row=row_culturas, column=12).value)
         
-        # Extract skill scores and competencies
-        habilidades_nombres = [
+        # Extract skill SCORES from rows 13-31 (numeric values representing priority/aptitude)
+        habilidades_scores = [
             (13, "Acertijos"), (14, "Acrobacias"), (15, "Atletismo"), (16, "Cazar"),
             (17, "Engaño"), (18, "Explorar"), (19, "Interpretación"), (20, "Intimidación"),
             (21, "Investigación"), (22, "Juego de manos"), (23, "Medicina"), (24, "Naturaleza"),
@@ -214,19 +214,29 @@ def extract_cultures_complete(wb: openpyxl.Workbook) -> List[Dict]:
             (29, "Sigilo"), (30, "Trato con animales"), (31, "Viajar")
         ]
         
-        for row, nombre_hab in habilidades_nombres:
+        for row, nombre_hab in habilidades_scores:
             val = caract_sheet.cell(row=row, column=col).value
             if val:
-                if str(val).upper() == 'X':
-                    culture["competencias_habilidades"].append(nombre_hab)
+                try:
+                    culture["habilidades_puntuaciones"][nombre_hab] = int(val)
+                except:
                     culture["habilidades_puntuaciones"][nombre_hab] = 0
-                else:
-                    try:
-                        culture["habilidades_puntuaciones"][nombre_hab] = int(val)
-                    except:
-                        culture["habilidades_puntuaciones"][nombre_hab] = 0
             else:
                 culture["habilidades_puntuaciones"][nombre_hab] = 0
+        
+        # Extract skill PROFICIENCIES from rows 34-52 (marked with "X")
+        habilidades_competencias = [
+            (34, "Acertijos"), (35, "Acrobacias"), (36, "Atletismo"), (37, "Cazar"),
+            (38, "Engaño"), (39, "Explorar"), (40, "Interpretación"), (41, "Intimidación"),
+            (42, "Investigación"), (43, "Juego de manos"), (44, "Medicina"), (45, "Naturaleza"),
+            (46, "Percepción"), (47, "Perspicacia"), (48, "Persuasión"), (49, "Saber antiguo"),
+            (50, "Sigilo"), (51, "Trato con animales"), (52, "Viajar")
+        ]
+        
+        for row, nombre_hab in habilidades_competencias:
+            val = caract_sheet.cell(row=row, column=col).value
+            if val and str(val).upper().strip() == 'X':
+                culture["competencias_habilidades"].append(nombre_hab)
         
         # CORRECTION: Fix Dunedain bonuses (Excel has error - should be +1 FUE, +1 CON, +1 SAB, +1 a elección)
         if nombre == "Dunedain":
