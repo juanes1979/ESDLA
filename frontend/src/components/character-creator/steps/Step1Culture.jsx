@@ -30,11 +30,39 @@ const CULTURE_CATEGORIES = [
   { id: 'Hobbits', name: 'Hobbits', image: '/images/races/hobbits.png' },
 ];
 
-// Equipment by living standard
+// Equipment by living standard (RIQUEZA)
 const EQUIPMENT_BY_LEVEL = {
-  'Frugal': ['Ropa sencilla', 'Mochila básica', '1d6 monedas de plata'],
-  'Común': ['Ropa de viaje', 'Mochila', 'Saco de dormir', '2d6 monedas de plata'],
-  'Próspero': ['Ropa fina de viaje', 'Mochila de calidad', 'Saco de dormir', 'Tienda individual', '3d6 monedas de plata'],
+  'Frugal': [
+    { nombre: 'Mochila', cantidad: 1 },
+    { nombre: 'Petate', cantidad: 1 },
+    { nombre: 'Utensilios de cocina', cantidad: 1 },
+    { nombre: 'Lata de yesca', cantidad: 1 },
+    { nombre: 'Raciones (1 día)', cantidad: 10 },
+  ],
+  'Común': [
+    { nombre: 'Mochila', cantidad: 1 },
+    { nombre: 'Petate', cantidad: 1 },
+    { nombre: 'Utensilios de cocina', cantidad: 1 },
+    { nombre: 'Lata de yesca', cantidad: 1 },
+    { nombre: 'Raciones (1 día)', cantidad: 10 },
+    { nombre: 'Antorchas (paquete de 10)', cantidad: 1 },
+    { nombre: 'Odre (lleno)', cantidad: 1 },
+    { nombre: 'Cuerda de cáñamo (15 m)', cantidad: 1 },
+    { nombre: 'Plata', cantidad: 15 },
+  ],
+  'Próspero': [
+    { nombre: 'Mochila', cantidad: 1 },
+    { nombre: 'Petate', cantidad: 1 },
+    { nombre: 'Utensilios de cocina', cantidad: 1 },
+    { nombre: 'Lata de yesca', cantidad: 1 },
+    { nombre: 'Linterna sorda', cantidad: 1 },
+    { nombre: 'Aceite (frasco)', cantidad: 3 },
+    { nombre: 'Raciones de cram (1 día)', cantidad: 10 },
+    { nombre: 'Odre (lleno)', cantidad: 1 },
+    { nombre: 'Cuerda de seda (15 m)', cantidad: 1 },
+    { nombre: 'Tienda para 2 personas', cantidad: 1 },
+    { nombre: 'Plata', cantidad: 20 },
+  ],
 };
 
 // Sub-step constants
