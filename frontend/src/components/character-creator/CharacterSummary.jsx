@@ -262,27 +262,27 @@ const CharacterSummary = ({ draft, onFinalize, onEdit, loading }) => {
           </div>
         )}
 
-        {/* Personal Details */}
-        {(draft.rasgo_distintivo || draft.defecto || draft.motivacion) && (
+        {/* Personal Details - TWO Distinctive Traits */}
+        {(draft.rasgo_distintivo || draft.rasgo_distintivo_2 || draft.motivacion) && (
           <div className="mt-6">
             <h3 className="font-heading text-lg text-[hsl(var(--gold))] mb-3">
-              Personalidad
+              Rasgos de Personalidad
             </h3>
-            <div className="grid md:grid-cols-3 gap-3">
+            <div className="grid md:grid-cols-2 gap-3">
               {draft.rasgo_distintivo && (
                 <div className="bg-secondary rounded-lg p-3">
-                  <p className="text-xs text-muted-foreground">Rasgo Distintivo</p>
+                  <p className="text-xs text-[hsl(var(--gold))] font-heading mb-1">Rasgo Distintivo 1</p>
                   <p className="text-sm text-foreground">{draft.rasgo_distintivo}</p>
                 </div>
               )}
-              {draft.defecto && (
+              {draft.rasgo_distintivo_2 && (
                 <div className="bg-secondary rounded-lg p-3">
-                  <p className="text-xs text-muted-foreground">Rasgo Distintivo 2</p>
-                  <p className="text-sm text-foreground">{draft.defecto}</p>
+                  <p className="text-xs text-[hsl(var(--gold))] font-heading mb-1">Rasgo Distintivo 2</p>
+                  <p className="text-sm text-foreground">{draft.rasgo_distintivo_2}</p>
                 </div>
               )}
               {draft.motivacion && (
-                <div className="bg-secondary rounded-lg p-3">
+                <div className="bg-secondary rounded-lg p-3 md:col-span-2">
                   <p className="text-xs text-muted-foreground">Motivación</p>
                   <p className="text-sm text-foreground">{draft.motivacion}</p>
                 </div>
