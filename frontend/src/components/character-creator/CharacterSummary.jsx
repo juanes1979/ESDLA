@@ -28,7 +28,8 @@ const CharacterSummary = ({ draft, onFinalize, onEdit, loading }) => {
 
   if (!draft) return null;
 
-  const attributes = draft.atributos_finales || {};
+  // Use 'caracteristicas' or 'atributos_finales' (whichever exists)
+  const attributes = draft.caracteristicas || draft.atributos_finales || {};
 
   return (
     <div className="space-y-8" data-testid="character-summary">
