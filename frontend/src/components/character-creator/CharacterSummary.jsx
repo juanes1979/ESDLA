@@ -268,27 +268,53 @@ const CharacterSummary = ({ draft, onFinalize, onEdit, loading }) => {
           </div>
         )}
 
-        {/* Personal Details - TWO Distinctive Traits */}
+        {/* Personal Details - TWO Distinctive Traits with Descriptions */}
         {(draft.rasgo_distintivo || draft.rasgo_distintivo_2 || draft.motivacion) && (
           <div className="mt-6">
             <h3 className="font-heading text-lg text-[hsl(var(--gold))] mb-3">
               Rasgos de Personalidad
             </h3>
-            <div className="grid md:grid-cols-2 gap-3">
+            <div className="space-y-3">
               {draft.rasgo_distintivo && (
-                <div className="bg-secondary rounded-lg p-3">
-                  <p className="text-xs text-[hsl(var(--gold))] font-heading mb-1">Rasgo Distintivo 1</p>
-                  <p className="text-sm text-foreground">{draft.rasgo_distintivo}</p>
+                <div className="bg-secondary rounded-lg p-4">
+                  <div className="flex items-start gap-2">
+                    <Star className="w-4 h-4 text-[hsl(var(--gold))] mt-1 flex-shrink-0" />
+                    <div>
+                      <p className="font-heading text-[hsl(var(--gold))]">
+                        {typeof draft.rasgo_distintivo === 'object' 
+                          ? draft.rasgo_distintivo.nombre 
+                          : draft.rasgo_distintivo}
+                      </p>
+                      {typeof draft.rasgo_distintivo === 'object' && draft.rasgo_distintivo.descripcion && (
+                        <p className="text-sm text-muted-foreground mt-1 italic">
+                          {draft.rasgo_distintivo.descripcion}
+                        </p>
+                      )}
+                    </div>
+                  </div>
                 </div>
               )}
-              {draft.rasgo_distintivo_2 && (
-                <div className="bg-secondary rounded-lg p-3">
-                  <p className="text-xs text-[hsl(var(--gold))] font-heading mb-1">Rasgo Distintivo 2</p>
-                  <p className="text-sm text-foreground">{draft.rasgo_distintivo_2}</p>
+              {(draft.rasgo_distintivo_2 || draft.defecto) && (
+                <div className="bg-secondary rounded-lg p-4">
+                  <div className="flex items-start gap-2">
+                    <Star className="w-4 h-4 text-[hsl(var(--gold))] mt-1 flex-shrink-0" />
+                    <div>
+                      <p className="font-heading text-[hsl(var(--gold))]">
+                        {typeof (draft.rasgo_distintivo_2 || draft.defecto) === 'object' 
+                          ? (draft.rasgo_distintivo_2 || draft.defecto).nombre 
+                          : (draft.rasgo_distintivo_2 || draft.defecto)}
+                      </p>
+                      {typeof (draft.rasgo_distintivo_2 || draft.defecto) === 'object' && (draft.rasgo_distintivo_2 || draft.defecto).descripcion && (
+                        <p className="text-sm text-muted-foreground mt-1 italic">
+                          {(draft.rasgo_distintivo_2 || draft.defecto).descripcion}
+                        </p>
+                      )}
+                    </div>
+                  </div>
                 </div>
               )}
               {draft.motivacion && (
-                <div className="bg-secondary rounded-lg p-3 md:col-span-2">
+                <div className="bg-secondary rounded-lg p-3">
                   <p className="text-xs text-muted-foreground">Motivación</p>
                   <p className="text-sm text-foreground">{draft.motivacion}</p>
                 </div>
