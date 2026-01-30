@@ -329,18 +329,39 @@ async def seed_names(db, data: dict, culture_id_map: dict):
 
 
 async def seed_equipment_lists(db, data: dict):
-    """Seed special equipment lists (instruments, games)"""
+    """Seed complete equipment data including prices and weights"""
     equipment_lists = data.get('equipment_lists', {})
     
-    doc = {
+    # Delete old equipment data
+    await db.equipment_lists.delete_many({})
+    await db.equipment_catalog.delete_many({})
+    
+    # Seed basic lists (games and instruments)
+    lists_doc = {
         "_id": generate_id(),
         "juegos": equipment_lists.get('juegos', []),
         "instrumentos_musicales": equipment_lists.get('instrumentos_musicales', []),
         "created_at": now_utc(),
     }
+    await db.equipment_lists.insert_one(lists_doc)
     
-    await db.equipment_lists.insert_one(doc)
-    print(f"Seeded equipment lists (instruments: {len(doc['instrumentos_musicales'])}, games: {len(doc['juegos'])})")
+    # Seed full equipment catalog
+    catalog_doc = {
+        "_id": generate_id(),
+        "herramientas": equipment_lists.get('herramientas', []),
+        "equipo_general": equipment_lists.get('equipo_general', []),
+        "armas": equipment_lists.get('armas', []),
+        "armaduras": equipment_lists.get('armaduras', []),
+        "created_at": now_utc(),
+    }
+    await db.equipment_catalog.insert_one(catalog_doc)
+    
+    herramientas_count = len(equipment_lists.get('herramientas', []))
+    equipo_count = len(equipment_lists.get('equipo_general', []))
+    armas_count = len(equipment_lists.get('armas', []))
+    armaduras_count = len(equipment_lists.get('armaduras', []))
+    
+    print(f"Seeded equipment catalog (herramientas: {herramientas_count}, equipo: {equipo_count}, armas: {armas_count}, armaduras: {armaduras_count})")
 
 
 async def create_indexes(db):
