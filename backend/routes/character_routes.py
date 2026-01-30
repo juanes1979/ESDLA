@@ -678,7 +678,7 @@ async def finalize_character(draft_id: str):
         "puntos_comunidad": draft.get('puntos_comunidad', 0),
         # Personal details - TWO distinctive traits
         "rasgo_distintivo": draft.get('rasgo_distintivo'),
-        "rasgo_distintivo_2": draft.get('rasgo_distintivo_2'),  # Second trait
+        "rasgo_distintivo_2": draft.get('rasgo_distintivo_2') or draft.get('defecto'),  # Fallback to defecto
         "motivacion": draft.get('motivacion'),
         "historia": draft.get('historia'),
         # Progression
