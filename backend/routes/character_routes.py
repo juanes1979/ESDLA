@@ -225,57 +225,60 @@ async def get_character_draft(draft_id: str):
 
 @router.patch("/draft/{draft_id}/step1")
 async def update_draft_step1(draft_id: str, data: CharacterCreateStep1):
-    """Update draft with Step 1 data (name and culture)"""
+    """Update draft with Step 1 complete culture data (30 fields from plan)"""
     # Verify culture exists
     culture = await db.cultures.find_one({"_id": data.cultura_id})
     if not culture:
         raise HTTPException(status_code=404, detail="Culture not found")
     
-    # Generate physical attributes based on culture
-    edad = random.randint(culture.get('edad_min', 18) or 18, culture.get('edad_max', 80) or 80)
-    altura = random.randint(culture.get('altura_min', 150) or 150, culture.get('altura_max', 200) or 200)
-    
-    # Calculate weight using IMC formula from the plan
-    imc = culture.get('imc', {"min": 20, "max": 24})
-    imc_value = random.uniform(imc.get('min', 20), imc.get('max', 24))
-    mod_peso = culture.get('mod_peso', 0) or 0
-    altura_m = altura / 100
-    peso = round((altura_m ** 2) * imc_value * (1 + mod_peso / 100), 1)
-    
-    # Get bonificadores from new structure
-    bonificadores = culture.get('bonificadores_caracteristicas', {})
-    
+    # Build update with all data from frontend
     update = {
+        # Basic info
         "nombre": data.nombre,
         "jugador": data.jugador,
         "cultura_id": data.cultura_id,
         "cultura_nombre": culture['nombre'],
-        "raza": culture.get('raza'),
-        "edad": edad,
-        "altura_cm": altura,
-        "peso_kg": peso,
-        "tamanio": culture.get('tamanio', 'Mediano'),
-        "velocidad": culture.get('velocidad', 9),
-        "descanso": culture.get('descanso', 8),
-        "nivel_vida": culture.get('nivel_vida'),
+        
+        # Physical data (from frontend)
+        "genero": data.genero,
+        "raza": data.raza or culture.get('raza'),
+        "edad": data.edad,
+        "altura_cm": data.altura_cm,
+        "peso_kg": data.peso_kg,
+        "ojos": data.ojos,
+        "piel": data.piel,
+        "pelo": data.pelo,
+        
+        # Culture stats
+        "velocidad": data.velocidad or culture.get('velocidad', 9),
+        "descanso": data.descanso or culture.get('descanso', 8),
+        "tamanio": data.tamanio or culture.get('tamanio', 'Mediano'),
+        "nivel_vida": data.nivel_vida or culture.get('nivel_vida'),
         "descripcion_nivel_vida": culture.get('descripcion_nivel_vida'),
-        "tiene_virtud_inicial": culture.get('tiene_virtud_inicial', False),
         
-        # Culture characteristic modifiers (new structure)
-        "mod_cultura": bonificadores,
+        # Characteristics (base 8 + culture bonuses + Noldor if applicable)
+        "caracteristicas": data.caracteristicas,
+        "mejora_noldor_seleccion": data.mejora_noldor,  # Which characteristic got +1
+        "bonificadores_cultura": culture.get('bonificadores_caracteristicas', {}),
         
-        # Physical traits for random generation
-        "rasgos_fisicos": culture.get('rasgos_fisicos', {}),
+        # Skills and competencies
+        "habilidades_puntuaciones": data.habilidades_puntuaciones or culture.get('habilidades_puntuaciones', {}),
+        "competencias_habilidades_cultura": data.competencias_habilidades or culture.get('competencias_habilidades', []),
+        "rasgos_culturales": data.rasgos_culturales or culture.get('rasgos_culturales', []),
+        "idiomas": data.idiomas or culture.get('idiomas', []),
         
-        # Languages and competencies
-        "idiomas": culture.get('idiomas', []),
-        "competencias_habilidades_cultura": culture.get('competencias_habilidades', []),
-        "habilidades_puntuaciones": culture.get('habilidades_puntuaciones', {}),
+        # Culture selections made by user
+        "competencia_habilidad_cultura": data.competencia_habilidad_cultura,
+        "competencia_herramienta_1": data.competencia_herramienta_1,
+        "competencias_herramientas_2": data.competencias_herramientas_2 or [],
+        "competencia_adicional": data.competencia_adicional or culture.get('competencia_adicional'),
         
-        # Special culture features
-        "mejora_noldor": culture.get('mejora_noldor', False),
-        "rasgos_culturales": culture.get('rasgos_culturales', []),
+        # Special features
+        "pg_extra_nivel": data.pg_extra_nivel or culture.get('pg_extra_nivel'),
+        "capacidad_carga_x2": data.capacidad_carga_x2 or culture.get('capacidad_carga_x2'),
+        "tiene_virtud_inicial": data.tiene_virtud_inicial if data.tiene_virtud_inicial is not None else culture.get('tiene_virtud_inicial', False),
         
+        # Wizard state
         "paso_actual": 2,
         "updated_at": now_utc(),
     }
