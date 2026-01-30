@@ -282,7 +282,7 @@ const InteractiveCharacterSheet = () => {
         >
           {/* Background Image */}
           <img
-            src={`/assets/sheets/sheet_page${currentPage}_web.jpg`}
+            src={`/assets/sheets/sheet_page${currentPage}_web.png`}
             alt={`Character Sheet Page ${currentPage}`}
             className="absolute inset-0 w-full h-full object-contain"
             style={{ imageRendering: 'auto' }}
