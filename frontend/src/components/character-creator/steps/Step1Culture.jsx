@@ -1462,7 +1462,7 @@ const Step1Culture = ({ draftId, draft, onComplete, onBack }) => {
         <div className="flex justify-between pt-4 border-t border-border/30">
           <Button
             variant="outline"
-            onClick={() => setCurrentSubStep(SUB_STEPS.CHARACTERISTICS)}
+            onClick={() => setCurrentSubStep(SUB_STEPS.CHARACTERISTICS_SUMMARY)}
           >
             Atrás
           </Button>
