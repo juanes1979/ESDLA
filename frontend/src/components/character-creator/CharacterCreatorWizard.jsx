@@ -143,19 +143,15 @@ export const CharacterCreatorWizard = () => {
       case 3:
         return <Step3Occupation {...commonProps} />;
       case 4:
-        return <Step4Attributes {...commonProps} />;
-      case 5:
         // Solo se muestra si la cultura tiene virtud
         if (cultureGetsVirtue(draft?.cultura_nombre)) {
           return <Step5Virtue {...commonProps} />;
         }
-        // Si no, saltamos automáticamente
-        return <Step6Skills {...commonProps} />;
-      case 6:
-        return <Step6Skills {...commonProps} />;
-      case 7:
+        // Si no, saltamos a Equipo
         return <Step7Equipment {...commonProps} />;
-      case 8:
+      case 5:
+        return <Step7Equipment {...commonProps} />;
+      case 6:
         return <Step8Details {...commonProps} />;
       default:
         return null;
@@ -167,7 +163,7 @@ export const CharacterCreatorWizard = () => {
     if (!draft?.cultura_nombre) return STEPS;
     if (cultureGetsVirtue(draft.cultura_nombre)) return STEPS;
     // Filter out virtue step for cultures that don't get it
-    return STEPS.filter(s => s.num !== 5).map((s, i) => ({
+    return STEPS.filter(s => s.num !== 4).map((s, i) => ({
       ...s,
       num: i + 1 // Renumber
     }));
