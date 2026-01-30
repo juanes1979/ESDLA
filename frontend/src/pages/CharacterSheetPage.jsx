@@ -438,27 +438,46 @@ const CharacterSheetPage = () => {
             </div>
 
             {/* Personality */}
-            {(character.rasgo_distintivo || character.defecto || character.motivacion) && (
+            {(character.rasgo_distintivo || character.rasgo_distintivo_2 || character.defecto || character.motivacion) && (
               <div className="card-parchment rounded-lg p-4">
                 <h3 className="font-heading text-lg text-[hsl(var(--gold))] mb-3">
-                  Personalidad
+                  Rasgos de Personalidad
                 </h3>
-                <div className="space-y-2 text-sm">
+                <div className="space-y-3 text-sm">
                   {character.rasgo_distintivo && (
-                    <div>
-                      <span className="text-[hsl(var(--gold))]">Rasgo: </span>
-                      <span className="text-muted-foreground">{character.rasgo_distintivo}</span>
+                    <div className="bg-secondary/50 rounded p-3">
+                      <span className="text-[hsl(var(--gold))] font-heading block mb-1">Rasgo Distintivo 1</span>
+                      <span className="text-foreground font-medium">
+                        {typeof character.rasgo_distintivo === 'object' 
+                          ? character.rasgo_distintivo.nombre 
+                          : character.rasgo_distintivo}
+                      </span>
+                      {typeof character.rasgo_distintivo === 'object' && character.rasgo_distintivo.descripcion && (
+                        <p className="text-muted-foreground text-xs mt-1 italic">
+                          {character.rasgo_distintivo.descripcion}
+                        </p>
+                      )}
                     </div>
                   )}
-                  {character.defecto && (
-                    <div>
-                      <span className="text-[hsl(var(--gold))]">Defecto: </span>
-                      <span className="text-muted-foreground">{character.defecto}</span>
+                  {(character.rasgo_distintivo_2 || character.defecto) && (
+                    <div className="bg-secondary/50 rounded p-3">
+                      <span className="text-[hsl(var(--gold))] font-heading block mb-1">Rasgo Distintivo 2</span>
+                      <span className="text-foreground font-medium">
+                        {typeof (character.rasgo_distintivo_2 || character.defecto) === 'object' 
+                          ? (character.rasgo_distintivo_2 || character.defecto).nombre 
+                          : (character.rasgo_distintivo_2 || character.defecto)}
+                      </span>
+                      {typeof (character.rasgo_distintivo_2 || character.defecto) === 'object' && 
+                       (character.rasgo_distintivo_2 || character.defecto).descripcion && (
+                        <p className="text-muted-foreground text-xs mt-1 italic">
+                          {(character.rasgo_distintivo_2 || character.defecto).descripcion}
+                        </p>
+                      )}
                     </div>
                   )}
                   {character.motivacion && (
-                    <div>
-                      <span className="text-[hsl(var(--gold))]">Motivación: </span>
+                    <div className="bg-secondary/50 rounded p-3">
+                      <span className="text-[hsl(var(--gold))] font-heading block mb-1">Motivación</span>
                       <span className="text-muted-foreground">{character.motivacion}</span>
                     </div>
                   )}
