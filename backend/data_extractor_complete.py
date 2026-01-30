@@ -468,12 +468,23 @@ def extract_occupations_complete(wb: openpyxl.Workbook) -> List[Dict]:
     return occupations
 
 
+def safe_int(value, default=0) -> int:
+    """Safely convert value to int, return default if not possible"""
+    if value is None:
+        return default
+    try:
+        return int(value)
+    except (ValueError, TypeError):
+        return default
+
+
 def extract_virtues_complete(wb: openpyxl.Workbook) -> List[Dict]:
     """Extract complete virtue data with all bonuses and selections"""
     sheet = wb['Virtudes']
     
     virtues = []
-    col = 2
+    # Start from column 3 (C) - column B has labels
+    col = 3
     
     while col <= sheet.max_column:
         tipo = clean_value(sheet.cell(row=1, column=col).value)
@@ -493,12 +504,12 @@ def extract_virtues_complete(wb: openpyxl.Workbook) -> List[Dict]:
             
             # Fixed characteristic bonuses (rows 5-10)
             "caracteristicas_fijas": {
-                "fuerza": 1 if clean_value(sheet.cell(row=5, column=col).value) == 'X' else 0,
-                "destreza": 1 if clean_value(sheet.cell(row=6, column=col).value) == 'X' else 0,
-                "constitucion": 1 if clean_value(sheet.cell(row=7, column=col).value) == 'X' else 0,
-                "inteligencia": 1 if clean_value(sheet.cell(row=8, column=col).value) == 'X' else 0,
-                "sabiduria": 1 if clean_value(sheet.cell(row=9, column=col).value) == 'X' else 0,
-                "carisma": 1 if clean_value(sheet.cell(row=10, column=col).value) == 'X' else 0,
+                "fuerza": 1 if clean_value(sheet.cell(row=5, column=col).value) and str(sheet.cell(row=5, column=col).value).upper() == 'X' else 0,
+                "destreza": 1 if clean_value(sheet.cell(row=6, column=col).value) and str(sheet.cell(row=6, column=col).value).upper() == 'X' else 0,
+                "constitucion": 1 if clean_value(sheet.cell(row=7, column=col).value) and str(sheet.cell(row=7, column=col).value).upper() == 'X' else 0,
+                "inteligencia": 1 if clean_value(sheet.cell(row=8, column=col).value) and str(sheet.cell(row=8, column=col).value).upper() == 'X' else 0,
+                "sabiduria": 1 if clean_value(sheet.cell(row=9, column=col).value) and str(sheet.cell(row=9, column=col).value).upper() == 'X' else 0,
+                "carisma": 1 if clean_value(sheet.cell(row=10, column=col).value) and str(sheet.cell(row=10, column=col).value).upper() == 'X' else 0,
             },
             
             # Selectable characteristic bonus (rows 12-17)
@@ -507,10 +518,10 @@ def extract_virtues_complete(wb: openpyxl.Workbook) -> List[Dict]:
             # Selectable saving throw (rows 19-24)
             "salvaciones_elegir": [],
             
-            # Fixed bonuses
-            "puntos_golpe_extra": int(sheet.cell(row=26, column=col).value or 0),
-            "puntos_comunidad_extra": int(sheet.cell(row=27, column=col).value or 0),
-            "clase_armadura_extra": int(sheet.cell(row=28, column=col).value or 0),
+            # Fixed bonuses (rows 26-28) - safely convert to int
+            "puntos_golpe_extra": safe_int(sheet.cell(row=26, column=col).value),
+            "puntos_comunidad_extra": safe_int(sheet.cell(row=27, column=col).value),
+            "clase_armadura_extra": safe_int(sheet.cell(row=28, column=col).value),
             
             # Skill competencies to choose (rows 30-48)
             "competencias_habilidades_elegir": [],
@@ -522,33 +533,33 @@ def extract_virtues_complete(wb: openpyxl.Workbook) -> List[Dict]:
         # Extract selectable characteristics (rows 12-17)
         char_names = ["fuerza", "destreza", "constitucion", "inteligencia", "sabiduria", "carisma"]
         for i, char in enumerate(char_names):
-            if clean_value(sheet.cell(row=12+i, column=col).value) == 'X':
+            val = clean_value(sheet.cell(row=12+i, column=col).value)
+            if val and val.upper() == 'X':
                 virtue["caracteristicas_elegir"].append(char)
         
         # Extract selectable saving throws (rows 19-24)
         for i, char in enumerate(char_names):
-            if clean_value(sheet.cell(row=19+i, column=col).value) == 'X':
+            val = clean_value(sheet.cell(row=19+i, column=col).value)
+            if val and val.upper() == 'X':
                 virtue["salvaciones_elegir"].append(char)
         
-        # Extract skill competencies (rows 30-48)
-        skill_names = [
-            "Acertijos", "Acrobacias", "Atletismo", "Cazar", "Engaño", "Explorar",
-            "Interpretación", "Intimidación", "Investigación", "Juego de manos",
-            "Medicina", "Naturaleza", "Percepción", "Perspicacia", "Persuasión",
-            "Saber antiguo", "Sigilo", "Trato con animales", "Viajar"
-        ]
-        for i, skill in enumerate(skill_names):
-            if clean_value(sheet.cell(row=30+i, column=col).value) == 'X':
-                virtue["competencias_habilidades_elegir"].append(skill)
+        # Extract skill competencies (rows 30-48) - skill names are in column B
+        for row in range(30, 49):
+            val = clean_value(sheet.cell(row=row, column=col).value)
+            if val and val.upper() == 'X':
+                # Get skill name from column B and clean it (remove attribute in parenthesis)
+                skill_name = clean_value(sheet.cell(row=row, column=2).value)
+                if skill_name:
+                    # Remove "(Int)", "(Des)", etc. from skill name
+                    skill_clean = skill_name.split('(')[0].strip()
+                    virtue["competencias_habilidades_elegir"].append(skill_clean)
         
-        # Extract tool competencies (rows 50-68)
+        # Extract tool competencies (rows 50-68) - tool names are in column B
         for row in range(50, 69):
             val = clean_value(sheet.cell(row=row, column=col).value)
-            if val and val != 'X':
-                virtue["competencias_herramientas_elegir"].append(val)
-            elif val == 'X':
-                # Get tool name from column A
-                tool_name = clean_value(sheet.cell(row=row, column=1).value)
+            if val and val.upper() == 'X':
+                # Get tool name from column B
+                tool_name = clean_value(sheet.cell(row=row, column=2).value)
                 if tool_name:
                     virtue["competencias_herramientas_elegir"].append(tool_name)
         
