@@ -323,53 +323,188 @@ const CharacterSummary = ({ draft, onFinalize, onEdit, loading }) => {
           </div>
         )}
 
-        {/* Equipment Summary */}
-        {(draft.inventario?.length > 0 || draft.equipo_ocupacion?.length > 0 || draft.armadura_elegida || draft.herramientas_elegidas_ocupacion?.length > 0 || (draft.dinero?.mp > 0 || draft.dinero?.mo > 0)) && (
-          <div className="mt-6">
-            <h3 className="font-heading text-lg text-[hsl(var(--gold))] mb-3">
-              Equipo
-            </h3>
+        {/* Complete Equipment Summary with Weight and Encumbrance */}
+        <div className="mt-6">
+          <h3 className="font-heading text-lg text-[hsl(var(--gold))] mb-3">
+            Equipo Completo
+          </h3>
+          
+          {(() => {
+            // Weight data for common items (in libras)
+            const ITEM_WEIGHTS = {
+              // Weapons
+              'daga': 1, 'espada corta': 2, 'espada': 3, 'espada larga': 3, 'espada ancha': 3,
+              'hacha': 4, 'hacha de batalla': 4, 'maza': 4, 'martillo': 2, 'lanza': 3,
+              'arco': 2, 'arco corto': 2, 'arco largo': 2, 'honda': 0,
+              // Armor
+              'armadura de cuero': 10, 'coleto de cuero': 10, 'armadura ligera': 10,
+              'cota de mallas': 40, 'armadura de mallas': 40, 'cota de escamas': 45,
+              'armadura media': 25, 'armadura pesada': 65,
+              'escudo': 6, 'escudo grande': 6, 'escudo pequeño': 4,
+              // General equipment
+              'mochila': 5, 'petate': 7, 'utensilios de cocina': 8, 'lata de yesca': 1,
+              'raciones': 2, 'antorchas': 1, 'odre': 5, 'cuerda': 10, 'tienda': 20,
+              'linterna': 2, 'aceite': 1,
+              // Tools
+              'herramientas de ladrón': 1, 'herramientas de herrero': 8, 'herramientas de carpintero': 6,
+              'instrumentos musicales': 3,
+            };
             
-            {/* Occupation Equipment (weapons, armor, tools) */}
-            {(draft.equipo_ocupacion?.length > 0 || draft.herramientas_elegidas_ocupacion?.length > 0) && (
-              <div className="bg-[hsl(var(--magic-blue))/10] rounded-lg p-3 mb-3">
-                <p className="text-xs text-[hsl(var(--magic-blue))] font-heading mb-2">Equipo de {draft.vocacion_nombre}</p>
-                <div className="flex flex-wrap gap-2">
-                  {draft.equipo_ocupacion?.map((item, i) => (
-                    <span key={`occ-${i}`} className="text-sm px-2 py-1 rounded bg-[hsl(var(--magic-blue))/20] text-[hsl(var(--magic-blue))]">
-                      {typeof item === 'string' ? item : item.nombre}
-                    </span>
-                  ))}
-                  {draft.herramientas_elegidas_ocupacion?.map((tool, i) => (
-                    <span key={`tool-${i}`} className="text-sm px-2 py-1 rounded bg-secondary text-muted-foreground">
-                      {tool}
-                    </span>
-                  ))}
+            // Helper to estimate weight
+            const getItemWeight = (name) => {
+              if (!name) return 0;
+              const lowerName = name.toLowerCase();
+              for (const [key, weight] of Object.entries(ITEM_WEIGHTS)) {
+                if (lowerName.includes(key)) return weight;
+              }
+              return 1; // Default weight
+            };
+            
+            // Collect all equipment
+            const allEquipment = [];
+            let totalWeight = 0;
+            
+            // Armor/Weapons from occupation selection
+            const occupationItems = draft.equipo_ocupacion || [];
+            occupationItems.forEach(item => {
+              const name = typeof item === 'string' ? item : item.nombre;
+              const weight = getItemWeight(name);
+              allEquipment.push({ name, type: 'ocupacion', weight });
+              totalWeight += weight;
+            });
+            
+            // Tools from occupation
+            const tools = draft.herramientas_elegidas_ocupacion || [];
+            tools.forEach(tool => {
+              const weight = getItemWeight(tool);
+              allEquipment.push({ name: tool, type: 'herramienta', weight });
+              totalWeight += weight;
+            });
+            
+            // Inventory from lifestyle
+            const inventory = draft.inventario || [];
+            inventory.forEach(item => {
+              const name = item.nombre || item;
+              const qty = item.cantidad || 1;
+              const weight = getItemWeight(name) * qty;
+              allEquipment.push({ name: `${name}${qty > 1 ? ` (x${qty})` : ''}`, type: 'general', weight });
+              totalWeight += weight;
+            });
+            
+            // Background equipment
+            const bgEquip = draft.equipo_trasfondo || [];
+            bgEquip.forEach(item => {
+              const name = typeof item === 'string' ? item : item.nombre;
+              const weight = getItemWeight(name);
+              allEquipment.push({ name, type: 'trasfondo', weight });
+              totalWeight += weight;
+            });
+            
+            // Calculate encumbrance
+            const attrs = draft.caracteristicas || draft.atributos_finales || {};
+            const fuerza = attrs.fuerza || 10;
+            const capacidadCarga = fuerza * 15; // Normal carrying capacity
+            const pesoEstorbo = fuerza * 5; // Encumbered threshold
+            const pesoPesado = fuerza * 10; // Heavily encumbered threshold
+            
+            // Double capacity if culture has it
+            const capacidadFinal = draft.capacidad_carga_x2 ? capacidadCarga * 2 : capacidadCarga;
+            
+            let estorboStatus = 'normal';
+            let estorboColor = 'text-green-500';
+            if (totalWeight > pesoPesado) {
+              estorboStatus = 'Muy estorbado (-20 pies velocidad)';
+              estorboColor = 'text-red-500';
+            } else if (totalWeight > pesoEstorbo) {
+              estorboStatus = 'Estorbado (-10 pies velocidad)';
+              estorboColor = 'text-yellow-500';
+            } else {
+              estorboStatus = 'Sin estorbo';
+            }
+            
+            return (
+              <div className="space-y-3">
+                {/* Weapons and Armor from Occupation */}
+                {allEquipment.filter(e => e.type === 'ocupacion').length > 0 && (
+                  <div className="bg-[hsl(var(--destructive))/10] rounded-lg p-3 border border-[hsl(var(--destructive))/30]">
+                    <p className="text-xs text-[hsl(var(--destructive))] font-heading mb-2">⚔️ Armas y Armaduras</p>
+                    <div className="grid grid-cols-2 gap-2">
+                      {allEquipment.filter(e => e.type === 'ocupacion').map((item, i) => (
+                        <div key={i} className="flex justify-between text-sm">
+                          <span className="text-foreground">{item.name}</span>
+                          <span className="text-muted-foreground">{item.weight} lb</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                
+                {/* Tools */}
+                {allEquipment.filter(e => e.type === 'herramienta').length > 0 && (
+                  <div className="bg-[hsl(var(--torch-orange))/10] rounded-lg p-3 border border-[hsl(var(--torch-orange))/30]">
+                    <p className="text-xs text-[hsl(var(--torch-orange))] font-heading mb-2">🔧 Herramientas</p>
+                    <div className="grid grid-cols-2 gap-2">
+                      {allEquipment.filter(e => e.type === 'herramienta').map((item, i) => (
+                        <div key={i} className="flex justify-between text-sm">
+                          <span className="text-foreground">{item.name}</span>
+                          <span className="text-muted-foreground">{item.weight} lb</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                
+                {/* General Equipment */}
+                {allEquipment.filter(e => e.type === 'general' || e.type === 'trasfondo').length > 0 && (
+                  <div className="bg-secondary rounded-lg p-3">
+                    <p className="text-xs text-muted-foreground font-heading mb-2">📦 Equipo General</p>
+                    <div className="grid grid-cols-2 gap-2">
+                      {allEquipment.filter(e => e.type === 'general' || e.type === 'trasfondo').map((item, i) => (
+                        <div key={i} className="flex justify-between text-sm">
+                          <span className="text-muted-foreground">{item.name}</span>
+                          <span className="text-muted-foreground">{item.weight} lb</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                
+                {/* Money */}
+                <div className="bg-[hsl(var(--gold))/10] rounded-lg p-3 flex items-center justify-between">
+                  <span className="text-sm text-[hsl(var(--gold))]">💰 Dinero</span>
+                  <span className="font-heading text-[hsl(var(--gold))]">
+                    {draft.dinero?.mp || 0} mp · {draft.dinero?.mo || 0} mo · {draft.dinero?.mc || 0} mc
+                  </span>
+                </div>
+                
+                {/* Weight and Encumbrance */}
+                <div className="bg-black/20 rounded-lg p-4 border border-border">
+                  <div className="flex justify-between items-center mb-2">
+                    <span className="text-sm text-foreground font-heading">Peso Total</span>
+                    <span className="text-lg font-heading text-[hsl(var(--gold))]">{totalWeight} lb</span>
+                  </div>
+                  <div className="w-full bg-secondary rounded-full h-3 mb-2">
+                    <div 
+                      className={`h-3 rounded-full transition-all ${
+                        totalWeight > pesoPesado ? 'bg-red-500' :
+                        totalWeight > pesoEstorbo ? 'bg-yellow-500' : 'bg-green-500'
+                      }`}
+                      style={{ width: `${Math.min((totalWeight / capacidadFinal) * 100, 100)}%` }}
+                    />
+                  </div>
+                  <div className="flex justify-between text-xs text-muted-foreground">
+                    <span>Estorbo: {pesoEstorbo} lb</span>
+                    <span>Pesado: {pesoPesado} lb</span>
+                    <span>Máx: {capacidadFinal} lb</span>
+                  </div>
+                  <p className={`text-center text-sm mt-2 font-medium ${estorboColor}`}>
+                    {estorboStatus}
+                  </p>
                 </div>
               </div>
-            )}
-            
-            {/* General inventory */}
-            <div className="bg-secondary rounded-lg p-3">
-              {draft.inventario?.length > 0 && (
-                <div className="flex flex-wrap gap-2 mb-2">
-                  {draft.inventario.map((item, i) => (
-                    <span key={i} className="text-sm text-muted-foreground">
-                      {item.nombre}
-                      {i < draft.inventario.length - 1 && ', '}
-                    </span>
-                  ))}
-                </div>
-              )}
-              <div className="flex gap-4 text-sm">
-                {draft.dinero?.mp > 0 && <span>{draft.dinero.mp} mp</span>}
-                {draft.dinero?.mo > 0 && <span>{draft.dinero.mo} mo</span>}
-                {draft.dinero?.mc > 0 && <span>{draft.dinero.mc} mc</span>}
-                {(!draft.dinero?.mp && !draft.dinero?.mo && !draft.dinero?.mc) && <span className="text-muted-foreground">Sin monedas</span>}
-              </div>
-            </div>
-          </div>
-        )}
+            );
+          })()}
+        </div>
       </div>
 
       {/* Actions */}
