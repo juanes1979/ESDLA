@@ -929,16 +929,30 @@ const Step3Occupation = ({ draftId, draft, onComplete, onBack }) => {
       return null;
     }
 
-    const isABType = currentArma.tipo === 'ab';
+    const isABType = currentArma.tipo === 'ab' || currentArma.tipo === 'ab_complex';
+    const isComplexType = currentArma.tipo === 'ab_complex';
     const currentSelection = weaponSelections[`arma${currentArma.numero}`];
     const currentBItems = weaponSelections[`arma${currentArma.numero}_b_items`] || [];
+    
+    // For ab_complex
+    const currentAItems = weaponSelections[`arma${currentArma.numero}_a_items`] || [];
+    const currentB1Items = weaponSelections[`arma${currentArma.numero}_b1_items`] || [];
+    const currentB2Items = weaponSelections[`arma${currentArma.numero}_b2_items`] || [];
 
     // Check if current weapon selection is complete
     const isComplete = () => {
-      if (isABType) {
+      if (currentArma.tipo === 'ab') {
         if (!currentSelection) return false;
         if (currentSelection === 'B' && currentBItems.length < (currentArma.cantidad_b || 1)) return false;
         return true;
+      } else if (currentArma.tipo === 'ab_complex') {
+        if (!currentSelection) return false;
+        if (currentSelection === 'A') {
+          return currentAItems.length >= 1;
+        } else if (currentSelection === 'B') {
+          return currentB1Items.length >= 1 && currentB2Items.length >= 1;
+        }
+        return false;
       } else {
         const selected = weaponSelections[`arma${currentArma.numero}`] || [];
         return selected.length >= (currentArma.cantidad || 1);
