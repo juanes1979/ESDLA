@@ -1,6 +1,8 @@
 /**
  * Step 7: Equipment Selection
  * El equipo inicial se asigna AUTOMÁTICAMENTE según el Nivel de Vida de la cultura
+ * + ropa según nivel de vida
+ * + monedas según ocupación
  * NO hay selección de equipo adicional durante la creación de personaje
  */
 import { useState, useMemo } from 'react';
@@ -17,8 +19,12 @@ const EQUIPO_POR_NIVEL_VIDA = {
       { nombre: 'Utensilios de cocina', cantidad: 1 },
       { nombre: 'Lata de yesca', cantidad: 1 },
       { nombre: 'Raciones (1 día)', cantidad: 10 },
+      // Ropa Frugal
+      { nombre: 'Botas de viaje', cantidad: 1 },
+      { nombre: 'Capa de viaje', cantidad: 1 },
+      { nombre: 'Muda común', cantidad: 1 },
     ],
-    dinero: { mp: 0, mo: 0, mc: 0 },
+    dinero: { mp: 0, mo: 0, me: 0, mc: 0 },
     descripcion: 'Equipo básico para supervivencia. Tu cultura vive de forma austera, sin monedas.'
   },
   'Común': {
@@ -31,8 +37,12 @@ const EQUIPO_POR_NIVEL_VIDA = {
       { nombre: 'Antorchas (paquete de 10)', cantidad: 1 },
       { nombre: 'Odre (lleno)', cantidad: 1 },
       { nombre: 'Cuerda de cáñamo (15 m)', cantidad: 1 },
+      // Ropa Común
+      { nombre: 'Botas de buena piel', cantidad: 1 },
+      { nombre: 'Capa de viaje', cantidad: 1 },
+      { nombre: 'Muda de viajero', cantidad: 1 },
     ],
-    dinero: { mp: 15, mo: 0, mc: 0 },
+    dinero: { mp: 0, mo: 0, me: 0, mc: 0 }, // Base sin ocupación
     descripcion: 'Equipo estándar para un aventurero. Tu cultura tiene recursos moderados.'
   },
   'Próspero': {
@@ -47,10 +57,25 @@ const EQUIPO_POR_NIVEL_VIDA = {
       { nombre: 'Odre (lleno)', cantidad: 1 },
       { nombre: 'Cuerda de seda (15 m)', cantidad: 1 },
       { nombre: 'Tienda para 2 personas', cantidad: 1 },
+      // Ropa Próspero
+      { nombre: 'Botas de cuero', cantidad: 1 },
+      { nombre: 'Capa de viaje', cantidad: 1 },
+      { nombre: 'Muda fina', cantidad: 1 },
+      { nombre: 'Muda de viajero', cantidad: 1 },
     ],
-    dinero: { mp: 20, mo: 0, mc: 0 },
+    dinero: { mp: 0, mo: 0, me: 0, mc: 0 }, // Base sin ocupación
     descripcion: 'Equipo de alta calidad. Tu cultura goza de riqueza y comodidades.'
   }
+};
+
+// Monedas iniciales según tipo de ocupación
+const DINERO_POR_OCUPACION = {
+  'Buscador de tesoros': { mp: 0, mo: 0, me: 50, mc: 70 },   // Explorador
+  'Campeón': { mp: 0, mo: 0, me: 50, mc: 80 },              // Guerrero
+  'Capitán': { mp: 2, mo: 0, me: 50, mc: 95 },              // Lider
+  'Erudito': { mp: 0, mo: 0, me: 20, mc: 70 },              // Maestro
+  'Guardian': { mp: 0, mo: 0, me: 30, mc: 70 },             // Protector
+  'Mensajero': { mp: 0, mo: 0, me: 45, mc: 75 },            // Trotamundos
 };
 
 const Step7Equipment = ({ draftId, draft, onComplete, onBack }) => {
@@ -59,11 +84,27 @@ const Step7Equipment = ({ draftId, draft, onComplete, onBack }) => {
 
   // Obtener el nivel de vida del personaje
   const nivelVida = draft?.nivel_vida || 'Común';
+  const vocacion = draft?.vocacion_nombre || '';
   
   // Obtener equipo automático según nivel de vida
   const equipoAutomatico = useMemo(() => {
     return EQUIPO_POR_NIVEL_VIDA[nivelVida] || EQUIPO_POR_NIVEL_VIDA['Común'];
   }, [nivelVida]);
+  
+  // Obtener dinero según ocupación
+  const dineroOcupacion = useMemo(() => {
+    return DINERO_POR_OCUPACION[vocacion] || { mp: 0, mo: 0, me: 0, mc: 0 };
+  }, [vocacion]);
+  
+  // Dinero total (nivel de vida + ocupación)
+  const dineroTotal = useMemo(() => {
+    return {
+      mp: (equipoAutomatico.dinero?.mp || 0) + dineroOcupacion.mp,
+      mo: (equipoAutomatico.dinero?.mo || 0) + dineroOcupacion.mo,
+      me: (equipoAutomatico.dinero?.me || 0) + dineroOcupacion.me,
+      mc: (equipoAutomatico.dinero?.mc || 0) + dineroOcupacion.mc,
+    };
+  }, [equipoAutomatico, dineroOcupacion]);
 
   // Handle submit - only automatic equipment, no optional items
   const handleSubmit = async () => {
