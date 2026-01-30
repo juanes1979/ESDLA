@@ -1,5 +1,5 @@
 {
-  "extracted_at": "2026-01-30T17:53:31.611954+00:00",
+  "extracted_at": "2026-01-30T19:45:04.761355+00:00",
   "cultures": [
     {
       "nombre": "Elfos de Lindon",
@@ -110,7 +110,9 @@
         "Trato con animales": 3,
         "Viajar": 0
       },
-      "competencias_habilidades": [],
+      "competencias_habilidades": [
+        "Percepción"
+      ],
       "bonificador_a_eleccion": false
     },
     {
@@ -223,7 +225,9 @@
         "Trato con animales": 1,
         "Viajar": 1
       },
-      "competencias_habilidades": [],
+      "competencias_habilidades": [
+        "Percepción"
+      ],
       "bonificador_a_eleccion": false
     },
     {
@@ -331,7 +335,9 @@
         "Trato con animales": 3,
         "Viajar": 0
       },
-      "competencias_habilidades": [],
+      "competencias_habilidades": [
+        "Percepción"
+      ],
       "bonificador_a_eleccion": false
     },
     {
@@ -443,7 +449,9 @@
         "Trato con animales": 0,
         "Viajar": 1
       },
-      "competencias_habilidades": [],
+      "competencias_habilidades": [
+        "Percepción"
+      ],
       "bonificador_a_eleccion": false
     },
     {
@@ -548,7 +556,9 @@
         "Trato con animales": 3,
         "Viajar": 0
       },
-      "competencias_habilidades": [],
+      "competencias_habilidades": [
+        "Percepción"
+      ],
       "bonificador_a_eleccion": false
     },
     {
@@ -759,7 +769,9 @@
         "Trato con animales": 1,
         "Viajar": 3
       },
-      "competencias_habilidades": [],
+      "competencias_habilidades": [
+        "Saber antiguo"
+      ],
       "bonificador_a_eleccion": false
     },
     {
@@ -961,7 +973,9 @@
         "Trato con animales": 1,
         "Viajar": 3
       },
-      "competencias_habilidades": [],
+      "competencias_habilidades": [
+        "Viajar"
+      ],
       "bonificador_a_eleccion": false
     },
     {
@@ -1064,7 +1078,9 @@
         "Trato con animales": 2,
         "Viajar": 0
       },
-      "competencias_habilidades": [],
+      "competencias_habilidades": [
+        "Sigilo"
+      ],
       "bonificador_a_eleccion": false
     },
     {
@@ -1171,7 +1187,9 @@
         "Trato con animales": 2,
         "Viajar": 0
       },
-      "competencias_habilidades": [],
+      "competencias_habilidades": [
+        "Sigilo"
+      ],
       "bonificador_a_eleccion": false
     },
     {
@@ -1278,7 +1296,9 @@
         "Trato con animales": 2,
         "Viajar": 0
       },
-      "competencias_habilidades": [],
+      "competencias_habilidades": [
+        "Sigilo"
+      ],
       "bonificador_a_eleccion": false
     },
     {
@@ -1491,7 +1511,9 @@
         "Trato con animales": 1,
         "Viajar": 1
       },
-      "competencias_habilidades": [],
+      "competencias_habilidades": [
+        "Perspicacia"
+      ],
       "bonificador_a_eleccion": false
     },
     {
@@ -1820,7 +1842,10 @@
         "Trato con animales": 3,
         "Viajar": 2
       },
-      "competencias_habilidades": [],
+      "competencias_habilidades": [
+        "Naturaleza",
+        "Percepción"
+      ],
       "bonificador_a_eleccion": false
     },
     {
@@ -1928,7 +1953,10 @@
         "Trato con animales": 3,
         "Viajar": 2
       },
-      "competencias_habilidades": [],
+      "competencias_habilidades": [
+        "Atletismo",
+        "Saber antiguo"
+      ],
       "bonificador_a_eleccion": false
     },
     {
@@ -2034,7 +2062,10 @@
         "Trato con animales": 3,
         "Viajar": 2
       },
-      "competencias_habilidades": [],
+      "competencias_habilidades": [
+        "Naturaleza",
+        "Persuasión"
+      ],
       "bonificador_a_eleccion": false
     }
   ],
