@@ -1,5 +1,5 @@
 {
-  "extracted_at": "2026-01-30T17:08:45.368455+00:00",
+  "extracted_at": "2026-01-30T17:53:31.611954+00:00",
   "cultures": [
     {
       "nombre": "Elfos de Lindon",
@@ -110,7 +110,8 @@
         "Trato con animales": 3,
         "Viajar": 0
       },
-      "competencias_habilidades": []
+      "competencias_habilidades": [],
+      "bonificador_a_eleccion": false
     },
     {
       "nombre": "Elfos Noldor",
@@ -222,7 +223,8 @@
         "Trato con animales": 1,
         "Viajar": 1
       },
-      "competencias_habilidades": []
+      "competencias_habilidades": [],
+      "bonificador_a_eleccion": false
     },
     {
       "nombre": "Elfos Silvanos",
@@ -329,7 +331,8 @@
         "Trato con animales": 3,
         "Viajar": 0
       },
-      "competencias_habilidades": []
+      "competencias_habilidades": [],
+      "bonificador_a_eleccion": false
     },
     {
       "nombre": "Elfos Oscuros",
@@ -440,7 +443,8 @@
         "Trato con animales": 0,
         "Viajar": 1
       },
-      "competencias_habilidades": []
+      "competencias_habilidades": [],
+      "bonificador_a_eleccion": false
     },
     {
       "nombre": "Elfos del Bosque negro",
@@ -544,7 +548,8 @@
         "Trato con animales": 3,
         "Viajar": 0
       },
-      "competencias_habilidades": []
+      "competencias_habilidades": [],
+      "bonificador_a_eleccion": false
     },
     {
       "nombre": "Enanos de Erebor",
@@ -651,7 +656,8 @@
         "Trato con animales": 0,
         "Viajar": 3
       },
-      "competencias_habilidades": []
+      "competencias_habilidades": [],
+      "bonificador_a_eleccion": false
     },
     {
       "nombre": "Enanos de las montañas azules",
@@ -753,7 +759,8 @@
         "Trato con animales": 1,
         "Viajar": 3
       },
-      "competencias_habilidades": []
+      "competencias_habilidades": [],
+      "bonificador_a_eleccion": false
     },
     {
       "nombre": "Enanos de las colinas de hierro",
@@ -851,7 +858,8 @@
         "Trato con animales": 0,
         "Viajar": 3
       },
-      "competencias_habilidades": []
+      "competencias_habilidades": [],
+      "bonificador_a_eleccion": false
     },
     {
       "nombre": "Enanos errantes",
@@ -953,7 +961,8 @@
         "Trato con animales": 1,
         "Viajar": 3
       },
-      "competencias_habilidades": []
+      "competencias_habilidades": [],
+      "bonificador_a_eleccion": false
     },
     {
       "nombre": "Hobbits Albos",
@@ -1055,7 +1064,8 @@
         "Trato con animales": 2,
         "Viajar": 0
       },
-      "competencias_habilidades": []
+      "competencias_habilidades": [],
+      "bonificador_a_eleccion": false
     },
     {
       "nombre": "Hobbits Fuertes",
@@ -1161,7 +1171,8 @@
         "Trato con animales": 2,
         "Viajar": 0
       },
-      "competencias_habilidades": []
+      "competencias_habilidades": [],
+      "bonificador_a_eleccion": false
     },
     {
       "nombre": "Hobbits Pelosos",
@@ -1267,7 +1278,8 @@
         "Trato con animales": 2,
         "Viajar": 0
       },
-      "competencias_habilidades": []
+      "competencias_habilidades": [],
+      "bonificador_a_eleccion": false
     },
     {
       "nombre": "Hombres del lago",
@@ -1373,7 +1385,8 @@
         "Trato con animales": 1,
         "Viajar": 1
       },
-      "competencias_habilidades": []
+      "competencias_habilidades": [],
+      "bonificador_a_eleccion": false
     },
     {
       "nombre": "Hombres de Bree",
@@ -1478,7 +1491,8 @@
         "Trato con animales": 1,
         "Viajar": 1
       },
-      "competencias_habilidades": []
+      "competencias_habilidades": [],
+      "bonificador_a_eleccion": false
     },
     {
       "nombre": "Dunedain",
@@ -1502,10 +1516,10 @@
       "bonificadores_caracteristicas": {
         "fuerza": 1,
         "destreza": 0,
-        "constitucion": 2,
+        "constitucion": 1,
         "inteligencia": 0,
         "sabiduria": 1,
-        "carisma": 1
+        "carisma": 0
       },
       "mejora_noldor": false,
       "rasgos_fisicos": {
@@ -1587,7 +1601,8 @@
         "Trato con animales": 2,
         "Viajar": 3
       },
-      "competencias_habilidades": []
+      "competencias_habilidades": [],
+      "bonificador_a_eleccion": true
     },
     {
       "nombre": "Beornidas",
@@ -1693,7 +1708,8 @@
         "Trato con animales": 3,
         "Viajar": 2
       },
-      "competencias_habilidades": []
+      "competencias_habilidades": [],
+      "bonificador_a_eleccion": false
     },
     {
       "nombre": "Hombres de los bosques",
@@ -1804,7 +1820,8 @@
         "Trato con animales": 3,
         "Viajar": 2
       },
-      "competencias_habilidades": []
+      "competencias_habilidades": [],
+      "bonificador_a_eleccion": false
     },
     {
       "nombre": "Gondorianos",
@@ -1911,7 +1928,8 @@
         "Trato con animales": 3,
         "Viajar": 2
       },
-      "competencias_habilidades": []
+      "competencias_habilidades": [],
+      "bonificador_a_eleccion": false
     },
     {
       "nombre": "Rohirrim",
@@ -2016,7 +2034,8 @@
         "Trato con animales": 3,
         "Viajar": 2
       },
-      "competencias_habilidades": []
+      "competencias_habilidades": [],
+      "bonificador_a_eleccion": false
     }
   ],
   "backgrounds": [
