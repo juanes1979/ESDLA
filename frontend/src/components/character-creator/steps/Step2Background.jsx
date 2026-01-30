@@ -1,9 +1,9 @@
 /**
- * Step 2: Background Selection
+ * Step 2: FASE 2 - TRASFONDO (10 pasos del plan)
  */
 import { useState, useEffect } from 'react';
-import { Loader2, ChevronLeft } from 'lucide-react';
-import { getBackgrounds, updateDraftStep2 } from '@/services/api';
+import { Loader2, ChevronLeft, ChevronDown, ChevronRight, Check } from 'lucide-react';
+import { getBackgrounds, updateDraftStep2, getEquipmentLists } from '@/services/api';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
@@ -11,37 +11,98 @@ import { cn } from '@/lib/utils';
 const Step2Background = ({ draftId, draft, onComplete, onBack }) => {
   const [backgrounds, setBackgrounds] = useState([]);
   const [selectedBackground, setSelectedBackground] = useState(null);
+  const [expandedBackground, setExpandedBackground] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
+  
+  // Selections for background
+  const [selectedSkill, setSelectedSkill] = useState(null);
+  const [selectedTool1, setSelectedTool1] = useState(null);
+  const [selectedTool2, setSelectedTool2] = useState(null);
+  
+  // Equipment lists for special selections
+  const [equipmentLists, setEquipmentLists] = useState({ juegos: [], instrumentos_musicales: [] });
 
   // Load backgrounds for selected culture
   useEffect(() => {
-    const loadBackgrounds = async () => {
-      if (!draft?.cultura_nombre) return;
+    const loadData = async () => {
+      const cultureName = draft?.cultura_nombre;
+      if (!cultureName) {
+        setError('No se encontró la cultura del personaje');
+        setLoading(false);
+        return;
+      }
+      
       try {
         setLoading(true);
-        const data = await getBackgrounds(null, draft.cultura_nombre);
-        setBackgrounds(data);
+        const [bgData, equipData] = await Promise.all([
+          getBackgrounds(null, cultureName),
+          getEquipmentLists().catch(() => ({ juegos: [], instrumentos_musicales: [] }))
+        ]);
+        setBackgrounds(bgData || []);
+        setEquipmentLists(equipData);
       } catch (err) {
         console.error('Error loading backgrounds:', err);
-        setError('No se pudieron cargar los trasfondos');
+        setError(`No se pudieron cargar los trasfondos para ${cultureName}`);
       } finally {
         setLoading(false);
       }
     };
-    loadBackgrounds();
+    loadData();
   }, [draft?.cultura_nombre]);
+
+  // Check if tool needs sub-selection
+  const needsSubSelection = (toolText) => {
+    if (!toolText) return null;
+    const text = toolText.toLowerCase();
+    if (text.includes('instrumento musical')) return 'instrumentos';
+    if (text.includes('juegos') || text.includes('juego')) return 'juegos';
+    return null;
+  };
+
+  // Handle background selection
+  const handleBackgroundSelect = (bg) => {
+    setSelectedBackground(bg);
+    setExpandedBackground(bg.id);
+    // Reset selections when changing background
+    setSelectedSkill(null);
+    setSelectedTool1(null);
+    setSelectedTool2(null);
+  };
 
   // Handle submit
   const handleSubmit = async () => {
     if (!selectedBackground) return;
 
+    // Validate required selections
+    const skillOptions = selectedBackground.competencias_habilidades_elegir || [];
+    if (skillOptions.length > 0 && !selectedSkill) {
+      setError('Debes elegir una competencia de habilidad');
+      return;
+    }
+
     try {
       setSaving(true);
-      const updatedDraft = await updateDraftStep2(draftId, {
+      setError(null);
+      
+      const updateData = {
         trasfondo_id: selectedBackground.id,
-      });
+        trasfondo_nombre: selectedBackground.nombre,
+        competencias_habilidades_trasfondo: [
+          ...(selectedBackground.competencias_habilidades_auto || []),
+          ...(selectedSkill ? [selectedSkill] : []),
+        ],
+        competencias_herramientas_trasfondo: [
+          ...(selectedBackground.competencias_herramientas_1 || []).filter(t => !needsSubSelection(t)),
+          ...(selectedBackground.competencias_herramientas_2 || []).filter(t => !needsSubSelection(t)),
+          ...(selectedTool1 ? [selectedTool1] : []),
+          ...(selectedTool2 ? [selectedTool2] : []),
+        ],
+        rasgos_trasfondo: selectedBackground.rasgos_descripciones || [],
+      };
+      
+      const updatedDraft = await updateDraftStep2(draftId, updateData);
       onComplete(updatedDraft);
     } catch (err) {
       console.error('Error saving step 2:', err);
@@ -54,23 +115,32 @@ const Step2Background = ({ draftId, draft, onComplete, onBack }) => {
   if (loading) {
     return (
       <div className="card-parchment rounded-lg p-8 flex items-center justify-center min-h-[400px]">
-        <Loader2 className="w-8 h-8 animate-spin text-[hsl(var(--gold))]" />
+        <div className="text-center">
+          <Loader2 className="w-8 h-8 animate-spin text-[hsl(var(--gold))] mx-auto mb-4" />
+          <p className="text-muted-foreground">Cargando trasfondos para {draft?.cultura_nombre}...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (backgrounds.length === 0) {
+    return (
+      <div className="card-parchment rounded-lg p-8 text-center">
+        <p className="text-muted-foreground mb-4">No se encontraron trasfondos para {draft?.cultura_nombre}</p>
+        <Button variant="outline" onClick={onBack}>Volver</Button>
       </div>
     );
   }
 
   return (
-    <div className="space-y-8" data-testid="step-2-background">
+    <div className="max-w-4xl mx-auto space-y-6" data-testid="step-2-background">
       {/* Title */}
       <div className="text-center">
-        <h2 className="font-heading text-3xl text-[hsl(var(--gold))] text-glow-gold mb-2">
+        <h2 className="font-heading text-2xl text-[hsl(var(--gold))] mb-2">
           Elige tu Trasfondo
         </h2>
-        <p className="text-muted-foreground">
-          Tu trasfondo define tu pasado y las habilidades que has desarrollado
-        </p>
-        <p className="text-sm text-[hsl(var(--magic-blue))] mt-2">
-          Trasfondos disponibles para: <span className="font-heading">{draft?.cultura_nombre}</span>
+        <p className="text-muted-foreground text-sm">
+          Trasfondos para: <span className="text-[hsl(var(--magic-blue))]">{draft?.cultura_nombre}</span>
         </p>
       </div>
 
@@ -83,139 +153,174 @@ const Step2Background = ({ draftId, draft, onComplete, onBack }) => {
             </span>
           </div>
           <div>
-            <h3 className="font-heading text-lg text-foreground">{draft?.nombre}</h3>
+            <h3 className="font-heading text-lg">{draft?.nombre}</h3>
             <p className="text-sm text-muted-foreground">
-              {draft?.cultura_nombre} · {draft?.edad} años · {draft?.altura_cm}cm
+              {draft?.cultura_nombre} · {draft?.edad} años · {draft?.altura_cm}cm · {draft?.peso_kg}kg
             </p>
           </div>
         </div>
       </div>
 
+      {/* Error Message */}
+      {error && (
+        <div className="bg-destructive/10 border border-destructive/30 text-destructive p-3 rounded-lg">
+          {error}
+        </div>
+      )}
+
       {/* Background List */}
       <div className="card-parchment rounded-lg p-4">
-        <ScrollArea className="h-[450px] pr-4">
-          <div className="grid md:grid-cols-2 gap-4">
-            {backgrounds.map((background) => (
-              <button
-                key={background.id}
-                onClick={() => setSelectedBackground(background)}
-                className={cn(
-                  'selection-card rounded-lg p-4 text-left h-full',
-                  selectedBackground?.id === background.id && 'selected'
-                )}
-                data-testid={`background-${background.id}`}
-              >
-                <h4 className="font-heading text-lg text-foreground mb-2">
-                  {background.nombre}
-                </h4>
-                <p className="text-sm text-muted-foreground line-clamp-3 mb-3">
-                  {background.descripcion?.substring(0, 120)}...
-                </p>
-                
-                {/* Skills */}
-                {background.competencias_habilidades?.length > 0 && (
-                  <div className="mt-2">
-                    <span className="text-xs text-[hsl(var(--gold))]">Habilidades: </span>
-                    <span className="text-xs text-muted-foreground">
-                      {background.competencias_habilidades.slice(0, 3).join(', ')}
-                    </span>
-                  </div>
-                )}
-                
-                {/* Equipment */}
-                {background.equipo_inicial?.length > 0 && (
-                  <div className="mt-1">
-                    <span className="text-xs text-[hsl(var(--gold))]">Equipo: </span>
-                    <span className="text-xs text-muted-foreground">
-                      {background.equipo_inicial.slice(0, 2).join(', ')}
-                    </span>
-                  </div>
-                )}
-              </button>
-            ))}
+        <ScrollArea className="h-[400px] pr-4">
+          <div className="space-y-2">
+            {backgrounds.map((bg) => {
+              const isExpanded = expandedBackground === bg.id;
+              const isSelected = selectedBackground?.id === bg.id;
+              
+              return (
+                <div key={bg.id} className="rounded-lg overflow-hidden">
+                  {/* Background Header */}
+                  <button
+                    onClick={() => handleBackgroundSelect(bg)}
+                    className={cn(
+                      "w-full selection-card p-4 text-left flex items-center justify-between",
+                      isSelected && "selected"
+                    )}
+                    data-testid={`background-${bg.id}`}
+                  >
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        <h4 className="font-heading text-lg">{bg.nombre}</h4>
+                        {isSelected && <Check className="w-4 h-4 text-[hsl(var(--gold))]" />}
+                      </div>
+                      <p className="text-xs text-muted-foreground line-clamp-1">
+                        {bg.descripcion?.substring(0, 100)}...
+                      </p>
+                    </div>
+                    {isExpanded ? (
+                      <ChevronDown className="w-5 h-5 text-muted-foreground" />
+                    ) : (
+                      <ChevronRight className="w-5 h-5 text-muted-foreground" />
+                    )}
+                  </button>
+                  
+                  {/* Expanded Background Details */}
+                  {isExpanded && (
+                    <div className="bg-black/20 p-4 border-t border-border/30 space-y-4">
+                      {/* Description */}
+                      <p className="text-sm text-muted-foreground">
+                        {bg.descripcion}
+                      </p>
+                      
+                      {/* Auto Competencies */}
+                      {bg.competencias_habilidades_auto?.length > 0 && (
+                        <div>
+                          <span className="text-[hsl(var(--gold))] text-sm">Competencias automáticas:</span>
+                          <div className="flex flex-wrap gap-2 mt-1">
+                            {bg.competencias_habilidades_auto.map((skill, i) => (
+                              <span key={i} className="text-xs bg-[hsl(var(--magic-blue))/20] text-[hsl(var(--magic-blue))] px-2 py-1 rounded">
+                                {skill}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      
+                      {/* Skill Selection */}
+                      {bg.competencias_habilidades_elegir?.length > 0 && (
+                        <div>
+                          <span className="text-[hsl(var(--gold))] text-sm">Elige 1 competencia de habilidad:</span>
+                          <div className="grid grid-cols-2 gap-2 mt-2">
+                            {bg.competencias_habilidades_elegir.map((skill) => (
+                              <button
+                                key={skill}
+                                onClick={() => setSelectedSkill(skill)}
+                                className={cn(
+                                  "selection-card p-2 rounded text-sm text-left",
+                                  selectedSkill === skill && "selected"
+                                )}
+                              >
+                                {skill}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      
+                      {/* Tool Competencies */}
+                      {(bg.competencias_herramientas_1?.length > 0 || bg.competencias_herramientas_2?.length > 0) && (
+                        <div>
+                          <span className="text-[hsl(var(--gold))] text-sm">Herramientas:</span>
+                          <div className="flex flex-wrap gap-2 mt-1">
+                            {bg.competencias_herramientas_1?.map((tool, i) => {
+                              const subType = needsSubSelection(tool);
+                              if (subType) {
+                                return (
+                                  <div key={i} className="w-full">
+                                    <span className="text-xs text-muted-foreground">{tool} - Elige:</span>
+                                    <div className="grid grid-cols-3 gap-1 mt-1">
+                                      {(subType === 'instrumentos' ? equipmentLists.instrumentos_musicales : equipmentLists.juegos).map((item) => (
+                                        <button
+                                          key={item}
+                                          onClick={() => setSelectedTool1(item)}
+                                          className={cn(
+                                            "selection-card p-1 rounded text-xs",
+                                            selectedTool1 === item && "selected"
+                                          )}
+                                        >
+                                          {item}
+                                        </button>
+                                      ))}
+                                    </div>
+                                  </div>
+                                );
+                              }
+                              return (
+                                <span key={i} className="text-xs bg-black/30 px-2 py-1 rounded">
+                                  {tool}
+                                </span>
+                              );
+                            })}
+                            {bg.competencias_herramientas_2?.map((tool, i) => (
+                              <span key={`t2-${i}`} className="text-xs bg-black/30 px-2 py-1 rounded">
+                                {tool}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      
+                      {/* Traits */}
+                      {bg.rasgos_descripciones?.length > 0 && (
+                        <div>
+                          <span className="text-[hsl(var(--gold))] text-sm">Rasgos de personalidad:</span>
+                          <div className="space-y-2 mt-2">
+                            {bg.rasgos_descripciones.map((rasgo, i) => (
+                              <div key={i} className="bg-black/20 p-2 rounded">
+                                <span className="text-sm font-heading text-[hsl(var(--torch-orange))]">
+                                  {rasgo.nombre}:
+                                </span>
+                                <p className="text-xs text-muted-foreground mt-1">
+                                  {rasgo.descripcion}
+                                </p>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </ScrollArea>
       </div>
 
-      {/* Selected Background Detail */}
-      {selectedBackground && (
-        <div className="card-parchment rounded-lg p-6 border-magic animate-slide-up">
-          <h3 className="font-heading text-xl text-[hsl(var(--gold))] mb-3">
-            {selectedBackground.nombre}
-          </h3>
-          <p className="text-muted-foreground mb-4">
-            {selectedBackground.descripcion}
-          </p>
-          
-          <div className="grid md:grid-cols-2 gap-4">
-            {selectedBackground.competencias_habilidades?.length > 0 && (
-              <div>
-                <h4 className="text-sm font-heading text-[hsl(var(--magic-blue))] mb-2">
-                  Competencias en Habilidades
-                </h4>
-                <ul className="text-sm text-muted-foreground space-y-1">
-                  {selectedBackground.competencias_habilidades.map((skill, i) => (
-                    <li key={i}>• {skill}</li>
-                  ))}
-                </ul>
-              </div>
-            )}
-            
-            {selectedBackground.competencias_herramientas?.length > 0 && (
-              <div>
-                <h4 className="text-sm font-heading text-[hsl(var(--magic-blue))] mb-2">
-                  Competencias en Herramientas
-                </h4>
-                <ul className="text-sm text-muted-foreground space-y-1">
-                  {selectedBackground.competencias_herramientas.map((tool, i) => (
-                    <li key={i}>• {tool}</li>
-                  ))}
-                </ul>
-              </div>
-            )}
-            
-            {selectedBackground.idiomas?.length > 0 && (
-              <div>
-                <h4 className="text-sm font-heading text-[hsl(var(--magic-blue))] mb-2">
-                  Idiomas
-                </h4>
-                <ul className="text-sm text-muted-foreground space-y-1">
-                  {selectedBackground.idiomas.map((lang, i) => (
-                    <li key={i}>• {lang}</li>
-                  ))}
-                </ul>
-              </div>
-            )}
-            
-            {selectedBackground.equipo_inicial?.length > 0 && (
-              <div>
-                <h4 className="text-sm font-heading text-[hsl(var(--magic-blue))] mb-2">
-                  Equipo Inicial
-                </h4>
-                <ul className="text-sm text-muted-foreground space-y-1">
-                  {selectedBackground.equipo_inicial.map((item, i) => (
-                    <li key={i}>• {item}</li>
-                  ))}
-                </ul>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* Error Message */}
-      {error && (
-        <div className="p-4 bg-[hsl(var(--destructive))/20] border border-[hsl(var(--destructive))/50] rounded-lg text-center">
-          <p className="text-[hsl(var(--destructive))]">{error}</p>
-        </div>
-      )}
-
       {/* Navigation */}
-      <div className="flex justify-between pt-4 pb-16">
+      <div className="flex justify-between pt-4 border-t border-border/30">
         <Button
-          variant="ghost"
+          variant="outline"
           onClick={onBack}
-          className="text-muted-foreground hover:text-foreground"
           data-testid="step-2-back-btn"
         >
           <ChevronLeft className="w-4 h-4 mr-2" />
@@ -224,12 +329,10 @@ const Step2Background = ({ draftId, draft, onComplete, onBack }) => {
         <Button
           onClick={handleSubmit}
           disabled={!selectedBackground || saving}
-          className="bg-[hsl(var(--gold))] hover:bg-[hsl(var(--gold-dim))] text-[hsl(var(--primary-foreground))] font-heading px-8"
+          className="bg-[hsl(var(--gold))] hover:bg-[hsl(var(--gold-dim))] text-black font-heading"
           data-testid="step-2-next-btn"
         >
-          {saving ? (
-            <Loader2 className="w-4 h-4 animate-spin mr-2" />
-          ) : null}
+          {saving && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
           Continuar
         </Button>
       </div>
