@@ -83,8 +83,12 @@ const HomePage = () => {
       {/* Features Section */}
       <div className="container mx-auto px-4 py-16">
         <div className="grid md:grid-cols-3 gap-8">
-          {/* Feature 1 */}
-          <div className="card-parchment rounded-lg p-6 text-center">
+          {/* Feature 1 - Creador de Personajes */}
+          <button
+            onClick={() => navigate('/create-character')}
+            className="card-parchment rounded-lg p-6 text-center hover:bg-[hsl(var(--gold))/5] transition-all cursor-pointer border-2 border-transparent hover:border-[hsl(var(--gold))/30]"
+            data-testid="feature-character-creator"
+          >
             <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-[hsl(var(--gold))/20] flex items-center justify-center">
               <Scroll className="w-8 h-8 text-[hsl(var(--gold))]" />
             </div>
@@ -95,10 +99,14 @@ const HomePage = () => {
               Crea héroes únicos de las culturas de la Tierra Media: Elfos, Enanos, 
               Hombres y Hobbits con trasfondos detallados.
             </p>
-          </div>
+          </button>
 
-          {/* Feature 2 */}
-          <div className="card-parchment rounded-lg p-6 text-center">
+          {/* Feature 2 - Reglas */}
+          <button
+            onClick={() => navigate('/rules')}
+            className="card-parchment rounded-lg p-6 text-center hover:bg-[hsl(var(--magic-blue))/5] transition-all cursor-pointer border-2 border-transparent hover:border-[hsl(var(--magic-blue))/30]"
+            data-testid="feature-rules"
+          >
             <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-[hsl(var(--magic-blue))/20] flex items-center justify-center">
               <BookOpen className="w-8 h-8 text-[hsl(var(--magic-blue))]" />
             </div>
@@ -109,10 +117,16 @@ const HomePage = () => {
               Sistema basado en 5e adaptado al mundo de Tolkien con mecánicas 
               únicas de Sombra, Viajes y Comunidad.
             </p>
-          </div>
+          </button>
 
-          {/* Feature 3 */}
-          <div className="card-parchment rounded-lg p-6 text-center">
+          {/* Feature 3 - Juego en Línea (Próximamente) */}
+          <div 
+            className="card-parchment rounded-lg p-6 text-center opacity-60 relative"
+            data-testid="feature-online-game"
+          >
+            <div className="absolute top-2 right-2 bg-[hsl(var(--torch-orange))/20] text-[hsl(var(--torch-orange))] text-xs px-2 py-1 rounded font-heading">
+              Próximamente
+            </div>
             <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-[hsl(var(--torch-orange))/20] flex items-center justify-center">
               <Users className="w-8 h-8 text-[hsl(var(--torch-orange))]" />
             </div>
