@@ -640,18 +640,23 @@ const Step3Occupation = ({ draftId, draft, onComplete, onBack }) => {
     const question = occupationData.habilidades?.pregunta || 'Elige tus habilidades:';
     const allOptions = occupationData.habilidades?.opciones || [];
     
-    // Filter out already selected skills from culture and background
+    // CRITICAL: Filter out already acquired skills from culture and background
+    // This prevents selecting the same skill twice
     const existingSkills = [
+      // From culture
       ...(draft?.competencias_habilidades_cultura || []),
       ...(draft?.competencia_habilidad_cultura ? [draft.competencia_habilidad_cultura] : []),
+      // From background
       ...(draft?.competencias_habilidades_trasfondo || []),
+      // Also check the consolidated field if exists
+      ...(draft?.habilidades_competencia || []),
     ];
     
     // Clean skill names for comparison (remove attribute in parenthesis)
     const cleanSkillName = (skill) => skill?.split(' (')[0]?.trim().toLowerCase();
-    const existingClean = existingSkills.map(cleanSkillName);
+    const existingClean = existingSkills.map(cleanSkillName).filter(Boolean);
     
-    // Filter available options
+    // Filter available options - exclude already acquired skills
     const options = allOptions.filter(skill => !existingClean.includes(cleanSkillName(skill)));
 
     return (
@@ -664,9 +669,14 @@ const Step3Occupation = ({ draftId, draft, onComplete, onBack }) => {
             {question}
           </p>
           {existingSkills.length > 0 && (
-            <p className="text-xs text-[hsl(var(--torch-orange))] mt-2">
-              Ya tienes competencia en: {existingSkills.join(', ')}
-            </p>
+            <div className="mt-3 p-2 bg-[hsl(var(--torch-orange))/10] rounded-lg">
+              <p className="text-xs text-[hsl(var(--torch-orange))]">
+                ⚠️ Ya tienes competencia en: {[...new Set(existingSkills)].join(', ')}
+              </p>
+              <p className="text-xs text-muted-foreground mt-1">
+                (Estas habilidades no se muestran para evitar duplicados)
+              </p>
+            </div>
           )}
         </div>
 
@@ -683,35 +693,41 @@ const Step3Occupation = ({ draftId, draft, onComplete, onBack }) => {
             </span>
           </div>
 
-          <div className="grid md:grid-cols-2 gap-2">
-            {options.map(skill => {
-              const isSelected = selectedSkills.includes(skill);
-              return (
-                <button
-                  key={skill}
-                  onClick={() => toggleSkill(skill)}
-                  disabled={!isSelected && selectedSkills.length >= maxSkills}
-                  className={cn(
-                    'p-3 rounded-lg border text-left transition-all',
-                    isSelected 
-                      ? 'bg-[hsl(var(--gold))/15] border-[hsl(var(--gold))]' 
-                      : 'bg-secondary border-border hover:border-[hsl(var(--gold))/50]',
-                    !isSelected && selectedSkills.length >= maxSkills && 'opacity-50 cursor-not-allowed'
-                  )}
-                >
-                  <div className="flex justify-between items-center">
-                    <span className={cn(
-                      'font-medium',
-                      isSelected ? 'text-foreground' : 'text-muted-foreground'
-                    )}>
-                      {skill}
-                    </span>
-                    {isSelected && <CheckCircle className="w-4 h-4 text-[hsl(var(--gold))]" />}
-                  </div>
-                </button>
-              );
-            })}
-          </div>
+          {options.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-4">
+              Ya tienes competencia en todas las habilidades disponibles para esta ocupación.
+            </p>
+          ) : (
+            <div className="grid md:grid-cols-2 gap-2">
+              {options.map(skill => {
+                const isSelected = selectedSkills.includes(skill);
+                return (
+                  <button
+                    key={skill}
+                    onClick={() => toggleSkill(skill)}
+                    disabled={!isSelected && selectedSkills.length >= maxSkills}
+                    className={cn(
+                      'p-3 rounded-lg border text-left transition-all',
+                      isSelected 
+                        ? 'bg-[hsl(var(--gold))/15] border-[hsl(var(--gold))]' 
+                        : 'bg-secondary border-border hover:border-[hsl(var(--gold))/50]',
+                      !isSelected && selectedSkills.length >= maxSkills && 'opacity-50 cursor-not-allowed'
+                    )}
+                  >
+                    <div className="flex justify-between items-center">
+                      <span className={cn(
+                        'font-medium',
+                        isSelected ? 'text-foreground' : 'text-muted-foreground'
+                      )}>
+                        {skill}
+                      </span>
+                      {isSelected && <CheckCircle className="w-4 h-4 text-[hsl(var(--gold))]" />}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          )}
         </div>
 
         <div className="flex justify-between pt-4">
@@ -721,7 +737,7 @@ const Step3Occupation = ({ draftId, draft, onComplete, onBack }) => {
           </Button>
           <Button
             onClick={goToNextSubStep}
-            disabled={selectedSkills.length < maxSkills}
+            disabled={selectedSkills.length < maxSkills && options.length >= maxSkills}
             className="bg-[hsl(var(--gold))] hover:bg-[hsl(var(--gold-dim))] text-[hsl(var(--primary-foreground))] font-heading"
           >
             Continuar
