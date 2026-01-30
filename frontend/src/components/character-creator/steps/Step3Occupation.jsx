@@ -688,11 +688,11 @@ const Step3Occupation = ({ draftId, draft, onComplete, onBack }) => {
     const existingSkillsRaw = [
       // From culture - automatic competencies
       ...(draft?.competencias_habilidades_cultura || []),
-      // From culture - chosen skill competency
+      // From culture - chosen skill competency (single selection)
       ...(draft?.competencia_habilidad_cultura ? [draft.competencia_habilidad_cultura] : []),
-      // From culture - selected cultural skills (tool2 options which are actually skills in some cultures)
-      ...(draft?.herramientas_elegidas_cultura_2 || []),
-      // From background - automatic competencies
+      // From culture - "herramientas_2" which actually contains SKILLS for some cultures like Dunedain
+      ...(draft?.competencias_herramientas_2 || []),
+      // From background - automatic competencies from competencias_trasfondo
       ...(draft?.competencias_trasfondo?.habilidades || []),
       // From background - chosen skill competencies
       ...(draft?.competencias_habilidades_trasfondo || []),
