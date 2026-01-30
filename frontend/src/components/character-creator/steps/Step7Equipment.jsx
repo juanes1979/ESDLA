@@ -195,14 +195,29 @@ const Step7Equipment = ({ draftId, draft, onComplete, onBack }) => {
           ))}
         </div>
 
-        {/* Starting Money */}
-        <div className="flex items-center gap-3 p-4 rounded-lg bg-secondary">
-          <Coins className="w-5 h-5 text-[hsl(var(--gold))]" />
-          <div>
-            <p className="text-sm text-muted-foreground">Dinero Inicial</p>
-            <p className="font-heading text-lg text-[hsl(var(--gold))]">
-              {equipoAutomatico.dinero.mp} Monedas de Plata
-            </p>
+        {/* Starting Money - Combined from lifestyle + occupation */}
+        <div className="p-4 rounded-lg bg-secondary">
+          <div className="flex items-center gap-3 mb-2">
+            <Coins className="w-5 h-5 text-[hsl(var(--gold))]" />
+            <p className="text-sm text-muted-foreground">Dinero Inicial ({vocacion})</p>
+          </div>
+          <div className="grid grid-cols-4 gap-2 text-center">
+            <div className="p-2 rounded bg-[hsl(var(--gold))/20]">
+              <p className="font-heading text-lg text-[hsl(var(--gold))]">{dineroTotal.mp}</p>
+              <p className="text-xs text-muted-foreground">mp</p>
+            </div>
+            <div className="p-2 rounded bg-[hsl(var(--gold))/10]">
+              <p className="font-heading text-lg text-foreground">{dineroTotal.mo}</p>
+              <p className="text-xs text-muted-foreground">mo</p>
+            </div>
+            <div className="p-2 rounded bg-[hsl(var(--gold))/10]">
+              <p className="font-heading text-lg text-foreground">{dineroTotal.me}</p>
+              <p className="text-xs text-muted-foreground">me</p>
+            </div>
+            <div className="p-2 rounded bg-[hsl(var(--gold))/5]">
+              <p className="font-heading text-lg text-muted-foreground">{dineroTotal.mc}</p>
+              <p className="text-xs text-muted-foreground">mc</p>
+            </div>
           </div>
         </div>
       </div>
