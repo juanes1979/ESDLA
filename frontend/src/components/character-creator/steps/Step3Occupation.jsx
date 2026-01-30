@@ -69,8 +69,8 @@ const Step3Occupation = ({ draftId, draft, onComplete, onBack }) => {
     return selectedOccupation || {};
   }, [selectedOccupation]);
 
-  // Check if has expertise (only Buscador de tesoros)
-  const hasExpertise = occupationData.pericia && occupationData.pericia.cantidad > 0;
+  // Check if has expertise (only Buscador de tesoros - uses especial_nombre field)
+  const hasExpertise = occupationData.especial_nombre === 'PERICIA';
 
   // Handle occupation selection
   const handleOccupationSelect = (occ) => {
@@ -1187,6 +1187,7 @@ const Step3Occupation = ({ draftId, draft, onComplete, onBack }) => {
 
       {/* Render current sub-step */}
       {subStep === SUB_STEPS.SELECT_OCCUPATION && renderOccupationSelection()}
+      {subStep === SUB_STEPS.SELECT_TOOLS && renderToolsSelection()}
       {subStep === SUB_STEPS.SELECT_SKILLS && renderSkillsSelection()}
       {subStep === SUB_STEPS.SELECT_ARMOR && renderArmorSelection()}
       {subStep === SUB_STEPS.SELECT_WEAPONS && renderWeaponsSelection()}
