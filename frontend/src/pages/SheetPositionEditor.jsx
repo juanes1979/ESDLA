@@ -285,6 +285,49 @@ const SheetPositionEditor = () => {
               {showMarkers ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
             </Button>
 
+            {/* Save status indicator */}
+            {saveStatus && (
+              <span className={cn(
+                "text-xs px-2 py-1 rounded",
+                saveStatus === 'saved' ? "bg-green-500/20 text-green-400" : "bg-blue-500/20 text-blue-400"
+              )}>
+                {saveStatus === 'saved' ? '✓ Guardado' : '✓ Cargado'}
+              </span>
+            )}
+
+            {/* Save to localStorage */}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={saveToLocalStorage}
+              disabled={positions.length === 0}
+              className="border-green-500/50 text-green-400 hover:bg-green-500/10"
+            >
+              <Save className="w-4 h-4 mr-2" />
+              Guardar
+            </Button>
+
+            {/* Load from file */}
+            <label className="cursor-pointer">
+              <input
+                type="file"
+                accept=".json"
+                onChange={loadFromFile}
+                className="hidden"
+              />
+              <Button
+                variant="outline"
+                size="sm"
+                className="border-blue-500/50 text-blue-400 hover:bg-blue-500/10 pointer-events-none"
+                asChild
+              >
+                <span>
+                  <Upload className="w-4 h-4 mr-2" />
+                  Cargar JSON
+                </span>
+              </Button>
+            </label>
+
             <Button
               variant="outline"
               size="sm"
