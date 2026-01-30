@@ -122,7 +122,7 @@ const Step7Equipment = ({ draftId, draft, onComplete, onBack }) => {
       
       const updatedDraft = await updateDraftStep7(draftId, {
         inventario,
-        dinero: equipoAutomatico.dinero,
+        dinero: dineroTotal, // Use combined money from lifestyle + occupation
       });
       onComplete(updatedDraft);
     } catch (err) {
