@@ -103,24 +103,27 @@ def extract_cultures_complete(wb: openpyxl.Workbook) -> List[Dict]:
                 raza = race
                 break
         
+        # Row in Culturas sheet (row 2 = first culture)
+        row_culturas = col  # Col 2 in Características = Row 2 in Culturas
+        
         culture = {
             "nombre": nombre,
             "columna_excel": col,
             "raza": raza,
             "imc": IMC_BY_RACE.get(raza, {"min": 20, "max": 24}),
             
-            # From Culturas sheet
-            "descripcion": clean_value(culturas_sheet.cell(row=col-1, column=2).value) if col <= 20 else None,
-            "edad_min": int(culturas_sheet.cell(row=col-1, column=3).value or 18) if col <= 20 else 18,
-            "edad_max": int(culturas_sheet.cell(row=col-1, column=4).value or 80) if col <= 20 else 80,
-            "altura_min": int(culturas_sheet.cell(row=col-1, column=5).value or 150) if col <= 20 else 150,
-            "altura_max": int(culturas_sheet.cell(row=col-1, column=6).value or 190) if col <= 20 else 190,
-            "mod_peso": int(culturas_sheet.cell(row=col-1, column=7).value or 0) if col <= 20 else 0,
-            "velocidad": int(culturas_sheet.cell(row=col-1, column=8).value or 9) if col <= 20 else 9,
-            "descanso": int(culturas_sheet.cell(row=col-1, column=9).value or 8) if col <= 20 else 8,
-            "tamanio": clean_value(culturas_sheet.cell(row=col-1, column=10).value) or "Mediano",
-            "nivel_vida": clean_value(culturas_sheet.cell(row=col-1, column=11).value) or "Común",
-            "descripcion_nivel_vida": clean_value(culturas_sheet.cell(row=col-1, column=12).value),
+            # From Culturas sheet (row = culture index)
+            "descripcion": clean_value(culturas_sheet.cell(row=row_culturas, column=2).value),
+            "edad_min": 18,
+            "edad_max": 80,
+            "altura_min": 150,
+            "altura_max": 190,
+            "mod_peso": 0,
+            "velocidad": 9,
+            "descanso": 8,
+            "tamanio": "Mediano",
+            "nivel_vida": "Común",
+            "descripcion_nivel_vida": None,
             
             # Characteristics bonuses (rows 3-8)
             "bonificadores_caracteristicas": {
@@ -168,6 +171,40 @@ def extract_cultures_complete(wb: openpyxl.Workbook) -> List[Dict]:
             "competencias_habilidades": [],
         }
         
+        # Read from Culturas sheet properly
+        try:
+            culture["edad_min"] = int(culturas_sheet.cell(row=row_culturas, column=3).value or 18)
+        except:
+            culture["edad_min"] = 18
+        try:
+            culture["edad_max"] = int(culturas_sheet.cell(row=row_culturas, column=4).value or 80)
+        except:
+            culture["edad_max"] = 80
+        try:
+            culture["altura_min"] = int(culturas_sheet.cell(row=row_culturas, column=5).value or 150)
+        except:
+            culture["altura_min"] = 150
+        try:
+            culture["altura_max"] = int(culturas_sheet.cell(row=row_culturas, column=6).value or 190)
+        except:
+            culture["altura_max"] = 190
+        try:
+            culture["mod_peso"] = int(culturas_sheet.cell(row=row_culturas, column=7).value or 0)
+        except:
+            culture["mod_peso"] = 0
+        try:
+            culture["velocidad"] = int(culturas_sheet.cell(row=row_culturas, column=8).value or 9)
+        except:
+            culture["velocidad"] = 9
+        try:
+            culture["descanso"] = int(culturas_sheet.cell(row=row_culturas, column=9).value or 8)
+        except:
+            culture["descanso"] = 8
+        
+        culture["tamanio"] = clean_value(culturas_sheet.cell(row=row_culturas, column=10).value) or "Mediano"
+        culture["nivel_vida"] = clean_value(culturas_sheet.cell(row=row_culturas, column=11).value) or "Común"
+        culture["descripcion_nivel_vida"] = clean_value(culturas_sheet.cell(row=row_culturas, column=12).value)
+        
         # Extract skill scores and competencies
         habilidades_nombres = [
             (13, "Acertijos"), (14, "Acrobacias"), (15, "Atletismo"), (16, "Cazar"),
@@ -192,22 +229,6 @@ def extract_cultures_complete(wb: openpyxl.Workbook) -> List[Dict]:
                 culture["habilidades_puntuaciones"][nombre_hab] = 0
         
         cultures.append(culture)
-    
-    # Fix descriptions from Culturas sheet (rows are 2-20)
-    for i, culture in enumerate(cultures):
-        row_culturas = i + 2  # Row 2 is first culture
-        if row_culturas <= 21:
-            culture["descripcion"] = clean_value(culturas_sheet.cell(row=row_culturas, column=2).value)
-            culture["edad_min"] = int(culturas_sheet.cell(row=row_culturas, column=3).value or 18)
-            culture["edad_max"] = int(culturas_sheet.cell(row=row_culturas, column=4).value or 80)
-            culture["altura_min"] = int(culturas_sheet.cell(row=row_culturas, column=5).value or 150)
-            culture["altura_max"] = int(culturas_sheet.cell(row=row_culturas, column=6).value or 190)
-            culture["mod_peso"] = int(culturas_sheet.cell(row=row_culturas, column=7).value or 0)
-            culture["velocidad"] = int(culturas_sheet.cell(row=row_culturas, column=8).value or 9)
-            culture["descanso"] = int(culturas_sheet.cell(row=row_culturas, column=9).value or 8)
-            culture["tamanio"] = clean_value(culturas_sheet.cell(row=row_culturas, column=10).value) or "Mediano"
-            culture["nivel_vida"] = clean_value(culturas_sheet.cell(row=row_culturas, column=11).value) or "Común"
-            culture["descripcion_nivel_vida"] = clean_value(culturas_sheet.cell(row=row_culturas, column=12).value)
     
     return cultures
 
