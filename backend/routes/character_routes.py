@@ -120,6 +120,7 @@ class CharacterCreateStep2(BaseModel):
     competencias_habilidades_trasfondo: Optional[List[str]] = []
     competencias_herramientas_trasfondo: Optional[List[str]] = []
     rasgos_trasfondo: Optional[List[Any]] = []
+    equipo_trasfondo: Optional[List[str]] = []  # Equipment from background (games, instruments, etc.)
 
 
 class CharacterCreateStep3(BaseModel):
