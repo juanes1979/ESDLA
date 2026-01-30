@@ -192,12 +192,17 @@ const CharacterSummary = ({ draft, onFinalize, onEdit, loading }) => {
               const expertiseSkillsRaw = draft.pericia_elegida || [];
               const expertiseSkills = new Set(expertiseSkillsRaw.map(cleanSkill).filter(Boolean));
               
-              // Get attributes
+              // Get attributes and level
               const attrs = draft.caracteristicas || draft.atributos_finales || {};
-              const profBonus = 2; // Level 1
+              const nivel = draft.nivel || 1;
+              // Proficiency bonus by level: 1-4 = +2, 5-8 = +3, 9-12 = +4, 13-16 = +5, 17-20 = +6
+              const profBonus = Math.ceil(nivel / 4) + 1;
               
               return (
                 <div className="bg-secondary rounded-lg p-4">
+                  <div className="text-xs text-muted-foreground text-center mb-2">
+                    Nivel {nivel} · Bonificador de Competencia: +{profBonus}
+                  </div>
                   <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
                     {ALL_SKILLS.map((skill) => {
                       const attrValue = attrs[skill.atributo] || 10;
@@ -238,8 +243,8 @@ const CharacterSummary = ({ draft, onFinalize, onEdit, loading }) => {
                     })}
                   </div>
                   <div className="mt-3 flex gap-4 text-xs text-muted-foreground justify-center">
-                    <span><span className="inline-block w-3 h-3 rounded bg-[hsl(var(--gold))/20] border border-[hsl(var(--gold))] mr-1"></span> Competencia</span>
-                    <span><span className="inline-block w-3 h-3 rounded bg-[hsl(var(--magic-blue))/20] border border-[hsl(var(--magic-blue))] mr-1"></span> Pericia</span>
+                    <span><span className="inline-block w-3 h-3 rounded bg-[hsl(var(--gold))/20] border border-[hsl(var(--gold))] mr-1"></span> Competencia (+{profBonus})</span>
+                    <span><span className="inline-block w-3 h-3 rounded bg-[hsl(var(--magic-blue))/20] border border-[hsl(var(--magic-blue))] mr-1"></span> Pericia (+{profBonus * 2})</span>
                   </div>
                 </div>
               );
