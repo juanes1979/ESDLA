@@ -24,10 +24,10 @@ import {
 import { cn } from '@/lib/utils';
 
 const CULTURE_CATEGORIES = [
-  { id: 'Elfos', name: 'Elfos', icon: '🌿' },
-  { id: 'Enanos', name: 'Enanos', icon: '⛏️' },
-  { id: 'Hombres', name: 'Hombres', icon: '⚔️' },
-  { id: 'Hobbits', name: 'Hobbits', icon: '🍃' },
+  { id: 'Elfos', name: 'Elfos', image: '/images/races/elfos.png' },
+  { id: 'Enanos', name: 'Enanos', image: '/images/races/enanos.png' },
+  { id: 'Hombres', name: 'Hombres', image: '/images/races/hombres.png' },
+  { id: 'Hobbits', name: 'Hobbits', image: '/images/races/hobbits.png' },
 ];
 
 // Equipment by living standard
