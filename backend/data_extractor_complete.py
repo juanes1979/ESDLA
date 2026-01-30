@@ -623,13 +623,84 @@ def extract_names_complete(wb: openpyxl.Workbook) -> Dict[str, Dict]:
 
 
 def extract_equipment_lists(wb: openpyxl.Workbook) -> Dict:
-    """Extract special equipment lists (instruments, games)"""
+    """Extract complete equipment data including prices and weights"""
     sheet = wb['Equipo']
     
-    return {
+    equipment_data = {
         "juegos": get_non_empty_cells(sheet, 25, 30, 2),  # B25:B30
         "instrumentos_musicales": get_non_empty_cells(sheet, 34, 43, 2),  # B34:B43
+        "herramientas": [],
+        "equipo_general": [],
+        "armas": [],
+        "armaduras": [],
     }
+    
+    # Extract tools (columns B-E, rows 3-19)
+    for row in range(3, 20):
+        nombre = clean_value(sheet.cell(row=row, column=2).value)
+        if nombre and nombre not in ['JUEGOS', 'Equipo']:
+            precio = sheet.cell(row=row, column=3).value
+            moneda = clean_value(sheet.cell(row=row, column=4).value)
+            peso = sheet.cell(row=row, column=5).value
+            equipment_data["herramientas"].append({
+                "nombre": nombre,
+                "precio": precio,
+                "moneda": moneda or "mp",
+                "peso_kg": float(peso) if peso else 0
+            })
+    
+    # Extract general equipment (columns G-J, rows 3-120)
+    for row in range(3, 120):
+        nombre = clean_value(sheet.cell(row=row, column=7).value)
+        if nombre and nombre not in ['EQUIPO', 'Equipo', 'CONSUMIBLES Y ALIMENTACIÓN']:
+            precio = sheet.cell(row=row, column=8).value
+            moneda = clean_value(sheet.cell(row=row, column=9).value)
+            peso = sheet.cell(row=row, column=10).value
+            if precio is not None:  # Skip section headers
+                equipment_data["equipo_general"].append({
+                    "nombre": nombre,
+                    "precio": precio,
+                    "moneda": moneda or "mc",
+                    "peso_kg": float(peso) if peso else 0
+                })
+    
+    # Extract weapons (columns N-T, rows 4-35)
+    for row in range(4, 36):
+        arma = clean_value(sheet.cell(row=row, column=14).value)
+        if arma and arma not in ['Arma', 'Armas sencillas cuerpo a cuerpo', 'Armas sencillas a distancia', 
+                                  'Armas marciales cuerpo a cuerpo', 'Armas marciales a distancia']:
+            precio = sheet.cell(row=row, column=15).value
+            moneda = clean_value(sheet.cell(row=row, column=16).value)
+            peso = sheet.cell(row=row, column=17).value
+            modificador = clean_value(sheet.cell(row=row, column=18).value)
+            dano = clean_value(sheet.cell(row=row, column=19).value)
+            equipment_data["armas"].append({
+                "nombre": arma,
+                "precio": precio,
+                "moneda": moneda or "mp",
+                "peso_kg": float(peso) if peso else 0,
+                "modificador": modificador,
+                "dano": dano
+            })
+    
+    # Extract armor (columns W-AA, rows 4-21)
+    for row in range(4, 22):
+        armadura = clean_value(sheet.cell(row=row, column=23).value)
+        if armadura and armadura not in ['Armadura', 'Armaduras ligeras', 'Armaduras medias', 
+                                          'Armaduras pesadas', 'Escudos']:
+            precio = sheet.cell(row=row, column=24).value
+            moneda = clean_value(sheet.cell(row=row, column=25).value)
+            peso = sheet.cell(row=row, column=26).value
+            ca = clean_value(sheet.cell(row=row, column=27).value)
+            equipment_data["armaduras"].append({
+                "nombre": armadura,
+                "precio": precio,
+                "moneda": moneda or "mp",
+                "peso_kg": float(peso) if peso else 0,
+                "clase_armadura": ca
+            })
+    
+    return equipment_data
 
 
 def extract_all_data_complete() -> Dict:
