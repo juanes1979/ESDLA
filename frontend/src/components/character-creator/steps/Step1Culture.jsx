@@ -1127,9 +1127,9 @@ const Step1Culture = ({ draftId, draft, onComplete, onBack }) => {
     <div className="space-y-6">
       <div className="text-center mb-6">
         <h3 className="font-heading text-xl text-[hsl(var(--gold))]">
-          Características Base
+          Características Finales
         </h3>
-        <p className="text-muted-foreground text-sm">Base 8 + bonificadores de cultura</p>
+        <p className="text-muted-foreground text-sm">Base asignada + bonificadores de cultura</p>
       </div>
 
       {/* Characteristic Scores */}
@@ -1138,6 +1138,7 @@ const Step1Culture = ({ draftId, draft, onComplete, onBack }) => {
         
         <div className="grid grid-cols-3 md:grid-cols-6 gap-4">
           {Object.entries(caracteristicas).map(([attr, value]) => {
+            const base = baseCaracteristicas[attr] || 8;
             const bonus = (selectedCulture?.bonificadores_caracteristicas?.[attr] || 0);
             const noldorSelected = noldorBonus === attr;
             const finalValue = value + (noldorSelected ? 1 : 0);
@@ -1154,16 +1155,10 @@ const Step1Culture = ({ draftId, draft, onComplete, onBack }) => {
                 )}>
                   {finalValue}
                 </div>
-                {bonus > 0 && (
-                  <div className="text-xs text-[hsl(var(--magic-blue))]">
-                    (8 + {bonus})
-                  </div>
-                )}
-                {noldorSelected && (
-                  <div className="text-xs text-[hsl(var(--gold))]">
-                    +1 Noldor
-                  </div>
-                )}
+                <div className="text-xs text-muted-foreground">
+                  {base}{bonus > 0 && <span className="text-[hsl(var(--magic-blue))]"> +{bonus}</span>}
+                  {noldorSelected && <span className="text-[hsl(var(--gold))]"> +1</span>}
+                </div>
               </div>
             );
           })}
