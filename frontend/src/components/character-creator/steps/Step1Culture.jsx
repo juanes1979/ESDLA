@@ -69,8 +69,21 @@ const EQUIPMENT_BY_LEVEL = {
 const SUB_STEPS = {
   SELECT_CULTURE: 'select_culture',
   PHYSICAL_DATA: 'physical_data',
-  CHARACTERISTICS: 'characteristics',
+  ASSIGN_CHARACTERISTICS: 'assign_characteristics', // NEW: Assign base characteristics
+  CHARACTERISTICS_SUMMARY: 'characteristics_summary', // Show final with bonuses
   CULTURE_SELECTIONS: 'culture_selections',
+};
+
+// Standard arrays for characteristic assignment
+const STANDARD_ARRAY = [15, 14, 13, 12, 10, 8];
+const CHARACTERISTIC_NAMES = ['fuerza', 'destreza', 'constitucion', 'inteligencia', 'sabiduria', 'carisma'];
+const CHARACTERISTIC_LABELS = {
+  fuerza: 'Fuerza (FUE)',
+  destreza: 'Destreza (DES)',
+  constitucion: 'Constitución (CON)',
+  inteligencia: 'Inteligencia (INT)',
+  sabiduria: 'Sabiduría (SAB)',
+  carisma: 'Carisma (CAR)',
 };
 
 const Step1Culture = ({ draftId, draft, onComplete, onBack }) => {
