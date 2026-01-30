@@ -31,9 +31,12 @@ const SUB_STEPS = {
 const Step3Occupation = ({ draftId, draft, onComplete, onBack }) => {
   const [occupations, setOccupations] = useState([]);
   const [selectedOccupation, setSelectedOccupation] = useState(null);
+  const [expandedOccupation, setExpandedOccupation] = useState(null);
   const [subStep, setSubStep] = useState(SUB_STEPS.SELECT_OCCUPATION);
   
   // Selections state
+  const [selectedTools1, setSelectedTools1] = useState([]);
+  const [selectedTools2, setSelectedTools2] = useState([]);
   const [selectedSkills, setSelectedSkills] = useState([]);
   const [selectedArmor, setSelectedArmor] = useState(null); // 'A' or 'B'
   const [weaponSelections, setWeaponSelections] = useState({}); // { arma1: [...], arma2: [...], arma3: 'A'|'B', arma3_b: [...] }
