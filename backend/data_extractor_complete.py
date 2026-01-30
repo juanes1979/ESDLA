@@ -313,8 +313,14 @@ def extract_occupations_complete(wb: openpyxl.Workbook) -> List[Dict]:
             "puntos_golpe_base": clean_value(sheet.cell(row=4, column=col).value),
             "caracteristicas_principales": get_non_empty_cells(sheet, 5, 6, col),
             "tiradas_salvacion": get_non_empty_cells(sheet, 7, 8, col),
-            "competencia_armas": get_non_empty_cells(sheet, 9, 18, col),
-            "competencia_armaduras": get_non_empty_cells(sheet, 19, 20, col),
+            # CORRECTED: Weapon proficiencies are in rows 9-11, armor in 12-15
+            "competencia_armas": get_non_empty_cells(sheet, 9, 11, col),
+            "competencia_armaduras": get_non_empty_cells(sheet, 12, 15, col),
+            # Occupation description and shadow curse (rows 16-19) - separated for display
+            "descripcion_corta": clean_value(sheet.cell(row=16, column=col).value),
+            "descripcion_larga": clean_value(sheet.cell(row=17, column=col).value),
+            "maldicion_nombre": clean_value(sheet.cell(row=18, column=col).value),
+            "maldicion_descripcion": clean_value(sheet.cell(row=19, column=col).value),
             
             # Tools selection 1 (rows 21-41)
             "herramientas_1": {
