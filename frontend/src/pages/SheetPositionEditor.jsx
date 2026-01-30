@@ -1,10 +1,11 @@
 /**
  * Sheet Position Editor - Tool to find exact coordinates on the character sheet
  * Click anywhere on the sheet to get x, y coordinates and assign field names
+ * Now with live preview of text in each field
  */
 import { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Copy, Check, ZoomIn, ZoomOut, ChevronLeft, ChevronRight, Download, Trash2, Edit2 } from 'lucide-react';
+import { ArrowLeft, Copy, Check, ZoomIn, ZoomOut, ChevronLeft, ChevronRight, Download, Trash2, Eye, EyeOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
@@ -15,26 +16,19 @@ const SHEET_HEIGHT = 2197;
 
 // Predefined field suggestions for quick selection
 const FIELD_SUGGESTIONS = [
-  // Header
-  'nombre', 'jugador', 'ocupacion_nivel', 'cultura', 'rasgos_distintivos', 'experiencia',
-  // Attributes
+  'nombre', 'jugador', 'ocupacion_nivel', 'cultura', 'rasgos_distintivos', 'experiencia', 'senda_sombra',
   'fuerza_valor', 'fuerza_mod', 'destreza_valor', 'destreza_mod', 
   'constitucion_valor', 'constitucion_mod', 'inteligencia_valor', 'inteligencia_mod',
   'sabiduria_valor', 'sabiduria_mod', 'carisma_valor', 'carisma_mod',
-  // Combat
   'inspiracion', 'bonificador_competencia', 'clase_armadura', 'iniciativa', 'velocidad',
   'pg_max', 'pg_temp', 'pg_actual', 'dado_golpe',
-  // Saving throws
   'salvacion_fue', 'salvacion_des', 'salvacion_con', 'salvacion_int', 'salvacion_sab', 'salvacion_car',
-  // Skills
   'hab_acertijos', 'hab_acrobacias', 'hab_atletismo', 'hab_cazar', 'hab_engano',
   'hab_explorar', 'hab_interpretacion', 'hab_intimidacion', 'hab_investigacion',
   'hab_juego_manos', 'hab_medicina', 'hab_naturaleza', 'hab_percepcion',
   'hab_perspicacia', 'hab_persuasion', 'hab_saber_antiguo', 'hab_sigilo',
   'hab_trato_animales', 'hab_viajar', 'percepcion_pasiva',
-  // Shadow
-  'sombra_puntuacion', 'sombra_cicatrices', 'senda_sombra',
-  // Other
+  'sombra_puntuacion', 'sombra_cicatrices',
   'trasfondo', 'rasgos_personalidad', 'equipo', 'monedas', 'ataques', 'virtudes',
 ];
 
@@ -46,10 +40,15 @@ const SheetPositionEditor = () => {
   const [lastCopied, setLastCopied] = useState(null);
   const [editingId, setEditingId] = useState(null);
   const [showSuggestions, setShowSuggestions] = useState(null);
+  const [showMarkers, setShowMarkers] = useState(true);
+  const [showTextFields, setShowTextFields] = useState(true);
   const containerRef = useRef(null);
 
   // Handle click on sheet
   const handleSheetClick = (e) => {
+    // Don't add new position if clicking on an existing text field
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+    
     const rect = e.currentTarget.getBoundingClientRect();
     const clickX = e.clientX - rect.left;
     const clickY = e.clientY - rect.top;
@@ -64,8 +63,10 @@ const SheetPositionEditor = () => {
       y: originalY,
       page: currentPage,
       fieldName: '',
-      width: 100,
-      fontSize: 14,
+      width: 150,
+      fontSize: 16,
+      previewText: '',
+      align: 'left',
     };
     
     setPositions(prev => [...prev, newPosition]);
@@ -97,13 +98,15 @@ const SheetPositionEditor = () => {
   // Export all positions as JSON
   const exportPositions = () => {
     const data = positions.reduce((acc, pos) => {
-      if (!acc[`page${pos.page}`]) acc[`page${pos.page}`] = [];
-      acc[`page${pos.page}`].push({
+      const pageKey = `page${pos.page}`;
+      if (!acc[pageKey]) acc[pageKey] = [];
+      acc[pageKey].push({
         field: pos.fieldName || `field_${pos.id}`,
         x: pos.x,
         y: pos.y,
         width: pos.width,
         fontSize: pos.fontSize,
+        align: pos.align || 'left',
       });
       return acc;
     }, {});
@@ -129,6 +132,15 @@ const SheetPositionEditor = () => {
 
   return (
     <div className="min-h-screen bg-[#1a1a1a]" data-testid="sheet-editor">
+      {/* Import Ink Free font */}
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Caveat:wght@400;500;600;700&display=swap');
+        
+        .sheet-field-text {
+          font-family: 'Caveat', 'Ink Free', cursive;
+        }
+      `}</style>
+
       {/* Header */}
       <header className="border-b border-border/50 bg-black/70 backdrop-blur-sm sticky top-0 z-50">
         <div className="container mx-auto px-4 py-3 flex items-center justify-between">
@@ -196,6 +208,16 @@ const SheetPositionEditor = () => {
               </Button>
             </div>
 
+            {/* Toggle markers */}
+            <Button
+              variant={showMarkers ? "default" : "outline"}
+              size="sm"
+              onClick={() => setShowMarkers(!showMarkers)}
+              className={showMarkers ? "bg-red-500 hover:bg-red-600" : ""}
+            >
+              {showMarkers ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
+            </Button>
+
             <Button
               variant="outline"
               size="sm"
@@ -213,7 +235,7 @@ const SheetPositionEditor = () => {
               className="border-[hsl(var(--destructive))/50] text-[hsl(var(--destructive))]"
             >
               <Trash2 className="w-4 h-4 mr-2" />
-              Limpiar página
+              Limpiar
             </Button>
           </div>
         </div>
@@ -242,12 +264,35 @@ const SheetPositionEditor = () => {
               draggable={false}
             />
 
-            {/* Clicked position markers */}
-            {currentPagePositions.map((pos, index) => (
+            {/* Editable text fields at each position */}
+            {currentPagePositions.map((pos) => (
+              <input
+                key={`text-${pos.id}`}
+                type="text"
+                value={pos.previewText}
+                onChange={(e) => updatePosition(pos.id, 'previewText', e.target.value)}
+                placeholder={pos.fieldName || '...'}
+                className="sheet-field-text absolute bg-transparent border-none outline-none text-black placeholder:text-gray-400/50"
+                style={{
+                  left: `${pos.x * scale}px`,
+                  top: `${pos.y * scale}px`,
+                  width: `${pos.width * scale}px`,
+                  fontSize: `${pos.fontSize * scale}px`,
+                  textAlign: pos.align || 'left',
+                }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setEditingId(pos.id);
+                }}
+              />
+            ))}
+
+            {/* Position markers (circles with numbers) */}
+            {showMarkers && currentPagePositions.map((pos, index) => (
               <div
-                key={pos.id}
+                key={`marker-${pos.id}`}
                 className={cn(
-                  "absolute flex items-center justify-center cursor-pointer transition-all",
+                  "absolute flex items-center justify-center cursor-pointer transition-all pointer-events-auto",
                   editingId === pos.id 
                     ? "bg-blue-500 ring-2 ring-blue-300" 
                     : pos.fieldName 
@@ -255,22 +300,23 @@ const SheetPositionEditor = () => {
                       : "bg-red-500"
                 )}
                 style={{
-                  left: `${pos.x * scale - 10}px`,
-                  top: `${pos.y * scale - 10}px`,
-                  width: '20px',
-                  height: '20px',
+                  left: `${pos.x * scale - 8}px`,
+                  top: `${pos.y * scale - 20}px`,
+                  width: '16px',
+                  height: '16px',
                   borderRadius: '50%',
                   border: '2px solid white',
                   boxShadow: '0 2px 4px rgba(0,0,0,0.3)',
-                  fontSize: '10px',
+                  fontSize: '8px',
                   color: 'white',
                   fontWeight: 'bold',
+                  zIndex: 10,
                 }}
                 onClick={(e) => {
                   e.stopPropagation();
                   setEditingId(pos.id === editingId ? null : pos.id);
                 }}
-                title={pos.fieldName || `Campo ${index + 1}`}
+                title={`${pos.fieldName || 'Sin nombre'} (x:${pos.x}, y:${pos.y})`}
               >
                 {index + 1}
               </div>
@@ -313,7 +359,7 @@ const SheetPositionEditor = () => {
                     <div className="flex items-center gap-2">
                       <span 
                         className={cn(
-                          "w-6 h-6 rounded-full text-white text-xs flex items-center justify-center font-bold",
+                          "w-5 h-5 rounded-full text-white text-xs flex items-center justify-center font-bold",
                           pos.fieldName ? "bg-green-500" : "bg-red-500"
                         )}
                       >
@@ -328,7 +374,7 @@ const SheetPositionEditor = () => {
                         variant="ghost"
                         size="sm"
                         onClick={() => copyPosition(pos)}
-                        className="h-7 w-7 p-0"
+                        className="h-6 w-6 p-0"
                       >
                         {lastCopied === pos.id ? (
                           <Check className="w-3 h-3 text-green-500" />
@@ -340,7 +386,7 @@ const SheetPositionEditor = () => {
                         variant="ghost"
                         size="sm"
                         onClick={() => removePosition(pos.id)}
-                        className="h-7 w-7 p-0 text-red-400 hover:text-red-500"
+                        className="h-6 w-6 p-0 text-red-400 hover:text-red-500"
                       >
                         <Trash2 className="w-3 h-3" />
                       </Button>
@@ -348,7 +394,7 @@ const SheetPositionEditor = () => {
                   </div>
 
                   {/* Field name input */}
-                  <div className="relative">
+                  <div className="relative mb-2">
                     <Input
                       placeholder="Nombre del campo..."
                       value={pos.fieldName}
@@ -360,14 +406,14 @@ const SheetPositionEditor = () => {
                     
                     {/* Suggestions dropdown */}
                     {showSuggestions === pos.id && (
-                      <div className="absolute z-10 w-full mt-1 max-h-40 overflow-auto bg-secondary border border-border rounded-lg shadow-lg">
+                      <div className="absolute z-20 w-full mt-1 max-h-32 overflow-auto bg-secondary border border-border rounded-lg shadow-lg">
                         {FIELD_SUGGESTIONS
                           .filter(s => s.includes(pos.fieldName.toLowerCase()))
-                          .slice(0, 10)
+                          .slice(0, 8)
                           .map(suggestion => (
                             <button
                               key={suggestion}
-                              className="w-full px-3 py-1.5 text-left text-sm hover:bg-[hsl(var(--gold))/10] transition-colors"
+                              className="w-full px-3 py-1 text-left text-xs hover:bg-[hsl(var(--gold))/10] transition-colors"
                               onMouseDown={() => updateFieldName(pos.id, suggestion)}
                             >
                               {suggestion}
@@ -377,9 +423,20 @@ const SheetPositionEditor = () => {
                     )}
                   </div>
 
-                  {/* Width and fontSize controls */}
-                  <div className="flex gap-2 mt-2">
-                    <div className="flex-1">
+                  {/* Preview text */}
+                  <div className="mb-2">
+                    <label className="text-xs text-muted-foreground mb-1 block">Texto de prueba</label>
+                    <Input
+                      placeholder="Escribe para ver cómo queda..."
+                      value={pos.previewText}
+                      onChange={(e) => updatePosition(pos.id, 'previewText', e.target.value)}
+                      className="h-8 text-sm bg-black/30 border-border/50 sheet-field-text"
+                    />
+                  </div>
+
+                  {/* Width, fontSize, align controls */}
+                  <div className="grid grid-cols-3 gap-2">
+                    <div>
                       <label className="text-xs text-muted-foreground">Ancho</label>
                       <Input
                         type="number"
@@ -388,7 +445,7 @@ const SheetPositionEditor = () => {
                         className="h-7 text-xs bg-black/30 border-border/50"
                       />
                     </div>
-                    <div className="flex-1">
+                    <div>
                       <label className="text-xs text-muted-foreground">Tamaño</label>
                       <Input
                         type="number"
@@ -397,45 +454,52 @@ const SheetPositionEditor = () => {
                         className="h-7 text-xs bg-black/30 border-border/50"
                       />
                     </div>
+                    <div>
+                      <label className="text-xs text-muted-foreground">Alinear</label>
+                      <select
+                        value={pos.align || 'left'}
+                        onChange={(e) => updatePosition(pos.id, 'align', e.target.value)}
+                        className="h-7 w-full text-xs bg-black/30 border border-border/50 rounded-md px-2"
+                      >
+                        <option value="left">Izq</option>
+                        <option value="center">Centro</option>
+                        <option value="right">Der</option>
+                      </select>
+                    </div>
                   </div>
                 </div>
               ))}
             </div>
           )}
 
-          {/* Instructions */}
+          {/* Font preview */}
           <div className="mt-6 p-3 bg-[hsl(var(--gold))/10] rounded-lg border border-[hsl(var(--gold))/30]">
             <h3 className="text-sm font-heading text-[hsl(var(--gold))] mb-2">
+              Vista previa de fuente
+            </h3>
+            <p className="sheet-field-text text-lg text-foreground">
+              Fuente: Caveat (similar a Ink Free)
+            </p>
+            <p className="sheet-field-text text-base text-muted-foreground">
+              ABCDEFGHIJKLMNÑOPQRSTUVWXYZ
+            </p>
+            <p className="sheet-field-text text-base text-muted-foreground">
+              abcdefghijklmnñopqrstuvwxyz 0123456789
+            </p>
+          </div>
+
+          {/* Instructions */}
+          <div className="mt-4 p-3 bg-secondary/30 rounded-lg">
+            <h3 className="text-sm font-heading text-muted-foreground mb-2">
               Cómo usar
             </h3>
             <ol className="text-xs text-muted-foreground space-y-1 list-decimal list-inside">
               <li>Haz clic en la ficha donde va cada campo</li>
-              <li>Escribe el nombre del campo (ej: "nombre", "fuerza_valor")</li>
-              <li>Ajusta ancho y tamaño de fuente si es necesario</li>
-              <li>Cuando termines, haz clic en "Exportar JSON"</li>
-              <li>Pásame el JSON y yo actualizo la ficha</li>
+              <li>Escribe el nombre del campo</li>
+              <li>Escribe texto de prueba para ver cómo queda</li>
+              <li>Ajusta ancho, tamaño y alineación</li>
+              <li>Cuando termines, "Exportar JSON"</li>
             </ol>
-          </div>
-
-          {/* Color legend */}
-          <div className="mt-4 p-3 bg-secondary/30 rounded-lg">
-            <h3 className="text-sm font-heading text-muted-foreground mb-2">
-              Leyenda de colores
-            </h3>
-            <div className="space-y-1 text-xs">
-              <div className="flex items-center gap-2">
-                <span className="w-3 h-3 rounded-full bg-red-500"></span>
-                <span className="text-muted-foreground">Sin nombre asignado</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="w-3 h-3 rounded-full bg-green-500"></span>
-                <span className="text-muted-foreground">Con nombre asignado</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="w-3 h-3 rounded-full bg-blue-500"></span>
-                <span className="text-muted-foreground">Editando</span>
-              </div>
-            </div>
           </div>
         </div>
       </div>
