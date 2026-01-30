@@ -40,14 +40,26 @@ const Step8Details = ({ draftId, draft, onComplete, onBack }) => {
     try {
       setSaving(true);
       
-      // Los rasgos vienen del trasfondo (ambos son rasgos distintivos)
-      const rasgos = backgroundData?.rasgos || [];
+      // Los rasgos vienen del trasfondo (ambos son rasgos distintivos) con sus descripciones
+      const rasgosConDescripcion = backgroundData?.rasgos_descripciones || [];
+      const rasgosSimples = backgroundData?.rasgos || [];
+      
+      // Get trait with description if available
+      const getRasgoCompleto = (index) => {
+        if (rasgosConDescripcion[index]) {
+          return rasgosConDescripcion[index];
+        }
+        if (rasgosSimples[index]) {
+          return { nombre: rasgosSimples[index], descripcion: '' };
+        }
+        return null;
+      };
       
       const updatedDraft = await updateDraftStep9(draftId, {
-        rasgo_distintivo: rasgos[0] || null,
-        rasgo_distintivo_2: rasgos[1] || null, // Segundo rasgo distintivo (antes era "defecto")
+        rasgo_distintivo: getRasgoCompleto(0),
+        rasgo_distintivo_2: getRasgoCompleto(1),
         motivacion: null,
-        historia: backgroundData?.descripcion || null, // Historia viene del trasfondo
+        historia: backgroundData?.descripcion || null,
       });
       onComplete(updatedDraft);
     } catch (err) {
