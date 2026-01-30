@@ -255,3 +255,26 @@ async def get_all_culture_names():
     """Get all culture name data"""
     names = await db.culture_names.find({}).to_list(50)
     return {"names": serialize_docs(names)}
+
+
+
+# === EQUIPMENT LISTS (Instruments, Games) ===
+
+@router.get("/equipment-lists")
+async def get_equipment_lists():
+    """Get special equipment lists (instruments, games)"""
+    lists = await db.equipment_lists.find_one({})
+    if lists:
+        return serialize_doc(lists)
+    return {"juegos": [], "instrumentos_musicales": []}
+
+
+# === TRAIT DESCRIPTIONS ===
+
+@router.get("/trait-descriptions")
+async def get_trait_descriptions():
+    """Get all personality trait descriptions"""
+    data = await db.trait_descriptions.find_one({})
+    if data:
+        return data.get('descriptions', {})
+    return {}
