@@ -119,9 +119,10 @@ class CharacterCreateStep2(BaseModel):
 
 
 class CharacterCreateStep3(BaseModel):
-    """Step 3: Occupation selection with skills, armor, weapons, and expertise"""
+    """Step 3: Occupation selection with skills, armor, weapons, expertise, and tools"""
     ocupacion_id: str
     habilidades_elegidas: List[str] = []
+    herramientas_elegidas: List[str] = []  # Tools selected from occupation
     pericia_elegida: List[str] = []
     equipo_ocupacion: List[str] = []
     armadura_elegida: Optional[str] = None  # 'A' or 'B'
@@ -329,7 +330,7 @@ async def update_draft_step2(draft_id: str, data: CharacterCreateStep2):
 
 @router.patch("/draft/{draft_id}/step3")
 async def update_draft_step3(draft_id: str, data: CharacterCreateStep3):
-    """Update draft with Step 3 data (occupation with skills, armor, weapons, expertise)"""
+    """Update draft with Step 3 data (occupation with skills, armor, weapons, expertise, tools)"""
     occupation = await db.occupations.find_one({"_id": data.ocupacion_id})
     if not occupation:
         raise HTTPException(status_code=404, detail="Occupation not found")
@@ -338,6 +339,31 @@ async def update_draft_step3(draft_id: str, data: CharacterCreateStep3):
     dado_golpe = occupation.get('dado_golpe', '1d8')
     hp_inicial = int(occupation.get('puntos_golpe_nivel1', 8) or 8)
     
+    # Get current draft to consolidate all skill competencies
+    draft = await db.character_drafts.find_one({"_id": draft_id})
+    if not draft:
+        raise HTTPException(status_code=404, detail="Draft not found")
+    
+    # Consolidate all skill competencies from culture + background + occupation
+    all_skill_competencies = []
+    # From culture
+    all_skill_competencies.extend(draft.get('competencias_habilidades_cultura', []))
+    if draft.get('competencia_habilidad_cultura'):
+        all_skill_competencies.append(draft['competencia_habilidad_cultura'])
+    # From background
+    all_skill_competencies.extend(draft.get('competencias_trasfondo', {}).get('habilidades', []))
+    # From occupation (just selected)
+    all_skill_competencies.extend(data.habilidades_elegidas)
+    
+    # Dedupe while preserving order
+    seen = set()
+    unique_skills = []
+    for skill in all_skill_competencies:
+        clean = skill.split(' (')[0].strip() if skill else ''
+        if clean and clean.lower() not in seen:
+            seen.add(clean.lower())
+            unique_skills.append(skill)
+    
     update = {
         "ocupacion_id": data.ocupacion_id,
         "vocacion_nombre": occupation['vocacion'],
@@ -345,13 +371,18 @@ async def update_draft_step3(draft_id: str, data: CharacterCreateStep3):
         "puntos_golpe_base": hp_inicial,
         "caracteristicas_principales": occupation.get('caracteristicas_principales', []),
         "competencias_ocupacion": {
-            "tiradas_salvacion": occupation.get('competencia_tiradas_salvacion', []),
+            "tiradas_salvacion": occupation.get('tiradas_salvacion', []),
+            "armas": occupation.get('competencia_armas', []),
+            "armaduras": occupation.get('competencia_armaduras', []),
         },
-        # New fields for skills, armor, weapons, expertise
-        "habilidades_elegidas": data.habilidades_elegidas,
+        # Skills, tools, armor, weapons, expertise from user selection
+        "habilidades_elegidas_ocupacion": data.habilidades_elegidas,
+        "herramientas_elegidas_ocupacion": data.herramientas_elegidas,
         "pericia_elegida": data.pericia_elegida,
         "equipo_ocupacion": data.equipo_ocupacion,
         "armadura_elegida": data.armadura_elegida,
+        # Consolidated field with ALL skill competencies for easy access
+        "habilidades_competencia": unique_skills,
         "paso_actual": 4,
         "updated_at": now_utc(),
     }
