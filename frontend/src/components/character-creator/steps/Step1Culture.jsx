@@ -72,9 +72,9 @@ const Step1Culture = ({ draftId, draft, onComplete, onBack }) => {
     loadNameDataAndGenerateName();
   }, [selectedCulture]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Filter cultures by category
+  // Filter cultures by category (now using 'raza' field)
   const filteredCultures = selectedCategory
-    ? cultures.filter(c => c.categoria === selectedCategory)
+    ? cultures.filter(c => c.raza === selectedCategory)
     : cultures;
 
   // Generate random name
