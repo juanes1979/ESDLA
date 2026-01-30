@@ -3,87 +3,90 @@
 ## Original Problem Statement
 Build a comprehensive web application to play a modified version of the "Lord of the Rings 5e" tabletop role-playing game based on the Excel file `utumno.xlsm`.
 
+**User's preferred language**: Español
+
 ## Current State (2026-01-30)
 
-### ✅ COMPLETED: Data Extraction & Database
-- **New Complete Extractor** (`/app/backend/data_extractor_complete.py`) - WORKING
-- **New Database Seeder** (`/app/backend/seed_database_complete.py`) - WORKING
+### ✅ COMPLETED: Data Extraction & Database (UPDATED)
+- **Data Extractor** (`/app/backend/data_extractor_complete.py`) - FIXED
+  - Corrected occupation proficiencies extraction (rows 9-11 for weapons, 12-15 for armors)
+  - Added occupation descriptions and shadow curses (rows 16-19)
+  - Added complete equipment catalog with prices and weights
+- **Database Seeder** (`/app/backend/seed_database_complete.py`) - UPDATED
+  - Added `equipment_catalog` collection with full pricing data
 - Successfully extracted and seeded:
-  - 19 Cultures with complete data (bonificadores, rasgos físicos, idiomas, etc.)
+  - 19 Cultures with complete data
   - 114 Backgrounds with trait descriptions
-  - 6 Occupations with full weapon/armor/skill selection data
-  - 100 Virtues with all bonuses and selection options
+  - 6 Occupations with CORRECTLY separated weapon/armor proficiencies
+  - 100 Virtues with all bonuses
   - 19 Name sets for character name generation
-  - Equipment lists (instruments, games)
+  - **NEW:** Full equipment catalog (29 armas, 9 armaduras, 17 herramientas, 114 equipo general)
 
-### ✅ COMPLETED: Frontend Step 1 - Culture
-- Category selection (Elfos, Enanos, Hombres, Hobbits)
-- Culture list with new data structure (using `raza` field)
-- Characteristic bonuses displayed correctly (bonificadores_caracteristicas)
-- Name generation working
-- Physical attributes (edad, altura, peso using IMC formula)
+### ✅ COMPLETED: Rules Page Enhancement (P1)
+- **Precios de Equipo** section - NEW
+  - Sistema Monetario display (me, mc, mp, mo, mm)
+  - Searchable equipment list with prices, weights, damage/AC
+  - Four categories: Armas, Armaduras, Herramientas, Equipo General
+- **Ocupaciones** section - IMPROVED
+  - Expandable cards showing full occupation details
+  - Correctly separated weapon and armor proficiencies
+  - Shadow curse information displayed
+  - Occupation traits and features shown
+- **Culturas** section - IMPROVED
+  - Expandable cards with full culture details
+  - Characteristic bonuses, languages, cultural traits
+  - Virtue indicator for cultures with level 1 virtue
+
+### ✅ COMPLETED: Character Sheet Page Fixes (P0)
+- **Proficiencies display** - FIXED
+  - Now shows weapon proficiencies correctly separated
+  - Now shows armor proficiencies correctly separated
+  - Fallback to occupation data for old characters
+- **Skills list** - Already showing all 19 skills with modifiers
+- **Competencia/Pericia indicators** - Working
 
 ### ✅ COMPLETED: API Routes
 - `/api/data/cultures` - Returns complete culture data
 - `/api/data/backgrounds` - Returns backgrounds filtered by culture
-- `/api/data/occupations` - Returns occupations with weapon/armor data
+- `/api/data/occupations` - Returns occupations with correct proficiencies
 - `/api/data/virtues` - Returns virtues filtered by culture/type
 - `/api/data/equipment-lists` - Returns instruments and games lists
+- `/api/data/equipment-catalog` - **NEW** Returns full equipment with prices/weights
 - `/api/data/trait-descriptions` - Returns personality trait descriptions
 - `/api/characters/draft/*` - Character draft CRUD operations
 
-## 🔶 IN PROGRESS: Frontend Refactor
+## 📋 PENDING TASKS
 
-### Step 2 - Background (Needs Update)
-- Currently shows backgrounds but needs:
-  - Auto competencies display
-  - Skills to choose selection
-  - Tool selection (Instruments/Games sub-selection)
-  - Traits with descriptions
+### P0 - High Priority
+1. **User Authentication System** (NOT STARTED)
+   - Login, registration, password management
+   - Roles: "Director de juego" (Admin) / "Usuario" (User)
+   - Admin user: Maestro / 123456
+   - Page for viewing created characters
+   - Email notification on registration
+   - LOTR-themed captcha
 
-### Step 3 - Occupation (MAJOR REFACTOR NEEDED)
-Following the user's detailed plan:
-1. Select occupation
-2. Choose skills (quantity per occupation)
-3. Choose armor (Option A or B)
-4. Choose weapons (3-5 sequential blocks, some A/B)
-5. Choose expertise (ONLY for Buscador de tesoros)
+2. **PDF Generation** (NOT STARTED)
+   - Implement "Descargar PDF (3 hojas)" button
+   - Use jspdf and html2canvas
 
-### Step 4 - Attributes
-- Working but needs virtue bonus integration
+### P1 - Medium Priority
+1. **Phase 2 (Background)** - Partial implementation exists
+   - Needs traits with descriptions display
+   - Tool selection sub-menus
 
-### Step 5 - Virtue (Conditional)
-- ONLY for: Hombres del lago, Hombres de Bree, Beórnidas
-- Needs complete rewrite per plan
+2. **Phase 4 (Virtue)** - Needs complete implementation
+   - Only for specific cultures at level 1
+   - Filter by culture + COMMON
 
-### Steps 6-8 - Skills, Equipment, Details
-- Need updates to use new data structure
+### P2 - Lower Priority
+1. Refactor `Step1Culture.jsx` (1500+ lines) into sub-components
+2. Fix data extractor for remaining edge cases
 
-## 📋 MASTER PLAN (User Approved)
-
-### PHASE 1: CULTURE (30 fields)
-- Race → Subculture → Description → Age/Height/Weight → Physical traits
-- Speed/Rest/Size/Level of life → Name generation
-- Characteristic bonuses → Noldor improvement → Skills/Competencies
-- Cultural traits → Languages → Tool competencies
-
-### PHASE 2: BACKGROUND (10 fields)
-- Background selection → Description → Auto competencies
-- Skills to choose → Tools (Instruments/Games sub-selection)
-- 2 Traits with descriptions
-
-### PHASE 3: OCCUPATION (30 fields)
-- Occupation selection → Hit die → HP → Saves → Weapon/Armor competencies
-- Skills selection (variable quantity) → Armor A/B selection
-- 5 Weapon blocks (simple or A/B) → NO REPEAT WEAPONS
-- Special features (Expertise for Explorer) → Occupation traits
-- Future paths (level 3) → Favored skills
-
-### PHASE 4: VIRTUE (Conditional)
-- Only for 3 cultures at level 1, or on level up
-- Filter by culture + COMMON
-- Fixed and selectable bonuses
-- Exclude already-owned competencies
+## 📋 FUTURE/BACKLOG TASKS
+- Game Master (DM) Screen
+- Online Gameplay Interface (Map, Chat, Dice)
+- AI Integration for story/NPC generation
 
 ## ⚠️ CRITICAL RULES
 1. Weapons DO NOT repeat across blocks
@@ -104,19 +107,21 @@ Following the user's detailed plan:
 ## Key Files
 - `/app/backend/data_extractor_complete.py` - Main data extractor
 - `/app/backend/seed_database_complete.py` - Database seeder
+- `/app/backend/routes/data_routes.py` - API routes for game data
 - `/app/data/extracted_data_complete.json` - Extracted JSON data
+- `/app/frontend/src/pages/RulesPage.jsx` - Rules page with equipment pricing
+- `/app/frontend/src/pages/CharacterSheetPage.jsx` - Character sheet display
 - `/app/frontend/src/components/character-creator/` - Wizard components
 
-## Next Priority Tasks
-1. **P0:** Refactor Step3Occupation.jsx for complete weapon/armor flow
-2. **P0:** Implement Step5Virtue.jsx for virtue selection
-3. **P1:** Update Step2Background.jsx for trait descriptions
-4. **P1:** Implement PDF generation in characterPDF.js
-5. **P2:** Add full skill list display with calculated bonuses
+## Test Reports
+- `/app/test_reports/iteration_5.json` - Equipment catalog and occupation proficiencies tests
+- `/app/backend/tests/test_equipment_occupations.py` - Backend API tests
 
-## Future Features
-- Interactive Character Sheet Page
-- Character Listing (Drafts & Completed)
-- Game Master Screen
-- Online Gameplay (Map, Chat, Dice)
-- AI Integration (Emergent LLM Key)
+## Session Changelog (2026-01-30)
+1. Fixed data extractor for occupation proficiencies (rows 9-11 weapons, 12-15 armors)
+2. Added equipment catalog extraction with prices and weights in metric (kg)
+3. Added `/api/data/equipment-catalog` endpoint
+4. Enhanced RulesPage.jsx with "Precios de Equipo" section
+5. Improved occupation display in RulesPage with expandable cards
+6. Fixed CharacterSheetPage.jsx proficiencies display with occupation fallback
+7. All tests passing (16/16 backend, 100% frontend)
