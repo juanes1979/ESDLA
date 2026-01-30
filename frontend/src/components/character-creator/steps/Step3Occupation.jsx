@@ -383,7 +383,21 @@ const Step3Occupation = ({ draftId, draft, onComplete, onBack }) => {
   const renderSkillsSelection = () => {
     const maxSkills = occupationData.habilidades?.cantidad || 2;
     const question = occupationData.habilidades?.pregunta || 'Elige tus habilidades:';
-    const options = occupationData.habilidades?.opciones || [];
+    const allOptions = occupationData.habilidades?.opciones || [];
+    
+    // Filter out already selected skills from culture and background
+    const existingSkills = [
+      ...(draft?.competencias_habilidades_cultura || []),
+      ...(draft?.competencia_habilidad_cultura ? [draft.competencia_habilidad_cultura] : []),
+      ...(draft?.competencias_habilidades_trasfondo || []),
+    ];
+    
+    // Clean skill names for comparison (remove attribute in parenthesis)
+    const cleanSkillName = (skill) => skill?.split(' (')[0]?.trim().toLowerCase();
+    const existingClean = existingSkills.map(cleanSkillName);
+    
+    // Filter available options
+    const options = allOptions.filter(skill => !existingClean.includes(cleanSkillName(skill)));
 
     return (
       <>
@@ -394,6 +408,11 @@ const Step3Occupation = ({ draftId, draft, onComplete, onBack }) => {
           <p className="text-muted-foreground text-sm max-w-2xl mx-auto">
             {question}
           </p>
+          {existingSkills.length > 0 && (
+            <p className="text-xs text-[hsl(var(--torch-orange))] mt-2">
+              Ya tienes competencia en: {existingSkills.join(', ')}
+            </p>
+          )}
         </div>
 
         <div className="card-parchment rounded-lg p-4">
