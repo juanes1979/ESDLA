@@ -315,6 +315,9 @@ async def update_draft_step2(draft_id: str, data: CharacterCreateStep2):
         background.get('competencias_herramientas_1', []) + background.get('competencias_herramientas_2', [])
     )
     
+    # Equipment from background: use frontend-provided if available, otherwise from background data
+    equipo_trasfondo = data.equipo_trasfondo if hasattr(data, 'equipo_trasfondo') and data.equipo_trasfondo else background.get('equipo_inicial', [])
+    
     update = {
         "trasfondo_id": data.trasfondo_id,
         "trasfondo_nombre": data.trasfondo_nombre or background['nombre'],
@@ -325,7 +328,7 @@ async def update_draft_step2(draft_id: str, data: CharacterCreateStep2):
         },
         # Also store at top level for easier access during filtering
         "competencias_habilidades_trasfondo": habilidades_trasfondo,
-        "equipo_trasfondo": background.get('equipo_inicial', []),
+        "equipo_trasfondo": equipo_trasfondo,  # Use frontend data or background defaults
         "rasgos_trasfondo": data.rasgos_trasfondo if data.rasgos_trasfondo else background.get('rasgos_descripciones', []),
         "paso_actual": 3,
         "updated_at": now_utc(),
