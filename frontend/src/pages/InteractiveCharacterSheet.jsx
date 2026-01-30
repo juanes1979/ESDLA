@@ -1,6 +1,6 @@
 /**
  * Interactive Character Sheet - 3-page character sheet with image backgrounds
- * Uses the official LOTR RPG sheet images as backgrounds with editable overlay fields
+ * Uses the official LOTR RPG sheet images as backgrounds with data overlay fields
  * Coordinates based on 1701x2197 pixel images
  */
 import { useState, useEffect, useRef } from 'react';
@@ -23,91 +23,189 @@ const getModifier = (value) => {
 
 // Skill to attribute mapping
 const SKILL_ATTRIBUTES = {
-  'Acertijos': 'inteligencia',
-  'Acrobacias': 'destreza',
-  'Atletismo': 'fuerza',
-  'Cazar': 'sabiduria',
-  'Engaño': 'carisma',
-  'Explorar': 'sabiduria',
-  'Interpretación': 'carisma',
-  'Intimidación': 'carisma',
-  'Investigación': 'inteligencia',
-  'Juego de manos': 'destreza',
-  'Medicina': 'inteligencia',
-  'Naturaleza': 'inteligencia',
-  'Percepción': 'sabiduria',
-  'Perspicacia': 'sabiduria',
-  'Persuasión': 'carisma',
-  'Saber antiguo': 'inteligencia',
-  'Sigilo': 'destreza',
-  'Trato con animales': 'sabiduria',
-  'Viajar': 'sabiduria',
+  'acertijos': 'inteligencia',
+  'acrobacias': 'destreza',
+  'atletismo': 'fuerza',
+  'cazar': 'sabiduria',
+  'engano': 'carisma',
+  'explorar': 'sabiduria',
+  'interpretacion': 'carisma',
+  'intimidacion': 'carisma',
+  'investigacion': 'inteligencia',
+  'juego_manos': 'destreza',
+  'medicina': 'inteligencia',
+  'naturaleza': 'inteligencia',
+  'percepcion': 'sabiduria',
+  'perspicacia': 'sabiduria',
+  'persuasion': 'carisma',
+  'saber_antiguo': 'inteligencia',
+  'sigilo': 'destreza',
+  'trato_animales': 'sabiduria',
+  'viajar': 'sabiduria',
 };
 
-// Skills in order as they appear on the sheet
-const SKILLS_ORDER = [
-  'Acertijos', 'Acrobacias', 'Atletismo', 'Cazar', 'Engaño', 
-  'Explorar', 'Interpretación', 'Intimidación', 'Investigación', 
-  'Juego de manos', 'Medicina', 'Naturaleza', 'Percepción',
-  'Perspicacia', 'Persuasión', 'Saber antiguo', 'Sigilo',
-  'Trato con animales', 'Viajar'
-];
+// Skill names for display (Spanish)
+const SKILL_DISPLAY_NAMES = {
+  'acertijos': 'Acertijos',
+  'acrobacias': 'Acrobacias',
+  'atletismo': 'Atletismo',
+  'cazar': 'Cazar',
+  'engano': 'Engaño',
+  'explorar': 'Explorar',
+  'interpretacion': 'Interpretación',
+  'intimidacion': 'Intimidación',
+  'investigacion': 'Investigación',
+  'juego_manos': 'Juego de manos',
+  'medicina': 'Medicina',
+  'naturaleza': 'Saber de la naturaleza',
+  'percepcion': 'Percepción',
+  'perspicacia': 'Perspicacia',
+  'persuasion': 'Persuasión',
+  'saber_antiguo': 'Saber antiguo',
+  'sigilo': 'Sigilo',
+  'trato_animales': 'Trato con animales',
+  'viajar': 'Viajar',
+};
 
-// Skill Y positions (based on extracted coordinates, starting at 499 with ~18px spacing)
-const SKILL_Y_POSITIONS = [
-  499, 517, 535, 553, 571, 589, 607, 625, 643, 661, 
-  679, 697, 715, 733, 751, 769, 787, 805, 823
-];
+// PAGE 1 FIELD POSITIONS (from user-provided JSON + additions)
+const PAGE1_FIELDS = {
+  // Basic Info
+  nombre: { x: 89, y: 171, width: 630, fontSize: 45, align: 'center' },
+  ocupacion_nivel: { x: 757, y: 142, width: 260, fontSize: 31, align: 'left' },
+  rasgos_distintivos: { x: 1048, y: 142, width: 260, fontSize: 31, align: 'left' },
+  jugador: { x: 1337, y: 142, width: 260, fontSize: 31, align: 'left' },
+  cultura: { x: 757, y: 212, width: 260, fontSize: 31, align: 'left' },
+  senda_sombra: { x: 1048, y: 212, width: 260, fontSize: 31, align: 'left' },
+  
+  // Attributes - Main values
+  fuerza_valor: { x: 95, y: 327, width: 100, fontSize: 100, align: 'center' },
+  destreza_valor: { x: 95, y: 547, width: 100, fontSize: 100, align: 'center' },
+  constitucion_valor: { x: 95, y: 767, width: 100, fontSize: 100, align: 'center' },
+  inteligencia_valor: { x: 95, y: 987, width: 100, fontSize: 100, align: 'center' },
+  sabiduria_valor: { x: 93, y: 1207, width: 100, fontSize: 100, align: 'center' },
+  carisma_valor: { x: 95, y: 1427, width: 100, fontSize: 100, align: 'center' },
+  
+  // Attributes - Modifiers (in small circle below)
+  fuerza_mod: { x: 91, y: 444, width: 100, fontSize: 55, align: 'center' },
+  destreza_mod: { x: 91, y: 660, width: 100, fontSize: 55, align: 'center' },
+  constitucion_mod: { x: 91, y: 878, width: 100, fontSize: 55, align: 'center' },
+  inteligencia_mod: { x: 91, y: 1098, width: 100, fontSize: 55, align: 'center' },
+  sabiduria_mod: { x: 91, y: 1317, width: 100, fontSize: 55, align: 'center' },
+  carisma_mod: { x: 91, y: 1534, width: 100, fontSize: 55, align: 'center' },
+  
+  // Combat stats
+  inspiracion: { x: 250, y: 340, width: 100, fontSize: 65, align: 'center' },
+  bonificador_competencia: { x: 250, y: 478, width: 100, fontSize: 65, align: 'center' },
+  clase_armadura: { x: 657, y: 357, width: 100, fontSize: 65, align: 'center' },
+  iniciativa: { x: 808, y: 357, width: 100, fontSize: 65, align: 'center' },
+  velocidad: { x: 949, y: 357, width: 120, fontSize: 65, align: 'center' },
+  
+  // Hit points
+  pg_max: { x: 682, y: 520, width: 120, fontSize: 50, align: 'center' },
+  pg_actual: { x: 682, y: 650, width: 120, fontSize: 50, align: 'center' },
+  pg_temp: { x: 682, y: 720, width: 120, fontSize: 50, align: 'center' },
+  dado_golpe: { x: 682, y: 807, width: 120, fontSize: 65, align: 'center' },
+  
+  percepcion_pasiva: { x: 78, y: 1674, width: 100, fontSize: 65, align: 'center' },
+  
+  // Saving throws - modifiers (in column)
+  salvacion_fue_mod: { x: 282, y: 683, width: 100, fontSize: 30, align: 'center' },
+  salvacion_des_mod: { x: 282, y: 715, width: 100, fontSize: 30, align: 'center' },
+  salvacion_con_mod: { x: 282, y: 746, width: 100, fontSize: 30, align: 'center' },
+  salvacion_int_mod: { x: 282, y: 778, width: 100, fontSize: 30, align: 'center' },
+  salvacion_sab_mod: { x: 282, y: 809, width: 100, fontSize: 30, align: 'center' },
+  salvacion_car_mod: { x: 282, y: 840, width: 100, fontSize: 30, align: 'center' },
+  
+  // Saving throws - competency checkboxes (x if proficient)
+  comp_salvacion_fue: { x: 215, y: 683, width: 30, fontSize: 24, align: 'center' },
+  comp_salvacion_des: { x: 215, y: 715, width: 30, fontSize: 24, align: 'center' },
+  comp_salvacion_con: { x: 215, y: 746, width: 30, fontSize: 24, align: 'center' },
+  comp_salvacion_int: { x: 215, y: 778, width: 30, fontSize: 24, align: 'center' },
+  comp_salvacion_sab: { x: 215, y: 809, width: 30, fontSize: 24, align: 'center' },
+  comp_salvacion_car: { x: 215, y: 840, width: 30, fontSize: 24, align: 'center' },
+  
+  // Skills - modifiers
+  hab_acertijos: { x: 282, y: 992, width: 100, fontSize: 30, align: 'center' },
+  hab_acrobacias: { x: 282, y: 1023, width: 100, fontSize: 30, align: 'center' },
+  hab_atletismo: { x: 282, y: 1054, width: 100, fontSize: 30, align: 'center' },
+  hab_cazar: { x: 282, y: 1085, width: 100, fontSize: 30, align: 'center' },
+  hab_engano: { x: 282, y: 1116, width: 100, fontSize: 30, align: 'center' },
+  hab_explorar: { x: 282, y: 1147, width: 100, fontSize: 30, align: 'center' },
+  hab_interpretacion: { x: 282, y: 1178, width: 100, fontSize: 30, align: 'center' },
+  hab_intimidacion: { x: 282, y: 1209, width: 100, fontSize: 30, align: 'center' },
+  hab_investigacion: { x: 282, y: 1240, width: 100, fontSize: 30, align: 'center' },
+  hab_juego_manos: { x: 282, y: 1271, width: 100, fontSize: 30, align: 'center' },
+  hab_medicina: { x: 282, y: 1302, width: 100, fontSize: 30, align: 'center' },
+  hab_naturaleza: { x: 282, y: 1333, width: 100, fontSize: 30, align: 'center' },
+  hab_percepcion: { x: 282, y: 1364, width: 100, fontSize: 30, align: 'center' },
+  hab_perspicacia: { x: 282, y: 1395, width: 100, fontSize: 30, align: 'center' },
+  hab_persuasion: { x: 282, y: 1426, width: 100, fontSize: 30, align: 'center' },
+  hab_saber_antiguo: { x: 282, y: 1457, width: 100, fontSize: 30, align: 'center' },
+  hab_sigilo: { x: 282, y: 1488, width: 100, fontSize: 30, align: 'center' },
+  hab_trato_animales: { x: 282, y: 1519, width: 100, fontSize: 30, align: 'center' },
+  hab_viajar: { x: 282, y: 1550, width: 100, fontSize: 30, align: 'center' },
+  
+  // Skills - competency checkboxes (x=competencia, P=pericia)
+  comp_hab_acertijos: { x: 215, y: 992, width: 30, fontSize: 24, align: 'center' },
+  comp_hab_acrobacias: { x: 215, y: 1023, width: 30, fontSize: 24, align: 'center' },
+  comp_hab_atletismo: { x: 215, y: 1054, width: 30, fontSize: 24, align: 'center' },
+  comp_hab_cazar: { x: 215, y: 1085, width: 30, fontSize: 24, align: 'center' },
+  comp_hab_engano: { x: 215, y: 1116, width: 30, fontSize: 24, align: 'center' },
+  comp_hab_explorar: { x: 215, y: 1147, width: 30, fontSize: 24, align: 'center' },
+  comp_hab_interpretacion: { x: 215, y: 1178, width: 30, fontSize: 24, align: 'center' },
+  comp_hab_intimidacion: { x: 215, y: 1209, width: 30, fontSize: 24, align: 'center' },
+  comp_hab_investigacion: { x: 215, y: 1240, width: 30, fontSize: 24, align: 'center' },
+  comp_hab_juego_manos: { x: 215, y: 1271, width: 30, fontSize: 24, align: 'center' },
+  comp_hab_medicina: { x: 215, y: 1302, width: 30, fontSize: 24, align: 'center' },
+  comp_hab_naturaleza: { x: 215, y: 1333, width: 30, fontSize: 24, align: 'center' },
+  comp_hab_percepcion: { x: 215, y: 1364, width: 30, fontSize: 24, align: 'center' },
+  comp_hab_perspicacia: { x: 215, y: 1395, width: 30, fontSize: 24, align: 'center' },
+  comp_hab_persuasion: { x: 215, y: 1426, width: 30, fontSize: 24, align: 'center' },
+  comp_hab_saber_antiguo: { x: 215, y: 1457, width: 30, fontSize: 24, align: 'center' },
+  comp_hab_sigilo: { x: 215, y: 1488, width: 30, fontSize: 24, align: 'center' },
+  comp_hab_trato_animales: { x: 215, y: 1519, width: 30, fontSize: 24, align: 'center' },
+  comp_hab_viajar: { x: 215, y: 1550, width: 30, fontSize: 24, align: 'center' },
+  
+  // Monedas - campos separados
+  monedas_estano: { x: 1150, y: 1725, width: 80, fontSize: 28, align: 'center' },
+  monedas_cobre: { x: 1250, y: 1725, width: 80, fontSize: 28, align: 'center' },
+  monedas_plata: { x: 1350, y: 1725, width: 80, fontSize: 28, align: 'center' },
+  monedas_oro: { x: 1450, y: 1725, width: 80, fontSize: 28, align: 'center' },
+  
+  // Equipo - 8 filas (from y:1725 to y:2037, spacing ~39px)
+  equipo_1: { x: 771, y: 1725, width: 298, fontSize: 22, align: 'left' },
+  equipo_2: { x: 771, y: 1764, width: 298, fontSize: 22, align: 'left' },
+  equipo_3: { x: 771, y: 1803, width: 298, fontSize: 22, align: 'left' },
+  equipo_4: { x: 771, y: 1842, width: 298, fontSize: 22, align: 'left' },
+  equipo_5: { x: 771, y: 1881, width: 298, fontSize: 22, align: 'left' },
+  equipo_6: { x: 771, y: 1920, width: 298, fontSize: 22, align: 'left' },
+  equipo_7: { x: 771, y: 1959, width: 298, fontSize: 22, align: 'left' },
+  equipo_8: { x: 771, y: 1998, width: 298, fontSize: 22, align: 'left' },
+  
+  // Idiomas y herramientas - 6 filas (from y:1836 to y:2043, spacing ~41px)
+  idioma_herr_1: { x: 109, y: 1836, width: 435, fontSize: 22, align: 'left' },
+  idioma_herr_2: { x: 109, y: 1877, width: 435, fontSize: 22, align: 'left' },
+  idioma_herr_3: { x: 109, y: 1918, width: 435, fontSize: 22, align: 'left' },
+  idioma_herr_4: { x: 109, y: 1959, width: 435, fontSize: 22, align: 'left' },
+  idioma_herr_5: { x: 109, y: 2000, width: 435, fontSize: 22, align: 'left' },
+  idioma_herr_6: { x: 109, y: 2041, width: 435, fontSize: 22, align: 'left' },
+};
 
-// Field positioned absolutely on the sheet
-const SheetField = ({ x, y, width, height, children, className, scale }) => (
+// Handwritten style font
+const FONT_STYLE = "'Caveat', 'Ink Free', cursive";
+
+// Display field component
+const DisplayField = ({ value, x, y, width, scale, fontSize = 14, align = 'center' }) => (
   <div
-    className={cn("absolute", className)}
-    style={{
-      left: `${x * scale}px`,
-      top: `${y * scale}px`,
-      width: width ? `${width * scale}px` : 'auto',
-      height: height ? `${height * scale}px` : 'auto',
-    }}
-  >
-    {children}
-  </div>
-);
-
-// Editable text field
-const EditableField = ({ value, onChange, x, y, width, scale, fontSize = 14, align = 'left', className = '' }) => (
-  <input
-    type="text"
-    value={value || ''}
-    onChange={(e) => onChange(e.target.value)}
-    className={cn(
-      "absolute bg-transparent border-none outline-none text-black font-medium",
-      className
-    )}
+    className="absolute text-black whitespace-nowrap overflow-hidden"
     style={{
       left: `${x * scale}px`,
       top: `${y * scale}px`,
       width: `${width * scale}px`,
       fontSize: `${fontSize * scale}px`,
       textAlign: align,
-    }}
-  />
-);
-
-// Display-only text field
-const DisplayField = ({ value, x, y, width, scale, fontSize = 14, align = 'center', className = '', bold = false }) => (
-  <div
-    className={cn(
-      "absolute text-black",
-      bold && "font-bold",
-      className
-    )}
-    style={{
-      left: `${x * scale}px`,
-      top: `${y * scale}px`,
-      width: width ? `${width * scale}px` : 'auto',
-      fontSize: `${fontSize * scale}px`,
-      textAlign: align,
+      fontFamily: FONT_STYLE,
+      lineHeight: 1.1,
     }}
   >
     {value}
@@ -124,18 +222,6 @@ const InteractiveCharacterSheet = () => {
   const [scale, setScale] = useState(0.6);
   const containerRef = useRef(null);
 
-  // Editable fields state (for interactive editing during play)
-  const [editableFields, setEditableFields] = useState({
-    puntos_golpe_actual: 0,
-    puntos_golpe_temp: 0,
-    nivel_cansancio: 0,
-    inspiracion: 0,
-    sombra_puntuacion: 0,
-    experiencia: 0,
-    notas_historia: '',
-    rasgos_distintivos: '',
-  });
-
   // Load character data
   useEffect(() => {
     const loadCharacter = async () => {
@@ -143,18 +229,6 @@ const InteractiveCharacterSheet = () => {
         setLoading(true);
         const data = await getCharacter(characterId);
         setCharacter(data);
-        
-        // Initialize editable fields from character data
-        setEditableFields({
-          puntos_golpe_actual: data.puntos_golpe_actual || data.puntos_golpe_max || 0,
-          puntos_golpe_temp: data.puntos_golpe_temp || 0,
-          nivel_cansancio: data.nivel_cansancio || 0,
-          inspiracion: data.inspiracion || 0,
-          sombra_puntuacion: data.sombra_puntuacion || data.puntos_sombra || 0,
-          experiencia: data.experiencia || 0,
-          notas_historia: data.notas_historia || '',
-          rasgos_distintivos: data.rasgos_distintivos || '',
-        });
       } catch (err) {
         console.error('Error loading character:', err);
       } finally {
@@ -164,56 +238,9 @@ const InteractiveCharacterSheet = () => {
     loadCharacter();
   }, [characterId]);
 
-  // Calculate skill modifier
-  const getSkillModifier = (skillName) => {
-    if (!character) return '+0';
-    const attrs = character.caracteristicas || character.atributos_finales || {};
-    const attrName = SKILL_ATTRIBUTES[skillName];
-    const attrValue = attrs[attrName] || 10;
-    const baseMod = Math.floor((attrValue - 10) / 2);
-    
-    const profBonus = character.bonificador_competencia || 2;
-    const proficiencias = character.habilidades_competentes || [];
-    const pericias = character.habilidades_pericias || [];
-    
-    let totalMod = baseMod;
-    if (proficiencias.includes(skillName)) {
-      totalMod += profBonus;
-    }
-    if (pericias.includes(skillName)) {
-      totalMod += profBonus;
-    }
-    
-    return totalMod >= 0 ? `+${totalMod}` : `${totalMod}`;
-  };
-
-  // Check if skill has proficiency
-  const hasSkillProficiency = (skillName) => {
-    if (!character) return false;
-    const proficiencias = character.habilidades_competentes || [];
-    return proficiencias.includes(skillName);
-  };
-
-  // Save editable fields
-  const handleSave = async () => {
-    try {
-      setSaving(true);
-      await api.patch(`/characters/${characterId}`, editableFields);
-    } catch (err) {
-      console.error('Error saving:', err);
-    } finally {
-      setSaving(false);
-    }
-  };
-
   // Handle print/PDF
   const handlePrint = () => {
     window.print();
-  };
-
-  // Update editable field
-  const updateField = (field, value) => {
-    setEditableFields(prev => ({ ...prev, [field]: value }));
   };
 
   if (loading) {
@@ -235,9 +262,123 @@ const InteractiveCharacterSheet = () => {
   // Get attributes
   const attrs = character.caracteristicas || character.atributos_finales || {};
   const bonificadorCompetencia = character.bonificador_competencia || 2;
+  const nivel = character.nivel || 1;
+  
+  // Get proficiencies (skills with competence)
+  const competenciasHabilidades = [
+    ...(character.competencias_habilidades_cultura || []),
+    ...(character.competencia_habilidad_cultura ? [character.competencia_habilidad_cultura] : []),
+    ...(character.competencias_habilidades_trasfondo || []),
+    ...(character.habilidades_elegidas_ocupacion || []),
+  ].map(s => s?.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, '_'));
+  
+  // Get expertise (pericia)
+  const periciasHabilidades = (character.pericia_elegida || [])
+    .map(s => s?.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, '_'));
+  
+  // Saving throw proficiencies (typically from occupation)
+  const salvacionesCompetentes = character.salvaciones_competentes || [];
+  
+  // Calculate skill modifier
+  const getSkillMod = (skillKey) => {
+    const attrName = SKILL_ATTRIBUTES[skillKey];
+    const attrValue = attrs[attrName] || 10;
+    const baseMod = Math.floor((attrValue - 10) / 2);
+    
+    let totalMod = baseMod;
+    if (competenciasHabilidades.includes(skillKey)) {
+      totalMod += bonificadorCompetencia;
+    }
+    if (periciasHabilidades.includes(skillKey)) {
+      totalMod += bonificadorCompetencia; // Pericia = double proficiency
+    }
+    
+    return totalMod >= 0 ? `+${totalMod}` : `${totalMod}`;
+  };
+  
+  // Get skill competency mark (x=competencia, P=pericia, empty otherwise)
+  const getSkillCompMark = (skillKey) => {
+    if (periciasHabilidades.includes(skillKey)) return 'P';
+    if (competenciasHabilidades.includes(skillKey)) return 'x';
+    return '';
+  };
+  
+  // Calculate saving throw modifier
+  const getSavingMod = (attrName) => {
+    const attrValue = attrs[attrName] || 10;
+    const baseMod = Math.floor((attrValue - 10) / 2);
+    
+    // Check if proficient in this saving throw
+    const isProficient = salvacionesCompetentes.some(s => 
+      s?.toLowerCase().includes(attrName.substring(0, 3))
+    );
+    
+    let totalMod = baseMod;
+    if (isProficient) {
+      totalMod += bonificadorCompetencia;
+    }
+    
+    return totalMod >= 0 ? `+${totalMod}` : `${totalMod}`;
+  };
+  
+  // Get saving throw competency mark
+  const getSavingCompMark = (attrName) => {
+    const isProficient = salvacionesCompetentes.some(s => 
+      s?.toLowerCase().includes(attrName.substring(0, 3))
+    );
+    return isProficient ? 'x' : '';
+  };
+  
+  // Get equipment list (split into 8 rows)
+  const getEquipmentRows = () => {
+    const allEquipment = [
+      ...(character.equipo_ocupacion || []),
+      ...(character.equipo_trasfondo || []),
+      ...(character.inventario || []).map(i => typeof i === 'string' ? i : i.nombre),
+    ];
+    const rows = [];
+    for (let i = 0; i < 8; i++) {
+      rows.push(allEquipment[i] || '');
+    }
+    return rows;
+  };
+  
+  // Get languages and tools (split into 6 rows)
+  const getIdiomasHerramientasRows = () => {
+    const items = [
+      ...(character.idiomas || []),
+      ...(character.competencia_herramienta_1 ? [character.competencia_herramienta_1] : []),
+      ...(character.competencias_herramientas_2 || []),
+      ...(character.competencias_herramientas_trasfondo || []),
+    ];
+    const rows = [];
+    for (let i = 0; i < 6; i++) {
+      rows.push(items[i] || '');
+    }
+    return rows;
+  };
+  
+  // Get money
+  const dinero = character.dinero || { mp: 0, mo: 0, me: 0, mc: 0 };
+  
+  // Calculate passive perception
+  const percepcionPasiva = 10 + parseInt(getSkillMod('percepcion').replace('+', ''));
+  
+  // Get rasgo distintivo text
+  const rasgoDistintivo = typeof character.rasgo_distintivo === 'object' 
+    ? character.rasgo_distintivo?.nombre 
+    : character.rasgo_distintivo || '';
+
+  const equipmentRows = getEquipmentRows();
+  const idiomasRows = getIdiomasHerramientasRows();
 
   return (
     <div className="min-h-screen bg-[#2a2a2a]" data-testid="interactive-sheet">
+      {/* Import handwritten font */}
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Caveat:wght@400;500;600;700&display=swap');
+      `}</style>
+
       {/* Header */}
       <header className="border-b border-border/50 bg-black/70 backdrop-blur-sm sticky top-0 z-50 print:hidden">
         <div className="container mx-auto px-4 py-3 flex items-center justify-between">
@@ -308,16 +449,6 @@ const InteractiveCharacterSheet = () => {
             <Button
               variant="outline"
               size="sm"
-              onClick={handleSave}
-              disabled={saving}
-              className="border-[hsl(var(--gold))/50] hover:bg-[hsl(var(--gold))/10]"
-            >
-              {saving ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />}
-              Guardar
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
               onClick={handlePrint}
               className="border-[hsl(var(--magic-blue))/50] hover:bg-[hsl(var(--magic-blue))/10]"
             >
@@ -331,322 +462,167 @@ const InteractiveCharacterSheet = () => {
       {/* Sheet Container */}
       <div 
         ref={containerRef}
-        className="flex justify-center py-8 overflow-auto print:py-0 print:overflow-visible"
+        className="flex-1 overflow-auto py-8 print:py-0 print:overflow-visible"
       >
-        <div 
-          className="relative bg-white shadow-2xl print:shadow-none"
-          style={{
-            width: SHEET_WIDTH * scale,
-            height: SHEET_HEIGHT * scale,
-          }}
-        >
-          {/* Background Image */}
-          <img
-            src={`/assets/sheets/sheet_page${currentPage}_web.png`}
-            alt={`Character Sheet Page ${currentPage}`}
-            className="absolute inset-0 w-full h-full"
-            draggable={false}
-          />
+        <div className="flex justify-center min-w-fit px-4">
+          <div 
+            className="relative bg-white shadow-2xl print:shadow-none flex-shrink-0"
+            style={{
+              width: SHEET_WIDTH * scale,
+              height: SHEET_HEIGHT * scale,
+              aspectRatio: `${SHEET_WIDTH} / ${SHEET_HEIGHT}`,
+            }}
+          >
+            {/* Background Image */}
+            <img
+              src={`/assets/sheets/sheet_page${currentPage}_web.png`}
+              alt={`Character Sheet Page ${currentPage}`}
+              className="absolute inset-0 w-full h-full"
+              draggable={false}
+            />
 
-          {/* Page 1 - Main Sheet */}
-          {currentPage === 1 && (
-            <>
-              {/* === HEADER SECTION === */}
-              {/* Character Name */}
-              <DisplayField 
-                value={character.nombre} 
-                x={130} y={128} width={350} 
-                scale={scale} fontSize={16} align="left" bold
-              />
-              
-              {/* Occupation and Level */}
-              <DisplayField 
-                value={`${character.vocacion_nombre || ''} Nivel ${character.nivel || 1}`} 
-                x={130} y={148} width={350} 
-                scale={scale} fontSize={11} align="left"
-              />
-              
-              {/* Culture */}
-              <DisplayField 
-                value={character.cultura_nombre} 
-                x={130} y={210} width={200} 
-                scale={scale} fontSize={12} align="left"
-              />
-              
-              {/* Experience */}
-              <DisplayField 
-                value={editableFields.experiencia || 0} 
-                x={1070} y={210} width={100} 
-                scale={scale} fontSize={12} align="center"
-              />
-
-              {/* === ATTRIBUTES SECTION (Left column) === */}
-              {/* Fuerza - Value in diamond, modifier below */}
-              <DisplayField value={attrs.fuerza || 10} x={55} y={270} width={45} scale={scale} fontSize={18} align="center" bold />
-              <DisplayField value={getModifier(attrs.fuerza || 10)} x={55} y={320} width={45} scale={scale} fontSize={14} align="center" bold />
-              
-              {/* Destreza */}
-              <DisplayField value={attrs.destreza || 10} x={55} y={392} width={45} scale={scale} fontSize={18} align="center" bold />
-              <DisplayField value={getModifier(attrs.destreza || 10)} x={55} y={442} width={45} scale={scale} fontSize={14} align="center" bold />
-              
-              {/* Constitución */}
-              <DisplayField value={attrs.constitucion || 10} x={55} y={514} width={45} scale={scale} fontSize={18} align="center" bold />
-              <DisplayField value={getModifier(attrs.constitucion || 10)} x={55} y={564} width={45} scale={scale} fontSize={14} align="center" bold />
-              
-              {/* Inteligencia */}
-              <DisplayField value={attrs.inteligencia || 10} x={55} y={636} width={45} scale={scale} fontSize={18} align="center" bold />
-              <DisplayField value={getModifier(attrs.inteligencia || 10)} x={55} y={686} width={45} scale={scale} fontSize={14} align="center" bold />
-              
-              {/* Sabiduría */}
-              <DisplayField value={attrs.sabiduria || 10} x={55} y={758} width={45} scale={scale} fontSize={18} align="center" bold />
-              <DisplayField value={getModifier(attrs.sabiduria || 10)} x={55} y={808} width={45} scale={scale} fontSize={14} align="center" bold />
-              
-              {/* Carisma */}
-              <DisplayField value={attrs.carisma || 10} x={55} y={880} width={45} scale={scale} fontSize={18} align="center" bold />
-              <DisplayField value={getModifier(attrs.carisma || 10)} x={55} y={930} width={45} scale={scale} fontSize={14} align="center" bold />
-
-              {/* === INSPIRATION & PROFICIENCY === */}
-              {/* Inspiración (first diamond in center section) */}
-              <DisplayField value={editableFields.inspiracion || 0} x={192} y={270} width={35} scale={scale} fontSize={16} align="center" bold />
-              
-              {/* Proficiency Bonus (second diamond) */}
-              <DisplayField value={`+${bonificadorCompetencia}`} x={192} y={355} width={35} scale={scale} fontSize={16} align="center" bold />
-
-              {/* === SAVING THROWS === */}
-              {['Fuerza', 'Destreza', 'Constitución', 'Inteligencia', 'Sabiduría', 'Carisma'].map((attr, index) => {
-                const attrKey = attr.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-                const yPos = 472 + (index * 24);
-                const hasSaveProficiency = character.competencias?.tiradas_salvacion?.some(
-                  t => t.toLowerCase() === attr.toLowerCase() || t.toLowerCase() === attrKey
-                );
-                const attrValue = attrs[attrKey] || attrs[attr.toLowerCase()] || 10;
-                const saveMod = Math.floor((attrValue - 10) / 2) + (hasSaveProficiency ? bonificadorCompetencia : 0);
+            {/* PAGE 1 FIELDS */}
+            {currentPage === 1 && (
+              <>
+                {/* Basic Info */}
+                <DisplayField {...PAGE1_FIELDS.nombre} value={character.nombre} scale={scale} />
+                <DisplayField {...PAGE1_FIELDS.ocupacion_nivel} value={`${character.vocacion_nombre || ''} ${nivel}`} scale={scale} />
+                <DisplayField {...PAGE1_FIELDS.rasgos_distintivos} value={rasgoDistintivo} scale={scale} />
+                <DisplayField {...PAGE1_FIELDS.jugador} value={character.jugador || ''} scale={scale} />
+                <DisplayField {...PAGE1_FIELDS.cultura} value={character.cultura_nombre || ''} scale={scale} />
+                <DisplayField {...PAGE1_FIELDS.senda_sombra} value={character.senda_sombra || ''} scale={scale} />
                 
-                return (
-                  <div key={attr}>
-                    {/* Proficiency circle */}
-                    <div
-                      className={cn(
-                        "absolute rounded-full",
-                        hasSaveProficiency ? "bg-black" : "border border-black/40"
-                      )}
-                      style={{
-                        left: `${148 * scale}px`,
-                        top: `${yPos * scale}px`,
-                        width: `${8 * scale}px`,
-                        height: `${8 * scale}px`,
-                      }}
-                    />
-                    {/* Modifier */}
-                    <DisplayField 
-                      value={saveMod >= 0 ? `+${saveMod}` : saveMod} 
-                      x={160} y={yPos - 4} width={25} 
-                      scale={scale} fontSize={10} align="center"
-                    />
-                  </div>
-                );
-              })}
-
-              {/* === COMBAT STATS === */}
-              {/* Armor Class */}
-              <DisplayField value={character.clase_armadura || 10} x={302} y={300} width={60} scale={scale} fontSize={20} align="center" bold />
-              
-              {/* Initiative */}
-              <DisplayField value={getModifier(attrs.destreza || 10)} x={382} y={300} width={60} scale={scale} fontSize={18} align="center" bold />
-              
-              {/* Speed */}
-              <DisplayField value={`${character.velocidad || 9}`} x={462} y={300} width={60} scale={scale} fontSize={18} align="center" bold />
-
-              {/* === HIT POINTS === */}
-              {/* Max HP */}
-              <DisplayField value={character.puntos_golpe_max || 0} x={320} y={400} width={80} scale={scale} fontSize={12} align="center" />
-              
-              {/* Temp HP */}
-              <DisplayField value={editableFields.puntos_golpe_temp || ''} x={430} y={445} width={60} scale={scale} fontSize={12} align="center" />
-              
-              {/* Current HP (large editable number in center) */}
-              <input
-                type="number"
-                value={editableFields.puntos_golpe_actual}
-                onChange={(e) => updateField('puntos_golpe_actual', parseInt(e.target.value) || 0)}
-                className="absolute bg-transparent border-none outline-none text-black font-bold text-center"
-                style={{
-                  left: `${320 * scale}px`,
-                  top: `${490 * scale}px`,
-                  width: `${120 * scale}px`,
-                  fontSize: `${28 * scale}px`,
-                }}
-              />
-
-              {/* Hit Dice */}
-              <DisplayField value={`${character.nivel || 1}${character.dado_golpe || 'd8'}`} x={302} y={600} width={80} scale={scale} fontSize={14} align="center" />
-
-              {/* === SKILLS SECTION === */}
-              {SKILLS_ORDER.map((skill, index) => {
-                const yPos = 645 + (index * 26);
-                const hasProficiency = hasSkillProficiency(skill);
-                const modifier = getSkillModifier(skill);
+                {/* Attributes - Values */}
+                <DisplayField {...PAGE1_FIELDS.fuerza_valor} value={attrs.fuerza || 10} scale={scale} />
+                <DisplayField {...PAGE1_FIELDS.destreza_valor} value={attrs.destreza || 10} scale={scale} />
+                <DisplayField {...PAGE1_FIELDS.constitucion_valor} value={attrs.constitucion || 10} scale={scale} />
+                <DisplayField {...PAGE1_FIELDS.inteligencia_valor} value={attrs.inteligencia || 10} scale={scale} />
+                <DisplayField {...PAGE1_FIELDS.sabiduria_valor} value={attrs.sabiduria || 10} scale={scale} />
+                <DisplayField {...PAGE1_FIELDS.carisma_valor} value={attrs.carisma || 10} scale={scale} />
                 
-                return (
-                  <div key={skill}>
-                    {/* Proficiency indicator (filled circle if proficient) */}
-                    <div
-                      className={cn(
-                        "absolute rounded-full",
-                        hasProficiency ? "bg-black" : "border border-black/40"
-                      )}
-                      style={{
-                        left: `${148 * scale}px`,
-                        top: `${yPos * scale}px`,
-                        width: `${8 * scale}px`,
-                        height: `${8 * scale}px`,
-                      }}
-                    />
-                    {/* Modifier value */}
-                    <DisplayField 
-                      value={modifier} 
-                      x={160} y={yPos - 4} width={25} 
-                      scale={scale} fontSize={10} align="center"
-                    />
-                  </div>
-                );
-              })}
+                {/* Attributes - Modifiers */}
+                <DisplayField {...PAGE1_FIELDS.fuerza_mod} value={getModifier(attrs.fuerza || 10)} scale={scale} />
+                <DisplayField {...PAGE1_FIELDS.destreza_mod} value={getModifier(attrs.destreza || 10)} scale={scale} />
+                <DisplayField {...PAGE1_FIELDS.constitucion_mod} value={getModifier(attrs.constitucion || 10)} scale={scale} />
+                <DisplayField {...PAGE1_FIELDS.inteligencia_mod} value={getModifier(attrs.inteligencia || 10)} scale={scale} />
+                <DisplayField {...PAGE1_FIELDS.sabiduria_mod} value={getModifier(attrs.sabiduria || 10)} scale={scale} />
+                <DisplayField {...PAGE1_FIELDS.carisma_mod} value={getModifier(attrs.carisma || 10)} scale={scale} />
+                
+                {/* Combat Stats */}
+                <DisplayField {...PAGE1_FIELDS.inspiracion} value={character.inspiracion || ''} scale={scale} />
+                <DisplayField {...PAGE1_FIELDS.bonificador_competencia} value={`+${bonificadorCompetencia}`} scale={scale} />
+                <DisplayField {...PAGE1_FIELDS.clase_armadura} value={10 + Math.floor(((attrs.destreza || 10) - 10) / 2)} scale={scale} />
+                <DisplayField {...PAGE1_FIELDS.iniciativa} value={getModifier(attrs.destreza || 10)} scale={scale} />
+                <DisplayField {...PAGE1_FIELDS.velocidad} value={`${character.velocidad || 9}m`} scale={scale} />
+                
+                {/* Hit Points */}
+                <DisplayField {...PAGE1_FIELDS.pg_max} value={character.puntos_golpe_max || 8} scale={scale} />
+                <DisplayField {...PAGE1_FIELDS.pg_actual} value={character.puntos_golpe_actual || character.puntos_golpe_max || 8} scale={scale} />
+                <DisplayField {...PAGE1_FIELDS.pg_temp} value={character.puntos_golpe_temp || 0} scale={scale} />
+                <DisplayField {...PAGE1_FIELDS.dado_golpe} value={character.dado_golpe || '1d8'} scale={scale} />
+                
+                <DisplayField {...PAGE1_FIELDS.percepcion_pasiva} value={percepcionPasiva} scale={scale} />
+                
+                {/* Saving Throws - Modifiers */}
+                <DisplayField {...PAGE1_FIELDS.salvacion_fue_mod} value={getSavingMod('fuerza')} scale={scale} />
+                <DisplayField {...PAGE1_FIELDS.salvacion_des_mod} value={getSavingMod('destreza')} scale={scale} />
+                <DisplayField {...PAGE1_FIELDS.salvacion_con_mod} value={getSavingMod('constitucion')} scale={scale} />
+                <DisplayField {...PAGE1_FIELDS.salvacion_int_mod} value={getSavingMod('inteligencia')} scale={scale} />
+                <DisplayField {...PAGE1_FIELDS.salvacion_sab_mod} value={getSavingMod('sabiduria')} scale={scale} />
+                <DisplayField {...PAGE1_FIELDS.salvacion_car_mod} value={getSavingMod('carisma')} scale={scale} />
+                
+                {/* Saving Throws - Competency Marks */}
+                <DisplayField {...PAGE1_FIELDS.comp_salvacion_fue} value={getSavingCompMark('fuerza')} scale={scale} />
+                <DisplayField {...PAGE1_FIELDS.comp_salvacion_des} value={getSavingCompMark('destreza')} scale={scale} />
+                <DisplayField {...PAGE1_FIELDS.comp_salvacion_con} value={getSavingCompMark('constitucion')} scale={scale} />
+                <DisplayField {...PAGE1_FIELDS.comp_salvacion_int} value={getSavingCompMark('inteligencia')} scale={scale} />
+                <DisplayField {...PAGE1_FIELDS.comp_salvacion_sab} value={getSavingCompMark('sabiduria')} scale={scale} />
+                <DisplayField {...PAGE1_FIELDS.comp_salvacion_car} value={getSavingCompMark('carisma')} scale={scale} />
+                
+                {/* Skills - Modifiers */}
+                <DisplayField {...PAGE1_FIELDS.hab_acertijos} value={getSkillMod('acertijos')} scale={scale} />
+                <DisplayField {...PAGE1_FIELDS.hab_acrobacias} value={getSkillMod('acrobacias')} scale={scale} />
+                <DisplayField {...PAGE1_FIELDS.hab_atletismo} value={getSkillMod('atletismo')} scale={scale} />
+                <DisplayField {...PAGE1_FIELDS.hab_cazar} value={getSkillMod('cazar')} scale={scale} />
+                <DisplayField {...PAGE1_FIELDS.hab_engano} value={getSkillMod('engano')} scale={scale} />
+                <DisplayField {...PAGE1_FIELDS.hab_explorar} value={getSkillMod('explorar')} scale={scale} />
+                <DisplayField {...PAGE1_FIELDS.hab_interpretacion} value={getSkillMod('interpretacion')} scale={scale} />
+                <DisplayField {...PAGE1_FIELDS.hab_intimidacion} value={getSkillMod('intimidacion')} scale={scale} />
+                <DisplayField {...PAGE1_FIELDS.hab_investigacion} value={getSkillMod('investigacion')} scale={scale} />
+                <DisplayField {...PAGE1_FIELDS.hab_juego_manos} value={getSkillMod('juego_manos')} scale={scale} />
+                <DisplayField {...PAGE1_FIELDS.hab_medicina} value={getSkillMod('medicina')} scale={scale} />
+                <DisplayField {...PAGE1_FIELDS.hab_naturaleza} value={getSkillMod('naturaleza')} scale={scale} />
+                <DisplayField {...PAGE1_FIELDS.hab_percepcion} value={getSkillMod('percepcion')} scale={scale} />
+                <DisplayField {...PAGE1_FIELDS.hab_perspicacia} value={getSkillMod('perspicacia')} scale={scale} />
+                <DisplayField {...PAGE1_FIELDS.hab_persuasion} value={getSkillMod('persuasion')} scale={scale} />
+                <DisplayField {...PAGE1_FIELDS.hab_saber_antiguo} value={getSkillMod('saber_antiguo')} scale={scale} />
+                <DisplayField {...PAGE1_FIELDS.hab_sigilo} value={getSkillMod('sigilo')} scale={scale} />
+                <DisplayField {...PAGE1_FIELDS.hab_trato_animales} value={getSkillMod('trato_animales')} scale={scale} />
+                <DisplayField {...PAGE1_FIELDS.hab_viajar} value={getSkillMod('viajar')} scale={scale} />
+                
+                {/* Skills - Competency Marks */}
+                <DisplayField {...PAGE1_FIELDS.comp_hab_acertijos} value={getSkillCompMark('acertijos')} scale={scale} />
+                <DisplayField {...PAGE1_FIELDS.comp_hab_acrobacias} value={getSkillCompMark('acrobacias')} scale={scale} />
+                <DisplayField {...PAGE1_FIELDS.comp_hab_atletismo} value={getSkillCompMark('atletismo')} scale={scale} />
+                <DisplayField {...PAGE1_FIELDS.comp_hab_cazar} value={getSkillCompMark('cazar')} scale={scale} />
+                <DisplayField {...PAGE1_FIELDS.comp_hab_engano} value={getSkillCompMark('engano')} scale={scale} />
+                <DisplayField {...PAGE1_FIELDS.comp_hab_explorar} value={getSkillCompMark('explorar')} scale={scale} />
+                <DisplayField {...PAGE1_FIELDS.comp_hab_interpretacion} value={getSkillCompMark('interpretacion')} scale={scale} />
+                <DisplayField {...PAGE1_FIELDS.comp_hab_intimidacion} value={getSkillCompMark('intimidacion')} scale={scale} />
+                <DisplayField {...PAGE1_FIELDS.comp_hab_investigacion} value={getSkillCompMark('investigacion')} scale={scale} />
+                <DisplayField {...PAGE1_FIELDS.comp_hab_juego_manos} value={getSkillCompMark('juego_manos')} scale={scale} />
+                <DisplayField {...PAGE1_FIELDS.comp_hab_medicina} value={getSkillCompMark('medicina')} scale={scale} />
+                <DisplayField {...PAGE1_FIELDS.comp_hab_naturaleza} value={getSkillCompMark('naturaleza')} scale={scale} />
+                <DisplayField {...PAGE1_FIELDS.comp_hab_percepcion} value={getSkillCompMark('percepcion')} scale={scale} />
+                <DisplayField {...PAGE1_FIELDS.comp_hab_perspicacia} value={getSkillCompMark('perspicacia')} scale={scale} />
+                <DisplayField {...PAGE1_FIELDS.comp_hab_persuasion} value={getSkillCompMark('persuasion')} scale={scale} />
+                <DisplayField {...PAGE1_FIELDS.comp_hab_saber_antiguo} value={getSkillCompMark('saber_antiguo')} scale={scale} />
+                <DisplayField {...PAGE1_FIELDS.comp_hab_sigilo} value={getSkillCompMark('sigilo')} scale={scale} />
+                <DisplayField {...PAGE1_FIELDS.comp_hab_trato_animales} value={getSkillCompMark('trato_animales')} scale={scale} />
+                <DisplayField {...PAGE1_FIELDS.comp_hab_viajar} value={getSkillCompMark('viajar')} scale={scale} />
+                
+                {/* Monedas */}
+                <DisplayField {...PAGE1_FIELDS.monedas_estano} value={dinero.me || 0} scale={scale} />
+                <DisplayField {...PAGE1_FIELDS.monedas_cobre} value={dinero.mc || 0} scale={scale} />
+                <DisplayField {...PAGE1_FIELDS.monedas_plata} value={dinero.mp || 0} scale={scale} />
+                <DisplayField {...PAGE1_FIELDS.monedas_oro} value={dinero.mo || 0} scale={scale} />
+                
+                {/* Equipo (8 rows) */}
+                <DisplayField {...PAGE1_FIELDS.equipo_1} value={equipmentRows[0]} scale={scale} />
+                <DisplayField {...PAGE1_FIELDS.equipo_2} value={equipmentRows[1]} scale={scale} />
+                <DisplayField {...PAGE1_FIELDS.equipo_3} value={equipmentRows[2]} scale={scale} />
+                <DisplayField {...PAGE1_FIELDS.equipo_4} value={equipmentRows[3]} scale={scale} />
+                <DisplayField {...PAGE1_FIELDS.equipo_5} value={equipmentRows[4]} scale={scale} />
+                <DisplayField {...PAGE1_FIELDS.equipo_6} value={equipmentRows[5]} scale={scale} />
+                <DisplayField {...PAGE1_FIELDS.equipo_7} value={equipmentRows[6]} scale={scale} />
+                <DisplayField {...PAGE1_FIELDS.equipo_8} value={equipmentRows[7]} scale={scale} />
+                
+                {/* Idiomas y Herramientas (6 rows) */}
+                <DisplayField {...PAGE1_FIELDS.idioma_herr_1} value={idiomasRows[0]} scale={scale} />
+                <DisplayField {...PAGE1_FIELDS.idioma_herr_2} value={idiomasRows[1]} scale={scale} />
+                <DisplayField {...PAGE1_FIELDS.idioma_herr_3} value={idiomasRows[2]} scale={scale} />
+                <DisplayField {...PAGE1_FIELDS.idioma_herr_4} value={idiomasRows[3]} scale={scale} />
+                <DisplayField {...PAGE1_FIELDS.idioma_herr_5} value={idiomasRows[4]} scale={scale} />
+                <DisplayField {...PAGE1_FIELDS.idioma_herr_6} value={idiomasRows[5]} scale={scale} />
+              </>
+            )}
 
-              {/* Passive Perception */}
-              <DisplayField 
-                value={10 + parseInt(getSkillModifier('Percepción'))} 
-                x={148} y={1165} width={40} 
-                scale={scale} fontSize={14} align="center" bold
-              />
-
-              {/* === SHADOW SECTION (Right side) === */}
-              {/* Shadow Score */}
-              <DisplayField 
-                value={editableFields.sombra_puntuacion || 0} 
-                x={570} y={445} width={40} 
-                scale={scale} fontSize={18} align="center" bold
-              />
-
-            </>
-          )}
-
-          {/* Page 2 - Description & Equipment */}
-          {currentPage === 2 && (
-            <>
-              {/* Age */}
-              <DisplayField value={character.edad || '-'} x={190} y={95} width={80} scale={scale} fontSize={14} align="center" />
-              
-              {/* Height */}
-              <DisplayField value={`${character.altura_cm || character.altura || '-'}`} x={340} y={95} width={80} scale={scale} fontSize={14} align="center" />
-              
-              {/* Weight */}
-              <DisplayField value={`${character.peso_kg || character.peso || '-'}`} x={490} y={95} width={80} scale={scale} fontSize={14} align="center" />
-
-              {/* Background Name */}
-              <DisplayField value={character.trasfondo_nombre || '-'} x={100} y={320} width={300} scale={scale} fontSize={14} align="left" bold />
-
-              {/* Personality Traits - Display area */}
-              <div
-                className="absolute text-black overflow-hidden"
-                style={{
-                  left: `${100 * scale}px`,
-                  top: `${400 * scale}px`,
-                  width: `${700 * scale}px`,
-                  fontSize: `${11 * scale}px`,
-                  lineHeight: 1.3,
-                }}
-              >
-                {character.rasgos_personalidad?.slice(0, 4).map((rasgo, i) => (
-                  <p key={i} className="mb-1">• {typeof rasgo === 'string' ? rasgo : rasgo.nombre}</p>
-                ))}
+            {/* PAGE 2 - TODO: Add fields */}
+            {currentPage === 2 && (
+              <div className="absolute inset-0 flex items-center justify-center">
+                <p className="text-gray-500 text-lg">Página 2 - Pendiente de configurar coordenadas</p>
               </div>
+            )}
 
-              {/* Equipment List */}
-              <div
-                className="absolute text-black overflow-hidden"
-                style={{
-                  left: `${900 * scale}px`,
-                  top: `${300 * scale}px`,
-                  width: `${700 * scale}px`,
-                  fontSize: `${10 * scale}px`,
-                  lineHeight: 1.2,
-                }}
-              >
-                {character.equipo?.slice(0, 20).map((item, i) => (
-                  <p key={i}>• {typeof item === 'string' ? item : item.nombre}</p>
-                ))}
+            {/* PAGE 3 - TODO: Add fields */}
+            {currentPage === 3 && (
+              <div className="absolute inset-0 flex items-center justify-center">
+                <p className="text-gray-500 text-lg">Página 3 - Pendiente de configurar coordenadas</p>
               </div>
-
-              {/* Money */}
-              <div
-                className="absolute text-black"
-                style={{
-                  left: `${900 * scale}px`,
-                  top: `${700 * scale}px`,
-                  fontSize: `${12 * scale}px`,
-                }}
-              >
-                {character.dinero && (
-                  <>
-                    <p>Oro: {character.dinero.mo || 0}</p>
-                    <p>Plata: {character.dinero.mp || 0}</p>
-                    <p>Cobre: {character.dinero.mc || 0}</p>
-                  </>
-                )}
-              </div>
-            </>
-          )}
-
-          {/* Page 3 - Story Notes */}
-          {currentPage === 3 && (
-            <>
-              {/* Character Name */}
-              <DisplayField value={character.nombre} x={500} y={95} width={600} scale={scale} fontSize={20} align="center" bold />
-
-              {/* Story text area (editable) */}
-              <textarea
-                value={editableFields.notas_historia}
-                onChange={(e) => updateField('notas_historia', e.target.value)}
-                placeholder="Escribe la historia de tu personaje aquí..."
-                className="absolute bg-transparent border-none outline-none resize-none text-black"
-                style={{
-                  left: `${100 * scale}px`,
-                  top: `${200 * scale}px`,
-                  width: `${1500 * scale}px`,
-                  height: `${1900 * scale}px`,
-                  fontSize: `${14 * scale}px`,
-                  lineHeight: 1.6,
-                }}
-              />
-            </>
-          )}
+            )}
+          </div>
         </div>
       </div>
-
-      {/* Page indicators at bottom */}
-      <div className="fixed bottom-4 left-1/2 transform -translate-x-1/2 flex gap-2 print:hidden">
-        {[1, 2, 3].map(page => (
-          <button
-            key={page}
-            onClick={() => setCurrentPage(page)}
-            className={cn(
-              "w-3 h-3 rounded-full transition-all",
-              currentPage === page 
-                ? "bg-[hsl(var(--gold))] scale-125" 
-                : "bg-muted-foreground/50 hover:bg-muted-foreground"
-            )}
-          />
-        ))}
-      </div>
-
-      {/* Print styles */}
-      <style>{`
-        @media print {
-          body { margin: 0; padding: 0; }
-          header, .print\\:hidden { display: none !important; }
-          .print\\:py-0 { padding-top: 0 !important; padding-bottom: 0 !important; }
-        }
-      `}</style>
     </div>
   );
 };
