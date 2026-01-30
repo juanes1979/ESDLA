@@ -86,9 +86,20 @@ const Step3Occupation = ({ draftId, draft, onComplete, onBack }) => {
     setSelectedExpertise([]);
   };
 
+  // Check if has tools
+  const hasTools1 = occupationData.herramientas_1?.opciones?.length > 0;
+  const hasTools2 = occupationData.herramientas_2?.opciones?.length > 0;
+  const hasTools = hasTools1 || hasTools2;
+
   // Move to next sub-step
   const goToNextSubStep = () => {
     if (subStep === SUB_STEPS.SELECT_OCCUPATION) {
+      if (hasTools) {
+        setSubStep(SUB_STEPS.SELECT_TOOLS);
+      } else {
+        setSubStep(SUB_STEPS.SELECT_SKILLS);
+      }
+    } else if (subStep === SUB_STEPS.SELECT_TOOLS) {
       setSubStep(SUB_STEPS.SELECT_SKILLS);
     } else if (subStep === SUB_STEPS.SELECT_SKILLS) {
       // Check if there are armor options
@@ -122,8 +133,14 @@ const Step3Occupation = ({ draftId, draft, onComplete, onBack }) => {
 
   // Go back in sub-steps
   const goToPrevSubStep = () => {
-    if (subStep === SUB_STEPS.SELECT_SKILLS) {
+    if (subStep === SUB_STEPS.SELECT_TOOLS) {
       setSubStep(SUB_STEPS.SELECT_OCCUPATION);
+    } else if (subStep === SUB_STEPS.SELECT_SKILLS) {
+      if (hasTools) {
+        setSubStep(SUB_STEPS.SELECT_TOOLS);
+      } else {
+        setSubStep(SUB_STEPS.SELECT_OCCUPATION);
+      }
     } else if (subStep === SUB_STEPS.SELECT_ARMOR) {
       setSubStep(SUB_STEPS.SELECT_SKILLS);
     } else if (subStep === SUB_STEPS.SELECT_WEAPONS) {
