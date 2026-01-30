@@ -12,15 +12,17 @@ Build a comprehensive web application to play a modified version of the "Lord of
   - Corrected occupation proficiencies extraction (rows 9-11 for weapons, 12-15 for armors)
   - Added occupation descriptions and shadow curses (rows 16-19)
   - Added complete equipment catalog with prices and weights
+  - **FIXED Dunedain**: Corrected to +1 FUE, +1 CON, +1 SAB, +1 to choice
 - **Database Seeder** (`/app/backend/seed_database_complete.py`) - UPDATED
   - Added `equipment_catalog` collection with full pricing data
+  - Added `bonificador_a_eleccion` field for Dunedain
 - Successfully extracted and seeded:
-  - 19 Cultures with complete data
+  - 19 Cultures with complete data (including Dunedain fix)
   - 114 Backgrounds with trait descriptions
   - 6 Occupations with CORRECTLY separated weapon/armor proficiencies
   - 100 Virtues with all bonuses
   - 19 Name sets for character name generation
-  - **NEW:** Full equipment catalog (29 armas, 9 armaduras, 17 herramientas, 114 equipo general)
+  - Full equipment catalog (29 armas, 9 armaduras, 17 herramientas, 114 equipo general)
 
 ### ✅ COMPLETED: Rules Page Enhancement (P1)
 - **Precios de Equipo** section - NEW
@@ -44,6 +46,18 @@ Build a comprehensive web application to play a modified version of the "Lord of
   - Fallback to occupation data for old characters
 - **Skills list** - Already showing all 19 skills with modifiers
 - **Competencia/Pericia indicators** - Working
+
+### ✅ COMPLETED: Dunedain Free Characteristic Bonus (P0)
+- Corrected bonuses: +1 FUE, +1 CON, +1 SAB (fixed from Excel error)
+- Added `bonificador_a_eleccion: true` field
+- UI shows "Mejora de Característica Libre (Dúnedain)" panel with 6 options
+- User can choose any characteristic for the additional +1
+
+### ✅ COMPLETED: Guardian ab_complex Weapon Selection (P0)
+- Fixed weapon type `ab_complex` handling in Step3Occupation.jsx
+- Option A: Shows martial weapon selection + automatic "Escudo"
+- Option B: Shows two selection panels (martial + simple weapons)
+- All weapon options from API displayed correctly
 
 ### ✅ COMPLETED: API Routes
 - `/api/data/cultures` - Returns complete culture data
