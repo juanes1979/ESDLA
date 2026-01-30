@@ -109,6 +109,17 @@ const HomePage = () => {
             </p>
           </div>
         </div>
+
+        {/* Editor de Fichas - Developer tool */}
+        <div className="mt-8 text-center">
+          <button
+            onClick={() => navigate('/sheet-editor')}
+            className="text-sm text-muted-foreground hover:text-[hsl(var(--gold))] transition-colors underline underline-offset-4"
+            data-testid="sheet-editor-link"
+          >
+            🛠️ Editor de Posiciones de Ficha
+          </button>
+        </div>
       </div>
 
       {/* Footer */}
