@@ -79,6 +79,9 @@ async def seed_cultures(db, data: dict):
             # Noldor special
             "mejora_noldor": culture.get('mejora_noldor', False),
             
+            # Dunedain special: +1 to any characteristic of choice
+            "bonificador_a_eleccion": culture.get('bonificador_a_eleccion', False),
+            
             # Physical traits
             "rasgos_fisicos": culture.get('rasgos_fisicos', {}),
             
