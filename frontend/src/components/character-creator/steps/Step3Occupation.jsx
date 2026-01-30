@@ -294,9 +294,17 @@ const Step3Occupation = ({ draftId, draft, onComplete, onBack }) => {
         }
       });
       
+      // Compile selected tools
+      const herramientasElegidas = [
+        ...selectedTools1,
+        ...selectedTools2,
+        ...(occupationData.herramienta_adicional ? [occupationData.herramienta_adicional] : []),
+      ];
+      
       const updatedDraft = await updateDraftStep3(draftId, {
         ocupacion_id: selectedOccupation.id,
         habilidades_elegidas: selectedSkills,
+        herramientas_elegidas: herramientasElegidas,
         pericia_elegida: selectedExpertise,
         equipo_ocupacion: equipoSeleccionado,
         armadura_elegida: selectedArmor,
