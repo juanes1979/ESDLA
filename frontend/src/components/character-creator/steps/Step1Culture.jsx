@@ -890,6 +890,54 @@ const Step1Culture = ({ draftId, draft, onComplete, onBack }) => {
           </p>
         </div>
 
+        {/* Final Characteristics Preview - Show totals with bonuses FIRST */}
+        {assignmentMethod && (
+          <div className="card-parchment rounded-lg p-4 bg-[hsl(var(--magic-blue))/10] border border-[hsl(var(--magic-blue))/30]">
+            <h4 className="font-heading text-lg text-[hsl(var(--magic-blue))] mb-4">
+              Características Finales (con bonificadores de {selectedCulture?.nombre})
+            </h4>
+            <div className="grid grid-cols-3 md:grid-cols-6 gap-4">
+              {CHARACTERISTIC_NAMES.map((char) => {
+                // Get base value based on method
+                let baseValue = 8;
+                if (assignmentMethod === 'standard') {
+                  baseValue = standardArrayAssignment[char] || 8;
+                } else if (assignmentMethod === 'points') {
+                  baseValue = baseCaracteristicas[char];
+                } else if (assignmentMethod === 'dice' && diceRolls) {
+                  baseValue = diceAssignment[char] !== undefined ? diceRolls[diceAssignment[char]] : 8;
+                }
+                
+                const bonus = selectedCulture?.bonificadores_caracteristicas?.[char] || 0;
+                const total = baseValue + bonus;
+                const modifier = Math.floor((total - 10) / 2);
+                
+                return (
+                  <div key={char} className="text-center bg-black/20 rounded-lg p-3">
+                    <div className="text-xs text-[hsl(var(--magic-blue))] font-heading mb-1">
+                      {CHARACTERISTIC_LABELS[char]?.split(' ')[0]}
+                    </div>
+                    <div className="text-2xl font-heading text-[hsl(var(--gold))]">
+                      {total}
+                    </div>
+                    <div className={cn(
+                      "text-sm font-heading",
+                      modifier >= 0 ? "text-green-400" : "text-red-400"
+                    )}>
+                      ({modifier >= 0 ? '+' : ''}{modifier})
+                    </div>
+                    {bonus > 0 && (
+                      <div className="text-xs text-[hsl(var(--magic-blue))] mt-1">
+                        {baseValue} + {bonus}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
         {/* Method Selection */}
         <div className="card-parchment rounded-lg p-4">
           <h4 className="font-heading text-lg text-[hsl(var(--gold))] mb-4">Método de Asignación</h4>
