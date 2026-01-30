@@ -278,3 +278,47 @@ async def get_trait_descriptions():
     if data:
         return data.get('descriptions', {})
     return {}
+
+
+# === EQUIPMENT CATALOG (Full with prices and weights) ===
+
+@router.get("/equipment-catalog")
+async def get_equipment_catalog(
+    categoria: Optional[str] = None,
+    search: Optional[str] = None
+):
+    """Get full equipment catalog with prices and weights.
+    Optional filters:
+    - categoria: herramientas, equipo_general, armas, armaduras
+    - search: search by item name
+    """
+    catalog = await db.equipment_catalog.find_one({})
+    if not catalog:
+        return {
+            "herramientas": [],
+            "equipo_general": [],
+            "armas": [],
+            "armaduras": []
+        }
+    
+    result = {
+        "herramientas": catalog.get('herramientas', []),
+        "equipo_general": catalog.get('equipo_general', []),
+        "armas": catalog.get('armas', []),
+        "armaduras": catalog.get('armaduras', [])
+    }
+    
+    # Filter by category if specified
+    if categoria and categoria in result:
+        result = {categoria: result[categoria]}
+    
+    # Filter by search if specified
+    if search:
+        search_lower = search.lower()
+        for key in result:
+            result[key] = [
+                item for item in result[key]
+                if search_lower in item.get('nombre', '').lower()
+            ]
+    
+    return result
