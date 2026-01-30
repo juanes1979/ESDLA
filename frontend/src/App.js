@@ -8,6 +8,7 @@ import CharacterSheetPage from "@/pages/CharacterSheetPage";
 import CharactersListPage from "@/pages/CharactersListPage";
 import RulesPage from "@/pages/RulesPage";
 import InteractiveCharacterSheet from "@/pages/InteractiveCharacterSheet";
+import SheetPositionEditor from "@/pages/SheetPositionEditor";
 import { CharacterCreatorWizard } from "@/components/character-creator";
 
 function App() {
@@ -21,6 +22,7 @@ function App() {
           <Route path="/character/:characterId/sheet" element={<InteractiveCharacterSheet />} />
           <Route path="/characters" element={<CharactersListPage />} />
           <Route path="/rules" element={<RulesPage />} />
+          <Route path="/sheet-editor" element={<SheetPositionEditor />} />
         </Routes>
       </BrowserRouter>
       <Toaster />
