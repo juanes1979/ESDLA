@@ -1494,24 +1494,25 @@ const Step1Culture = ({ draftId, draft, onComplete, onBack }) => {
   return (
     <div className="max-w-4xl mx-auto" data-testid="step-1-culture">
       {/* Sub-step indicator */}
-      <div className="flex justify-center mb-6">
-        <div className="flex items-center gap-2 text-sm">
+      <div className="flex justify-center mb-6 overflow-x-auto">
+        <div className="flex items-center gap-1 text-xs">
           {[
             { key: SUB_STEPS.SELECT_CULTURE, label: '1. Cultura' },
             { key: SUB_STEPS.PHYSICAL_DATA, label: '2. Físico' },
-            { key: SUB_STEPS.CHARACTERISTICS, label: '3. Características' },
-            { key: SUB_STEPS.CULTURE_SELECTIONS, label: '4. Selecciones' },
+            { key: SUB_STEPS.ASSIGN_CHARACTERISTICS, label: '3. Asignar' },
+            { key: SUB_STEPS.CHARACTERISTICS_SUMMARY, label: '4. Resumen' },
+            { key: SUB_STEPS.CULTURE_SELECTIONS, label: '5. Selecciones' },
           ].map((step, i) => (
             <div key={step.key} className="flex items-center">
               <span className={cn(
-                "px-3 py-1 rounded",
+                "px-2 py-1 rounded whitespace-nowrap",
                 currentSubStep === step.key
                   ? "bg-[hsl(var(--gold))] text-black"
                   : "bg-black/30 text-muted-foreground"
               )}>
                 {step.label}
               </span>
-              {i < 3 && <ChevronRight className="w-4 h-4 mx-1 text-muted-foreground" />}
+              {i < 4 && <ChevronRight className="w-3 h-3 mx-0.5 text-muted-foreground" />}
             </div>
           ))}
         </div>
@@ -1527,7 +1528,8 @@ const Step1Culture = ({ draftId, draft, onComplete, onBack }) => {
       {/* Content based on sub-step */}
       {currentSubStep === SUB_STEPS.SELECT_CULTURE && renderCultureSelection()}
       {currentSubStep === SUB_STEPS.PHYSICAL_DATA && renderPhysicalData()}
-      {currentSubStep === SUB_STEPS.CHARACTERISTICS && renderCharacteristics()}
+      {currentSubStep === SUB_STEPS.ASSIGN_CHARACTERISTICS && renderAssignCharacteristics()}
+      {currentSubStep === SUB_STEPS.CHARACTERISTICS_SUMMARY && renderCharacteristicsSummary()}
       {currentSubStep === SUB_STEPS.CULTURE_SELECTIONS && renderCultureSelections()}
     </div>
   );
