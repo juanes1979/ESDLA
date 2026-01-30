@@ -813,9 +813,317 @@ const Step1Culture = ({ draftId, draft, onComplete, onBack }) => {
   );
 
   // =====================
-  // RENDER: Characteristics (Sub-step 3)
+  // RENDER: Assign Characteristics (NEW Sub-step)
   // =====================
-  const renderCharacteristics = () => (
+  const renderAssignCharacteristics = () => {
+    // Point buy cost table
+    const pointCost = (value) => {
+      if (value <= 8) return 0;
+      if (value <= 13) return value - 8;
+      if (value === 14) return 7;
+      if (value === 15) return 9;
+      return 0;
+    };
+
+    // Calculate total points used
+    const calcPointsUsed = () => {
+      return Object.values(baseCaracteristicas).reduce((sum, val) => sum + pointCost(val), 0);
+    };
+
+    // Assign standard array value to characteristic
+    const assignStandardValue = (char, value) => {
+      // Check if value already assigned to another char
+      const existing = Object.entries(standardArrayAssignment).find(([k, v]) => v === value && k !== char);
+      if (existing) {
+        // Swap
+        const newAssign = { ...standardArrayAssignment };
+        if (standardArrayAssignment[char]) {
+          newAssign[existing[0]] = standardArrayAssignment[char];
+        } else {
+          delete newAssign[existing[0]];
+        }
+        newAssign[char] = value;
+        setStandardArrayAssignment(newAssign);
+      } else {
+        setStandardArrayAssignment({ ...standardArrayAssignment, [char]: value });
+      }
+    };
+
+    // Assign dice roll to characteristic
+    const assignDiceValue = (char, rollIndex) => {
+      // Check if roll already assigned
+      const existing = Object.entries(diceAssignment).find(([k, v]) => v === rollIndex && k !== char);
+      if (existing) {
+        const newAssign = { ...diceAssignment };
+        if (diceAssignment[char] !== undefined) {
+          newAssign[existing[0]] = diceAssignment[char];
+        } else {
+          delete newAssign[existing[0]];
+        }
+        newAssign[char] = rollIndex;
+        setDiceAssignment(newAssign);
+      } else {
+        setDiceAssignment({ ...diceAssignment, [char]: rollIndex });
+      }
+    };
+
+    // Adjust point buy value
+    const adjustPointBuy = (char, delta) => {
+      const current = baseCaracteristicas[char];
+      const newVal = Math.max(8, Math.min(15, current + delta));
+      const newBase = { ...baseCaracteristicas, [char]: newVal };
+      const newPointsUsed = Object.values(newBase).reduce((sum, val) => sum + pointCost(val), 0);
+      if (newPointsUsed <= 27) {
+        setBaseCaracteristicas(newBase);
+        setPointsRemaining(27 - newPointsUsed);
+      }
+    };
+
+    return (
+      <div className="space-y-6">
+        <div className="text-center mb-6">
+          <h3 className="font-heading text-xl text-[hsl(var(--gold))]">
+            Asigna tus Características
+          </h3>
+          <p className="text-muted-foreground text-sm">
+            Elige un método para determinar las características BASE de tu personaje
+          </p>
+        </div>
+
+        {/* Method Selection */}
+        <div className="card-parchment rounded-lg p-4">
+          <h4 className="font-heading text-lg text-[hsl(var(--gold))] mb-4">Método de Asignación</h4>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <button
+              onClick={() => {
+                setAssignmentMethod('standard');
+                setStandardArrayAssignment({});
+              }}
+              className={cn(
+                "selection-card p-4 rounded-lg text-center",
+                assignmentMethod === 'standard' && "selected"
+              )}
+            >
+              <h5 className="font-heading text-lg mb-2">Array Estándar</h5>
+              <p className="text-xs text-muted-foreground">
+                Asigna los valores 15, 14, 13, 12, 10, 8 a tus características
+              </p>
+            </button>
+            <button
+              onClick={() => {
+                setAssignmentMethod('points');
+                setBaseCaracteristicas({ fuerza: 8, destreza: 8, constitucion: 8, inteligencia: 8, sabiduria: 8, carisma: 8 });
+                setPointsRemaining(27);
+              }}
+              className={cn(
+                "selection-card p-4 rounded-lg text-center",
+                assignmentMethod === 'points' && "selected"
+              )}
+            >
+              <h5 className="font-heading text-lg mb-2">Compra de Puntos</h5>
+              <p className="text-xs text-muted-foreground">
+                27 puntos para distribuir (8-15 por característica)
+              </p>
+            </button>
+            <button
+              onClick={() => {
+                setAssignmentMethod('dice');
+                setDiceAssignment({});
+                rollDice();
+              }}
+              className={cn(
+                "selection-card p-4 rounded-lg text-center",
+                assignmentMethod === 'dice' && "selected"
+              )}
+            >
+              <h5 className="font-heading text-lg mb-2">Tirar Dados</h5>
+              <p className="text-xs text-muted-foreground">
+                4d6 descartando el menor, 6 veces
+              </p>
+            </button>
+          </div>
+        </div>
+
+        {/* Standard Array Assignment */}
+        {assignmentMethod === 'standard' && (
+          <div className="card-parchment rounded-lg p-4">
+            <h4 className="font-heading text-lg text-[hsl(var(--gold))] mb-4">
+              Asigna cada valor a una característica
+            </h4>
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+              {CHARACTERISTIC_NAMES.map((char) => (
+                <div key={char} className="text-center">
+                  <label className="text-sm text-muted-foreground block mb-2">
+                    {CHARACTERISTIC_LABELS[char]}
+                  </label>
+                  <select
+                    value={standardArrayAssignment[char] || ''}
+                    onChange={(e) => assignStandardValue(char, parseInt(e.target.value))}
+                    className="w-full p-2 rounded bg-black/30 border border-border/50 text-center text-xl font-heading"
+                  >
+                    <option value="">--</option>
+                    {STANDARD_ARRAY.map((val) => (
+                      <option key={val} value={val}>{val}</option>
+                    ))}
+                  </select>
+                </div>
+              ))}
+            </div>
+            <div className="mt-4 text-center text-sm text-muted-foreground">
+              Valores disponibles: {STANDARD_ARRAY.filter(v => !Object.values(standardArrayAssignment).includes(v)).join(', ') || 'Todos asignados'}
+            </div>
+          </div>
+        )}
+
+        {/* Point Buy */}
+        {assignmentMethod === 'points' && (
+          <div className="card-parchment rounded-lg p-4">
+            <div className="flex justify-between items-center mb-4">
+              <h4 className="font-heading text-lg text-[hsl(var(--gold))]">
+                Distribuye tus puntos
+              </h4>
+              <div className={cn(
+                "text-xl font-heading px-4 py-1 rounded",
+                pointsRemaining === 0 ? "bg-green-500/20 text-green-400" : "bg-[hsl(var(--gold))/20] text-[hsl(var(--gold))]"
+              )}>
+                {pointsRemaining} puntos
+              </div>
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+              {CHARACTERISTIC_NAMES.map((char) => (
+                <div key={char} className="text-center">
+                  <label className="text-sm text-muted-foreground block mb-2">
+                    {CHARACTERISTIC_LABELS[char]}
+                  </label>
+                  <div className="flex items-center justify-center gap-2">
+                    <button
+                      onClick={() => adjustPointBuy(char, -1)}
+                      disabled={baseCaracteristicas[char] <= 8}
+                      className="w-8 h-8 rounded bg-black/30 text-xl hover:bg-black/50 disabled:opacity-30"
+                    >
+                      -
+                    </button>
+                    <span className="text-2xl font-heading w-12">{baseCaracteristicas[char]}</span>
+                    <button
+                      onClick={() => adjustPointBuy(char, 1)}
+                      disabled={baseCaracteristicas[char] >= 15 || pointsRemaining <= 0}
+                      className="w-8 h-8 rounded bg-black/30 text-xl hover:bg-black/50 disabled:opacity-30"
+                    >
+                      +
+                    </button>
+                  </div>
+                  <div className="text-xs text-muted-foreground mt-1">
+                    Coste: {pointCost(baseCaracteristicas[char])}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Dice Rolls */}
+        {assignmentMethod === 'dice' && (
+          <div className="card-parchment rounded-lg p-4">
+            <div className="flex justify-between items-center mb-4">
+              <h4 className="font-heading text-lg text-[hsl(var(--gold))]">
+                Asigna tus tiradas
+              </h4>
+              <Button variant="outline" size="sm" onClick={rollDice}>
+                Volver a tirar
+              </Button>
+            </div>
+            {diceRolls && (
+              <>
+                <div className="flex justify-center gap-2 mb-4">
+                  {diceRolls.map((roll, i) => {
+                    const isAssigned = Object.values(diceAssignment).includes(i);
+                    return (
+                      <div
+                        key={i}
+                        className={cn(
+                          "w-12 h-12 rounded flex items-center justify-center text-xl font-heading",
+                          isAssigned ? "bg-[hsl(var(--gold))/20] text-[hsl(var(--gold))]" : "bg-black/30"
+                        )}
+                      >
+                        {roll}
+                      </div>
+                    );
+                  })}
+                </div>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                  {CHARACTERISTIC_NAMES.map((char) => (
+                    <div key={char} className="text-center">
+                      <label className="text-sm text-muted-foreground block mb-2">
+                        {CHARACTERISTIC_LABELS[char]}
+                      </label>
+                      <select
+                        value={diceAssignment[char] !== undefined ? diceAssignment[char] : ''}
+                        onChange={(e) => assignDiceValue(char, parseInt(e.target.value))}
+                        className="w-full p-2 rounded bg-black/30 border border-border/50 text-center text-xl font-heading"
+                      >
+                        <option value="">--</option>
+                        {diceRolls.map((roll, i) => (
+                          <option key={i} value={i}>{roll}</option>
+                        ))}
+                      </select>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+        )}
+
+        {/* Culture Bonuses Preview */}
+        {assignmentMethod && (
+          <div className="card-parchment rounded-lg p-4">
+            <h4 className="font-heading text-lg text-[hsl(var(--gold))] mb-4">
+              Bonificadores de {selectedCulture?.nombre}
+            </h4>
+            <div className="flex flex-wrap gap-2">
+              {Object.entries(selectedCulture?.bonificadores_caracteristicas || {}).map(([attr, bonus]) =>
+                bonus > 0 && (
+                  <span key={attr} className="text-sm bg-[hsl(var(--magic-blue))/20] text-[hsl(var(--magic-blue))] px-3 py-1 rounded">
+                    {CHARACTERISTIC_LABELS[attr]?.split(' ')[0]} +{bonus}
+                  </span>
+                )
+              )}
+              {!Object.values(selectedCulture?.bonificadores_caracteristicas || {}).some(v => v > 0) && (
+                <span className="text-sm text-muted-foreground">Sin bonificadores</span>
+              )}
+            </div>
+            <p className="text-xs text-muted-foreground mt-2">
+              Estos bonificadores se sumarán a tus características base
+            </p>
+          </div>
+        )}
+
+        {/* Navigation */}
+        <div className="flex justify-between pt-4 border-t border-border/30">
+          <Button
+            variant="outline"
+            onClick={() => setCurrentSubStep(SUB_STEPS.PHYSICAL_DATA)}
+            data-testid="assign-back-btn"
+          >
+            Atrás
+          </Button>
+          <Button
+            onClick={handleAssignmentContinue}
+            disabled={!isAssignmentComplete()}
+            className="bg-[hsl(var(--gold))] hover:bg-[hsl(var(--gold-dim))] text-black font-heading"
+            data-testid="assign-continue-btn"
+          >
+            Continuar
+          </Button>
+        </div>
+      </div>
+    );
+  };
+
+  // =====================
+  // RENDER: Characteristics Summary (Sub-step - shows final with bonuses)
+  // =====================
+  const renderCharacteristicsSummary = () => (
     <div className="space-y-6">
       <div className="text-center mb-6">
         <h3 className="font-heading text-xl text-[hsl(var(--gold))]">
