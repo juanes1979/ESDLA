@@ -675,7 +675,7 @@ async def finalize_character(draft_id: str):
         "inventario": draft.get('inventario', []),
         "equipo_ocupacion": draft.get('equipo_ocupacion', []),
         "herramientas_elegidas_ocupacion": draft.get('herramientas_elegidas_ocupacion', []),
-        "dinero": draft.get('dinero', {"mp": 0, "mo": 0, "mc": 0}),
+        "dinero": draft.get('dinero', {"mp": 0, "mo": 0, "me": 0, "mc": 0}),
         # Combat stats
         "puntos_golpe_max": draft.get('puntos_golpe_base', 8),
         "puntos_golpe_actual": draft.get('puntos_golpe_base', 8),
