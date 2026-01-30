@@ -1020,11 +1020,13 @@ const Step3Occupation = ({ draftId, draft, onComplete, onBack }) => {
 
   // Render expertise selection (only for Buscador de tesoros)
   const renderExpertiseSelection = () => {
-    const pericia = occupationData.pericia;
-    const maxExpertise = pericia?.cantidad || 2;
+    // CRITICAL: Expertise can ONLY be selected from skills where character ALREADY HAS COMPETENCY
+    // This is NOT from especial_opciones - it's from the character's existing skill proficiencies
     
-    // Expertise can ONLY be selected from skills where character ALREADY HAS COMPETENCY
-    // This includes: culture skills + background skills + occupation skills just selected
+    // Collect ALL skills the character is proficient in from:
+    // 1. Culture skills
+    // 2. Background skills  
+    // 3. Occupation skills just selected in this step
     const allCompetentSkills = [
       // Culture competencies
       ...(draft?.competencias_habilidades_cultura || []),
@@ -1033,11 +1035,16 @@ const Step3Occupation = ({ draftId, draft, onComplete, onBack }) => {
       ...(draft?.competencias_habilidades_trasfondo || []),
       // Occupation skills just selected
       ...selectedSkills,
+      // Also from consolidated habilidades_competencia if exists
+      ...(draft?.habilidades_competencia || []),
     ];
     
-    // Clean and dedupe
+    // Clean skill names (remove attribute in parenthesis) and dedupe
     const cleanSkillName = (skill) => skill?.split(' (')[0]?.trim();
     const uniqueSkills = [...new Set(allCompetentSkills.map(cleanSkillName))].filter(Boolean);
+    
+    // The number of expertise selections is 2 for Buscador de tesoros
+    const maxExpertise = 2;
 
     return (
       <>
@@ -1046,7 +1053,8 @@ const Step3Occupation = ({ draftId, draft, onComplete, onBack }) => {
             Pericia
           </h2>
           <p className="text-muted-foreground text-sm max-w-2xl mx-auto">
-            Elige {maxExpertise} habilidades en las que YA tienes competencia para obtener pericia (x2 bonificador)
+            {occupationData.especial_descripcion || 
+              'Elige 2 habilidades en las que YA tienes competencia para obtener pericia (x2 bonificador)'}
           </p>
         </div>
 
@@ -1123,37 +1131,6 @@ const Step3Occupation = ({ draftId, draft, onComplete, onBack }) => {
             {saving && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
             Finalizar Ocupación
             <ChevronRight className="w-4 h-4 ml-2" />
-          </Button>
-        </div>
-      </>
-    );
-  };
-                        'font-medium',
-                        isSelected ? 'text-foreground' : 'text-muted-foreground'
-                      )}>
-                        {skill}
-                      </span>
-                    </div>
-                    {isSelected && <CheckCircle className="w-4 h-4 text-[hsl(var(--magic-blue))]" />}
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        <div className="flex justify-between pt-4">
-          <Button variant="ghost" onClick={goToPrevSubStep} className="text-muted-foreground">
-            <ChevronLeft className="w-4 h-4 mr-2" />
-            Atrás
-          </Button>
-          <Button
-            onClick={handleFinalSubmit}
-            disabled={selectedExpertise.length < maxExpertise || saving}
-            className="bg-[hsl(var(--gold))] hover:bg-[hsl(var(--gold-dim))] text-[hsl(var(--primary-foreground))] font-heading"
-          >
-            {saving ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
-            Finalizar Ocupación
           </Button>
         </div>
       </>
