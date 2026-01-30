@@ -437,58 +437,101 @@ const Step3Occupation = ({ draftId, draft, onComplete, onBack }) => {
                       </div>
                     )}
                     
-                    {/* Weapon proficiencies */}
-                    {occ.competencia_armas?.length > 0 && (
-                      <div>
-                        <span className="text-[hsl(var(--gold))] text-sm font-heading">Competencia con Armas:</span>
-                        <p className="text-xs text-muted-foreground mt-1">
-                          {occ.competencia_armas.join(', ')}
-                        </p>
-                      </div>
-                    )}
-                    
-                    {/* Armor proficiencies */}
-                    {occ.competencia_armaduras?.length > 0 && (
-                      <div>
-                        <span className="text-[hsl(var(--gold))] text-sm font-heading">Competencia con Armaduras:</span>
-                        <p className="text-xs text-muted-foreground mt-1">
-                          {occ.competencia_armaduras.join(', ')}
-                        </p>
-                      </div>
-                    )}
-                    
-                    {/* Main characteristics */}
-                    {occ.caracteristicas_principales?.length > 0 && (
-                      <div>
-                        <span className="text-[hsl(var(--gold))] text-sm font-heading">Características Principales:</span>
-                        <div className="flex flex-wrap gap-2 mt-1">
-                          {occ.caracteristicas_principales.map((char, i) => (
-                            <span key={i} className="text-xs bg-[hsl(var(--torch-orange))/20] text-[hsl(var(--torch-orange))] px-2 py-1 rounded">
-                              {char}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                    
-                    {/* Shadow path */}
-                    {occ.senda_sombra && (
-                      <div className="bg-black/30 p-3 rounded">
-                        <span className="text-[hsl(var(--destructive))] text-sm font-heading">Senda de la Sombra:</span>
-                        <p className="text-xs text-muted-foreground mt-1">{occ.senda_sombra}</p>
-                        {occ.descripcion_senda && (
-                          <p className="text-xs text-muted-foreground/70 mt-1 italic">{occ.descripcion_senda}</p>
-                        )}
-                      </div>
-                    )}
-                    
-                    {/* Description */}
-                    {occ.descripcion && (
-                      <div>
-                        <span className="text-[hsl(var(--gold))] text-sm font-heading">Descripción:</span>
-                        <p className="text-xs text-muted-foreground mt-1">{occ.descripcion}</p>
-                      </div>
-                    )}
+                    {/* Parse and separate weapon/armor proficiencies from description */}
+                    {(() => {
+                      // Known weapon types to separate from description
+                      const weaponTypes = ['Armas sencillas', 'Armas marciales', 'Espada corta', 'Espada', 'Espada larga', 
+                        'Lanza', 'Arco', 'Arco largo', 'Hacha', 'Maza', 'Daga', 'Bastón'];
+                      const armorTypes = ['Armaduras ligeras', 'Armaduras medias', 'Armaduras pesadas', 'Escudos'];
+                      
+                      // Parse competencia_armas to separate actual weapons from description
+                      const allArmas = occ.competencia_armas || [];
+                      const realWeapons = [];
+                      const descriptions = [];
+                      let sendaSombra = null;
+                      
+                      allArmas.forEach(item => {
+                        if (!item) return;
+                        const isWeapon = weaponTypes.some(w => item.toLowerCase().includes(w.toLowerCase()));
+                        const isArmor = armorTypes.some(a => item.toLowerCase().includes(a.toLowerCase()));
+                        
+                        if (isWeapon && !isArmor) {
+                          realWeapons.push(item);
+                        } else if (isArmor) {
+                          realWeapons.push(item); // Will separate later
+                        } else if (item.toUpperCase() === item && item.length > 3) {
+                          // Likely a shadow path name (all caps)
+                          sendaSombra = item;
+                        } else if (item.length > 50) {
+                          descriptions.push(item);
+                        }
+                      });
+                      
+                      // Separate weapons and armors
+                      const weapons = realWeapons.filter(w => !armorTypes.some(a => w.toLowerCase().includes(a.toLowerCase())));
+                      const armors = realWeapons.filter(w => armorTypes.some(a => w.toLowerCase().includes(a.toLowerCase())));
+                      
+                      // Get description from competencia_armaduras (which contains senda description)
+                      const sendaDescripcion = occ.competencia_armaduras?.find(item => item && item.length > 30);
+                      
+                      return (
+                        <>
+                          {/* Weapon proficiencies */}
+                          {weapons.length > 0 && (
+                            <div>
+                              <span className="text-[hsl(var(--gold))] text-sm font-heading">Competencia con Armas:</span>
+                              <p className="text-xs text-muted-foreground mt-1">
+                                {weapons.join(', ')}
+                              </p>
+                            </div>
+                          )}
+                          
+                          {/* Armor proficiencies */}
+                          {armors.length > 0 && (
+                            <div>
+                              <span className="text-[hsl(var(--gold))] text-sm font-heading">Competencia con Armaduras:</span>
+                              <p className="text-xs text-muted-foreground mt-1">
+                                {armors.join(', ')}
+                              </p>
+                            </div>
+                          )}
+                          
+                          {/* Main characteristics */}
+                          {occ.caracteristicas_principales?.length > 0 && (
+                            <div>
+                              <span className="text-[hsl(var(--gold))] text-sm font-heading">Características Principales:</span>
+                              <div className="flex flex-wrap gap-2 mt-1">
+                                {occ.caracteristicas_principales.map((char, i) => (
+                                  <span key={i} className="text-xs bg-[hsl(var(--torch-orange))/20] text-[hsl(var(--torch-orange))] px-2 py-1 rounded">
+                                    {char}
+                                  </span>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                          
+                          {/* Description */}
+                          {descriptions.length > 0 && (
+                            <div>
+                              <span className="text-[hsl(var(--gold))] text-sm font-heading">Descripción:</span>
+                              <p className="text-xs text-muted-foreground mt-1">
+                                {descriptions.join(' ')}
+                              </p>
+                            </div>
+                          )}
+                          
+                          {/* Shadow path */}
+                          {sendaSombra && (
+                            <div className="bg-black/30 p-3 rounded">
+                              <span className="text-[hsl(var(--destructive))] text-sm font-heading">Senda de la Sombra: {sendaSombra}</span>
+                              {sendaDescripcion && (
+                                <p className="text-xs text-muted-foreground mt-1 italic">{sendaDescripcion}</p>
+                              )}
+                            </div>
+                          )}
+                        </>
+                      );
+                    })()}
                   </div>
                 )}
               </div>
