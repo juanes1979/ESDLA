@@ -174,3 +174,31 @@ Build a comprehensive web application to play a modified version of the "Lord of
 - `/app/test_reports/iteration_7.json` - All 5 bugs verified fixed
 - Backend: 100% (4/4 tests passed)
 - Frontend: 100% (all UI verifications passed)
+
+### Interactive Character Sheet - Field Structure Update
+Based on user requirements, added support for:
+
+1. **Monedas separadas** - 4 campos individuales:
+   - `monedas_estano`, `monedas_cobre`, `monedas_plata`, `monedas_oro`
+
+2. **Equipo en 8 filas** - De y:1725 a y:2037:
+   - `equipo_1` a `equipo_8` (spacing ~39px)
+
+3. **Idiomas/Herramientas en 6 filas** - De y:1836 a y:2043:
+   - `idioma_herr_1` a `idioma_herr_6` (spacing ~41px)
+
+4. **Puntos de golpe** - 3 campos separados:
+   - `pg_max`, `pg_actual`, `pg_temp`
+
+5. **Competencias de habilidades** - Checkboxes (x=competencia, P=pericia):
+   - `comp_hab_acertijos`, `comp_hab_acrobacias`, etc. (19 habilidades)
+
+6. **Competencias de salvaciones** - Checkboxes (x si competente):
+   - `comp_salvacion_fue`, `comp_salvacion_des`, etc. (6 salvaciones)
+
+7. **Editor mantiene proporción DIN A4** - La hoja no se deforma al reducir ventana
+
+Files updated:
+- `/app/frontend/src/pages/SheetPositionEditor.jsx` - New field suggestions
+- `/app/frontend/src/pages/InteractiveCharacterSheet.jsx` - Complete rewrite with PAGE1_FIELDS from user JSON
+
