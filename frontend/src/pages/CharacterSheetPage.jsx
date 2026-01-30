@@ -30,19 +30,28 @@ const CharacterSheetPage = () => {
   const { characterId } = useParams();
   const navigate = useNavigate();
   const [character, setCharacter] = useState(null);
+  const [occupation, setOccupation] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [editingHp, setEditingHp] = useState(false);
   const [hpChange, setHpChange] = useState(0);
   const [savingHp, setSavingHp] = useState(false);
 
-  // Load character
+  // Load character and occupation data
   useEffect(() => {
     const loadCharacter = async () => {
       try {
         setLoading(true);
         const data = await getCharacter(characterId);
         setCharacter(data);
+        
+        // If competencias are empty, load occupation data for fallback
+        const competencias = data.competencias || {};
+        if ((!competencias.armas || competencias.armas.length === 0) && data.vocacion_nombre) {
+          const occupations = await getOccupations();
+          const occ = occupations.find(o => o.vocacion === data.vocacion_nombre);
+          if (occ) setOccupation(occ);
+        }
       } catch (err) {
         console.error('Error loading character:', err);
         setError('No se pudo cargar el personaje');
