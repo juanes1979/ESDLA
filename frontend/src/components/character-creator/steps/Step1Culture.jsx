@@ -677,14 +677,25 @@ const Step1Culture = ({ draftId, draft, onComplete, onBack }) => {
         {/* Equipment by living standard */}
         {selectedCulture?.nivel_vida && (
           <div className="mt-4 pt-4 border-t border-border/30">
-            <span className="text-sm text-[hsl(var(--gold))]">Equipo inicial ({selectedCulture.nivel_vida}):</span>
-            <div className="grid grid-cols-2 gap-2 mt-2">
-              {(EQUIPMENT_BY_LEVEL[selectedCulture.nivel_vida] || EQUIPMENT_BY_LEVEL['Común']).map((item, i) => (
-                <div key={i} className="text-sm text-muted-foreground flex justify-between bg-black/20 px-2 py-1 rounded">
-                  <span>{item.nombre}</span>
-                  <span className="text-[hsl(var(--gold))]">x{item.cantidad}</span>
-                </div>
-              ))}
+            <span className="text-sm text-[hsl(var(--gold))]">Nivel de Vida: {selectedCulture.nivel_vida}</span>
+            
+            {/* Description of living standard */}
+            {selectedCulture?.descripcion_nivel_vida && (
+              <p className="text-xs text-muted-foreground mt-2 italic">
+                {selectedCulture.descripcion_nivel_vida}
+              </p>
+            )}
+            
+            <div className="mt-3">
+              <span className="text-xs text-muted-foreground">Equipo inicial:</span>
+              <div className="grid grid-cols-2 gap-2 mt-2">
+                {(EQUIPMENT_BY_LEVEL[selectedCulture.nivel_vida] || EQUIPMENT_BY_LEVEL['Común']).map((item, i) => (
+                  <div key={i} className="text-sm text-muted-foreground flex justify-between bg-black/20 px-2 py-1 rounded">
+                    <span>{item.nombre}</span>
+                    <span className="text-[hsl(var(--gold))]">x{item.cantidad}</span>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         )}
