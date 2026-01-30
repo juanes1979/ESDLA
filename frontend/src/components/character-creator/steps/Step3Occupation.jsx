@@ -21,10 +21,11 @@ const OCCUPATION_ICONS = {
 // Sub-steps within occupation selection
 const SUB_STEPS = {
   SELECT_OCCUPATION: 0,
-  SELECT_SKILLS: 1,
-  SELECT_ARMOR: 2,
-  SELECT_WEAPONS: 3,
-  SELECT_EXPERTISE: 4, // Solo para Buscador de tesoros
+  SELECT_TOOLS: 1,       // NEW: Tools selection
+  SELECT_SKILLS: 2,
+  SELECT_ARMOR: 3,
+  SELECT_WEAPONS: 4,
+  SELECT_EXPERTISE: 5, // Solo para Buscador de tesoros
 };
 
 const Step3Occupation = ({ draftId, draft, onComplete, onBack }) => {
