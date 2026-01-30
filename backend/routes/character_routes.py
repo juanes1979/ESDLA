@@ -197,31 +197,48 @@ async def update_draft_step1(draft_id: str, data: CharacterCreateStep1):
     # Generate physical attributes based on culture
     edad = random.randint(culture.get('edad_min', 18) or 18, culture.get('edad_max', 80) or 80)
     altura = random.randint(culture.get('altura_min', 150) or 150, culture.get('altura_max', 200) or 200)
-    peso_base = altura - 100  # Simple calculation
-    mod_peso = culture.get('mod_peso_porcentaje', 0) or 0
-    peso = round(peso_base * (1 + mod_peso / 100), 1)
+    
+    # Calculate weight using IMC formula from the plan
+    imc = culture.get('imc', {"min": 20, "max": 24})
+    imc_value = random.uniform(imc.get('min', 20), imc.get('max', 24))
+    mod_peso = culture.get('mod_peso', 0) or 0
+    altura_m = altura / 100
+    peso = round((altura_m ** 2) * imc_value * (1 + mod_peso / 100), 1)
+    
+    # Get bonificadores from new structure
+    bonificadores = culture.get('bonificadores_caracteristicas', {})
     
     update = {
         "nombre": data.nombre,
         "jugador": data.jugador,
         "cultura_id": data.cultura_id,
         "cultura_nombre": culture['nombre'],
-        "categoria_cultura": culture.get('categoria'),
+        "raza": culture.get('raza'),
         "edad": edad,
         "altura_cm": altura,
         "peso_kg": peso,
-        "tamano": culture.get('tamano', 'Mediano'),
-        "velocidad": culture.get('velocidad', 9.0),
+        "tamanio": culture.get('tamanio', 'Mediano'),
+        "velocidad": culture.get('velocidad', 9),
+        "descanso": culture.get('descanso', 8),
         "nivel_vida": culture.get('nivel_vida'),
-        # Culture characteristic modifiers
-        "mod_cultura": {
-            "fuerza": culture.get('mod_fuerza', 0),
-            "destreza": culture.get('mod_destreza', 0),
-            "constitucion": culture.get('mod_constitucion', 0),
-            "inteligencia": culture.get('mod_inteligencia', 0),
-            "sabiduria": culture.get('mod_sabiduria', 0),
-            "carisma": culture.get('mod_carisma', 0),
-        },
+        "descripcion_nivel_vida": culture.get('descripcion_nivel_vida'),
+        "tiene_virtud_inicial": culture.get('tiene_virtud_inicial', False),
+        
+        # Culture characteristic modifiers (new structure)
+        "mod_cultura": bonificadores,
+        
+        # Physical traits for random generation
+        "rasgos_fisicos": culture.get('rasgos_fisicos', {}),
+        
+        # Languages and competencies
+        "idiomas": culture.get('idiomas', []),
+        "competencias_habilidades_cultura": culture.get('competencias_habilidades', []),
+        "habilidades_puntuaciones": culture.get('habilidades_puntuaciones', {}),
+        
+        # Special culture features
+        "mejora_noldor": culture.get('mejora_noldor', False),
+        "rasgos_culturales": culture.get('rasgos_culturales', []),
+        
         "paso_actual": 2,
         "updated_at": now_utc(),
     }
