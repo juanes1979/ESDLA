@@ -153,7 +153,7 @@ class CharacterCreateStep6(BaseModel):
 class CharacterCreateStep7(BaseModel):
     """Step 7: Equipment selection"""
     inventario: List[EquipmentItem] = []
-    dinero: Dict[str, int] = {"mp": 0, "mo": 0, "mc": 0}
+    dinero: Dict[str, int] = {"mp": 0, "mo": 0, "me": 0, "mc": 0}
 
 
 class CharacterCreateStep8(BaseModel):
