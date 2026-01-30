@@ -7,6 +7,7 @@ import HomePage from "@/pages/HomePage";
 import CharacterSheetPage from "@/pages/CharacterSheetPage";
 import CharactersListPage from "@/pages/CharactersListPage";
 import RulesPage from "@/pages/RulesPage";
+import InteractiveCharacterSheet from "@/pages/InteractiveCharacterSheet";
 import { CharacterCreatorWizard } from "@/components/character-creator";
 
 function App() {
@@ -17,6 +18,7 @@ function App() {
           <Route path="/" element={<HomePage />} />
           <Route path="/create-character" element={<CharacterCreatorWizard />} />
           <Route path="/character/:characterId" element={<CharacterSheetPage />} />
+          <Route path="/character/:characterId/sheet" element={<InteractiveCharacterSheet />} />
           <Route path="/characters" element={<CharactersListPage />} />
           <Route path="/rules" element={<RulesPage />} />
         </Routes>
