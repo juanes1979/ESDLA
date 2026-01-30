@@ -285,7 +285,11 @@ export const generateCharacterPDF = async (character) => {
     doc.text(`Virtud: ${character.virtud_nombre}`, margin, virtY);
     virtY += 8;
     if (character.rasgos_virtud) {
-      const virtDesc = doc.splitTextToSize(character.rasgos_virtud, pageWidth - 2 * margin);
+      // Handle rasgos_virtud whether it's a string or object
+      const virtText = typeof character.rasgos_virtud === 'string' 
+        ? character.rasgos_virtud 
+        : (character.rasgos_virtud.descripcion || JSON.stringify(character.rasgos_virtud));
+      const virtDesc = doc.splitTextToSize(virtText, pageWidth - 2 * margin);
       doc.setFontSize(7);
       doc.setTextColor(...textMuted);
       virtDesc.slice(0, 4).forEach((line, i) => {
