@@ -247,7 +247,7 @@ const Step1Culture = ({ draftId, draft, onComplete, onBack }) => {
     setCurrentSubStep(SUB_STEPS.ASSIGN_CHARACTERISTICS);
   };
 
-  // Roll 4d6 drop lowest
+  // Roll 4d6 drop lowest - minimum value is 8
   const rollDice = () => {
     const rolls = [];
     for (let i = 0; i < 6; i++) {
@@ -258,7 +258,10 @@ const Step1Culture = ({ draftId, draft, onComplete, onBack }) => {
         Math.floor(Math.random() * 6) + 1,
       ];
       dice.sort((a, b) => b - a);
-      rolls.push(dice[0] + dice[1] + dice[2]); // Drop lowest
+      let roll = dice[0] + dice[1] + dice[2]; // Drop lowest
+      // Minimum value is 8
+      if (roll < 8) roll = 8;
+      rolls.push(roll);
     }
     rolls.sort((a, b) => b - a);
     setDiceRolls(rolls);
@@ -1446,10 +1449,10 @@ const Step1Culture = ({ draftId, draft, onComplete, onBack }) => {
         {tool2Options.length > 0 && (
           <div className="card-parchment rounded-lg p-4">
             <h4 className="font-heading text-lg text-[hsl(var(--gold))] mb-2">
-              Herramientas Adicionales
+              Habilidades Culturales
             </h4>
             <p className="text-sm text-muted-foreground mb-4">
-              Elige hasta 2 herramientas:
+              Elige hasta 2 habilidades:
             </p>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
               {tool2Options.map((tool) => {
