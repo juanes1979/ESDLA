@@ -228,6 +228,20 @@ def extract_cultures_complete(wb: openpyxl.Workbook) -> List[Dict]:
             else:
                 culture["habilidades_puntuaciones"][nombre_hab] = 0
         
+        # CORRECTION: Fix Dunedain bonuses (Excel has error - should be +1 FUE, +1 CON, +1 SAB, +1 a elección)
+        if nombre == "Dunedain":
+            culture["bonificadores_caracteristicas"] = {
+                "fuerza": 1,
+                "destreza": 0,
+                "constitucion": 1,
+                "inteligencia": 0,
+                "sabiduria": 1,
+                "carisma": 0,
+            }
+            culture["bonificador_a_eleccion"] = True  # +1 to any characteristic of choice
+        else:
+            culture["bonificador_a_eleccion"] = False
+        
         cultures.append(culture)
     
     return cultures
