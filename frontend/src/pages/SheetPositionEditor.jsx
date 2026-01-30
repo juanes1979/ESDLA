@@ -19,20 +19,54 @@ const SHEET_HEIGHT = 2197;
 
 // Predefined field suggestions for quick selection
 const FIELD_SUGGESTIONS = [
+  // Datos básicos
   'nombre', 'jugador', 'ocupacion_nivel', 'cultura', 'rasgos_distintivos', 'experiencia', 'senda_sombra',
+  
+  // Atributos - valores y modificadores
   'fuerza_valor', 'fuerza_mod', 'destreza_valor', 'destreza_mod', 
   'constitucion_valor', 'constitucion_mod', 'inteligencia_valor', 'inteligencia_mod',
   'sabiduria_valor', 'sabiduria_mod', 'carisma_valor', 'carisma_mod',
+  
+  // Estadísticas de combate
   'inspiracion', 'bonificador_competencia', 'clase_armadura', 'iniciativa', 'velocidad',
-  'pg_max', 'pg_temp', 'pg_actual', 'dado_golpe',
+  'pg_max', 'pg_actual', 'pg_temp', 'dado_golpe',
+  
+  // Tiradas de salvación - valores
   'salvacion_fue', 'salvacion_des', 'salvacion_con', 'salvacion_int', 'salvacion_sab', 'salvacion_car',
+  // Tiradas de salvación - checkboxes de competencia (x si competente)
+  'comp_salvacion_fue', 'comp_salvacion_des', 'comp_salvacion_con', 
+  'comp_salvacion_int', 'comp_salvacion_sab', 'comp_salvacion_car',
+  
+  // Habilidades - valores
   'hab_acertijos', 'hab_acrobacias', 'hab_atletismo', 'hab_cazar', 'hab_engano',
   'hab_explorar', 'hab_interpretacion', 'hab_intimidacion', 'hab_investigacion',
   'hab_juego_manos', 'hab_medicina', 'hab_naturaleza', 'hab_percepcion',
   'hab_perspicacia', 'hab_persuasion', 'hab_saber_antiguo', 'hab_sigilo',
-  'hab_trato_animales', 'hab_viajar', 'percepcion_pasiva',
+  'hab_trato_animales', 'hab_viajar', 
+  
+  // Habilidades - checkboxes de competencia/pericia (x=competencia, P=pericia)
+  'comp_hab_acertijos', 'comp_hab_acrobacias', 'comp_hab_atletismo', 'comp_hab_cazar', 'comp_hab_engano',
+  'comp_hab_explorar', 'comp_hab_interpretacion', 'comp_hab_intimidacion', 'comp_hab_investigacion',
+  'comp_hab_juego_manos', 'comp_hab_medicina', 'comp_hab_naturaleza', 'comp_hab_percepcion',
+  'comp_hab_perspicacia', 'comp_hab_persuasion', 'comp_hab_saber_antiguo', 'comp_hab_sigilo',
+  'comp_hab_trato_animales', 'comp_hab_viajar',
+  
+  'percepcion_pasiva',
+  
+  // Sombra
   'sombra_puntuacion', 'sombra_cicatrices',
-  'trasfondo', 'rasgos_personalidad', 'equipo', 'monedas', 'ataques', 'virtudes',
+  
+  // Monedas - campos separados
+  'monedas_estano', 'monedas_cobre', 'monedas_plata', 'monedas_oro',
+  
+  // Equipo - 8 filas
+  'equipo_1', 'equipo_2', 'equipo_3', 'equipo_4', 'equipo_5', 'equipo_6', 'equipo_7', 'equipo_8',
+  
+  // Idiomas y herramientas - 6 filas
+  'idioma_herr_1', 'idioma_herr_2', 'idioma_herr_3', 'idioma_herr_4', 'idioma_herr_5', 'idioma_herr_6',
+  
+  // Otros
+  'trasfondo', 'rasgos_personalidad', 'ataques', 'virtudes',
 ];
 
 const SheetPositionEditor = () => {
