@@ -145,31 +145,104 @@ const CharacterSummary = ({ draft, onFinalize, onEdit, loading }) => {
             </div>
           </div>
 
-          {/* Skills */}
+          {/* Skills - Show ALL 19 skills with scores */}
           <div>
             <h3 className="font-heading text-lg text-[hsl(var(--gold))] mb-3">
               Habilidades
             </h3>
-            <div className="bg-secondary rounded-lg p-3">
-              <div className="flex flex-wrap gap-2">
-                {(draft.habilidades_elegidas || []).map((skill, i) => (
-                  <span
-                    key={i}
-                    className="px-2 py-1 rounded bg-[hsl(var(--gold))/20] text-[hsl(var(--gold))] text-sm"
-                  >
-                    {skill}
-                  </span>
-                ))}
-                {(draft.competencias_trasfondo?.habilidades || []).map((skill, i) => (
-                  <span
-                    key={`bg-${i}`}
-                    className="px-2 py-1 rounded bg-[hsl(var(--magic-blue))/20] text-[hsl(var(--magic-blue))] text-sm"
-                  >
-                    {skill}
-                  </span>
-                ))}
-              </div>
-            </div>
+            {(() => {
+              // All 19 skills in the game with their attribute
+              const ALL_SKILLS = [
+                { nombre: 'Acertijos', atributo: 'inteligencia' },
+                { nombre: 'Acrobacias', atributo: 'destreza' },
+                { nombre: 'Atletismo', atributo: 'fuerza' },
+                { nombre: 'Cazar', atributo: 'sabiduria' },
+                { nombre: 'Engaño', atributo: 'carisma' },
+                { nombre: 'Explorar', atributo: 'sabiduria' },
+                { nombre: 'Intimidación', atributo: 'carisma' },
+                { nombre: 'Investigación', atributo: 'inteligencia' },
+                { nombre: 'Juego de manos', atributo: 'destreza' },
+                { nombre: 'Percepción', atributo: 'sabiduria' },
+                { nombre: 'Perspicacia', atributo: 'sabiduria' },
+                { nombre: 'Persuasión', atributo: 'carisma' },
+                { nombre: 'Saber antiguo', atributo: 'inteligencia' },
+                { nombre: 'Saber de la naturaleza', atributo: 'inteligencia' },
+                { nombre: 'Sanación', atributo: 'sabiduria' },
+                { nombre: 'Sigilo', atributo: 'destreza' },
+                { nombre: 'Supervivencia', atributo: 'sabiduria' },
+                { nombre: 'Tradiciones', atributo: 'inteligencia' },
+                { nombre: 'Viajar', atributo: 'sabiduria' },
+              ];
+              
+              // Collect all competent skills
+              const competentSkillsRaw = [
+                ...(draft.competencias_habilidades_cultura || []),
+                ...(draft.competencia_habilidad_cultura ? [draft.competencia_habilidad_cultura] : []),
+                ...(draft.competencias_herramientas_2 || []),
+                ...(draft.competencias_trasfondo?.habilidades || []),
+                ...(draft.competencias_habilidades_trasfondo || []),
+                ...(draft.habilidades_elegidas_ocupacion || []),
+                ...(draft.habilidades_competencia || []),
+              ];
+              const cleanSkill = (s) => s?.split(' (')[0]?.trim()?.toLowerCase();
+              const competentSkills = new Set(competentSkillsRaw.map(cleanSkill).filter(Boolean));
+              
+              // Expertise skills
+              const expertiseSkillsRaw = draft.pericia_elegida || [];
+              const expertiseSkills = new Set(expertiseSkillsRaw.map(cleanSkill).filter(Boolean));
+              
+              // Get attributes
+              const attrs = draft.caracteristicas || draft.atributos_finales || {};
+              const profBonus = 2; // Level 1
+              
+              return (
+                <div className="bg-secondary rounded-lg p-4">
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                    {ALL_SKILLS.map((skill) => {
+                      const attrValue = attrs[skill.atributo] || 10;
+                      const attrMod = Math.floor((attrValue - 10) / 2);
+                      const isCompetent = competentSkills.has(skill.nombre.toLowerCase());
+                      const hasExpertise = expertiseSkills.has(skill.nombre.toLowerCase());
+                      
+                      let totalMod = attrMod;
+                      if (isCompetent) totalMod += profBonus;
+                      if (hasExpertise) totalMod += profBonus; // Double proficiency
+                      
+                      return (
+                        <div 
+                          key={skill.nombre}
+                          className={`p-2 rounded flex justify-between items-center ${
+                            hasExpertise 
+                              ? 'bg-[hsl(var(--magic-blue))/20] border border-[hsl(var(--magic-blue))]'
+                              : isCompetent 
+                                ? 'bg-[hsl(var(--gold))/20] border border-[hsl(var(--gold))]'
+                                : 'bg-black/10'
+                          }`}
+                        >
+                          <span className={`text-sm ${isCompetent ? 'font-medium' : 'text-muted-foreground'}`}>
+                            {hasExpertise && <Star className="w-3 h-3 inline mr-1 text-[hsl(var(--magic-blue))]" />}
+                            {skill.nombre}
+                          </span>
+                          <span className={`font-heading ${
+                            hasExpertise 
+                              ? 'text-[hsl(var(--magic-blue))]'
+                              : isCompetent 
+                                ? 'text-[hsl(var(--gold))]'
+                                : 'text-muted-foreground'
+                          }`}>
+                            {totalMod >= 0 ? '+' : ''}{totalMod}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <div className="mt-3 flex gap-4 text-xs text-muted-foreground justify-center">
+                    <span><span className="inline-block w-3 h-3 rounded bg-[hsl(var(--gold))/20] border border-[hsl(var(--gold))] mr-1"></span> Competencia</span>
+                    <span><span className="inline-block w-3 h-3 rounded bg-[hsl(var(--magic-blue))/20] border border-[hsl(var(--magic-blue))] mr-1"></span> Pericia</span>
+                  </div>
+                </div>
+              );
+            })()}
           </div>
         </div>
 
