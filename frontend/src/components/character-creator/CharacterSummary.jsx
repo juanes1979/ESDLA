@@ -604,9 +604,14 @@ const CharacterSummary = ({ draft, onFinalize, onEdit, loading }) => {
                   
                   {/* Thresholds */}
                   <div className="grid grid-cols-3 text-xs text-muted-foreground mb-2">
-                    <span>Cargado: {pesoCargado.toFixed(1)} kg</span>
-                    <span className="text-center">Muy Cargado: {pesoMuyCargado.toFixed(1)} kg</span>
-                    <span className="text-right">Máx: {capacidadCarga.toFixed(1)} kg</span>
+                    <span>Cargado: &gt;{pesoCargado.toFixed(0)} kg</span>
+                    <span className="text-center">Muy Cargado: &gt;{pesoMuyCargado.toFixed(0)} kg</span>
+                    <span className="text-right">Máx: {capacidadCarga.toFixed(0)} kg</span>
+                  </div>
+                  
+                  {/* Push/Drag capacity */}
+                  <div className="text-xs text-muted-foreground text-center mb-2">
+                    Empujar/Arrastrar/Levantar: {capacidadEmpujar.toFixed(0)} kg
                   </div>
                   
                   {/* Status */}
