@@ -361,12 +361,16 @@ async def update_draft_step3(draft_id: str, data: CharacterCreateStep3):
     
     # Consolidate all skill competencies from culture + background + occupation
     all_skill_competencies = []
-    # From culture
+    # From culture - automatic
     all_skill_competencies.extend(draft.get('competencias_habilidades_cultura', []))
+    # From culture - single choice
     if draft.get('competencia_habilidad_cultura'):
         all_skill_competencies.append(draft['competencia_habilidad_cultura'])
+    # From culture - "herramientas_2" which actually contains SKILLS for some cultures like Dunedain
+    all_skill_competencies.extend(draft.get('competencias_herramientas_2', []))
     # From background
     all_skill_competencies.extend(draft.get('competencias_trasfondo', {}).get('habilidades', []))
+    all_skill_competencies.extend(draft.get('competencias_habilidades_trasfondo', []))
     # From occupation (just selected)
     all_skill_competencies.extend(data.habilidades_elegidas)
     
