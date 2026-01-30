@@ -161,9 +161,9 @@ class CharacterCreateStep8(BaseModel):
 
 
 class CharacterCreateStep9(BaseModel):
-    """Step 9: Final details - Two distinctive traits"""
-    rasgo_distintivo: Optional[str] = None
-    rasgo_distintivo_2: Optional[str] = None  # Second distinctive trait (was "defecto")
+    """Step 9: Final details - Two distinctive traits with descriptions"""
+    rasgo_distintivo: Optional[Any] = None  # Can be string or {nombre, descripcion}
+    rasgo_distintivo_2: Optional[Any] = None
     motivacion: Optional[str] = None
     historia: Optional[str] = None
 
