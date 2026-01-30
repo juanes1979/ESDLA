@@ -1023,10 +1023,21 @@ const Step3Occupation = ({ draftId, draft, onComplete, onBack }) => {
     const pericia = occupationData.pericia;
     const maxExpertise = pericia?.cantidad || 2;
     
-    // Expertise can only be selected from already chosen skills
-    const availableForExpertise = selectedSkills.length > 0 
-      ? selectedSkills 
-      : pericia?.opciones || [];
+    // Expertise can ONLY be selected from skills where character ALREADY HAS COMPETENCY
+    // This includes: culture skills + background skills + occupation skills just selected
+    const allCompetentSkills = [
+      // Culture competencies
+      ...(draft?.competencias_habilidades_cultura || []),
+      ...(draft?.competencia_habilidad_cultura ? [draft.competencia_habilidad_cultura] : []),
+      // Background competencies
+      ...(draft?.competencias_habilidades_trasfondo || []),
+      // Occupation skills just selected
+      ...selectedSkills,
+    ];
+    
+    // Clean and dedupe
+    const cleanSkillName = (skill) => skill?.split(' (')[0]?.trim();
+    const uniqueSkills = [...new Set(allCompetentSkills.map(cleanSkillName))].filter(Boolean);
 
     return (
       <>
@@ -1035,7 +1046,7 @@ const Step3Occupation = ({ draftId, draft, onComplete, onBack }) => {
             Pericia
           </h2>
           <p className="text-muted-foreground text-sm max-w-2xl mx-auto">
-            {pericia?.descripcion}
+            Elige {maxExpertise} habilidades en las que YA tienes competencia para obtener pericia (x2 bonificador)
           </p>
         </div>
 
@@ -1049,7 +1060,7 @@ const Step3Occupation = ({ draftId, draft, onComplete, onBack }) => {
 
           <div className="flex justify-between items-center mb-4">
             <span className="text-sm text-muted-foreground">
-              Selecciona {maxExpertise} habilidades para pericia
+              Selecciona {maxExpertise} de tus habilidades competentes
             </span>
             <span className={cn(
               'text-sm font-medium',
@@ -1059,25 +1070,64 @@ const Step3Occupation = ({ draftId, draft, onComplete, onBack }) => {
             </span>
           </div>
 
-          <div className="grid md:grid-cols-2 gap-2">
-            {availableForExpertise.map(skill => {
-              const isSelected = selectedExpertise.includes(skill);
-              return (
-                <button
-                  key={skill}
-                  onClick={() => toggleExpertise(skill)}
-                  disabled={!isSelected && selectedExpertise.length >= maxExpertise}
-                  className={cn(
-                    'p-3 rounded-lg border text-left transition-all',
-                    isSelected 
-                      ? 'bg-[hsl(var(--magic-blue))/15] border-[hsl(var(--magic-blue))]' 
-                      : 'bg-secondary border-border hover:border-[hsl(var(--magic-blue))/50]'
-                  )}
-                >
-                  <div className="flex justify-between items-center">
-                    <div className="flex items-center gap-2">
-                      {isSelected && <Star className="w-4 h-4 text-[hsl(var(--magic-blue))]" />}
-                      <span className={cn(
+          {uniqueSkills.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-4">
+              No tienes habilidades competentes disponibles para pericia.
+            </p>
+          ) : (
+            <div className="grid md:grid-cols-2 gap-2">
+              {uniqueSkills.map(skill => {
+                const isSelected = selectedExpertise.includes(skill);
+                return (
+                  <button
+                    key={skill}
+                    onClick={() => toggleExpertise(skill)}
+                    disabled={!isSelected && selectedExpertise.length >= maxExpertise}
+                    className={cn(
+                      'p-3 rounded-lg border text-left transition-all',
+                      isSelected 
+                        ? 'bg-[hsl(var(--magic-blue))/15] border-[hsl(var(--magic-blue))]' 
+                        : 'bg-secondary border-border hover:border-[hsl(var(--magic-blue))/50]',
+                      !isSelected && selectedExpertise.length >= maxExpertise && 'opacity-50'
+                    )}
+                  >
+                    <div className="flex justify-between items-center">
+                      <div className="flex items-center gap-2">
+                        {isSelected && <Star className="w-4 h-4 text-[hsl(var(--magic-blue))]" />}
+                        <span className={cn(
+                          'font-medium',
+                          isSelected ? 'text-[hsl(var(--magic-blue))]' : 'text-foreground'
+                        )}>
+                          {skill}
+                        </span>
+                      </div>
+                      {isSelected && <Check className="w-4 h-4 text-[hsl(var(--magic-blue))]" />}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        <div className="flex justify-between pt-4">
+          <Button variant="ghost" onClick={goToPrevSubStep} className="text-muted-foreground">
+            <ChevronLeft className="w-4 h-4 mr-2" />
+            Atrás
+          </Button>
+          <Button
+            onClick={handleFinalSubmit}
+            disabled={selectedExpertise.length < maxExpertise || saving}
+            className="bg-[hsl(var(--gold))] hover:bg-[hsl(var(--gold-dim))] text-[hsl(var(--primary-foreground))] font-heading"
+          >
+            {saving && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
+            Finalizar Ocupación
+            <ChevronRight className="w-4 h-4 ml-2" />
+          </Button>
+        </div>
+      </>
+    );
+  };
                         'font-medium',
                         isSelected ? 'text-foreground' : 'text-muted-foreground'
                       )}>
