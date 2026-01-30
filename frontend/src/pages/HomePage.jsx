@@ -3,7 +3,7 @@
  * Three feature buttons only (no + Create Character button)
  */
 import { useNavigate } from 'react-router-dom';
-import { Scroll, BookOpen, Users } from 'lucide-react';
+import { Scroll, BookOpen, Users, FileText } from 'lucide-react';
 
 const HomePage = () => {
   const navigate = useNavigate();
