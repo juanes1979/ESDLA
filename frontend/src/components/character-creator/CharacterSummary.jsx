@@ -494,9 +494,9 @@ const CharacterSummary = ({ draft, onFinalize, onEdit, loading }) => {
               estorboColor = 'text-red-500';
               estorboPenalties = [
                 '−6 m velocidad',
-                'Desventaja en ataques (FUE/DES)',
-                'Desventaja en salvaciones (FUE/DES/CON)',
-                'Desventaja en pruebas de característica'
+                'Desventaja en ataques',
+                'Desventaja en salvaciones',
+                'Desventaja en pruebas de FUE/DES/CON'
               ];
             } else if (totalWeight > pesoCargado) {
               estorboStatus = 'Cargado';
