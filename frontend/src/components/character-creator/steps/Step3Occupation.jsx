@@ -378,48 +378,120 @@ const Step3Occupation = ({ draftId, draft, onComplete, onBack }) => {
         </p>
       </div>
 
-      <ScrollArea className="h-[400px] pr-4">
-        <div className="grid md:grid-cols-2 gap-4">
+      <ScrollArea className="h-[450px] pr-4">
+        <div className="space-y-3">
           {occupations.map(occ => {
             const Icon = OCCUPATION_ICONS[occ.vocacion] || Sword;
             const isSelected = selectedOccupation?.id === occ.id;
+            const isExpanded = expandedOccupation === occ.id;
             
             return (
-              <button
-                key={occ.id}
-                onClick={() => handleOccupationSelect(occ)}
-                className={cn(
-                  'selection-card rounded-lg p-4 text-left h-full',
-                  isSelected && 'selected'
-                )}
-                data-testid={`occupation-${occ.vocacion?.toLowerCase().replace(/\s/g, '-')}`}
-              >
-                <div className="flex items-center gap-3 mb-3">
-                  <div className={cn(
-                    'w-10 h-10 rounded-full flex items-center justify-center',
-                    isSelected ? 'bg-[hsl(var(--gold))/30]' : 'bg-secondary'
-                  )}>
-                    <Icon className={cn(
-                      'w-5 h-5',
-                      isSelected ? 'text-[hsl(var(--gold))]' : 'text-muted-foreground'
-                    )} />
+              <div key={occ.id} className="rounded-lg overflow-hidden">
+                <button
+                  onClick={() => handleOccupationSelect(occ)}
+                  className={cn(
+                    'w-full selection-card rounded-lg p-4 text-left',
+                    isSelected && 'selected'
+                  )}
+                  data-testid={`occupation-${occ.vocacion?.toLowerCase().replace(/\s/g, '-')}`}
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className={cn(
+                        'w-10 h-10 rounded-full flex items-center justify-center',
+                        isSelected ? 'bg-[hsl(var(--gold))/30]' : 'bg-secondary'
+                      )}>
+                        <Icon className={cn(
+                          'w-5 h-5',
+                          isSelected ? 'text-[hsl(var(--gold))]' : 'text-muted-foreground'
+                        )} />
+                      </div>
+                      <div>
+                        <h4 className="font-heading text-lg text-foreground">{occ.vocacion}</h4>
+                        <p className="text-xs text-muted-foreground">
+                          {occ.dado_golpe} · PG base: {occ.puntos_golpe_base}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {isSelected && <Check className="w-4 h-4 text-[hsl(var(--gold))]" />}
+                      {isExpanded ? <ChevronDown className="w-5 h-5" /> : <ChevronRight className="w-5 h-5" />}
+                    </div>
                   </div>
-                  <div>
-                    <h4 className="font-heading text-lg text-foreground">{occ.vocacion}</h4>
-                    <p className="text-xs text-muted-foreground">
-                      {occ.dado_golpe} · {occ.habilidades?.cantidad || 0} habilidades
-                    </p>
-                  </div>
-                </div>
+                </button>
                 
-                <div className="flex flex-wrap gap-1">
-                  {occ.caracteristicas_principales?.map(char => (
-                    <span key={char} className="text-xs px-2 py-0.5 rounded bg-[hsl(var(--magic-blue))/20] text-[hsl(var(--magic-blue))]">
-                      {char}
-                    </span>
-                  ))}
-                </div>
-              </button>
+                {/* Expanded occupation details */}
+                {isExpanded && (
+                  <div className="bg-black/20 p-4 border-t border-border/30 space-y-4">
+                    {/* Saving throws */}
+                    {occ.tiradas_salvacion?.length > 0 && (
+                      <div>
+                        <span className="text-[hsl(var(--gold))] text-sm font-heading">Tiradas de Salvación:</span>
+                        <div className="flex flex-wrap gap-2 mt-1">
+                          {occ.tiradas_salvacion.map((ts, i) => (
+                            <span key={i} className="text-xs bg-[hsl(var(--magic-blue))/20] text-[hsl(var(--magic-blue))] px-2 py-1 rounded">
+                              {ts}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    
+                    {/* Weapon proficiencies */}
+                    {occ.competencia_armas?.length > 0 && (
+                      <div>
+                        <span className="text-[hsl(var(--gold))] text-sm font-heading">Competencia con Armas:</span>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          {occ.competencia_armas.join(', ')}
+                        </p>
+                      </div>
+                    )}
+                    
+                    {/* Armor proficiencies */}
+                    {occ.competencia_armaduras?.length > 0 && (
+                      <div>
+                        <span className="text-[hsl(var(--gold))] text-sm font-heading">Competencia con Armaduras:</span>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          {occ.competencia_armaduras.join(', ')}
+                        </p>
+                      </div>
+                    )}
+                    
+                    {/* Main characteristics */}
+                    {occ.caracteristicas_principales?.length > 0 && (
+                      <div>
+                        <span className="text-[hsl(var(--gold))] text-sm font-heading">Características Principales:</span>
+                        <div className="flex flex-wrap gap-2 mt-1">
+                          {occ.caracteristicas_principales.map((char, i) => (
+                            <span key={i} className="text-xs bg-[hsl(var(--torch-orange))/20] text-[hsl(var(--torch-orange))] px-2 py-1 rounded">
+                              {char}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    
+                    {/* Shadow path */}
+                    {occ.senda_sombra && (
+                      <div className="bg-black/30 p-3 rounded">
+                        <span className="text-[hsl(var(--destructive))] text-sm font-heading">Senda de la Sombra:</span>
+                        <p className="text-xs text-muted-foreground mt-1">{occ.senda_sombra}</p>
+                        {occ.descripcion_senda && (
+                          <p className="text-xs text-muted-foreground/70 mt-1 italic">{occ.descripcion_senda}</p>
+                        )}
+                      </div>
+                    )}
+                    
+                    {/* Description */}
+                    {occ.descripcion && (
+                      <div>
+                        <span className="text-[hsl(var(--gold))] text-sm font-heading">Descripción:</span>
+                        <p className="text-xs text-muted-foreground mt-1">{occ.descripcion}</p>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
             );
           })}
         </div>
@@ -441,6 +513,126 @@ const Step3Occupation = ({ draftId, draft, onComplete, onBack }) => {
       </div>
     </>
   );
+
+  // Render tools selection (NEW)
+  const renderToolsSelection = () => {
+    const tools1 = occupationData.herramientas_1 || {};
+    const tools2 = occupationData.herramientas_2 || {};
+    
+    const maxTools1 = tools1.cantidad || 0;
+    const maxTools2 = tools2.cantidad || 0;
+    const options1 = tools1.opciones || [];
+    const options2 = tools2.opciones || [];
+
+    return (
+      <>
+        <div className="text-center">
+          <h2 className="font-heading text-2xl text-[hsl(var(--gold))] mb-2">
+            Herramientas de {occupationData.vocacion}
+          </h2>
+        </div>
+
+        {options1.length > 0 && (
+          <div className="card-parchment rounded-lg p-4 mb-4">
+            <p className="text-sm text-muted-foreground mb-4">{tools1.pregunta}</p>
+            <div className="flex justify-between items-center mb-4">
+              <span className="text-sm text-muted-foreground">
+                Selecciona {maxTools1} herramienta{maxTools1 > 1 ? 's' : ''}
+              </span>
+              <span className={cn(
+                'text-sm font-medium',
+                selectedTools1.length === maxTools1 ? 'text-[hsl(var(--gold))]' : 'text-muted-foreground'
+              )}>
+                {selectedTools1.length} / {maxTools1}
+              </span>
+            </div>
+            <div className="grid md:grid-cols-3 gap-2">
+              {options1.map(tool => {
+                const isSelected = selectedTools1.includes(tool);
+                return (
+                  <button
+                    key={tool}
+                    onClick={() => toggleTool1(tool)}
+                    disabled={!isSelected && selectedTools1.length >= maxTools1}
+                    className={cn(
+                      'selection-card p-3 rounded text-sm text-left',
+                      isSelected && 'selected',
+                      !isSelected && selectedTools1.length >= maxTools1 && 'opacity-50'
+                    )}
+                  >
+                    {tool}
+                    {isSelected && <Check className="w-4 h-4 inline ml-2" />}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {options2.length > 0 && (
+          <div className="card-parchment rounded-lg p-4">
+            <p className="text-sm text-muted-foreground mb-4">{tools2.pregunta}</p>
+            <div className="flex justify-between items-center mb-4">
+              <span className="text-sm text-muted-foreground">
+                Selecciona {maxTools2} herramienta{maxTools2 > 1 ? 's' : ''}
+              </span>
+              <span className={cn(
+                'text-sm font-medium',
+                selectedTools2.length === maxTools2 ? 'text-[hsl(var(--gold))]' : 'text-muted-foreground'
+              )}>
+                {selectedTools2.length} / {maxTools2}
+              </span>
+            </div>
+            <div className="grid md:grid-cols-3 gap-2">
+              {options2.map(tool => {
+                const isSelected = selectedTools2.includes(tool);
+                return (
+                  <button
+                    key={tool}
+                    onClick={() => toggleTool2(tool)}
+                    disabled={!isSelected && selectedTools2.length >= maxTools2}
+                    className={cn(
+                      'selection-card p-3 rounded text-sm text-left',
+                      isSelected && 'selected',
+                      !isSelected && selectedTools2.length >= maxTools2 && 'opacity-50'
+                    )}
+                  >
+                    {tool}
+                    {isSelected && <Check className="w-4 h-4 inline ml-2" />}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {occupationData.herramienta_adicional && (
+          <div className="card-parchment rounded-lg p-4 mt-4">
+            <span className="text-[hsl(var(--gold))] text-sm font-heading">Herramienta adicional (automática):</span>
+            <p className="text-sm text-muted-foreground mt-1">{occupationData.herramienta_adicional}</p>
+          </div>
+        )}
+
+        <div className="flex justify-between pt-4">
+          <Button variant="ghost" onClick={goToPrevSubStep} className="text-muted-foreground">
+            <ChevronLeft className="w-4 h-4 mr-2" />
+            Atrás
+          </Button>
+          <Button
+            onClick={goToNextSubStep}
+            disabled={
+              (options1.length > 0 && selectedTools1.length < maxTools1) ||
+              (options2.length > 0 && selectedTools2.length < maxTools2)
+            }
+            className="bg-[hsl(var(--gold))] hover:bg-[hsl(var(--gold-dim))] text-[hsl(var(--primary-foreground))] font-heading"
+          >
+            Continuar
+            <ChevronRight className="w-4 h-4 ml-2" />
+          </Button>
+        </div>
+      </>
+    );
+  };
 
   // Render skills selection
   const renderSkillsSelection = () => {
