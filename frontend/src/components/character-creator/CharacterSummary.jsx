@@ -139,7 +139,9 @@ const CharacterSummary = ({ draft, onFinalize, onEdit, loading }) => {
                 <p className="text-foreground">{draft.virtud_nombre}</p>
                 {draft.rasgos_virtud && (
                   <p className="text-xs text-muted-foreground mt-1">
-                    {draft.rasgos_virtud.substring(0, 100)}...
+                    {typeof draft.rasgos_virtud === 'string' 
+                      ? draft.rasgos_virtud.substring(0, 100) 
+                      : JSON.stringify(draft.rasgos_virtud).substring(0, 100)}...
                   </p>
                 )}
               </div>
