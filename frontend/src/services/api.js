@@ -98,6 +98,14 @@ export const getEquipmentLists = async () => {
   return response.data;
 };
 
+export const getEquipmentCatalog = async (categoria = null, search = null) => {
+  const params = {};
+  if (categoria) params.categoria = categoria;
+  if (search) params.search = search;
+  const response = await api.get('/data/equipment-catalog', { params });
+  return response.data;
+};
+
 export const getCultureNames = async (cultura) => {
   const response = await api.get(`/data/names/${encodeURIComponent(cultura)}`);
   return response.data;
