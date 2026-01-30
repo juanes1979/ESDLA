@@ -139,3 +139,38 @@ Build a comprehensive web application to play a modified version of the "Lord of
 5. Improved occupation display in RulesPage with expandable cards
 6. Fixed CharacterSheetPage.jsx proficiencies display with occupation fallback
 7. All tests passing (16/16 backend, 100% frontend)
+
+## Session Changelog (2026-01-31)
+### Bug Fixes Verified by Testing Agent:
+1. **Sheet Editor X/Y Position Editing** - FIXED
+   - Added editable X and Y number inputs for each field position
+   - Location: `/app/frontend/src/pages/SheetPositionEditor.jsx` lines 506-526
+
+2. **Sheet Editor Save Without Export** - FIXED
+   - Added "Guardar" button to save positions to localStorage
+   - Added "Cargar JSON" button to load positions from file
+   - Location: `/app/frontend/src/pages/SheetPositionEditor.jsx` lines 69-73, 299-308
+
+3. **Wealth Level Money Addition** - FIXED
+   - Common (Común): Now adds 15mp 
+   - Prosperous (Próspero): Now adds 20mp
+   - Location: `/app/frontend/src/components/character-creator/steps/Step7Equipment.jsx` lines 45, 66
+
+4. **Background Equipment (Games/Instruments)** - FIXED
+   - Selected tools (cartas de Barliman, instruments) now added to equipo_trasfondo
+   - Location: `/app/frontend/src/components/character-creator/steps/Step2Background.jsx` lines 89-103
+   - Backend: `/app/backend/routes/character_routes.py` line 320
+
+5. **Missing 'me' (Tin Coins) in Currency** - FIXED
+   - Added 'me' field to all dinero models in backend
+   - CharacterSummary displays all 4 currency types: mp, mo, me, mc
+   - Location: `/app/backend/routes/character_routes.py` lines 157, 184, 678
+
+6. **Skills Duplicate on Back Navigation** - ADDRESSED
+   - Added draft refresh on back navigation to prevent accumulation
+   - Location: `/app/frontend/src/components/character-creator/CharacterCreatorWizard.jsx` lines 92-110
+
+### Test Report
+- `/app/test_reports/iteration_7.json` - All 5 bugs verified fixed
+- Backend: 100% (4/4 tests passed)
+- Frontend: 100% (all UI verifications passed)
