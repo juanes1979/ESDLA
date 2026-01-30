@@ -362,10 +362,15 @@ const Step1Culture = ({ draftId, draft, onComplete, onBack }) => {
     setError(null);
     
     try {
-      // Calculate final characteristics with Noldor bonus
+      // Calculate final characteristics with bonuses
       const finalCaracteristicas = { ...caracteristicas };
+      // Noldor bonus (existing)
       if (noldorBonus) {
         finalCaracteristicas[noldorBonus] += 1;
+      }
+      // Free extra improvement (Dunedain)
+      if (mejoraExtraLibre) {
+        finalCaracteristicas[mejoraExtraLibre] += 1;
       }
       
       const updateData = {
@@ -392,6 +397,7 @@ const Step1Culture = ({ draftId, draft, onComplete, onBack }) => {
         // Characteristics
         caracteristicas: finalCaracteristicas,
         mejora_noldor: noldorBonus,
+        mejora_extra_libre: mejoraExtraLibre, // Free choice bonus
         
         // Skills and competencies
         habilidades_puntuaciones: selectedCulture.habilidades_puntuaciones,
