@@ -683,24 +683,35 @@ const Step3Occupation = ({ draftId, draft, onComplete, onBack }) => {
     const question = occupationData.habilidades?.pregunta || 'Elige tus habilidades:';
     const allOptions = occupationData.habilidades?.opciones || [];
     
-    // CRITICAL: Filter out already acquired skills from culture and background
-    // This prevents selecting the same skill twice
-    const existingSkills = [
-      // From culture
+    // CRITICAL: Collect ALL existing skills from culture and background
+    // These should NOT be available for selection
+    const existingSkillsRaw = [
+      // From culture - automatic competencies
       ...(draft?.competencias_habilidades_cultura || []),
+      // From culture - chosen skill competency
       ...(draft?.competencia_habilidad_cultura ? [draft.competencia_habilidad_cultura] : []),
-      // From background
+      // From culture - selected cultural skills (tool2 options which are actually skills in some cultures)
+      ...(draft?.herramientas_elegidas_cultura_2 || []),
+      // From background - automatic competencies
+      ...(draft?.competencias_trasfondo?.habilidades || []),
+      // From background - chosen skill competencies
       ...(draft?.competencias_habilidades_trasfondo || []),
-      // Also check the consolidated field if exists
+      // Consolidated field if exists
       ...(draft?.habilidades_competencia || []),
     ];
     
-    // Clean skill names for comparison (remove attribute in parenthesis)
-    const cleanSkillName = (skill) => skill?.split(' (')[0]?.trim().toLowerCase();
-    const existingClean = existingSkills.map(cleanSkillName).filter(Boolean);
+    // Clean and dedupe for display
+    const cleanSkillName = (skill) => skill?.split(' (')[0]?.trim();
+    const uniqueExistingSkills = [...new Set(existingSkillsRaw.map(cleanSkillName))].filter(Boolean);
+    
+    // For comparison (case insensitive)
+    const existingClean = uniqueExistingSkills.map(s => s.toLowerCase());
     
     // Filter available options - exclude already acquired skills
-    const options = allOptions.filter(skill => !existingClean.includes(cleanSkillName(skill)));
+    const options = allOptions.filter(skill => {
+      const cleanName = cleanSkillName(skill)?.toLowerCase();
+      return cleanName && !existingClean.includes(cleanName);
+    });
 
     return (
       <>
@@ -711,13 +722,20 @@ const Step3Occupation = ({ draftId, draft, onComplete, onBack }) => {
           <p className="text-muted-foreground text-sm max-w-2xl mx-auto">
             {question}
           </p>
-          {existingSkills.length > 0 && (
-            <div className="mt-3 p-2 bg-[hsl(var(--torch-orange))/10] rounded-lg">
-              <p className="text-xs text-[hsl(var(--torch-orange))]">
-                ⚠️ Ya tienes competencia en: {[...new Set(existingSkills)].join(', ')}
+          {uniqueExistingSkills.length > 0 && (
+            <div className="mt-3 p-3 bg-[hsl(var(--magic-blue))/10] rounded-lg border border-[hsl(var(--magic-blue))/30]">
+              <p className="text-sm text-[hsl(var(--magic-blue))] font-medium mb-1">
+                ✓ Ya tienes competencia en:
               </p>
-              <p className="text-xs text-muted-foreground mt-1">
-                (Estas habilidades no se muestran para evitar duplicados)
+              <div className="flex flex-wrap gap-1 justify-center">
+                {uniqueExistingSkills.map((skill, i) => (
+                  <span key={i} className="text-xs px-2 py-1 rounded bg-[hsl(var(--magic-blue))/20] text-[hsl(var(--magic-blue))]">
+                    {skill}
+                  </span>
+                ))}
+              </div>
+              <p className="text-xs text-muted-foreground mt-2">
+                (No se muestran abajo para evitar duplicados)
               </p>
             </div>
           )}
