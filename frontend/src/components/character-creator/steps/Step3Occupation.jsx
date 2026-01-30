@@ -988,7 +988,7 @@ const Step3Occupation = ({ draftId, draft, onComplete, onBack }) => {
         </div>
 
         {isABType ? (
-          // A/B type weapon selection
+          // A/B type weapon selection (both 'ab' and 'ab_complex')
           <div className="space-y-4">
             <div className="grid md:grid-cols-2 gap-4">
               {/* Option A */}
@@ -1003,14 +1003,23 @@ const Step3Occupation = ({ draftId, draft, onComplete, onBack }) => {
                   <span className="font-heading text-lg text-[hsl(var(--gold))]">Opción A</span>
                   {currentSelection === 'A' && <CheckCircle className="w-5 h-5 text-[hsl(var(--gold))]" />}
                 </div>
-                <div className="space-y-2">
-                  {currentArma.opcion_a?.map((item, i) => (
-                    <div key={i} className="flex items-center gap-2">
-                      <Sword className="w-4 h-4 text-muted-foreground" />
-                      <span className="text-foreground">{item}</span>
-                    </div>
-                  ))}
-                </div>
+                {isComplexType ? (
+                  <div className="space-y-2">
+                    <p className="text-sm text-muted-foreground">Elige 1 arma marcial + {currentArma.opcion_a?.extra_siempre || 'Escudo'}</p>
+                    <p className="text-xs text-[hsl(var(--magic-blue))]">
+                      Se añadirá automáticamente: {currentArma.opcion_a?.extra_siempre || 'Escudo'}
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {(Array.isArray(currentArma.opcion_a) ? currentArma.opcion_a : []).map((item, i) => (
+                      <div key={i} className="flex items-center gap-2">
+                        <Sword className="w-4 h-4 text-muted-foreground" />
+                        <span className="text-foreground">{item}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </button>
 
               {/* Option B */}
@@ -1023,18 +1032,21 @@ const Step3Occupation = ({ draftId, draft, onComplete, onBack }) => {
               >
                 <div className="flex items-center justify-between mb-4">
                   <span className="font-heading text-lg text-[hsl(var(--gold))]">
-                    Opción B (elige {currentArma.cantidad_b})
+                    Opción B {!isComplexType && `(elige ${currentArma.cantidad_b})`}
                   </span>
                   {currentSelection === 'B' && <CheckCircle className="w-5 h-5 text-[hsl(var(--gold))]" />}
                 </div>
                 <p className="text-sm text-muted-foreground">
-                  Elige de la lista de abajo
+                  {isComplexType 
+                    ? 'Elige 1 arma marcial + 1 arma sencilla'
+                    : 'Elige de la lista de abajo'
+                  }
                 </p>
               </button>
             </div>
 
-            {/* B items selection */}
-            {currentSelection === 'B' && (
+            {/* Simple ab type - B items selection */}
+            {!isComplexType && currentSelection === 'B' && (
               <div className="card-parchment rounded-lg p-4">
                 <div className="flex justify-between items-center mb-3">
                   <span className="text-sm text-muted-foreground">
@@ -1048,7 +1060,7 @@ const Step3Occupation = ({ draftId, draft, onComplete, onBack }) => {
                   </span>
                 </div>
                 <div className="grid md:grid-cols-2 gap-2">
-                  {currentArma.opcion_b?.map((item, i) => {
+                  {(Array.isArray(currentArma.opcion_b) ? currentArma.opcion_b : []).map((item, i) => {
                     const isSelected = currentBItems.includes(item);
                     return (
                       <button
@@ -1071,6 +1083,138 @@ const Step3Occupation = ({ draftId, draft, onComplete, onBack }) => {
                       </button>
                     );
                   })}
+                </div>
+              </div>
+            )}
+
+            {/* Complex ab_complex type - Option A items selection */}
+            {isComplexType && currentSelection === 'A' && (
+              <div className="card-parchment rounded-lg p-4">
+                <div className="flex justify-between items-center mb-3">
+                  <span className="text-sm text-muted-foreground">
+                    Elige 1 arma marcial cuerpo a cuerpo
+                  </span>
+                  <span className={cn(
+                    'text-sm font-medium',
+                    currentAItems.length >= 1 ? 'text-[hsl(var(--gold))]' : 'text-muted-foreground'
+                  )}>
+                    {currentAItems.length} / 1
+                  </span>
+                </div>
+                <div className="grid md:grid-cols-2 gap-2">
+                  {(currentArma.opcion_a?.opciones || []).map((item, i) => {
+                    const isSelected = currentAItems.includes(item);
+                    return (
+                      <button
+                        key={i}
+                        onClick={() => handleComplexWeaponSelection(currentWeaponIndex, 'a_items', item)}
+                        className={cn(
+                          'p-3 rounded-lg border text-left transition-all',
+                          isSelected 
+                            ? 'bg-[hsl(var(--gold))/15] border-[hsl(var(--gold))]' 
+                            : 'bg-secondary border-border hover:border-[hsl(var(--gold))/50]'
+                        )}
+                      >
+                        <div className="flex justify-between items-center">
+                          <span className={isSelected ? 'text-foreground' : 'text-muted-foreground'}>
+                            {item}
+                          </span>
+                          {isSelected && <CheckCircle className="w-4 h-4 text-[hsl(var(--gold))]" />}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+                {currentAItems.length >= 1 && (
+                  <div className="mt-3 bg-[hsl(var(--magic-blue))/10] rounded-lg p-3">
+                    <p className="text-sm text-[hsl(var(--magic-blue))]">
+                      <Shield className="w-4 h-4 inline mr-2" />
+                      Se añadirá automáticamente: <strong>{currentArma.opcion_a?.extra_siempre || 'Escudo'}</strong>
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Complex ab_complex type - Option B items selection */}
+            {isComplexType && currentSelection === 'B' && (
+              <div className="space-y-4">
+                {/* First weapon choice - Martial */}
+                <div className="card-parchment rounded-lg p-4">
+                  <div className="flex justify-between items-center mb-3">
+                    <span className="text-sm text-muted-foreground">
+                      Elige 1 arma marcial cuerpo a cuerpo
+                    </span>
+                    <span className={cn(
+                      'text-sm font-medium',
+                      currentB1Items.length >= 1 ? 'text-[hsl(var(--gold))]' : 'text-muted-foreground'
+                    )}>
+                      {currentB1Items.length} / 1
+                    </span>
+                  </div>
+                  <div className="grid md:grid-cols-2 gap-2">
+                    {(currentArma.opcion_b?.opciones_1 || []).map((item, i) => {
+                      const isSelected = currentB1Items.includes(item);
+                      return (
+                        <button
+                          key={i}
+                          onClick={() => handleComplexWeaponSelection(currentWeaponIndex, 'b1_items', item)}
+                          className={cn(
+                            'p-3 rounded-lg border text-left transition-all',
+                            isSelected 
+                              ? 'bg-[hsl(var(--gold))/15] border-[hsl(var(--gold))]' 
+                              : 'bg-secondary border-border hover:border-[hsl(var(--gold))/50]'
+                          )}
+                        >
+                          <div className="flex justify-between items-center">
+                            <span className={isSelected ? 'text-foreground' : 'text-muted-foreground'}>
+                              {item}
+                            </span>
+                            {isSelected && <CheckCircle className="w-4 h-4 text-[hsl(var(--gold))]" />}
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Second weapon choice - Simple */}
+                <div className="card-parchment rounded-lg p-4">
+                  <div className="flex justify-between items-center mb-3">
+                    <span className="text-sm text-muted-foreground">
+                      Elige 1 arma sencilla cuerpo a cuerpo
+                    </span>
+                    <span className={cn(
+                      'text-sm font-medium',
+                      currentB2Items.length >= 1 ? 'text-[hsl(var(--gold))]' : 'text-muted-foreground'
+                    )}>
+                      {currentB2Items.length} / 1
+                    </span>
+                  </div>
+                  <div className="grid md:grid-cols-2 gap-2">
+                    {(currentArma.opcion_b?.opciones_2 || []).map((item, i) => {
+                      const isSelected = currentB2Items.includes(item);
+                      return (
+                        <button
+                          key={i}
+                          onClick={() => handleComplexWeaponSelection(currentWeaponIndex, 'b2_items', item)}
+                          className={cn(
+                            'p-3 rounded-lg border text-left transition-all',
+                            isSelected 
+                              ? 'bg-[hsl(var(--gold))/15] border-[hsl(var(--gold))]' 
+                              : 'bg-secondary border-border hover:border-[hsl(var(--gold))/50]'
+                          )}
+                        >
+                          <div className="flex justify-between items-center">
+                            <span className={isSelected ? 'text-foreground' : 'text-muted-foreground'}>
+                              {item}
+                            </span>
+                            {isSelected && <CheckCircle className="w-4 h-4 text-[hsl(var(--gold))]" />}
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
               </div>
             )}
