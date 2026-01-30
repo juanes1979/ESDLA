@@ -1397,7 +1397,7 @@ const Step1Culture = ({ draftId, draft, onComplete, onBack }) => {
               Competencia de Habilidad
             </h4>
             <p className="text-sm text-muted-foreground mb-4">
-              "Saber de los elfos/bosques. Tienes competencia en una de las siguientes:"
+              Saber de los elfos/bosques. Tienes competencia en una de las siguientes:
             </p>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
               {skillOptions.map((skill) => (
@@ -1423,7 +1423,7 @@ const Step1Culture = ({ draftId, draft, onComplete, onBack }) => {
               Competencia de Herramienta
             </h4>
             <p className="text-sm text-muted-foreground mb-4">
-              "Tus primeros años no han sido ociosos. Elige una:"
+              Tus primeros años no han sido ociosos. Elige una:
             </p>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
               {tool1Options.map((tool) => (
