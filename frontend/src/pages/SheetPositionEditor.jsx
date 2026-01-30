@@ -45,7 +45,71 @@ const SheetPositionEditor = () => {
   const [showSuggestions, setShowSuggestions] = useState(null);
   const [showMarkers, setShowMarkers] = useState(true);
   const [showTextFields, setShowTextFields] = useState(true);
+  const [saveStatus, setSaveStatus] = useState(null); // 'saved', 'loaded', null
   const containerRef = useRef(null);
+
+  // Load saved positions from localStorage on mount
+  useEffect(() => {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setPositions(parsed);
+          setSaveStatus('loaded');
+          setTimeout(() => setSaveStatus(null), 2000);
+        }
+      } catch (e) {
+        console.error('Error loading saved positions:', e);
+      }
+    }
+  }, []);
+
+  // Save positions to localStorage
+  const saveToLocalStorage = () => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(positions));
+    setSaveStatus('saved');
+    setTimeout(() => setSaveStatus(null), 2000);
+  };
+
+  // Load positions from file
+  const loadFromFile = (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const data = JSON.parse(e.target.result);
+        // Convert from export format back to internal format
+        const loaded = [];
+        let id = Date.now();
+        Object.entries(data).forEach(([pageKey, fields]) => {
+          const pageNum = parseInt(pageKey.replace('page', ''));
+          fields.forEach((field) => {
+            loaded.push({
+              id: id++,
+              x: field.x,
+              y: field.y,
+              page: pageNum,
+              fieldName: field.field,
+              width: field.width || 150,
+              fontSize: field.fontSize || 16,
+              previewText: '',
+              align: field.align || 'left',
+            });
+          });
+        });
+        setPositions(loaded);
+        setSaveStatus('loaded');
+        setTimeout(() => setSaveStatus(null), 2000);
+      } catch (err) {
+        alert('Error al cargar el archivo JSON');
+      }
+    };
+    reader.readAsText(file);
+    event.target.value = ''; // Reset input
+  };
 
   // Handle click on sheet
   const handleSheetClick = (e) => {
