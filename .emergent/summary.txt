@@ -2,106 +2,90 @@
 The user wants to build a comprehensive web application to play a modified version of the Lord of the Rings 5e tabletop role-playing game. The application must be based on the user's detailed Excel file ().
 
 **PRODUCT REQUIREMENTS:**
-The primary goal is to build a highly-detailed, multi-phase character creator that strictly follows the rules and logic defined by the user in a definitive, step-by-step plan. The application must guide the user through four phases: Culture, Background, Occupation, and Virtue. The final output will be a 3-page printable PDF character sheet.
+The primary goal is to build a highly-detailed, multi-phase character creator that strictly follows the rules and logic defined by the user. The application must guide the user through four phases: Culture, Background, Occupation, and Virtue. The final output will be a 3-page printable PDF character sheet that is visually identical to the user-provided design.
 
-The core requirements are dictated by the user's PLAN COMPLETO DE CREACIÓN DE PERSONAJE - VERSIÓN FINAL message, which is the single source of truth for the implementation. This includes complex logic for selections, auto-generated attributes, conditional steps, and exclusion rules (e.g., not selecting the same skill proficiency twice).
+The application must also include a full user authentication system, a page to view and manage all created characters, and a rules reference section. All imperial measurements must be converted to the metric system.
 
 **User's preferred language**: Español
 
 **what currently exists?**
-The initial data extraction and database seeding issues have been resolved. A new, comprehensive data extractor () is working correctly, and the MongoDB database has been populated with the correct data structure via a new seeding script.
+The application is a full-stack React/FastAPI project with a partially implemented character creator. The backend data extraction from the user's Excel file has been significantly improved, fixing the root cause of many recurring UI bugs. Cultural bonuses and occupation features (like complex weapon choices) are now working correctly.
 
-The frontend has seen significant progress:
-- The  is structured as per the user's request, with three main navigation cards (Creator, Rules, Online Game) and uses custom images for each race.
-- A  has been created to display game data (Cultures, Occupations, etc.) fetched from the backend.
-- **Phase 1 (Culture) is largely complete.** The  component has been completely rewritten into a multi-step wizard that follows the user's detailed plan. It includes:
-    1. Race/Culture selection with expandable cards.
-    2. A new sub-step for assigning base characteristics (Array, Point-Buy, or Dice Roll).
-    3. An auto-generation step for physical attributes (name, age, appearance).
-    4. A summary of calculated stats, skills, traits, and languages.
-    5. A final selection step for cultural proficiencies.
-- The core logic to transition from Phase 1 to Phase 2 is functional.
+A new core feature has been added: a page to list all created characters (), which includes multi-select and a robust delete confirmation flow.
+
+Most importantly, a new system for the final character sheet is in progress. It consists of:
+1.  An  page that uses the user's official sheet images as a background and overlays HTML fields on top.
+2.  A  page () that allows the user to click anywhere on the sheet images, name the field, and export a JSON file with the precise coordinates. This gives the user full control over the final layout.
 
 **Last working item**:
--   **Last item agent was working:** The agent was addressing several critical bugs and feature gaps in **Phase 3 (Occupation)**, as reported by the user. Specifically, the user pointed out that the Pericia (Expertise) selection was incorrect, skill choices were not being filtered, a tool selection step was missing, and the UI needed to show more detail upfront. The agent had just implemented a new sub-step for character stat allocation in Phase 1 as per user's request and was beginning the refactor of .
+-   **Last item agent was working:** Improving the . The user provided their first batch of JSON coordinates and requested the ability to preview text in a specific font (Ink Free or similar) directly within the editor. The agent successfully implemented this feature using the Caveat font and made the preview fields editable.
 -   **Status:** IN PROGRESS
--   **Agent Testing Done:** N
--   **Which testing method agent to use?** Frontend testing agent. Once the issues in  are resolved, a full test of the character creation flow from Phase 1 through Phase 3 is required.
+-   **Agent Testing Done:** N (The agent has not yet applied the user-provided JSON to the actual  component).
+-   **Which testing method agent to use?** Frontend testing agent. After applying the user's JSON layout data to , a full visual test will be needed to verify the placement and functionality of all fields.
 -   **User Testing Done:** N
 
 **All Pending/In progress Issue list**:
--   **Issue 1: Incorrect Pericia (Expertise) Logic (P0)**
-    -   **Description:** In the Occupation phase, the Buscador de tesoros (Explorer) has a special feature called Pericia where the player chooses two skills to gain expertise in. The current implementation offers all skills. The user explicitly stated (with an image) that this choice **must be limited to skills in which the character is already proficient**.
-    -   **Attempted fixes:** The agent was in the process of refactoring  but had not yet implemented this specific correction.
-    -   **Next debug checklist:**
-        1.  In , locate the  function (or equivalent).
-        2.  Filter the list of skills offered for Pericia to include only those present in the  array. This array consolidates all skill proficiencies from previous steps.
-    -   **Why fix this issue and what will be achieved with the fix?** This is a core game rule. Fixing it ensures the character progression is valid.
-    -   **Status:** NOT STARTED
-    -   **Is recurring issue?** N
+-   **Issue 1: Misaligned Hobbit Skill Proficiencies (P0)**
+    -   **Description:** The user reported that a Hobbit Albo character did not correctly receive the Sigilo (Stealth) proficiency from their culture. The agent discovered the data extractor was reading the wrong rows in the Excel file for all cultural skill proficiencies.
+    -   **Attempted fixes:** The agent corrected the logic in  to read rows 34-52 for skill proficiencies and confirmed the fix by checking the generated data and reseeding the database.
+    -   **Next debug checklist:** The fix seems complete, but it needs to be verified by creating a new Hobbit character and checking if the Sigilo proficiency appears correctly throughout the creation process and on the final summary.
+    -   **Why fix this issue and what will be achieved with the fix?** Ensures a core game mechanic (cultural proficiencies) works as intended.
+    -   **Status:** USER VERIFICATION PENDING
+    -   **Is recurring issue?** Y
     -   **Should Test frontend/backend/both after fix?** Frontend
 
--   **Issue 2: Occupation Skill Choices are Not Filtered (P0)**
-    -   **Description:** When the user gets to the Habilidades a elegir (Choose Skills) sub-step in the Occupation phase, the list of available skills includes skills the character has already gained proficiency in from their Culture and Background. This should not happen, as proficiency cannot be gained twice.
-    -   **Attempted fixes:** The agent started a refactor which included adding a filter, but it's not confirmed to be working correctly.
-    -   **Next debug checklist:**
-        1.  In , find where the skill options for the occupation are rendered ().
-        2.  Before rendering the list, filter out any skill that already exists in the  array.
-    -   **Why fix this issue and what will be achieved with the fix?** Prevents wasted skill choices and enforces a fundamental game rule.
-    -   **Status:** IN PROGRESS
-    -   **Is recurring issue?** Y
-
--   **Issue 3: Missing Occupation Tool Selection Step (P0)**
-    -   **Description:** The user reported that the flow skips from skill selection directly to armor/weapons, completely missing the step where the user chooses tool proficiencies for their occupation.
-    -   **Attempted fixes:** The agent started adding state and navigation logic for a  sub-step within .
-    -   **Next debug checklist:**
-        1.  Finalize the implementation of the  sub-step in .
-        2.  Ensure the sub-step navigation correctly flows from  ->  -> .
-        3.  Implement the UI for selecting tools based on the data in  and .
-    -   **Why fix this issue and what will be achieved with the fix?** Implements a missing, required part of the character creation process.
-    -   **Status:** IN PROGRESS
+-   **Issue 2: Incorrect Weapon Selection for Guardian Occupation (P1)**
+    -   **Description:** When selecting the Guardian occupation, the UI did not display the weapon choice options correctly. This was due to an unhandled  weapon type.
+    -   **Attempted fixes:** The agent refactored the weapon selection logic in  to correctly parse and display  choices. The fix was verified with the testing agent.
+    -   **Why fix this issue and what will be achieved with the fix?** Allows players to correctly choose their starting equipment for the Guardian occupation.
+    -   **Status:** RESOLVED
     -   **Is recurring issue?** N
-
--   **Issue 4: Incomplete Occupation Selection UI (P1)**
-    -   **Description:** When selecting an occupation (e.g., Campeón), the UI should expand to show all the fixed information about that occupation (saving throw proficiencies, weapon/armor proficiencies, descriptions, etc.) *before* the user clicks Continue to proceed to the choices.
-    -   **Attempted fixes:** The agent began rewriting the  function to use an accordion or expandable card style.
-    -   **Next debug checklist:**
-        1.  Complete the UI refactor in  inside .
-        2.  Ensure that clicking an occupation card expands it to show all static details fetched from the database.
-        3.  The Continue button should only become active after an occupation is selected.
-    -   **Why fix this issue and what will be achieved with the fix?** Improves user experience by providing necessary information at the point of decision.
-    -   **Status:** IN PROGRESS
-    -   **Is recurring issue?** N
+    -   **Should Test frontend/backend/both after fix?** None
 
 **In progress Task List**:
--   **Task 1: Complete Refactor of the Character Creator Wizard (P0)**
-    -   **Where to resume:** Resume work in  to address the four pending issues listed above. The immediate next action is to fix the Pericia logic (Issue 1).
-    -   **What will be achieved with this?** A functional Phase 3 (Occupation) that correctly handles all player choices and adheres to the game's rules.
+-   **Task 1: Apply User-Defined Layout to Interactive Sheet (P0)**
+    -   **Where to resume:** .
+    -   **What will be achieved with this?** The agent will take the JSON output generated by the user from the  and use it to position all data fields correctly on the three pages of the interactive character sheet. The user has provided the first batch of coordinates.
     -   **Status:** IN PROGRESS
     -   **Should Test frontend/backend/both after fix?** Frontend
-    -   **Blocked on something:** No.
+    -   **Blocked on something:** Waiting for the user to provide the complete JSON with all field positions.
 
 **Upcoming and Future Tasks**
 
 **Upcoming Tasks:**
--   **(P0) Implement Phase 2: Background:** Fully implement the logic in  according to the user's plan. This includes handling skill selections (with exclusion logic), conditional choices for tools (e.g., musical instruments vs. games), and saving the background traits.
--   **(P0) Implement Phase 4: Virtue:** Create a new component () for the conditional virtue selection phase, triggered by specific cultures or character level-ups.
--   **(P1) Implement PDF Generation:** Implement the PDF generation logic in  to create the final 3-page character sheet.
+-   **(P0) Implement Full User Authentication System:**
+    -   Login, registration, and password management.
+    -   Roles: Director de juego (Admin) and Usuario (User).
+    -   Permanent admin user Maestro (password: ).
+-   **(P1) Implement PDF Generation:** The Imprimir button on the new  needs to be implemented to generate a 3-page PDF that is visually identical to the user's design.
+-   **(P1) Fully Implement Phase 2 (Background):** The wizard step exists but needs to be fully built out.
+-   **(P2) Fully Implement Phase 4 (Virtue):** The wizard step needs to be created and implemented.
+-   **(P2) Enhance Rules Page:** Expand the Ocupaciones and Culturas sections to show all player choices and step-by-step progressions, making it a comprehensive reference.
 
 **Future Tasks:**
--   Interactive Character Sheet Page
--   Character Listing Page (Drafts & Completed)
--   Game Master (DM) Screen
--   Online Gameplay Interface (Map, Chat, Dice)
--   AI Integration (Story/NPC Generation)
+-   Game Master (DM) Screen.
+-   Online Gameplay Interface (Map, Chat, Dice Rolls).
+-   AI Integration for story/NPC generation.
 
 **Completed work in this session**
--   **Data Extractor Fixed:** The Python script  now successfully parses the entire  Excel file.
--   **Database Seeded:** A new script, , correctly populates the MongoDB collections with the new data structure.
--   **Homepage Refactored:** The main page () was updated to have three clickable cards for navigation and uses the user-provided images for races.
--   **Rules Page Created:** A new page () was created to display game rules and data.
--   **Phase 1 (Culture) Rewrite:**  was completely rewritten into a 5-sub-step process that strictly follows the user's plan, including a new step for base attribute allocation.
--   **Bug Fixes:** Resolved an issue that blocked navigation from Phase 1 to Phase 2. Updated the display of starting equipment based on wealth level.
+-   **Data Extractor Overhaul:** Fixed the root cause of recurring proficiency and data display bugs by correcting the parsing logic in  for occupations and cultural skill proficiencies.
+-   **Encumbrance Rules Update:** Updated the encumbrance logic in  with new metric values and multipliers provided by the user.
+-   **Dúnedain Culture Fix:** Corrected the Dúnedain attribute bonuses to +1 FUE, +1 CON, +1 SAB, and implemented the +1 to a chosen attribute feature in .
+-   **Character List Page:** Created a new page at  to list all created characters and drafts, featuring multi-select and a robust deletion confirmation modal. Added a button on the  for easy access.
+-   **Interactive Sheet & Position Editor:**
+    -   Created , which overlays character data on the user's official sheet images.
+    -   Created  (), a tool for the user to visually define field positions and export them as JSON. Added features for live text preview and font selection per user request.
+-   **API Enhancement:** Added a  endpoint and a corresponding Precios de Equipo table on the .
+-   **Bug Fix:** Resolved a bug preventing Guardian occupation weapon choices from displaying by adding support for the  type in .
+
+**Earlier issues found/mentioned but not fixed**
+-   None. The primary recurring issue (inaccurate data extractor) was addressed and fixed in this session.
+
+**Known issue recurrence from previous fork**
+-   **Issue recurrence in previous fork:** Mixed-up proficiencies and incomplete skill lists on the final character sheet.
+-   **Recurrence count:** 3+
+-   **Status:** RESOLVED
+-   **Note:** The root cause was traced to . This script has now been corrected, which should permanently resolve these recurring UI bugs.
 
 **Code Architecture**
 
@@ -111,50 +95,76 @@ The frontend has seen significant progress:
 -   **Frontend:** React, JavaScript (ES6+), TailwindCSS, Shadcn/UI
 -   **Database:** MongoDB
 -   **Data Parsing:** openpyxl
--   **PDF Generation:** jspdf, html2canvas
+-   **PDF Generation:** jspdf, html2canvas (pending implementation on new sheet)
 
 **key DB schema**
-The database schema is now implicitly defined by the structure of the JSON file generated by . Collections include , , , , , and .
+-   **character_drafts:** In-progress character creation state.
+-   **characters:** Finalized character data.
+-   **cultures, backgrounds, occupations, virtues, equipment_lists:** Static game data collections.
 
 **changes in tech stack**
--   None in this session.  and  were added previously.
+-   None.
 
 **All files of reference**
--   **/app/utumno.xlsm**: The single source of truth for all game rules.
--   **/app/backend/data_extractor_complete.py**: The working data extraction script.
--   **/app/frontend/src/components/character-creator/steps/Step1Culture.jsx**: The completed implementation of Phase 1.
--   **/app/frontend/src/components/character-creator/steps/Step3Occupation.jsx**: The component currently being refactored.
--   **User Message with PLAN COMPLETO**: This is the most critical reference for all logic.
+-   **/app/data/utumno.xlsm**: The single source of truth for all game rules.
+-   **/app/frontend/src/pages/InteractiveCharacterSheet.jsx**: The new, in-progress character sheet that will become the primary view and PDF source.
+-   **/app/frontend/src/pages/SheetPositionEditor.jsx**: The tool for the user to define the layout of the interactive sheet.
+-   **/app/frontend/src/pages/CharactersListPage.jsx**: The page for viewing and managing created characters.
+-   **/app/backend/data_extractor_complete.py**: The script responsible for parsing the Excel file. It has been significantly corrected in this session.
+-   **/app/frontend/src/components/character-creator/steps/Step1Culture.jsx**: Handles culture selection and attribute bonuses.
+-   **/app/frontend/src/components/character-creator/steps/Step3Occupation.jsx**: Handles occupation selection, including complex weapon choices.
+-   **/app/frontend/src/components/character-creator/CharacterSummary.jsx**: The summary component shown before finalization. The user wants the final sheet to be as detailed as this.
+
+**Areas that need refactoring**:
+-   The old  will need to be deprecated or removed once the new  is complete.
+-    is still a very large file (>1500 lines) and could be broken down into smaller components.
+
+**key api endpoints**
+-   : Creates a new character draft.
+-   : Saves data for a wizard step.
+-   : Finalizes a character.
+-   : Retrieves static game data.
+-   : Retrieves the full equipment list with prices and weights.
+-   : Retrieves a finalized character.
+-   : Deletes multiple characters by ID.
 
 **Critical Info for New Agent**
--   **FOLLOW THE PLAN:** The user is extremely specific. You MUST adhere to the PLAN COMPLETO DE CREACIÓN DE PERSONAJE provided by the user in the chat history. Deviations have consistently led to corrections. The order of operations and exclusion logic (e.g., not re-selecting proficiencies) are non-negotiable.
--   **CURRENT FOCUS: PHASE 3 (OCCUPATION):** Your immediate task is to fix . Address all four pending issues: Pericia logic, skill filtering, the missing tool selection step, and the expanded UI for occupation details.
--   **STATE MANAGEMENT IS CRITICAL:** The character  object, managed in , is the source of truth for the character's state. All proficiencies (skills, tools) from all phases must be aggregated there to correctly implement the exclusion filters in subsequent steps.
+-   **The user is now in charge of layout.** Your primary task regarding the character sheet is to implement the layout defined by the user. Use the  to understand how the user is generating coordinates, and then apply the final JSON they provide to . Do not hardcode positions.
+-   **Use the new interactive sheet.** All future development for character display and PDF generation should focus on . The old  is effectively deprecated.
+-   **Data integrity is improved.** The root cause of many previous UI bugs (the data extractor) has been fixed. When debugging UI issues, first confirm the data coming from the backend is correct before assuming it's a frontend bug.
+-   **Font:** The user wants the font on the final sheet to be Ink Free or a similar handwritten style. The agent has implemented Caveat as a close alternative.
 
 **documents and test reports created in this job**
--    (updated with progress on the data extractor)
+-   /app/test_reports/iteration_5.json
+-   /app/test_reports/iteration_6.json
 
 **Last 10 User Messages and any pending HUMAN messages**
-1.  **User:** Asks to modify the starting equipment for different wealth levels.
-2.  Agent: Implements the equipment changes.
-3.  **User:** Reports three major issues: 1) Background step gets stuck. 2) The wealth description is missing from the summary. 3) Requests a new step for assigning base stats (Array/Points/Dice).
-4.  Agent: Fixes the background bug and adds the wealth description.
-5.  **User:** Clarifies that the stat assignment must happen *before* racial bonuses are applied. Reports multiple new issues with the Occupation phase: skill filtering is wrong, tool selection is missing, and provides an image showing incorrect Pericia options.
-6.  Agent: Acknowledges the issues and starts implementing the stat assignment step in Phase 1 first.
-7.  Agent: Completes the new stat assignment step and begins work on refactoring the Occupation phase.
-8.  **User:** Provides an image showing incorrect Pericia options again, emphasizing it should only offer already proficient skills.
-9.  Agent: Acknowledges the mistake and states they will correct the Pericia logic.
-10. **PENDING HUMAN MESSAGE:** The user's last message was the detailed report of issues with Phase 3 (Occupation), including the critical correction about Pericia logic. The agent is expected to act on this feedback.
+1.  **User:** Requests new, more complex encumbrance rules. Also reports that Hobbit Albo is not getting Sigilo (Stealth) proficiency.
+2.  Agent: Investigates and finds the data extractor is reading the wrong rows for cultural skill proficiencies.
+3.  Agent: Corrects the data extractor and the encumbrance rules in .
+4.  Agent: Creates the  tool for the user to define their own layout.
+5.  **User:** Asks for a button to access the editor from the main page and wants to know how to specify which data goes into which position.
+6.  Agent: Adds the button and enhances the editor to allow naming each position marker.
+7.  **User:** Provides the first batch of JSON coordinates for page 1. Asks for the ability to write text directly in the editor fields to preview font size and style. Requests Ink Free font.
+8.  Agent: Implements the live text preview in the editor using the Caveat font and applies the user's initial JSON coordinates to the editor for visualization.
+9.  **PENDING HUMAN MESSAGE:** The user is currently using the enhanced  to define the layout for all three character sheet pages. The agent is waiting for the user to provide the final, complete JSON file with all coordinates before applying it to the actual .
 
 **Project Health Check:**
--   **Broken:** Yes. While Phase 1 is now robust, the character creation process is blocked by critical bugs and missing features in Phase 3 (Occupation). The user cannot create a valid character.
+-   **Broken:** No. The core character creation flow is functional and data integrity has been restored. The final character sheet is a work-in-progress, but the user is actively involved in its design via the new editor tool, so it's not broken but rather under construction.
 
 **3rd Party Integrations**
--   **jspdf, html2canvas:** Installed for client-side PDF generation (not yet implemented).
--   **Planned:** Emergent LLM Key for AI story generation in the future.
+-   **jspdf, html2canvas:** Installed for client-side PDF generation, but implementation is pending for the new interactive sheet.
 
 **Testing status**
--   **Testing agent used after significant changes:** NO
+-   **Testing agent used after significant changes:** YES (twice, for  fix and Dúnedain data).
 -   **Troubleshoot agent used after agent stuck in loop:** NO
 -   **Test files created:** None.
--   **Known regressions:** The entire Occupation phase () is in a broken state and needs a major refactor to align with user requirements.</analysis>
+-   **Known regressions:** None in this session. Previous regressions were fixed at their root cause.
+
+**Credentials to test flow:**
+-   For the upcoming user authentication feature, the admin user will be:
+    -   **Username:** 
+    -   **Password:** 
+
+**What agent forgot to execute**
+-   The agent has been following the user's requests closely and has not forgotten any major tasks in this session. The focus has correctly shifted to enabling the user to design their own sheet layout.</analysis>
