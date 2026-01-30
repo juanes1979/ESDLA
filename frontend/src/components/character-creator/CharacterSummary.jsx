@@ -456,27 +456,27 @@ const CharacterSummary = ({ draft, onFinalize, onEdit, loading }) => {
             const coinWeight = totalCoins * COIN_WEIGHT_KG;
             totalWeight += coinWeight;
             
-            // ENCUMBRANCE RULES (metric system)
+            // ENCUMBRANCE RULES (metric system) - Updated rules
             const attrs = draft.caracteristicas || draft.atributos_finales || {};
             const fuerza = attrs.fuerza || 10;
             
             // Base values for Medium creatures
-            let capacidadCarga = fuerza * 6.8;        // Max carrying capacity
-            let capacidadEmpujar = fuerza * 13.6;    // Push/drag/lift capacity
-            let pesoCargado = fuerza * 2.3;          // Encumbered threshold
-            let pesoMuyCargado = fuerza * 4.5;       // Heavily encumbered threshold
+            let capacidadCarga = fuerza * 10;         // Max carrying capacity: FUE × 10 kg
+            let capacidadEmpujar = fuerza * 15;       // Push/drag/lift capacity: FUE × 15 kg
+            let pesoCargado = fuerza * 5;             // Encumbered threshold: > FUE × 5 kg
+            let pesoMuyCargado = fuerza * 10;         // Heavily encumbered threshold: > FUE × 10 kg
             
-            // Size adjustments
+            // Size adjustments (×1.5 for Large, ÷1.5 for Small)
             if (tamanio === 'Grande') {
-              capacidadCarga *= 2;
-              capacidadEmpujar *= 2;
-              pesoCargado *= 2;
-              pesoMuyCargado *= 2;
+              capacidadCarga *= 1.5;
+              capacidadEmpujar *= 1.5;
+              pesoCargado *= 1.5;
+              pesoMuyCargado *= 1.5;
             } else if (tamanio === 'Pequeño') {
-              capacidadCarga /= 2;
-              capacidadEmpujar /= 2;
-              pesoCargado /= 2;
-              pesoMuyCargado /= 2;
+              capacidadCarga /= 1.5;
+              capacidadEmpujar /= 1.5;
+              pesoCargado /= 1.5;
+              pesoMuyCargado /= 1.5;
             }
             
             // Double capacity if culture has it (e.g., Hobbits)
