@@ -36,9 +36,9 @@ const HomePage = () => {
         </div>
       </div>
 
-      {/* Features Section - Three clickable buttons */}
+      {/* Features Section - Four clickable buttons */}
       <div className="container mx-auto px-4 py-16">
-        <div className="grid md:grid-cols-3 gap-8">
+        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
           {/* Feature 1 - Creador de Personajes */}
           <button
             onClick={() => navigate('/create-character')}
@@ -49,15 +49,31 @@ const HomePage = () => {
               <Scroll className="w-8 h-8 text-[hsl(var(--gold))]" />
             </div>
             <h3 className="font-heading text-xl text-foreground mb-2">
-              Creador de Personajes
+              Crear Personaje
             </h3>
             <p className="text-muted-foreground text-sm">
-              Crea héroes únicos de las culturas de la Tierra Media: Elfos, Enanos, 
-              Hombres y Hobbits con trasfondos detallados.
+              Crea héroes únicos de las culturas de la Tierra Media.
             </p>
           </button>
 
-          {/* Feature 2 - Reglas */}
+          {/* Feature 2 - Mis Personajes */}
+          <button
+            onClick={() => navigate('/characters')}
+            className="card-parchment rounded-lg p-6 text-center hover:bg-[hsl(var(--torch-orange))/5] transition-all cursor-pointer border-2 border-transparent hover:border-[hsl(var(--torch-orange))/30]"
+            data-testid="feature-my-characters"
+          >
+            <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-[hsl(var(--torch-orange))/20] flex items-center justify-center">
+              <FileText className="w-8 h-8 text-[hsl(var(--torch-orange))]" />
+            </div>
+            <h3 className="font-heading text-xl text-foreground mb-2">
+              Mis Personajes
+            </h3>
+            <p className="text-muted-foreground text-sm">
+              Accede a tus fichas de personajes creados.
+            </p>
+          </button>
+
+          {/* Feature 3 - Reglas */}
           <button
             onClick={() => navigate('/rules')}
             className="card-parchment rounded-lg p-6 text-center hover:bg-[hsl(var(--magic-blue))/5] transition-all cursor-pointer border-2 border-transparent hover:border-[hsl(var(--magic-blue))/30]"
@@ -67,31 +83,29 @@ const HomePage = () => {
               <BookOpen className="w-8 h-8 text-[hsl(var(--magic-blue))]" />
             </div>
             <h3 className="font-heading text-xl text-foreground mb-2">
-              Reglas Completas
+              Reglas
             </h3>
             <p className="text-muted-foreground text-sm">
-              Sistema basado en 5e adaptado al mundo de Tolkien con mecánicas 
-              únicas de Sombra, Viajes y Comunidad.
+              Culturas, ocupaciones, equipo y precios.
             </p>
           </button>
 
-          {/* Feature 3 - Juego en Línea (Próximamente) */}
+          {/* Feature 4 - Juego en Línea (Próximamente) */}
           <div 
             className="card-parchment rounded-lg p-6 text-center opacity-60 relative"
             data-testid="feature-online-game"
           >
-            <div className="absolute top-2 right-2 bg-[hsl(var(--torch-orange))/20] text-[hsl(var(--torch-orange))] text-xs px-2 py-1 rounded font-heading">
+            <div className="absolute top-2 right-2 bg-[hsl(var(--destructive))/20] text-[hsl(var(--destructive))] text-xs px-2 py-1 rounded font-heading">
               Próximamente
             </div>
-            <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-[hsl(var(--torch-orange))/20] flex items-center justify-center">
-              <Users className="w-8 h-8 text-[hsl(var(--torch-orange))]" />
+            <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-muted/30 flex items-center justify-center">
+              <Users className="w-8 h-8 text-muted-foreground" />
             </div>
             <h3 className="font-heading text-xl text-foreground mb-2">
               Juego en Línea
             </h3>
             <p className="text-muted-foreground text-sm">
-              Conecta con otros jugadores, gestiona mapas, chat integrado 
-              y herramientas para el Director de Juego.
+              Mapas, chat y herramientas para el Director.
             </p>
           </div>
         </div>
