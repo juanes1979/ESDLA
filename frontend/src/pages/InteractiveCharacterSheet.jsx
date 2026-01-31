@@ -473,6 +473,7 @@ const InteractiveCharacterSheet = () => {
 
   const equipmentRows = getEquipmentRows();
   const idiomasRows = getIdiomasHerramientasRows();
+  const weapons = getWeapons();
 
   return (
     <div className="min-h-screen bg-[#2a2a2a]" data-testid="interactive-sheet">
