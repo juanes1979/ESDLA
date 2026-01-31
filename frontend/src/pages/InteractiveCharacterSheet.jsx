@@ -690,7 +690,7 @@ const InteractiveCharacterSheet = () => {
                 <DisplayField {...PAGE1_FIELDS.monedas_plata} value={dinero.mp || 0} scale={scale} />
                 <DisplayField {...PAGE1_FIELDS.monedas_oro} value={dinero.mo || 0} scale={scale} />
                 
-                {/* Equipo (8 rows) */}
+                {/* Equipo (20 rows) */}
                 <DisplayField {...PAGE1_FIELDS.equipo_1} value={equipmentRows[0]} scale={scale} />
                 <DisplayField {...PAGE1_FIELDS.equipo_2} value={equipmentRows[1]} scale={scale} />
                 <DisplayField {...PAGE1_FIELDS.equipo_3} value={equipmentRows[2]} scale={scale} />
@@ -699,6 +699,44 @@ const InteractiveCharacterSheet = () => {
                 <DisplayField {...PAGE1_FIELDS.equipo_6} value={equipmentRows[5]} scale={scale} />
                 <DisplayField {...PAGE1_FIELDS.equipo_7} value={equipmentRows[6]} scale={scale} />
                 <DisplayField {...PAGE1_FIELDS.equipo_8} value={equipmentRows[7]} scale={scale} />
+                <DisplayField {...PAGE1_FIELDS.equipo_9} value={equipmentRows[8]} scale={scale} />
+                <DisplayField {...PAGE1_FIELDS.equipo_10} value={equipmentRows[9]} scale={scale} />
+                <DisplayField {...PAGE1_FIELDS.equipo_11} value={equipmentRows[10]} scale={scale} />
+                <DisplayField {...PAGE1_FIELDS.equipo_12} value={equipmentRows[11]} scale={scale} />
+                <DisplayField {...PAGE1_FIELDS.equipo_13} value={equipmentRows[12]} scale={scale} />
+                <DisplayField {...PAGE1_FIELDS.equipo_14} value={equipmentRows[13]} scale={scale} />
+                <DisplayField {...PAGE1_FIELDS.equipo_15} value={equipmentRows[14]} scale={scale} />
+                <DisplayField {...PAGE1_FIELDS.equipo_16} value={equipmentRows[15]} scale={scale} />
+                <DisplayField {...PAGE1_FIELDS.equipo_17} value={equipmentRows[16]} scale={scale} />
+                <DisplayField {...PAGE1_FIELDS.equipo_18} value={equipmentRows[17]} scale={scale} />
+                <DisplayField {...PAGE1_FIELDS.equipo_19} value={equipmentRows[18]} scale={scale} />
+                <DisplayField {...PAGE1_FIELDS.equipo_20} value={equipmentRows[19]} scale={scale} />
+                
+                {/* Armas (5 rows: nombre, daño, herida, distancia) */}
+                <DisplayField {...PAGE1_FIELDS.arma_1_nombre} value={weapons[0].nombre} scale={scale} />
+                <DisplayField {...PAGE1_FIELDS.arma_1_dano} value={weapons[0].dano} scale={scale} />
+                <DisplayField {...PAGE1_FIELDS.arma_1_herida} value={weapons[0].herida} scale={scale} />
+                <DisplayField {...PAGE1_FIELDS.arma_1_distancia} value={weapons[0].distancia} scale={scale} />
+                
+                <DisplayField {...PAGE1_FIELDS.arma_2_nombre} value={weapons[1].nombre} scale={scale} />
+                <DisplayField {...PAGE1_FIELDS.arma_2_dano} value={weapons[1].dano} scale={scale} />
+                <DisplayField {...PAGE1_FIELDS.arma_2_herida} value={weapons[1].herida} scale={scale} />
+                <DisplayField {...PAGE1_FIELDS.arma_2_distancia} value={weapons[1].distancia} scale={scale} />
+                
+                <DisplayField {...PAGE1_FIELDS.arma_3_nombre} value={weapons[2].nombre} scale={scale} />
+                <DisplayField {...PAGE1_FIELDS.arma_3_dano} value={weapons[2].dano} scale={scale} />
+                <DisplayField {...PAGE1_FIELDS.arma_3_herida} value={weapons[2].herida} scale={scale} />
+                <DisplayField {...PAGE1_FIELDS.arma_3_distancia} value={weapons[2].distancia} scale={scale} />
+                
+                <DisplayField {...PAGE1_FIELDS.arma_4_nombre} value={weapons[3].nombre} scale={scale} />
+                <DisplayField {...PAGE1_FIELDS.arma_4_dano} value={weapons[3].dano} scale={scale} />
+                <DisplayField {...PAGE1_FIELDS.arma_4_herida} value={weapons[3].herida} scale={scale} />
+                <DisplayField {...PAGE1_FIELDS.arma_4_distancia} value={weapons[3].distancia} scale={scale} />
+                
+                <DisplayField {...PAGE1_FIELDS.arma_5_nombre} value={weapons[4].nombre} scale={scale} />
+                <DisplayField {...PAGE1_FIELDS.arma_5_dano} value={weapons[4].dano} scale={scale} />
+                <DisplayField {...PAGE1_FIELDS.arma_5_herida} value={weapons[4].herida} scale={scale} />
+                <DisplayField {...PAGE1_FIELDS.arma_5_distancia} value={weapons[4].distancia} scale={scale} />
                 
                 {/* Idiomas y Herramientas (6 rows) */}
                 <DisplayField {...PAGE1_FIELDS.idioma_herr_1} value={idiomasRows[0]} scale={scale} />
