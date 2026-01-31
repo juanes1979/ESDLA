@@ -202,3 +202,19 @@ Files updated:
 - `/app/frontend/src/pages/SheetPositionEditor.jsx` - New field suggestions
 - `/app/frontend/src/pages/InteractiveCharacterSheet.jsx` - Complete rewrite with PAGE1_FIELDS from user JSON
 
+### Session Update (2026-01-31 - Afternoon)
+1. **Nuevas imágenes de hoja de personaje** - Extraídas del PDF proporcionado por el usuario
+   - `/app/frontend/public/assets/sheets/sheet_page1_web.png` (1701x2197)
+   - `/app/frontend/public/assets/sheets/sheet_page2_web.png` (1701x2197)
+   - `/app/frontend/public/assets/sheets/sheet_page3_web.png` (1654x2339)
+
+2. **Campos de equipo expandidos** - 20 filas (equipo_1 a equipo_20)
+   - Excluye automáticamente armas del listado de equipo
+   - Incluye todo el equipo del nivel de vida, trasfondo, ocupación
+
+3. **Campos de armas** - 5 filas con subcampos:
+   - `arma_X_nombre`, `arma_X_dano`, `arma_X_herida`, `arma_X_distancia` (X = 1 a 5)
+   - Filtrado automático de armas vs equipo general
+   - Lista de armas conocidas: bastón, espada, hacha, arco, daga, etc.
+
+4. **Sugerencias de campos actualizadas en editor**
