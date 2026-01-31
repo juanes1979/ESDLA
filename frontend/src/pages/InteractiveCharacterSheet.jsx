@@ -368,18 +368,81 @@ const InteractiveCharacterSheet = () => {
     return isProficient ? 'x' : '';
   };
   
-  // Get equipment list (split into 8 rows)
-  const getEquipmentRows = () => {
-    const allEquipment = [
+  // Lista de nombres de armas conocidas para filtrar
+  const WEAPON_NAMES = [
+    'bastón', 'garrote', 'gran garrote', 'hacha', 'hoz', 'maza', 'martillo', 'daga',
+    'hacha de mano', 'lanza', 'lanza corta', 'arco', 'espada', 'espada corta', 
+    'espada larga', 'cimitarra', 'estoque', 'flajelo', 'hacha a dos manos',
+    'lanza de caballería', 'látigo', 'gran hacha', 'hacha de guerra', 'lanza pesada',
+    'martillo pesado', 'piqueta', 'arco largo', 'ballesta'
+  ];
+  
+  // Check if item is a weapon
+  const isWeapon = (itemName) => {
+    if (!itemName) return false;
+    const normalized = itemName.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    return WEAPON_NAMES.some(w => normalized.includes(w));
+  };
+  
+  // Get all equipment items (excluding weapons)
+  const getAllEquipment = () => {
+    const allItems = [
+      ...(character.inventario || []).map(i => typeof i === 'string' ? i : i.nombre),
       ...(character.equipo_ocupacion || []),
       ...(character.equipo_trasfondo || []),
-      ...(character.inventario || []).map(i => typeof i === 'string' ? i : i.nombre),
+      ...(character.equipo_nivel_vida || []),
     ];
+    // Filter out weapons
+    return allItems.filter(item => !isWeapon(item));
+  };
+  
+  // Get equipment rows (20 rows, excluding weapons)
+  const getEquipmentRows = () => {
+    const equipment = getAllEquipment();
     const rows = [];
-    for (let i = 0; i < 8; i++) {
-      rows.push(allEquipment[i] || '');
+    for (let i = 0; i < 20; i++) {
+      rows.push(equipment[i] || '');
     }
     return rows;
+  };
+  
+  // Get weapons with details (5 max)
+  const getWeapons = () => {
+    // Get weapons from character data
+    const weaponItems = [];
+    
+    // Check inventario for weapons with details
+    const inventario = character.inventario || [];
+    inventario.forEach(item => {
+      const nombre = typeof item === 'string' ? item : item.nombre;
+      if (isWeapon(nombre)) {
+        weaponItems.push({
+          nombre: nombre,
+          dano: item.dano || item.daño || '1d4',
+          herida: item.herida || 12,
+          distancia: item.distancia || 'C/C',
+        });
+      }
+    });
+    
+    // Check equipo_ocupacion for weapons
+    (character.equipo_ocupacion || []).forEach(item => {
+      if (isWeapon(item) && !weaponItems.some(w => w.nombre.toLowerCase() === item.toLowerCase())) {
+        weaponItems.push({
+          nombre: item,
+          dano: '1d6', // Default
+          herida: 12,
+          distancia: 'C/C',
+        });
+      }
+    });
+    
+    // Fill up to 5 weapons
+    const weapons = [];
+    for (let i = 0; i < 5; i++) {
+      weapons.push(weaponItems[i] || { nombre: '', dano: '', herida: '', distancia: '' });
+    }
+    return weapons;
   };
   
   // Get languages and tools (split into 6 rows)
