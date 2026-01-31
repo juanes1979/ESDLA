@@ -172,15 +172,54 @@ const PAGE1_FIELDS = {
   monedas_plata: { x: 1350, y: 1725, width: 80, fontSize: 28, align: 'center' },
   monedas_oro: { x: 1450, y: 1725, width: 80, fontSize: 28, align: 'center' },
   
-  // Equipo - 8 filas (from y:1725 to y:2037, spacing ~39px)
-  equipo_1: { x: 771, y: 1725, width: 298, fontSize: 22, align: 'left' },
-  equipo_2: { x: 771, y: 1764, width: 298, fontSize: 22, align: 'left' },
-  equipo_3: { x: 771, y: 1803, width: 298, fontSize: 22, align: 'left' },
-  equipo_4: { x: 771, y: 1842, width: 298, fontSize: 22, align: 'left' },
-  equipo_5: { x: 771, y: 1881, width: 298, fontSize: 22, align: 'left' },
-  equipo_6: { x: 771, y: 1920, width: 298, fontSize: 22, align: 'left' },
-  equipo_7: { x: 771, y: 1959, width: 298, fontSize: 22, align: 'left' },
-  equipo_8: { x: 771, y: 1998, width: 298, fontSize: 22, align: 'left' },
+  // Equipo - 20 filas (from y:1725, spacing ~26px para caber más)
+  equipo_1: { x: 771, y: 1725, width: 298, fontSize: 18, align: 'left' },
+  equipo_2: { x: 771, y: 1751, width: 298, fontSize: 18, align: 'left' },
+  equipo_3: { x: 771, y: 1777, width: 298, fontSize: 18, align: 'left' },
+  equipo_4: { x: 771, y: 1803, width: 298, fontSize: 18, align: 'left' },
+  equipo_5: { x: 771, y: 1829, width: 298, fontSize: 18, align: 'left' },
+  equipo_6: { x: 771, y: 1855, width: 298, fontSize: 18, align: 'left' },
+  equipo_7: { x: 771, y: 1881, width: 298, fontSize: 18, align: 'left' },
+  equipo_8: { x: 771, y: 1907, width: 298, fontSize: 18, align: 'left' },
+  equipo_9: { x: 771, y: 1933, width: 298, fontSize: 18, align: 'left' },
+  equipo_10: { x: 771, y: 1959, width: 298, fontSize: 18, align: 'left' },
+  equipo_11: { x: 771, y: 1985, width: 298, fontSize: 18, align: 'left' },
+  equipo_12: { x: 771, y: 2011, width: 298, fontSize: 18, align: 'left' },
+  equipo_13: { x: 771, y: 2037, width: 298, fontSize: 18, align: 'left' },
+  equipo_14: { x: 771, y: 2063, width: 298, fontSize: 18, align: 'left' },
+  equipo_15: { x: 771, y: 2089, width: 298, fontSize: 18, align: 'left' },
+  equipo_16: { x: 771, y: 2115, width: 298, fontSize: 18, align: 'left' },
+  equipo_17: { x: 771, y: 2141, width: 298, fontSize: 18, align: 'left' },
+  equipo_18: { x: 771, y: 2167, width: 298, fontSize: 18, align: 'left' },
+  equipo_19: { x: 1100, y: 1725, width: 298, fontSize: 18, align: 'left' }, // Segunda columna
+  equipo_20: { x: 1100, y: 1751, width: 298, fontSize: 18, align: 'left' },
+  
+  // Armas - 5 filas (Nombre | Daño | Herida | Distancia)
+  // Posiciones tentativas - el usuario las ajustará con el editor
+  arma_1_nombre: { x: 430, y: 1725, width: 120, fontSize: 18, align: 'left' },
+  arma_1_dano: { x: 560, y: 1725, width: 50, fontSize: 18, align: 'center' },
+  arma_1_herida: { x: 620, y: 1725, width: 40, fontSize: 18, align: 'center' },
+  arma_1_distancia: { x: 670, y: 1725, width: 60, fontSize: 18, align: 'center' },
+  
+  arma_2_nombre: { x: 430, y: 1755, width: 120, fontSize: 18, align: 'left' },
+  arma_2_dano: { x: 560, y: 1755, width: 50, fontSize: 18, align: 'center' },
+  arma_2_herida: { x: 620, y: 1755, width: 40, fontSize: 18, align: 'center' },
+  arma_2_distancia: { x: 670, y: 1755, width: 60, fontSize: 18, align: 'center' },
+  
+  arma_3_nombre: { x: 430, y: 1785, width: 120, fontSize: 18, align: 'left' },
+  arma_3_dano: { x: 560, y: 1785, width: 50, fontSize: 18, align: 'center' },
+  arma_3_herida: { x: 620, y: 1785, width: 40, fontSize: 18, align: 'center' },
+  arma_3_distancia: { x: 670, y: 1785, width: 60, fontSize: 18, align: 'center' },
+  
+  arma_4_nombre: { x: 430, y: 1815, width: 120, fontSize: 18, align: 'left' },
+  arma_4_dano: { x: 560, y: 1815, width: 50, fontSize: 18, align: 'center' },
+  arma_4_herida: { x: 620, y: 1815, width: 40, fontSize: 18, align: 'center' },
+  arma_4_distancia: { x: 670, y: 1815, width: 60, fontSize: 18, align: 'center' },
+  
+  arma_5_nombre: { x: 430, y: 1845, width: 120, fontSize: 18, align: 'left' },
+  arma_5_dano: { x: 560, y: 1845, width: 50, fontSize: 18, align: 'center' },
+  arma_5_herida: { x: 620, y: 1845, width: 40, fontSize: 18, align: 'center' },
+  arma_5_distancia: { x: 670, y: 1845, width: 60, fontSize: 18, align: 'center' },
   
   // Idiomas y herramientas - 6 filas (from y:1836 to y:2043, spacing ~41px)
   idioma_herr_1: { x: 109, y: 1836, width: 435, fontSize: 22, align: 'left' },
