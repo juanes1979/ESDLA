@@ -59,8 +59,17 @@ const FIELD_SUGGESTIONS = [
   // Monedas - campos separados
   'monedas_estano', 'monedas_cobre', 'monedas_plata', 'monedas_oro',
   
-  // Equipo - 8 filas
+  // Equipo - 20 filas
   'equipo_1', 'equipo_2', 'equipo_3', 'equipo_4', 'equipo_5', 'equipo_6', 'equipo_7', 'equipo_8',
+  'equipo_9', 'equipo_10', 'equipo_11', 'equipo_12', 'equipo_13', 'equipo_14', 'equipo_15', 'equipo_16',
+  'equipo_17', 'equipo_18', 'equipo_19', 'equipo_20',
+  
+  // Armas - 5 filas con subcampos (nombre, daño, herida, distancia)
+  'arma_1_nombre', 'arma_1_dano', 'arma_1_herida', 'arma_1_distancia',
+  'arma_2_nombre', 'arma_2_dano', 'arma_2_herida', 'arma_2_distancia',
+  'arma_3_nombre', 'arma_3_dano', 'arma_3_herida', 'arma_3_distancia',
+  'arma_4_nombre', 'arma_4_dano', 'arma_4_herida', 'arma_4_distancia',
+  'arma_5_nombre', 'arma_5_dano', 'arma_5_herida', 'arma_5_distancia',
   
   // Idiomas y herramientas - 6 filas
   'idioma_herr_1', 'idioma_herr_2', 'idioma_herr_3', 'idioma_herr_4', 'idioma_herr_5', 'idioma_herr_6',
