@@ -856,13 +856,19 @@ const InteractiveCharacterSheet = () => {
                 <DisplayField {...PAGE1_FIELDS.arma_5_herida} value={weapons[4].herida} scale={scale} />
                 <DisplayField {...PAGE1_FIELDS.arma_5_distancia} value={weapons[4].distancia} scale={scale} />
                 
-                {/* Idiomas y Herramientas (6 rows) */}
+                {/* Peso transportado y estorbo */}
+                <DisplayField {...PAGE1_FIELDS.peso_transportado} value={`${pesoTransportado} kg`} scale={scale} />
+                <DisplayField {...PAGE1_FIELDS.cargado} value={estorbo.cargado} scale={scale} />
+                <DisplayField {...PAGE1_FIELDS.muy_cargado} value={estorbo.muy_cargado} scale={scale} />
+                
+                {/* Idiomas y Herramientas (7 rows) - Idiomas primero, luego herramientas */}
                 <DisplayField {...PAGE1_FIELDS.idioma_herr_1} value={idiomasRows[0]} scale={scale} />
                 <DisplayField {...PAGE1_FIELDS.idioma_herr_2} value={idiomasRows[1]} scale={scale} />
                 <DisplayField {...PAGE1_FIELDS.idioma_herr_3} value={idiomasRows[2]} scale={scale} />
                 <DisplayField {...PAGE1_FIELDS.idioma_herr_4} value={idiomasRows[3]} scale={scale} />
                 <DisplayField {...PAGE1_FIELDS.idioma_herr_5} value={idiomasRows[4]} scale={scale} />
                 <DisplayField {...PAGE1_FIELDS.idioma_herr_6} value={idiomasRows[5]} scale={scale} />
+                <DisplayField {...PAGE1_FIELDS.idioma_herr_7} value={idiomasRows[6]} scale={scale} />
               </>
             )}
 
