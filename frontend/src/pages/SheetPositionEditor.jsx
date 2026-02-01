@@ -20,7 +20,17 @@ const SHEET_HEIGHT = 2197;
 // Predefined field suggestions for quick selection
 const FIELD_SUGGESTIONS = [
   // Datos básicos
-  'nombre', 'jugador', 'ocupacion_nivel', 'cultura', 'rasgos_distintivos', 'experiencia', 'senda_sombra',
+  'nombre', 'jugador', 'ocupacion_nivel', 'cultura', 'experiencia', 'senda_sombra', 'sexo',
+  
+  // Rasgos distintivos (2 con descripción)
+  'rasgos_distintivos_1', 'descripcion_rasgos_distintivos_1',
+  'rasgos_distintivos_2', 'descripcion_rasgos_distintivos_2',
+  
+  // Habilidades favorecidas (3)
+  'habilidad_favorecida_1', 'habilidad_favorecida_2', 'habilidad_favorecida_3',
+  
+  // Características físicas
+  'edad', 'altura', 'peso', 'ojos', 'piel', 'pelo',
   
   // Atributos - valores y modificadores
   'fuerza_valor', 'fuerza_mod', 'destreza_valor', 'destreza_mod', 
@@ -30,6 +40,9 @@ const FIELD_SUGGESTIONS = [
   // Estadísticas de combate
   'inspiracion', 'bonificador_competencia', 'clase_armadura', 'iniciativa', 'velocidad',
   'pg_max', 'pg_actual', 'pg_temp', 'dado_golpe',
+  
+  // Peso y estorbo
+  'peso_transportado', 'cargado', 'muy_cargado',
   
   // Tiradas de salvación - valores
   'salvacion_fue', 'salvacion_des', 'salvacion_con', 'salvacion_int', 'salvacion_sab', 'salvacion_car',
