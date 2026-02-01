@@ -469,19 +469,84 @@ const InteractiveCharacterSheet = () => {
     return weapons;
   };
   
-  // Get languages and tools (split into 6 rows)
+  // Get languages and tools (idiomas primero, luego herramientas) - 7 filas
   const getIdiomasHerramientasRows = () => {
-    const items = [
-      ...(character.idiomas || []),
+    // First, get all languages
+    const idiomas = character.idiomas || [];
+    
+    // Then, get all tools/herramientas
+    const herramientas = [
       ...(character.competencia_herramienta_1 ? [character.competencia_herramienta_1] : []),
       ...(character.competencias_herramientas_2 || []),
       ...(character.competencias_herramientas_trasfondo || []),
     ];
+    
+    // Combine: idiomas first, then herramientas
+    const items = [...idiomas, ...herramientas];
+    
     const rows = [];
-    for (let i = 0; i < 6; i++) {
+    for (let i = 0; i < 7; i++) {
       rows.push(items[i] || '');
     }
     return rows;
+  };
+  
+  // Get rasgos distintivos (2 with descriptions)
+  const getRasgosDistintivos = () => {
+    const rasgos = character.rasgos_distintivos || [];
+    const rasgo1 = rasgos[0] || character.rasgo_distintivo;
+    const rasgo2 = rasgos[1];
+    
+    return {
+      rasgo1_nombre: typeof rasgo1 === 'object' ? rasgo1?.nombre : rasgo1 || '',
+      rasgo1_desc: typeof rasgo1 === 'object' ? rasgo1?.descripcion : '',
+      rasgo2_nombre: typeof rasgo2 === 'object' ? rasgo2?.nombre : rasgo2 || '',
+      rasgo2_desc: typeof rasgo2 === 'object' ? rasgo2?.descripcion : '',
+    };
+  };
+  
+  // Get habilidades favorecidas (3)
+  const getHabilidadesFavorecidas = () => {
+    const favorecidas = character.habilidades_favorecidas || [];
+    return {
+      hab1: favorecidas[0] || '',
+      hab2: favorecidas[1] || '',
+      hab3: favorecidas[2] || '',
+    };
+  };
+  
+  // Calculate peso transportado (total weight)
+  const calcularPesoTransportado = () => {
+    let pesoTotal = 0;
+    
+    // Add weight from inventory
+    (character.inventario || []).forEach(item => {
+      if (typeof item === 'object' && item.peso) {
+        pesoTotal += parseFloat(item.peso) || 0;
+      }
+    });
+    
+    // Add money weight (0.009 kg per coin)
+    const dinero = character.dinero || {};
+    const totalMonedas = (dinero.mp || 0) + (dinero.mo || 0) + (dinero.me || 0) + (dinero.mc || 0);
+    pesoTotal += totalMonedas * 0.009;
+    
+    return pesoTotal.toFixed(2);
+  };
+  
+  // Calculate estorbo (encumbrance status)
+  const calcularEstorbo = () => {
+    const pesoTotal = parseFloat(calcularPesoTransportado());
+    const fuerza = attrs.fuerza || 10;
+    
+    // Reglas de estorbo basadas en Fuerza
+    const limiteCargado = fuerza * 2.5; // Cargado si pesa más de FUE * 2.5 kg
+    const limiteMuyCargado = fuerza * 4; // Muy cargado si pesa más de FUE * 4 kg
+    
+    return {
+      cargado: pesoTotal > limiteCargado ? 'x' : '',
+      muy_cargado: pesoTotal > limiteMuyCargado ? 'x' : '',
+    };
   };
   
   // Get money
@@ -490,14 +555,24 @@ const InteractiveCharacterSheet = () => {
   // Calculate passive perception
   const percepcionPasiva = 10 + parseInt(getSkillMod('percepcion').replace('+', ''));
   
-  // Get rasgo distintivo text
-  const rasgoDistintivo = typeof character.rasgo_distintivo === 'object' 
-    ? character.rasgo_distintivo?.nombre 
-    : character.rasgo_distintivo || '';
+  // Get physical characteristics
+  const caracteristicasFisicas = {
+    edad: character.edad || '',
+    altura: character.altura || '',
+    peso: character.peso || '',
+    ojos: character.ojos || '',
+    piel: character.piel || '',
+    pelo: character.pelo || '',
+    sexo: character.sexo || '',
+  };
 
   const equipmentRows = getEquipmentRows();
   const idiomasRows = getIdiomasHerramientasRows();
   const weapons = getWeapons();
+  const rasgos = getRasgosDistintivos();
+  const habFavorecidas = getHabilidadesFavorecidas();
+  const pesoTransportado = calcularPesoTransportado();
+  const estorbo = calcularEstorbo();
 
   return (
     <div className="min-h-screen bg-[#2a2a2a]" data-testid="interactive-sheet">
