@@ -84,8 +84,8 @@ const FIELD_SUGGESTIONS = [
   'arma_4_nombre', 'arma_4_dano', 'arma_4_herida', 'arma_4_distancia',
   'arma_5_nombre', 'arma_5_dano', 'arma_5_herida', 'arma_5_distancia',
   
-  // Idiomas y herramientas - 6 filas
-  'idioma_herr_1', 'idioma_herr_2', 'idioma_herr_3', 'idioma_herr_4', 'idioma_herr_5', 'idioma_herr_6',
+  // Idiomas y herramientas - 7 filas
+  'idioma_herr_1', 'idioma_herr_2', 'idioma_herr_3', 'idioma_herr_4', 'idioma_herr_5', 'idioma_herr_6', 'idioma_herr_7',
   
   // Otros
   'trasfondo', 'rasgos_personalidad', 'ataques', 'virtudes',
