@@ -707,7 +707,7 @@ const InteractiveCharacterSheet = () => {
                 {/* Características físicas */}
                 <DisplayField {...PAGE1_FIELDS.edad} value={caracteristicasFisicas.edad} scale={scale} />
                 <DisplayField {...PAGE1_FIELDS.altura} value={caracteristicasFisicas.altura} scale={scale} />
-                <DisplayField {...PAGE1_FIELDS.peso_personaje} value={caracteristicasFisicas.peso} scale={scale} />
+                <DisplayField {...PAGE1_FIELDS.peso} value={caracteristicasFisicas.peso} scale={scale} />
                 <DisplayField {...PAGE1_FIELDS.ojos} value={caracteristicasFisicas.ojos} scale={scale} />
                 <DisplayField {...PAGE1_FIELDS.piel} value={caracteristicasFisicas.piel} scale={scale} />
                 <DisplayField {...PAGE1_FIELDS.pelo} value={caracteristicasFisicas.pelo} scale={scale} />
