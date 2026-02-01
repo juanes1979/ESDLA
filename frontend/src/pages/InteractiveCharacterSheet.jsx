@@ -67,15 +67,34 @@ const SKILL_DISPLAY_NAMES = {
   'viajar': 'Viajar',
 };
 
-// PAGE 1 FIELD POSITIONS (from user-provided JSON + additions)
+// PAGE 1 FIELD POSITIONS (from user-provided JSON - updated 2026-01-31)
 const PAGE1_FIELDS = {
   // Basic Info
   nombre: { x: 89, y: 171, width: 630, fontSize: 45, align: 'center' },
   ocupacion_nivel: { x: 757, y: 142, width: 260, fontSize: 31, align: 'left' },
-  rasgos_distintivos: { x: 1048, y: 142, width: 260, fontSize: 31, align: 'left' },
-  jugador: { x: 1337, y: 142, width: 260, fontSize: 31, align: 'left' },
-  cultura: { x: 757, y: 212, width: 260, fontSize: 31, align: 'left' },
-  senda_sombra: { x: 1048, y: 212, width: 260, fontSize: 31, align: 'left' },
+  jugador: { x: 983, y: 43, width: 600, fontSize: 50, align: 'center' },
+  cultura: { x: 757, y: 220, width: 260, fontSize: 31, align: 'left' },
+  senda_sombra: { x: 1182, y: 514, width: 445, fontSize: 31, align: 'left' },
+  
+  // Rasgos distintivos (2 con descripción)
+  rasgos_distintivos_1: { x: 1336, y: 1007, width: 260, fontSize: 31, align: 'left' },
+  rasgos_distintivos_2: { x: 1336, y: 1244, width: 260, fontSize: 31, align: 'left' },
+  descripcion_rasgos_distintivos_1: { x: 1336, y: 1050, width: 340, fontSize: 18, align: 'left' },
+  descripcion_rasgos_distintivos_2: { x: 1336, y: 1287, width: 340, fontSize: 18, align: 'left' },
+  
+  // Habilidades favorecidas (3)
+  habilidad_favorecida_1: { x: 1228, y: 237, width: 117, fontSize: 16, align: 'left' },
+  habilidad_favorecida_2: { x: 1352, y: 237, width: 117, fontSize: 16, align: 'left' },
+  habilidad_favorecida_3: { x: 1485, y: 237, width: 117, fontSize: 16, align: 'left' },
+  
+  // Características físicas
+  edad: { x: 1059, y: 148, width: 46, fontSize: 30, align: 'left' },
+  altura: { x: 1130, y: 148, width: 73, fontSize: 30, align: 'left' },
+  peso_personaje: { x: 1228, y: 148, width: 73, fontSize: 30, align: 'left' },
+  ojos: { x: 1334, y: 156, width: 90, fontSize: 20, align: 'left' },
+  piel: { x: 1434, y: 156, width: 90, fontSize: 20, align: 'left' },
+  pelo: { x: 1518, y: 156, width: 90, fontSize: 20, align: 'left' },
+  sexo: { x: 376, y: 254, width: 137, fontSize: 40, align: 'center' },
   
   // Attributes - Main values
   fuerza_valor: { x: 95, y: 327, width: 100, fontSize: 100, align: 'center' },
@@ -85,7 +104,7 @@ const PAGE1_FIELDS = {
   sabiduria_valor: { x: 93, y: 1207, width: 100, fontSize: 100, align: 'center' },
   carisma_valor: { x: 95, y: 1427, width: 100, fontSize: 100, align: 'center' },
   
-  // Attributes - Modifiers (in small circle below)
+  // Attributes - Modifiers (big circle)
   fuerza_mod: { x: 91, y: 444, width: 100, fontSize: 55, align: 'center' },
   destreza_mod: { x: 91, y: 660, width: 100, fontSize: 55, align: 'center' },
   constitucion_mod: { x: 91, y: 878, width: 100, fontSize: 55, align: 'center' },
@@ -101,9 +120,9 @@ const PAGE1_FIELDS = {
   velocidad: { x: 949, y: 357, width: 120, fontSize: 65, align: 'center' },
   
   // Hit points
-  pg_max: { x: 682, y: 520, width: 120, fontSize: 50, align: 'center' },
-  pg_actual: { x: 682, y: 650, width: 120, fontSize: 50, align: 'center' },
-  pg_temp: { x: 682, y: 720, width: 120, fontSize: 50, align: 'center' },
+  pg_max: { x: 707, y: 508, width: 80, fontSize: 50, align: 'center' },
+  pg_actual: { x: 689, y: 646, width: 110, fontSize: 70, align: 'center' },
+  pg_temp: { x: 901, y: 585, width: 110, fontSize: 70, align: 'center' },
   dado_golpe: { x: 682, y: 807, width: 120, fontSize: 65, align: 'center' },
   
   percepcion_pasiva: { x: 78, y: 1674, width: 100, fontSize: 65, align: 'center' },
@@ -117,12 +136,12 @@ const PAGE1_FIELDS = {
   salvacion_car_mod: { x: 282, y: 840, width: 100, fontSize: 30, align: 'center' },
   
   // Saving throws - competency checkboxes (x if proficient)
-  comp_salvacion_fue: { x: 215, y: 683, width: 30, fontSize: 24, align: 'center' },
-  comp_salvacion_des: { x: 215, y: 715, width: 30, fontSize: 24, align: 'center' },
-  comp_salvacion_con: { x: 215, y: 746, width: 30, fontSize: 24, align: 'center' },
-  comp_salvacion_int: { x: 215, y: 778, width: 30, fontSize: 24, align: 'center' },
-  comp_salvacion_sab: { x: 215, y: 809, width: 30, fontSize: 24, align: 'center' },
-  comp_salvacion_car: { x: 215, y: 840, width: 30, fontSize: 24, align: 'center' },
+  comp_salvacion_fue: { x: 280, y: 691, width: 21, fontSize: 22, align: 'center' },
+  comp_salvacion_des: { x: 280, y: 723, width: 21, fontSize: 22, align: 'center' },
+  comp_salvacion_con: { x: 280, y: 754, width: 21, fontSize: 22, align: 'center' },
+  comp_salvacion_int: { x: 280, y: 785, width: 21, fontSize: 22, align: 'center' },
+  comp_salvacion_sab: { x: 280, y: 815, width: 21, fontSize: 22, align: 'center' },
+  comp_salvacion_car: { x: 280, y: 846, width: 21, fontSize: 22, align: 'center' },
   
   // Skills - modifiers
   hab_acertijos: { x: 282, y: 992, width: 100, fontSize: 30, align: 'center' },
