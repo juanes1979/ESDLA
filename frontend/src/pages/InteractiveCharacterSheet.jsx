@@ -213,45 +213,45 @@ const PAGE1_FIELDS = {
   equipo_14: { x: 1100, y: 1957, width: 298, fontSize: 22, align: 'left' },
   equipo_15: { x: 1100, y: 2002, width: 298, fontSize: 22, align: 'left' },
   equipo_16: { x: 1100, y: 2040, width: 298, fontSize: 22, align: 'left' },
-  equipo_17: { x: 771, y: 2141, width: 298, fontSize: 18, align: 'left' },
-  equipo_18: { x: 771, y: 2167, width: 298, fontSize: 18, align: 'left' },
-  equipo_19: { x: 1100, y: 1725, width: 298, fontSize: 18, align: 'left' }, // Segunda columna
-  equipo_20: { x: 1100, y: 1751, width: 298, fontSize: 18, align: 'left' },
+  equipo_17: { x: 1100, y: 2085, width: 298, fontSize: 22, align: 'left' },
+  equipo_18: { x: 1100, y: 2130, width: 298, fontSize: 22, align: 'left' },
+  equipo_19: { x: 1400, y: 1725, width: 298, fontSize: 22, align: 'left' },
+  equipo_20: { x: 1400, y: 1772, width: 298, fontSize: 22, align: 'left' },
   
-  // Armas - 5 filas (Nombre | Daño | Herida | Distancia)
-  // Posiciones tentativas - el usuario las ajustará con el editor
-  arma_1_nombre: { x: 430, y: 1725, width: 120, fontSize: 18, align: 'left' },
-  arma_1_dano: { x: 560, y: 1725, width: 50, fontSize: 18, align: 'center' },
-  arma_1_herida: { x: 620, y: 1725, width: 40, fontSize: 18, align: 'center' },
-  arma_1_distancia: { x: 670, y: 1725, width: 60, fontSize: 18, align: 'center' },
+  // Armas - 5 filas (Nombre | Daño | Herida | Distancia) - Updated from JSON
+  arma_1_nombre: { x: 642, y: 1042, width: 135, fontSize: 22, align: 'left' },
+  arma_1_dano: { x: 801, y: 1042, width: 78, fontSize: 22, align: 'left' },
+  arma_1_herida: { x: 901, y: 1042, width: 81, fontSize: 22, align: 'left' },
+  arma_1_distancia: { x: 1008, y: 1042, width: 70, fontSize: 22, align: 'left' },
   
-  arma_2_nombre: { x: 430, y: 1755, width: 120, fontSize: 18, align: 'left' },
-  arma_2_dano: { x: 560, y: 1755, width: 50, fontSize: 18, align: 'center' },
-  arma_2_herida: { x: 620, y: 1755, width: 40, fontSize: 18, align: 'center' },
-  arma_2_distancia: { x: 670, y: 1755, width: 60, fontSize: 18, align: 'center' },
+  arma_2_nombre: { x: 642, y: 1086, width: 135, fontSize: 22, align: 'left' },
+  arma_2_dano: { x: 801, y: 1086, width: 78, fontSize: 22, align: 'left' },
+  arma_2_herida: { x: 901, y: 1086, width: 81, fontSize: 22, align: 'left' },
+  arma_2_distancia: { x: 1008, y: 1086, width: 70, fontSize: 22, align: 'left' },
   
-  arma_3_nombre: { x: 430, y: 1785, width: 120, fontSize: 18, align: 'left' },
-  arma_3_dano: { x: 560, y: 1785, width: 50, fontSize: 18, align: 'center' },
-  arma_3_herida: { x: 620, y: 1785, width: 40, fontSize: 18, align: 'center' },
-  arma_3_distancia: { x: 670, y: 1785, width: 60, fontSize: 18, align: 'center' },
+  arma_3_nombre: { x: 642, y: 1134, width: 135, fontSize: 22, align: 'left' },
+  arma_3_dano: { x: 801, y: 1134, width: 78, fontSize: 22, align: 'left' },
+  arma_3_herida: { x: 901, y: 1134, width: 81, fontSize: 22, align: 'left' },
+  arma_3_distancia: { x: 1008, y: 1134, width: 70, fontSize: 22, align: 'left' },
   
-  arma_4_nombre: { x: 430, y: 1815, width: 120, fontSize: 18, align: 'left' },
-  arma_4_dano: { x: 560, y: 1815, width: 50, fontSize: 18, align: 'center' },
-  arma_4_herida: { x: 620, y: 1815, width: 40, fontSize: 18, align: 'center' },
-  arma_4_distancia: { x: 670, y: 1815, width: 60, fontSize: 18, align: 'center' },
+  arma_4_nombre: { x: 642, y: 1181, width: 135, fontSize: 22, align: 'left' },
+  arma_4_dano: { x: 801, y: 1181, width: 78, fontSize: 22, align: 'left' },
+  arma_4_herida: { x: 901, y: 1181, width: 81, fontSize: 22, align: 'left' },
+  arma_4_distancia: { x: 1008, y: 1181, width: 70, fontSize: 22, align: 'left' },
   
-  arma_5_nombre: { x: 430, y: 1845, width: 120, fontSize: 18, align: 'left' },
-  arma_5_dano: { x: 560, y: 1845, width: 50, fontSize: 18, align: 'center' },
-  arma_5_herida: { x: 620, y: 1845, width: 40, fontSize: 18, align: 'center' },
-  arma_5_distancia: { x: 670, y: 1845, width: 60, fontSize: 18, align: 'center' },
+  arma_5_nombre: { x: 642, y: 1235, width: 135, fontSize: 22, align: 'left' },
+  arma_5_dano: { x: 801, y: 1235, width: 78, fontSize: 22, align: 'left' },
+  arma_5_herida: { x: 901, y: 1235, width: 81, fontSize: 22, align: 'left' },
+  arma_5_distancia: { x: 1008, y: 1235, width: 70, fontSize: 22, align: 'left' },
   
-  // Idiomas y herramientas - 6 filas (from y:1836 to y:2043, spacing ~41px)
+  // Idiomas y herramientas - 7 filas (Updated from JSON)
   idioma_herr_1: { x: 109, y: 1836, width: 435, fontSize: 22, align: 'left' },
-  idioma_herr_2: { x: 109, y: 1877, width: 435, fontSize: 22, align: 'left' },
+  idioma_herr_2: { x: 109, y: 1874, width: 435, fontSize: 22, align: 'left' },
   idioma_herr_3: { x: 109, y: 1918, width: 435, fontSize: 22, align: 'left' },
   idioma_herr_4: { x: 109, y: 1959, width: 435, fontSize: 22, align: 'left' },
-  idioma_herr_5: { x: 109, y: 2000, width: 435, fontSize: 22, align: 'left' },
-  idioma_herr_6: { x: 109, y: 2041, width: 435, fontSize: 22, align: 'left' },
+  idioma_herr_5: { x: 109, y: 2004, width: 435, fontSize: 22, align: 'left' },
+  idioma_herr_6: { x: 109, y: 2044, width: 435, fontSize: 22, align: 'left' },
+  idioma_herr_7: { x: 109, y: 2083, width: 435, fontSize: 22, align: 'left' },
 };
 
 // Handwritten style font
