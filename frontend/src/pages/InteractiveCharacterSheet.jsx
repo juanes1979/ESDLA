@@ -67,7 +67,7 @@ const SKILL_DISPLAY_NAMES = {
   'viajar': 'Viajar',
 };
 
-// PAGE 1 FIELD POSITIONS (from user-provided JSON - updated 2026-01-31)
+// PAGE 1 FIELD POSITIONS (from user-provided JSON - final version 2026-02-01)
 const PAGE1_FIELDS = {
   // Basic Info
   nombre: { x: 89, y: 171, width: 630, fontSize: 45, align: 'center' },
@@ -79,8 +79,8 @@ const PAGE1_FIELDS = {
   // Rasgos distintivos (2 con descripción)
   rasgos_distintivos_1: { x: 1336, y: 1007, width: 260, fontSize: 31, align: 'left' },
   rasgos_distintivos_2: { x: 1336, y: 1244, width: 260, fontSize: 31, align: 'left' },
-  descripcion_rasgos_distintivos_1: { x: 1336, y: 1050, width: 340, fontSize: 18, align: 'left' },
-  descripcion_rasgos_distintivos_2: { x: 1336, y: 1287, width: 340, fontSize: 18, align: 'left' },
+  descripcion_rasgos_distintivos_1: { x: 1179, y: 1056, width: 437, fontSize: 30, align: 'left' },
+  descripcion_rasgos_distintivos_2: { x: 1179, y: 1289, width: 437, fontSize: 30, align: 'left' },
   
   // Habilidades favorecidas (3)
   habilidad_favorecida_1: { x: 1228, y: 237, width: 117, fontSize: 16, align: 'left' },
@@ -90,7 +90,7 @@ const PAGE1_FIELDS = {
   // Características físicas
   edad: { x: 1059, y: 148, width: 46, fontSize: 30, align: 'left' },
   altura: { x: 1130, y: 148, width: 73, fontSize: 30, align: 'left' },
-  peso_personaje: { x: 1228, y: 148, width: 73, fontSize: 30, align: 'left' },
+  peso: { x: 1228, y: 148, width: 73, fontSize: 30, align: 'left' },
   ojos: { x: 1334, y: 156, width: 90, fontSize: 20, align: 'left' },
   piel: { x: 1434, y: 156, width: 90, fontSize: 20, align: 'left' },
   pelo: { x: 1518, y: 156, width: 90, fontSize: 20, align: 'left' },
@@ -126,6 +126,11 @@ const PAGE1_FIELDS = {
   dado_golpe: { x: 682, y: 807, width: 120, fontSize: 65, align: 'center' },
   
   percepcion_pasiva: { x: 78, y: 1674, width: 100, fontSize: 65, align: 'center' },
+  
+  // Peso y estorbo (Updated from JSON)
+  peso_transportado: { x: 1192, y: 367, width: 92, fontSize: 60, align: 'center' },
+  cargado: { x: 1337, y: 368, width: 23, fontSize: 30, align: 'left' },
+  muy_cargado: { x: 1337, y: 418, width: 23, fontSize: 30, align: 'left' },
   
   // Saving throws - modifiers (in column)
   salvacion_fue_mod: { x: 282, y: 683, width: 100, fontSize: 30, align: 'center' },
@@ -164,7 +169,7 @@ const PAGE1_FIELDS = {
   hab_trato_animales: { x: 282, y: 1519, width: 100, fontSize: 30, align: 'center' },
   hab_viajar: { x: 282, y: 1550, width: 100, fontSize: 30, align: 'center' },
   
-  // Skills - competency checkboxes (x=competencia, P=pericia) - Updated coordinates from JSON
+  // Skills - competency checkboxes (x=competencia, P=pericia)
   comp_hab_acertijos: { x: 280, y: 1001, width: 21, fontSize: 22, align: 'center' },
   comp_hab_acrobacias: { x: 280, y: 1032, width: 21, fontSize: 22, align: 'center' },
   comp_hab_atletismo: { x: 280, y: 1062, width: 21, fontSize: 22, align: 'center' },
@@ -185,18 +190,13 @@ const PAGE1_FIELDS = {
   comp_hab_trato_animales: { x: 280, y: 1527, width: 21, fontSize: 22, align: 'center' },
   comp_hab_viajar: { x: 280, y: 1558, width: 21, fontSize: 22, align: 'center' },
   
-  // Monedas - campos separados (Updated coordinates from JSON)
+  // Monedas - campos separados
   monedas_cobre: { x: 653, y: 1731, width: 60, fontSize: 40, align: 'center' },
   monedas_plata: { x: 653, y: 1852, width: 60, fontSize: 40, align: 'center' },
   monedas_oro: { x: 653, y: 1973, width: 60, fontSize: 40, align: 'center' },
   monedas_estano: { x: 680, y: 2084, width: 60, fontSize: 40, align: 'center' },
   
-  // Peso y estorbo
-  peso_transportado: { x: 900, y: 1680, width: 100, fontSize: 28, align: 'center' },
-  cargado: { x: 1000, y: 1680, width: 30, fontSize: 22, align: 'center' },
-  muy_cargado: { x: 1050, y: 1680, width: 30, fontSize: 22, align: 'center' },
-  
-  // Equipo - 8 filas (Updated coordinates from JSON)
+  // Equipo - 8 filas
   equipo_1: { x: 771, y: 1725, width: 298, fontSize: 22, align: 'left' },
   equipo_2: { x: 771, y: 1772, width: 298, fontSize: 22, align: 'left' },
   equipo_3: { x: 771, y: 1818, width: 298, fontSize: 22, align: 'left' },
@@ -218,7 +218,7 @@ const PAGE1_FIELDS = {
   equipo_19: { x: 1400, y: 1725, width: 298, fontSize: 22, align: 'left' },
   equipo_20: { x: 1400, y: 1772, width: 298, fontSize: 22, align: 'left' },
   
-  // Armas - 5 filas (Nombre | Daño | Herida | Distancia) - Updated from JSON
+  // Armas - 5 filas (Nombre | Daño | Herida | Distancia)
   arma_1_nombre: { x: 642, y: 1042, width: 135, fontSize: 22, align: 'left' },
   arma_1_dano: { x: 801, y: 1042, width: 78, fontSize: 22, align: 'left' },
   arma_1_herida: { x: 901, y: 1042, width: 81, fontSize: 22, align: 'left' },
@@ -239,12 +239,12 @@ const PAGE1_FIELDS = {
   arma_4_herida: { x: 901, y: 1181, width: 81, fontSize: 22, align: 'left' },
   arma_4_distancia: { x: 1008, y: 1181, width: 70, fontSize: 22, align: 'left' },
   
-  arma_5_nombre: { x: 642, y: 1235, width: 135, fontSize: 22, align: 'left' },
-  arma_5_dano: { x: 801, y: 1235, width: 78, fontSize: 22, align: 'left' },
-  arma_5_herida: { x: 901, y: 1235, width: 81, fontSize: 22, align: 'left' },
-  arma_5_distancia: { x: 1008, y: 1235, width: 70, fontSize: 22, align: 'left' },
+  arma_5_nombre: { x: 642, y: 1230, width: 135, fontSize: 22, align: 'left' },
+  arma_5_dano: { x: 801, y: 1229, width: 78, fontSize: 22, align: 'left' },
+  arma_5_herida: { x: 901, y: 1230, width: 81, fontSize: 22, align: 'left' },
+  arma_5_distancia: { x: 1008, y: 1230, width: 70, fontSize: 22, align: 'left' },
   
-  // Idiomas y herramientas - 7 filas (Updated from JSON)
+  // Idiomas y herramientas - 7 filas
   idioma_herr_1: { x: 109, y: 1836, width: 435, fontSize: 22, align: 'left' },
   idioma_herr_2: { x: 109, y: 1874, width: 435, fontSize: 22, align: 'left' },
   idioma_herr_3: { x: 109, y: 1918, width: 435, fontSize: 22, align: 'left' },
