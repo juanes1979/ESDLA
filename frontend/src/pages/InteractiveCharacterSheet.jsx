@@ -689,10 +689,29 @@ const InteractiveCharacterSheet = () => {
                 {/* Basic Info */}
                 <DisplayField {...PAGE1_FIELDS.nombre} value={character.nombre} scale={scale} />
                 <DisplayField {...PAGE1_FIELDS.ocupacion_nivel} value={`${character.vocacion_nombre || ''} ${nivel}`} scale={scale} />
-                <DisplayField {...PAGE1_FIELDS.rasgos_distintivos} value={rasgoDistintivo} scale={scale} />
                 <DisplayField {...PAGE1_FIELDS.jugador} value={character.jugador || ''} scale={scale} />
                 <DisplayField {...PAGE1_FIELDS.cultura} value={character.cultura_nombre || ''} scale={scale} />
                 <DisplayField {...PAGE1_FIELDS.senda_sombra} value={character.senda_sombra || ''} scale={scale} />
+                
+                {/* Rasgos distintivos (2 con descripción) */}
+                <DisplayField {...PAGE1_FIELDS.rasgos_distintivos_1} value={rasgos.rasgo1_nombre} scale={scale} />
+                <DisplayField {...PAGE1_FIELDS.rasgos_distintivos_2} value={rasgos.rasgo2_nombre} scale={scale} />
+                <DisplayField {...PAGE1_FIELDS.descripcion_rasgos_distintivos_1} value={rasgos.rasgo1_desc} scale={scale} />
+                <DisplayField {...PAGE1_FIELDS.descripcion_rasgos_distintivos_2} value={rasgos.rasgo2_desc} scale={scale} />
+                
+                {/* Habilidades favorecidas (3) */}
+                <DisplayField {...PAGE1_FIELDS.habilidad_favorecida_1} value={habFavorecidas.hab1} scale={scale} />
+                <DisplayField {...PAGE1_FIELDS.habilidad_favorecida_2} value={habFavorecidas.hab2} scale={scale} />
+                <DisplayField {...PAGE1_FIELDS.habilidad_favorecida_3} value={habFavorecidas.hab3} scale={scale} />
+                
+                {/* Características físicas */}
+                <DisplayField {...PAGE1_FIELDS.edad} value={caracteristicasFisicas.edad} scale={scale} />
+                <DisplayField {...PAGE1_FIELDS.altura} value={caracteristicasFisicas.altura} scale={scale} />
+                <DisplayField {...PAGE1_FIELDS.peso_personaje} value={caracteristicasFisicas.peso} scale={scale} />
+                <DisplayField {...PAGE1_FIELDS.ojos} value={caracteristicasFisicas.ojos} scale={scale} />
+                <DisplayField {...PAGE1_FIELDS.piel} value={caracteristicasFisicas.piel} scale={scale} />
+                <DisplayField {...PAGE1_FIELDS.pelo} value={caracteristicasFisicas.pelo} scale={scale} />
+                <DisplayField {...PAGE1_FIELDS.sexo} value={caracteristicasFisicas.sexo} scale={scale} />
                 
                 {/* Attributes - Values */}
                 <DisplayField {...PAGE1_FIELDS.fuerza_valor} value={attrs.fuerza || 10} scale={scale} />
