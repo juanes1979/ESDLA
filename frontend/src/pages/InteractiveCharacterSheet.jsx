@@ -322,25 +322,37 @@ const InteractiveCharacterSheet = () => {
     );
   }
 
-  // Get attributes
-  const attrs = character.caracteristicas || character.atributos_finales || {};
+  // Get attributes - check multiple possible field names
+  const attrs = character.atributos || character.caracteristicas || character.atributos_finales || {};
   const bonificadorCompetencia = character.bonificador_competencia || 2;
   const nivel = character.nivel || 1;
   
-  // Get proficiencies (skills with competence)
+  // Get proficiencies (skills with competence) - combine from all sources
+  const habilidadesCompetencia = character.habilidades_competencia || [];
   const competenciasHabilidades = [
+    ...habilidadesCompetencia,
     ...(character.competencias_habilidades_cultura || []),
     ...(character.competencia_habilidad_cultura ? [character.competencia_habilidad_cultura] : []),
     ...(character.competencias_habilidades_trasfondo || []),
     ...(character.habilidades_elegidas_ocupacion || []),
-  ].map(s => s?.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, '_'));
+    ...(character.competencias?.habilidades_cultura || []),
+    ...(character.competencias?.habilidades_trasfondo || []),
+  ].map(s => {
+    if (!s) return '';
+    // Remove the attribute part like "(Sab)", "(Des)" etc and normalize
+    const cleaned = s.replace(/\s*\([^)]*\)\s*/g, '').toLowerCase()
+      .normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, '_');
+    return cleaned;
+  }).filter(s => s);
   
   // Get expertise (pericia)
   const periciasHabilidades = (character.pericia_elegida || [])
     .map(s => s?.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, '_'));
   
-  // Saving throw proficiencies (typically from occupation)
-  const salvacionesCompetentes = character.salvaciones_competentes || [];
+  // Saving throw proficiencies - check multiple possible locations
+  const salvacionesCompetentes = character.salvaciones_competentes || 
+    character.competencias?.tiradas_salvacion || 
+    [];
   
   // Calculate skill modifier
   const getSkillMod = (skillKey) => {
