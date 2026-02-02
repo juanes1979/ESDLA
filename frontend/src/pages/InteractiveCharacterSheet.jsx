@@ -483,17 +483,32 @@ const InteractiveCharacterSheet = () => {
     'ballesta': { dano: '1d8', herida: 16, distancia: '24/96' },
   };
   
-  // Get weapon stats from lookup table
+  // Get weapon stats from API catalog (loaded in state)
   const getWeaponStats = (weaponName) => {
-    const normalized = weaponName.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-    // Try exact match first
+    const normalized = weaponName.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+    
+    // Search in the API catalog first
+    for (const weapon of weaponCatalog) {
+      const catalogName = weapon.nombre.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+      if (catalogName === normalized || normalized.includes(catalogName) || catalogName.includes(normalized)) {
+        return {
+          dano: weapon.dano || '1d4',
+          herida: weapon.herida || 12,
+          distancia: weapon.distancia || 'C/C'
+        };
+      }
+    }
+    
+    // Fallback to static lookup if not found in catalog
     if (WEAPON_STATS[normalized]) return WEAPON_STATS[normalized];
-    // Try partial match
+    
+    // Try partial match in static lookup
     for (const [key, stats] of Object.entries(WEAPON_STATS)) {
       if (normalized.includes(key) || key.includes(normalized)) {
         return stats;
       }
     }
+    
     return { dano: '1d4', herida: 12, distancia: 'C/C' };
   };
   
