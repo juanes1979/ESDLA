@@ -1,5 +1,5 @@
 {
-  "extracted_at": "2026-01-30T19:45:04.761355+00:00",
+  "extracted_at": "2026-02-02T14:16:51.343938+00:00",
   "cultures": [
     {
       "nombre": "Elfos de Lindon",
@@ -13979,7 +13979,9 @@
         "moneda": "mc",
         "peso_kg": 0.9,
         "modificador": "contundente",
-        "dano": "1d4"
+        "dano": "1d4",
+        "herida": 12,
+        "distancia": "C/C"
       },
       {
         "nombre": "Garrote",
@@ -13987,7 +13989,9 @@
         "moneda": "mc",
         "peso_kg": 0.9,
         "modificador": "contundente",
-        "dano": "1d4"
+        "dano": "1d4",
+        "herida": 12,
+        "distancia": "C/C"
       },
       {
         "nombre": "Gran garrote",
@@ -13995,7 +13999,9 @@
         "moneda": "mc",
         "peso_kg": 4.5,
         "modificador": "contundente",
-        "dano": "1d8"
+        "dano": "1d8",
+        "herida": 14,
+        "distancia": "C/C"
       },
       {
         "nombre": "Hacha",
@@ -14003,7 +14009,9 @@
         "moneda": "mp",
         "peso_kg": 1.35,
         "modificador": "cortante",
-        "dano": "1d6"
+        "dano": "1d6",
+        "herida": 18,
+        "distancia": "C/C"
       },
       {
         "nombre": "Hoz",
@@ -14011,7 +14019,9 @@
         "moneda": "mp",
         "peso_kg": 1.0,
         "modificador": "cortante",
-        "dano": "1d4"
+        "dano": "1d4",
+        "herida": 12,
+        "distancia": "C/C"
       },
       {
         "nombre": "Maza",
@@ -14019,7 +14029,9 @@
         "moneda": "mp",
         "peso_kg": 2.0,
         "modificador": "contundente",
-        "dano": "1d6"
+        "dano": "1d6",
+        "herida": 14,
+        "distancia": "C/C"
       },
       {
         "nombre": "Martillo",
@@ -14027,7 +14039,9 @@
         "moneda": "mp",
         "peso_kg": 1.35,
         "modificador": "contundente",
-        "dano": "1d6"
+        "dano": "1d6",
+        "herida": 14,
+        "distancia": "C/C"
       },
       {
         "nombre": "Daga",
@@ -14035,7 +14049,9 @@
         "moneda": "mp",
         "peso_kg": 0.45,
         "modificador": "perforante",
-        "dano": "1d4"
+        "dano": "1d4",
+        "herida": 14,
+        "distancia": "C/C"
       },
       {
         "nombre": "Daga",
@@ -14043,7 +14059,9 @@
         "moneda": "mp",
         "peso_kg": 0.45,
         "modificador": "arrojadiza",
-        "dano": "1d4"
+        "dano": "1d4",
+        "herida": 14,
+        "distancia": "3/15"
       },
       {
         "nombre": "Hacha de mano",
@@ -14051,7 +14069,9 @@
         "moneda": "mp",
         "peso_kg": 0.9,
         "modificador": "arrojadiza",
-        "dano": "1d6"
+        "dano": "1d6",
+        "herida": 18,
+        "distancia": "3/15"
       },
       {
         "nombre": "Lanza",
@@ -14059,7 +14079,9 @@
         "moneda": "mp",
         "peso_kg": 1.35,
         "modificador": "arrojadiza",
-        "dano": "1d6"
+        "dano": "1d6",
+        "herida": 15,
+        "distancia": "5/20"
       },
       {
         "nombre": "Lanza corta",
@@ -14067,7 +14089,9 @@
         "moneda": "mc",
         "peso_kg": 0.9,
         "modificador": "arrojadiza",
-        "dano": "1d6"
+        "dano": "1d6",
+        "herida": 14,
+        "distancia": "3/35"
       },
       {
         "nombre": "Arco",
@@ -14075,7 +14099,9 @@
         "moneda": "mp",
         "peso_kg": 0.9,
         "modificador": "distancia",
-        "dano": "1d6"
+        "dano": "1d6",
+        "herida": 14,
+        "distancia": "10/100"
       },
       {
         "nombre": "Espada",
@@ -14083,7 +14109,9 @@
         "moneda": "mp",
         "peso_kg": 0.9,
         "modificador": "cortante",
-        "dano": "1d6"
+        "dano": "1d6",
+        "herida": 16,
+        "distancia": "C/C"
       },
       {
         "nombre": "Espada corta",
@@ -14091,7 +14119,9 @@
         "moneda": "mp",
         "peso_kg": 0.9,
         "modificador": "perforante",
-        "dano": "1d6"
+        "dano": "1d6",
+        "herida": 14,
+        "distancia": "C/C"
       },
       {
         "nombre": "Espada larga",
@@ -14099,7 +14129,9 @@
         "moneda": "mp",
         "peso_kg": 1.35,
         "modificador": "cortante",
-        "dano": "1d8"
+        "dano": "1d8",
+        "herida": 17,
+        "distancia": "C/C"
       },
       {
         "nombre": "Cimitarra",
@@ -14107,7 +14139,9 @@
         "moneda": "mp",
         "peso_kg": 1.2,
         "modificador": "cortante",
-        "dano": "1d6"
+        "dano": "1d6",
+        "herida": 16,
+        "distancia": "C/C"
       },
       {
         "nombre": "Estoque",
@@ -14115,7 +14149,9 @@
         "moneda": "mp",
         "peso_kg": 1.0,
         "modificador": "perforante",
-        "dano": "1d8"
+        "dano": "1d8",
+        "herida": 17,
+        "distancia": "C/C"
       },
       {
         "nombre": "Flajelo",
@@ -14123,7 +14159,9 @@
         "moneda": "mp",
         "peso_kg": 1.5,
         "modificador": "contundente",
-        "dano": "1d6"
+        "dano": "1d6",
+        "herida": 18,
+        "distancia": "C/C"
       },
       {
         "nombre": "Hacha a dos manos",
@@ -14131,7 +14169,9 @@
         "moneda": "mp",
         "peso_kg": 3.5,
         "modificador": "cortante",
-        "dano": "1d12"
+        "dano": "1d12",
+        "herida": 19,
+        "distancia": "C/C"
       },
       {
         "nombre": "Lanza de caballería",
@@ -14139,7 +14179,9 @@
         "moneda": "mp",
         "peso_kg": 3.0,
         "modificador": "perforante",
-        "dano": "1d12"
+        "dano": "1d12",
+        "herida": 20,
+        "distancia": "C/C"
       },
       {
         "nombre": "Látigo",
@@ -14147,7 +14189,9 @@
         "moneda": "mp",
         "peso_kg": 1.0,
         "modificador": "cortante",
-        "dano": "1d4"
+        "dano": "1d4",
+        "herida": 12,
+        "distancia": "C/C"
       },
       {
         "nombre": "Gran hacha",
@@ -14155,7 +14199,9 @@
         "moneda": "mp",
         "peso_kg": 3.15,
         "modificador": "cortante",
-        "dano": "1d12"
+        "dano": "1d12",
+        "herida": 20,
+        "distancia": "C/C"
       },
       {
         "nombre": "Hacha de guerra",
@@ -14163,7 +14209,9 @@
         "moneda": "mp",
         "peso_kg": 1.8,
         "modificador": "cortante",
-        "dano": "1d8"
+        "dano": "1d8",
+        "herida": 20,
+        "distancia": "C/C"
       },
       {
         "nombre": "Lanza pesada",
@@ -14171,7 +14219,9 @@
         "moneda": "mp",
         "peso_kg": 2.7,
         "modificador": "perforante",
-        "dano": "1d12"
+        "dano": "1d12",
+        "herida": 17,
+        "distancia": "C/C"
       },
       {
         "nombre": "Martillo pesado",
@@ -14179,7 +14229,9 @@
         "moneda": "mp",
         "peso_kg": 1.8,
         "modificador": "contundente",
-        "dano": "1d8"
+        "dano": "1d8",
+        "herida": 18,
+        "distancia": "C/C"
       },
       {
         "nombre": "Piqueta",
@@ -14187,7 +14239,9 @@
         "moneda": "mp",
         "peso_kg": 4.5,
         "modificador": "perforante",
-        "dano": "1d12"
+        "dano": "1d12",
+        "herida": 18,
+        "distancia": "C/C"
       },
       {
         "nombre": "Arco largo",
@@ -14195,7 +14249,9 @@
         "moneda": "mp",
         "peso_kg": 1.35,
         "modificador": "distancia",
-        "dano": "1d8"
+        "dano": "1d8",
+        "herida": 16,
+        "distancia": "20/180"
       },
       {
         "nombre": "Ballesta",
@@ -14203,7 +14259,9 @@
         "moneda": "mp",
         "peso_kg": 4.5,
         "modificador": "distancia",
-        "dano": "1d10"
+        "dano": "1d10",
+        "herida": 16,
+        "distancia": "10/150"
       }
     ],
     "armaduras": [
