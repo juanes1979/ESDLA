@@ -291,6 +291,7 @@ const InteractiveCharacterSheet = () => {
   const [character, setCharacter] = useState(null);
   const [weaponCatalog, setWeaponCatalog] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [saving, setSaving] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [scale, setScale] = useState(0.6);
@@ -301,15 +302,21 @@ const InteractiveCharacterSheet = () => {
     const loadData = async () => {
       try {
         setLoading(true);
+        setError(null);
+        console.log('Loading character with ID:', characterId);
+        
         // Load character and equipment catalog in parallel
         const [characterData, catalogRes] = await Promise.all([
           getCharacter(characterId),
           api.get('/api/data/equipment-catalog')
         ]);
+        
+        console.log('Character data loaded:', characterData);
         setCharacter(characterData);
         setWeaponCatalog(catalogRes.data?.armas || []);
       } catch (err) {
         console.error('Error loading data:', err);
+        setError(err.response?.data?.detail || err.message || 'Error al cargar el personaje');
       } finally {
         setLoading(false);
       }
@@ -330,10 +337,13 @@ const InteractiveCharacterSheet = () => {
     );
   }
 
-  if (!character) {
+  if (error || !character) {
     return (
-      <div className="min-h-screen tavern-bg flex items-center justify-center">
-        <p className="text-muted-foreground">Personaje no encontrado</p>
+      <div className="min-h-screen tavern-bg flex flex-col items-center justify-center gap-4">
+        <p className="text-muted-foreground">{error || 'Personaje no encontrado'}</p>
+        <Button variant="outline" onClick={() => navigate('/characters')}>
+          Volver a Mis Personajes
+        </Button>
       </div>
     );
   }
