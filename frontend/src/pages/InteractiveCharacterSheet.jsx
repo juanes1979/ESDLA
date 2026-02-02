@@ -573,21 +573,27 @@ const InteractiveCharacterSheet = () => {
     // First, get all languages from competencias.idiomas or direct idiomas field
     const idiomas = character.competencias?.idiomas || character.idiomas || [];
     
-    // Then, get all tools/herramientas - including from culture selection (step 5)
+    // Then, get all tools/herramientas - including from culture selection (step 1)
     const herramientas = [
-      // Herramienta de cultura (seleccionada en paso 5 "Selecciones de cultura")
+      // Herramienta de cultura (seleccionada en paso 1 - Step1Culture)
       ...(character.competencia_herramienta_cultura ? [character.competencia_herramienta_cultura] : []),
       ...(character.herramienta_elegida_cultura ? [character.herramienta_elegida_cultura] : []),
-      // Other tools
-      ...(character.competencias?.herramientas || []),
-      ...(character.herramientas_elegidas_ocupacion || []),
       ...(character.competencia_herramienta_1 ? [character.competencia_herramienta_1] : []),
       ...(character.competencias_herramientas_2 || []),
+      // From nested competencias object
+      ...(character.competencias?.herramientas || []),
+      ...(character.competencias?.herramientas_cultura || []),
+      // From occupation
+      ...(character.herramientas_elegidas_ocupacion || []),
+      // From background
       ...(character.competencias_herramientas_trasfondo || []),
     ];
     
+    // Remove duplicates
+    const uniqueHerramientas = [...new Set(herramientas.filter(h => h))];
+    
     // Combine: idiomas first, then herramientas
-    const items = [...idiomas, ...herramientas];
+    const items = [...idiomas, ...uniqueHerramientas];
     
     const rows = [];
     for (let i = 0; i < 7; i++) {
