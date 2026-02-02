@@ -217,6 +217,11 @@ const PAGE1_FIELDS = {
   equipo_18: { x: 1100, y: 2130, width: 298, fontSize: 22, align: 'left' },
   equipo_19: { x: 1400, y: 1725, width: 298, fontSize: 22, align: 'left' },
   equipo_20: { x: 1400, y: 1772, width: 298, fontSize: 22, align: 'left' },
+  equipo_21: { x: 1400, y: 1818, width: 298, fontSize: 22, align: 'left' },
+  equipo_22: { x: 1400, y: 1867, width: 298, fontSize: 22, align: 'left' },
+  equipo_23: { x: 1400, y: 1915, width: 298, fontSize: 22, align: 'left' },
+  equipo_24: { x: 1400, y: 1957, width: 298, fontSize: 22, align: 'left' },
+  equipo_25: { x: 1400, y: 2002, width: 298, fontSize: 22, align: 'left' },
   
   // Armas - 5 filas (Nombre | Daño | Herida | Distancia)
   arma_1_nombre: { x: 642, y: 1042, width: 135, fontSize: 22, align: 'left' },
