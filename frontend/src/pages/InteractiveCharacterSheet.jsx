@@ -701,7 +701,7 @@ const InteractiveCharacterSheet = () => {
               <>
                 {/* Basic Info */}
                 <DisplayField {...PAGE1_FIELDS.nombre} value={character.nombre} scale={scale} />
-                <DisplayField {...PAGE1_FIELDS.ocupacion_nivel} value={`${character.vocacion_nombre || ''} ${nivel}`} scale={scale} />
+                <DisplayField {...PAGE1_FIELDS.ocupacion_nivel} value={`${character.ocupacion_nombre || character.vocacion_nombre || ''} ${nivel}`} scale={scale} />
                 <DisplayField {...PAGE1_FIELDS.jugador} value={character.jugador || ''} scale={scale} />
                 <DisplayField {...PAGE1_FIELDS.cultura} value={character.cultura_nombre || ''} scale={scale} />
                 <DisplayField {...PAGE1_FIELDS.senda_sombra} value={character.senda_sombra || ''} scale={scale} />
