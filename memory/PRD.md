@@ -252,5 +252,13 @@ Files updated:
 
 **Files Updated:**
 - `/app/backend/data_extractor_complete.py` - Añadidas columnas herida y distancia
-- `/app/frontend/src/pages/InteractiveCharacterSheet.jsx` - Corregida sintaxis, carga de catálogo de armas
+- `/app/frontend/src/pages/InteractiveCharacterSheet.jsx` - Corregida sintaxis, carga de catálogo de armas, corregido doble /api/api/ en URL
 - `/app/frontend/src/pages/SheetPositionEditor.jsx` - Añadidos campos equipo_21 a equipo_25
+
+### Session Update (2026-02-02 - Tarde)
+**Bug Fix: "Personaje no encontrado" en Ficha Oficial**
+
+- **Causa:** La URL del API tenía doble prefijo `/api/api/data/equipment-catalog`
+- **Fix:** Cambiado `api.get('/api/data/equipment-catalog')` a `api.get('/data/equipment-catalog')`
+- **Location:** `/app/frontend/src/pages/InteractiveCharacterSheet.jsx` línea 307
+- **Resultado:** La ficha de personaje ahora carga correctamente con todos los datos
