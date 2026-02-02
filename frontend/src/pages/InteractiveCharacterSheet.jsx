@@ -544,7 +544,6 @@ const InteractiveCharacterSheet = () => {
     for (let i = 0; i < 5; i++) {
       weapons.push(weaponItems[i] || { nombre: '', dano: '', herida: '', distancia: '' });
     }
-    }
     return weapons;
   };
   
