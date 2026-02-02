@@ -218,3 +218,39 @@ Files updated:
    - Lista de armas conocidas: bastón, espada, hacha, arco, daga, etc.
 
 4. **Sugerencias de campos actualizadas en editor**
+
+### Session Update (2026-02-02)
+**Bug Fixes Verified by Testing Agent (iteration_8.json):**
+
+1. **Datos de Armas con Herida y Distancia** - FIXED (P0)
+   - El extractor de datos ahora parsea las columnas "Herida" (col 20) y "DISTANCIA" (col 21)
+   - Location: `/app/backend/data_extractor_complete.py` lines 692-713
+   - 29 armas tienen ahora campos `herida` (12-20) y `distancia` (C/C o rango como 3/15)
+   - El frontend carga el catálogo de armas desde `/api/data/equipment-catalog` para stats precisos
+
+2. **Error de Sintaxis Crítico** - FIXED
+   - Había una llave `}` extra en línea 547 que impedía la compilación del frontend
+   - Location: `/app/frontend/src/pages/InteractiveCharacterSheet.jsx`
+   - El error causaba "return outside of function" en línea 661
+
+3. **Competencia de Herramientas Culturales** - FIXED (P1)
+   - La función `getIdiomasHerramientasRows()` ahora incluye:
+     - `competencia_herramienta_cultura`
+     - `herramienta_elegida_cultura`
+     - `competencia_herramienta_1`
+     - `competencias.herramientas_cultura`
+   - Eliminación de duplicados con `Set`
+
+4. **Campos de Equipo Expandidos** - UPDATED (P2)
+   - 25 campos de equipo disponibles (equipo_1 a equipo_25)
+   - 8 campos para página 1, 17 campos disponibles para página 2
+   - Función `getEquipmentRows()` devuelve 25 elementos
+
+**Test Results:**
+- Backend: 100% (12/12 tests passed)
+- Frontend: 100% (Homepage, Sheet Editor, Character Creation Wizard all load correctly)
+
+**Files Updated:**
+- `/app/backend/data_extractor_complete.py` - Añadidas columnas herida y distancia
+- `/app/frontend/src/pages/InteractiveCharacterSheet.jsx` - Corregida sintaxis, carga de catálogo de armas
+- `/app/frontend/src/pages/SheetPositionEditor.jsx` - Añadidos campos equipo_21 a equipo_25
