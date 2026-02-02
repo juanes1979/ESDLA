@@ -568,15 +568,15 @@ const InteractiveCharacterSheet = () => {
   // Calculate passive perception
   const percepcionPasiva = 10 + parseInt(getSkillMod('percepcion').replace('+', ''));
   
-  // Get physical characteristics
+  // Get physical characteristics - check multiple field names
   const caracteristicasFisicas = {
     edad: character.edad || '',
-    altura: character.altura || '',
-    peso: character.peso || '',
+    altura: character.altura_cm ? `${character.altura_cm} cm` : character.altura || '',
+    peso: character.peso_kg ? `${character.peso_kg} kg` : character.peso || '',
     ojos: character.ojos || '',
     piel: character.piel || '',
     pelo: character.pelo || '',
-    sexo: character.sexo || '',
+    sexo: character.genero || character.sexo || '',
   };
 
   const equipmentRows = getEquipmentRows();
