@@ -398,6 +398,8 @@ async def update_draft_step3(draft_id: str, data: CharacterCreateStep3):
             "armas": occupation.get('competencia_armas', []),
             "armaduras": occupation.get('competencia_armaduras', []),
         },
+        # Favored skills from occupation
+        "habilidades_favorecidas": occupation.get('habilidades_favorecidas', []),
         # Skills, tools, armor, weapons, expertise from user selection
         "habilidades_elegidas_ocupacion": data.habilidades_elegidas,
         "herramientas_elegidas_ocupacion": data.herramientas_elegidas,
