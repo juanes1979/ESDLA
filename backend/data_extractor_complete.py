@@ -688,7 +688,8 @@ def extract_equipment_lists(wb: openpyxl.Workbook) -> Dict:
                     "peso_kg": float(peso) if peso else 0
                 })
     
-    # Extract weapons (columns N-T, rows 4-35)
+    # Extract weapons (columns N-U, rows 4-35)
+    # Column mapping: N=Nombre, O=Precio, P=Moneda, Q=Peso, R=Modificador, S=Daño, T=Herida, U=Distancia
     for row in range(4, 36):
         arma = clean_value(sheet.cell(row=row, column=14).value)
         if arma and arma not in ['Arma', 'Armas sencillas cuerpo a cuerpo', 'Armas sencillas a distancia', 
@@ -698,13 +699,17 @@ def extract_equipment_lists(wb: openpyxl.Workbook) -> Dict:
             peso = sheet.cell(row=row, column=17).value
             modificador = clean_value(sheet.cell(row=row, column=18).value)
             dano = clean_value(sheet.cell(row=row, column=19).value)
+            herida = sheet.cell(row=row, column=20).value
+            distancia = clean_value(sheet.cell(row=row, column=21).value)
             equipment_data["armas"].append({
                 "nombre": arma,
                 "precio": precio,
                 "moneda": moneda or "mp",
                 "peso_kg": float(peso) if peso else 0,
                 "modificador": modificador,
-                "dano": dano
+                "dano": dano,
+                "herida": int(herida) if herida else 12,
+                "distancia": distancia or "C/C"
             })
     
     # Extract armor (columns W-AA, rows 4-21)
