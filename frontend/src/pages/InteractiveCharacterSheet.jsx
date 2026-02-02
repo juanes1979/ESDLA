@@ -483,11 +483,13 @@ const InteractiveCharacterSheet = () => {
   
   // Get languages and tools (idiomas primero, luego herramientas) - 7 filas
   const getIdiomasHerramientasRows = () => {
-    // First, get all languages
-    const idiomas = character.idiomas || [];
+    // First, get all languages from competencias.idiomas or direct idiomas field
+    const idiomas = character.competencias?.idiomas || character.idiomas || [];
     
     // Then, get all tools/herramientas
     const herramientas = [
+      ...(character.competencias?.herramientas || []),
+      ...(character.herramientas_elegidas_ocupacion || []),
       ...(character.competencia_herramienta_1 ? [character.competencia_herramienta_1] : []),
       ...(character.competencias_herramientas_2 || []),
       ...(character.competencias_herramientas_trasfondo || []),
@@ -503,11 +505,10 @@ const InteractiveCharacterSheet = () => {
     return rows;
   };
   
-  // Get rasgos distintivos (2 with descriptions)
+  // Get rasgos distintivos (2 with descriptions) - check both rasgo_distintivo and rasgo_distintivo_2
   const getRasgosDistintivos = () => {
-    const rasgos = character.rasgos_distintivos || [];
-    const rasgo1 = rasgos[0] || character.rasgo_distintivo;
-    const rasgo2 = rasgos[1];
+    const rasgo1 = character.rasgo_distintivo;
+    const rasgo2 = character.rasgo_distintivo_2;
     
     return {
       rasgo1_nombre: typeof rasgo1 === 'object' ? rasgo1?.nombre : rasgo1 || '',
@@ -517,9 +518,9 @@ const InteractiveCharacterSheet = () => {
     };
   };
   
-  // Get habilidades favorecidas (3)
+  // Get habilidades favorecidas (3) - from pericia_elegida typically
   const getHabilidadesFavorecidas = () => {
-    const favorecidas = character.habilidades_favorecidas || [];
+    const favorecidas = character.habilidades_favorecidas || character.pericia_elegida || [];
     return {
       hab1: favorecidas[0] || '',
       hab2: favorecidas[1] || '',
