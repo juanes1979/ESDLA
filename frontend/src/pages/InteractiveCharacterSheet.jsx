@@ -257,18 +257,23 @@ const PAGE1_FIELDS = {
 // Handwritten style font
 const FONT_STYLE = "'Caveat', 'Ink Free', cursive";
 
-// Display field component
-const DisplayField = ({ value, x, y, width, scale, fontSize = 14, align = 'center' }) => (
+// Display field component - supports multiline with height parameter
+const DisplayField = ({ value, x, y, width, scale, fontSize = 14, align = 'center', height = null, multiline = false }) => (
   <div
-    className="absolute text-black whitespace-nowrap overflow-hidden"
+    className={cn(
+      "absolute text-black",
+      multiline ? "whitespace-pre-wrap overflow-hidden" : "whitespace-nowrap overflow-hidden"
+    )}
     style={{
       left: `${x * scale}px`,
       top: `${y * scale}px`,
       width: `${width * scale}px`,
+      height: height ? `${height * scale}px` : 'auto',
       fontSize: `${fontSize * scale}px`,
       textAlign: align,
       fontFamily: FONT_STYLE,
-      lineHeight: 1.1,
+      lineHeight: 1.2,
+      wordWrap: multiline ? 'break-word' : 'normal',
     }}
   >
     {value}
