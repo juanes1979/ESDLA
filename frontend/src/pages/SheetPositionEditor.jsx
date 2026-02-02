@@ -187,9 +187,11 @@ const SheetPositionEditor = () => {
       page: currentPage,
       fieldName: '',
       width: 150,
+      height: null, // null = auto height
       fontSize: 16,
       previewText: '',
       align: 'left',
+      multiline: false,
     };
     
     setPositions(prev => [...prev, newPosition]);
@@ -212,7 +214,10 @@ const SheetPositionEditor = () => {
 
   // Copy single position
   const copyPosition = (pos) => {
-    const text = `{ field: "${pos.fieldName}", x: ${pos.x}, y: ${pos.y}, width: ${pos.width}, fontSize: ${pos.fontSize} }`;
+    let text = `{ field: "${pos.fieldName}", x: ${pos.x}, y: ${pos.y}, width: ${pos.width}, fontSize: ${pos.fontSize}`;
+    if (pos.height) text += `, height: ${pos.height}`;
+    if (pos.multiline) text += `, multiline: true`;
+    text += `, align: "${pos.align || 'left'}" }`;
     navigator.clipboard.writeText(text);
     setLastCopied(pos.id);
     setTimeout(() => setLastCopied(null), 2000);
@@ -223,14 +228,17 @@ const SheetPositionEditor = () => {
     const data = positions.reduce((acc, pos) => {
       const pageKey = `page${pos.page}`;
       if (!acc[pageKey]) acc[pageKey] = [];
-      acc[pageKey].push({
+      const field = {
         field: pos.fieldName || `field_${pos.id}`,
         x: pos.x,
         y: pos.y,
         width: pos.width,
         fontSize: pos.fontSize,
         align: pos.align || 'left',
-      });
+      };
+      if (pos.height) field.height = pos.height;
+      if (pos.multiline) field.multiline = true;
+      acc[pageKey].push(field);
       return acc;
     }, {});
     
