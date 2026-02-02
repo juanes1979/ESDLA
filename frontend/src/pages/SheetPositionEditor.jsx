@@ -2,13 +2,15 @@
  * Sheet Position Editor - Tool to find exact coordinates on the character sheet
  * Click anywhere on the sheet to get x, y coordinates and assign field names
  * Now with live preview of text in each field
+ * Positions are saved to the database for persistence
  */
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Copy, Check, ZoomIn, ZoomOut, ChevronLeft, ChevronRight, Download, Trash2, Eye, EyeOff, Save, Upload } from 'lucide-react';
+import { ArrowLeft, Copy, Check, ZoomIn, ZoomOut, ChevronLeft, ChevronRight, Download, Trash2, Eye, EyeOff, Save, Upload, Database } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
+import api from '@/services/api';
 
 // LocalStorage key for saving work
 const STORAGE_KEY = 'sheet-editor-positions';
