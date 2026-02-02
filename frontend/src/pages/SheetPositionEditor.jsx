@@ -103,27 +103,91 @@ const SheetPositionEditor = () => {
   const [showSuggestions, setShowSuggestions] = useState(null);
   const [showMarkers, setShowMarkers] = useState(true);
   const [showTextFields, setShowTextFields] = useState(true);
-  const [saveStatus, setSaveStatus] = useState(null); // 'saved', 'loaded', null
+  const [saveStatus, setSaveStatus] = useState(null); // 'saved', 'loading', 'loaded', 'error'
   const containerRef = useRef(null);
 
-  // Load saved positions from localStorage on mount
+  // Load saved positions from DATABASE on mount
   useEffect(() => {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    if (saved) {
+    const loadFromDatabase = async () => {
       try {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          setPositions(parsed);
+        setSaveStatus('loading');
+        const response = await api.get('/data/sheet-positions');
+        const data = response.data;
+        
+        // Convert from database format to internal format
+        const loaded = [];
+        let id = Date.now();
+        
+        [1, 2, 3].forEach(pageNum => {
+          const pageData = data[`page${pageNum}`] || {};
+          Object.entries(pageData).forEach(([fieldName, field]) => {
+            loaded.push({
+              id: id++,
+              x: field.x,
+              y: field.y,
+              page: pageNum,
+              fieldName: fieldName,
+              width: field.width || 150,
+              fontSize: field.fontSize || 16,
+              height: field.height || null,
+              multiline: field.multiline || false,
+              previewText: '',
+              align: field.align || 'left',
+            });
+          });
+        });
+        
+        if (loaded.length > 0) {
+          setPositions(loaded);
           setSaveStatus('loaded');
           setTimeout(() => setSaveStatus(null), 2000);
+        } else {
+          setSaveStatus(null);
         }
-      } catch (e) {
-        console.error('Error loading saved positions:', e);
+      } catch (err) {
+        console.error('Error loading positions from database:', err);
+        setSaveStatus('error');
+        setTimeout(() => setSaveStatus(null), 3000);
       }
-    }
+    };
+    
+    loadFromDatabase();
   }, []);
 
-  // Save positions to localStorage
+  // Save positions to DATABASE
+  const saveToDatabase = async () => {
+    try {
+      setSaveStatus('saving');
+      
+      // Convert to database format: { page1: { fieldName: {...} }, page2: {...}, page3: {...} }
+      const dbFormat = { page1: {}, page2: {}, page3: {} };
+      
+      positions.forEach(pos => {
+        if (pos.fieldName) {
+          const pageKey = `page${pos.page}`;
+          dbFormat[pageKey][pos.fieldName] = {
+            x: pos.x,
+            y: pos.y,
+            width: pos.width,
+            fontSize: pos.fontSize,
+            align: pos.align || 'left',
+            ...(pos.height && { height: pos.height }),
+            ...(pos.multiline && { multiline: pos.multiline }),
+          };
+        }
+      });
+      
+      await api.put('/data/sheet-positions', dbFormat);
+      setSaveStatus('saved');
+      setTimeout(() => setSaveStatus(null), 2000);
+    } catch (err) {
+      console.error('Error saving to database:', err);
+      setSaveStatus('error');
+      setTimeout(() => setSaveStatus(null), 3000);
+    }
+  };
+
+  // Save positions to localStorage (backup)
   const saveToLocalStorage = () => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(positions));
     setSaveStatus('saved');
