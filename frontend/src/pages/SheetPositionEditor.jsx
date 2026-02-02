@@ -425,16 +425,16 @@ const SheetPositionEditor = () => {
               </span>
             )}
 
-            {/* Save to localStorage */}
+            {/* Save to database */}
             <Button
               variant="outline"
               size="sm"
-              onClick={saveToLocalStorage}
-              disabled={positions.length === 0}
+              onClick={saveToDatabase}
+              disabled={positions.length === 0 || saveStatus === 'saving'}
               className="border-green-500/50 text-green-400 hover:bg-green-500/10"
             >
-              <Save className="w-4 h-4 mr-2" />
-              Guardar
+              <Database className="w-4 h-4 mr-2" />
+              {saveStatus === 'saving' ? 'Guardando...' : 'Guardar en BD'}
             </Button>
 
             {/* Load from file */}
