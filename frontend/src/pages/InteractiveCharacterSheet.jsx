@@ -548,8 +548,12 @@ const InteractiveCharacterSheet = () => {
     // First, get all languages from competencias.idiomas or direct idiomas field
     const idiomas = character.competencias?.idiomas || character.idiomas || [];
     
-    // Then, get all tools/herramientas
+    // Then, get all tools/herramientas - including from culture selection (step 5)
     const herramientas = [
+      // Herramienta de cultura (seleccionada en paso 5 "Selecciones de cultura")
+      ...(character.competencia_herramienta_cultura ? [character.competencia_herramienta_cultura] : []),
+      ...(character.herramienta_elegida_cultura ? [character.herramienta_elegida_cultura] : []),
+      // Other tools
       ...(character.competencias?.herramientas || []),
       ...(character.herramientas_elegidas_ocupacion || []),
       ...(character.competencia_herramienta_1 ? [character.competencia_herramienta_1] : []),
