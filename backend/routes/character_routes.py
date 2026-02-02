@@ -692,6 +692,8 @@ async def finalize_character(draft_id: str):
         # Progression
         "nivel": 1,
         "experiencia": 0,
+        # Favored skills from occupation
+        "habilidades_favorecidas": draft.get('habilidades_favorecidas', []),
         # Shadow
         "puntos_sombra": 0,
         "puntos_sombra_permanentes": 0,
