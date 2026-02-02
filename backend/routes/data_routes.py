@@ -322,3 +322,48 @@ async def get_equipment_catalog(
             ]
     
     return result
+
+
+# === SHEET POSITIONS (for character sheet layout) ===
+
+@router.get("/sheet-positions")
+async def get_sheet_positions():
+    """Get saved sheet field positions for all pages"""
+    positions = await db.sheet_positions.find_one({"_id": "default"})
+    if not positions:
+        return {"page1": {}, "page2": {}, "page3": {}}
+    return {
+        "page1": positions.get("page1", {}),
+        "page2": positions.get("page2", {}),
+        "page3": positions.get("page3", {})
+    }
+
+
+@router.put("/sheet-positions")
+async def save_sheet_positions(positions: dict):
+    """Save sheet field positions (upsert)"""
+    await db.sheet_positions.update_one(
+        {"_id": "default"},
+        {"$set": {
+            "page1": positions.get("page1", {}),
+            "page2": positions.get("page2", {}),
+            "page3": positions.get("page3", {})
+        }},
+        upsert=True
+    )
+    return {"message": "Positions saved successfully"}
+
+
+@router.put("/sheet-positions/page/{page_num}")
+async def save_sheet_positions_page(page_num: int, positions: dict):
+    """Save sheet field positions for a specific page"""
+    if page_num < 1 or page_num > 3:
+        raise HTTPException(status_code=400, detail="Page must be 1, 2, or 3")
+    
+    page_key = f"page{page_num}"
+    await db.sheet_positions.update_one(
+        {"_id": "default"},
+        {"$set": {page_key: positions}},
+        upsert=True
+    )
+    return {"message": f"Page {page_num} positions saved successfully"}
