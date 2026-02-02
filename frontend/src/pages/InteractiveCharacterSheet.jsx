@@ -308,7 +308,7 @@ const InteractiveCharacterSheet = () => {
         // Load character and equipment catalog in parallel
         const [characterData, catalogRes] = await Promise.all([
           getCharacter(characterId),
-          api.get('/api/data/equipment-catalog')
+          api.get('/data/equipment-catalog')
         ]);
         
         console.log('Character data loaded:', characterData);
