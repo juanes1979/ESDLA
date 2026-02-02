@@ -284,26 +284,32 @@ const InteractiveCharacterSheet = () => {
   const { characterId } = useParams();
   const navigate = useNavigate();
   const [character, setCharacter] = useState(null);
+  const [weaponCatalog, setWeaponCatalog] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [scale, setScale] = useState(0.6);
   const containerRef = useRef(null);
 
-  // Load character data
+  // Load character data and equipment catalog
   useEffect(() => {
-    const loadCharacter = async () => {
+    const loadData = async () => {
       try {
         setLoading(true);
-        const data = await getCharacter(characterId);
-        setCharacter(data);
+        // Load character and equipment catalog in parallel
+        const [characterData, catalogRes] = await Promise.all([
+          getCharacter(characterId),
+          api.get('/api/data/equipment-catalog')
+        ]);
+        setCharacter(characterData);
+        setWeaponCatalog(catalogRes.data?.armas || []);
       } catch (err) {
-        console.error('Error loading character:', err);
+        console.error('Error loading data:', err);
       } finally {
         setLoading(false);
       }
     };
-    loadCharacter();
+    loadData();
   }, [characterId]);
 
   // Handle print/PDF
