@@ -750,10 +750,10 @@ const InteractiveCharacterSheet = () => {
                 <DisplayField {...PAGE1_FIELDS.velocidad} value={`${character.velocidad || 9}m`} scale={scale} />
                 
                 {/* Hit Points */}
-                <DisplayField {...PAGE1_FIELDS.pg_max} value={character.puntos_golpe_max || 8} scale={scale} />
-                <DisplayField {...PAGE1_FIELDS.pg_actual} value={character.puntos_golpe_actual || character.puntos_golpe_max || 8} scale={scale} />
-                <DisplayField {...PAGE1_FIELDS.pg_temp} value={character.puntos_golpe_temp || 0} scale={scale} />
-                <DisplayField {...PAGE1_FIELDS.dado_golpe} value={character.dado_golpe || '1d8'} scale={scale} />
+                <DisplayField {...PAGE1_FIELDS.pg_max} value={character.puntos_golpe_max || character.pg_max || 8} scale={scale} />
+                <DisplayField {...PAGE1_FIELDS.pg_actual} value={character.puntos_golpe_actual || character.pg_actual || character.puntos_golpe_max || character.pg_max || 8} scale={scale} />
+                <DisplayField {...PAGE1_FIELDS.pg_temp} value={character.puntos_golpe_temp || character.pg_temp || 0} scale={scale} />
+                <DisplayField {...PAGE1_FIELDS.dado_golpe} value={character.dado_golpe || character.dado_de_golpe || '1d8'} scale={scale} />
                 
                 <DisplayField {...PAGE1_FIELDS.percepcion_pasiva} value={percepcionPasiva} scale={scale} />
                 
