@@ -290,6 +290,7 @@ const InteractiveCharacterSheet = () => {
   const navigate = useNavigate();
   const [character, setCharacter] = useState(null);
   const [weaponCatalog, setWeaponCatalog] = useState([]);
+  const [fieldPositions, setFieldPositions] = useState({ page1: {}, page2: {}, page3: {} });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [saving, setSaving] = useState(false);
@@ -297,7 +298,7 @@ const InteractiveCharacterSheet = () => {
   const [scale, setScale] = useState(0.6);
   const containerRef = useRef(null);
 
-  // Load character data and equipment catalog
+  // Load character data, equipment catalog, and field positions
   useEffect(() => {
     const loadData = async () => {
       try {
@@ -305,15 +306,17 @@ const InteractiveCharacterSheet = () => {
         setError(null);
         console.log('Loading character with ID:', characterId);
         
-        // Load character and equipment catalog in parallel
-        const [characterData, catalogRes] = await Promise.all([
+        // Load character, equipment catalog, and positions in parallel
+        const [characterData, catalogRes, positionsRes] = await Promise.all([
           getCharacter(characterId),
-          api.get('/data/equipment-catalog')
+          api.get('/data/equipment-catalog'),
+          api.get('/data/sheet-positions')
         ]);
         
         console.log('Character data loaded:', characterData);
         setCharacter(characterData);
         setWeaponCatalog(catalogRes.data?.armas || []);
+        setFieldPositions(positionsRes.data || { page1: {}, page2: {}, page3: {} });
       } catch (err) {
         console.error('Error loading data:', err);
         setError(err.response?.data?.detail || err.message || 'Error al cargar el personaje');
@@ -323,6 +326,11 @@ const InteractiveCharacterSheet = () => {
     };
     loadData();
   }, [characterId]);
+
+  // Get field position from database or fallback to hardcoded
+  const getFieldPos = (fieldName) => {
+    return fieldPositions.page1?.[fieldName] || PAGE1_FIELDS[fieldName] || { x: 0, y: 0, width: 100, fontSize: 14, align: 'left' };
+  };
 
   // Handle print/PDF
   const handlePrint = () => {
