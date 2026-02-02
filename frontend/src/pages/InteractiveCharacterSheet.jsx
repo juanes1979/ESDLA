@@ -443,12 +443,12 @@ const InteractiveCharacterSheet = () => {
     return allItems.filter(item => !isWeapon(item));
   };
   
-  // Get equipment rows (8 rows for page 1, excluding weapons)
+  // Get equipment rows (25 total: 8 for page 1, 17 for page 2)
   const getEquipmentRows = () => {
     const equipment = getAllEquipment();
     const rows = [];
-    // Only 8 rows for page 1
-    for (let i = 0; i < 8; i++) {
+    // Get up to 25 equipment items
+    for (let i = 0; i < 25; i++) {
       rows.push(equipment[i] || '');
     }
     return rows;
