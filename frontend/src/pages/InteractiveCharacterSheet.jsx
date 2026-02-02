@@ -432,43 +432,104 @@ const InteractiveCharacterSheet = () => {
     return allItems.filter(item => !isWeapon(item));
   };
   
-  // Get equipment rows (20 rows, excluding weapons)
+  // Get equipment rows (8 rows for page 1, excluding weapons)
   const getEquipmentRows = () => {
     const equipment = getAllEquipment();
     const rows = [];
-    for (let i = 0; i < 20; i++) {
+    // Only 8 rows for page 1
+    for (let i = 0; i < 8; i++) {
       rows.push(equipment[i] || '');
     }
     return rows;
   };
   
-  // Get weapons with details (5 max)
+  // Weapon stats from game rules (herida = wound threshold, distancia = range)
+  const WEAPON_STATS = {
+    'bastón': { dano: '1d4', herida: 12, distancia: 'C/C' },
+    'baston': { dano: '1d4', herida: 12, distancia: 'C/C' },
+    'garrote': { dano: '1d4', herida: 12, distancia: 'C/C' },
+    'gran garrote': { dano: '1d8', herida: 14, distancia: 'C/C' },
+    'hacha': { dano: '1d6', herida: 14, distancia: 'C/C' },
+    'hoz': { dano: '1d4', herida: 12, distancia: 'C/C' },
+    'maza': { dano: '1d6', herida: 14, distancia: 'C/C' },
+    'martillo': { dano: '1d6', herida: 14, distancia: 'C/C' },
+    'daga': { dano: '1d4', herida: 12, distancia: '6/18' },
+    'hacha de mano': { dano: '1d6', herida: 14, distancia: '6/18' },
+    'lanza': { dano: '1d6', herida: 14, distancia: '6/18' },
+    'lanza corta': { dano: '1d4', herida: 12, distancia: '6/18' },
+    'arco': { dano: '1d6', herida: 14, distancia: '24/96' },
+    'arco corto': { dano: '1d6', herida: 14, distancia: '24/96' },
+    'espada': { dano: '1d6', herida: 14, distancia: 'C/C' },
+    'espada corta': { dano: '1d6', herida: 14, distancia: 'C/C' },
+    'espada larga': { dano: '1d8', herida: 16, distancia: 'C/C' },
+    'cimitarra': { dano: '1d6', herida: 14, distancia: 'C/C' },
+    'estoque': { dano: '1d8', herida: 16, distancia: 'C/C' },
+    'hacha a dos manos': { dano: '1d10', herida: 18, distancia: 'C/C' },
+    'hacha de guerra': { dano: '1d8', herida: 20, distancia: 'C/C' },
+    'lanza pesada': { dano: '1d10', herida: 18, distancia: 'C/C' },
+    'martillo pesado': { dano: '1d10', herida: 18, distancia: 'C/C' },
+    'arco largo': { dano: '1d8', herida: 16, distancia: '20/180' },
+    'ballesta': { dano: '1d8', herida: 16, distancia: '24/96' },
+  };
+  
+  // Get weapon stats from lookup table
+  const getWeaponStats = (weaponName) => {
+    const normalized = weaponName.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    // Try exact match first
+    if (WEAPON_STATS[normalized]) return WEAPON_STATS[normalized];
+    // Try partial match
+    for (const [key, stats] of Object.entries(WEAPON_STATS)) {
+      if (normalized.includes(key) || key.includes(normalized)) {
+        return stats;
+      }
+    }
+    return { dano: '1d4', herida: 12, distancia: 'C/C' };
+  };
+  
+  // Get weapons with details (5 max) - includes weapons from ocupacion and armas_elegidas
   const getWeapons = () => {
-    // Get weapons from character data
     const weaponItems = [];
+    
+    // Get weapons from armas_elegidas (selected weapons from occupation)
+    const armasElegidas = character.armas_elegidas || [];
+    armasElegidas.forEach(arma => {
+      const nombre = typeof arma === 'string' ? arma : arma.nombre;
+      if (nombre && !weaponItems.some(w => w.nombre.toLowerCase() === nombre.toLowerCase())) {
+        const stats = getWeaponStats(nombre);
+        weaponItems.push({
+          nombre: nombre,
+          dano: stats.dano,
+          herida: stats.herida,
+          distancia: stats.distancia,
+        });
+      }
+    });
     
     // Check inventario for weapons with details
     const inventario = character.inventario || [];
     inventario.forEach(item => {
       const nombre = typeof item === 'string' ? item : item.nombre;
-      if (isWeapon(nombre)) {
+      if (isWeapon(nombre) && !weaponItems.some(w => w.nombre.toLowerCase() === nombre.toLowerCase())) {
+        const stats = getWeaponStats(nombre);
         weaponItems.push({
           nombre: nombre,
-          dano: item.dano || item.daño || '1d4',
-          herida: item.herida || 12,
-          distancia: item.distancia || 'C/C',
+          dano: item.dano || item.daño || stats.dano,
+          herida: item.herida || stats.herida,
+          distancia: item.distancia || stats.distancia,
         });
       }
     });
     
     // Check equipo_ocupacion for weapons
     (character.equipo_ocupacion || []).forEach(item => {
-      if (isWeapon(item) && !weaponItems.some(w => w.nombre.toLowerCase() === item.toLowerCase())) {
+      const nombre = typeof item === 'string' ? item : item;
+      if (isWeapon(nombre) && !weaponItems.some(w => w.nombre.toLowerCase() === nombre.toLowerCase())) {
+        const stats = getWeaponStats(nombre);
         weaponItems.push({
-          nombre: item,
-          dano: '1d6', // Default
-          herida: 12,
-          distancia: 'C/C',
+          nombre: nombre,
+          dano: stats.dano,
+          herida: stats.herida,
+          distancia: stats.distancia,
         });
       }
     });
@@ -477,6 +538,7 @@ const InteractiveCharacterSheet = () => {
     const weapons = [];
     for (let i = 0; i < 5; i++) {
       weapons.push(weaponItems[i] || { nombre: '', dano: '', herida: '', distancia: '' });
+    }
     }
     return weapons;
   };
