@@ -245,7 +245,8 @@ async def get_shadow_rules():
 @router.get("/names/{cultura}")
 async def get_culture_names(cultura: str):
     """Get name generation data for a specific culture"""
-    names = await db.culture_names.find_one({"cultura": cultura})
+    # Case-insensitive search
+    names = await db.culture_names.find_one({"cultura": {"$regex": f"^{cultura}$", "$options": "i"}})
     if not names:
         raise HTTPException(status_code=404, detail="Name data not found for this culture")
     return serialize_doc(names)
