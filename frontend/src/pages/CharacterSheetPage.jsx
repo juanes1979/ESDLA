@@ -557,12 +557,17 @@ const CharacterSheetPage = () => {
               <div className="space-y-2">
                 <div className="bg-secondary rounded-lg p-3">
                   <p className="text-xs text-muted-foreground">Trasfondo</p>
-                  <p className="text-foreground">{character.trasfondo_nombre}</p>
+                  <p className="text-foreground font-medium">{character.trasfondo_nombre}</p>
+                  {background?.descripcion && (
+                    <p className="text-muted-foreground text-xs mt-2 italic">{background.descripcion}</p>
+                  )}
                 </div>
-                <div className="bg-secondary rounded-lg p-3">
-                  <p className="text-xs text-muted-foreground">Virtud</p>
-                  <p className="text-foreground">{character.virtud_nombre}</p>
-                </div>
+                {character.virtud_nombre && (
+                  <div className="bg-secondary rounded-lg p-3">
+                    <p className="text-xs text-muted-foreground">Virtud</p>
+                    <p className="text-foreground">{character.virtud_nombre}</p>
+                  </div>
+                )}
                 {character.patron_nombre && (
                   <div className="bg-secondary rounded-lg p-3">
                     <p className="text-xs text-muted-foreground flex items-center gap-1">
