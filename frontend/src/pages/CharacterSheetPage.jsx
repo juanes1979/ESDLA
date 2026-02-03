@@ -822,6 +822,13 @@ const CharacterSheetPage = () => {
               {/* Money - All 4 types */}
               <div className="mt-4 pt-3 border-t border-border/50">
                 <p className="text-xs text-muted-foreground mb-2">Dinero</p>
+                {character.nivel_riqueza && (
+                  <div className="mb-2">
+                    <span className="text-xs text-[hsl(var(--gold))] font-medium">
+                      Nivel de Riqueza: {character.nivel_riqueza}
+                    </span>
+                  </div>
+                )}
                 <div className="flex flex-wrap gap-3 text-sm">
                   <span className="text-yellow-500">{character.dinero?.mo || 0} mo</span>
                   <span className="text-gray-300">{character.dinero?.mp || 0} mp</span>
