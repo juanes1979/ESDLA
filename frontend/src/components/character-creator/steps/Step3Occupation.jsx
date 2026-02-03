@@ -82,6 +82,7 @@ const Step3Occupation = ({ draftId, draft, onComplete, onBack }) => {
     setSelectedTools2([]);
     setSelectedSkills([]);
     setSelectedArmor(null);
+    setSelectedArmorItem(null);
     setWeaponSelections({});
     setCurrentWeaponIndex(0);
     setSelectedExpertise([]);
