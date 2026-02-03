@@ -31,13 +31,15 @@ const CharacterSheetPage = () => {
   const navigate = useNavigate();
   const [character, setCharacter] = useState(null);
   const [occupation, setOccupation] = useState(null);
+  const [culture, setCulture] = useState(null);
+  const [background, setBackground] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [editingHp, setEditingHp] = useState(false);
   const [hpChange, setHpChange] = useState(0);
   const [savingHp, setSavingHp] = useState(false);
 
-  // Load character and occupation data
+  // Load character and related data (culture, occupation, background)
   useEffect(() => {
     const loadCharacter = async () => {
       try {
@@ -45,13 +47,28 @@ const CharacterSheetPage = () => {
         const data = await getCharacter(characterId);
         setCharacter(data);
         
-        // If competencias are empty, load occupation data for fallback
-        const competencias = data.competencias || {};
-        if ((!competencias.armas || competencias.armas.length === 0) && data.vocacion_nombre) {
-          const occupations = await getOccupations();
-          const occ = occupations.find(o => o.vocacion === data.vocacion_nombre);
-          if (occ) setOccupation(occ);
-        }
+        // Load culture, occupation and background data in parallel
+        const [culturesRes, occupationsRes, backgroundsRes] = await Promise.all([
+          api.get('/data/cultures'),
+          api.get('/data/occupations'),
+          api.get('/data/backgrounds')
+        ]);
+        
+        // Find the matching culture
+        const cultures = culturesRes.data?.cultures || [];
+        const cult = cultures.find(c => c.id === data.cultura_id || c.nombre === data.cultura_nombre);
+        if (cult) setCulture(cult);
+        
+        // Find the matching occupation
+        const occupations = occupationsRes.data?.occupations || [];
+        const occ = occupations.find(o => o.id === data.ocupacion_id || o.vocacion === data.vocacion_nombre);
+        if (occ) setOccupation(occ);
+        
+        // Find the matching background
+        const backgrounds = backgroundsRes.data?.backgrounds || [];
+        const bg = backgrounds.find(b => b.id === data.trasfondo_id || b.nombre === data.trasfondo_nombre);
+        if (bg) setBackground(bg);
+        
       } catch (err) {
         console.error('Error loading character:', err);
         setError('No se pudo cargar el personaje');
