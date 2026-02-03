@@ -695,32 +695,162 @@ const CharacterSheetPage = () => {
               </div>
             )}
 
-            {/* Equipment */}
+            {/* Equipment - Complete */}
             <div className="card-parchment rounded-lg p-4">
               <h3 className="font-heading text-lg text-[hsl(var(--gold))] mb-3 flex items-center gap-2">
                 <Package className="w-5 h-5" />
                 Equipo
               </h3>
-              {character.inventario?.length > 0 ? (
-                <div className="space-y-1">
-                  {character.inventario.map((item, i) => (
-                    <div key={i} className="text-sm text-muted-foreground">
-                      • {item.nombre} {item.cantidad > 1 && `(x${item.cantidad})`}
-                    </div>
-                  ))}
+              
+              {/* Weapons */}
+              {(character.armas_elegidas?.length > 0 || character.equipo_ocupacion?.some(e => 
+                ['daga', 'espada', 'arco', 'hacha', 'lanza', 'bastón', 'maza'].some(w => 
+                  (typeof e === 'string' ? e : e?.nombre || '').toLowerCase().includes(w)
+                )
+              )) && (
+                <div className="mb-3">
+                  <p className="text-xs text-red-400 font-medium mb-1">Armas</p>
+                  <div className="space-y-1">
+                    {(character.armas_elegidas || []).map((arma, i) => (
+                      <div key={`arma-${i}`} className="text-sm text-muted-foreground">
+                        • {typeof arma === 'string' ? arma : arma.nombre}
+                      </div>
+                    ))}
+                    {(character.equipo_ocupacion || []).filter(e => 
+                      ['daga', 'espada', 'arco', 'hacha', 'lanza', 'bastón', 'maza', 'martillo'].some(w => 
+                        (typeof e === 'string' ? e : e?.nombre || '').toLowerCase().includes(w)
+                      )
+                    ).map((arma, i) => (
+                      <div key={`arma-occ-${i}`} className="text-sm text-muted-foreground">
+                        • {typeof arma === 'string' ? arma : arma.nombre}
+                      </div>
+                    ))}
+                  </div>
                 </div>
-              ) : (
-                <p className="text-sm text-muted-foreground">Sin equipo registrado</p>
               )}
               
-              {/* Money */}
+              {/* Armor */}
+              {(character.armadura_elegida?.length > 0 || character.equipo_ocupacion?.some(e => 
+                ['armadura', 'cota', 'escudo', 'yelmo', 'casco'].some(w => 
+                  (typeof e === 'string' ? e : e?.nombre || '').toLowerCase().includes(w)
+                )
+              )) && (
+                <div className="mb-3">
+                  <p className="text-xs text-blue-400 font-medium mb-1">Armaduras</p>
+                  <div className="space-y-1">
+                    {(character.armadura_elegida || []).map((arm, i) => (
+                      <div key={`arm-${i}`} className="text-sm text-muted-foreground">
+                        • {typeof arm === 'string' ? arm : arm.nombre}
+                      </div>
+                    ))}
+                    {(character.equipo_ocupacion || []).filter(e => 
+                      ['armadura', 'cota', 'escudo', 'yelmo', 'casco', 'cuero'].some(w => 
+                        (typeof e === 'string' ? e : e?.nombre || '').toLowerCase().includes(w)
+                      )
+                    ).map((arm, i) => (
+                      <div key={`arm-occ-${i}`} className="text-sm text-muted-foreground">
+                        • {typeof arm === 'string' ? arm : arm.nombre}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              
+              {/* Tools */}
+              {character.herramientas_elegidas_ocupacion?.length > 0 && (
+                <div className="mb-3">
+                  <p className="text-xs text-green-400 font-medium mb-1">Herramientas</p>
+                  <div className="space-y-1">
+                    {character.herramientas_elegidas_ocupacion.map((herr, i) => (
+                      <div key={`herr-${i}`} className="text-sm text-muted-foreground">
+                        • {typeof herr === 'string' ? herr : herr.nombre}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              
+              {/* Inventory */}
+              {character.inventario?.length > 0 && (
+                <div className="mb-3">
+                  <p className="text-xs text-muted-foreground font-medium mb-1">Inventario</p>
+                  <div className="space-y-1">
+                    {character.inventario.map((item, i) => (
+                      <div key={`inv-${i}`} className="text-sm text-muted-foreground">
+                        • {item.nombre} {item.cantidad > 1 && `(x${item.cantidad})`}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              
+              {/* Money - All 4 types */}
               <div className="mt-4 pt-3 border-t border-border/50">
                 <p className="text-xs text-muted-foreground mb-2">Dinero</p>
-                <div className="flex gap-4 text-sm">
-                  <span className="text-[hsl(var(--gold))]">{character.dinero?.mo || 0} mo</span>
-                  <span className="text-gray-400">{character.dinero?.mp || 0} mp</span>
+                <div className="flex flex-wrap gap-3 text-sm">
+                  <span className="text-yellow-500">{character.dinero?.mo || 0} mo</span>
+                  <span className="text-gray-300">{character.dinero?.mp || 0} mp</span>
+                  <span className="text-slate-400">{character.dinero?.me || 0} me</span>
                   <span className="text-amber-700">{character.dinero?.mc || 0} mc</span>
                 </div>
+              </div>
+              
+              {/* Weight and Encumbrance */}
+              <div className="mt-4 pt-3 border-t border-border/50">
+                <p className="text-xs text-muted-foreground mb-2">Carga</p>
+                {(() => {
+                  // Calculate total weight (simplified - would need catalog lookup for accurate)
+                  const fuerza = character.atributos?.fuerza || 10;
+                  const limiteCargado = fuerza * 2.5;
+                  const limiteMuyCargado = fuerza * 4;
+                  
+                  // Estimate weight from inventory count (simplified)
+                  let pesoEstimado = 0;
+                  (character.inventario || []).forEach(item => {
+                    pesoEstimado += (item.cantidad || 1) * 0.5; // Estimate 0.5kg per item
+                  });
+                  // Add weapons/armor weight estimate
+                  pesoEstimado += (character.armas_elegidas?.length || 0) * 1.5;
+                  pesoEstimado += (character.armadura_elegida?.length || 0) * 5;
+                  pesoEstimado += (character.herramientas_elegidas_ocupacion?.length || 0) * 2;
+                  // Add coins
+                  const totalMonedas = (character.dinero?.mo || 0) + (character.dinero?.mp || 0) + 
+                                       (character.dinero?.me || 0) + (character.dinero?.mc || 0);
+                  pesoEstimado += totalMonedas * 0.009;
+                  
+                  const esCargado = pesoEstimado > limiteCargado;
+                  const esMuyCargado = pesoEstimado > limiteMuyCargado;
+                  
+                  return (
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <span className="text-muted-foreground text-sm">Peso:</span>
+                        <span className={cn(
+                          "font-medium",
+                          esMuyCargado ? "text-red-500" : esCargado ? "text-yellow-500" : "text-green-500"
+                        )}>
+                          ~{pesoEstimado.toFixed(1)} kg
+                        </span>
+                      </div>
+                      <div className="flex gap-4 text-xs">
+                        <span className="text-muted-foreground">
+                          Cargado: &gt;{limiteCargado.toFixed(1)} kg
+                        </span>
+                        <span className="text-muted-foreground">
+                          Muy cargado: &gt;{limiteMuyCargado.toFixed(1)} kg
+                        </span>
+                      </div>
+                      {(esCargado || esMuyCargado) && (
+                        <div className={cn(
+                          "text-xs font-medium px-2 py-1 rounded inline-block",
+                          esMuyCargado ? "bg-red-500/20 text-red-400" : "bg-yellow-500/20 text-yellow-400"
+                        )}>
+                          {esMuyCargado ? "MUY CARGADO" : "CARGADO"}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
               </div>
             </div>
           </div>
