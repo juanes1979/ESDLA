@@ -651,16 +651,76 @@ const InteractiveCharacterSheet = () => {
     };
   };
   
-  // Calculate peso transportado (total weight)
+  // Helper function to find item weight in catalog
+  const getItemWeight = (itemName) => {
+    if (!itemName) return 0;
+    const normalizedName = itemName.toLowerCase().trim();
+    
+    // Search in all catalog categories
+    const allItems = [
+      ...(equipmentCatalog.equipo_general || []),
+      ...(equipmentCatalog.herramientas || []),
+      ...(equipmentCatalog.armas || []),
+      ...(equipmentCatalog.armaduras || []),
+    ];
+    
+    for (const item of allItems) {
+      const catalogName = (item.nombre || '').toLowerCase().trim();
+      if (catalogName === normalizedName || normalizedName.includes(catalogName) || catalogName.includes(normalizedName)) {
+        return item.peso_kg || 0;
+      }
+    }
+    return 0;
+  };
+  
+  // Calculate peso transportado (total weight) - searches in equipment catalog
   const calcularPesoTransportado = () => {
     let pesoTotal = 0;
     
     // Add weight from inventory
     (character.inventario || []).forEach(item => {
+      const nombre = typeof item === 'string' ? item : item.nombre;
+      const cantidad = typeof item === 'object' ? (item.cantidad || 1) : 1;
+      
+      // First check if item has peso directly
       if (typeof item === 'object' && item.peso) {
-        pesoTotal += parseFloat(item.peso) || 0;
+        pesoTotal += (parseFloat(item.peso) || 0) * cantidad;
+      } else {
+        // Otherwise search in catalog
+        const peso = getItemWeight(nombre);
+        pesoTotal += peso * cantidad;
       }
     });
+    
+    // Add weight from equipo_ocupacion (weapons, armor from occupation)
+    (character.equipo_ocupacion || []).forEach(item => {
+      const nombre = typeof item === 'string' ? item : item.nombre;
+      const peso = getItemWeight(nombre);
+      pesoTotal += peso;
+    });
+    
+    // Add weight from herramientas_elegidas_ocupacion
+    (character.herramientas_elegidas_ocupacion || []).forEach(item => {
+      const nombre = typeof item === 'string' ? item : item.nombre;
+      const peso = getItemWeight(nombre);
+      pesoTotal += peso;
+    });
+    
+    // Add weight from armas_elegidas (selected weapons)
+    (character.armas_elegidas || []).forEach(item => {
+      const nombre = typeof item === 'string' ? item : item.nombre;
+      const peso = getItemWeight(nombre);
+      pesoTotal += peso;
+    });
+    
+    // Add weight from armadura_elegida
+    if (character.armadura_elegida) {
+      (character.armadura_elegida || []).forEach(item => {
+        const nombre = typeof item === 'string' ? item : item.nombre;
+        const peso = getItemWeight(nombre);
+        pesoTotal += peso;
+      });
+    }
     
     // Add money weight (0.009 kg per coin)
     const dinero = character.dinero || {};
