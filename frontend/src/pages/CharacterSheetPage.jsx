@@ -614,6 +614,30 @@ const CharacterSheetPage = () => {
                       </span>
                     </div>
                   )}
+                  
+                  {/* Cultural Traits */}
+                  {(character.rasgos_culturales?.length > 0 || character.rasgo_distintivo) && (
+                    <div className="bg-secondary/50 rounded p-3">
+                      <span className="text-emerald-400 font-medium block mb-2">Rasgos Culturales</span>
+                      {character.rasgos_culturales?.map((rasgo, i) => (
+                        <div key={i} className="text-muted-foreground text-xs mb-1">
+                          • {typeof rasgo === 'string' ? rasgo : rasgo.nombre}
+                          {typeof rasgo === 'object' && rasgo.descripcion && (
+                            <span className="block ml-3 text-muted-foreground/70 italic">{rasgo.descripcion}</span>
+                          )}
+                        </div>
+                      ))}
+                      {character.rasgo_distintivo && (
+                        <div className="text-muted-foreground text-xs">
+                          • {character.rasgo_distintivo.nombre || character.rasgo_distintivo}
+                          {character.rasgo_distintivo.descripcion && (
+                            <span className="block ml-3 text-muted-foreground/70 italic">{character.rasgo_distintivo.descripcion}</span>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  
                   {culture.idiomas && culture.idiomas.length > 0 && (
                     <div>
                       <span className="text-muted-foreground">Idiomas: </span>
