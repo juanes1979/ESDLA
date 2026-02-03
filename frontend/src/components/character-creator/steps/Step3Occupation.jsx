@@ -39,6 +39,7 @@ const Step3Occupation = ({ draftId, draft, onComplete, onBack }) => {
   const [selectedTools2, setSelectedTools2] = useState([]);
   const [selectedSkills, setSelectedSkills] = useState([]);
   const [selectedArmor, setSelectedArmor] = useState(null); // 'A' or 'B'
+  const [selectedArmorItem, setSelectedArmorItem] = useState(null); // Specific armor from option A (when choosing 1)
   const [weaponSelections, setWeaponSelections] = useState({}); // { arma1: [...], arma2: [...], arma3: 'A'|'B', arma3_b: [...] }
   const [currentWeaponIndex, setCurrentWeaponIndex] = useState(0);
   const [selectedExpertise, setSelectedExpertise] = useState([]);
