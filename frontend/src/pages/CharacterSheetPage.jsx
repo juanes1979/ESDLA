@@ -429,6 +429,17 @@ const CharacterSheetPage = () => {
                     <div className="text-xs text-muted-foreground text-center mb-2">
                       Nivel {nivel} · Bonificador de Competencia: +{profBonus}
                     </div>
+                    {/* Legend */}
+                    <div className="flex justify-center gap-4 mb-3 text-xs">
+                      <div className="flex items-center gap-1">
+                        <div className="w-3 h-3 rounded bg-[hsl(var(--gold))/20] border border-[hsl(var(--gold))]"></div>
+                        <span className="text-[hsl(var(--gold))]">Competencia</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <div className="w-3 h-3 rounded bg-[hsl(var(--magic-blue))/20] border border-[hsl(var(--magic-blue))]"></div>
+                        <span className="text-[hsl(var(--magic-blue))]">★ Pericia</span>
+                      </div>
+                    </div>
                     <div className="grid grid-cols-2 gap-1">
                       {ALL_SKILLS.map((skill) => {
                         const attrValue = attributes[skill.atributo] || 10;
