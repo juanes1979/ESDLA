@@ -290,6 +290,7 @@ const InteractiveCharacterSheet = () => {
   const navigate = useNavigate();
   const [character, setCharacter] = useState(null);
   const [weaponCatalog, setWeaponCatalog] = useState([]);
+  const [equipmentCatalog, setEquipmentCatalog] = useState({ equipo_general: [], herramientas: [], armas: [], armaduras: [] });
   const [fieldPositions, setFieldPositions] = useState({ page1: {}, page2: {}, page3: {} });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -315,7 +316,9 @@ const InteractiveCharacterSheet = () => {
         
         console.log('Character data loaded:', characterData);
         setCharacter(characterData);
-        setWeaponCatalog(catalogRes.data?.armas || []);
+        const catalog = catalogRes.data || {};
+        setWeaponCatalog(catalog.armas || []);
+        setEquipmentCatalog(catalog);
         setFieldPositions(positionsRes.data || { page1: {}, page2: {}, page3: {} });
       } catch (err) {
         console.error('Error loading data:', err);
