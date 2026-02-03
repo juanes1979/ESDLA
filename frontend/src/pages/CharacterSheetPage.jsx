@@ -647,33 +647,6 @@ const CharacterSheetPage = () => {
               </div>
             )}
 
-            {/* Background Description */}
-            {background && (
-              <div className="card-parchment rounded-lg p-4">
-                <h3 className="font-heading text-lg text-purple-400 mb-3 flex items-center gap-2">
-                  <Scroll className="w-5 h-5" />
-                  Trasfondo: {background.nombre}
-                </h3>
-                <div className="space-y-3 text-sm">
-                  {background.descripcion && (
-                    <p className="text-muted-foreground italic">{background.descripcion}</p>
-                  )}
-                  {background.habilidades && background.habilidades.length > 0 && (
-                    <div>
-                      <span className="text-muted-foreground">Habilidades: </span>
-                      <span className="text-foreground">{background.habilidades.join(', ')}</span>
-                    </div>
-                  )}
-                  {background.herramientas && background.herramientas.length > 0 && (
-                    <div>
-                      <span className="text-muted-foreground">Herramientas: </span>
-                      <span className="text-foreground">{background.herramientas.join(', ')}</span>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-
             {/* Personality */}
             {(character.rasgo_distintivo || character.rasgo_distintivo_2 || character.defecto || character.motivacion) && (
               <div className="card-parchment rounded-lg p-4">
