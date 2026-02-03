@@ -851,6 +851,9 @@ const Step3Occupation = ({ draftId, draft, onComplete, onBack }) => {
     const question = occupationData.armadura?.pregunta || 'Elige tu armadura:';
     const optionA = occupationData.armadura?.opcion_a || [];
     const optionB = occupationData.armadura?.opcion_b || [];
+    
+    // Check if option A requires choosing 1 item from multiple
+    const optionANeedsChoice = optionA.length > 1;
 
     return (
       <>
@@ -865,30 +868,65 @@ const Step3Occupation = ({ draftId, draft, onComplete, onBack }) => {
 
         <div className="grid md:grid-cols-2 gap-4">
           {/* Option A */}
-          <button
-            onClick={() => setSelectedArmor('A')}
+          <div
             className={cn(
               'card-parchment rounded-lg p-6 text-left transition-all',
               selectedArmor === 'A' && 'border-2 border-[hsl(var(--gold))]'
             )}
           >
-            <div className="flex items-center justify-between mb-4">
-              <span className="font-heading text-xl text-[hsl(var(--gold))]">Opción A</span>
+            <div 
+              className="flex items-center justify-between mb-4 cursor-pointer"
+              onClick={() => {
+                setSelectedArmor('A');
+                // If only 1 item, auto-select it
+                if (!optionANeedsChoice && optionA.length === 1) {
+                  setSelectedArmorItem(optionA[0]);
+                }
+              }}
+            >
+              <span className="font-heading text-xl text-[hsl(var(--gold))]">
+                Opción A {optionANeedsChoice && '(Elige 1)'}
+              </span>
               {selectedArmor === 'A' && <CheckCircle className="w-6 h-6 text-[hsl(var(--gold))]" />}
             </div>
+            
             <div className="space-y-2">
               {optionA.map((item, i) => (
-                <div key={i} className="flex items-center gap-2">
+                <div 
+                  key={i} 
+                  className={cn(
+                    "flex items-center gap-2 p-2 rounded cursor-pointer transition-all",
+                    optionANeedsChoice && "hover:bg-secondary/50",
+                    selectedArmorItem === item && selectedArmor === 'A' && "bg-[hsl(var(--gold))/20] border border-[hsl(var(--gold))]"
+                  )}
+                  onClick={() => {
+                    if (optionANeedsChoice) {
+                      setSelectedArmor('A');
+                      setSelectedArmorItem(item);
+                    }
+                  }}
+                >
+                  {optionANeedsChoice && (
+                    <div className={cn(
+                      "w-4 h-4 rounded-full border-2",
+                      selectedArmorItem === item && selectedArmor === 'A' 
+                        ? "border-[hsl(var(--gold))] bg-[hsl(var(--gold))]" 
+                        : "border-muted-foreground"
+                    )} />
+                  )}
                   <Shield className="w-4 h-4 text-muted-foreground" />
                   <span className="text-foreground">{item}</span>
                 </div>
               ))}
             </div>
-          </button>
+          </div>
 
           {/* Option B */}
           <button
-            onClick={() => setSelectedArmor('B')}
+            onClick={() => {
+              setSelectedArmor('B');
+              setSelectedArmorItem(null);
+            }}
             className={cn(
               'card-parchment rounded-lg p-6 text-left transition-all',
               selectedArmor === 'B' && 'border-2 border-[hsl(var(--gold))]'
@@ -916,7 +954,7 @@ const Step3Occupation = ({ draftId, draft, onComplete, onBack }) => {
           </Button>
           <Button
             onClick={goToNextSubStep}
-            disabled={!selectedArmor}
+            disabled={!selectedArmor || (selectedArmor === 'A' && optionANeedsChoice && !selectedArmorItem)}
             className="bg-[hsl(var(--gold))] hover:bg-[hsl(var(--gold-dim))] text-[hsl(var(--primary-foreground))] font-heading"
           >
             Continuar
