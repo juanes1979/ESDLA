@@ -577,6 +577,98 @@ const CharacterSheetPage = () => {
               </div>
             </div>
 
+            {/* Culture Description */}
+            {culture && (
+              <div className="card-parchment rounded-lg p-4">
+                <h3 className="font-heading text-lg text-emerald-400 mb-3 flex items-center gap-2">
+                  <Star className="w-5 h-5" />
+                  Cultura: {character.cultura_nombre}
+                </h3>
+                <div className="space-y-3 text-sm">
+                  {culture.descripcion && (
+                    <p className="text-muted-foreground italic">{culture.descripcion}</p>
+                  )}
+                  {culture.bendicion_nombre && (
+                    <div className="bg-emerald-500/10 rounded p-3 border border-emerald-500/30">
+                      <span className="text-emerald-400 font-heading block mb-1">
+                        Bendición: {culture.bendicion_nombre}
+                      </span>
+                      <span className="text-muted-foreground text-xs">
+                        {culture.bendicion_descripcion}
+                      </span>
+                    </div>
+                  )}
+                  {culture.idiomas && culture.idiomas.length > 0 && (
+                    <div>
+                      <span className="text-muted-foreground">Idiomas: </span>
+                      <span className="text-foreground">{culture.idiomas.join(', ')}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Occupation Description */}
+            {occupation && (
+              <div className="card-parchment rounded-lg p-4">
+                <h3 className="font-heading text-lg text-amber-400 mb-3 flex items-center gap-2">
+                  <Swords className="w-5 h-5" />
+                  Ocupación: {occupation.vocacion}
+                </h3>
+                <div className="space-y-3 text-sm">
+                  {occupation.descripcion_corta && (
+                    <p className="text-muted-foreground italic">{occupation.descripcion_corta}</p>
+                  )}
+                  {occupation.descripcion_larga && (
+                    <p className="text-muted-foreground text-xs">{occupation.descripcion_larga}</p>
+                  )}
+                  {occupation.maldicion_nombre && (
+                    <div className="bg-red-500/10 rounded p-3 border border-red-500/30">
+                      <span className="text-red-400 font-heading block mb-1">
+                        Maldición de Sombra: {occupation.maldicion_nombre}
+                      </span>
+                      <span className="text-muted-foreground text-xs">
+                        {occupation.maldicion_descripcion}
+                      </span>
+                    </div>
+                  )}
+                  {character.habilidades_favorecidas && character.habilidades_favorecidas.length > 0 && (
+                    <div>
+                      <span className="text-muted-foreground">Habilidades Favorecidas: </span>
+                      <span className="text-amber-400">{character.habilidades_favorecidas.join(', ')}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Background Description */}
+            {background && (
+              <div className="card-parchment rounded-lg p-4">
+                <h3 className="font-heading text-lg text-purple-400 mb-3 flex items-center gap-2">
+                  <Scroll className="w-5 h-5" />
+                  Trasfondo: {background.nombre}
+                </h3>
+                <div className="space-y-3 text-sm">
+                  {background.descripcion && (
+                    <p className="text-muted-foreground italic">{background.descripcion}</p>
+                  )}
+                  {background.habilidades && background.habilidades.length > 0 && (
+                    <div>
+                      <span className="text-muted-foreground">Habilidades: </span>
+                      <span className="text-foreground">{background.habilidades.join(', ')}</span>
+                    </div>
+                  )}
+                  {background.herramientas && background.herramientas.length > 0 && (
+                    <div>
+                      <span className="text-muted-foreground">Herramientas: </span>
+                      <span className="text-foreground">{background.herramientas.join(', ')}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
             {/* Personality */}
             {(character.rasgo_distintivo || character.rasgo_distintivo_2 || character.defecto || character.motivacion) && (
               <div className="card-parchment rounded-lg p-4">
