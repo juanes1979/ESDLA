@@ -292,7 +292,13 @@ const Step3Occupation = ({ draftId, draft, onComplete, onBack }) => {
       
       // Add armor
       if (selectedArmor === 'A') {
-        equipoSeleccionado.push(...(occupationData.armadura?.opcion_a || []));
+        const opcionA = occupationData.armadura?.opcion_a || [];
+        // If option A has multiple items and user selected one specific item, use that
+        if (opcionA.length > 1 && selectedArmorItem) {
+          equipoSeleccionado.push(selectedArmorItem);
+        } else {
+          equipoSeleccionado.push(...opcionA);
+        }
       } else if (selectedArmor === 'B') {
         equipoSeleccionado.push(...(occupationData.armadura?.opcion_b || []));
       }
