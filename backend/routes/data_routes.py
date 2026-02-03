@@ -72,7 +72,8 @@ async def get_backgrounds(culture_id: Optional[str] = None, cultura: Optional[st
     if culture_id:
         query["culture_id"] = culture_id
     if cultura:
-        query["cultura"] = cultura
+        # Case-insensitive search for cultura name
+        query["cultura"] = {"$regex": f"^{cultura}$", "$options": "i"}
     
     backgrounds = await db.backgrounds.find(query).to_list(200)
     return {"backgrounds": serialize_docs(backgrounds)}
