@@ -193,6 +193,12 @@ async def seed_occupations(db, data: dict):
             "competencia_armas": occ.get('competencia_armas', []),
             "competencia_armaduras": occ.get('competencia_armaduras', []),
             
+            # Description and shadow curse
+            "descripcion_corta": occ.get('descripcion_corta'),
+            "descripcion_larga": occ.get('descripcion_larga'),
+            "maldicion_nombre": occ.get('maldicion_nombre'),
+            "maldicion_descripcion": occ.get('maldicion_descripcion'),
+            
             # Tools selection 1 (rows 21-41)
             "herramientas_1": occ.get('herramientas_1', {}),
             
