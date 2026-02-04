@@ -353,6 +353,50 @@ def extract_occupations_complete(wb: openpyxl.Workbook) -> List[Dict]:
             "maldicion_nombre": clean_value(sheet.cell(row=18, column=col).value),
             "maldicion_descripcion": clean_value(sheet.cell(row=19, column=col).value),
             
+            # NEW: Descripcion_ocupacion and Descripcion_ocupacion_larga (same as above, aliased for consistency)
+            "descripcion_ocupacion": clean_value(sheet.cell(row=16, column=col).value),
+            "descripcion_ocupacion_larga": clean_value(sheet.cell(row=17, column=col).value),
+            
+            # NEW: Especiales_ocupacion (rows 193-230)
+            "especiales_ocupacion1": clean_value(sheet.cell(row=193, column=col).value),
+            "especiales_ocupacion1_descripcion": clean_value(sheet.cell(row=194, column=col).value),
+            "especiales_ocupacion2": clean_value(sheet.cell(row=217, column=col).value),
+            "especiales_ocupacion2_descripcion": clean_value(sheet.cell(row=218, column=col).value),
+            "especiales_ocupacion3": clean_value(sheet.cell(row=220, column=col).value),
+            "especiales_ocupacion3_descripcion": clean_value(sheet.cell(row=221, column=col).value),
+            "especiales_ocupacion4": clean_value(sheet.cell(row=223, column=col).value),
+            "especiales_ocupacion4_descripcion": clean_value(sheet.cell(row=224, column=col).value),
+            "especiales_ocupacion5": clean_value(sheet.cell(row=226, column=col).value),
+            "especiales_ocupacion5_descripcion": clean_value(sheet.cell(row=227, column=col).value),
+            "especiales_ocupacion6": clean_value(sheet.cell(row=229, column=col).value),
+            "especiales_ocupacion6_descripcion": clean_value(sheet.cell(row=230, column=col).value),
+            
+            # NEW: Caminos_profesión (rows 232-243)
+            "caminos_profesion": "\n".join(filter(None, [
+                clean_value(sheet.cell(row=232, column=col).value),
+                clean_value(sheet.cell(row=233, column=col).value)
+            ])),
+            "caminos_profesion1": "\n".join(filter(None, [
+                clean_value(sheet.cell(row=234, column=col).value),
+                clean_value(sheet.cell(row=235, column=col).value),
+                clean_value(sheet.cell(row=236, column=col).value),
+                clean_value(sheet.cell(row=237, column=col).value),
+                clean_value(sheet.cell(row=238, column=col).value),
+            ])),
+            "caminos_profesion2": "\n".join(filter(None, [
+                clean_value(sheet.cell(row=239, column=col).value),
+                clean_value(sheet.cell(row=240, column=col).value),
+                clean_value(sheet.cell(row=241, column=col).value),
+                clean_value(sheet.cell(row=242, column=col).value),
+                clean_value(sheet.cell(row=243, column=col).value),
+            ])),
+            
+            # NEW: Virtudes_ocupacion (rows 245-246)
+            "virtudes_ocupacion": "\n".join(filter(None, [
+                clean_value(sheet.cell(row=245, column=col).value),
+                clean_value(sheet.cell(row=246, column=col).value)
+            ])),
+            
             # Tools selection 1 (rows 21-41)
             "herramientas_1": {
                 "pregunta": clean_value(sheet.cell(row=21, column=col).value) or clean_value(sheet.cell(row=21, column=2).value),
