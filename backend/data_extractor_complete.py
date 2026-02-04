@@ -870,6 +870,7 @@ def extract_all_data_complete() -> Dict:
     print(f"  - Name sets: {len(names)}")
     print(f"  - Instruments: {len(equipment_lists['instrumentos_musicales'])}")
     print(f"  - Games: {len(equipment_lists['juegos'])}")
+    print(f"  - Mecenas: {len(mecenas)}")
     
     return data
 
