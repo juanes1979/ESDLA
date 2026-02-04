@@ -490,6 +490,7 @@ async def main():
         await seed_virtues(db, data, culture_id_map)
         await seed_names(db, data, culture_id_map)
         await seed_equipment_lists(db, data)
+        await seed_mecenas(db, data)
         
         # Create indexes
         await create_indexes(db)
@@ -498,7 +499,7 @@ async def main():
         
         # Print summary
         print("\nCollection counts:")
-        for coll in ['cultures', 'backgrounds', 'occupations', 'virtues', 'culture_names', 'equipment_lists']:
+        for coll in ['cultures', 'backgrounds', 'occupations', 'virtues', 'culture_names', 'equipment_lists', 'mecenas']:
             count = await db[coll].count_documents({})
             print(f"  - {coll}: {count}")
         
