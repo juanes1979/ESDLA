@@ -205,6 +205,13 @@ def extract_cultures_complete(wb: openpyxl.Workbook) -> List[Dict]:
         culture["nivel_vida"] = clean_value(culturas_sheet.cell(row=row_culturas, column=11).value) or "Común"
         culture["descripcion_nivel_vida"] = clean_value(culturas_sheet.cell(row=row_culturas, column=12).value)
         
+        # NEW: Riqueza fields from columns K and L
+        culture["riqueza"] = clean_value(culturas_sheet.cell(row=row_culturas, column=11).value)  # Column K = 11
+        culture["descripcion_riqueza"] = clean_value(culturas_sheet.cell(row=row_culturas, column=12).value)  # Column L = 12
+        
+        # NEW: Descripcion_cultura from column B
+        culture["descripcion_cultura"] = clean_value(culturas_sheet.cell(row=row_culturas, column=2).value)  # Column B = 2
+        
         # Extract skill SCORES from rows 13-31 (numeric values representing priority/aptitude)
         habilidades_scores = [
             (13, "Acertijos"), (14, "Acrobacias"), (15, "Atletismo"), (16, "Cazar"),
