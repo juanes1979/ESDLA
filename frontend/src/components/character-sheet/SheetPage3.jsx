@@ -12,7 +12,7 @@ export const PAGE3_FIELDS = {
   descripcion_ocupacion: { x: 723, y: 245, width: 882, fontSize: 35, align: 'left' },
   
   // Combined occupation description with all special abilities - MULTILINE
-  descripcion_ocupacion_larga: { x: 77, y: 472, width: 1530, height: 1600, fontSize: 40, align: 'left', multiline: true },
+  descripcion_ocupacion_larga: { x: 77, y: 472, width: 1530, height: 1600, fontSize: 30, align: 'left', multiline: true },
 };
 
 const SheetPage3 = ({ character, scale, fieldPositions = {} }) => {
