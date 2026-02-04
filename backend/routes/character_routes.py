@@ -331,6 +331,7 @@ async def update_draft_step2(draft_id: str, data: CharacterCreateStep2):
         "competencias_habilidades_trasfondo": habilidades_trasfondo,
         "equipo_trasfondo": equipo_trasfondo,  # Use frontend data or background defaults
         "rasgos_trasfondo": data.rasgos_trasfondo if data.rasgos_trasfondo else background.get('rasgos_descripciones', []),
+        "descripcion_trasfondo": background.get('descripcion'),  # NEW: From row 5 of Trasfondo sheet
         "paso_actual": 3,
         "updated_at": now_utc(),
     }
