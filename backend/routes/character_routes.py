@@ -696,7 +696,10 @@ async def finalize_character(draft_id: str):
         "experiencia": 0,
         # Favored skills from occupation
         "habilidades_favorecidas": draft.get('habilidades_favorecidas', []),
-        # Shadow
+        # Shadow path (maldición de la ocupación)
+        "senda_sombra": draft.get('maldicion_nombre'),
+        "senda_sombra_descripcion": draft.get('maldicion_descripcion'),
+        # Shadow points
         "puntos_sombra": 0,
         "puntos_sombra_permanentes": 0,
         # Meta
