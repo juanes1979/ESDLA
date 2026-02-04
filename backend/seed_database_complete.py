@@ -405,6 +405,30 @@ async def seed_equipment_lists(db, data: dict):
     print(f"Seeded equipment catalog (herramientas: {herramientas_count}, equipo: {equipo_count}, armas: {armas_count}, armaduras: {armaduras_count})")
 
 
+async def seed_mecenas(db, data: dict):
+    """Seed mecenas (patrons) collection"""
+    mecenas_list = data.get('mecenas', [])
+    
+    # Delete old mecenas data
+    await db.mecenas.delete_many({})
+    
+    documents = []
+    for mecenas in mecenas_list:
+        doc = {
+            "_id": generate_id(),
+            "nombre": mecenas['nombre'],
+            "ventaja_mecenas": mecenas.get('ventaja_mecenas'),
+            "descripcion_mecenas": mecenas.get('descripcion_mecenas'),
+            "created_at": now_utc(),
+            "updated_at": now_utc(),
+        }
+        documents.append(doc)
+    
+    if documents:
+        await db.mecenas.insert_many(documents)
+    print(f"Seeded {len(documents)} mecenas")
+
+
 async def create_indexes(db):
     """Create indexes for better query performance"""
     # Cultures
