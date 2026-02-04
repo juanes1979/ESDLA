@@ -291,7 +291,7 @@ async def get_equipment_catalog(
 ):
     """Get full equipment catalog with prices and weights.
     Optional filters:
-    - categoria: herramientas, equipo_general, armas, armaduras
+    - categoria: herramientas, equipo_general, armas, armaduras, monturas
     - search: search by item name
     """
     catalog = await db.equipment_catalog.find_one({})
@@ -300,14 +300,16 @@ async def get_equipment_catalog(
             "herramientas": [],
             "equipo_general": [],
             "armas": [],
-            "armaduras": []
+            "armaduras": [],
+            "monturas": []
         }
     
     result = {
         "herramientas": catalog.get('herramientas', []),
         "equipo_general": catalog.get('equipo_general', []),
         "armas": catalog.get('armas', []),
-        "armaduras": catalog.get('armaduras', [])
+        "armaduras": catalog.get('armaduras', []),
+        "monturas": catalog.get('monturas', [])
     }
     
     # Filter by category if specified
