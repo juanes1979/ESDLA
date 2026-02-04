@@ -100,16 +100,24 @@ const SheetPage2 = ({ character, scale, fieldPositions = {} }) => {
     // Join all traits with double line break (punto y aparte)
     const allText = rasgos.join('\n\n');
     
-    // Estimate characters that fit in first column (approx 400 chars based on width/fontSize)
-    const maxCharsCol1 = 450;
-    
-    if (allText.length <= maxCharsCol1) {
-      return { col1: allText, col2: '' };
+    // For 4 or fewer rasgos, split in half (2 + 2)
+    // For more, try to balance by character count
+    if (rasgos.length <= 4) {
+      const halfIndex = Math.ceil(rasgos.length / 2);
+      const col1Rasgos = rasgos.slice(0, halfIndex);
+      const col2Rasgos = rasgos.slice(halfIndex);
+      
+      return {
+        col1: col1Rasgos.join('\n\n'),
+        col2: col2Rasgos.join('\n\n')
+      };
     }
     
-    // Find a good break point (at a trait boundary)
+    // For more rasgos, estimate characters that fit in first column
+    const maxCharsCol1 = 500;
     let breakIndex = 0;
     let charCount = 0;
+    
     for (let i = 0; i < rasgos.length; i++) {
       const traitLength = rasgos[i].length + 2; // +2 for \n\n
       if (charCount + traitLength > maxCharsCol1) {
@@ -118,6 +126,10 @@ const SheetPage2 = ({ character, scale, fieldPositions = {} }) => {
       charCount += traitLength;
       breakIndex = i + 1;
     }
+    
+    // Ensure at least one trait in each column if possible
+    if (breakIndex === 0) breakIndex = 1;
+    if (breakIndex >= rasgos.length) breakIndex = rasgos.length - 1;
     
     const col1Rasgos = rasgos.slice(0, breakIndex);
     const col2Rasgos = rasgos.slice(breakIndex);
