@@ -653,6 +653,7 @@ async def finalize_character(draft_id: str):
         # Background
         "trasfondo_id": draft['trasfondo_id'],
         "trasfondo_nombre": draft.get('trasfondo_nombre'),
+        "descripcion_trasfondo": draft.get('descripcion_trasfondo'),
         # Occupation
         "ocupacion_id": draft['ocupacion_id'],
         "ocupacion_tipo": draft.get('ocupacion_tipo'),
