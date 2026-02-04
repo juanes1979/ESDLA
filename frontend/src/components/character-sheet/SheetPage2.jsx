@@ -170,7 +170,7 @@ const SheetPage2 = ({ character, scale, fieldPositions = {} }) => {
       />
       
       {/* Resources */}
-      <DisplayField {...getPos('puntos_comunidad')} value={character.puntos_comunidad || 0} scale={scale} />
+      <DisplayField {...getPos('puntos_comunidad')} value={character.puntos_comunidad ? character.puntos_comunidad : ''} scale={scale} />
       <DisplayField {...getPos('heredero')} value={character.heredero || ''} scale={scale} />
       <DisplayField {...getPos('inversion')} value={character.inversion || ''} scale={scale} />
       
