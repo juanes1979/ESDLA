@@ -649,6 +649,15 @@ const SheetPage1 = ({ character, scale, weaponCatalog = [], equipmentCatalog = {
       {idiomasRows.map((item, i) => (
         <DisplayField key={`idioma_herr_${i+1}`} {...PAGE1_FIELDS[`idioma_herr_${i+1}`]} value={item} scale={scale} />
       ))}
+      
+      {/* Virtudes */}
+      <DisplayField {...PAGE1_FIELDS.virtudes} value={character.virtud_nombre || ''} scale={scale} />
+      
+      {/* Sombra puntuación */}
+      <DisplayField {...PAGE1_FIELDS.sombra_puntuacion} value={character.puntos_sombra || ''} scale={scale} />
+      <DisplayField {...PAGE1_FIELDS.sombra_cicatrices} value={character.puntos_sombra_permanentes || ''} scale={scale} />
+      <DisplayField {...PAGE1_FIELDS.desanimado} value={character.desanimado ? 'x' : ''} scale={scale} />
+      <DisplayField {...PAGE1_FIELDS.angustiado} value={character.angustiado ? 'x' : ''} scale={scale} />
     </>
   );
 };
