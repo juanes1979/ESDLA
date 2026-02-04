@@ -783,6 +783,35 @@ def extract_equipment_lists(wb: openpyxl.Workbook) -> Dict:
     return equipment_data
 
 
+def extract_mecenas_complete(wb: openpyxl.Workbook) -> List[Dict]:
+    """Extract Mecenas (Patrons) data from Mecenas sheet"""
+    sheet = wb['Mecenas']
+    
+    mecenas_list = []
+    
+    # Start from row 2 (row 1 is header)
+    for row in range(2, 10):
+        nombre = clean_value(sheet.cell(row=row, column=1).value)  # Column A
+        if not nombre or nombre == "Sin mecenas":
+            continue
+        
+        mecenas = {
+            "nombre": nombre,
+            "ventaja_mecenas": clean_value(sheet.cell(row=row, column=4).value),  # Column D
+            "descripcion_mecenas": clean_value(sheet.cell(row=row, column=5).value),  # Column E (PLANES)
+        }
+        mecenas_list.append(mecenas)
+    
+    # Add "Sin mecenas" option
+    mecenas_list.append({
+        "nombre": "Sin mecenas",
+        "ventaja_mecenas": None,
+        "descripcion_mecenas": None
+    })
+    
+    return mecenas_list
+
+
 def extract_all_data_complete() -> Dict:
     """Extract all data from the Excel file"""
     utumno_path = "/app/data/utumno.xlsm"
