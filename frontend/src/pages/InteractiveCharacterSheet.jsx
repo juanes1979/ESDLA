@@ -242,6 +242,39 @@ const PAGE1_FIELDS = {
   idioma_herr_7: { x: 109, y: 2083, width: 435, fontSize: 22, align: 'left' },
 };
 
+// PAGE 2 FIELD POSITIONS (fallback - DB positions take priority)
+const PAGE2_FIELDS = {
+  nombre: { x: 71, y: 178, width: 609, fontSize: 45, align: 'center' },
+  sombra: { x: 77, y: 398, width: 456, fontSize: 35, align: 'center' },
+  descripcion_sombra: { x: 71, y: 448, width: 455, fontSize: 27, align: 'left' },
+  trasfondo: { x: 85, y: 1088, width: 437, fontSize: 25, align: 'left' },
+  descripcion_trasfondo: { x: 84, y: 1126, width: 438, fontSize: 30, align: 'left' },
+  puntos_comunidad: { x: 672, y: 372, width: 68, fontSize: 70, align: 'center' },
+  heredero: { x: 1161, y: 767, width: 408, fontSize: 40, align: 'left' },
+  inversion: { x: 1161, y: 820, width: 408, fontSize: 40, align: 'left' },
+  // Equipo page 2 (equipo_9 to equipo_28)
+  equipo_9: { x: 617, y: 1633, width: 465, fontSize: 30, align: 'left' },
+  equipo_10: { x: 617, y: 1679, width: 465, fontSize: 30, align: 'left' },
+  equipo_11: { x: 617, y: 1725, width: 465, fontSize: 30, align: 'left' },
+  equipo_12: { x: 617, y: 1772, width: 465, fontSize: 30, align: 'left' },
+  equipo_13: { x: 617, y: 1814, width: 465, fontSize: 30, align: 'left' },
+  equipo_14: { x: 617, y: 1861, width: 465, fontSize: 30, align: 'left' },
+  equipo_15: { x: 617, y: 1907, width: 465, fontSize: 30, align: 'left' },
+  equipo_16: { x: 615, y: 1953, width: 465, fontSize: 30, align: 'left' },
+  equipo_17: { x: 619, y: 2003, width: 465, fontSize: 30, align: 'left' },
+  equipo_18: { x: 615, y: 2046, width: 465, fontSize: 30, align: 'left' },
+  equipo_19: { x: 1153, y: 1634, width: 465, fontSize: 30, align: 'left' },
+  equipo_20: { x: 1153, y: 1678, width: 465, fontSize: 30, align: 'left' },
+  equipo_21: { x: 1153, y: 1725, width: 465, fontSize: 30, align: 'left' },
+  equipo_22: { x: 1153, y: 1770, width: 465, fontSize: 30, align: 'left' },
+  equipo_23: { x: 1153, y: 1814, width: 465, fontSize: 30, align: 'left' },
+  equipo_24: { x: 1153, y: 1859, width: 465, fontSize: 30, align: 'left' },
+  equipo_25: { x: 1153, y: 1906, width: 465, fontSize: 30, align: 'left' },
+  equipo_26: { x: 1153, y: 1956, width: 465, fontSize: 30, align: 'left' },
+  equipo_27: { x: 1153, y: 2001, width: 465, fontSize: 30, align: 'left' },
+  equipo_28: { x: 1153, y: 2046, width: 465, fontSize: 30, align: 'left' },
+};
+
 // Handwritten style font
 const FONT_STYLE = "'Caveat', 'Ink Free', cursive";
 
