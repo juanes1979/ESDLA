@@ -67,11 +67,6 @@ const SheetPage3 = ({ character, scale, fieldPositions = {} }) => {
     // Join all parts with double line break
     return parts.join('\n\n');
   };
-  
-  // Helper to get field position (from DB or fallback)
-  const getPos = (fieldName) => {
-    return fieldPositions?.[fieldName] || PAGE3_FIELDS[fieldName] || { x: 0, y: 0, width: 100, fontSize: 14, align: 'left' };
-  };
 
   const nivel = character.nivel || 1;
   const descripcionCompleta = getDescripcionOcupacionCompleta();
@@ -79,13 +74,31 @@ const SheetPage3 = ({ character, scale, fieldPositions = {} }) => {
   return (
     <>
       {/* Basic Info */}
-      <DisplayField {...getPos('nombre')} value={character.nombre} scale={scale} />
-      <DisplayField {...getPos('ocupacion_nivel')} value={`${character.ocupacion_nombre || character.vocacion_nombre || ''} ${nivel}`} scale={scale} />
-      <DisplayField {...getPos('descripcion_ocupacion')} value={character.descripcion_ocupacion_corta || ''} scale={scale} />
+      <DisplayField 
+        {...PAGE3_FIELDS.nombre} 
+        value={character.nombre} 
+        scale={scale} 
+      />
+      <DisplayField 
+        {...PAGE3_FIELDS.ocupacion_nivel} 
+        value={`${character.ocupacion_nombre || character.vocacion_nombre || ''} ${nivel}`} 
+        scale={scale} 
+      />
+      <DisplayField 
+        {...PAGE3_FIELDS.descripcion_ocupacion} 
+        value={character.descripcion_ocupacion_corta || ''} 
+        scale={scale} 
+      />
       
       {/* Combined occupation description with all special abilities */}
       <DisplayField 
-        {...getPos('descripcion_ocupacion_larga')} 
+        x={PAGE3_FIELDS.descripcion_ocupacion_larga.x}
+        y={PAGE3_FIELDS.descripcion_ocupacion_larga.y}
+        width={PAGE3_FIELDS.descripcion_ocupacion_larga.width}
+        height={PAGE3_FIELDS.descripcion_ocupacion_larga.height}
+        fontSize={PAGE3_FIELDS.descripcion_ocupacion_larga.fontSize}
+        align={PAGE3_FIELDS.descripcion_ocupacion_larga.align}
+        multiline={true}
         value={descripcionCompleta} 
         scale={scale} 
       />
