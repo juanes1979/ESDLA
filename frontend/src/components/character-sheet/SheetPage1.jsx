@@ -20,7 +20,7 @@ export const DisplayField = ({ value, x, y, width, scale, fontSize = 14, align =
       textAlign: align,
       fontFamily: FONT_STYLE,
       lineHeight: 1.3,
-      whiteSpace: multiline ? 'pre-wrap' : 'nowrap',
+      whiteSpace: multiline ? 'pre-line' : 'nowrap',
       wordBreak: multiline ? 'break-word' : 'normal',
       overflowWrap: multiline ? 'break-word' : 'normal',
       overflow: 'hidden',
