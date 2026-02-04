@@ -21,9 +21,9 @@ export const PAGE2_FIELDS = {
   puntos_comunidad: { x: 672, y: 372, width: 68, fontSize: 70, align: 'center' },
   
   // Mecenas section - MULTILINE
-  mecenas: { x: 617, y: 180, width: 400, fontSize: 30, align: 'left' },
-  descripcion_mecenas: { x: 617, y: 230, width: 450, height: 200, fontSize: 20, align: 'left', multiline: true },
-  ventaja_mecenas: { x: 617, y: 450, width: 450, height: 150, fontSize: 20, align: 'left', multiline: true },
+  mecenas: { x: 617, y: 486, width: 466, fontSize: 35, align: 'left' },
+  descripcion_mecenas: { x: 617, y: 539, width: 466, height: 400, fontSize: 35, align: 'left', multiline: true },
+  ventaja_mecenas: { x: 1134, y: 351, width: 460, height: 400, fontSize: 35, align: 'left', multiline: true },
   
   // Heredero e inversión
   heredero: { x: 1161, y: 767, width: 408, fontSize: 40, align: 'left' },
