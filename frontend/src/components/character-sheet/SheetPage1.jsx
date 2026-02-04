@@ -632,7 +632,7 @@ const SheetPage1 = ({ character, scale, weaponCatalog = [], equipmentCatalog = {
       ))}
       
       {/* Peso y estorbo */}
-      <DisplayField {...PAGE1_FIELDS.peso_transportado} value={`${pesoTransportado} kg`} scale={scale} />
+      <DisplayField {...PAGE1_FIELDS.peso_transportado} value={pesoTransportado} scale={scale} />
       <DisplayField {...PAGE1_FIELDS.cargado} value={estorbo.cargado} scale={scale} />
       <DisplayField {...PAGE1_FIELDS.muy_cargado} value={estorbo.muy_cargado} scale={scale} />
       
