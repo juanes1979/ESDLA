@@ -196,13 +196,22 @@ export const PAGE1_FIELDS = {
   arma_5_distancia: { x: 1008, y: 1230, width: 70, fontSize: 22, align: 'left' },
   
   // Idiomas y herramientas - 7 filas
-  idioma_herr_1: { x: 109, y: 1836, width: 435, fontSize: 22, align: 'left' },
-  idioma_herr_2: { x: 109, y: 1874, width: 435, fontSize: 22, align: 'left' },
-  idioma_herr_3: { x: 109, y: 1918, width: 435, fontSize: 22, align: 'left' },
-  idioma_herr_4: { x: 109, y: 1959, width: 435, fontSize: 22, align: 'left' },
-  idioma_herr_5: { x: 109, y: 2004, width: 435, fontSize: 22, align: 'left' },
-  idioma_herr_6: { x: 109, y: 2044, width: 435, fontSize: 22, align: 'left' },
-  idioma_herr_7: { x: 109, y: 2083, width: 435, fontSize: 22, align: 'left' },
+  idioma_herr_1: { x: 109, y: 1830, width: 435, fontSize: 31, align: 'left' },
+  idioma_herr_2: { x: 109, y: 1869, width: 435, fontSize: 31, align: 'left' },
+  idioma_herr_3: { x: 109, y: 1914, width: 435, fontSize: 31, align: 'left' },
+  idioma_herr_4: { x: 109, y: 1955, width: 435, fontSize: 31, align: 'left' },
+  idioma_herr_5: { x: 109, y: 2000, width: 435, fontSize: 31, align: 'left' },
+  idioma_herr_6: { x: 109, y: 2038, width: 435, fontSize: 31, align: 'left' },
+  idioma_herr_7: { x: 109, y: 2078, width: 435, fontSize: 31, align: 'left' },
+  
+  // Virtudes
+  virtudes: { x: 1179, y: 1433, width: 437, fontSize: 30, align: 'left' },
+  
+  // Sombra - puntuación y cicatrices
+  sombra_puntuacion: { x: 1199, y: 580, width: 80, fontSize: 80, align: 'center' },
+  sombra_cicatrices: { x: 1354, y: 580, width: 80, fontSize: 80, align: 'left' },
+  desanimado: { x: 1484, y: 614, width: 18, fontSize: 30, align: 'center' },
+  angustiado: { x: 1484, y: 664, width: 18, fontSize: 30, align: 'center' },
 };
 
 // Skill to attribute mapping
