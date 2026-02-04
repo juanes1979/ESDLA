@@ -889,7 +889,6 @@ const InteractiveCharacterSheet = () => {
                 <DisplayField {...PAGE1_FIELDS.jugador} value={character.jugador || ''} scale={scale} />
                 <DisplayField {...PAGE1_FIELDS.cultura} value={character.cultura_nombre || ''} scale={scale} />
                 <DisplayField {...PAGE1_FIELDS.senda_sombra} value={character.senda_sombra || ''} scale={scale} />
-                <DisplayField {...PAGE1_FIELDS.senda_sombra_descripcion} value={character.senda_sombra_descripcion || ''} scale={scale} />
                 
                 {/* Rasgos distintivos (2 con descripción) */}
                 <DisplayField {...PAGE1_FIELDS.rasgos_distintivos_1} value={rasgos.rasgo1_nombre} scale={scale} />
