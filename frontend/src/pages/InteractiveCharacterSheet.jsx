@@ -67,20 +67,21 @@ const SKILL_DISPLAY_NAMES = {
   'viajar': 'Viajar',
 };
 
-// PAGE 1 FIELD POSITIONS (from user-provided JSON - final version 2026-02-01)
+// PAGE 1 FIELD POSITIONS (from user-provided JSON - updated 2025-01)
 const PAGE1_FIELDS = {
   // Basic Info
-  nombre: { x: 89, y: 171, width: 630, fontSize: 45, align: 'center' },
+  nombre: { x: 89, y: 184, width: 630, fontSize: 45, align: 'center' },
   ocupacion_nivel: { x: 757, y: 142, width: 260, fontSize: 31, align: 'left' },
   jugador: { x: 983, y: 43, width: 600, fontSize: 50, align: 'center' },
   cultura: { x: 757, y: 220, width: 260, fontSize: 31, align: 'left' },
   senda_sombra: { x: 1182, y: 514, width: 445, fontSize: 31, align: 'left' },
+  senda_sombra_descripcion: { x: 1182, y: 560, width: 445, fontSize: 18, align: 'left', height: 180, multiline: true },
   
   // Rasgos distintivos (2 con descripción) - descripción es multilinea
   rasgos_distintivos_1: { x: 1336, y: 1007, width: 260, fontSize: 31, align: 'left' },
   rasgos_distintivos_2: { x: 1336, y: 1244, width: 260, fontSize: 31, align: 'left' },
-  descripcion_rasgos_distintivos_1: { x: 1179, y: 1056, width: 437, fontSize: 22, align: 'left', height: 180, multiline: true },
-  descripcion_rasgos_distintivos_2: { x: 1179, y: 1289, width: 437, fontSize: 22, align: 'left', height: 180, multiline: true },
+  descripcion_rasgos_distintivos_1: { x: 1179, y: 1056, width: 437, fontSize: 31, align: 'left', height: 180, multiline: true },
+  descripcion_rasgos_distintivos_2: { x: 1179, y: 1289, width: 437, fontSize: 31, align: 'left', height: 180, multiline: true },
   
   // Habilidades favorecidas (3)
   habilidad_favorecida_1: { x: 1228, y: 237, width: 117, fontSize: 16, align: 'left' },
@@ -88,36 +89,36 @@ const PAGE1_FIELDS = {
   habilidad_favorecida_3: { x: 1485, y: 237, width: 117, fontSize: 16, align: 'left' },
   
   // Características físicas
-  edad: { x: 1059, y: 148, width: 46, fontSize: 30, align: 'left' },
-  altura: { x: 1130, y: 148, width: 73, fontSize: 30, align: 'left' },
-  peso: { x: 1228, y: 148, width: 73, fontSize: 30, align: 'left' },
-  ojos: { x: 1334, y: 156, width: 90, fontSize: 20, align: 'left' },
-  piel: { x: 1434, y: 156, width: 90, fontSize: 20, align: 'left' },
-  pelo: { x: 1518, y: 156, width: 90, fontSize: 20, align: 'left' },
-  sexo: { x: 376, y: 254, width: 137, fontSize: 40, align: 'center' },
+  edad: { x: 1059, y: 148, width: 49, fontSize: 30, align: 'left' },
+  altura: { x: 1130, y: 148, width: 77, fontSize: 30, align: 'left' },
+  peso: { x: 1228, y: 148, width: 77, fontSize: 30, align: 'left' },
+  ojos: { x: 1334, y: 156, width: 93, fontSize: 20, align: 'left' },
+  piel: { x: 1434, y: 156, width: 93, fontSize: 20, align: 'left' },
+  pelo: { x: 1518, y: 156, width: 93, fontSize: 20, align: 'left' },
+  sexo: { x: 376, y: 261, width: 137, fontSize: 40, align: 'center' },
   
   // Attributes - Main values
-  fuerza_valor: { x: 95, y: 327, width: 100, fontSize: 100, align: 'center' },
-  destreza_valor: { x: 95, y: 547, width: 100, fontSize: 100, align: 'center' },
-  constitucion_valor: { x: 95, y: 767, width: 100, fontSize: 100, align: 'center' },
-  inteligencia_valor: { x: 95, y: 987, width: 100, fontSize: 100, align: 'center' },
-  sabiduria_valor: { x: 93, y: 1207, width: 100, fontSize: 100, align: 'center' },
-  carisma_valor: { x: 95, y: 1427, width: 100, fontSize: 100, align: 'center' },
+  fuerza_valor: { x: 95, y: 332, width: 107, fontSize: 100, align: 'center' },
+  destreza_valor: { x: 95, y: 552, width: 107, fontSize: 100, align: 'center' },
+  constitucion_valor: { x: 95, y: 772, width: 105, fontSize: 100, align: 'center' },
+  inteligencia_valor: { x: 95, y: 992, width: 107, fontSize: 100, align: 'center' },
+  sabiduria_valor: { x: 93, y: 1212, width: 107, fontSize: 100, align: 'center' },
+  carisma_valor: { x: 95, y: 1432, width: 107, fontSize: 100, align: 'center' },
   
   // Attributes - Modifiers (big circle)
-  fuerza_mod: { x: 91, y: 444, width: 100, fontSize: 55, align: 'center' },
-  destreza_mod: { x: 91, y: 660, width: 100, fontSize: 55, align: 'center' },
-  constitucion_mod: { x: 91, y: 878, width: 100, fontSize: 55, align: 'center' },
-  inteligencia_mod: { x: 91, y: 1098, width: 100, fontSize: 55, align: 'center' },
-  sabiduria_mod: { x: 91, y: 1317, width: 100, fontSize: 55, align: 'center' },
-  carisma_mod: { x: 91, y: 1534, width: 100, fontSize: 55, align: 'center' },
+  fuerza_mod: { x: 91, y: 447, width: 100, fontSize: 55, align: 'center' },
+  destreza_mod: { x: 91, y: 663, width: 100, fontSize: 55, align: 'center' },
+  constitucion_mod: { x: 91, y: 883, width: 100, fontSize: 55, align: 'center' },
+  inteligencia_mod: { x: 91, y: 1103, width: 100, fontSize: 55, align: 'center' },
+  sabiduria_mod: { x: 91, y: 1322, width: 100, fontSize: 55, align: 'center' },
+  carisma_mod: { x: 91, y: 1539, width: 100, fontSize: 55, align: 'center' },
   
   // Combat stats
-  inspiracion: { x: 250, y: 340, width: 100, fontSize: 65, align: 'center' },
-  bonificador_competencia: { x: 250, y: 478, width: 100, fontSize: 65, align: 'center' },
-  clase_armadura: { x: 657, y: 357, width: 100, fontSize: 65, align: 'center' },
-  iniciativa: { x: 808, y: 357, width: 100, fontSize: 65, align: 'center' },
-  velocidad: { x: 949, y: 357, width: 120, fontSize: 65, align: 'center' },
+  inspiracion: { x: 250, y: 345, width: 100, fontSize: 65, align: 'center' },
+  bonificador_competencia: { x: 250, y: 486, width: 100, fontSize: 65, align: 'center' },
+  clase_armadura: { x: 657, y: 360, width: 100, fontSize: 65, align: 'center' },
+  iniciativa: { x: 808, y: 360, width: 100, fontSize: 65, align: 'center' },
+  velocidad: { x: 949, y: 360, width: 120, fontSize: 65, align: 'center' },
   
   // Hit points
   pg_max: { x: 707, y: 508, width: 80, fontSize: 50, align: 'center' },
@@ -125,10 +126,10 @@ const PAGE1_FIELDS = {
   pg_temp: { x: 901, y: 585, width: 110, fontSize: 70, align: 'center' },
   dado_golpe: { x: 682, y: 807, width: 120, fontSize: 65, align: 'center' },
   
-  percepcion_pasiva: { x: 78, y: 1674, width: 100, fontSize: 65, align: 'center' },
+  percepcion_pasiva: { x: 78, y: 1679, width: 100, fontSize: 65, align: 'center' },
   
-  // Peso y estorbo (Updated from JSON)
-  peso_transportado: { x: 1192, y: 367, width: 92, fontSize: 60, align: 'center' },
+  // Peso y estorbo
+  peso_transportado: { x: 1192, y: 370, width: 107, fontSize: 60, align: 'center' },
   cargado: { x: 1337, y: 368, width: 23, fontSize: 30, align: 'left' },
   muy_cargado: { x: 1337, y: 418, width: 23, fontSize: 30, align: 'left' },
   
@@ -191,12 +192,12 @@ const PAGE1_FIELDS = {
   comp_hab_viajar: { x: 280, y: 1558, width: 21, fontSize: 22, align: 'center' },
   
   // Monedas - campos separados
-  monedas_cobre: { x: 653, y: 1731, width: 60, fontSize: 40, align: 'center' },
-  monedas_plata: { x: 653, y: 1852, width: 60, fontSize: 40, align: 'center' },
-  monedas_oro: { x: 653, y: 1973, width: 60, fontSize: 40, align: 'center' },
-  monedas_estano: { x: 680, y: 2084, width: 60, fontSize: 40, align: 'center' },
+  monedas_cobre: { x: 653, y: 1733, width: 60, fontSize: 40, align: 'center' },
+  monedas_plata: { x: 653, y: 1854, width: 60, fontSize: 40, align: 'center' },
+  monedas_oro: { x: 653, y: 1975, width: 60, fontSize: 40, align: 'center' },
+  monedas_estano: { x: 680, y: 2086, width: 60, fontSize: 40, align: 'center' },
   
-  // Equipo - 8 filas
+  // Equipo - 8 filas (página 1)
   equipo_1: { x: 771, y: 1725, width: 298, fontSize: 22, align: 'left' },
   equipo_2: { x: 771, y: 1772, width: 298, fontSize: 22, align: 'left' },
   equipo_3: { x: 771, y: 1818, width: 298, fontSize: 22, align: 'left' },
@@ -205,23 +206,6 @@ const PAGE1_FIELDS = {
   equipo_6: { x: 771, y: 1957, width: 298, fontSize: 22, align: 'left' },
   equipo_7: { x: 771, y: 2002, width: 298, fontSize: 22, align: 'left' },
   equipo_8: { x: 771, y: 2040, width: 298, fontSize: 22, align: 'left' },
-  equipo_9: { x: 1100, y: 1725, width: 298, fontSize: 22, align: 'left' },
-  equipo_10: { x: 1100, y: 1772, width: 298, fontSize: 22, align: 'left' },
-  equipo_11: { x: 1100, y: 1818, width: 298, fontSize: 22, align: 'left' },
-  equipo_12: { x: 1100, y: 1867, width: 298, fontSize: 22, align: 'left' },
-  equipo_13: { x: 1100, y: 1915, width: 298, fontSize: 22, align: 'left' },
-  equipo_14: { x: 1100, y: 1957, width: 298, fontSize: 22, align: 'left' },
-  equipo_15: { x: 1100, y: 2002, width: 298, fontSize: 22, align: 'left' },
-  equipo_16: { x: 1100, y: 2040, width: 298, fontSize: 22, align: 'left' },
-  equipo_17: { x: 1100, y: 2085, width: 298, fontSize: 22, align: 'left' },
-  equipo_18: { x: 1100, y: 2130, width: 298, fontSize: 22, align: 'left' },
-  equipo_19: { x: 1400, y: 1725, width: 298, fontSize: 22, align: 'left' },
-  equipo_20: { x: 1400, y: 1772, width: 298, fontSize: 22, align: 'left' },
-  equipo_21: { x: 1400, y: 1818, width: 298, fontSize: 22, align: 'left' },
-  equipo_22: { x: 1400, y: 1867, width: 298, fontSize: 22, align: 'left' },
-  equipo_23: { x: 1400, y: 1915, width: 298, fontSize: 22, align: 'left' },
-  equipo_24: { x: 1400, y: 1957, width: 298, fontSize: 22, align: 'left' },
-  equipo_25: { x: 1400, y: 2002, width: 298, fontSize: 22, align: 'left' },
   
   // Armas - 5 filas (Nombre | Daño | Herida | Distancia)
   arma_1_nombre: { x: 642, y: 1042, width: 135, fontSize: 22, align: 'left' },
