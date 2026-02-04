@@ -48,6 +48,7 @@ const FIELD_SUGGESTIONS = [
   
   // Tiradas de salvación - valores
   'salvacion_fue', 'salvacion_des', 'salvacion_con', 'salvacion_int', 'salvacion_sab', 'salvacion_car',
+  'salvacion_fue_mod', 'salvacion_des_mod', 'salvacion_con_mod', 'salvacion_int_mod', 'salvacion_sab_mod', 'salvacion_car_mod',
   // Tiradas de salvación - checkboxes de competencia (x si competente)
   'comp_salvacion_fue', 'comp_salvacion_des', 'comp_salvacion_con', 
   'comp_salvacion_int', 'comp_salvacion_sab', 'comp_salvacion_car',
@@ -68,8 +69,9 @@ const FIELD_SUGGESTIONS = [
   
   'percepcion_pasiva',
   
-  // Sombra
+  // Sombra y estado
   'sombra_puntuacion', 'sombra_cicatrices',
+  'desanimado', 'angustiado', 'descripcion_sombra',
   
   // Monedas - campos separados
   'monedas_estano', 'monedas_cobre', 'monedas_plata', 'monedas_oro',
@@ -89,8 +91,39 @@ const FIELD_SUGGESTIONS = [
   // Idiomas y herramientas - 7 filas
   'idioma_herr_1', 'idioma_herr_2', 'idioma_herr_3', 'idioma_herr_4', 'idioma_herr_5', 'idioma_herr_6', 'idioma_herr_7',
   
-  // Otros
-  'trasfondo', 'rasgos_personalidad', 'ataques', 'virtudes',
+  // Recompensas (6)
+  'recompensa1', 'recompensa2', 'recompensa3', 'recompensa4', 'recompensa5', 'recompensa6',
+  
+  // Recursos adicionales
+  'puntos_comunidad', 'heredero', 'inversion',
+  
+  // Virtudes - ocupación y seleccionadas (4)
+  'virtudes', 'virtudes_ocupacion',
+  'virtud1', 'virtud1_descripcion', 'virtud1_rasgos',
+  'virtud2', 'virtud2_descripcion', 'virtud2_rasgos',
+  'virtud3', 'virtud3_descripcion', 'virtud3_rasgos',
+  'virtud4', 'virtud4_descripcion', 'virtud4_rasgos',
+  
+  // Descripciones de cultura y ocupación
+  'descripcion_cultura', 'descripcion_riqueza', 'riqueza',
+  'descripcion_ocupacion', 'descripcion_ocupacion_larga',
+  
+  // Mecenas
+  'mecenas', 'descripcion_mecenas', 'ventaja_mecenas',
+  
+  // Especiales de ocupación (6)
+  'especiales_ocupacion1', 'especiales_ocupacion1_descripcion',
+  'especiales_ocupacion2', 'especiales_ocupacion2_descripcion',
+  'especiales_ocupacion3', 'especiales_ocupacion3_descripcion',
+  'especiales_ocupacion4', 'especiales_ocupacion4_descripcion',
+  'especiales_ocupacion5', 'especiales_ocupacion5_descripcion',
+  'especiales_ocupacion6', 'especiales_ocupacion6_descripcion',
+  
+  // Caminos de profesión
+  'caminos_profesion', 'caminos_profesion1', 'caminos_profesion2',
+  
+  // Trasfondo y otros
+  'trasfondo', 'rasgos_personalidad', 'ataques',
 ];
 
 const SheetPositionEditor = () => {
