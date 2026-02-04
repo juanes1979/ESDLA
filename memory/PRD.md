@@ -111,6 +111,10 @@ Build a comprehensive web application to play a modified version of the "Lord of
    - Implement "Descargar PDF (3 hojas)" button
    - Use jspdf and html2canvas
 
+3. **Character Sheet Page 3** (NOT STARTED)
+   - Configure field coordinates for page 3
+   - Add data rendering for page 3 fields
+
 ### P1 - Medium Priority
 1. **Phase 2 (Background)** - Partial implementation exists
    - Needs traits with descriptions display
