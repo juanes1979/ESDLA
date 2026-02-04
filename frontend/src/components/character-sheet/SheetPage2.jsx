@@ -10,8 +10,8 @@ export const PAGE2_FIELDS = {
   nombre: { x: 71, y: 178, width: 609, fontSize: 45, align: 'center' },
   
   // Sombra section - MULTILINE
-  sombra: { x: 77, y: 398, width: 456, fontSize: 35, align: 'center' },
-  descripcion_sombra: { x: 71, y: 448, width: 455, height: 300, fontSize: 35, align: 'left', multiline: true },
+  sombra: { x: 77, y: 417, width: 456, fontSize: 35, align: 'center' },
+  descripcion_sombra: { x: 71, y: 465, width: 455, height: 300, fontSize: 35, align: 'left', multiline: true },
   
   // Trasfondo section - MULTILINE
   trasfondo: { x: 85, y: 1088, width: 437, fontSize: 25, align: 'left' },
