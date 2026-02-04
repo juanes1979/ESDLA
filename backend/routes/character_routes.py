@@ -705,6 +705,70 @@ async def finalize_character(draft_id: str):
         # Shadow points
         "puntos_sombra": 0,
         "puntos_sombra_permanentes": 0,
+        
+        # NEW: Shadow/Estado fields (for rules, to be set later)
+        "desanimado": False,
+        "angustiado": False,
+        "descripcion_sombra": None,
+        
+        # NEW: Recompensas (rewards, to be filled later by game master)
+        "recompensa1": None,
+        "recompensa2": None,
+        "recompensa3": None,
+        "recompensa4": None,
+        "recompensa5": None,
+        "recompensa6": None,
+        
+        # NEW: Additional resources
+        "heredero": None,
+        "inversion": None,
+        
+        # NEW: Descriptions from data (populated from culture/occupation/etc)
+        "descripcion_cultura": draft.get('descripcion_cultura'),
+        "descripcion_riqueza": draft.get('descripcion_riqueza'),
+        "riqueza": draft.get('riqueza'),
+        "descripcion_ocupacion": draft.get('descripcion_ocupacion'),
+        "descripcion_ocupacion_larga": draft.get('descripcion_ocupacion_larga'),
+        
+        # NEW: Mecenas fields
+        "mecenas": draft.get('mecenas'),
+        "descripcion_mecenas": draft.get('descripcion_mecenas'),
+        "ventaja_mecenas": draft.get('ventaja_mecenas'),
+        
+        # NEW: Especiales de ocupación
+        "especiales_ocupacion1": draft.get('especiales_ocupacion1'),
+        "especiales_ocupacion1_descripcion": draft.get('especiales_ocupacion1_descripcion'),
+        "especiales_ocupacion2": draft.get('especiales_ocupacion2'),
+        "especiales_ocupacion2_descripcion": draft.get('especiales_ocupacion2_descripcion'),
+        "especiales_ocupacion3": draft.get('especiales_ocupacion3'),
+        "especiales_ocupacion3_descripcion": draft.get('especiales_ocupacion3_descripcion'),
+        "especiales_ocupacion4": draft.get('especiales_ocupacion4'),
+        "especiales_ocupacion4_descripcion": draft.get('especiales_ocupacion4_descripcion'),
+        "especiales_ocupacion5": draft.get('especiales_ocupacion5'),
+        "especiales_ocupacion5_descripcion": draft.get('especiales_ocupacion5_descripcion'),
+        "especiales_ocupacion6": draft.get('especiales_ocupacion6'),
+        "especiales_ocupacion6_descripcion": draft.get('especiales_ocupacion6_descripcion'),
+        
+        # NEW: Caminos de profesión
+        "caminos_profesion": draft.get('caminos_profesion'),
+        "caminos_profesion1": draft.get('caminos_profesion1'),
+        "caminos_profesion2": draft.get('caminos_profesion2'),
+        
+        # NEW: Virtudes de ocupación y virtudes seleccionadas
+        "virtudes_ocupacion": draft.get('virtudes_ocupacion'),
+        "virtud1": draft.get('virtud1'),
+        "virtud1_descripcion": draft.get('virtud1_descripcion'),
+        "virtud1_rasgos": draft.get('virtud1_rasgos'),
+        "virtud2": draft.get('virtud2'),
+        "virtud2_descripcion": draft.get('virtud2_descripcion'),
+        "virtud2_rasgos": draft.get('virtud2_rasgos'),
+        "virtud3": draft.get('virtud3'),
+        "virtud3_descripcion": draft.get('virtud3_descripcion'),
+        "virtud3_rasgos": draft.get('virtud3_rasgos'),
+        "virtud4": draft.get('virtud4'),
+        "virtud4_descripcion": draft.get('virtud4_descripcion'),
+        "virtud4_rasgos": draft.get('virtud4_rasgos'),
+        
         # Meta
         "estado": "activo",
         "created_at": now_utc(),
