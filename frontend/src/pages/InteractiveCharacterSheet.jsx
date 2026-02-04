@@ -1074,9 +1074,35 @@ const InteractiveCharacterSheet = () => {
 
             {/* PAGE 2 - TODO: Add fields */}
             {currentPage === 2 && (
-              <div className="absolute inset-0 flex items-center justify-center">
-                <p className="text-gray-500 text-lg">Página 2 - Pendiente de configurar coordenadas</p>
-              </div>
+              <>
+                {/* Basic Info */}
+                <DisplayField {...(fieldPositions.page2?.nombre || PAGE2_FIELDS.nombre)} value={character.nombre} scale={scale} />
+                
+                {/* Sombra section */}
+                <DisplayField {...(fieldPositions.page2?.sombra || PAGE2_FIELDS.sombra)} value={character.senda_sombra || ''} scale={scale} />
+                <DisplayField {...(fieldPositions.page2?.descripcion_sombra || PAGE2_FIELDS.descripcion_sombra)} value={character.senda_sombra_descripcion || character.maldicion_descripcion || ''} scale={scale} />
+                
+                {/* Trasfondo section */}
+                <DisplayField {...(fieldPositions.page2?.trasfondo || PAGE2_FIELDS.trasfondo)} value={character.trasfondo_nombre || ''} scale={scale} />
+                <DisplayField {...(fieldPositions.page2?.descripcion_trasfondo || PAGE2_FIELDS.descripcion_trasfondo)} value={character.descripcion_trasfondo || ''} scale={scale} />
+                
+                {/* Resources */}
+                <DisplayField {...(fieldPositions.page2?.puntos_comunidad || PAGE2_FIELDS.puntos_comunidad)} value={character.puntos_comunidad || 0} scale={scale} />
+                <DisplayField {...(fieldPositions.page2?.heredero || PAGE2_FIELDS.heredero)} value={character.heredero || ''} scale={scale} />
+                <DisplayField {...(fieldPositions.page2?.inversion || PAGE2_FIELDS.inversion)} value={character.inversion || ''} scale={scale} />
+                
+                {/* Equipo 9-28 (page 2) */}
+                {[9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28].map((num) => {
+                  const fieldKey = `equipo_${num}`;
+                  const pos = fieldPositions.page2?.[fieldKey] || PAGE2_FIELDS[fieldKey];
+                  const equipoItems = character.equipo || [];
+                  const item = equipoItems[num - 1]; // 0-indexed array
+                  const displayValue = item ? (typeof item === 'string' ? item : item.nombre || '') : '';
+                  return pos ? (
+                    <DisplayField key={fieldKey} {...pos} value={displayValue} scale={scale} />
+                  ) : null;
+                })}
+              </>
             )}
 
             {/* PAGE 3 - TODO: Add fields */}
