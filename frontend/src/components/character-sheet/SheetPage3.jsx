@@ -75,6 +75,10 @@ const SheetPage3 = ({ character, scale, fieldPositions = {} }) => {
 
   const nivel = character.nivel || 1;
   const descripcionCompleta = getDescripcionOcupacionCompleta();
+  
+  // Debug log
+  console.log('Descripcion completa length:', descripcionCompleta.length);
+  console.log('Contains newlines:', descripcionCompleta.includes('\n'));
 
   return (
     <>
