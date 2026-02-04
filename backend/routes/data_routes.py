@@ -177,6 +177,24 @@ async def get_patron(patron_id: str):
     return serialize_doc(patron)
 
 
+# === MECENAS (Spanish version of Patrons) ===
+
+@router.get("/mecenas")
+async def get_mecenas():
+    """Get all mecenas (patrons in Spanish)"""
+    mecenas_list = await db.mecenas.find({}).to_list(50)
+    return {"mecenas": serialize_docs(mecenas_list)}
+
+
+@router.get("/mecenas/{mecenas_id}")
+async def get_mecenas_by_id(mecenas_id: str):
+    """Get a specific mecenas by ID"""
+    mecenas = await db.mecenas.find_one({"_id": mecenas_id})
+    if not mecenas:
+        raise HTTPException(status_code=404, detail="Mecenas not found")
+    return serialize_doc(mecenas)
+
+
 # === EQUIPMENT ===
 
 @router.get("/equipment")
