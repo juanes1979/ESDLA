@@ -91,7 +91,45 @@ const SheetPage2 = ({ character, scale, fieldPositions = {} }) => {
     return Array.from({ length: 20 }, (_, i) => equipment[i + 8] || '');
   };
 
+  // Get rasgos culturales formatted with line breaks between each trait
+  // Returns { col1: string, col2: string } for two columns if needed
+  const getRasgosCulturales = () => {
+    const rasgos = character.rasgos_culturales || [];
+    if (!rasgos.length) return { col1: '', col2: '' };
+    
+    // Join all traits with double line break (punto y aparte)
+    const allText = rasgos.join('\n\n');
+    
+    // Estimate characters that fit in first column (approx 400 chars based on width/fontSize)
+    const maxCharsCol1 = 450;
+    
+    if (allText.length <= maxCharsCol1) {
+      return { col1: allText, col2: '' };
+    }
+    
+    // Find a good break point (at a trait boundary)
+    let breakIndex = 0;
+    let charCount = 0;
+    for (let i = 0; i < rasgos.length; i++) {
+      const traitLength = rasgos[i].length + 2; // +2 for \n\n
+      if (charCount + traitLength > maxCharsCol1) {
+        break;
+      }
+      charCount += traitLength;
+      breakIndex = i + 1;
+    }
+    
+    const col1Rasgos = rasgos.slice(0, breakIndex);
+    const col2Rasgos = rasgos.slice(breakIndex);
+    
+    return {
+      col1: col1Rasgos.join('\n\n'),
+      col2: col2Rasgos.join('\n\n')
+    };
+  };
+
   const equipmentRows = getEquipmentRowsPage2();
+  const rasgosCulturales = getRasgosCulturales();
   
   // Helper to get field position (from DB or fallback)
   const getPos = (fieldName) => {
