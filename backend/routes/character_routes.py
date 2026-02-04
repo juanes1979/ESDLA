@@ -665,6 +665,8 @@ async def finalize_character(draft_id: str):
         "virtud_id": draft.get('virtud_id'),
         "virtud_nombre": draft.get('virtud_nombre'),
         "rasgos_virtud": draft.get('rasgos_virtud'),
+        # Cultural traits (rasgos culturales from culture)
+        "rasgos_culturales": draft.get('rasgos_culturales', []),
         # ALL Skills and competencies consolidated
         "habilidades_competencia": draft.get('habilidades_competencia', []),
         "habilidades_elegidas_ocupacion": draft.get('habilidades_elegidas_ocupacion', []),
