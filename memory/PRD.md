@@ -5,7 +5,34 @@ Build a comprehensive web application to play a modified version of the "Lord of
 
 **User's preferred language**: Español
 
-## Current State (2026-01-30)
+## Current State (2026-02-04)
+
+### ✅ COMPLETED: Character Sheet Refactoring & Multi-line Fields (P0)
+- **Component Refactoring** - DONE
+  - Split `InteractiveCharacterSheet.jsx` (1122 lines) into smaller components
+  - Created `/app/frontend/src/components/character-sheet/SheetPage1.jsx` - Page 1 rendering
+  - Created `/app/frontend/src/components/character-sheet/SheetPage2.jsx` - Page 2 rendering
+  - Main component now only handles navigation and state management
+- **Multi-line Text Fields** - FIXED
+  - `descripcion_sombra` - Displays full shadow path description with text wrapping
+  - `descripcion_trasfondo` - Ready for display (existing characters may not have data)
+  - `descripcion_rasgos_distintivos_1/2` - Already working with height and multiline props
+- **Page 2 Data Display** - FIXED
+  - Now correctly displays: nombre, senda_sombra, descripcion_sombra, trasfondo_nombre
+  - Shows puntos_comunidad, heredero, inversion, mecenas fields
+  - Equipment items 9-28 for overflow from page 1
+- **Page Navigation** - VERIFIED WORKING
+  - Chevron buttons navigate between pages 1, 2, 3
+  - Page indicator updates correctly
+- **Cultural Tool Proficiency (P1)** - VERIFIED WORKING
+  - `getIdiomasHerramientasRows()` correctly gathers tools from:
+    - competencia_herramienta_cultura
+    - herramienta_elegida_cultura
+    - competencia_herramienta_1
+    - competencias.herramientas
+    - herramientas_elegidas_ocupacion
+
+### Previous Completed Work (2026-01-30)
 
 ### ✅ COMPLETED: Data Extraction & Database (UPDATED)
 - **Data Extractor** (`/app/backend/data_extractor_complete.py`) - FIXED
