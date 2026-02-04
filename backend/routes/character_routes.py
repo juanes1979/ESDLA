@@ -400,6 +400,9 @@ async def update_draft_step3(draft_id: str, data: CharacterCreateStep3):
         },
         # Favored skills from occupation
         "habilidades_favorecidas": occupation.get('habilidades_favorecidas', []),
+        # Shadow path (maldición de la ocupación)
+        "maldicion_nombre": occupation.get('maldicion_nombre'),
+        "maldicion_descripcion": occupation.get('maldicion_descripcion'),
         # Skills, tools, armor, weapons, expertise from user selection
         "habilidades_elegidas_ocupacion": data.habilidades_elegidas,
         "herramientas_elegidas_ocupacion": data.herramientas_elegidas,
