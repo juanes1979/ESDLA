@@ -10,10 +10,7 @@ const FONT_STYLE = "'Caveat', 'Ink Free', cursive";
 // Display field component - supports multiline with height parameter
 export const DisplayField = ({ value, x, y, width, scale, fontSize = 14, align = 'center', height = null, multiline = false }) => (
   <div
-    className={cn(
-      "absolute text-black",
-      multiline ? "whitespace-pre-wrap overflow-hidden" : "whitespace-nowrap overflow-hidden"
-    )}
+    className="absolute text-black"
     style={{
       left: `${x * scale}px`,
       top: `${y * scale}px`,
@@ -23,7 +20,9 @@ export const DisplayField = ({ value, x, y, width, scale, fontSize = 14, align =
       textAlign: align,
       fontFamily: FONT_STYLE,
       lineHeight: 1.2,
+      whiteSpace: multiline ? 'pre-wrap' : 'nowrap',
       wordWrap: multiline ? 'break-word' : 'normal',
+      overflow: 'hidden',
     }}
   >
     {value}
