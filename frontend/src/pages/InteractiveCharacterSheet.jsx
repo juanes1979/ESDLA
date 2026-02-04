@@ -13,6 +13,7 @@ import { getCharacter } from '@/services/api';
 import api from '@/services/api';
 import SheetPage1 from '@/components/character-sheet/SheetPage1';
 import SheetPage2 from '@/components/character-sheet/SheetPage2';
+import SheetPage3 from '@/components/character-sheet/SheetPage3';
 
 // Sheet dimensions (based on PDF converted images 1701x2197)
 const SHEET_WIDTH = 1701;
