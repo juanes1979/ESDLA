@@ -29,6 +29,10 @@ export const PAGE2_FIELDS = {
   heredero: { x: 1161, y: 767, width: 408, fontSize: 40, align: 'left' },
   inversion: { x: 1161, y: 820, width: 408, fontSize: 40, align: 'left' },
   
+  // Rasgos culturales (personality traits) - Two columns for overflow
+  rasgos_culturales_1: { x: 617, y: 1075, width: 466, height: 370, fontSize: 35, align: 'left', multiline: true },
+  rasgos_culturales_2: { x: 1157, y: 1078, width: 435, height: 370, fontSize: 35, align: 'left', multiline: true },
+  
   // Equipo page 2 (equipo_9 to equipo_28)
   equipo_9: { x: 617, y: 1633, width: 465, fontSize: 30, align: 'left' },
   equipo_10: { x: 617, y: 1679, width: 465, fontSize: 30, align: 'left' },
