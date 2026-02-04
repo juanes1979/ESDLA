@@ -19,9 +19,10 @@ export const DisplayField = ({ value, x, y, width, scale, fontSize = 14, align =
       fontSize: `${fontSize * scale}px`,
       textAlign: align,
       fontFamily: FONT_STYLE,
-      lineHeight: 1.2,
+      lineHeight: 1.3,
       whiteSpace: multiline ? 'pre-wrap' : 'nowrap',
-      wordWrap: multiline ? 'break-word' : 'normal',
+      wordBreak: multiline ? 'break-word' : 'normal',
+      overflowWrap: multiline ? 'break-word' : 'normal',
       overflow: 'hidden',
     }}
   >
