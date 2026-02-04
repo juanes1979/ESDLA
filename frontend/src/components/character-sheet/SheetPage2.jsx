@@ -175,6 +175,18 @@ const SheetPage2 = ({ character, scale, fieldPositions = {} }) => {
         scale={scale} 
       />
       
+      {/* Rasgos culturales - Two columns */}
+      <DisplayField 
+        {...getPos('rasgos_culturales_1')} 
+        value={rasgosCulturales.col1} 
+        scale={scale} 
+      />
+      <DisplayField 
+        {...getPos('rasgos_culturales_2')} 
+        value={rasgosCulturales.col2} 
+        scale={scale} 
+      />
+      
       {/* Equipo 9-28 */}
       {equipmentRows.map((item, i) => {
         const fieldKey = `equipo_${i + 9}`;
