@@ -581,7 +581,8 @@ def extract_virtues_complete(wb: openpyxl.Workbook) -> List[Dict]:
             "es_comun": tipo and "COMUN" in tipo.upper(),
             "columna_excel": col,
             "descripcion": clean_value(sheet.cell(row=3, column=col).value),
-            "competencias_texto": clean_value(sheet.cell(row=4, column=col).value),
+            "rasgos_virtud": clean_value(sheet.cell(row=4, column=col).value),  # NEW: Row 4 is "Rasgos a indicar en la hoja PJ"
+            "competencias_texto": clean_value(sheet.cell(row=4, column=col).value),  # Keep for backwards compatibility
             
             # Fixed characteristic bonuses (rows 5-10)
             "caracteristicas_fijas": {
