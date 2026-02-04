@@ -123,7 +123,7 @@ const FIELD_SUGGESTIONS = [
   'caminos_profesion', 'caminos_profesion1', 'caminos_profesion2',
   
   // Trasfondo y otros
-  'trasfondo', 'rasgos_personalidad', 'ataques',
+  'trasfondo', 'descripcion_trasfondo', 'rasgos_personalidad', 'ataques',
 ];
 
 const SheetPositionEditor = () => {
