@@ -112,6 +112,11 @@ async def seed_cultures(db, data: dict):
             "habilidades_puntuaciones": culture.get('habilidades_puntuaciones', {}),
             "competencias_habilidades": culture.get('competencias_habilidades', []),
             
+            # NEW: Riqueza and descripcion fields
+            "riqueza": culture.get('riqueza'),
+            "descripcion_riqueza": culture.get('descripcion_riqueza'),
+            "descripcion_cultura": culture.get('descripcion_cultura'),
+            
             "created_at": now_utc(),
             "updated_at": now_utc(),
         }
