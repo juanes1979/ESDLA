@@ -8,27 +8,34 @@ import { cn } from '@/lib/utils';
 const FONT_STYLE = "'Caveat', 'Ink Free', cursive";
 
 // Display field component - supports multiline with height parameter
-export const DisplayField = ({ value, x, y, width, scale, fontSize = 14, align = 'center', height = null, multiline = false }) => (
-  <div
-    className="absolute text-black"
-    style={{
-      left: `${x * scale}px`,
-      top: `${y * scale}px`,
-      width: `${width * scale}px`,
-      height: height ? `${height * scale}px` : 'auto',
-      fontSize: `${fontSize * scale}px`,
-      textAlign: align,
-      fontFamily: FONT_STYLE,
-      lineHeight: 1.3,
-      whiteSpace: multiline ? 'pre-line' : 'nowrap',
-      wordBreak: multiline ? 'break-word' : 'normal',
-      overflowWrap: multiline ? 'break-word' : 'normal',
-      overflow: 'hidden',
-    }}
-  >
-    {value}
-  </div>
-);
+export const DisplayField = ({ value, x, y, width, scale, fontSize = 14, align = 'center', height = null, multiline = false }) => {
+  const calculatedWidth = width * scale;
+  const calculatedHeight = height ? height * scale : 'auto';
+  const calculatedFontSize = fontSize * scale;
+  
+  return (
+    <div
+      className="absolute text-black"
+      style={{
+        left: `${x * scale}px`,
+        top: `${y * scale}px`,
+        width: `${calculatedWidth}px`,
+        maxWidth: `${calculatedWidth}px`,
+        height: calculatedHeight,
+        fontSize: `${calculatedFontSize}px`,
+        textAlign: align,
+        fontFamily: FONT_STYLE,
+        lineHeight: 1.3,
+        whiteSpace: multiline ? 'pre-line' : 'nowrap',
+        wordWrap: 'break-word',
+        overflowWrap: 'break-word',
+        overflow: 'hidden',
+      }}
+    >
+      {value}
+    </div>
+  );
+};
 
 // PAGE 1 FIELD POSITIONS
 export const PAGE1_FIELDS = {
