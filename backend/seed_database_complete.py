@@ -204,6 +204,32 @@ async def seed_occupations(db, data: dict):
             "maldicion_nombre": occ.get('maldicion_nombre'),
             "maldicion_descripcion": occ.get('maldicion_descripcion'),
             
+            # NEW: Descripcion_ocupacion aliases and new fields
+            "descripcion_ocupacion": occ.get('descripcion_ocupacion'),
+            "descripcion_ocupacion_larga": occ.get('descripcion_ocupacion_larga'),
+            
+            # NEW: Especiales_ocupacion (rows 193-230)
+            "especiales_ocupacion1": occ.get('especiales_ocupacion1'),
+            "especiales_ocupacion1_descripcion": occ.get('especiales_ocupacion1_descripcion'),
+            "especiales_ocupacion2": occ.get('especiales_ocupacion2'),
+            "especiales_ocupacion2_descripcion": occ.get('especiales_ocupacion2_descripcion'),
+            "especiales_ocupacion3": occ.get('especiales_ocupacion3'),
+            "especiales_ocupacion3_descripcion": occ.get('especiales_ocupacion3_descripcion'),
+            "especiales_ocupacion4": occ.get('especiales_ocupacion4'),
+            "especiales_ocupacion4_descripcion": occ.get('especiales_ocupacion4_descripcion'),
+            "especiales_ocupacion5": occ.get('especiales_ocupacion5'),
+            "especiales_ocupacion5_descripcion": occ.get('especiales_ocupacion5_descripcion'),
+            "especiales_ocupacion6": occ.get('especiales_ocupacion6'),
+            "especiales_ocupacion6_descripcion": occ.get('especiales_ocupacion6_descripcion'),
+            
+            # NEW: Caminos_profesión
+            "caminos_profesion": occ.get('caminos_profesion'),
+            "caminos_profesion1": occ.get('caminos_profesion1'),
+            "caminos_profesion2": occ.get('caminos_profesion2'),
+            
+            # NEW: Virtudes_ocupacion
+            "virtudes_ocupacion": occ.get('virtudes_ocupacion'),
+            
             # Tools selection 1 (rows 21-41)
             "herramientas_1": occ.get('herramientas_1', {}),
             
