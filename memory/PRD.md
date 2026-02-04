@@ -314,3 +314,35 @@ Files updated:
   
 - **Total campos:** 134 (incluye nuevo `senda_sombra_descripcion`)
 - **Verificación:** Screenshot tomado mostrando posiciones correctas
+
+
+### Session Update (2026-02-04 - Refactorización)
+**Refactorización del Componente de Hoja de Personaje**
+
+- **Problema:** `InteractiveCharacterSheet.jsx` tenía 1122 líneas y era difícil de mantener
+- **Solución:** Dividido en componentes más pequeños y especializados
+
+**Archivos Creados:**
+1. `/app/frontend/src/components/character-sheet/SheetPage1.jsx` (580 líneas)
+   - Renderiza todos los campos de la página 1
+   - Exporta `DisplayField` y `PAGE1_FIELDS` para uso compartido
+   - Contiene lógica para: atributos, habilidades, armas, equipo, idiomas/herramientas
+
+2. `/app/frontend/src/components/character-sheet/SheetPage2.jsx` (115 líneas)
+   - Renderiza campos de página 2 con soporte multilinea
+   - Campos: nombre, sombra, descripcion_sombra, trasfondo, descripcion_trasfondo
+   - Campos: puntos_comunidad, mecenas, descripcion_mecenas, ventaja_mecenas
+   - Equipo items 9-28
+
+**Archivo Actualizado:**
+- `/app/frontend/src/pages/InteractiveCharacterSheet.jsx` (170 líneas)
+  - Ahora solo maneja: navegación, estado, carga de datos
+  - Importa SheetPage1 y SheetPage2 como componentes hijos
+
+**Bugs Corregidos:**
+1. **Campos Multi-línea (P0):** DisplayField ahora usa `height` y `multiline` props correctamente
+2. **Datos de Página 2 (P0):** Corregido uso de campos incorrectos (usaba `character.equipo` que no existe)
+3. **Navegación de Páginas (P2):** Verificado funcionamiento con data-testid
+
+**Test Report:** `/app/test_reports/iteration_9.json` - 100% éxito en todas las pruebas
+
