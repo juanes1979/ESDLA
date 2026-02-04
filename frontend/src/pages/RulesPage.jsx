@@ -286,6 +286,7 @@ const RulesPage = () => {
       ...(data.equipo_general || []).map(i => ({ ...i, tipo: 'Equipo' })),
       ...(data.armas || []).map(i => ({ ...i, tipo: 'Arma' })),
       ...(data.armaduras || []).map(i => ({ ...i, tipo: 'Armadura' })),
+      ...(data.monturas || []).map(i => ({ ...i, tipo: 'Montura' })),
     ];
 
     const filteredItems = searchTerm
@@ -326,6 +327,45 @@ const RulesPage = () => {
       );
     };
 
+    const renderMountsTable = (items) => {
+      if (!items || items.length === 0) return null;
+      
+      return (
+        <div className="mb-6">
+          <h4 className="font-heading text-md text-[hsl(var(--gold))] mb-3">🐴 Monturas</h4>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-border text-left">
+                  <th className="pb-2 text-muted-foreground">Montura</th>
+                  <th className="pb-2 text-muted-foreground text-right">Precio</th>
+                  <th className="pb-2 text-muted-foreground text-right">Carga (kg)</th>
+                  <th className="pb-2 text-muted-foreground text-right">Constitución</th>
+                  <th className="pb-2 text-muted-foreground text-right">Velocidad</th>
+                  <th className="pb-2 text-muted-foreground text-center">Capacidad de monta</th>
+                </tr>
+              </thead>
+              <tbody>
+                {items.map((item, i) => (
+                  <tr key={i} className="border-b border-border/30 hover:bg-black/10">
+                    <td className="py-2 text-foreground">{item.nombre}</td>
+                    <td className="py-2 text-right text-[hsl(var(--gold))]">{formatPrice(item.precio, item.moneda)}</td>
+                    <td className="py-2 text-right text-muted-foreground">{item.carga || '-'}</td>
+                    <td className="py-2 text-right text-green-400">{item.constitucion || '-'}</td>
+                    <td className="py-2 text-right text-blue-400">{item.velocidad || '-'}</td>
+                    <td className="py-2 text-center text-muted-foreground">
+                      {item.capacidad_pequeno && <span className="text-xs bg-amber-500/20 text-amber-400 px-1 rounded mr-1">Pequeño</span>}
+                      {item.capacidad_mediano && <span className="text-xs bg-emerald-500/20 text-emerald-400 px-1 rounded">Mediano</span>}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      );
+    };
+
     return (
       <div>
         {/* Search results */}
@@ -355,6 +395,7 @@ const RulesPage = () => {
 
             {renderTable(data.armas, '⚔️ Armas', true, false)}
             {renderTable(data.armaduras, '🛡️ Armaduras', false, true)}
+            {renderMountsTable(data.monturas)}
             {renderTable(data.herramientas, '🔧 Herramientas', false, false)}
             {renderTable(data.equipo_general, '📦 Equipo General', false, false)}
           </>
