@@ -9,32 +9,31 @@ const FONT_STYLE = "'Caveat', 'Ink Free', cursive";
 
 // Display field component - supports multiline with height parameter
 export const DisplayField = ({ value, x, y, width, scale, fontSize = 14, align = 'center', height = null, multiline = false }) => {
-  const calculatedWidth = width * scale;
-  const calculatedHeight = height ? height * scale : 'auto';
-  const calculatedFontSize = fontSize * scale;
+  const styles = {
+    position: 'absolute',
+    left: `${x * scale}px`,
+    top: `${y * scale}px`,
+    width: `${width * scale}px`,
+    fontSize: `${fontSize * scale}px`,
+    textAlign: align,
+    fontFamily: FONT_STYLE,
+    lineHeight: 1.3,
+    color: 'black',
+  };
   
-  return (
-    <div
-      className="absolute text-black"
-      style={{
-        left: `${x * scale}px`,
-        top: `${y * scale}px`,
-        width: `${calculatedWidth}px`,
-        maxWidth: `${calculatedWidth}px`,
-        height: calculatedHeight,
-        fontSize: `${calculatedFontSize}px`,
-        textAlign: align,
-        fontFamily: FONT_STYLE,
-        lineHeight: 1.3,
-        whiteSpace: multiline ? 'pre-line' : 'nowrap',
-        wordWrap: 'break-word',
-        overflowWrap: 'break-word',
-        overflow: 'hidden',
-      }}
-    >
-      {value}
-    </div>
-  );
+  if (multiline) {
+    styles.height = height ? `${height * scale}px` : 'auto';
+    styles.whiteSpace = 'pre-line';
+    styles.wordWrap = 'break-word';
+    styles.overflowWrap = 'break-word';
+    styles.overflow = 'hidden';
+  } else {
+    styles.whiteSpace = 'nowrap';
+    styles.overflow = 'hidden';
+    styles.textOverflow = 'ellipsis';
+  }
+  
+  return <div style={styles}>{value}</div>;
 };
 
 // PAGE 1 FIELD POSITIONS
