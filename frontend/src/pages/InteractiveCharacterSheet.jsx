@@ -67,7 +67,7 @@ const SKILL_DISPLAY_NAMES = {
   'viajar': 'Viajar',
 };
 
-// PAGE 1 FIELD POSITIONS (from user-provided JSON - updated 2025-01)
+// PAGE 1 FIELD POSITIONS (from user-provided JSON - updated 2025-02-04)
 const PAGE1_FIELDS = {
   // Basic Info
   nombre: { x: 89, y: 184, width: 630, fontSize: 45, align: 'center' },
@@ -75,13 +75,12 @@ const PAGE1_FIELDS = {
   jugador: { x: 983, y: 43, width: 600, fontSize: 50, align: 'center' },
   cultura: { x: 757, y: 220, width: 260, fontSize: 31, align: 'left' },
   senda_sombra: { x: 1182, y: 514, width: 445, fontSize: 31, align: 'left' },
-  senda_sombra_descripcion: { x: 1182, y: 560, width: 445, fontSize: 18, align: 'left', height: 180, multiline: true },
   
-  // Rasgos distintivos (2 con descripción) - descripción es multilinea
+  // Rasgos distintivos (2 con descripción) - descripción es multilinea, fontSize: 35
   rasgos_distintivos_1: { x: 1336, y: 1007, width: 260, fontSize: 31, align: 'left' },
   rasgos_distintivos_2: { x: 1336, y: 1244, width: 260, fontSize: 31, align: 'left' },
-  descripcion_rasgos_distintivos_1: { x: 1179, y: 1056, width: 437, fontSize: 31, align: 'left', height: 180, multiline: true },
-  descripcion_rasgos_distintivos_2: { x: 1179, y: 1289, width: 437, fontSize: 31, align: 'left', height: 180, multiline: true },
+  descripcion_rasgos_distintivos_1: { x: 1179, y: 1056, width: 437, fontSize: 35, align: 'left', height: 180, multiline: true },
+  descripcion_rasgos_distintivos_2: { x: 1179, y: 1289, width: 437, fontSize: 35, align: 'left', height: 180, multiline: true },
   
   // Habilidades favorecidas (3)
   habilidad_favorecida_1: { x: 1228, y: 237, width: 117, fontSize: 16, align: 'left' },
