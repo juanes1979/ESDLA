@@ -9,47 +9,97 @@ The application must also include a full user authentication system, a page to v
 **User's preferred language**: Español
 
 **what currently exists?**
-A full-stack React/FastAPI application with a functional, multi-step character creator. The core feature is an interactive character sheet () that dynamically places character data onto high-resolution background images. The layout is driven by a positioning system managed via a dedicated editor () and stored in a MongoDB collection ().
+A full-stack React/FastAPI application with a functional, multi-step character creator. The core feature is an interactive character sheet () that dynamically places character data onto high-resolution background images using a layout defined in a MongoDB  collection. The application also includes a rules page and a layout editor.
 
-The agent has just completed a large batch of bug fixes and feature additions, resolving issues with data mapping, calculations (carry weight), and component logic (armor selection). The backend data extraction and seeding processes have been updated multiple times to include more data from the user's Excel file, such as character names, occupation descriptions, and shadow curses.
+The agent has just completed a massive data-seeding operation, adding dozens of new fields from the user's Excel file (related to cultures, occupations, patrons, etc.) into the database. The data extractor, database seeder, and backend routes have all been updated accordingly. The logic to render Page 2 of the character sheet has been added, though it is not fully functional.
 
 **Last working item**:
--   **Last item agent was working:** The user provided a new JSON file containing updated coordinates for the fields on page 1 of the character sheet to correct alignment issues. The agent was in the process of applying this new layout to the database.
--   **Status:** IN PROGRESS
+-   **Last item agent was working:** The user provided final JSON layouts for Page 1 and Page 2 of the character sheet and requested that several long description fields (, , , ) be rendered as multi-line text boxes that display all their content. The agent acknowledged the request and the new JSON files but has not yet implemented the changes.
+-   **Status:** NOT STARTED
 -   **Agent Testing Done:** N
--   **Which testing method agent to use?** Frontend testing agent. After updating the database, the agent should navigate to the character sheet for an existing character (e.g., ) and take a screenshot to verify that the fields are rendered in the new positions.
+-   **Which testing method agent to use?** Frontend testing agent
 -   **User Testing Done:** N
 
 **All Pending/In progress Issue list**:
--   **Issue 1: Missing Cultural Tool Proficiency (P1)**
-    -   **Description:** The user reported that the tool proficiency selected during the Culture phase (Step 1) is not appearing on the final character sheet.
+-   **Issue 1: Implement Multi-line Text Fields for Page 2 (P0)**
+-   **Issue 2: Apply Latest User-Provided JSON Layouts for Page 1 & 2 (P0)**
+-   **Issue 3: Character Sheet Page 2 is Not Displaying Data Correctly (P0)**
+-   **Issue 4: Missing Cultural Tool Proficiency (P1)**
+-   **Issue 5: Potential Bug in Character Sheet Page Navigation (P2)**
+
+**Issues Detail:**
+-   **Issue 1: Implement Multi-line Text Fields for Page 2 (P0)**
+    -   **Attempted fixes:** None. This is a new request.
     -   **Next debug checklist:**
-        1.  Create a new character and explicitly select a tool proficiency in Step 1.
-        2.  Complete character creation.
-        3.  Navigate to the final character sheet ().
-        4.  Verify that the selected tool is listed under the Idiomas y Competencia con Herramientas section (mapped to  fields).
-    -   **Why fix this issue and what will be achieved with the fix?** Ensures all character choices are correctly reflected on the final sheet, maintaining data integrity.
-    -   **Status:** USER VERIFICATION PENDING
+        1.  In , locate the  component.
+        2.  Modify it to accept a  prop.
+        3.  When  is true, apply CSS styles to the  to enable text wrapping (e.g., , ) and use the  property from the position data.
+        4.  Ensure the fields , , , and  are rendered using this multiline logic on page 2.
+    -   **Why fix this issue and what will be achieved with the fix?** To fulfill the user's requirement for displaying long descriptive texts correctly on the character sheet.
+    -   **Status:** NOT STARTED
+    -   **Is recurring issue?** N
+    -   **Should Test frontend/backend/both after fix?** Frontend
+    -   **Blocked on other issue:** None.
+
+-   **Issue 2: Apply Latest User-Provided JSON Layouts for Page 1 & 2 (P0)**
+    -   **Attempted fixes:** None. The user just provided the latest JSON in the last message.
+    -   **Next debug checklist:**
+        1.  Create a temporary script or use  to  the new JSON data from user message #237 to the  and  endpoints.
+        2.  Update the hardcoded fallback constants (, ) in  to match this new JSON.
+    -   **Why fix this issue and what will be achieved with the fix?** The character sheet layout will match the user's latest design specifications.
+    -   **Status:** NOT STARTED
     -   **Is recurring issue?** Y
     -   **Should Test frontend/backend/both after fix?** Frontend
+    -   **Blocked on other issue:** None.
+
+-   **Issue 3: Character Sheet Page 2 is Not Displaying Data Correctly (P0)**
+    -   **Attempted fixes:** The agent implemented the basic rendering logic for page 2 but did not verify it. The user reported it shows nothing filled in.
+    -   **Next debug checklist:**
+        1.  Review the rendering loop for  in .
+        2.  Verify that the  state object contains the data for page 2 fields (e.g., , , , , , etc.).
+        3.  Check the   function to ensure all these fields are being correctly saved from the draft to the final character object. The agent added many fields but may have missed some in the finalization step.
+    -   **Why fix this issue and what will be achieved with the fix?** Page 2 of the character sheet must show the character's data.
+    -   **Status:** IN PROGRESS
+    -   **Is recurring issue?** N
+    -   **Should Test frontend/backend/both after fix?** Both
+    -   **Blocked on other issue:** None.
+
+-   **Issue 4: Missing Cultural Tool Proficiency (P1)**
+    -   **Attempted fixes:** This issue has been addressed in previous sessions, but it keeps recurring, indicating a potential flaw in the data pipeline for proficiencies.
+    -   **Next debug checklist:**
+        1.  Trace the  field from the character creation wizard (Step 1) through the draft updates and into the  function in .
+        2.  Verify how proficiencies are aggregated into the  fields on the final character object.
+        3.  Create a new character, select a cultural tool, and check the database record to see if it's saved correctly.
+    -   **Why fix this issue and what will be achieved with the fix?** Ensures all character choices are correctly reflected on the final sheet, maintaining data integrity.
+    -   **Status:** NOT STARTED
+    -   **Is recurring issue?** Y
+    -   **Should Test frontend/backend/both after fix?** Both
+    -   **Blocked on other issue:** None.
+
+-   **Issue 5: Potential Bug in Character Sheet Page Navigation (P2)**
+    -   **Attempted fixes:** None. The agent observed the issue but did not investigate.
+    -   **Next debug checklist:**
+        1.  Review the  handlers for the page navigation buttons in .
+        2.  Check the  state logic.
+        3.  Examine the browser console logs for any errors when the navigation buttons are clicked during testing.
+    -   **Why fix this issue and what will be achieved with the fix?** The user and agent must be able to switch between the pages of the character sheet.
+    -   **Status:** NOT STARTED
+    -   **Is recurring issue?** N
+    -   **Should Test frontend/backend/both after fix?** Frontend
+    -   **Blocked on other issue:** None.
 
 **In progress Task List**:
--   **Task 1: Apply User-Defined Layout to Interactive Sheet (P0)**
-    -   **Where to resume:** The agent has received the new JSON from the user. The next action is to use  with  on the  collection in the backend to apply the new layout for .
-    -   **What will be achieved with this?** The character sheet layout will match the user's latest design specifications, fixing alignment issues.
-    -   **Status:** IN PROGRESS
-    -   **Should Test frontend/backend/both after fix?** Frontend
-    -   **Blocked on something:** None.
+-   None. All work is categorized as issues to be fixed.
 
 **Upcoming and Future Tasks**
 
 **Upcoming Tasks:**
 -   **(P0) Implement Full User Authentication System:** Login, registration, and password management. Roles: Director de juego (Admin) and Usuario (User). Permanent admin user Maestro (password: ).
--   **(P1) Implement PDF Generation:** The Imprimir button on  needs to trigger the generation of a 3-page PDF that is visually identical to the sheet.
+-   **(P1) Implement PDF Generation:** The Imprimir button on  needs to trigger the generation of a 3-page PDF.
 -   **(P1) Fully Implement Phase 2 (Background):** The wizard step exists but needs its logic fully implemented.
 -   **(P2) Fully Implement Phase 4 (Virtue):** The wizard step needs to be created and implemented.
--   **(P2) Complete :** Update the summary component shown at the end of character creation to display the same rich detail (culture/occupation/background descriptions, etc.) as the .
--   **(P2) Enhance Rules Page:** Expand the Ocupaciones and Culturas sections to show all player choices and progressions.
+-   **(P2) Complete :** Update the summary component to display rich detail.
+-   **(P2) Enhance Rules Page:** Expand the Ocupaciones and Culturas sections to show all player choices.
 
 **Future Tasks:**
 -   Game Master (DM) Screen.
@@ -57,27 +107,24 @@ The agent has just completed a large batch of bug fixes and feature additions, r
 -   AI Integration for story/NPC generation.
 
 **Completed work in this session**
--   **Resolved Critical Blank Screen Bug:** Diagnosed and fixed a JavaScript syntax error ( extra brace) in .
--   **Implemented Persistent Sheet Layout System:** Replaced the hardcoded/localStorage layout with a database-driven system. Created backend endpoints () and updated frontend components (, ) to save/load layouts from MongoDB.
--   **Fixed P0 Weapon Data Bug:** Corrected the data extractor, re-seeded the database, and updated the frontend to fetch and display correct weapon stats (damage, wound, range).
--   **Data and UI Bug Fixes (Extensive):**
-    -   Corrected carry weight calculation by looking up item weights from a full equipment catalog.
-    -   Fixed display of encumbrance status (Cargado/Muy cargado).
-    -   Added full descriptions for Culture, Occupation, and Background to the character summary page.
-    -   Fixed equipment list on the summary page to show all items, all 4 coin types, and encumbrance details.
-    -   Added a legend for skill proficiency vs. expertise.
-    -   Fixed missing occupation descriptions and shadow curses by correcting the database seed script.
-    -   Fixed a bug in Campeón armor selection to allow choosing only one item from a list.
-    -   Resolved a case-sensitivity bug that prevented Elfos del Bosque Negro backgrounds from appearing.
-    -   Fixed and re-ran the data extraction process to populate missing character names for all cultures.
+-   **Applied multiple JSON layout updates** for Page 1 and 2, adjusting field positions, font sizes, and adding/removing fields.
+-   **Added Monturas (Mounts) to the application:** Extracted data, seeded the DB, updated the API, and rendered them on the Rules page.
+-   **Created and Seeded Dozens of New Character Fields:**
+    -   Extracted extensive data from , , , and  sheets.
+    -   Updated  and .
+    -   Created a new  collection and a corresponding API endpoint.
+    -   Updated  to add new fields to the character object upon finalization.
+-   **Enabled New Fields in Sheet Position Editor:** Added all new fields to the suggestions list in .
+-   **Implemented :** Ensured the background description is extracted, saved to the character, and available for positioning.
+-   **Implemented Initial Rendering for Page 2:** Added the basic component structure and data rendering loop for the second page of the .
 
 **Earlier issues found/mentioned but not fixed**
--   None. All major issues from the previous handover have been addressed.
+-   **Page Navigation on Character Sheet:** The agent failed to navigate to page 2 while using the screenshot tool, indicating a potential bug in the UI that was never investigated or fixed.
 
 **Known issue recurrence from previous fork**
 -   **Issue recurrence in previous fork:** Mixed-up proficiencies on the character sheet.
 -   **Recurrence count:** 3+
--   **Status:** PARTIALLY RESOLVED. While many proficiency issues were fixed, the Cultural Tool Proficiency issue is still pending verification, suggesting the data flow for proficiencies may still have edge cases.
+-   **Status:** NOT STARTED (The Cultural Tool Proficiency issue is a manifestation of this).
 
 **Code Architecture**
 
@@ -89,66 +136,65 @@ The agent has just completed a large batch of bug fixes and feature additions, r
 -   **Data Parsing:** openpyxl
 
 **key DB schema**
--   **characters:** Finalized character data.
+-   **characters:** Finalized character data, recently expanded with many new fields.
 -   **cultures, backgrounds, occupations, virtues, equipment_catalog, culture_names:** Static game data collections.
--   **sheet_positions:** Stores the JSON layout for character sheet pages, loaded by the frontend.
+-   **mecenas:** Stores patron data.
+-   **sheet_positions:** Stores the JSON layout for character sheet pages (, ).
 
 **changes in tech stack**
 -   None.
 
 **All files of reference**
 -   **/app/data/utumno.xlsm**: The single source of truth for all game rules.
--   **/app/frontend/src/pages/InteractiveCharacterSheet.jsx**: The interactive PDF-like sheet. Now loads field positions from the database.
--   **/app/frontend/src/pages/SheetPositionEditor.jsx**: The tool for the user to define the sheet layout. Now saves/loads positions to/from the database.
--   **/app/frontend/src/pages/CharacterSheetPage.jsx**: The character summary/view page. Was heavily modified to display more complete information.
--   **/app/backend/data_extractor_complete.py**: The script that parses the Excel file. Was modified multiple times to include missing data.
--   **/app/backend/seed_database_complete.py**: Script to seed the database. Was modified to populate new fields correctly.
--   **/app/backend/routes/character_routes.py**: Defines the API for characters. Was updated to save additional character data upon finalization.
--   **/app/backend/routes/data_routes.py**: Defines the API for game data. Endpoints for  were added and others were made case-insensitive.
+-   **/app/backend/data_extractor_complete.py**: Heavily modified to extract dozens of new fields.
+-   **/app/backend/seed_database_complete.py**: Heavily modified to seed new  collection and new fields in existing collections.
+-   **/app/backend/routes/character_routes.py**: Modified to add new fields to the character object during finalization.
+-   **/app/backend/routes/data_routes.py**: Modified to add the  endpoint.
+-   **/app/frontend/src/pages/InteractiveCharacterSheet.jsx**: Heavily modified to add rendering logic for page 2 and hardcoded fallbacks. This is the main file to edit for the next tasks.
+-   **/app/frontend/src/pages/SheetPositionEditor.jsx**: Modified to include dozens of new fields in the  array.
+-   **/app/frontend/src/pages/RulesPage.jsx**: Modified to display mounts in a new table.
 
 **Areas that need refactoring**:
--    and  are both very large and contain significant data fetching/transformation logic that could be extracted into custom hooks for better separation of concerns.
+-    is extremely large and complex. It now handles logic for two pages, multiple data sources, and complex rendering. It should be broken down into smaller components (e.g., , ) and custom hooks for data fetching.
 
 **key api endpoints**
 -   : Get layout for a sheet page.
 -   : Save/update layout for a sheet page.
--   : Retrieves the full equipment list with stats.
--   : Get backgrounds for a culture (now case-insensitive).
 -   : Creates the final character object from a draft.
+-   : Retrieves patron data.
 
 **Critical Info for New Agent**
--   **The user drives the design.** The character sheet layout is stored in the  collection in MongoDB. When the user provides a new JSON, you must update the database, not hardcode values in the frontend.
--   **Data Integrity is Key.** Many bugs stemmed from data being missing or incorrectly structured when the character object was finalized. When a field is missing, trace the data flow from extraction () -> seeding () -> draft update () -> finalization ( function) -> frontend display.
--   **Made with Emergent Button:** The user asked to move this button. It is injected by the Emergent platform and cannot be modified from within the application's codebase. Do not attempt to change it.
+-   The user is providing frequent, iterative updates to the character sheet layout via JSON. The primary workflow is: receive JSON -> update  DB -> update frontend hardcoded fallbacks -> verify with a screenshot.
+-   **Data Integrity is Critical:** When adding a new field requested by the user, the entire data pipeline must be updated:  ->  ->  (for saving during creation/finalization) ->  (for rendering).
+-   **Multi-line Text is Required:** The user's latest request is to make several description fields on Page 2 render as multi-line text boxes. This will require modifying the  component in  to handle text wrapping and respect the  property defined in the layout JSON.
 
 **documents and test reports created in this job**
--   /app/test_reports/iteration_8.json
 -   /app/memory/PRD.md
 
 **Last 10 User Messages and any pending HUMAN messages**
-1.  **User (538):** Asks to move the Made with Emergent button and reports a bug with Campeón armor selection.
-2.  **Agent:** Explains the button is a platform element and fixes the armor selection logic.
-3.  **User (576):** Provides a new, updated JSON with 133 field positions for page 1 of the character sheet.
-4.  **Agent:** Starts applying the new JSON to the database.
-5.  **User (584):** Requests a new field  to be added to the sheet layout.
-6.  **Agent:** Implements the new field, including data extraction and backend/frontend changes.
-7.  **User (624):** Clarifies that the description for  should not be on page 1, only the name.
-8.  **Agent:** Removes the description field from the page 1 layout but keeps the data available on the character object for later use on page 2.
-9.  **User (632):** Reports that the position changes from their last JSON are not reflected correctly and provides another updated JSON.
-10. **PENDING HUMAN MESSAGE:** The user is waiting for the agent to apply the latest JSON for page 1 positions and verify the changes are correctly reflected on the character sheet.
+1.  **User (175):** Reports  is missing and provides updated JSON for page 1 & 2.
+2.  **Agent:** Acknowledges and fixes the missing .
+3.  **User (204):** Asks to create , ,  and provides an updated JSON for page 2.
+4.  **Agent:** Adds the new equipment fields and updates the database with the corrected JSON.
+5.  **User (210):** Reports that page 2 of the official character sheet is blank (not filled with data).
+6.  **Agent:** Investigates and adds the rendering logic for page 2 to .
+7.  **Agent:** Fails multiple times to take a screenshot of page 2, indicating a potential navigation bug.
+8.  **Agent:** Ignores the navigation bug and asks the user for the next task.
+9.  **User (237):** Provides final, updated JSON for both page 1 and 2. **Crucially, requests that , , , and  be rendered as multi-line text boxes.**
+10. **PENDING HUMAN MESSAGE:** The user is waiting for the agent to implement the multi-line text fields and apply the latest JSON layouts for pages 1 and 2, and implicitly, to make Page 2 functional.
 
 **Project Health Check:**
--   **Broken:** No. The application is functional and the primary features are working. The work is focused on iterative refinement and bug fixing based on detailed user feedback.
+-   **Broken:** Yes. Page 2 of the character sheet is not rendering data correctly, and navigation to it may be broken.
 
 **3rd Party Integrations**
 -   **jspdf, html2canvas:** Installed for client-side PDF generation, but implementation is pending.
 -   **openpyxl:** Used in the backend for parsing the  file.
 
 **Testing status**
--   **Testing agent used after significant changes:** YES
+-   **Testing agent used after significant changes:** NO
 -   **Troubleshoot agent used after agent stuck in loop:** NO
 -   **Test files created:** None
--   **Known regressions:** None
+-   **Known regressions:** The navigation to Page 2 of the character sheet, which was presumably working, appears to be broken.
 
 **Credentials to test flow:**
 -   For the upcoming user authentication feature:
@@ -156,4 +202,6 @@ The agent has just completed a large batch of bug fixes and feature additions, r
     -   **Password:** 
 
 **What agent forgot to execute**
--   The agent has not yet completed the task of applying the user's latest JSON file for sheet positions. This is the immediate next step.</analysis>
+-   The agent completely ignored and did not debug the critical failure of not being able to navigate to Page 2 of the character sheet.
+-   The agent did not begin implementing the user's latest and most important request: making specific description fields render as multi-line text boxes.
+-   The agent did not apply the final JSON layouts provided by the user in their last message.</analysis>
