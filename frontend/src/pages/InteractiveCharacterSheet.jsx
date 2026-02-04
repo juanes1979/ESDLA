@@ -231,11 +231,13 @@ const InteractiveCharacterSheet = () => {
               />
             )}
 
-            {/* PAGE 3 - TODO: Add fields */}
+            {/* PAGE 3 */}
             {currentPage === 3 && (
-              <div className="absolute inset-0 flex items-center justify-center">
-                <p className="text-gray-500 text-lg">Página 3 - Pendiente de configurar coordenadas</p>
-              </div>
+              <SheetPage3 
+                character={character} 
+                scale={scale}
+                fieldPositions={fieldPositions.page3}
+              />
             )}
           </div>
         </div>
