@@ -840,6 +840,9 @@ def extract_all_data_complete() -> Dict:
     print("Extracting equipment lists...")
     equipment_lists = extract_equipment_lists(wb)
     
+    print("Extracting mecenas...")
+    mecenas = extract_mecenas_complete(wb)
+    
     data = {
         "extracted_at": datetime.now(timezone.utc).isoformat(),
         "cultures": cultures,
@@ -849,6 +852,7 @@ def extract_all_data_complete() -> Dict:
         "virtues": virtues,
         "names": names,
         "equipment_lists": equipment_lists,
+        "mecenas": mecenas,
     }
     
     # Save to JSON
