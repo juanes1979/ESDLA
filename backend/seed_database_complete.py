@@ -300,6 +300,7 @@ async def seed_virtues(db, data: dict, culture_id_map: dict):
             "culture_id": culture_id,
             "columna_excel": virtue.get('columna_excel'),
             "descripcion": virtue.get('descripcion'),
+            "rasgos_virtud": virtue.get('rasgos_virtud'),  # NEW: Row 4 "Rasgos a indicar en la hoja PJ"
             "competencias_texto": virtue.get('competencias_texto'),
             
             # Fixed characteristic bonuses
