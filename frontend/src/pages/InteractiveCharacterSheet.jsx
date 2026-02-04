@@ -75,7 +75,6 @@ const PAGE1_FIELDS = {
   jugador: { x: 983, y: 43, width: 600, fontSize: 50, align: 'center' },
   cultura: { x: 757, y: 220, width: 260, fontSize: 31, align: 'left' },
   senda_sombra: { x: 1182, y: 514, width: 445, fontSize: 31, align: 'left' },
-  senda_sombra_descripcion: { x: 1182, y: 560, width: 445, fontSize: 18, align: 'left', height: 180, multiline: true },
   
   // Rasgos distintivos (2 con descripción) - descripción es multilinea
   rasgos_distintivos_1: { x: 1336, y: 1007, width: 260, fontSize: 31, align: 'left' },
