@@ -76,10 +76,11 @@ const FIELD_SUGGESTIONS = [
   // Monedas - campos separados
   'monedas_estano', 'monedas_cobre', 'monedas_plata', 'monedas_oro',
   
-  // Equipo - 25 filas (8 para página 1, 17 para página 2)
+  // Equipo - 28 filas (8 para página 1, 20 para página 2)
   'equipo_1', 'equipo_2', 'equipo_3', 'equipo_4', 'equipo_5', 'equipo_6', 'equipo_7', 'equipo_8',
   'equipo_9', 'equipo_10', 'equipo_11', 'equipo_12', 'equipo_13', 'equipo_14', 'equipo_15', 'equipo_16',
-  'equipo_17', 'equipo_18', 'equipo_19', 'equipo_20', 'equipo_21', 'equipo_22', 'equipo_23', 'equipo_24', 'equipo_25',
+  'equipo_17', 'equipo_18', 'equipo_19', 'equipo_20', 'equipo_21', 'equipo_22', 'equipo_23', 'equipo_24', 
+  'equipo_25', 'equipo_26', 'equipo_27', 'equipo_28',
   
   // Armas - 5 filas con subcampos (nombre, daño, herida, distancia)
   'arma_1_nombre', 'arma_1_dano', 'arma_1_herida', 'arma_1_distancia',
