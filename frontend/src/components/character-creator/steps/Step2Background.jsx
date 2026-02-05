@@ -82,6 +82,24 @@ const Step2Background = ({ draftId, draft, onComplete, onBack }) => {
       return;
     }
 
+    // Validate game/instrument selections if required
+    const tools1 = selectedBackground.competencias_herramientas_1 || [];
+    const tools2 = selectedBackground.competencias_herramientas_2 || [];
+    
+    // Check if tool1 needs a sub-selection (juegos or instrumentos)
+    const tool1NeedsSelection = tools1.some(t => needsSubSelection(t));
+    if (tool1NeedsSelection && !selectedTool1) {
+      setError('Debes elegir un juego o instrumento musical');
+      return;
+    }
+    
+    // Check if tool2 needs a sub-selection
+    const tool2NeedsSelection = tools2.some(t => needsSubSelection(t));
+    if (tool2NeedsSelection && !selectedTool2) {
+      setError('Debes elegir un juego o instrumento musical');
+      return;
+    }
+
     try {
       setSaving(true);
       setError(null);
