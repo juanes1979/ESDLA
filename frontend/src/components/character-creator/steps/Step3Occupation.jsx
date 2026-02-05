@@ -629,19 +629,22 @@ const Step3Occupation = ({ draftId, draft, onComplete, onBack }) => {
             <div className="grid md:grid-cols-3 gap-2">
               {options1.map(tool => {
                 const isSelected = selectedTools1.includes(tool);
+                const isAlreadySelectedInTools2 = selectedTools2.includes(tool);
+                const isDisabled = isAlreadySelectedInTools2 || (!isSelected && selectedTools1.length >= maxTools1);
                 return (
                   <button
                     key={tool}
                     onClick={() => toggleTool1(tool)}
-                    disabled={!isSelected && selectedTools1.length >= maxTools1}
+                    disabled={isDisabled}
                     className={cn(
                       'selection-card p-3 rounded text-sm text-left',
                       isSelected && 'selected',
-                      !isSelected && selectedTools1.length >= maxTools1 && 'opacity-50'
+                      isDisabled && 'opacity-50 cursor-not-allowed'
                     )}
                   >
                     {tool}
                     {isSelected && <Check className="w-4 h-4 inline ml-2" />}
+                    {isAlreadySelectedInTools2 && !isSelected && <span className="text-xs text-muted-foreground ml-2">(ya seleccionada)</span>}
                   </button>
                 );
               })}
