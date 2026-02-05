@@ -152,7 +152,31 @@ const RulesPage = () => {
             <h3 className="font-heading text-xl text-[hsl(var(--gold))]">{culture.nombre}</h3>
             <span className="text-xs bg-black/30 px-2 py-1 rounded">{culture.raza}</span>
           </div>
-          {isExpanded ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
+          <div className="flex items-center gap-2">
+            {isAdmin && (
+              <>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 w-8 p-0"
+                  onClick={(e) => { e.stopPropagation(); openEditor('culture', culture); }}
+                  data-testid={`edit-culture-${culture.id}`}
+                >
+                  <Edit className="w-4 h-4" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 w-8 p-0 text-destructive hover:text-destructive"
+                  onClick={(e) => { e.stopPropagation(); handleDelete('cultures', culture.id, culture.nombre); }}
+                  data-testid={`delete-culture-${culture.id}`}
+                >
+                  <Trash2 className="w-4 h-4" />
+                </Button>
+              </>
+            )}
+            {isExpanded ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
+          </div>
         </div>
         
         {isExpanded && (
