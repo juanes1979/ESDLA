@@ -2,10 +2,13 @@
 Game Data API Routes
 Endpoints for retrieving game data (cultures, backgrounds, occupations, etc.)
 """
-from fastapi import APIRouter, HTTPException, Query
-from typing import List, Optional
+from fastapi import APIRouter, HTTPException, Query, Body
+from typing import List, Optional, Dict, Any
+from pydantic import BaseModel
 from motor.motor_asyncio import AsyncIOMotorClient
 import os
+import uuid
+from datetime import datetime, timezone
 from dotenv import load_dotenv
 from pathlib import Path
 
@@ -18,6 +21,67 @@ router = APIRouter(prefix="/data", tags=["Game Data"])
 mongo_url = os.environ['MONGO_URL']
 client = AsyncIOMotorClient(mongo_url)
 db = client[os.environ['DB_NAME']]
+
+def now_utc():
+    return datetime.now(timezone.utc).isoformat()
+
+# === PYDANTIC MODELS FOR CRUD ===
+
+class RaceCreate(BaseModel):
+    nombre: str
+    descripcion: Optional[str] = ""
+    imc_min: Optional[float] = 18
+    imc_max: Optional[float] = 25
+
+class RaceUpdate(BaseModel):
+    nombre: Optional[str] = None
+    descripcion: Optional[str] = None
+    imc_min: Optional[float] = None
+    imc_max: Optional[float] = None
+
+class CultureCreate(BaseModel):
+    nombre: str
+    raza: str  # Base race (Elfos, Enanos, Hombres, Hobbits, etc.)
+    descripcion: Optional[str] = ""
+    descripcion_riqueza: Optional[str] = ""
+    nivel_vida: Optional[str] = "Común"
+    # Physical characteristics
+    edad_min: Optional[int] = 20
+    edad_max: Optional[int] = 80
+    altura_min: Optional[int] = 150
+    altura_max: Optional[int] = 190
+    velocidad: Optional[int] = 9
+    descanso: Optional[int] = 8
+    tamanio: Optional[str] = "Mediano"
+    mod_peso: Optional[int] = 0
+    # Attributes
+    bonificadores_caracteristicas: Optional[Dict[str, int]] = None
+    bonificador_a_eleccion: Optional[bool] = False
+    # Skills
+    habilidades_puntuaciones: Optional[Dict[str, int]] = None
+    # Languages
+    idiomas: Optional[List[str]] = []
+    # Competencies
+    competencias_habilidades: Optional[List[str]] = []
+    competencia_herramienta_elegir_1: Optional[List[str]] = []
+    competencia_herramienta_elegir_2: Optional[List[str]] = []
+    competencia_habilidad_elegir: Optional[List[str]] = []
+    competencia_adicional: Optional[str] = ""
+    # Physical traits
+    rasgos_fisicos: Optional[Dict[str, List[str]]] = None
+    # Cultural traits
+    rasgos_culturales: Optional[List[str]] = []
+    # Specials
+    pg_extra_nivel: Optional[int] = 0
+    capacidad_carga_x2: Optional[bool] = False
+    tiene_virtud_inicial: Optional[bool] = False
+    mejora_noldor: Optional[bool] = False
+
+class CultureNamesCreate(BaseModel):
+    cultura: str
+    hombre: Optional[Dict[str, List[str]]] = None  # {prefijos: [], sufijos: []}
+    mujer: Optional[Dict[str, List[str]]] = None
+    apellidos: Optional[List[str]] = []
 
 
 def serialize_doc(doc: dict) -> dict:
