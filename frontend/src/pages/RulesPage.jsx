@@ -549,7 +549,31 @@ const RulesPage = () => {
               {occ.dado_golpe} • PG {occ.puntos_golpe_base}
             </span>
           </div>
-          {isExpanded ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
+          <div className="flex items-center gap-2">
+            {isAdmin && (
+              <>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 w-8 p-0"
+                  onClick={(e) => { e.stopPropagation(); openEditor('occupation', occ); }}
+                  data-testid={`edit-occupation-${occ.id}`}
+                >
+                  <Edit className="w-4 h-4" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 w-8 p-0 text-destructive hover:text-destructive"
+                  onClick={(e) => { e.stopPropagation(); handleDelete('occupations', occ.id, occ.vocacion); }}
+                  data-testid={`delete-occupation-${occ.id}`}
+                >
+                  <Trash2 className="w-4 h-4" />
+                </Button>
+              </>
+            )}
+            {isExpanded ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
+          </div>
         </div>
         
         {isExpanded && (
