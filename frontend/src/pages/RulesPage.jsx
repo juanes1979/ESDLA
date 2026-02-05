@@ -60,12 +60,16 @@ const RulesPage = () => {
             const cultures = await getCultures();
             setData(cultures);
             // Also load all culture names
-            const namesRes = await api.get('/data/culture-names');
-            const namesMap = {};
-            (namesRes.data || []).forEach(n => {
-              namesMap[n.cultura] = n;
-            });
-            setCultureNames(namesMap);
+            try {
+              const namesRes = await api.get('/data/names');
+              const namesMap = {};
+              (namesRes.data?.names || []).forEach(n => {
+                namesMap[n.cultura] = n;
+              });
+              setCultureNames(namesMap);
+            } catch (err) {
+              console.warn('Could not load culture names:', err);
+            }
             break;
           case 'backgrounds':
             const backgrounds = await getBackgrounds();
