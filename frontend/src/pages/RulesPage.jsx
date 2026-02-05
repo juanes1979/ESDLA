@@ -44,14 +44,36 @@ const Section = ({ title, children, className = '' }) => (
 
 const RulesPage = () => {
   const navigate = useNavigate();
+  const { isAdmin, user, toggleRole } = useUser();
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [data, setData] = useState(null);
+  const [races, setRaces] = useState([]);
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [expandedCulture, setExpandedCulture] = useState(null);
   const [expandedOccupation, setExpandedOccupation] = useState(null);
   const [expandedBackground, setExpandedBackground] = useState(null);
   const [cultureNames, setCultureNames] = useState({});
+  
+  // Admin modal states
+  const [showRaceEditor, setShowRaceEditor] = useState(false);
+  const [showCultureEditor, setShowCultureEditor] = useState(false);
+  const [showBackgroundEditor, setShowBackgroundEditor] = useState(false);
+  const [showOccupationEditor, setShowOccupationEditor] = useState(false);
+  const [editingItem, setEditingItem] = useState(null);
+
+  // Load races for culture editor
+  useEffect(() => {
+    const loadRaces = async () => {
+      try {
+        const res = await api.get('/data/races');
+        setRaces(res.data.races || []);
+      } catch (err) {
+        console.warn('Could not load races:', err);
+      }
+    };
+    loadRaces();
+  }, []);
 
   // Load data when category changes
   useEffect(() => {
