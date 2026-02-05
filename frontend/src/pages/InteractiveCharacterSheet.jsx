@@ -73,6 +73,80 @@ const InteractiveCharacterSheet = () => {
     window.print();
   };
 
+  // Generate PDF with all 3 pages
+  const generatePDF = async () => {
+    if (!sheetRef.current) return;
+    
+    setGeneratingPdf(true);
+    toast.info('Generando PDF... Por favor espera.');
+    
+    const originalPage = currentPage;
+    const originalScale = scale;
+    
+    try {
+      // Set scale to 1 for best quality
+      setScale(1);
+      
+      // Create PDF with A4 dimensions
+      const pdf = new jsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: 'a4',
+      });
+      
+      const pdfWidth = 210; // A4 width in mm
+      const pdfHeight = 297; // A4 height in mm
+      
+      // Generate each page
+      for (let pageNum = 1; pageNum <= 3; pageNum++) {
+        setCurrentPage(pageNum);
+        
+        // Wait for page to render
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
+        // Capture the sheet
+        const canvas = await html2canvas(sheetRef.current, {
+          scale: 2,
+          useCORS: true,
+          allowTaint: true,
+          backgroundColor: '#ffffff',
+          logging: false,
+        });
+        
+        const imgData = canvas.toDataURL('image/jpeg', 0.95);
+        
+        if (pageNum > 1) {
+          pdf.addPage();
+        }
+        
+        // Add image to PDF maintaining aspect ratio
+        const imgWidth = pdfWidth;
+        const imgHeight = (canvas.height * pdfWidth) / canvas.width;
+        
+        // Center vertically if needed
+        const yOffset = imgHeight < pdfHeight ? (pdfHeight - imgHeight) / 2 : 0;
+        
+        pdf.addImage(imgData, 'JPEG', 0, yOffset, imgWidth, imgHeight);
+      }
+      
+      // Generate filename
+      const filename = `${character.nombre || 'personaje'}_ficha.pdf`.replace(/\s+/g, '_');
+      
+      // Download PDF
+      pdf.save(filename);
+      
+      toast.success('PDF generado correctamente');
+    } catch (err) {
+      console.error('Error generating PDF:', err);
+      toast.error('Error al generar el PDF');
+    } finally {
+      // Restore original state
+      setCurrentPage(originalPage);
+      setScale(originalScale);
+      setGeneratingPdf(false);
+    }
+  };
+
   // Page navigation handlers
   const goToPreviousPage = () => {
     setCurrentPage(p => Math.max(1, p - 1));
