@@ -1004,6 +1004,43 @@ const RulesPage = () => {
           </ScrollArea>
         )}
       </main>
+      
+      {/* Admin Modals */}
+      {showRaceEditor && (
+        <RaceEditor
+          race={editingItem}
+          onSave={handleEditorSave}
+          onClose={() => { setShowRaceEditor(false); setEditingItem(null); }}
+        />
+      )}
+      
+      {showCultureEditor && (
+        <CultureEditor
+          culture={editingItem}
+          races={races}
+          onSave={handleEditorSave}
+          onClose={() => { setShowCultureEditor(false); setEditingItem(null); }}
+          onCopy={editingItem ? (item) => handleCopy('cultures', item.id, item.nombre) : null}
+        />
+      )}
+      
+      {showBackgroundEditor && (
+        <BackgroundEditor
+          background={editingItem}
+          onSave={handleEditorSave}
+          onClose={() => { setShowBackgroundEditor(false); setEditingItem(null); }}
+          onCopy={editingItem ? (item) => handleCopy('backgrounds', item.id, item.nombre) : null}
+        />
+      )}
+      
+      {showOccupationEditor && (
+        <OccupationEditor
+          occupation={editingItem}
+          onSave={handleEditorSave}
+          onClose={() => { setShowOccupationEditor(false); setEditingItem(null); }}
+          onCopy={editingItem ? (item) => handleCopy('occupations', item.id, item.vocacion) : null}
+        />
+      )}
     </div>
   );
 };
