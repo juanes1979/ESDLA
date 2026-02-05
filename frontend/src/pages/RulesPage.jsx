@@ -883,21 +883,106 @@ const RulesPage = () => {
             </div>
           </div>
           
-          {selectedCategory && (
-            <div className="flex items-center gap-2">
-              <Search className="w-4 h-4 text-muted-foreground" />
-              <Input
-                placeholder="Buscar..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-48 bg-black/30 border-border/50"
-              />
-            </div>
-          )}
+          <div className="flex items-center gap-3">
+            {/* Admin indicator */}
+            {isAdmin && (
+              <div className="flex items-center gap-2 bg-[hsl(var(--gold))/20] px-3 py-1 rounded-full">
+                <Crown className="w-4 h-4 text-[hsl(var(--gold))]" />
+                <span className="text-sm text-[hsl(var(--gold))]">{user?.username}</span>
+              </div>
+            )}
+            
+            {selectedCategory && (
+              <div className="flex items-center gap-2">
+                <Search className="w-4 h-4 text-muted-foreground" />
+                <Input
+                  placeholder="Buscar..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-48 bg-black/30 border-border/50"
+                />
+              </div>
+            )}
+            
+            {/* Admin create buttons */}
+            {isAdmin && selectedCategory === 'cultures' && (
+              <div className="flex gap-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => openEditor('race')}
+                  className="border-[hsl(var(--gold))/50] text-[hsl(var(--gold))]"
+                  data-testid="create-race-btn"
+                >
+                  <Plus className="w-4 h-4 mr-1" /> Raza
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={() => openEditor('culture')}
+                  className="bg-[hsl(var(--gold))] text-black hover:bg-[hsl(var(--gold))/80]"
+                  data-testid="create-culture-btn"
+                >
+                  <Plus className="w-4 h-4 mr-1" /> Cultura
+                </Button>
+              </div>
+            )}
+            
+            {isAdmin && selectedCategory === 'backgrounds' && (
+              <Button
+                size="sm"
+                onClick={() => openEditor('background')}
+                className="bg-[hsl(var(--torch-orange))] text-black hover:bg-[hsl(var(--torch-orange))/80]"
+                data-testid="create-background-btn"
+              >
+                <Plus className="w-4 h-4 mr-1" /> Trasfondo
+              </Button>
+            )}
+            
+            {isAdmin && selectedCategory === 'occupations' && (
+              <Button
+                size="sm"
+                onClick={() => openEditor('occupation')}
+                className="bg-[hsl(var(--magic-blue))] text-black hover:bg-[hsl(var(--magic-blue))/80]"
+                data-testid="create-occupation-btn"
+              >
+                <Plus className="w-4 h-4 mr-1" /> Ocupación
+              </Button>
+            )}
+          </div>
         </div>
       </header>
 
       <main className="container mx-auto px-4 py-8">
+        {/* Show races section when in cultures category */}
+        {selectedCategory === 'cultures' && isAdmin && races.length > 0 && (
+          <div className="mb-6 card-parchment rounded-lg p-4">
+            <h3 className="font-heading text-lg text-[hsl(var(--gold))] mb-3">Razas Base</h3>
+            <div className="flex flex-wrap gap-2">
+              {races.map(race => (
+                <div key={race.id} className="flex items-center gap-2 bg-black/20 px-3 py-2 rounded">
+                  <span className="text-sm">{race.nombre}</span>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 w-6 p-0"
+                    onClick={() => openEditor('race', race)}
+                  >
+                    <Edit className="w-3 h-3" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 w-6 p-0 text-destructive hover:text-destructive"
+                    onClick={() => handleDelete('races', race.id, race.nombre)}
+                  >
+                    <Trash2 className="w-3 h-3" />
+                  </Button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+        
         {!selectedCategory ? (
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
             {RULE_CATEGORIES.map(cat => (
