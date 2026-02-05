@@ -345,6 +345,412 @@ async def get_all_culture_names():
 # === EQUIPMENT LISTS (Instruments, Games) ===
 
 @router.get("/equipment-lists")
+
+
+# === CRUD: RACES ===
+
+@router.get("/races")
+async def get_races():
+    """Get all races"""
+    races = await db.races.find({}).to_list(50)
+    return {"races": serialize_docs(races)}
+
+@router.post("/races")
+async def create_race(data: RaceCreate):
+    """Create a new race (admin only)"""
+    # Check if race already exists
+    existing = await db.races.find_one({"nombre": {"$regex": f"^{data.nombre}$", "$options": "i"}})
+    if existing:
+        raise HTTPException(status_code=400, detail="Ya existe una raza con ese nombre")
+    
+    race = {
+        "_id": str(uuid.uuid4()),
+        "nombre": data.nombre,
+        "descripcion": data.descripcion,
+        "imc": {"min": data.imc_min, "max": data.imc_max},
+        "created_at": now_utc(),
+        "updated_at": now_utc()
+    }
+    await db.races.insert_one(race)
+    return serialize_doc(race)
+
+@router.put("/races/{race_id}")
+async def update_race(race_id: str, data: RaceUpdate):
+    """Update a race (admin only)"""
+    race = await db.races.find_one({"_id": race_id})
+    if not race:
+        raise HTTPException(status_code=404, detail="Raza no encontrada")
+    
+    update = {"updated_at": now_utc()}
+    if data.nombre is not None:
+        update["nombre"] = data.nombre
+    if data.descripcion is not None:
+        update["descripcion"] = data.descripcion
+    if data.imc_min is not None or data.imc_max is not None:
+        update["imc"] = {
+            "min": data.imc_min if data.imc_min is not None else race.get("imc", {}).get("min", 18),
+            "max": data.imc_max if data.imc_max is not None else race.get("imc", {}).get("max", 25)
+        }
+    
+    await db.races.update_one({"_id": race_id}, {"$set": update})
+    updated = await db.races.find_one({"_id": race_id})
+    return serialize_doc(updated)
+
+@router.delete("/races/{race_id}")
+async def delete_race(race_id: str):
+    """Delete a race (admin only)"""
+    result = await db.races.delete_one({"_id": race_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Raza no encontrada")
+    return {"message": "Raza eliminada correctamente"}
+
+
+# === CRUD: CULTURES ===
+
+@router.post("/cultures")
+async def create_culture(data: CultureCreate):
+    """Create a new culture (admin only)"""
+    # Check if culture already exists
+    existing = await db.cultures.find_one({"nombre": {"$regex": f"^{data.nombre}$", "$options": "i"}})
+    if existing:
+        raise HTTPException(status_code=400, detail="Ya existe una cultura con ese nombre")
+    
+    # Build culture document with all fields
+    culture = {
+        "_id": str(uuid.uuid4()),
+        "nombre": data.nombre,
+        "raza": data.raza,
+        "categoria": data.raza.upper(),
+        "descripcion": data.descripcion,
+        "descripcion_riqueza": data.descripcion_riqueza,
+        "nivel_vida": data.nivel_vida,
+        "riqueza": data.nivel_vida,
+        # Physical
+        "edad_min": data.edad_min,
+        "edad_max": data.edad_max,
+        "altura_min": data.altura_min,
+        "altura_max": data.altura_max,
+        "velocidad": data.velocidad,
+        "descanso": data.descanso,
+        "tamanio": data.tamanio,
+        "mod_peso": data.mod_peso,
+        # Attributes
+        "bonificadores_caracteristicas": data.bonificadores_caracteristicas or {
+            "fuerza": 0, "destreza": 0, "constitucion": 0,
+            "inteligencia": 0, "sabiduria": 0, "carisma": 0
+        },
+        "bonificador_a_eleccion": data.bonificador_a_eleccion,
+        # Skills
+        "habilidades_puntuaciones": data.habilidades_puntuaciones or {},
+        # Languages
+        "idiomas": data.idiomas,
+        # Competencies
+        "competencias_habilidades": data.competencias_habilidades,
+        "competencia_herramienta_elegir_1": data.competencia_herramienta_elegir_1,
+        "competencia_herramienta_elegir_2": data.competencia_herramienta_elegir_2,
+        "competencia_habilidad_elegir": data.competencia_habilidad_elegir,
+        "competencia_adicional": data.competencia_adicional,
+        # Physical traits
+        "rasgos_fisicos": data.rasgos_fisicos or {"ojos": [], "piel": [], "pelo": []},
+        # Cultural traits
+        "rasgos_culturales": data.rasgos_culturales,
+        # Specials
+        "pg_extra_nivel": data.pg_extra_nivel,
+        "capacidad_carga_x2": data.capacidad_carga_x2,
+        "tiene_virtud_inicial": data.tiene_virtud_inicial,
+        "mejora_noldor": data.mejora_noldor,
+        # Metadata
+        "is_custom": True,
+        "created_at": now_utc(),
+        "updated_at": now_utc()
+    }
+    
+    await db.cultures.insert_one(culture)
+    return serialize_doc(culture)
+
+@router.put("/cultures/{culture_id}")
+async def update_culture(culture_id: str, data: dict = Body(...)):
+    """Update a culture (admin only)"""
+    culture = await db.cultures.find_one({"_id": culture_id})
+    if not culture:
+        raise HTTPException(status_code=404, detail="Cultura no encontrada")
+    
+    # Update only provided fields
+    update = {"updated_at": now_utc()}
+    for key, value in data.items():
+        if key not in ["_id", "id", "created_at"]:
+            update[key] = value
+    
+    await db.cultures.update_one({"_id": culture_id}, {"$set": update})
+    updated = await db.cultures.find_one({"_id": culture_id})
+    return serialize_doc(updated)
+
+@router.delete("/cultures/{culture_id}")
+async def delete_culture(culture_id: str):
+    """Delete a culture (admin only)"""
+    result = await db.cultures.delete_one({"_id": culture_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Cultura no encontrada")
+    # Also delete associated names
+    await db.culture_names.delete_many({"cultura": culture_id})
+    return {"message": "Cultura eliminada correctamente"}
+
+@router.post("/cultures/{culture_id}/copy")
+async def copy_culture(culture_id: str, new_name: str = Body(..., embed=True)):
+    """Copy an existing culture with a new name (admin only)"""
+    culture = await db.cultures.find_one({"_id": culture_id})
+    if not culture:
+        raise HTTPException(status_code=404, detail="Cultura no encontrada")
+    
+    # Check if new name already exists
+    existing = await db.cultures.find_one({"nombre": {"$regex": f"^{new_name}$", "$options": "i"}})
+    if existing:
+        raise HTTPException(status_code=400, detail="Ya existe una cultura con ese nombre")
+    
+    # Create copy
+    new_id = str(uuid.uuid4())
+    new_culture = {**culture}
+    new_culture["_id"] = new_id
+    new_culture["nombre"] = new_name
+    new_culture["is_custom"] = True
+    new_culture["created_at"] = now_utc()
+    new_culture["updated_at"] = now_utc()
+    
+    await db.cultures.insert_one(new_culture)
+    
+    # Copy names if they exist
+    original_names = await db.culture_names.find_one({"cultura": culture["nombre"]})
+    if original_names:
+        new_names = {**original_names}
+        new_names["_id"] = str(uuid.uuid4())
+        new_names["cultura"] = new_name
+        new_names["created_at"] = now_utc()
+        new_names["updated_at"] = now_utc()
+        await db.culture_names.insert_one(new_names)
+    
+    return serialize_doc(new_culture)
+
+@router.post("/culture-names")
+async def create_culture_names(data: CultureNamesCreate):
+    """Create or update name data for a culture (admin only)"""
+    # Upsert - update if exists, create if not
+    names_doc = {
+        "cultura": data.cultura,
+        "hombre": data.hombre or {"prefijos": [], "sufijos": []},
+        "mujer": data.mujer or {"prefijos": [], "sufijos": []},
+        "apellidos": data.apellidos,
+        "updated_at": now_utc()
+    }
+    
+    existing = await db.culture_names.find_one({"cultura": data.cultura})
+    if existing:
+        await db.culture_names.update_one({"cultura": data.cultura}, {"$set": names_doc})
+        names_doc["_id"] = existing["_id"]
+    else:
+        names_doc["_id"] = str(uuid.uuid4())
+        names_doc["created_at"] = now_utc()
+        await db.culture_names.insert_one(names_doc)
+    
+    return serialize_doc(names_doc)
+
+
+# === CRUD: BACKGROUNDS ===
+
+class BackgroundCreate(BaseModel):
+    nombre: str
+    descripcion: Optional[str] = ""
+    competencias_habilidades_auto: Optional[List[str]] = []
+    competencias_habilidades_elegir: Optional[List[str]] = []
+    competencias_herramientas_1: Optional[List[str]] = []
+    competencias_herramientas_2: Optional[List[str]] = []
+    rasgos_descripciones: Optional[List[str]] = []
+    cultura: Optional[str] = None  # Link to culture
+
+@router.post("/backgrounds")
+async def create_background(data: BackgroundCreate):
+    """Create a new background (admin only)"""
+    existing = await db.backgrounds.find_one({"nombre": {"$regex": f"^{data.nombre}$", "$options": "i"}})
+    if existing:
+        raise HTTPException(status_code=400, detail="Ya existe un trasfondo con ese nombre")
+    
+    background = {
+        "_id": str(uuid.uuid4()),
+        "nombre": data.nombre,
+        "descripcion": data.descripcion,
+        "competencias_habilidades_auto": data.competencias_habilidades_auto,
+        "competencias_habilidades_elegir": data.competencias_habilidades_elegir,
+        "competencias_herramientas_1": data.competencias_herramientas_1,
+        "competencias_herramientas_2": data.competencias_herramientas_2,
+        "rasgos_descripciones": data.rasgos_descripciones,
+        "cultura": data.cultura,
+        "is_custom": True,
+        "created_at": now_utc(),
+        "updated_at": now_utc()
+    }
+    
+    await db.backgrounds.insert_one(background)
+    return serialize_doc(background)
+
+@router.put("/backgrounds/{background_id}")
+async def update_background(background_id: str, data: dict = Body(...)):
+    """Update a background (admin only)"""
+    bg = await db.backgrounds.find_one({"_id": background_id})
+    if not bg:
+        raise HTTPException(status_code=404, detail="Trasfondo no encontrado")
+    
+    update = {"updated_at": now_utc()}
+    for key, value in data.items():
+        if key not in ["_id", "id", "created_at"]:
+            update[key] = value
+    
+    await db.backgrounds.update_one({"_id": background_id}, {"$set": update})
+    updated = await db.backgrounds.find_one({"_id": background_id})
+    return serialize_doc(updated)
+
+@router.delete("/backgrounds/{background_id}")
+async def delete_background(background_id: str):
+    """Delete a background (admin only)"""
+    result = await db.backgrounds.delete_one({"_id": background_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Trasfondo no encontrado")
+    return {"message": "Trasfondo eliminado correctamente"}
+
+@router.post("/backgrounds/{background_id}/copy")
+async def copy_background(background_id: str, new_name: str = Body(..., embed=True)):
+    """Copy an existing background with a new name (admin only)"""
+    bg = await db.backgrounds.find_one({"_id": background_id})
+    if not bg:
+        raise HTTPException(status_code=404, detail="Trasfondo no encontrado")
+    
+    existing = await db.backgrounds.find_one({"nombre": {"$regex": f"^{new_name}$", "$options": "i"}})
+    if existing:
+        raise HTTPException(status_code=400, detail="Ya existe un trasfondo con ese nombre")
+    
+    new_bg = {**bg}
+    new_bg["_id"] = str(uuid.uuid4())
+    new_bg["nombre"] = new_name
+    new_bg["is_custom"] = True
+    new_bg["created_at"] = now_utc()
+    new_bg["updated_at"] = now_utc()
+    
+    await db.backgrounds.insert_one(new_bg)
+    return serialize_doc(new_bg)
+
+
+# === CRUD: OCCUPATIONS ===
+
+class OccupationCreate(BaseModel):
+    vocacion: str
+    descripcion_corta: Optional[str] = ""
+    descripcion_ocupacion_larga: Optional[str] = ""
+    dado_golpe: Optional[str] = "1d8"
+    puntos_golpe_base: Optional[int] = 8
+    caracteristicas_principales: Optional[List[str]] = []
+    tiradas_salvacion: Optional[List[str]] = []
+    competencia_armas: Optional[List[str]] = []
+    competencia_armaduras: Optional[List[str]] = []
+    habilidades_favorecidas: Optional[List[str]] = []
+    maldicion_nombre: Optional[str] = ""
+    maldicion_descripcion: Optional[str] = ""
+    especiales_ocupacion1: Optional[str] = ""
+    especiales_ocupacion1_descripcion: Optional[str] = ""
+    especiales_ocupacion2: Optional[str] = ""
+    especiales_ocupacion2_descripcion: Optional[str] = ""
+    especiales_ocupacion3: Optional[str] = ""
+    especiales_ocupacion3_descripcion: Optional[str] = ""
+    especiales_ocupacion4: Optional[str] = ""
+    especiales_ocupacion4_descripcion: Optional[str] = ""
+    especiales_ocupacion5: Optional[str] = ""
+    especiales_ocupacion5_descripcion: Optional[str] = ""
+    especiales_ocupacion6: Optional[str] = ""
+    especiales_ocupacion6_descripcion: Optional[str] = ""
+
+@router.post("/occupations")
+async def create_occupation(data: OccupationCreate):
+    """Create a new occupation (admin only)"""
+    existing = await db.occupations.find_one({"vocacion": {"$regex": f"^{data.vocacion}$", "$options": "i"}})
+    if existing:
+        raise HTTPException(status_code=400, detail="Ya existe una ocupación con ese nombre")
+    
+    occupation = {
+        "_id": str(uuid.uuid4()),
+        "vocacion": data.vocacion,
+        "descripcion_corta": data.descripcion_corta,
+        "descripcion_ocupacion_larga": data.descripcion_ocupacion_larga,
+        "dado_golpe": data.dado_golpe,
+        "puntos_golpe_base": data.puntos_golpe_base,
+        "caracteristicas_principales": data.caracteristicas_principales,
+        "tiradas_salvacion": data.tiradas_salvacion,
+        "competencia_armas": data.competencia_armas,
+        "competencia_armaduras": data.competencia_armaduras,
+        "habilidades_favorecidas": data.habilidades_favorecidas,
+        "maldicion_nombre": data.maldicion_nombre,
+        "maldicion_descripcion": data.maldicion_descripcion,
+        "especiales_ocupacion1": data.especiales_ocupacion1,
+        "especiales_ocupacion1_descripcion": data.especiales_ocupacion1_descripcion,
+        "especiales_ocupacion2": data.especiales_ocupacion2,
+        "especiales_ocupacion2_descripcion": data.especiales_ocupacion2_descripcion,
+        "especiales_ocupacion3": data.especiales_ocupacion3,
+        "especiales_ocupacion3_descripcion": data.especiales_ocupacion3_descripcion,
+        "especiales_ocupacion4": data.especiales_ocupacion4,
+        "especiales_ocupacion4_descripcion": data.especiales_ocupacion4_descripcion,
+        "especiales_ocupacion5": data.especiales_ocupacion5,
+        "especiales_ocupacion5_descripcion": data.especiales_ocupacion5_descripcion,
+        "especiales_ocupacion6": data.especiales_ocupacion6,
+        "especiales_ocupacion6_descripcion": data.especiales_ocupacion6_descripcion,
+        "is_custom": True,
+        "created_at": now_utc(),
+        "updated_at": now_utc()
+    }
+    
+    await db.occupations.insert_one(occupation)
+    return serialize_doc(occupation)
+
+@router.put("/occupations/{occupation_id}")
+async def update_occupation(occupation_id: str, data: dict = Body(...)):
+    """Update an occupation (admin only)"""
+    occ = await db.occupations.find_one({"_id": occupation_id})
+    if not occ:
+        raise HTTPException(status_code=404, detail="Ocupación no encontrada")
+    
+    update = {"updated_at": now_utc()}
+    for key, value in data.items():
+        if key not in ["_id", "id", "created_at"]:
+            update[key] = value
+    
+    await db.occupations.update_one({"_id": occupation_id}, {"$set": update})
+    updated = await db.occupations.find_one({"_id": occupation_id})
+    return serialize_doc(updated)
+
+@router.delete("/occupations/{occupation_id}")
+async def delete_occupation(occupation_id: str):
+    """Delete an occupation (admin only)"""
+    result = await db.occupations.delete_one({"_id": occupation_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Ocupación no encontrada")
+    return {"message": "Ocupación eliminada correctamente"}
+
+@router.post("/occupations/{occupation_id}/copy")
+async def copy_occupation(occupation_id: str, new_name: str = Body(..., embed=True)):
+    """Copy an existing occupation with a new name (admin only)"""
+    occ = await db.occupations.find_one({"_id": occupation_id})
+    if not occ:
+        raise HTTPException(status_code=404, detail="Ocupación no encontrada")
+    
+    existing = await db.occupations.find_one({"vocacion": {"$regex": f"^{new_name}$", "$options": "i"}})
+    if existing:
+        raise HTTPException(status_code=400, detail="Ya existe una ocupación con ese nombre")
+    
+    new_occ = {**occ}
+    new_occ["_id"] = str(uuid.uuid4())
+    new_occ["vocacion"] = new_name
+    new_occ["is_custom"] = True
+    new_occ["created_at"] = now_utc()
+    new_occ["updated_at"] = now_utc()
+    
+    await db.occupations.insert_one(new_occ)
+    return serialize_doc(new_occ)
+
 async def get_equipment_lists():
     """Get special equipment lists (instruments, games)"""
     lists = await db.equipment_lists.find_one({})
