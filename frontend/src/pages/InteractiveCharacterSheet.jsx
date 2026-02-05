@@ -264,6 +264,21 @@ const InteractiveCharacterSheet = () => {
               <Printer className="w-4 h-4 mr-2" />
               Imprimir
             </Button>
+            
+            <Button
+              size="sm"
+              onClick={generatePDF}
+              disabled={generatingPdf}
+              className="bg-[hsl(var(--gold))] text-black hover:bg-[hsl(var(--gold))/80]"
+              data-testid="pdf-btn"
+            >
+              {generatingPdf ? (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              ) : (
+                <FileText className="w-4 h-4 mr-2" />
+              )}
+              {generatingPdf ? 'Generando...' : 'Descargar PDF'}
+            </Button>
           </div>
         </div>
       </header>
