@@ -290,6 +290,7 @@ const InteractiveCharacterSheet = () => {
       >
         <div className="flex justify-center min-w-fit px-4">
           <div 
+            ref={sheetRef}
             className="relative bg-white shadow-2xl print:shadow-none flex-shrink-0"
             style={{
               width: SHEET_WIDTH * scale,
