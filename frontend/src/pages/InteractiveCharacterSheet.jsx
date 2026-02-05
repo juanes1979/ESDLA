@@ -33,7 +33,9 @@ const InteractiveCharacterSheet = () => {
   const [error, setError] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [scale, setScale] = useState(0.6);
+  const [generatingPdf, setGeneratingPdf] = useState(false);
   const containerRef = useRef(null);
+  const sheetRef = useRef(null);
 
   // Load character data, equipment catalog, and field positions
   useEffect(() => {
