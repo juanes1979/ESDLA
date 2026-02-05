@@ -7,8 +7,11 @@
  */
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Loader2, ChevronLeft, ChevronRight, Printer, ZoomIn, ZoomOut } from 'lucide-react';
+import { ArrowLeft, Loader2, ChevronLeft, ChevronRight, Printer, ZoomIn, ZoomOut, Download, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { toast } from 'sonner';
+import html2canvas from 'html2canvas';
+import { jsPDF } from 'jspdf';
 import { getCharacter } from '@/services/api';
 import api from '@/services/api';
 import SheetPage1 from '@/components/character-sheet/SheetPage1';
