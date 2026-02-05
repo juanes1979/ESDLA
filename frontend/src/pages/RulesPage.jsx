@@ -683,6 +683,99 @@ const RulesPage = () => {
     );
   };
 
+  // === CRUD FUNCTIONS ===
+  
+  const reloadData = async () => {
+    if (!selectedCategory) return;
+    setLoading(true);
+    try {
+      switch (selectedCategory) {
+        case 'cultures':
+          const cultures = await getCultures();
+          setData(cultures);
+          // Reload races too
+          const racesRes = await api.get('/data/races');
+          setRaces(racesRes.data.races || []);
+          break;
+        case 'backgrounds':
+          const backgrounds = await getBackgrounds();
+          setData(backgrounds);
+          break;
+        case 'occupations':
+          const occupations = await getOccupations();
+          setData(occupations);
+          break;
+        default:
+          break;
+      }
+    } catch (err) {
+      console.error('Error reloading data:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDelete = async (type, id, name) => {
+    if (!window.confirm(`¿Estás seguro de eliminar "${name}"? Esta acción no se puede deshacer.`)) {
+      return;
+    }
+    
+    try {
+      await api.delete(`/data/${type}/${id}`);
+      toast.success(`${name} eliminado correctamente`);
+      reloadData();
+    } catch (err) {
+      toast.error(err.response?.data?.detail || 'Error al eliminar');
+    }
+  };
+
+  const handleCopy = async (type, id, originalName) => {
+    const newName = window.prompt(`Nombre para la copia de "${originalName}":`);
+    if (!newName?.trim()) return;
+    
+    try {
+      await api.post(`/data/${type}/${id}/copy`, { new_name: newName.trim() });
+      toast.success(`Copia creada: ${newName}`);
+      reloadData();
+      setEditingItem(null);
+      setShowCultureEditor(false);
+      setShowBackgroundEditor(false);
+      setShowOccupationEditor(false);
+    } catch (err) {
+      toast.error(err.response?.data?.detail || 'Error al copiar');
+    }
+  };
+
+  const handleEditorSave = () => {
+    toast.success('Guardado correctamente');
+    setShowRaceEditor(false);
+    setShowCultureEditor(false);
+    setShowBackgroundEditor(false);
+    setShowOccupationEditor(false);
+    setEditingItem(null);
+    reloadData();
+  };
+
+  const openEditor = (type, item = null) => {
+    setEditingItem(item);
+    switch (type) {
+      case 'race':
+        setShowRaceEditor(true);
+        break;
+      case 'culture':
+        setShowCultureEditor(true);
+        break;
+      case 'background':
+        setShowBackgroundEditor(true);
+        break;
+      case 'occupation':
+        setShowOccupationEditor(true);
+        break;
+      default:
+        break;
+    }
+  };
+
   // Render content based on category
   const renderContent = () => {
     if (loading) {
