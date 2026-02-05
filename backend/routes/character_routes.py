@@ -391,6 +391,7 @@ async def update_draft_step3(draft_id: str, data: CharacterCreateStep3):
     update = {
         "ocupacion_id": data.ocupacion_id,
         "vocacion_nombre": occupation['vocacion'],
+        "ocupacion_nombre": occupation['vocacion'],  # Alias for easier access
         "dado_golpe": dado_golpe,
         "puntos_golpe_base": hp_inicial,
         "caracteristicas_principales": occupation.get('caracteristicas_principales', []),
@@ -404,6 +405,21 @@ async def update_draft_step3(draft_id: str, data: CharacterCreateStep3):
         # Shadow path (maldición de la ocupación)
         "maldicion_nombre": occupation.get('maldicion_nombre'),
         "maldicion_descripcion": occupation.get('maldicion_descripcion'),
+        # Occupation descriptions and special abilities
+        "descripcion_ocupacion": occupation.get('descripcion_ocupacion', ''),
+        "descripcion_ocupacion_larga": occupation.get('descripcion_ocupacion_larga', ''),
+        "especiales_ocupacion1": occupation.get('especiales_ocupacion1', ''),
+        "especiales_ocupacion1_descripcion": occupation.get('especiales_ocupacion1_descripcion', ''),
+        "especiales_ocupacion2": occupation.get('especiales_ocupacion2', ''),
+        "especiales_ocupacion2_descripcion": occupation.get('especiales_ocupacion2_descripcion', ''),
+        "especiales_ocupacion3": occupation.get('especiales_ocupacion3', ''),
+        "especiales_ocupacion3_descripcion": occupation.get('especiales_ocupacion3_descripcion', ''),
+        "especiales_ocupacion4": occupation.get('especiales_ocupacion4', ''),
+        "especiales_ocupacion4_descripcion": occupation.get('especiales_ocupacion4_descripcion', ''),
+        "especiales_ocupacion5": occupation.get('especiales_ocupacion5', ''),
+        "especiales_ocupacion5_descripcion": occupation.get('especiales_ocupacion5_descripcion', ''),
+        "especiales_ocupacion6": occupation.get('especiales_ocupacion6', ''),
+        "especiales_ocupacion6_descripcion": occupation.get('especiales_ocupacion6_descripcion', ''),
         # Skills, tools, armor, weapons, expertise from user selection
         "habilidades_elegidas_ocupacion": data.habilidades_elegidas,
         "herramientas_elegidas_ocupacion": data.herramientas_elegidas,
