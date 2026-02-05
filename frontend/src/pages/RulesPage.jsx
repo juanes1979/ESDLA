@@ -4,12 +4,18 @@
  */
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Users, Swords, Shield, BookOpen, Sparkles, Moon, Map, Loader2, Package, Search, ChevronDown, ChevronUp, Plus, Copy, Edit, User, Scroll } from 'lucide-react';
+import { ArrowLeft, Users, Swords, Shield, BookOpen, Sparkles, Moon, Map, Loader2, Package, Search, ChevronDown, ChevronUp, Plus, Copy, Edit, User, Scroll, Trash2, Crown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { toast } from 'sonner';
 import { getCultures, getOccupations, getVirtues, getEquipmentCatalog, getBackgrounds } from '@/services/api';
 import api from '@/services/api';
+import { useUser } from '@/contexts/UserContext';
+import CultureEditor from '@/components/admin/CultureEditor';
+import RaceEditor from '@/components/admin/RaceEditor';
+import BackgroundEditor from '@/components/admin/BackgroundEditor';
+import OccupationEditor from '@/components/admin/OccupationEditor';
 
 const RULE_CATEGORIES = [
   { id: 'cultures', name: 'Culturas', icon: Users, color: 'gold', description: 'Las razas y pueblos de la Tierra Media' },
