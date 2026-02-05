@@ -342,22 +342,22 @@ const RulesPage = () => {
                   {names.hombre && (
                     <div className="bg-black/10 p-3 rounded">
                       <p className="text-[hsl(var(--gold))] font-bold mb-2">♂ Nombres Masculinos</p>
-                      <p><span className="text-muted-foreground">Prefijos:</span> {[...new Set(names.hombre.prefijos || [])].slice(0, 15).join(', ')}{names.hombre.prefijos?.length > 15 ? '...' : ''}</p>
-                      <p className="mt-1"><span className="text-muted-foreground">Sufijos:</span> {[...new Set(names.hombre.sufijos || [])].slice(0, 15).join(', ')}{names.hombre.sufijos?.length > 15 ? '...' : ''}</p>
+                      <p><span className="text-muted-foreground">Prefijos:</span> {[...new Set(names.hombre.prefijos || [])].join(', ')}</p>
+                      <p className="mt-1"><span className="text-muted-foreground">Sufijos:</span> {[...new Set(names.hombre.sufijos || [])].join(', ')}</p>
                     </div>
                   )}
                   {names.mujer && (
                     <div className="bg-black/10 p-3 rounded">
                       <p className="text-[hsl(var(--gold))] font-bold mb-2">♀ Nombres Femeninos</p>
-                      <p><span className="text-muted-foreground">Prefijos:</span> {[...new Set(names.mujer.prefijos || [])].slice(0, 15).join(', ')}{names.mujer.prefijos?.length > 15 ? '...' : ''}</p>
-                      <p className="mt-1"><span className="text-muted-foreground">Sufijos:</span> {[...new Set(names.mujer.sufijos || [])].slice(0, 15).join(', ')}{names.mujer.sufijos?.length > 15 ? '...' : ''}</p>
+                      <p><span className="text-muted-foreground">Prefijos:</span> {[...new Set(names.mujer.prefijos || [])].join(', ')}</p>
+                      <p className="mt-1"><span className="text-muted-foreground">Sufijos:</span> {[...new Set(names.mujer.sufijos || [])].join(', ')}</p>
                     </div>
                   )}
                 </div>
                 {names.apellidos?.length > 0 && (
                   <div className="bg-black/10 p-3 rounded mt-2">
                     <p className="text-[hsl(var(--gold))] font-bold mb-2">Apellidos</p>
-                    <p className="text-muted-foreground">{[...new Set(names.apellidos)].slice(0, 20).join(', ')}{names.apellidos?.length > 20 ? '...' : ''}</p>
+                    <p className="text-muted-foreground">{[...new Set(names.apellidos)].join(', ')}</p>
                   </div>
                 )}
               </Section>
