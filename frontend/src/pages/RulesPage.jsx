@@ -314,25 +314,44 @@ const RulesPage = () => {
 
             {/* ESPECIALES DE CULTURA */}
             <Section title="Especiales de Cultura">
-              {culture.tiene_virtud_inicial ? (
-                <p className="text-sm bg-[hsl(var(--torch-orange))/20] text-[hsl(var(--torch-orange))] px-3 py-2 rounded">
-                  ★ Esta cultura obtiene una Virtud al nivel 1
-                </p>
-              ) : culture.mejora_noldor ? (
-                <p className="text-sm bg-[hsl(var(--magic-blue))/20] text-[hsl(var(--magic-blue))] px-3 py-2 rounded">
-                  ★ Mejora Noldor disponible
-                </p>
-              ) : culture.pg_extra_nivel ? (
-                <p className="text-sm bg-[hsl(var(--gold))/20] text-[hsl(var(--gold))] px-3 py-2 rounded">
-                  ★ +{culture.pg_extra_nivel} PG extra por nivel
-                </p>
-              ) : culture.capacidad_carga_x2 ? (
-                <p className="text-sm bg-[hsl(var(--gold))/20] text-[hsl(var(--gold))] px-3 py-2 rounded">
-                  ★ Capacidad de carga x2
-                </p>
-              ) : (
-                <p className="text-xs text-muted-foreground">0 - Sin especiales de cultura</p>
-              )}
+              <div className="space-y-2">
+                {/* Puntos de golpe por nivel */}
+                <div className="bg-black/10 p-2 rounded flex justify-between items-center">
+                  <span className="text-sm">Puntos de Golpe extra por nivel:</span>
+                  {culture.pg_extra_nivel ? (
+                    <span className="text-[hsl(var(--gold))] font-bold">+{culture.pg_extra_nivel} PG</span>
+                  ) : (
+                    <span className="text-muted-foreground text-sm">0</span>
+                  )}
+                </div>
+                
+                {/* Capacidad de carga */}
+                <div className="bg-black/10 p-2 rounded flex justify-between items-center">
+                  <span className="text-sm">Capacidad de carga x2:</span>
+                  {culture.capacidad_carga_x2 ? (
+                    <span className="text-[hsl(var(--gold))] font-bold">Sí</span>
+                  ) : (
+                    <span className="text-muted-foreground text-sm">No</span>
+                  )}
+                </div>
+                
+                {/* Virtud inicial */}
+                <div className="bg-black/10 p-2 rounded flex justify-between items-center">
+                  <span className="text-sm">Virtud al nivel 1:</span>
+                  {culture.tiene_virtud_inicial ? (
+                    <span className="text-[hsl(var(--torch-orange))] font-bold">Sí</span>
+                  ) : (
+                    <span className="text-muted-foreground text-sm">No</span>
+                  )}
+                </div>
+                
+                {/* Mejora Noldor (específico) */}
+                {culture.mejora_noldor && (
+                  <div className="bg-[hsl(var(--magic-blue))/20] p-2 rounded">
+                    <span className="text-sm text-[hsl(var(--magic-blue))]">★ Mejora Noldor disponible</span>
+                  </div>
+                )}
+              </div>
             </Section>
 
             {/* NOMBRES (Prefijos, Sufijos, Apellidos) */}
