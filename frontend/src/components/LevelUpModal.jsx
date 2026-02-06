@@ -130,7 +130,7 @@ const LevelUpModal = ({
           const artesRes = await api.get('/data/artes');
           // Filter out already selected artes
           const alreadySelected = character.artes_obtenidas || [];
-          const available = (artesRes.data || []).filter(
+          const available = (artesRes.data?.artes || artesRes.data || []).filter(
             a => !alreadySelected.some(s => s.nombre === a.nombre)
           );
           setArtes(available);
