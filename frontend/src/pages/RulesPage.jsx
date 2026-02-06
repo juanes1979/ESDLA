@@ -1257,15 +1257,7 @@ const RulesPage = () => {
         return <ViajeSection data={data} />;
       
       case 'community':
-        return (
-          <div className="card-parchment rounded-lg p-6">
-            <h3 className="font-heading text-xl text-[hsl(var(--magic-blue))] mb-4">Puntos de Comunidad</h3>
-            <p className="text-muted-foreground mb-4">
-              Los puntos de Comunidad representan los recursos y conexiones que la compañía 
-              tiene en la Tierra Media a través de sus mecenas.
-            </p>
-          </div>
-        );
+        return <ComunidadSection data={data} />;
       
       default:
         return null;
