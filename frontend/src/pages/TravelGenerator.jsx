@@ -103,7 +103,7 @@ const TravelGenerator = () => {
           api.get('/data/distancias'),
           api.get('/data/monturas'),
           api.get('/data/viajes/guardados'),
-          api.get('/characters')
+          api.get('/characters/')
         ]);
         
         setRegiones(regionesRes.data || []);
