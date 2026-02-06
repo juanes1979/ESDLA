@@ -7,76 +7,57 @@ Build a comprehensive web application to play a modified version of the "Lord of
 
 ## Current State (2026-02-06)
 
-### ✅ COMPLETED: Virtudes Completas Extraídas del Excel
-Se extrajeron 100 virtudes con TODA la información de la hoja "Virtudes":
-- **Fila 2**: Nombre de la virtud
-- **Fila 3**: Descripción
-- **Fila 4**: Rasgos a indicar en la hoja PJ
-- **Filas 5-10**: Aumentos directos de característica (si hay X)
-- **Filas 12-17**: Elegir +1 en una característica
-- **Filas 19-24**: Elegir competencia en tirada de salvación
-- **Fila 26**: Bonus de puntos de golpe
-- **Fila 27**: Bonus de puntos de comunidad
-- **Fila 28**: Bonus de clase de armadura
-- **Filas 30-48**: Elegir competencia en habilidad (sin repetir las existentes)
-- **Filas 50-68**: Elegir competencia en herramienta (sin repetir las existentes)
+### ✅ COMPLETED: Sección de Sombra Completa
+Añadidas las secciones que faltaban de la hoja "Sombra":
+- **🔮 HECHICERÍA** (filas 33-35): Se reciben puntos de sombra cuando un servidor maligno tiene conocimientos de magia oscura...
+- **💪 FORTALECER LA VOLUNTAD** (filas 37-40): Antes de que la sombra llegue a los puntos de sabiduría, puede elegirse recibir una cicatriz...
+- **☠️ CÓMO SUCUMBIR ANTE LA SOMBRA** (fila 59): La siguiente vez que su puntuación de Sombra alcanza la de su Sabiduría, no quedan angustiados, sino que se les retira del juego.
 
-### ✅ Campos de Virtud en MongoDB
-```javascript
-{
-  nombre: "Forjadores de la Edad de las Estrellas",
-  cultura: "Elfos Noldor",
-  es_comun: false,
-  descripcion: "...",
-  rasgos: "...",
-  // Aumentos directos
-  aumenta_fuerza: false,
-  aumenta_destreza: false,
-  // etc.
-  // Elecciones
-  elegir_caracteristica: ["INTELIGENCIA", "SABIDURÍA"],
-  elegir_salvacion: null,
-  elegir_habilidad: null,
-  elegir_herramienta: ["Herramientas de herrería", "Herramientas de joyería", "Suministros de carpintería"],
-  // Bonus
-  bonus_puntos_golpe: null,
-  bonus_ca: null,
-  bonus_comunidad: null
-}
-```
+### ✅ COMPLETED: Editor de Ocupaciones Completo
+Nuevo OccupationEditor con TODOS los campos:
 
-### ✅ Frontend Actualizado
-- Página de Reglas > Virtudes muestra TODA la información:
-  - Descripción y rasgos
-  - Aumentos directos (FUE, DES, CON, INT, SAB, CAR)
-  - Opciones de característica a elegir
-  - Opciones de salvación a elegir
-  - Bonus de PG, CA, Comunidad
-  - Opciones de habilidad a elegir
-  - Opciones de herramienta a elegir
+**Limitaciones de selección:**
+- **Características Principales**: Máximo 2 (contador X/2)
+- **Tiradas de Salvación**: Máximo 2 (contador X/2)
+- **Habilidades Favorecidas**: Máximo 3 (contador X/3)
 
-### ✅ API Actualizada
-- `GET /api/data/virtudes` - Devuelve 100 virtudes con campos completos
-- `GET /api/data/cultures/{id}/virtues` - Mapea campos a formato frontend
+**Senda de la Sombra:**
+- Nombre de la senda (ej: "Atracción de los secretos")
+- Descripción de la senda
+- **4 Defectos obligatorios**: Nombre, descripción, efecto en el juego
+- Los defectos se sincronizan a `sombra_rules` vía POST `/api/data/sombra/sendas`
 
-### ✅ COMPLETED (Sesión anterior): Monturas Actualizadas
-- 15 monturas con columnas: Carga, Constitución, Velocidad, Pequeño, Mediano
+**Equipo Inicial (múltiples bloques):**
+- Herramientas/juegos/instrumentos a elegir + cantidad
+- Habilidades con competencia a elegir + cantidad
+- Herramienta fija (sin elegir)
 
-### ✅ COMPLETED (Sesión anterior): Editor de Equipo
-- 21 categorías con campos dinámicos
+**Caminos de la Profesión:**
+- Nombre de especialidad (ej: "Especialidad de Explorador")
+- Nivel de especialización (ej: nivel 3)
+- 2 especialidades (ej: Saqueador y Espía)
+- Cada especialidad: nombre, descripción, 3 características
 
-### ✅ COMPLETED (Sesión anterior): Secciones de Reglas
-- Sombra (Pavor, Avaricia, Fechorías, Estados, Sendas)
-- Artes (8 items)
-- Recompensas (Mejoras, Niveles, Bonificadores)
+**Niveles de Virtudes y Artes:**
+- Niveles para virtudes (ej: "4, 6, 8")
+- Descripción de virtudes
+- Niveles para artes (ej: "6")
+- Descripción de artes
+
+### ✅ COMPLETED (Sesión anterior): Virtudes Completas
+100 virtudes con elegir_caracteristica, elegir_salvacion, elegir_habilidad, elegir_herramienta
+
+### ✅ COMPLETED (Sesión anterior): Catálogo de Equipo (21 categorías)
+Monturas con capacidad_pequeno/capacidad_mediano
 
 ## 📋 PENDING TASKS
 
-### P0 - Próximo paso
-1. **Selectores de virtud en el creador**
-   - Cuando el usuario elige una virtud con `elegir_caracteristica`, mostrar selector
-   - No repetir opciones que el PJ ya tiene (competencias en tiradas de salvación, habilidades, herramientas)
-   - Guardar las elecciones en el draft
+### P0 - Pendientes del Editor de Ocupaciones
+1. **Bloques adicionales de equipo** (mencionados por usuario):
+   - Opción A o B (armaduras/armas)
+   - Armas disponibles + número a elegir
+   - Opción A o B con armas en B
+   - Opción A (armas + escudo) o B (2 bloques de armas)
 
 ### P1 - Medium Priority
 1. **Sistema de Autenticación Completo**
@@ -88,25 +69,23 @@ Se extrajeron 100 virtudes con TODA la información de la hoja "Virtudes":
 - Integración IA
 
 ## Key Files
-- `/app/backend/extract_virtues_complete.py` - Script de extracción de virtudes
-- `/app/backend/routes/data_routes.py` - Endpoints de virtudes con mapeo
-- `/app/frontend/src/pages/RulesPage.jsx` - Visualización de virtudes completas
-- `/app/frontend/src/components/character-creator/steps/Step5Virtue.jsx` - Selección de virtud
+- `/app/backend/routes/data_routes.py` - Endpoints sombra, sombra/sendas
+- `/app/frontend/src/pages/RulesPage.jsx` - renderSombra con 8 secciones
+- `/app/frontend/src/components/admin/OccupationEditor.jsx` - Editor completo
 
 ## Key API Endpoints
-- `GET /api/data/virtudes` - 100 virtudes con datos completos
-- `GET /api/data/cultures/{id}/virtues` - Virtudes mapeadas para frontend
-- `POST /api/data/virtudes` - Crear virtud
-- `PUT /api/data/virtudes/{id}` - Actualizar virtud
-- `DELETE /api/data/virtudes/{id}` - Eliminar virtud
+- `GET /api/data/sombra` - Retorna 8 secciones: pavor, avaricia, fechorias, estados, sendas_sombra, hechiceria, fortalecer_voluntad, como_sucumbir
+- `POST /api/data/sombra/sendas` - Guarda defectos de ocupación en sombra_rules
+- `POST /api/data/occupations` - Crear ocupación con todos los campos
 
 ## Test Reports
-- `/app/test_reports/iteration_15.json` - Tests anteriores (100% pass)
+- `/app/test_reports/iteration_16.json` - Sombra + OccupationEditor (100% pass)
 
 ## Session Changelog (2026-02-06)
-1. Extraídas 100 virtudes con TODOS los campos del Excel
-2. Campos: elegir_caracteristica, elegir_salvacion, elegir_habilidad, elegir_herramienta
-3. Campos: bonus_puntos_golpe, bonus_ca, bonus_comunidad
-4. Frontend muestra toda la información de virtudes
-5. Endpoint /cultures/{id}/virtues mapea campos a formato frontend
-6. Actualizado tiene_virtud_inicial=True en todas las culturas
+1. Añadidas secciones Hechicería, Fortalecer voluntad, Cómo sucumbir a Sombra
+2. Creado OccupationEditor completo con validaciones (max 2/2/3)
+3. Senda de sombra con 4 defectos obligatorios
+4. Caminos de profesión con 2 especialidades
+5. Sincronización de defectos a sombra_rules
+6. Bug fixed: OccupationEditor maneja ocupaciones existentes sin arrays
+7. Tests 100% (16 backend + 11 frontend)
