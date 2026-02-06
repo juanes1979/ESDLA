@@ -321,7 +321,7 @@ const CultureEditor = ({ culture, races, onSave, onClose, onCopy }) => {
                 </div>
 
                 {/* NIVEL DE VIDA */}
-                <Section id="vida" title="Nivel de Vida">
+                <CollapsibleSection id="vida" title="Nivel de Vida" isActive={activeSection === 'vida'} onToggle={handleSectionToggle}>
                   <div className="grid md:grid-cols-2 gap-4">
                     <div>
                       <Label>Nivel de Vida</Label>
@@ -347,7 +347,7 @@ const CultureEditor = ({ culture, races, onSave, onClose, onCopy }) => {
                 </Section>
 
                 {/* PHYSICAL CHARACTERISTICS */}
-                <Section id="physical" title="Características Físicas">
+                <CollapsibleSection id="physical" title="Características Físicas" isActive={activeSection === 'physical'} onToggle={handleSectionToggle}>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                     <div>
                       <Label>Edad Mín</Label>
@@ -407,7 +407,7 @@ const CultureEditor = ({ culture, races, onSave, onClose, onCopy }) => {
                 </Section>
 
                 {/* ATTRIBUTE BONUSES */}
-                <Section id="attributes" title="Bonificadores de Características">
+                <CollapsibleSection id="attributes" title="Bonificadores de Características" isActive={activeSection === 'attributes'} onToggle={handleSectionToggle}>
                   <div className="grid grid-cols-3 md:grid-cols-6 gap-3">
                     {ATTRIBUTES.map(attr => (
                       <div key={attr}>
@@ -431,7 +431,7 @@ const CultureEditor = ({ culture, races, onSave, onClose, onCopy }) => {
                 </Section>
 
                 {/* LANGUAGES */}
-                <Section id="languages" title="Idiomas">
+                <CollapsibleSection id="languages" title="Idiomas" isActive={activeSection === 'languages'} onToggle={handleSectionToggle}>
                   <div>
                     <Label>Idiomas (separados por coma)</Label>
                     <Input
@@ -443,7 +443,7 @@ const CultureEditor = ({ culture, races, onSave, onClose, onCopy }) => {
                 </Section>
 
                 {/* COMPETENCIES */}
-                <Section id="competencies" title="Competencias">
+                <CollapsibleSection id="competencies" title="Competencias" isActive={activeSection === 'competencies'} onToggle={handleSectionToggle}>
                   <div className="space-y-4">
                     {/* Skill Competencies */}
                     <div>
@@ -522,7 +522,7 @@ const CultureEditor = ({ culture, races, onSave, onClose, onCopy }) => {
                 </Section>
 
                 {/* CULTURAL TRAITS */}
-                <Section id="traits" title="Rasgos Culturales">
+                <CollapsibleSection id="traits" title="Rasgos Culturales" isActive={activeSection === 'traits'} onToggle={handleSectionToggle}>
                   <div>
                     <Label>Rasgos Culturales (uno por línea)</Label>
                     <Textarea
@@ -535,7 +535,7 @@ const CultureEditor = ({ culture, races, onSave, onClose, onCopy }) => {
                 </Section>
 
                 {/* SPECIALS */}
-                <Section id="specials" title="Especiales de Cultura" color="torch-orange">
+                <CollapsibleSection id="specials" title="Especiales de Cultura" color="torch-orange" isActive={activeSection === 'specials'} onToggle={handleSectionToggle}>
                   <div className="grid md:grid-cols-2 gap-4">
                     <div>
                       <Label>PG Extra por Nivel</Label>
@@ -565,7 +565,7 @@ const CultureEditor = ({ culture, races, onSave, onClose, onCopy }) => {
                 </Section>
 
                 {/* BACKGROUNDS - NEW */}
-                <Section id="backgrounds" title="Trasfondos de la Cultura" color="magic-blue">
+                <CollapsibleSection id="backgrounds" title="Trasfondos de la Cultura" color="magic-blue" isActive={activeSection === 'backgrounds'} onToggle={handleSectionToggle}>
                   <div>
                     <Label className="mb-2 block">Trasfondos asociados a esta cultura</Label>
                     <p className="text-xs text-muted-foreground mb-3">
@@ -590,7 +590,7 @@ const CultureEditor = ({ culture, races, onSave, onClose, onCopy }) => {
 
                 {/* VIRTUES CONFIGURATION - NEW */}
                 {formData.tiene_virtud_inicial && (
-                  <Section id="virtues" title="Configuración de Virtudes" color="torch-orange">
+                  <CollapsibleSection id="virtues" title="Configuración de Virtudes" color="torch-orange" isActive={activeSection === 'virtues'} onToggle={handleSectionToggle}>
                     <div className="space-y-4">
                       <p className="text-sm text-muted-foreground">
                         Esta cultura tiene virtud al nivel 1. Configura qué virtudes puede elegir el jugador.
