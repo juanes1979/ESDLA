@@ -415,52 +415,6 @@ const TravelGenerator = () => {
             </div>
           </div>
           
-          <div className="grid md:grid-cols-3 gap-4">
-            <div>
-              <Label>Región</Label>
-              <Select value={config.region} onValueChange={(v) => setConfig(prev => ({ ...prev, region: v }))}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Seleccionar región" />
-                </SelectTrigger>
-                <SelectContent>
-                  {regiones.map(r => (
-                    <SelectItem key={r.id} value={r.id}>{r.nombre}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            
-            <div>
-              <Label>Casillas</Label>
-              <Input
-                type="number"
-                min={1}
-                max={100}
-                value={config.casillas}
-                onChange={(e) => setConfig(prev => ({ ...prev, casillas: parseInt(e.target.value) || 1 }))}
-              />
-            </div>
-            
-            <div>
-              <Label>Mes</Label>
-              <Select value={config.mes} onValueChange={(v) => setConfig(prev => ({ ...prev, mes: v }))}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {MESES_ELFICOS.map(m => (
-                    <SelectItem key={m.id} value={m.id}>
-                      <div className="flex items-center gap-2">
-                        <SeasonIcon estacion={m.estacion} />
-                        {m.nombre}
-                      </div>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-          
           <div className="grid md:grid-cols-2 gap-4">
             <div>
               <Label>Tipo de Terreno</Label>
