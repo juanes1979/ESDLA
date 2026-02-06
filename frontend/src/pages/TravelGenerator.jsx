@@ -296,82 +296,122 @@ const TravelGenerator = () => {
   // Render configuration form
   const renderConfiguracion = () => (
     <div className="space-y-6">
-      {/* Modo de distancia */}
-      <div className="flex gap-2 mb-4">
-        <Button
-          variant={modoDistancia === 'predefinida' ? 'default' : 'outline'}
-          onClick={() => setModoDistancia('predefinida')}
-          className="flex-1"
-        >
-          <Map className="w-4 h-4 mr-2" /> Rutas Conocidas
-        </Button>
-        <Button
-          variant={modoDistancia === 'manual' ? 'default' : 'outline'}
-          onClick={() => setModoDistancia('manual')}
-          className="flex-1"
-        >
-          <Compass className="w-4 h-4 mr-2" /> Manual
-        </Button>
-      </div>
-      
-      {/* Rutas predefinidas */}
-      {modoDistancia === 'predefinida' && (
-        <Card className="card-parchment">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-lg text-[hsl(var(--gold))]">Seleccionar Ruta</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ScrollArea className="h-48">
-              <div className="space-y-2">
-                {distancias.rutas?.map((ruta, i) => (
-                  <button
-                    key={i}
-                    onClick={() => handleRutaSelect(ruta)}
-                    className={`w-full text-left p-2 rounded border transition-all ${
-                      config.origen === ruta.origen && config.destino === ruta.destino
-                        ? 'border-[hsl(var(--gold))] bg-[hsl(var(--gold))/20]'
-                        : 'border-border/30 hover:border-[hsl(var(--gold))/50]'
-                    }`}
-                  >
-                    <div className="flex justify-between items-center">
-                      <span className="font-medium">{ruta.origen} → {ruta.destino}</span>
-                      <Badge variant="outline">{ruta.casillas} casillas</Badge>
-                    </div>
-                    <div className="text-xs text-muted-foreground mt-1">
-                      {ruta.region} • {ruta.tipo_terreno.replace('_', ' ')}
-                    </div>
-                  </button>
-                ))}
-              </div>
-            </ScrollArea>
-          </CardContent>
-        </Card>
-      )}
-      
-      {/* Configuración manual */}
+      {/* Origen y Destino */}
       <Card className="card-parchment">
         <CardHeader className="pb-2">
-          <CardTitle className="text-lg text-[hsl(var(--torch-orange))]">
-            {modoDistancia === 'manual' ? 'Configuración del Viaje' : 'Ruta Seleccionada'}
+          <CardTitle className="text-lg text-[hsl(var(--gold))]">
+            <Map className="w-5 h-5 inline mr-2" />
+            Origen y Destino
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid md:grid-cols-2 gap-4">
             <div>
               <Label>Origen</Label>
-              <Input
-                value={config.origen}
-                onChange={(e) => setConfig(prev => ({ ...prev, origen: e.target.value }))}
-                placeholder="Punto de partida"
-              />
+              <Select value={config.origen} onValueChange={(v) => setConfig(prev => ({ ...prev, origen: v }))}>
+                <SelectTrigger data-testid="select-origen">
+                  <SelectValue placeholder="Seleccionar origen" />
+                </SelectTrigger>
+                <SelectContent>
+                  {getUbicaciones().map(ubicacion => (
+                    <SelectItem key={ubicacion} value={ubicacion} disabled={ubicacion === config.destino}>
+                      {ubicacion}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div>
               <Label>Destino</Label>
+              <Select value={config.destino} onValueChange={(v) => setConfig(prev => ({ ...prev, destino: v }))}>
+                <SelectTrigger data-testid="select-destino">
+                  <SelectValue placeholder="Seleccionar destino" />
+                </SelectTrigger>
+                <SelectContent>
+                  {getUbicaciones().map(ubicacion => (
+                    <SelectItem key={ubicacion} value={ubicacion} disabled={ubicacion === config.origen}>
+                      {ubicacion}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          
+          {/* Show route info if found */}
+          {config.origen && config.destino && config.origen !== config.destino && (
+            <div className="p-3 bg-black/10 rounded">
+              {distancias.rutas?.find(r => 
+                (r.origen === config.origen && r.destino === config.destino) ||
+                (r.origen === config.destino && r.destino === config.origen)
+              ) ? (
+                <div className="flex items-center justify-between">
+                  <span className="text-[hsl(var(--gold))]">
+                    ✓ Ruta conocida encontrada
+                  </span>
+                  <Badge variant="outline">{config.casillas} casillas</Badge>
+                </div>
+              ) : (
+                <span className="text-yellow-400">
+                  ⚠️ Ruta no predefinida - configura manualmente las casillas
+                </span>
+              )}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+      
+      {/* Configuración del viaje */}
+      <Card className="card-parchment">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-lg text-[hsl(var(--torch-orange))]">
+            Configuración del Viaje
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid md:grid-cols-3 gap-4">
+            <div>
+              <Label>Región</Label>
+              <Select value={config.region} onValueChange={(v) => setConfig(prev => ({ ...prev, region: v }))}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Seleccionar región" />
+                </SelectTrigger>
+                <SelectContent>
+                  {regiones.map(r => (
+                    <SelectItem key={r.id} value={r.id}>{r.nombre}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div>
+              <Label>Casillas</Label>
               <Input
-                value={config.destino}
-                onChange={(e) => setConfig(prev => ({ ...prev, destino: e.target.value }))}
-                placeholder="Punto de llegada"
+                type="number"
+                min={1}
+                max={100}
+                value={config.casillas}
+                onChange={(e) => setConfig(prev => ({ ...prev, casillas: parseInt(e.target.value) || 1 }))}
               />
+            </div>
+            
+            <div>
+              <Label>Mes</Label>
+              <Select value={config.mes} onValueChange={(v) => setConfig(prev => ({ ...prev, mes: v }))}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {MESES_ELFICOS.map(m => (
+                    <SelectItem key={m.id} value={m.id}>
+                      <div className="flex items-center gap-2">
+                        <SeasonIcon estacion={m.estacion} />
+                        {m.nombre}
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
           
