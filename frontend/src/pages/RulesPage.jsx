@@ -783,7 +783,7 @@ const RulesPage = () => {
       {
         title: "🐴 Monturas y Transporte",
         categories: [
-          { key: 'monturas', name: 'Monturas', fields: ['nombre', 'precio', 'velocidad', 'capacidad_carga', 'capacidad_monta'] },
+          { key: 'monturas', name: 'Monturas', fields: ['nombre', 'precio', 'capacidad_carga', 'constitucion', 'velocidad', 'capacidad_pequeno', 'capacidad_mediano'] },
           { key: 'accesorios_monturas', name: 'Accesorios de Monturas', fields: ['nombre', 'precio', 'peso_kg'] },
           { key: 'transporte_terrestre', name: 'Transporte Terrestre', fields: ['nombre', 'precio', 'capacidad_kg'] },
           { key: 'transporte_maritimo', name: 'Transporte Marítimo', fields: ['nombre', 'precio', 'capacidad_kg'] },
