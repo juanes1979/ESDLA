@@ -86,8 +86,14 @@ const SheetPage3 = ({ character, scale, fieldPositions = {} }) => {
         scale={scale} 
       />
       <DisplayField 
-        {...PAGE3_FIELDS.descripcion_ocupacion} 
-        value={character.descripcion_ocupacion_corta || ''} 
+        x={PAGE3_FIELDS.descripcion_ocupacion.x}
+        y={PAGE3_FIELDS.descripcion_ocupacion.y}
+        width={PAGE3_FIELDS.descripcion_ocupacion.width}
+        height={PAGE3_FIELDS.descripcion_ocupacion.height}
+        fontSize={PAGE3_FIELDS.descripcion_ocupacion.fontSize}
+        align={PAGE3_FIELDS.descripcion_ocupacion.align}
+        multiline={true}
+        value={character.descripcion_corta || character.descripcion_ocupacion_corta || ''} 
         scale={scale} 
       />
       
