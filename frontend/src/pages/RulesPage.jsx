@@ -1660,14 +1660,20 @@ const RulesPage = () => {
       <div className="bg-black/10 p-3 rounded mb-3">
         <h4 className={`font-semibold ${colorClass} mb-2`}>{titulo}</h4>
         <div className="space-y-1">
-          {mods?.map((m, i) => (
-            <div key={i} className="flex justify-between items-center text-sm py-1 border-b border-border/10 last:border-0">
-              <span>{m.region || m.tipo || m.relacion || m.situacion}</span>
-              <span className={`font-mono ${m.modificador >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                {m.modificador >= 0 ? '+' : ''}{(m.modificador * 100).toFixed(0)}%
-              </span>
-            </div>
-          ))}
+          {mods?.map((m, i) => {
+            const mod = m.modificador;
+            const isPositive = mod && (mod.startsWith('+') || (!mod.startsWith('-') && mod !== '0'));
+            const isNegative = mod && mod.startsWith('-');
+            return (
+              <div key={i} className="flex justify-between items-center text-sm py-1 border-b border-border/10 last:border-0">
+                <span className="flex-1">{m.region || m.tipo || m.relacion || m.situacion}</span>
+                <span className={`font-mono w-16 text-right ${isPositive ? 'text-red-400' : isNegative ? 'text-green-400' : 'text-muted-foreground'}`}>
+                  {mod}
+                </span>
+                <span className="text-xs text-muted-foreground ml-2 flex-1">{m.notas}</span>
+              </div>
+            );
+          })}
         </div>
       </div>
     );
