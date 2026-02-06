@@ -18,14 +18,22 @@ Build a comprehensive web application to play a modified version of the "Lord of
    - Endpoint PATCH `/api/characters/{id}` para actualizar personaje al subir de nivel
 
 2. **RulesPage Refactorization**
-   - Creados 5 componentes separados en `/app/frontend/src/components/rules/`:
+   - Creados 6 componentes separados en `/app/frontend/src/components/rules/`:
      - `SombraSection.jsx` - Pavor, Avaricia, Fechorías, Estados, Sendas
      - `CombateSection.jsx` - Estructura, Acciones, Atacar, Muerte
      - `SalariosSection.jsx` - 4 categorías de trabajadores
      - `VariosSection.jsx` - Pruebas, Ventaja, Cansancio, Inspiración, Ojo de Mordor
      - `ViajeSection.jsx` - Papeles, Secuencia, Fatiga, Duración, Acontecimientos
+     - `ComunidadSection.jsx` - Fase de Comunidad, Yule, 10 Empresas
    - Index file para fácil importación: `/app/frontend/src/components/rules/index.js`
    - Mejora significativa en mantenibilidad del código
+
+3. **Nueva Sección: Fase de Comunidad**
+   - Introducción y límites narrativos
+   - Estructura de 4 pasos (Duración, Destino, Recuperación espiritual, Empresas)
+   - Yule con fórmula de PX adicionales
+   - 10 Empresas: 7 ordinarias + 3 de Yule
+   - Tabla de reducción de Sombra por impacto de acciones
 
 #### Sesiones Anteriores (resumen)
 - Generador de Viajes (`/travel`) - Completo con cálculo de fatiga, eventos, clima
