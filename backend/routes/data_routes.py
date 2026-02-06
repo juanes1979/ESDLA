@@ -869,7 +869,11 @@ async def get_equipment_catalog(
     - Transport: monturas, accesorios_monturas, transporte_terrestre, transporte_maritimo
     - Construction: construccion
     """
-    catalog = await db.equipment_catalog.find_one({})
+    # Try to get the updated catalog first
+    catalog = await db.equipment_catalog.find_one({"_id": "main"})
+    if not catalog:
+        # Fallback to any catalog
+        catalog = await db.equipment_catalog.find_one({})
     if not catalog:
         return {
             "herramientas": [],
