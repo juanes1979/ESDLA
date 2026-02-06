@@ -251,19 +251,6 @@ const CultureEditor = ({ culture, races, onSave, onClose, onCopy }) => {
     setActiveSection(activeSection === id ? null : id);
   };
 
-  // Wrapper for CollapsibleSection
-  const Section = ({ id, title, children, color = 'gold' }) => (
-    <CollapsibleSection
-      id={id}
-      title={title}
-      isActive={activeSection === id}
-      onToggle={handleSectionToggle}
-      color={color}
-    >
-      {children}
-    </CollapsibleSection>
-  );
-
   return (
     <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4" data-testid="culture-editor-modal">
       <div className="bg-[#1a1a1a] border border-border/50 rounded-lg w-full max-w-5xl max-h-[95vh] overflow-hidden">
