@@ -944,3 +944,40 @@ async def add_experience(character_id: str, xp: int = Body(..., embed=True)):
     )
     
     return {"experiencia": new_xp}
+
+
+
+@router.patch("/{character_id}")
+async def update_character(character_id: str, data: dict = Body(...)):
+    """Update character fields (used for level-up, etc.)"""
+    character = await db.characters.find_one({"_id": character_id})
+    if not character:
+        raise HTTPException(status_code=404, detail="Character not found")
+    
+    # Fields allowed to be updated
+    allowed_fields = [
+        'nivel', 'puntos_golpe_max', 'bonificador_competencia',
+        'virtudes_obtenidas', 'artes_obtenidas', 'espacios_arte',
+        'experiencia', 'puntos_comunidad', 'puntos_sombra',
+        'inventario', 'dinero', 'notas',
+        # Reward fields
+        'recompensa1', 'recompensa2', 'recompensa3', 
+        'recompensa4', 'recompensa5', 'recompensa6',
+        # Shadow state
+        'desanimado', 'angustiado', 'descripcion_sombra',
+        # Other editable
+        'heredero', 'inversion'
+    ]
+    
+    update = {"updated_at": now_utc()}
+    for key, value in data.items():
+        if key in allowed_fields:
+            update[key] = value
+    
+    await db.characters.update_one(
+        {"_id": character_id},
+        {"$set": update}
+    )
+    
+    updated = await db.characters.find_one({"_id": character_id})
+    return serialize_doc(updated)
