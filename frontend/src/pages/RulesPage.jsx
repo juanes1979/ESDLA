@@ -154,6 +154,10 @@ const RulesPage = () => {
             const viajeRes = await api.get('/data/viaje');
             setData(viajeRes.data);
             break;
+          case 'community':
+            const comunidadRes = await api.get('/data/comunidad');
+            setData(comunidadRes.data);
+            break;
           default:
             setData(null);
         }
