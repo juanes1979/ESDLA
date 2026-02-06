@@ -671,6 +671,511 @@ const OccupationEditor = ({ occupation, onSave, onClose, onCopy }) => {
               </Select>
             </Section>
 
+            {/* === EQUIPMENT - TOOLS TO CHOOSE === */}
+            <Section title="🔨 Herramientas a Elegir">
+              <p className="text-xs text-muted-foreground mb-3">Herramientas entre las que el jugador puede elegir</p>
+              <div className="grid md:grid-cols-2 gap-4">
+                <div>
+                  <Label>Cantidad a elegir</Label>
+                  <Input
+                    type="number"
+                    min={1}
+                    value={formData.equipo_herramientas_elegir.cantidad_elegir}
+                    onChange={(e) => handleNestedChange('equipo_herramientas_elegir', 'cantidad_elegir', parseInt(e.target.value) || 1)}
+                  />
+                </div>
+                <div>
+                  <Label>Añadir herramienta</Label>
+                  <Select
+                    onValueChange={(v) => {
+                      const current = formData.equipo_herramientas_elegir.opciones || [];
+                      if (!current.includes(v)) {
+                        handleNestedChange('equipo_herramientas_elegir', 'opciones', [...current, v]);
+                      }
+                    }}
+                  >
+                    <SelectTrigger><SelectValue placeholder="Añadir..." /></SelectTrigger>
+                    <SelectContent>
+                      {getAllTools().map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <div className="flex flex-wrap gap-2 mt-2">
+                {(formData.equipo_herramientas_elegir.opciones || []).map((opt, idx) => (
+                  <span key={idx} className="px-2 py-1 bg-[hsl(var(--gold))/20] rounded text-xs flex items-center gap-1">
+                    {opt}
+                    <button onClick={() => {
+                      const newOpts = formData.equipo_herramientas_elegir.opciones.filter((_, i) => i !== idx);
+                      handleNestedChange('equipo_herramientas_elegir', 'opciones', newOpts);
+                    }}><X className="w-3 h-3" /></button>
+                  </span>
+                ))}
+              </div>
+            </Section>
+
+            {/* === EQUIPMENT - WEAPONS AVAILABLE === */}
+            <Section title="⚔️ Armas Disponibles a Elegir">
+              <p className="text-xs text-muted-foreground mb-3">Armas disponibles de las que el jugador puede elegir</p>
+              <div className="grid md:grid-cols-2 gap-4">
+                <div>
+                  <Label>Cantidad a elegir</Label>
+                  <Input
+                    type="number"
+                    min={1}
+                    value={formData.equipo_armas_disponibles.cantidad_elegir}
+                    onChange={(e) => handleNestedChange('equipo_armas_disponibles', 'cantidad_elegir', parseInt(e.target.value) || 1)}
+                  />
+                </div>
+                <div>
+                  <Label>Añadir arma</Label>
+                  <Select
+                    onValueChange={(v) => {
+                      const current = formData.equipo_armas_disponibles.opciones || [];
+                      if (!current.includes(v)) {
+                        handleNestedChange('equipo_armas_disponibles', 'opciones', [...current, v]);
+                      }
+                    }}
+                  >
+                    <SelectTrigger><SelectValue placeholder="Añadir arma..." /></SelectTrigger>
+                    <SelectContent>
+                      {getAllWeapons().map(w => <SelectItem key={w} value={w}>{w}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <div className="flex flex-wrap gap-2 mt-2">
+                {(formData.equipo_armas_disponibles.opciones || []).map((opt, idx) => (
+                  <span key={idx} className="px-2 py-1 bg-red-500/20 text-red-300 rounded text-xs flex items-center gap-1">
+                    {opt}
+                    <button onClick={() => {
+                      const newOpts = formData.equipo_armas_disponibles.opciones.filter((_, i) => i !== idx);
+                      handleNestedChange('equipo_armas_disponibles', 'opciones', newOpts);
+                    }}><X className="w-3 h-3" /></button>
+                  </span>
+                ))}
+              </div>
+            </Section>
+
+            {/* === EQUIPMENT - WEAPONS TO CHOOSE === */}
+            <Section title="🗡️ Armas a Elegir">
+              <p className="text-xs text-muted-foreground mb-3">Otro bloque de armas a elegir</p>
+              <div className="grid md:grid-cols-2 gap-4">
+                <div>
+                  <Label>Cantidad a elegir</Label>
+                  <Input
+                    type="number"
+                    min={1}
+                    value={formData.equipo_armas_elegir.cantidad_elegir}
+                    onChange={(e) => handleNestedChange('equipo_armas_elegir', 'cantidad_elegir', parseInt(e.target.value) || 1)}
+                  />
+                </div>
+                <div>
+                  <Label>Añadir arma</Label>
+                  <Select
+                    onValueChange={(v) => {
+                      const current = formData.equipo_armas_elegir.opciones || [];
+                      if (!current.includes(v)) {
+                        handleNestedChange('equipo_armas_elegir', 'opciones', [...current, v]);
+                      }
+                    }}
+                  >
+                    <SelectTrigger><SelectValue placeholder="Añadir arma..." /></SelectTrigger>
+                    <SelectContent>
+                      {getAllWeapons().map(w => <SelectItem key={w} value={w}>{w}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <div className="flex flex-wrap gap-2 mt-2">
+                {(formData.equipo_armas_elegir.opciones || []).map((opt, idx) => (
+                  <span key={idx} className="px-2 py-1 bg-orange-500/20 text-orange-300 rounded text-xs flex items-center gap-1">
+                    {opt}
+                    <button onClick={() => {
+                      const newOpts = formData.equipo_armas_elegir.opciones.filter((_, i) => i !== idx);
+                      handleNestedChange('equipo_armas_elegir', 'opciones', newOpts);
+                    }}><X className="w-3 h-3" /></button>
+                  </span>
+                ))}
+              </div>
+            </Section>
+
+            {/* === EQUIPMENT - OPTION A/B ARMORS AND WEAPONS === */}
+            <Section title="🛡️⚔️ Opción A o B: Armaduras y Armas" color="magic-blue">
+              <p className="text-xs text-muted-foreground mb-3">El jugador elige entre Opción A u Opción B</p>
+              
+              {/* Option A */}
+              <div className="p-3 bg-[hsl(var(--magic-blue))/10] rounded border border-[hsl(var(--magic-blue))/30] mb-4">
+                <Label className="text-[hsl(var(--magic-blue))] font-bold mb-2 block">OPCIÓN A</Label>
+                <div className="grid md:grid-cols-2 gap-4">
+                  <div>
+                    <Label className="text-xs">Armaduras en Opción A</Label>
+                    <Select
+                      onValueChange={(v) => {
+                        const current = formData.equipo_opcion_ab_armaduras_armas.opcion_a.armaduras || [];
+                        if (!current.includes(v)) {
+                          handleChange('equipo_opcion_ab_armaduras_armas', {
+                            ...formData.equipo_opcion_ab_armaduras_armas,
+                            opcion_a: { ...formData.equipo_opcion_ab_armaduras_armas.opcion_a, armaduras: [...current, v] }
+                          });
+                        }
+                      }}
+                    >
+                      <SelectTrigger><SelectValue placeholder="Añadir armadura..." /></SelectTrigger>
+                      <SelectContent>
+                        {getAllArmors().map(a => <SelectItem key={a} value={a}>{a}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                    <div className="flex flex-wrap gap-1 mt-1">
+                      {(formData.equipo_opcion_ab_armaduras_armas.opcion_a.armaduras || []).map((a, i) => (
+                        <span key={i} className="px-2 py-1 bg-blue-500/20 text-blue-300 rounded text-xs flex items-center gap-1">
+                          {a}
+                          <button onClick={() => {
+                            const newArr = formData.equipo_opcion_ab_armaduras_armas.opcion_a.armaduras.filter((_, idx) => idx !== i);
+                            handleChange('equipo_opcion_ab_armaduras_armas', {
+                              ...formData.equipo_opcion_ab_armaduras_armas,
+                              opcion_a: { ...formData.equipo_opcion_ab_armaduras_armas.opcion_a, armaduras: newArr }
+                            });
+                          }}><X className="w-3 h-3" /></button>
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                  <div>
+                    <Label className="text-xs">Armas en Opción A</Label>
+                    <Select
+                      onValueChange={(v) => {
+                        const current = formData.equipo_opcion_ab_armaduras_armas.opcion_a.armas || [];
+                        if (!current.includes(v)) {
+                          handleChange('equipo_opcion_ab_armaduras_armas', {
+                            ...formData.equipo_opcion_ab_armaduras_armas,
+                            opcion_a: { ...formData.equipo_opcion_ab_armaduras_armas.opcion_a, armas: [...current, v] }
+                          });
+                        }
+                      }}
+                    >
+                      <SelectTrigger><SelectValue placeholder="Añadir arma..." /></SelectTrigger>
+                      <SelectContent>
+                        {getAllWeapons().map(w => <SelectItem key={w} value={w}>{w}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                    <div className="flex flex-wrap gap-1 mt-1">
+                      {(formData.equipo_opcion_ab_armaduras_armas.opcion_a.armas || []).map((w, i) => (
+                        <span key={i} className="px-2 py-1 bg-red-500/20 text-red-300 rounded text-xs flex items-center gap-1">
+                          {w}
+                          <button onClick={() => {
+                            const newArr = formData.equipo_opcion_ab_armaduras_armas.opcion_a.armas.filter((_, idx) => idx !== i);
+                            handleChange('equipo_opcion_ab_armaduras_armas', {
+                              ...formData.equipo_opcion_ab_armaduras_armas,
+                              opcion_a: { ...formData.equipo_opcion_ab_armaduras_armas.opcion_a, armas: newArr }
+                            });
+                          }}><X className="w-3 h-3" /></button>
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              {/* Option B */}
+              <div className="p-3 bg-[hsl(var(--torch-orange))/10] rounded border border-[hsl(var(--torch-orange))/30]">
+                <Label className="text-[hsl(var(--torch-orange))] font-bold mb-2 block">OPCIÓN B</Label>
+                <div className="grid md:grid-cols-2 gap-4">
+                  <div>
+                    <Label className="text-xs">Armaduras en Opción B</Label>
+                    <Select
+                      onValueChange={(v) => {
+                        const current = formData.equipo_opcion_ab_armaduras_armas.opcion_b.armaduras || [];
+                        if (!current.includes(v)) {
+                          handleChange('equipo_opcion_ab_armaduras_armas', {
+                            ...formData.equipo_opcion_ab_armaduras_armas,
+                            opcion_b: { ...formData.equipo_opcion_ab_armaduras_armas.opcion_b, armaduras: [...current, v] }
+                          });
+                        }
+                      }}
+                    >
+                      <SelectTrigger><SelectValue placeholder="Añadir armadura..." /></SelectTrigger>
+                      <SelectContent>
+                        {getAllArmors().map(a => <SelectItem key={a} value={a}>{a}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                    <div className="flex flex-wrap gap-1 mt-1">
+                      {(formData.equipo_opcion_ab_armaduras_armas.opcion_b.armaduras || []).map((a, i) => (
+                        <span key={i} className="px-2 py-1 bg-blue-500/20 text-blue-300 rounded text-xs flex items-center gap-1">
+                          {a}
+                          <button onClick={() => {
+                            const newArr = formData.equipo_opcion_ab_armaduras_armas.opcion_b.armaduras.filter((_, idx) => idx !== i);
+                            handleChange('equipo_opcion_ab_armaduras_armas', {
+                              ...formData.equipo_opcion_ab_armaduras_armas,
+                              opcion_b: { ...formData.equipo_opcion_ab_armaduras_armas.opcion_b, armaduras: newArr }
+                            });
+                          }}><X className="w-3 h-3" /></button>
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                  <div>
+                    <Label className="text-xs">Armas en Opción B</Label>
+                    <Select
+                      onValueChange={(v) => {
+                        const current = formData.equipo_opcion_ab_armaduras_armas.opcion_b.armas || [];
+                        if (!current.includes(v)) {
+                          handleChange('equipo_opcion_ab_armaduras_armas', {
+                            ...formData.equipo_opcion_ab_armaduras_armas,
+                            opcion_b: { ...formData.equipo_opcion_ab_armaduras_armas.opcion_b, armas: [...current, v] }
+                          });
+                        }
+                      }}
+                    >
+                      <SelectTrigger><SelectValue placeholder="Añadir arma..." /></SelectTrigger>
+                      <SelectContent>
+                        {getAllWeapons().map(w => <SelectItem key={w} value={w}>{w}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                    <div className="flex flex-wrap gap-1 mt-1">
+                      {(formData.equipo_opcion_ab_armaduras_armas.opcion_b.armas || []).map((w, i) => (
+                        <span key={i} className="px-2 py-1 bg-red-500/20 text-red-300 rounded text-xs flex items-center gap-1">
+                          {w}
+                          <button onClick={() => {
+                            const newArr = formData.equipo_opcion_ab_armaduras_armas.opcion_b.armas.filter((_, idx) => idx !== i);
+                            handleChange('equipo_opcion_ab_armaduras_armas', {
+                              ...formData.equipo_opcion_ab_armaduras_armas,
+                              opcion_b: { ...formData.equipo_opcion_ab_armaduras_armas.opcion_b, armas: newArr }
+                            });
+                          }}><X className="w-3 h-3" /></button>
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </Section>
+
+            {/* === EQUIPMENT - OPTION A/B WEAPONS ONLY === */}
+            <Section title="⚔️ Opción A o B: Solo Armas" color="torch-orange">
+              <p className="text-xs text-muted-foreground mb-3">Opción A: lista de armas | Opción B: armas a elegir con cantidad</p>
+              
+              {/* Option A */}
+              <div className="p-3 bg-[hsl(var(--magic-blue))/10] rounded border border-[hsl(var(--magic-blue))/30] mb-4">
+                <Label className="text-[hsl(var(--magic-blue))] font-bold mb-2 block">OPCIÓN A - Armas fijas</Label>
+                <Select
+                  onValueChange={(v) => {
+                    const current = formData.equipo_opcion_ab_armas.opcion_a || [];
+                    if (!current.includes(v)) {
+                      handleChange('equipo_opcion_ab_armas', {
+                        ...formData.equipo_opcion_ab_armas,
+                        opcion_a: [...current, v]
+                      });
+                    }
+                  }}
+                >
+                  <SelectTrigger><SelectValue placeholder="Añadir arma..." /></SelectTrigger>
+                  <SelectContent>
+                    {getAllWeapons().map(w => <SelectItem key={w} value={w}>{w}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+                <div className="flex flex-wrap gap-1 mt-2">
+                  {(formData.equipo_opcion_ab_armas.opcion_a || []).map((w, i) => (
+                    <span key={i} className="px-2 py-1 bg-red-500/20 text-red-300 rounded text-xs flex items-center gap-1">
+                      {w}
+                      <button onClick={() => {
+                        const newArr = formData.equipo_opcion_ab_armas.opcion_a.filter((_, idx) => idx !== i);
+                        handleChange('equipo_opcion_ab_armas', {
+                          ...formData.equipo_opcion_ab_armas,
+                          opcion_a: newArr
+                        });
+                      }}><X className="w-3 h-3" /></button>
+                    </span>
+                  ))}
+                </div>
+              </div>
+              
+              {/* Option B */}
+              <div className="p-3 bg-[hsl(var(--torch-orange))/10] rounded border border-[hsl(var(--torch-orange))/30]">
+                <Label className="text-[hsl(var(--torch-orange))] font-bold mb-2 block">OPCIÓN B - Armas a elegir</Label>
+                <div className="grid md:grid-cols-2 gap-4">
+                  <div>
+                    <Label className="text-xs">Cantidad a elegir</Label>
+                    <Input
+                      type="number"
+                      min={1}
+                      value={formData.equipo_opcion_ab_armas.opcion_b?.cantidad_elegir || 1}
+                      onChange={(e) => handleChange('equipo_opcion_ab_armas', {
+                        ...formData.equipo_opcion_ab_armas,
+                        opcion_b: { ...formData.equipo_opcion_ab_armas.opcion_b, cantidad_elegir: parseInt(e.target.value) || 1 }
+                      })}
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Armas disponibles</Label>
+                    <Select
+                      onValueChange={(v) => {
+                        const current = formData.equipo_opcion_ab_armas.opcion_b?.armas || [];
+                        if (!current.includes(v)) {
+                          handleChange('equipo_opcion_ab_armas', {
+                            ...formData.equipo_opcion_ab_armas,
+                            opcion_b: { ...formData.equipo_opcion_ab_armas.opcion_b, armas: [...current, v] }
+                          });
+                        }
+                      }}
+                    >
+                      <SelectTrigger><SelectValue placeholder="Añadir arma..." /></SelectTrigger>
+                      <SelectContent>
+                        {getAllWeapons().map(w => <SelectItem key={w} value={w}>{w}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <div className="flex flex-wrap gap-1 mt-2">
+                  {(formData.equipo_opcion_ab_armas.opcion_b?.armas || []).map((w, i) => (
+                    <span key={i} className="px-2 py-1 bg-orange-500/20 text-orange-300 rounded text-xs flex items-center gap-1">
+                      {w}
+                      <button onClick={() => {
+                        const newArr = formData.equipo_opcion_ab_armas.opcion_b.armas.filter((_, idx) => idx !== i);
+                        handleChange('equipo_opcion_ab_armas', {
+                          ...formData.equipo_opcion_ab_armas,
+                          opcion_b: { ...formData.equipo_opcion_ab_armas.opcion_b, armas: newArr }
+                        });
+                      }}><X className="w-3 h-3" /></button>
+                    </span>
+                  ))}
+                </div>
+              </div>
+            </Section>
+
+            {/* === EQUIPMENT - OPTION A/B WEAPONS WITH SHIELD === */}
+            <Section title="🛡️ Opción A o B: Armas + Escudo" color="gold">
+              <p className="text-xs text-muted-foreground mb-3">
+                Opción A: Elegir 1 arma de la lista + Escudo incluido<br/>
+                Opción B: Elegir 1 arma del Bloque 1 + 1 arma del Bloque 2
+              </p>
+              
+              {/* Option A - Weapons + Shield */}
+              <div className="p-3 bg-[hsl(var(--magic-blue))/10] rounded border border-[hsl(var(--magic-blue))/30] mb-4">
+                <div className="flex items-center justify-between mb-2">
+                  <Label className="text-[hsl(var(--magic-blue))] font-bold">OPCIÓN A - Arma (elegir 1) + Escudo</Label>
+                  <div className="flex items-center gap-2">
+                    <Checkbox 
+                      checked={formData.equipo_opcion_ab_armas_escudo.opcion_a?.incluye_escudo ?? true}
+                      onCheckedChange={(v) => handleChange('equipo_opcion_ab_armas_escudo', {
+                        ...formData.equipo_opcion_ab_armas_escudo,
+                        opcion_a: { ...formData.equipo_opcion_ab_armas_escudo.opcion_a, incluye_escudo: v }
+                      })}
+                    />
+                    <Label className="text-xs">Incluye escudo</Label>
+                  </div>
+                </div>
+                <Select
+                  onValueChange={(v) => {
+                    const current = formData.equipo_opcion_ab_armas_escudo.opcion_a?.armas || [];
+                    if (!current.includes(v)) {
+                      handleChange('equipo_opcion_ab_armas_escudo', {
+                        ...formData.equipo_opcion_ab_armas_escudo,
+                        opcion_a: { ...formData.equipo_opcion_ab_armas_escudo.opcion_a, armas: [...current, v] }
+                      });
+                    }
+                  }}
+                >
+                  <SelectTrigger><SelectValue placeholder="Añadir arma a elegir..." /></SelectTrigger>
+                  <SelectContent>
+                    {getAllWeapons().map(w => <SelectItem key={w} value={w}>{w}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+                <div className="flex flex-wrap gap-1 mt-2">
+                  {(formData.equipo_opcion_ab_armas_escudo.opcion_a?.armas || []).map((w, i) => (
+                    <span key={i} className="px-2 py-1 bg-red-500/20 text-red-300 rounded text-xs flex items-center gap-1">
+                      {w}
+                      <button onClick={() => {
+                        const newArr = formData.equipo_opcion_ab_armas_escudo.opcion_a.armas.filter((_, idx) => idx !== i);
+                        handleChange('equipo_opcion_ab_armas_escudo', {
+                          ...formData.equipo_opcion_ab_armas_escudo,
+                          opcion_a: { ...formData.equipo_opcion_ab_armas_escudo.opcion_a, armas: newArr }
+                        });
+                      }}><X className="w-3 h-3" /></button>
+                    </span>
+                  ))}
+                  {formData.equipo_opcion_ab_armas_escudo.opcion_a?.incluye_escudo && (
+                    <span className="px-2 py-1 bg-blue-500/20 text-blue-300 rounded text-xs">+ Escudo</span>
+                  )}
+                </div>
+              </div>
+              
+              {/* Option B - Two weapon blocks */}
+              <div className="p-3 bg-[hsl(var(--torch-orange))/10] rounded border border-[hsl(var(--torch-orange))/30]">
+                <Label className="text-[hsl(var(--torch-orange))] font-bold mb-3 block">OPCIÓN B - Dos bloques de armas (elegir 1 de cada)</Label>
+                
+                {/* Block 1 */}
+                <div className="p-2 bg-black/20 rounded mb-3">
+                  <Label className="text-xs text-muted-foreground mb-1 block">Bloque 1 - Elegir 1 arma</Label>
+                  <Select
+                    onValueChange={(v) => {
+                      const current = formData.equipo_opcion_ab_armas_escudo.opcion_b?.bloque1 || [];
+                      if (!current.includes(v)) {
+                        handleChange('equipo_opcion_ab_armas_escudo', {
+                          ...formData.equipo_opcion_ab_armas_escudo,
+                          opcion_b: { ...formData.equipo_opcion_ab_armas_escudo.opcion_b, bloque1: [...current, v] }
+                        });
+                      }
+                    }}
+                  >
+                    <SelectTrigger><SelectValue placeholder="Añadir arma al Bloque 1..." /></SelectTrigger>
+                    <SelectContent>
+                      {getAllWeapons().map(w => <SelectItem key={w} value={w}>{w}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                  <div className="flex flex-wrap gap-1 mt-2">
+                    {(formData.equipo_opcion_ab_armas_escudo.opcion_b?.bloque1 || []).map((w, i) => (
+                      <span key={i} className="px-2 py-1 bg-purple-500/20 text-purple-300 rounded text-xs flex items-center gap-1">
+                        {w}
+                        <button onClick={() => {
+                          const newArr = formData.equipo_opcion_ab_armas_escudo.opcion_b.bloque1.filter((_, idx) => idx !== i);
+                          handleChange('equipo_opcion_ab_armas_escudo', {
+                            ...formData.equipo_opcion_ab_armas_escudo,
+                            opcion_b: { ...formData.equipo_opcion_ab_armas_escudo.opcion_b, bloque1: newArr }
+                          });
+                        }}><X className="w-3 h-3" /></button>
+                      </span>
+                    ))}
+                  </div>
+                </div>
+                
+                {/* Block 2 */}
+                <div className="p-2 bg-black/20 rounded">
+                  <Label className="text-xs text-muted-foreground mb-1 block">Bloque 2 - Elegir 1 arma</Label>
+                  <Select
+                    onValueChange={(v) => {
+                      const current = formData.equipo_opcion_ab_armas_escudo.opcion_b?.bloque2 || [];
+                      if (!current.includes(v)) {
+                        handleChange('equipo_opcion_ab_armas_escudo', {
+                          ...formData.equipo_opcion_ab_armas_escudo,
+                          opcion_b: { ...formData.equipo_opcion_ab_armas_escudo.opcion_b, bloque2: [...current, v] }
+                        });
+                      }
+                    }}
+                  >
+                    <SelectTrigger><SelectValue placeholder="Añadir arma al Bloque 2..." /></SelectTrigger>
+                    <SelectContent>
+                      {getAllWeapons().map(w => <SelectItem key={w} value={w}>{w}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                  <div className="flex flex-wrap gap-1 mt-2">
+                    {(formData.equipo_opcion_ab_armas_escudo.opcion_b?.bloque2 || []).map((w, i) => (
+                      <span key={i} className="px-2 py-1 bg-green-500/20 text-green-300 rounded text-xs flex items-center gap-1">
+                        {w}
+                        <button onClick={() => {
+                          const newArr = formData.equipo_opcion_ab_armas_escudo.opcion_b.bloque2.filter((_, idx) => idx !== i);
+                          handleChange('equipo_opcion_ab_armas_escudo', {
+                            ...formData.equipo_opcion_ab_armas_escudo,
+                            opcion_b: { ...formData.equipo_opcion_ab_armas_escudo.opcion_b, bloque2: newArr }
+                          });
+                        }}><X className="w-3 h-3" /></button>
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </Section>
+
             {/* === PROFESSION PATHS === */}
             <Section title="🛤️ Caminos de la Profesión (Especialidades)" color="gold">
               <div className="space-y-4">
