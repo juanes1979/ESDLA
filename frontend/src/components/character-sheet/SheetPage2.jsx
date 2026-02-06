@@ -13,13 +13,13 @@ export const PAGE2_FIELDS = {
   sombra: { x: 77, y: 418, width: 456, fontSize: 35, align: 'center' },
   descripcion_sombra: { x: 71, y: 465, width: 455, height: 300, fontSize: 35, align: 'left', multiline: true },
   
-  // Trasfondo section - MULTILINE
-  trasfondo: { x: 85, y: 838, width: 437, fontSize: 25, align: 'left' },
-  descripcion_trasfondo: { x: 84, y: 875, width: 438, height: 180, fontSize: 32, align: 'left', multiline: true },
+  // Trasfondo section - MULTILINE (restaurado a posición original)
+  trasfondo: { x: 85, y: 1088, width: 437, fontSize: 25, align: 'left' },
+  descripcion_trasfondo: { x: 84, y: 1126, width: 438, height: 250, fontSize: 35, align: 'left', multiline: true },
   
-  // VIRTUD section - En la columna izquierda, debajo del trasfondo (visible en la hoja)
-  virtud_nombre: { x: 85, y: 1075, width: 437, fontSize: 26, align: 'left' },
-  virtud_descripcion: { x: 84, y: 1110, width: 438, height: 150, fontSize: 26, align: 'left', multiline: true },
+  // VIRTUD section - En la columna izquierda, zona inferior (debajo del espacio del trasfondo)
+  virtud_nombre: { x: 85, y: 1400, width: 437, fontSize: 26, align: 'left' },
+  virtud_descripcion: { x: 84, y: 1440, width: 438, height: 170, fontSize: 26, align: 'left', multiline: true },
   
   // Puntos comunidad
   puntos_comunidad: { x: 672, y: 372, width: 68, fontSize: 70, align: 'center' },
