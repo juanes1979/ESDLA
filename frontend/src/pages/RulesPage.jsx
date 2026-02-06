@@ -738,6 +738,19 @@ const RulesPage = () => {
   const renderEquipmentTables = () => {
     if (!data) return null;
     
+    // Admin button to create new equipment
+    const adminButton = isAdmin && (
+      <div className="flex justify-end mb-4">
+        <Button
+          onClick={() => setShowEquipmentEditor(true)}
+          className="btn-fantasy"
+        >
+          <Plus className="w-4 h-4 mr-2" />
+          Crear Equipo
+        </Button>
+      </div>
+    );
+    
     // Group categories by section with titles
     const sections = [
       {
