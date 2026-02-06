@@ -1646,6 +1646,17 @@ const RulesPage = () => {
           onCopy={editingItem ? (item) => handleCopy('occupations', item.id, item.vocacion) : null}
         />
       )}
+      
+      {showEquipmentEditor && (
+        <EquipmentEditor
+          onSave={async () => {
+            // Reload equipment data
+            const equipment = await getEquipmentCatalog();
+            setData(equipment);
+          }}
+          onClose={() => setShowEquipmentEditor(false)}
+        />
+      )}
     </div>
   );
 };
