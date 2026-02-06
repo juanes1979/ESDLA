@@ -21,15 +21,34 @@ const ALL_SKILLS = [
   'Saber antiguo', 'Sigilo', 'Trato con animales', 'Viajar'
 ];
 
-// Available tools
+// Available tools (including Pipa)
 const ALL_TOOLS = [
   'Herramientas de carpintería', 'Herramientas de herrero', 'Herramientas de alfarero',
   'Herramientas de joyero', 'Herramientas de curtidor', 'Herramientas de zapatero',
   'Herramientas de tejedor', 'Herramientas de albañil', 'Herramientas de cartógrafo',
   'Herramientas de cocinero', 'Herramientas de cervecero', 'Herramientas de pintor',
-  'Instrumentos musicales', 'Juegos', 'Vehículos acuáticos', 'Vehículos terrestres',
+  'Instrumentos musicales', 'Juegos', 'Pipa', 'Vehículos acuáticos', 'Vehículos terrestres',
   'Kit de herborista', 'Kit de disfraz', 'Kit de falsificador', 'Kit de navegante',
   'Suministros de calígrafo', 'Útiles de soplador de vidrio'
+];
+
+// Categories for additional competency selector
+const COMPETENCIA_ADICIONAL_CATEGORIAS = [
+  { value: 'herramientas', label: 'Herramientas', items: [
+    'Herramientas de carpintería', 'Herramientas de herrero', 'Herramientas de alfarero',
+    'Herramientas de joyero', 'Herramientas de curtidor', 'Herramientas de zapatero',
+    'Herramientas de tejedor', 'Herramientas de albañil', 'Herramientas de cartógrafo',
+    'Herramientas de cocinero', 'Herramientas de cervecero', 'Herramientas de pintor',
+    'Kit de herborista', 'Kit de disfraz', 'Kit de falsificador', 'Kit de navegante',
+    'Suministros de calígrafo', 'Útiles de soplador de vidrio', 'Vehículos acuáticos', 'Vehículos terrestres'
+  ]},
+  { value: 'juegos', label: 'Juegos', items: [
+    'Dados', 'Naipes', 'Tablero (Ajedrez)', 'Tablero (Damas)', 'Juego de fichas'
+  ]},
+  { value: 'instrumentos', label: 'Instrumentos musicales', items: [
+    'Arpa', 'Flauta', 'Laúd', 'Lira', 'Cuerno', 'Tambor', 'Gaita', 'Violín', 'Zanfoña'
+  ]},
+  { value: 'pipa', label: 'Pipa', items: ['Pipa'] }
 ];
 
 // Attributes
