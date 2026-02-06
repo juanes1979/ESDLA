@@ -7,3 +7,4 @@ export { default as CombateSection } from './CombateSection';
 export { default as SalariosSection } from './SalariosSection';
 export { default as VariosSection } from './VariosSection';
 export { default as ViajeSection } from './ViajeSection';
+export { default as ComunidadSection } from './ComunidadSection';
