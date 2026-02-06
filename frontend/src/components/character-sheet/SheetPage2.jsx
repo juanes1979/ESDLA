@@ -17,6 +17,10 @@ export const PAGE2_FIELDS = {
   trasfondo: { x: 85, y: 1088, width: 437, fontSize: 25, align: 'left' },
   descripcion_trasfondo: { x: 84, y: 1126, width: 438, height: 250, fontSize: 35, align: 'left', multiline: true },
   
+  // VIRTUD section - NEW (debajo de trasfondo, a la izquierda)
+  virtud_nombre: { x: 85, y: 1395, width: 437, fontSize: 30, align: 'left' },
+  virtud_descripcion: { x: 84, y: 1430, width: 438, height: 180, fontSize: 30, align: 'left', multiline: true },
+  
   // Puntos comunidad
   puntos_comunidad: { x: 672, y: 372, width: 68, fontSize: 70, align: 'center' },
   
