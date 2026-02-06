@@ -272,12 +272,54 @@ async def get_culture_virtues(culture_id: str):
                 virtues.append(v)
                 virtue_ids.add(v["_id"])
     
+    # Map virtue fields to frontend-expected names
+    def map_virtue(v):
+        # Build caracteristicas_fijas from direct increases
+        caracteristicas_fijas = {}
+        if v.get("aumenta_fuerza"):
+            caracteristicas_fijas["fuerza"] = 1
+        if v.get("aumenta_destreza"):
+            caracteristicas_fijas["destreza"] = 1
+        if v.get("aumenta_constitucion"):
+            caracteristicas_fijas["constitucion"] = 1
+        if v.get("aumenta_inteligencia"):
+            caracteristicas_fijas["inteligencia"] = 1
+        if v.get("aumenta_sabiduria"):
+            caracteristicas_fijas["sabiduria"] = 1
+        if v.get("aumenta_carisma"):
+            caracteristicas_fijas["carisma"] = 1
+        
+        return {
+            "id": str(v.get("_id")),
+            "nombre": v.get("nombre"),
+            "cultura": v.get("cultura"),
+            "es_comun": v.get("es_comun", False),
+            "tipo": v.get("cultura") if v.get("cultura") else ("COMUNES" if v.get("es_comun") else None),
+            "descripcion": v.get("descripcion"),
+            "rasgos_virtud": v.get("rasgos"),
+            "competencias_texto": v.get("rasgos"),  # Legacy field
+            # Stat bonuses
+            "caracteristicas_fijas": caracteristicas_fijas if caracteristicas_fijas else None,
+            "caracteristicas_elegir": v.get("elegir_caracteristica"),
+            # Saving throw proficiencies
+            "salvaciones_elegir": v.get("elegir_salvacion"),
+            # Extra stats
+            "puntos_golpe_extra": v.get("bonus_puntos_golpe") or 0,
+            "puntos_comunidad_extra": v.get("bonus_comunidad") or 0,
+            "clase_armadura_extra": v.get("bonus_ca") or 0,
+            # Skill/tool proficiencies to choose
+            "competencias_habilidades_elegir": v.get("elegir_habilidad"),
+            "competencias_herramientas_elegir": v.get("elegir_herramienta"),
+        }
+    
+    mapped_virtues = [map_virtue(v) for v in virtues]
+    
     return {
         "culture_id": culture_id,
         "culture_name": culture.get("nombre"),
         "tiene_virtud_inicial": culture.get("tiene_virtud_inicial", False),
         "permite_virtudes_comunes": culture.get("permite_virtudes_comunes", False),
-        "virtues": serialize_docs(virtues)
+        "virtues": mapped_virtues
     }
 
 
