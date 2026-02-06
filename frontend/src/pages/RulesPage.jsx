@@ -1094,6 +1094,21 @@ const RulesPage = () => {
 
   // === CRUD FUNCTIONS ===
   
+  const handleDeleteSenda = async (senda) => {
+    if (!window.confirm(`¿Estás seguro de eliminar la senda "${senda}"? Esta acción no se puede deshacer.`)) {
+      return;
+    }
+    try {
+      await api.delete(`/sombra/sendas/${encodeURIComponent(senda)}`);
+      toast.success(`Senda "${senda}" eliminada correctamente`);
+      // Reload shadow data
+      const response = await api.get('/data/sombra');
+      setData(response.data);
+    } catch (err) {
+      toast.error(err.response?.data?.detail || 'Error al eliminar la senda');
+    }
+  };
+  
   const reloadData = async () => {
     if (!selectedCategory) return;
     setLoading(true);
