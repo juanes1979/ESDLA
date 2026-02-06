@@ -822,8 +822,11 @@ const RulesPage = () => {
                   {cat.fields.includes('comentarios') && <th className="text-left py-2 px-2">Modificadores</th>}
                   {cat.fields.includes('forma_preparacion') && <th className="text-center py-2 px-2">Preparación</th>}
                   {cat.fields.includes('efecto') && <th className="text-left py-2 px-2">Efecto</th>}
-                  {cat.fields.includes('velocidad') && <th className="text-center py-2 px-2">Vel.</th>}
                   {cat.fields.includes('capacidad_carga') && <th className="text-center py-2 px-2">Carga</th>}
+                  {cat.fields.includes('constitucion') && <th className="text-center py-2 px-2">Const.</th>}
+                  {cat.fields.includes('velocidad') && <th className="text-center py-2 px-2">Vel.</th>}
+                  {cat.fields.includes('capacidad_pequeno') && <th className="text-center py-2 px-2">Pequeño</th>}
+                  {cat.fields.includes('capacidad_mediano') && <th className="text-center py-2 px-2">Mediano</th>}
                   {cat.fields.includes('capacidad_monta') && <th className="text-center py-2 px-2">Cap. Monta</th>}
                   {cat.fields.includes('capacidad_kg') && <th className="text-center py-2 px-2">Cap. (Kg)</th>}
                   {cat.fields.includes('m2') && <th className="text-center py-2 px-2">m²</th>}
