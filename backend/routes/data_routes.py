@@ -535,6 +535,12 @@ async def create_culture(data: CultureCreate):
         "capacidad_carga_x2": data.capacidad_carga_x2,
         "tiene_virtud_inicial": data.tiene_virtud_inicial,
         "mejora_noldor": data.mejora_noldor,
+        # NEW: Associated backgrounds
+        "trasfondos_ids": data.trasfondos_ids,
+        # NEW: Virtues configuration
+        "virtudes_propias": data.virtudes_propias,
+        "copiar_virtudes_de": data.copiar_virtudes_de,
+        "permite_virtudes_comunes": data.permite_virtudes_comunes,
         # Metadata
         "is_custom": True,
         "created_at": now_utc(),
