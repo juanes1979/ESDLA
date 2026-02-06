@@ -101,6 +101,32 @@ const SheetPage3 = ({ character, scale, fieldPositions = {} }) => {
         scale={scale} 
       />
       
+      {/* VIRTUD - Only show if character has virtue */}
+      {character.virtud_nombre && (
+        <>
+          <DisplayField 
+            x={PAGE3_FIELDS.virtud_nombre.x}
+            y={PAGE3_FIELDS.virtud_nombre.y}
+            width={PAGE3_FIELDS.virtud_nombre.width}
+            fontSize={PAGE3_FIELDS.virtud_nombre.fontSize}
+            align={PAGE3_FIELDS.virtud_nombre.align}
+            value={`★ VIRTUD: ${character.virtud_nombre}`} 
+            scale={scale} 
+          />
+          <DisplayField 
+            x={PAGE3_FIELDS.virtud_rasgos.x}
+            y={PAGE3_FIELDS.virtud_rasgos.y}
+            width={PAGE3_FIELDS.virtud_rasgos.width}
+            height={PAGE3_FIELDS.virtud_rasgos.height}
+            fontSize={PAGE3_FIELDS.virtud_rasgos.fontSize}
+            align={PAGE3_FIELDS.virtud_rasgos.align}
+            multiline={true}
+            value={character.virtud_rasgos || ''} 
+            scale={scale} 
+          />
+        </>
+      )}
+      
       {/* Combined occupation description with all special abilities */}
       <DisplayField 
         x={PAGE3_FIELDS.descripcion_ocupacion_larga.x}
