@@ -35,6 +35,25 @@ const ALL_TOOLS = [
 // Attributes
 const ATTRIBUTES = ['fuerza', 'destreza', 'constitucion', 'inteligencia', 'sabiduria', 'carisma'];
 
+// Collapsible Section component
+const CollapsibleSection = ({ id, title, isActive, onToggle, children, color = 'gold' }) => (
+  <div className="border border-border/30 rounded-lg overflow-hidden">
+    <button
+      type="button"
+      className="w-full flex items-center justify-between p-3 bg-black/20 hover:bg-black/30 transition-colors"
+      onClick={() => onToggle(id)}
+    >
+      <h3 className={`font-heading text-[hsl(var(--${color}))]`}>{title}</h3>
+      {isActive ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+    </button>
+    {isActive && (
+      <div className="p-4">
+        {children}
+      </div>
+    )}
+  </div>
+);
+
 const CultureEditor = ({ culture, races, onSave, onClose, onCopy }) => {
   const isEditing = !!culture;
   const [saving, setSaving] = useState(false);
