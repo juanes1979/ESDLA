@@ -141,8 +141,23 @@ class CharacterCreateStep4(BaseModel):
 
 
 class CharacterCreateStep5(BaseModel):
-    """Step 5: Virtue selection"""
+    """Step 5: Virtue selection - All virtue data"""
     virtud_id: str
+    virtud_nombre: Optional[str] = None
+    virtud_descripcion: Optional[str] = None
+    virtud_rasgos: Optional[str] = None
+    # Characteristic bonuses
+    virtud_caracteristicas_fijas: Optional[Dict[str, int]] = None
+    virtud_caracteristicas_elegir: Optional[List[str]] = None
+    # Saving throw proficiencies
+    virtud_salvaciones_elegir: Optional[List[str]] = None
+    # Extra stats
+    virtud_pg_extra: Optional[int] = 0
+    virtud_comunidad_extra: Optional[int] = 0
+    virtud_ca_extra: Optional[int] = 0
+    # Skill/tool proficiencies to choose
+    virtud_habilidades_elegir: Optional[List[str]] = None
+    virtud_herramientas_elegir: Optional[List[str]] = None
 
 
 class CharacterCreateStep6(BaseModel):
