@@ -983,3 +983,347 @@ async def save_sheet_positions_page(page_num: int, positions: dict):
         upsert=True
     )
     return {"message": f"Page {page_num} positions saved successfully"}
+
+
+
+# === SOMBRA (Shadow Rules) ===
+
+@router.get("/sombra")
+async def get_sombra_rules():
+    """Get shadow rules including pavor, avaricia, fechorias, estados, sendas"""
+    sombra = await db.sombra_rules.find_one({"_id": "main"})
+    if not sombra:
+        return {
+            "pavor": [],
+            "avaricia": [],
+            "fechorias": [],
+            "estados": [],
+            "sendas_sombra": []
+        }
+    return {
+        "pavor": sombra.get("pavor", []),
+        "avaricia": sombra.get("avaricia", []),
+        "fechorias": sombra.get("fechorias", []),
+        "estados": sombra.get("estados", []),
+        "sendas_sombra": sombra.get("sendas_sombra", [])
+    }
+
+
+# === ARTES (Arts) ===
+
+@router.get("/artes")
+async def get_artes():
+    """Get all arts"""
+    artes = await db.artes.find({}).to_list(50)
+    return {"artes": serialize_docs(artes)}
+
+
+@router.post("/artes")
+async def create_arte(arte: dict = Body(...)):
+    """Create a new arte"""
+    arte["_id"] = str(uuid.uuid4())
+    arte["created_at"] = now_utc()
+    await db.artes.insert_one(arte)
+    return {"id": arte["_id"], "message": "Arte created successfully"}
+
+
+@router.put("/artes/{arte_id}")
+async def update_arte(arte_id: str, arte: dict = Body(...)):
+    """Update an existing arte"""
+    arte["updated_at"] = now_utc()
+    result = await db.artes.update_one({"_id": arte_id}, {"$set": arte})
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Arte not found")
+    return {"message": "Arte updated successfully"}
+
+
+@router.delete("/artes/{arte_id}")
+async def delete_arte(arte_id: str):
+    """Delete an arte"""
+    result = await db.artes.delete_one({"_id": arte_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Arte not found")
+    return {"message": "Arte deleted successfully"}
+
+
+# === RECOMPENSAS (Rewards) ===
+
+@router.get("/recompensas")
+async def get_recompensas():
+    """Get rewards data"""
+    recompensas = await db.recompensas.find_one({"_id": "main"})
+    if not recompensas:
+        return {
+            "mejoras_equipo": [],
+            "niveles_recompensa": [],
+            "bonificador_competencia": []
+        }
+    return {
+        "mejoras_equipo": recompensas.get("mejoras_equipo", []),
+        "niveles_recompensa": recompensas.get("niveles_recompensa", []),
+        "bonificador_competencia": recompensas.get("bonificador_competencia", [])
+    }
+
+
+# === VIRTUDES (Virtues) - Complete data ===
+
+@router.get("/virtudes")
+async def get_all_virtudes():
+    """Get all virtues with complete data (name, description, traits, stats)"""
+    virtudes = await db.virtudes.find({}).to_list(200)
+    return {"virtudes": serialize_docs(virtudes)}
+
+
+@router.post("/virtudes")
+async def create_virtud(virtud: dict = Body(...)):
+    """Create a new virtue"""
+    virtud["_id"] = str(uuid.uuid4())
+    virtud["created_at"] = now_utc()
+    await db.virtudes.insert_one(virtud)
+    return {"id": virtud["_id"], "message": "Virtud created successfully"}
+
+
+@router.put("/virtudes/{virtud_id}")
+async def update_virtud(virtud_id: str, virtud: dict = Body(...)):
+    """Update an existing virtue"""
+    virtud["updated_at"] = now_utc()
+    result = await db.virtudes.update_one({"_id": virtud_id}, {"$set": virtud})
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Virtud not found")
+    return {"message": "Virtud updated successfully"}
+
+
+@router.delete("/virtudes/{virtud_id}")
+async def delete_virtud(virtud_id: str):
+    """Delete a virtue"""
+    result = await db.virtudes.delete_one({"_id": virtud_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Virtud not found")
+    return {"message": "Virtud deleted successfully"}
+
+
+# === EQUIPMENT CRUD ===
+
+class EquipmentItem(BaseModel):
+    categoria: str  # armas_sencillas_cc, armas_marciales_cc, armaduras_ligeras, hierbas, venenos, etc.
+    nombre: str
+    precio: Optional[float] = None
+    moneda: Optional[str] = "mp"
+    peso_kg: Optional[float] = None
+    # Weapon-specific
+    dano: Optional[str] = None
+    modificador: Optional[str] = None
+    herida: Optional[int] = None
+    alcance: Optional[str] = None
+    # Armor-specific
+    ca: Optional[int] = None
+    comentarios: Optional[str] = None
+    otros: Optional[str] = None
+    # Herb/Poison specific
+    forma_preparacion: Optional[str] = None
+    efecto: Optional[str] = None
+    # Mount-specific
+    capacidad_carga: Optional[int] = None
+    constitucion: Optional[str] = None
+    velocidad: Optional[int] = None
+    capacidad_pequeno: Optional[bool] = None
+    capacidad_mediano: Optional[bool] = None
+    capacidad_monta: Optional[str] = None
+    # Construction-specific
+    m2: Optional[str] = None
+
+
+@router.post("/equipment")
+async def create_equipment_item(item: EquipmentItem):
+    """Create a new equipment item in the specified category"""
+    categoria = item.categoria
+    item_dict = item.dict(exclude_unset=True, exclude={"categoria"})
+    
+    # Get current catalog
+    catalog = await db.equipment_catalog.find_one({"_id": "main"})
+    if not catalog:
+        catalog = {"_id": "main"}
+    
+    # Initialize category if doesn't exist
+    if categoria not in catalog:
+        catalog[categoria] = []
+    
+    # Add item
+    catalog[categoria].append(item_dict)
+    
+    # Update catalog
+    await db.equipment_catalog.update_one(
+        {"_id": "main"},
+        {"$set": {categoria: catalog[categoria]}},
+        upsert=True
+    )
+    
+    return {"message": f"Item '{item.nombre}' added to {categoria}"}
+
+
+@router.put("/equipment/{categoria}/{item_nombre}")
+async def update_equipment_item(categoria: str, item_nombre: str, item: dict = Body(...)):
+    """Update an equipment item by category and name"""
+    catalog = await db.equipment_catalog.find_one({"_id": "main"})
+    if not catalog or categoria not in catalog:
+        raise HTTPException(status_code=404, detail="Category not found")
+    
+    # Find and update item
+    items = catalog[categoria]
+    found = False
+    for i, existing in enumerate(items):
+        if existing.get("nombre", "").lower() == item_nombre.lower():
+            items[i] = {**existing, **item}
+            found = True
+            break
+    
+    if not found:
+        raise HTTPException(status_code=404, detail="Item not found")
+    
+    # Save
+    await db.equipment_catalog.update_one(
+        {"_id": "main"},
+        {"$set": {categoria: items}}
+    )
+    
+    return {"message": f"Item '{item_nombre}' updated"}
+
+
+@router.delete("/equipment/{categoria}/{item_nombre}")
+async def delete_equipment_item(categoria: str, item_nombre: str):
+    """Delete an equipment item by category and name"""
+    catalog = await db.equipment_catalog.find_one({"_id": "main"})
+    if not catalog or categoria not in catalog:
+        raise HTTPException(status_code=404, detail="Category not found")
+    
+    # Find and remove item
+    items = catalog[categoria]
+    original_len = len(items)
+    items = [item for item in items if item.get("nombre", "").lower() != item_nombre.lower()]
+    
+    if len(items) == original_len:
+        raise HTTPException(status_code=404, detail="Item not found")
+    
+    # Save
+    await db.equipment_catalog.update_one(
+        {"_id": "main"},
+        {"$set": {categoria: items}}
+    )
+    
+    return {"message": f"Item '{item_nombre}' deleted"}
+
+
+# === EQUIPMENT CATEGORIES METADATA ===
+
+@router.get("/equipment-categories")
+async def get_equipment_categories():
+    """Get all equipment categories with their field definitions"""
+    return {
+        "categories": [
+            {
+                "key": "armas_sencillas_cc",
+                "name": "Armas Sencillas (Cuerpo a Cuerpo)",
+                "fields": ["nombre", "precio", "moneda", "dano", "modificador", "herida", "peso_kg"]
+            },
+            {
+                "key": "armas_sencillas_distancia",
+                "name": "Armas Sencillas (Distancia)",
+                "fields": ["nombre", "precio", "moneda", "dano", "alcance", "herida", "peso_kg"]
+            },
+            {
+                "key": "armas_marciales_cc",
+                "name": "Armas Marciales (Cuerpo a Cuerpo)",
+                "fields": ["nombre", "precio", "moneda", "dano", "modificador", "herida", "peso_kg"]
+            },
+            {
+                "key": "armas_marciales_distancia",
+                "name": "Armas Marciales (Distancia)",
+                "fields": ["nombre", "precio", "moneda", "dano", "alcance", "herida", "peso_kg"]
+            },
+            {
+                "key": "armaduras_ligeras",
+                "name": "Armaduras Ligeras",
+                "fields": ["nombre", "precio", "moneda", "ca", "comentarios", "peso_kg"]
+            },
+            {
+                "key": "armaduras_medias",
+                "name": "Armaduras Medias",
+                "fields": ["nombre", "precio", "moneda", "ca", "comentarios", "peso_kg"]
+            },
+            {
+                "key": "armaduras_pesadas",
+                "name": "Armaduras Pesadas",
+                "fields": ["nombre", "precio", "moneda", "ca", "comentarios", "peso_kg"]
+            },
+            {
+                "key": "escudos",
+                "name": "Escudos",
+                "fields": ["nombre", "precio", "moneda", "ca", "peso_kg"]
+            },
+            {
+                "key": "equipo_general",
+                "name": "Equipo General",
+                "fields": ["nombre", "precio", "moneda", "peso_kg"]
+            },
+            {
+                "key": "herramientas",
+                "name": "Herramientas",
+                "fields": ["nombre", "precio", "moneda", "peso_kg"]
+            },
+            {
+                "key": "juegos",
+                "name": "Juegos",
+                "fields": ["nombre", "precio", "moneda", "peso_kg"]
+            },
+            {
+                "key": "instrumentos_musicales",
+                "name": "Instrumentos Musicales",
+                "fields": ["nombre", "precio", "moneda", "peso_kg"]
+            },
+            {
+                "key": "consumibles",
+                "name": "Consumibles y Alimentación",
+                "fields": ["nombre", "precio", "moneda", "peso_kg"]
+            },
+            {
+                "key": "comida_posadas",
+                "name": "Comida en Posadas",
+                "fields": ["nombre", "precio", "moneda", "peso_kg"]
+            },
+            {
+                "key": "hierbas",
+                "name": "Hierbas Medicinales y Pociones",
+                "fields": ["nombre", "precio", "moneda", "forma_preparacion", "efecto", "peso_kg"]
+            },
+            {
+                "key": "venenos",
+                "name": "Venenos",
+                "fields": ["nombre", "precio", "moneda", "forma_preparacion", "efecto", "peso_kg"]
+            },
+            {
+                "key": "monturas",
+                "name": "Monturas",
+                "fields": ["nombre", "precio", "moneda", "capacidad_carga", "constitucion", "velocidad", "capacidad_pequeno", "capacidad_mediano"]
+            },
+            {
+                "key": "accesorios_monturas",
+                "name": "Accesorios de Monturas",
+                "fields": ["nombre", "precio", "moneda", "peso_kg"]
+            },
+            {
+                "key": "transporte_terrestre",
+                "name": "Transporte Terrestre",
+                "fields": ["nombre", "precio", "moneda", "capacidad_kg"]
+            },
+            {
+                "key": "transporte_maritimo",
+                "name": "Transporte Marítimo",
+                "fields": ["nombre", "precio", "moneda", "capacidad_kg"]
+            },
+            {
+                "key": "construccion",
+                "name": "Elementos de Construcción",
+                "fields": ["nombre", "precio", "moneda", "peso_kg", "m2"]
+            }
+        ]
+    }
