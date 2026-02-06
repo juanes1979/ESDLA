@@ -138,10 +138,31 @@ const RulesPage = () => {
     });
   };
 
+  // Load virtues for a specific culture
+  const loadCultureVirtues = async (cultureId) => {
+    if (cultureVirtues[cultureId]) return; // Already loaded
+    
+    try {
+      const res = await api.get(`/data/cultures/${cultureId}/virtues`);
+      setCultureVirtues(prev => ({
+        ...prev,
+        [cultureId]: res.data.virtues || []
+      }));
+    } catch (err) {
+      console.warn('Could not load culture virtues:', err);
+    }
+  };
+
   // COMPLETE Culture Detail Renderer
   const renderCultureDetail = (culture) => {
     const isExpanded = expandedCulture === culture.id;
     const names = cultureNames[culture.nombre] || {};
+    const virtues = cultureVirtues[culture.id] || [];
+
+    // Load virtues when expanded and has initial virtue
+    if (isExpanded && culture.tiene_virtud_inicial && !cultureVirtues[culture.id]) {
+      loadCultureVirtues(culture.id);
+    }
     
     return (
       <div key={culture.id} className="card-parchment rounded-lg p-4 mb-4" data-testid={`culture-${culture.id}`}>
