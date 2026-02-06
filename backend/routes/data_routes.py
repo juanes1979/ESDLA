@@ -1051,6 +1051,50 @@ async def get_sombra_rules():
     }
 
 
+
+@router.post("/sombra/sendas")
+async def add_occupation_shadow_path(data: dict = Body(...)):
+    """Add or update shadow path from an occupation to the shadow rules"""
+    ocupacion = data.get("ocupacion")
+    senda = data.get("senda")
+    descripcion = data.get("descripcion")
+    defectos = data.get("defectos", [])
+    
+    if not ocupacion or not senda:
+        raise HTTPException(status_code=400, detail="ocupacion and senda are required")
+    
+    # Get current sombra rules
+    current = await db.sombra_rules.find_one({"_id": "main"})
+    if not current:
+        current = {"_id": "main", "sendas_sombra": []}
+    
+    sendas = current.get("sendas_sombra", [])
+    
+    # Remove existing entries for this senda (if updating)
+    sendas = [s for s in sendas if s.get("senda") != senda]
+    
+    # Add new entries
+    for defecto in defectos:
+        if defecto.get("nombre"):
+            sendas.append({
+                "senda": senda,
+                "ocupacion": ocupacion,
+                "descripcion_senda": descripcion,
+                "defecto": defecto.get("nombre"),
+                "descripcion": defecto.get("descripcion"),
+                "efecto_juego": defecto.get("efecto_juego")
+            })
+    
+    # Update
+    await db.sombra_rules.update_one(
+        {"_id": "main"},
+        {"$set": {"sendas_sombra": sendas}},
+        upsert=True
+    )
+    
+    return {"message": f"Shadow path '{senda}' saved successfully"}
+
+
 # === ARTES (Arts) ===
 
 @router.get("/artes")
