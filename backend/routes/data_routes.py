@@ -1032,7 +1032,7 @@ async def save_sheet_positions_page(page_num: int, positions: dict):
 
 @router.get("/sombra")
 async def get_sombra_rules():
-    """Get shadow rules including pavor, avaricia, fechorias, estados, sendas"""
+    """Get shadow rules including pavor, avaricia, fechorias, estados, sendas, hechiceria, fortalecer_voluntad, como_sucumbir"""
     sombra = await db.sombra_rules.find_one({"_id": "main"})
     if not sombra:
         return {
@@ -1040,14 +1040,20 @@ async def get_sombra_rules():
             "avaricia": [],
             "fechorias": [],
             "estados": [],
-            "sendas_sombra": []
+            "sendas_sombra": [],
+            "hechiceria": None,
+            "fortalecer_voluntad": None,
+            "como_sucumbir": None
         }
     return {
         "pavor": sombra.get("pavor", []),
         "avaricia": sombra.get("avaricia", []),
         "fechorias": sombra.get("fechorias", []),
         "estados": sombra.get("estados", []),
-        "sendas_sombra": sombra.get("sendas_sombra", [])
+        "sendas_sombra": sombra.get("sendas_sombra", []),
+        "hechiceria": sombra.get("hechiceria"),
+        "fortalecer_voluntad": sombra.get("fortalecer_voluntad"),
+        "como_sucumbir": sombra.get("como_sucumbir")
     }
 
 
