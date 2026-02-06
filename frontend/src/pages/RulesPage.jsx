@@ -428,6 +428,40 @@ const RulesPage = () => {
               </div>
             </Section>
 
+            {/* VIRTUDES DISPONIBLES (si tiene virtud inicial) */}
+            {culture.tiene_virtud_inicial && (
+              <Section title="Virtudes Disponibles (Nivel 1)">
+                <div className="space-y-2">
+                  <p className="text-xs text-muted-foreground mb-2">
+                    Los personajes de esta cultura pueden elegir una de las siguientes virtudes al nivel 1:
+                    {culture.permite_virtudes_comunes && (
+                      <span className="text-[hsl(var(--gold))] ml-1">(+ virtudes comunes)</span>
+                    )}
+                  </p>
+                  {virtues.length > 0 ? (
+                    <div className="grid md:grid-cols-2 gap-2">
+                      {virtues.map(v => (
+                        <div key={v.id} className="bg-[hsl(var(--torch-orange))/10] p-2 rounded border border-[hsl(var(--torch-orange))/30]">
+                          <p className="text-sm font-bold text-[hsl(var(--torch-orange))]">{v.nombre}</p>
+                          <p className="text-xs text-muted-foreground line-clamp-2">{v.descripcion}</p>
+                          {v.rasgos_virtud && (
+                            <p className="text-xs text-[hsl(var(--gold))] mt-1 line-clamp-1">
+                              {v.rasgos_virtud}
+                            </p>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Cargando virtudes...
+                    </div>
+                  )}
+                </div>
+              </Section>
+            )}
+
             {/* NOMBRES (Prefijos, Sufijos, Apellidos) */}
             {names && (names.hombre || names.mujer || names.apellidos) && (
               <Section title="Nombres de la Cultura">
