@@ -107,12 +107,13 @@ const LevelUpModal = ({
       }
       
       // Otherwise, try to load from occupation
-      if (character?.ocupacion) {
+      const occupationName = character?.ocupacion || character?.vocacion_nombre;
+      if (occupationName) {
         try {
           const res = await api.get('/data/occupations');
           const occupations = res.data?.occupations || res.data || [];
           const occupation = occupations.find(o => 
-            o.vocacion === character.ocupacion || o.vocacion?.toLowerCase() === character.ocupacion?.toLowerCase()
+            o.vocacion === occupationName || o.vocacion?.toLowerCase() === occupationName?.toLowerCase()
           );
           if (occupation?.virtudes_texto) {
             const config = parseVirtueLevels(occupation.virtudes_texto);
