@@ -859,9 +859,13 @@ async def finalize_character(draft_id: str):
 # === CHARACTER MANAGEMENT ENDPOINTS ===
 
 @router.get("/")
-async def list_characters(jugador: Optional[str] = None, campaign_id: Optional[str] = None):
+async def list_characters(jugador: Optional[str] = None, campaign_id: Optional[str] = None, include_all: bool = False):
     """List all characters, optionally filtered"""
-    query = {"estado": "activo"}
+    if include_all:
+        query = {"estado": {"$ne": "eliminado"}}
+    else:
+        query = {"$or": [{"estado": "activo"}, {"estado": {"$exists": False}}]}
+    
     if jugador:
         query["jugador"] = jugador
     if campaign_id:
