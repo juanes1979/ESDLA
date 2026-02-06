@@ -18,7 +18,7 @@ import BackgroundEditor from '@/components/admin/BackgroundEditor';
 import OccupationEditor from '@/components/admin/OccupationEditor';
 import EquipmentEditor from '@/components/admin/EquipmentEditor';
 // Refactored rule section components
-import { SombraSection, CombateSection, SalariosSection, VariosSection, ViajeSection, ComunidadSection } from '@/components/rules';
+import { SombraSection, CombateSection, SalariosSection, VariosSection, ViajeSection, ComunidadSection, NPCsSection } from '@/components/rules';
 
 const RULE_CATEGORIES = [
   { id: 'cultures', name: 'Culturas', icon: Users, color: 'gold', description: 'Las razas y pueblos de la Tierra Media' },
@@ -34,6 +34,7 @@ const RULE_CATEGORIES = [
   { id: 'varios', name: 'Reglas Varias', icon: BookOpen, color: 'magic-blue', description: 'Pruebas, Cansancio, Inspiración, Ojo de Mordor' },
   { id: 'travel', name: 'Viajes', icon: Map, color: 'gold', description: 'Reglas de exploración' },
   { id: 'community', name: 'Comunidad', icon: Users, color: 'magic-blue', description: 'Fase de comunidad, Yule y empresas' },
+  { id: 'npcs', name: 'Bestiario', icon: Moon, color: 'destructive', description: 'Enemigos, PNJ, Animales y Especiales' },
 ];
 
 // Currency display helper
