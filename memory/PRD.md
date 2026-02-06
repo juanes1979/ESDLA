@@ -68,6 +68,7 @@ Build a comprehensive web application to play a modified version of the "Lord of
 - `GET /api/data/varios` - pruebas_habilidad, cansancio, inspiracion, ojo_de_mordor, ventaja
 - `GET /api/data/combate` - estructura, acciones, atacar, muerte_e_inconsciencia
 - `GET /api/data/comunidad` - introduccion, limites_narrativos, estructura, yule, empresas
+- `GET /api/data/npcs` - Malignos, PNJ, Animales, Especiales (108 entradas)
 - `DELETE /api/data/sombra/sendas/{senda_name}` - Eliminar senda (admin only)
 - `PATCH /api/characters/{id}` - Actualizar personaje (level up, etc.)
 
