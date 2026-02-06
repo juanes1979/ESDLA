@@ -63,10 +63,10 @@ const TravelGenerator = () => {
   const [monturas, setMonturas] = useState([]);
   const [viajesGuardados, setViajesGuardados] = useState([]);
   const [climaActual, setClimaActual] = useState(null);
+  const [personajes, setPersonajes] = useState([]);
   
   // Form states
   const [modo, setModo] = useState('configurar'); // configurar, generando, resultado
-  const [modoDistancia, setModoDistancia] = useState('predefinida'); // predefinida, manual
   
   const [config, setConfig] = useState({
     origen: '',
@@ -77,7 +77,7 @@ const TravelGenerator = () => {
     tipo_tierra: 'salvaje',
     mes: 'Cermië',
     montura: 'A pie',
-    velocidad: 30,
+    velocidad: 9, // metros instead of feet
     marcha_forzada: false,
     papeles: {
       guia: '',
