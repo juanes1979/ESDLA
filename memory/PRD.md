@@ -7,54 +7,43 @@ Build a comprehensive web application to play a modified version of the "Lord of
 
 ## Current State (2026-02-06)
 
-### ✅ COMPLETED: Catálogo de Equipo Completo (21 categorías)
-Extraído del Excel `utumno.xlsm` y organizado en 7 secciones:
+### ✅ COMPLETED: Nuevas Secciones de Reglas
+- **Sombra**: Pavor (4), Avaricia (4), Fechorías (5), Estados (3), Sendas de la Sombra (24 defectos)
+- **Artes**: 8 artes con descripciones completas
+- **Recompensas**: Mejoras de equipo (6), niveles de recompensa, bonificadores por competencia
 
-**⚔️ Armas** (separadas por tipo)
-- Armas Sencillas Cuerpo a Cuerpo (8 items)
-- Armas Sencillas a Distancia (5 items)
-- Armas Marciales Cuerpo a Cuerpo (14 items)
-- Armas Marciales a Distancia (2 items)
+### ✅ COMPLETED: Virtudes Completas
+- 100 virtudes con toda la información
+- Descripción, rasgos, aumentos de estadísticas
+- Botón "Nueva Virtud" para admin
 
-**🛡️ Armaduras** (por peso)
-- Armaduras Ligeras (2), Medias (2), Pesadas (3), Escudos (1)
+### ✅ COMPLETED: Monturas Actualizadas
+- 15 monturas con todos los campos de la imagen del usuario
+- Columnas: Nombre, Precio, Carga, Constitución, Velocidad, Pequeño (✓/-), Mediano (✓/-)
+- Incluye: Burro, Caballo de caminos, Caballo de carga, Caballo de guerra, Caballo de Lothlórien, Caballo de monta, Caballo de Rohan, Caballo Variag, Camello, Elefante, Gran caballo de Rohan, Mastín, Poni, Poni de montaña, Poni robusto
 
-**🎒 Equipo y Herramientas**
-- Equipo General (108), Herramientas (19), Juegos (6), Instrumentos Musicales (10)
+### ✅ COMPLETED: Editor de Equipo
+- Modal "Crear Equipo" con selector de 21 categorías
+- Campos dinámicos según el tipo de equipo seleccionado
+- Categorías: Armas (sencillas/marciales, CC/distancia), Armaduras (ligeras/medias/pesadas), Escudos, Equipo general, Herramientas, Juegos, Instrumentos, Consumibles, Comida en posadas, Hierbas, Venenos, Monturas, Accesorios, Transporte terrestre/marítimo, Construcción
 
-**🍖 Consumibles y Alimentación**
-- Consumibles (71), Comida en Posadas (36)
+### ✅ COMPLETED (Previous): Catálogo de Equipo Completo (21 categorías)
+- Armas separadas por tipo (sencillas/marciales) y alcance (CC/distancia)
+- Armaduras separadas por peso (ligeras/medias/pesadas)
+- Hierbas y venenos con preparación y efectos
 
-**🌿 Hierbas y Venenos**
-- Hierbas Medicinales y Pociones (87), Venenos (15)
-- Incluyen: preparación y efectos
-
-**🐴 Monturas y Transporte**
-- Monturas (8), Accesorios (9), Transporte Terrestre (10), Transporte Marítimo (10)
-
-**🏗️ Elementos de Construcción** (52 items)
-
-### ✅ COMPLETED: Step2Background funcional
-- Filtra trasfondos por cultura
-- Sub-selección de instrumentos musicales cuando el trasfondo otorga esa competencia
-- Sub-selección de juegos cuando corresponde
-- Endpoint `/api/data/equipment-lists` devuelve listas de juegos e instrumentos
-
-### ✅ COMPLETED (Previous): Virtud en Hoja de Personaje (Página 3)
-- Campo "★ VIRTUD: {nombre}" y rasgos
+### ✅ COMPLETED (Previous): Step2Background funcional
+- Sub-selección de instrumentos musicales y juegos
 
 ### ✅ COMPLETED (Previous): Sistema CRUD de Admin
 - Razas, Culturas, Trasfondos, Ocupaciones
-
-### ✅ COMPLETED (Previous): Generación de PDF
-- Botón "Descargar PDF" - 3 páginas
 
 ## 📋 PENDING TASKS
 
 ### P1 - Medium Priority
 1. **Sistema de Autenticación Completo**
    - Login, registro, roles (Director de juego / Usuario)
-   - Admin credentials: Maestro / 123456
+   - Jerarquía: Maestro > Admin > Jugador
 
 ### P2 - Lower Priority
 1. Refactorizar `Step1Culture.jsx` (1500+ líneas)
@@ -78,27 +67,35 @@ Extraído del Excel `utumno.xlsm` y organizado en 7 secciones:
 - **PDF:** jsPDF, html2canvas
 
 ## Key Files
-- `/app/backend/routes/data_routes.py` - equipment-catalog endpoint (21 categorías)
-- `/app/backend/update_equipment_catalog.py` - Script de extracción de datos
-- `/app/frontend/src/pages/RulesPage.jsx` - Visualización del catálogo de equipo
-- `/app/frontend/src/components/character-creator/steps/Step2Background.jsx` - Selección de trasfondo
-- `/app/frontend/src/components/character-sheet/SheetPage3.jsx` - Virtud mostrada
+- `/app/backend/routes/data_routes.py` - Endpoints para sombra, artes, recompensas, virtudes, equipment CRUD
+- `/app/backend/update_game_data.py` - Script de extracción de monturas, sombra, artes, recompensas
+- `/app/frontend/src/pages/RulesPage.jsx` - Secciones de reglas completas
+- `/app/frontend/src/components/admin/EquipmentEditor.jsx` - Modal de creación de equipo
 
 ## Key API Endpoints
+- `GET /api/data/sombra` - Reglas de sombra (pavor, avaricia, fechorías, estados, sendas)
+- `GET /api/data/artes` - Artes (8 items)
+- `GET /api/data/recompensas` - Recompensas (mejoras, niveles, bonificadores)
+- `GET /api/data/virtudes` - Virtudes completas (100 items)
 - `GET /api/data/equipment-catalog` - Catálogo completo (21 categorías)
-- `GET /api/data/equipment-lists` - Listas de juegos e instrumentos
-- `GET /api/data/backgrounds?cultura={name}` - Trasfondos filtrados por cultura
-- `GET /api/data/cultures/{culture_id}/virtues`
-- `PATCH /api/draft/{draft_id}/step2`
+- `POST /api/data/equipment` - Crear nuevo equipo
+- `GET /api/data/equipment-categories` - Metadatos de categorías
 
 ## Test Reports
+- `/app/test_reports/iteration_15.json` - Todas las nuevas secciones (100% pass)
 - `/app/test_reports/iteration_14.json` - Catálogo de equipo (100% pass)
-- `/app/test_reports/iteration_13.json` - Virtud en hoja (100% pass)
 
 ## Session Changelog (2026-02-06)
-1. Extraídas 21 categorías del Excel a MongoDB (update_equipment_catalog.py)
-2. Actualizado endpoint equipment-catalog para devolver todas las categorías
-3. Corregido endpoint equipment-lists (faltaba función)
-4. Frontend RulesPage actualizado con 7 secciones organizadas
-5. Step2Background verificado funcional con sub-selección de instrumentos/juegos
-6. Tests 100% passed (backend y frontend)
+1. Añadidas secciones: Sombra, Artes, Recompensas
+2. Virtudes con información completa (descripción, rasgos, aumentos)
+3. Monturas actualizadas con 15 items y columnas Pequeño/Mediano
+4. Editor de equipo con 21 categorías y campos dinámicos
+5. Endpoints CRUD para virtudes y equipo
+6. Tests 100% passed (26 backend, todas las UI)
+
+## Data Collections
+- `sombra_rules` - Reglas de corrupción
+- `artes` - 8 artes
+- `recompensas` - Mejoras y bonificadores
+- `virtues` - 100 virtudes
+- `equipment_catalog` - 21 categorías de equipo
