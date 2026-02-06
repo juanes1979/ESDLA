@@ -860,27 +860,52 @@ async def get_equipment_catalog(
     search: Optional[str] = None
 ):
     """Get full equipment catalog with prices and weights.
-    Optional filters:
-    - categoria: herramientas, equipo_general, armas, armaduras, monturas
-    - search: search by item name
+    Now includes ALL categories:
+    - Weapons: armas_sencillas_cc, armas_sencillas_distancia, armas_marciales_cc, armas_marciales_distancia
+    - Armors: armaduras_ligeras, armaduras_medias, armaduras_pesadas, escudos
+    - Equipment: herramientas, juegos, instrumentos_musicales, equipo_general
+    - Food: consumibles, comida_posadas
+    - Medical: hierbas, venenos
+    - Transport: monturas, accesorios_monturas, transporte_terrestre, transporte_maritimo
+    - Construction: construccion
     """
     catalog = await db.equipment_catalog.find_one({})
     if not catalog:
         return {
             "herramientas": [],
+            "juegos": [],
+            "instrumentos_musicales": [],
             "equipo_general": [],
-            "armas": [],
-            "armaduras": [],
-            "monturas": []
+            "consumibles": [],
+            "comida_posadas": [],
+            "hierbas": [],
+            "venenos": [],
+            "armas_sencillas_cc": [],
+            "armas_sencillas_distancia": [],
+            "armas_marciales_cc": [],
+            "armas_marciales_distancia": [],
+            "armaduras_ligeras": [],
+            "armaduras_medias": [],
+            "armaduras_pesadas": [],
+            "escudos": [],
+            "monturas": [],
+            "accesorios_monturas": [],
+            "transporte_terrestre": [],
+            "transporte_maritimo": [],
+            "construccion": []
         }
     
-    result = {
-        "herramientas": catalog.get('herramientas', []),
-        "equipo_general": catalog.get('equipo_general', []),
-        "armas": catalog.get('armas', []),
-        "armaduras": catalog.get('armaduras', []),
-        "monturas": catalog.get('monturas', [])
-    }
+    # Build full result from catalog
+    all_keys = [
+        "herramientas", "juegos", "instrumentos_musicales", "equipo_general",
+        "consumibles", "comida_posadas", "hierbas", "venenos",
+        "armas_sencillas_cc", "armas_sencillas_distancia", "armas_marciales_cc", "armas_marciales_distancia",
+        "armaduras_ligeras", "armaduras_medias", "armaduras_pesadas", "escudos",
+        "monturas", "accesorios_monturas", "transporte_terrestre", "transporte_maritimo",
+        "construccion"
+    ]
+    
+    result = {key: catalog.get(key, []) for key in all_keys}
     
     # Filter by category if specified
     if categoria and categoria in result:
