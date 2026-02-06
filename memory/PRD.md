@@ -7,95 +7,106 @@ Build a comprehensive web application to play a modified version of the "Lord of
 
 ## Current State (2026-02-06)
 
-### ✅ COMPLETED: Nuevas Secciones de Reglas
-- **Sombra**: Pavor (4), Avaricia (4), Fechorías (5), Estados (3), Sendas de la Sombra (24 defectos)
-- **Artes**: 8 artes con descripciones completas
-- **Recompensas**: Mejoras de equipo (6), niveles de recompensa, bonificadores por competencia
+### ✅ COMPLETED: Virtudes Completas Extraídas del Excel
+Se extrajeron 100 virtudes con TODA la información de la hoja "Virtudes":
+- **Fila 2**: Nombre de la virtud
+- **Fila 3**: Descripción
+- **Fila 4**: Rasgos a indicar en la hoja PJ
+- **Filas 5-10**: Aumentos directos de característica (si hay X)
+- **Filas 12-17**: Elegir +1 en una característica
+- **Filas 19-24**: Elegir competencia en tirada de salvación
+- **Fila 26**: Bonus de puntos de golpe
+- **Fila 27**: Bonus de puntos de comunidad
+- **Fila 28**: Bonus de clase de armadura
+- **Filas 30-48**: Elegir competencia en habilidad (sin repetir las existentes)
+- **Filas 50-68**: Elegir competencia en herramienta (sin repetir las existentes)
 
-### ✅ COMPLETED: Virtudes Completas
-- 100 virtudes con toda la información
-- Descripción, rasgos, aumentos de estadísticas
-- Botón "Nueva Virtud" para admin
+### ✅ Campos de Virtud en MongoDB
+```javascript
+{
+  nombre: "Forjadores de la Edad de las Estrellas",
+  cultura: "Elfos Noldor",
+  es_comun: false,
+  descripcion: "...",
+  rasgos: "...",
+  // Aumentos directos
+  aumenta_fuerza: false,
+  aumenta_destreza: false,
+  // etc.
+  // Elecciones
+  elegir_caracteristica: ["INTELIGENCIA", "SABIDURÍA"],
+  elegir_salvacion: null,
+  elegir_habilidad: null,
+  elegir_herramienta: ["Herramientas de herrería", "Herramientas de joyería", "Suministros de carpintería"],
+  // Bonus
+  bonus_puntos_golpe: null,
+  bonus_ca: null,
+  bonus_comunidad: null
+}
+```
 
-### ✅ COMPLETED: Monturas Actualizadas
-- 15 monturas con todos los campos de la imagen del usuario
-- Columnas: Nombre, Precio, Carga, Constitución, Velocidad, Pequeño (✓/-), Mediano (✓/-)
-- Incluye: Burro, Caballo de caminos, Caballo de carga, Caballo de guerra, Caballo de Lothlórien, Caballo de monta, Caballo de Rohan, Caballo Variag, Camello, Elefante, Gran caballo de Rohan, Mastín, Poni, Poni de montaña, Poni robusto
+### ✅ Frontend Actualizado
+- Página de Reglas > Virtudes muestra TODA la información:
+  - Descripción y rasgos
+  - Aumentos directos (FUE, DES, CON, INT, SAB, CAR)
+  - Opciones de característica a elegir
+  - Opciones de salvación a elegir
+  - Bonus de PG, CA, Comunidad
+  - Opciones de habilidad a elegir
+  - Opciones de herramienta a elegir
 
-### ✅ COMPLETED: Editor de Equipo
-- Modal "Crear Equipo" con selector de 21 categorías
-- Campos dinámicos según el tipo de equipo seleccionado
-- Categorías: Armas (sencillas/marciales, CC/distancia), Armaduras (ligeras/medias/pesadas), Escudos, Equipo general, Herramientas, Juegos, Instrumentos, Consumibles, Comida en posadas, Hierbas, Venenos, Monturas, Accesorios, Transporte terrestre/marítimo, Construcción
+### ✅ API Actualizada
+- `GET /api/data/virtudes` - Devuelve 100 virtudes con campos completos
+- `GET /api/data/cultures/{id}/virtues` - Mapea campos a formato frontend
 
-### ✅ COMPLETED (Previous): Catálogo de Equipo Completo (21 categorías)
-- Armas separadas por tipo (sencillas/marciales) y alcance (CC/distancia)
-- Armaduras separadas por peso (ligeras/medias/pesadas)
-- Hierbas y venenos con preparación y efectos
+### ✅ COMPLETED (Sesión anterior): Monturas Actualizadas
+- 15 monturas con columnas: Carga, Constitución, Velocidad, Pequeño, Mediano
 
-### ✅ COMPLETED (Previous): Step2Background funcional
-- Sub-selección de instrumentos musicales y juegos
+### ✅ COMPLETED (Sesión anterior): Editor de Equipo
+- 21 categorías con campos dinámicos
 
-### ✅ COMPLETED (Previous): Sistema CRUD de Admin
-- Razas, Culturas, Trasfondos, Ocupaciones
+### ✅ COMPLETED (Sesión anterior): Secciones de Reglas
+- Sombra (Pavor, Avaricia, Fechorías, Estados, Sendas)
+- Artes (8 items)
+- Recompensas (Mejoras, Niveles, Bonificadores)
 
 ## 📋 PENDING TASKS
 
+### P0 - Próximo paso
+1. **Selectores de virtud en el creador**
+   - Cuando el usuario elige una virtud con `elegir_caracteristica`, mostrar selector
+   - No repetir opciones que el PJ ya tiene (competencias en tiradas de salvación, habilidades, herramientas)
+   - Guardar las elecciones en el draft
+
 ### P1 - Medium Priority
 1. **Sistema de Autenticación Completo**
-   - Login, registro, roles (Director de juego / Usuario)
-   - Jerarquía: Maestro > Admin > Jugador
-
-### P2 - Lower Priority
-1. Refactorizar `Step1Culture.jsx` (1500+ líneas)
+   - Login, registro, roles (Maestro > Admin > Jugador)
 
 ## 📋 FUTURE/BACKLOG TASKS
-
-### Sistema de Usuarios (Documentado)
-- **Maestro**: Admin absoluto
-- **Admin**: Copia propia de BD (máx 100 fichas, 25 jugadores)
-- **Jugador**: Solo sus personajes (máx 10 fichas)
-- Panel de configuración con límites editables
-
-### Otras funcionalidades
 - Pantalla del Director de Juego
 - Interfaz de juego online
 - Integración IA
 
-## Technical Stack
-- **Backend:** FastAPI, Motor, MongoDB
-- **Frontend:** React, Tailwind, Shadcn UI
-- **PDF:** jsPDF, html2canvas
-
 ## Key Files
-- `/app/backend/routes/data_routes.py` - Endpoints para sombra, artes, recompensas, virtudes, equipment CRUD
-- `/app/backend/update_game_data.py` - Script de extracción de monturas, sombra, artes, recompensas
-- `/app/frontend/src/pages/RulesPage.jsx` - Secciones de reglas completas
-- `/app/frontend/src/components/admin/EquipmentEditor.jsx` - Modal de creación de equipo
+- `/app/backend/extract_virtues_complete.py` - Script de extracción de virtudes
+- `/app/backend/routes/data_routes.py` - Endpoints de virtudes con mapeo
+- `/app/frontend/src/pages/RulesPage.jsx` - Visualización de virtudes completas
+- `/app/frontend/src/components/character-creator/steps/Step5Virtue.jsx` - Selección de virtud
 
 ## Key API Endpoints
-- `GET /api/data/sombra` - Reglas de sombra (pavor, avaricia, fechorías, estados, sendas)
-- `GET /api/data/artes` - Artes (8 items)
-- `GET /api/data/recompensas` - Recompensas (mejoras, niveles, bonificadores)
-- `GET /api/data/virtudes` - Virtudes completas (100 items)
-- `GET /api/data/equipment-catalog` - Catálogo completo (21 categorías)
-- `POST /api/data/equipment` - Crear nuevo equipo
-- `GET /api/data/equipment-categories` - Metadatos de categorías
+- `GET /api/data/virtudes` - 100 virtudes con datos completos
+- `GET /api/data/cultures/{id}/virtues` - Virtudes mapeadas para frontend
+- `POST /api/data/virtudes` - Crear virtud
+- `PUT /api/data/virtudes/{id}` - Actualizar virtud
+- `DELETE /api/data/virtudes/{id}` - Eliminar virtud
 
 ## Test Reports
-- `/app/test_reports/iteration_15.json` - Todas las nuevas secciones (100% pass)
-- `/app/test_reports/iteration_14.json` - Catálogo de equipo (100% pass)
+- `/app/test_reports/iteration_15.json` - Tests anteriores (100% pass)
 
 ## Session Changelog (2026-02-06)
-1. Añadidas secciones: Sombra, Artes, Recompensas
-2. Virtudes con información completa (descripción, rasgos, aumentos)
-3. Monturas actualizadas con 15 items y columnas Pequeño/Mediano
-4. Editor de equipo con 21 categorías y campos dinámicos
-5. Endpoints CRUD para virtudes y equipo
-6. Tests 100% passed (26 backend, todas las UI)
-
-## Data Collections
-- `sombra_rules` - Reglas de corrupción
-- `artes` - 8 artes
-- `recompensas` - Mejoras y bonificadores
-- `virtues` - 100 virtudes
-- `equipment_catalog` - 21 categorías de equipo
+1. Extraídas 100 virtudes con TODOS los campos del Excel
+2. Campos: elegir_caracteristica, elegir_salvacion, elegir_habilidad, elegir_herramienta
+3. Campos: bonus_puntos_golpe, bonus_ca, bonus_comunidad
+4. Frontend muestra toda la información de virtudes
+5. Endpoint /cultures/{id}/virtues mapea campos a formato frontend
+6. Actualizado tiene_virtud_inicial=True en todas las culturas
