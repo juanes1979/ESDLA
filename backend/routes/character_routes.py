@@ -436,6 +436,13 @@ async def update_draft_step3(draft_id: str, data: CharacterCreateStep3):
         "especiales_ocupacion5_descripcion": occupation.get('especiales_ocupacion5_descripcion', ''),
         "especiales_ocupacion6": occupation.get('especiales_ocupacion6', ''),
         "especiales_ocupacion6_descripcion": occupation.get('especiales_ocupacion6_descripcion', ''),
+        # Virtue/Art text for level-up system
+        "ocupacion_virtudes_texto": occupation.get('virtudes_texto', []),
+        "ocupacion_virtudes_ocupacion": occupation.get('virtudes_ocupacion', ''),
+        # Caminos de profesión
+        "caminos_profesion": occupation.get('caminos_profesion', ''),
+        "caminos_profesion1": occupation.get('caminos_profesion1', ''),
+        "caminos_profesion2": occupation.get('caminos_profesion2', ''),
         # Skills, tools, armor, weapons, expertise from user selection
         "habilidades_elegidas_ocupacion": data.habilidades_elegidas,
         "herramientas_elegidas_ocupacion": data.herramientas_elegidas,
