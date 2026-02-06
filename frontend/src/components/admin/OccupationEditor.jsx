@@ -107,15 +107,17 @@ const OccupationEditor = ({ occupation, onSave, onClose, onCopy }) => {
     competencia_escudos: occupation?.competencia_escudos ?? false,
     
     // Shadow Path with 4 defects
-    senda_sombra: occupation?.senda_sombra || {
-      nombre: '',
-      descripcion: '',
-      defectos: [
-        { nombre: '', descripcion: '', efecto_juego: '' },
-        { nombre: '', descripcion: '', efecto_juego: '' },
-        { nombre: '', descripcion: '', efecto_juego: '' },
-        { nombre: '', descripcion: '', efecto_juego: '' }
-      ]
+    senda_sombra: {
+      nombre: occupation?.senda_sombra?.nombre || occupation?.maldicion_nombre || '',
+      descripcion: occupation?.senda_sombra?.descripcion || occupation?.maldicion_descripcion || '',
+      defectos: occupation?.senda_sombra?.defectos?.length === 4 
+        ? occupation.senda_sombra.defectos 
+        : [
+            { nombre: '', descripcion: '', efecto_juego: '' },
+            { nombre: '', descripcion: '', efecto_juego: '' },
+            { nombre: '', descripcion: '', efecto_juego: '' },
+            { nombre: '', descripcion: '', efecto_juego: '' }
+          ]
     },
     
     // Equipment blocks
