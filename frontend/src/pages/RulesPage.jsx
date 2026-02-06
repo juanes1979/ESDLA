@@ -1223,6 +1223,15 @@ const RulesPage = () => {
       case 'recompensas':
         return renderRecompensas();
       
+      case 'salarios':
+        return renderSalarios();
+      
+      case 'varios':
+        return renderVarios();
+      
+      case 'combate':
+        return renderCombate();
+      
       case 'travel':
         return (
           <div className="card-parchment rounded-lg p-6">
