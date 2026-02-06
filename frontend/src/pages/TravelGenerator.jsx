@@ -222,7 +222,7 @@ const TravelGenerator = () => {
       return;
     }
     
-    if (!config.papeles.guia) {
+    if (!config.papeles.guia || config.papeles.guia === 'none') {
       toast.error('Debe haber al menos un Guía asignado');
       return;
     }
