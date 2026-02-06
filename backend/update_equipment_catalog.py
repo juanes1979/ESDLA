@@ -65,7 +65,7 @@ def parse_currency(uds, mon):
         return None, "mp"
 
 async def update_equipment_catalog():
-    wb = openpyxl.load_workbook('data/utumno.xlsm', data_only=True)
+    wb = openpyxl.load_workbook('/app/data/utumno.xlsm', data_only=True)
     ws = wb['Equipo']
     
     catalog = {
