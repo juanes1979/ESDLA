@@ -22,7 +22,7 @@ export const PAGE3_FIELDS = {
 
 const SheetPage3 = ({ character, scale, fieldPositions = {} }) => {
   
-  // Get combined occupation description with all special abilities
+  // Get combined occupation description with all special abilities and virtue
   // Each block separated by line break (punto y aparte)
   const getDescripcionOcupacionCompleta = () => {
     const parts = [];
@@ -67,6 +67,15 @@ const SheetPage3 = ({ character, scale, fieldPositions = {} }) => {
           parts.push(block);
         }
       });
+    }
+    
+    // Add VIRTUE at the end if character has one
+    if (character.virtud_nombre) {
+      let virtudBlock = `★ VIRTUD: ${character.virtud_nombre}`;
+      if (character.virtud_rasgos || character.virtud_descripcion) {
+        virtudBlock += `: ${character.virtud_rasgos || character.virtud_descripcion}`;
+      }
+      parts.push(virtudBlock);
     }
     
     // Join all parts with double line break
