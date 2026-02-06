@@ -177,9 +177,11 @@ class TestCultureCRUD:
     
     def test_update_culture_virtudes_config(self):
         """Test updating a culture's virtudes configuration"""
+        import uuid
+        unique_name = f"TEST_Cultura_Update_Virtudes_{uuid.uuid4().hex[:8]}"
         # First create a test culture
         culture_data = {
-            "nombre": "TEST_Cultura_Update_Virtudes",
+            "nombre": unique_name,
             "raza": "Hombres",
             "tiene_virtud_inicial": False
         }
