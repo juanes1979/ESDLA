@@ -1451,18 +1451,28 @@ const RulesPage = () => {
       <div className="space-y-4">
         <div className="card-parchment rounded-lg p-4">
           <h3 className="font-heading text-lg text-[hsl(var(--magic-blue))] mb-4 border-b border-[hsl(var(--magic-blue))/30] pb-2">
-            📜 Artes
+            📜 Artes ({data.length})
           </h3>
-          <div className="space-y-4">
+          <p className="text-sm text-muted-foreground mb-4">
+            Las Artes son habilidades especiales que los personajes pueden utilizar en situaciones de juego. 
+            Cada uso de un Arte consume un espacio de arte.
+          </p>
+          <div className="space-y-6">
             {data.map((arte, i) => (
-              <div key={i} className="bg-black/10 p-4 rounded border border-border/20">
-                <p className="font-bold text-[hsl(var(--torch-orange))] text-lg">{arte.nombre}</p>
+              <div key={i} className="bg-black/10 p-4 rounded border border-border/20" data-testid={`arte-${i}`}>
+                <p className="font-bold text-[hsl(var(--torch-orange))] text-lg mb-2">{arte.nombre}</p>
                 {arte.descripcion_corta && (
-                  <p className="text-sm text-muted-foreground mt-1 italic">{arte.descripcion_corta}</p>
+                  <p className="text-sm text-muted-foreground italic border-l-2 border-[hsl(var(--gold))/50] pl-3 mb-3">{arte.descripcion_corta}</p>
                 )}
                 {arte.descripcion && (
-                  <div className="mt-3 p-3 bg-[hsl(var(--magic-blue))/10] rounded">
-                    <p className="text-sm">{arte.descripcion}</p>
+                  <div className="mt-3 p-3 bg-[hsl(var(--magic-blue))/10] rounded border border-[hsl(var(--magic-blue))/20]">
+                    {arte.descripcion.split('\n\n').map((paragraph, pIdx) => (
+                      <p key={pIdx} className="text-sm mb-2 last:mb-0 whitespace-pre-wrap">
+                        {paragraph.startsWith('•') ? (
+                          <span className="text-[hsl(var(--gold))]">{paragraph}</span>
+                        ) : paragraph}
+                      </p>
+                    ))}
                   </div>
                 )}
               </div>
@@ -1495,12 +1505,12 @@ const RulesPage = () => {
                 </tr>
               </thead>
               <tbody>
-                {data.mejoras_equipo?.map((m, i) => (
+                {data.mejoras?.map((m, i) => (
                   <tr key={i} className="border-b border-border/10">
                     <td className="py-2 px-2 text-[hsl(var(--magic-blue))]">{m.tipo}</td>
                     <td className="py-2 px-2 font-medium text-[hsl(var(--torch-orange))]">{m.nombre}</td>
-                    <td className="py-2 px-2">{m.efecto_mecanico}</td>
-                    <td className="py-2 px-2 text-muted-foreground text-xs">{m.restricciones}</td>
+                    <td className="py-2 px-2">{m.efecto}</td>
+                    <td className="py-2 px-2 text-muted-foreground text-xs">{m.restriccion}</td>
                   </tr>
                 ))}
               </tbody>
@@ -1517,42 +1527,41 @@ const RulesPage = () => {
             {data.niveles_recompensa?.map((n, i) => (
               <div key={i} className="bg-black/10 p-3 rounded text-center">
                 <p className="text-2xl font-bold text-[hsl(var(--gold))]">Nivel {n.nivel}</p>
-                <p className="text-sm text-muted-foreground">{n.recompensa}</p>
+                <p className="text-sm text-muted-foreground">{n.recompensas} recompensa{n.recompensas > 1 ? 's' : ''}</p>
               </div>
             ))}
           </div>
         </div>
 
-        {/* Bonificador por Competencia */}
-        {data.bonificador_competencia?.length > 0 && (
+        {/* Bendiciones */}
+        {data.bendiciones && (
           <div className="card-parchment rounded-lg p-4">
-            <h3 className="font-heading text-lg text-[hsl(var(--magic-blue))] mb-4 border-b border-[hsl(var(--magic-blue))/30] pb-2">
-              🎯 Bonificador por Competencia
+            <h3 className="font-heading text-lg text-[hsl(var(--gold))] mb-4 border-b border-[hsl(var(--gold))/30] pb-2">
+              ✨ Bendiciones
             </h3>
-            <p className="text-sm text-muted-foreground mb-3">
-              Según el nivel del personaje, la tirada de bonificación por competencia varía.
-            </p>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              {data.bonificador_competencia.map((b, i) => (
-                <div key={i} className="bg-black/10 p-3 rounded text-center">
-                  <p className="text-sm text-muted-foreground">Nivel {b.nivel}</p>
-                  <p className="text-xl font-bold text-[hsl(var(--torch-orange))]">{b.tirada}</p>
+            <p className="text-sm mb-4">{data.bendiciones.descripcion}</p>
+            
+            {/* Bonificador por Competencia */}
+            {data.bendiciones.bonificador_competencia && (
+              <div className="mt-4 p-3 bg-[hsl(var(--magic-blue))/10] rounded">
+                <h4 className="font-semibold text-[hsl(var(--magic-blue))] mb-2">
+                  🎯 Dado de Bendición por Nivel
+                </h4>
+                <p className="text-sm text-muted-foreground mb-3">
+                  {data.bendiciones.bonificador_competencia.descripcion}
+                </p>
+                <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
+                  {data.bendiciones.bonificador_competencia.tabla?.map((b, i) => (
+                    <div key={i} className="bg-black/20 p-2 rounded text-center">
+                      <p className="text-xs text-muted-foreground">Nivel {b.nivel}</p>
+                      <p className="text-lg font-bold text-[hsl(var(--torch-orange))]">{b.dado}</p>
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
+              </div>
+            )}
           </div>
         )}
-
-        {/* Bendiciones */}
-        <div className="card-parchment rounded-lg p-4">
-          <h3 className="font-heading text-lg text-[hsl(var(--gold))] mb-4 border-b border-[hsl(var(--gold))/30] pb-2">
-            ✨ Bendiciones
-          </h3>
-          <p className="text-sm">
-            Los objetos que se envuelven en bendiciones élicas obtienen propiedades especiales 
-            que ayudan contra las fuerzas oscuras de la Tierra Media.
-          </p>
-        </div>
       </div>
     );
   };
