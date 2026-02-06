@@ -136,6 +136,18 @@ const RulesPage = () => {
             const recompensasRes = await api.get('/data/recompensas');
             setData(recompensasRes.data);
             break;
+          case 'salarios':
+            const salariosRes = await api.get('/data/salarios');
+            setData(salariosRes.data);
+            break;
+          case 'varios':
+            const variosRes = await api.get('/data/varios');
+            setData(variosRes.data);
+            break;
+          case 'combate':
+            const combateRes = await api.get('/data/combate');
+            setData(combateRes.data);
+            break;
           default:
             setData(null);
         }
