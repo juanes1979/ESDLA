@@ -53,17 +53,21 @@ Build a comprehensive web application to play a modified version of the "Lord of
 - Interfaz de juego online (mapas, chat, tiradas)
 - Integración IA para generación de historias/NPCs
 
-## Key API Endpoints (NEW)
+## Key API Endpoints
 - `GET /api/data/artes` - 8 artes con descripciones completas
 - `GET /api/data/recompensas` - mejoras, niveles_recompensa, bendiciones
 - `GET /api/data/salarios` - 4 categorías de trabajadores + modificadores
 - `GET /api/data/varios` - pruebas_habilidad, cansancio, inspiracion, ojo_de_mordor, ventaja
 - `GET /api/data/combate` - estructura, acciones, atacar, muerte_e_inconsciencia
 - `DELETE /api/data/sombra/sendas/{senda_name}` - Eliminar senda (admin only)
+- `PATCH /api/characters/{id}` - Actualizar personaje (level up, etc.)
 
 ## Key Files
 - `/app/backend/routes/data_routes.py` - Todos los endpoints de datos
+- `/app/backend/routes/character_routes.py` - Endpoints de personajes (incluye PATCH)
 - `/app/frontend/src/pages/RulesPage.jsx` - Página principal con 13 categorías
+- `/app/frontend/src/components/rules/` - Componentes refactorizados (5 secciones)
+- `/app/frontend/src/components/LevelUpModal.jsx` - Modal de subida de nivel
 - `/app/backend/update_rules_data.py` - Script de actualización de datos
 
 ## Test Reports
