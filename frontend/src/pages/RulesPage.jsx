@@ -1221,7 +1221,7 @@ const RulesPage = () => {
         return renderEquipmentTables();
       
       case 'shadow':
-        return renderSombra();
+        return <SombraSection data={data} isAdmin={isAdmin} onDeleteSenda={handleDeleteSenda} />;
       
       case 'artes':
         return renderArtes();
@@ -1230,16 +1230,16 @@ const RulesPage = () => {
         return renderRecompensas();
       
       case 'salarios':
-        return renderSalarios();
+        return <SalariosSection data={data} />;
       
       case 'varios':
-        return renderVarios();
+        return <VariosSection data={data} />;
       
       case 'combate':
-        return renderCombate();
+        return <CombateSection data={data} />;
       
       case 'travel':
-        return renderViaje();
+        return <ViajeSection data={data} />;
       
       case 'community':
         return (
