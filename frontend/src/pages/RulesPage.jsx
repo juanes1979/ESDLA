@@ -111,12 +111,24 @@ const RulesPage = () => {
             setData(occupations);
             break;
           case 'virtues':
-            const virtues = await getVirtues();
-            setData(virtues);
+            const virtuesRes = await api.get('/data/virtudes');
+            setData(virtuesRes.data?.virtudes || []);
             break;
           case 'equipment':
             const equipment = await getEquipmentCatalog();
             setData(equipment);
+            break;
+          case 'shadow':
+            const sombraRes = await api.get('/data/sombra');
+            setData(sombraRes.data);
+            break;
+          case 'artes':
+            const artesRes = await api.get('/data/artes');
+            setData(artesRes.data?.artes || []);
+            break;
+          case 'recompensas':
+            const recompensasRes = await api.get('/data/recompensas');
+            setData(recompensasRes.data);
             break;
           default:
             setData(null);
