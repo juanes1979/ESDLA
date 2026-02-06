@@ -27,6 +27,9 @@ const RULE_CATEGORIES = [
   { id: 'shadow', name: 'Sombra', icon: Moon, color: 'destructive', description: 'La corrupción y sus efectos' },
   { id: 'artes', name: 'Artes', icon: BookOpen, color: 'magic-blue', description: 'Habilidades especiales' },
   { id: 'recompensas', name: 'Recompensas', icon: Crown, color: 'gold', description: 'Mejoras de equipo y bendiciones' },
+  { id: 'combate', name: 'Combate', icon: Swords, color: 'destructive', description: 'Reglas de combate y ataque' },
+  { id: 'salarios', name: 'Salarios', icon: Crown, color: 'gold', description: 'Tabla de salarios por ocupación' },
+  { id: 'varios', name: 'Reglas Varias', icon: BookOpen, color: 'magic-blue', description: 'Pruebas, Cansancio, Inspiración, Ojo de Mordor' },
   { id: 'travel', name: 'Viajes', icon: Map, color: 'gold', description: 'Reglas de exploración' },
   { id: 'community', name: 'Comunidad', icon: Shield, color: 'magic-blue', description: 'Puntos de comunidad y mecenas' },
 ];
