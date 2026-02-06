@@ -1420,3 +1420,132 @@ async def get_equipment_categories():
             }
         ]
     }
+
+
+# === SALARIOS (Wages) ===
+
+@router.get("/salarios")
+async def get_salarios():
+    """Get wages data for all worker categories and modifiers"""
+    salarios = await db.salarios.find_one({"_id": "main"})
+    if not salarios:
+        return {
+            "descripcion": "",
+            "nota": "",
+            "categorias": {},
+            "modificadores": {}
+        }
+    return {
+        "descripcion": salarios.get("descripcion", ""),
+        "nota": salarios.get("nota", ""),
+        "categorias": salarios.get("categorias", {}),
+        "modificadores": salarios.get("modificadores", {})
+    }
+
+
+# === VARIOS (Miscellaneous Rules) ===
+
+@router.get("/varios")
+async def get_varios_rules():
+    """Get miscellaneous rules: pruebas_habilidad, cansancio, inspiracion, ojo_de_mordor, ventaja"""
+    varios = await db.varios_rules.find_one({"_id": "main"})
+    if not varios:
+        return {
+            "pruebas_habilidad": None,
+            "cansancio": None,
+            "inspiracion": None,
+            "ojo_de_mordor": None,
+            "ventaja": None,
+            "mas_alla_nivel_10": None
+        }
+    return {
+        "pruebas_habilidad": varios.get("pruebas_habilidad"),
+        "cansancio": varios.get("cansancio"),
+        "inspiracion": varios.get("inspiracion"),
+        "ojo_de_mordor": varios.get("ojo_de_mordor"),
+        "ventaja": varios.get("ventaja"),
+        "mas_alla_nivel_10": varios.get("mas_alla_nivel_10")
+    }
+
+
+# === COMBATE (Combat Rules) ===
+
+@router.get("/combate")
+async def get_combate_rules():
+    """Get combat rules: estructura, acciones, atacar, muerte_e_inconsciencia"""
+    combate = await db.combate_rules.find_one({"_id": "main"})
+    if not combate:
+        return {
+            "estructura": None,
+            "acciones": None,
+            "atacar": None,
+            "muerte_e_inconsciencia": None
+        }
+    return {
+        "estructura": combate.get("estructura"),
+        "acciones": combate.get("acciones"),
+        "atacar": combate.get("atacar"),
+        "muerte_e_inconsciencia": combate.get("muerte_e_inconsciencia")
+    }
+
+
+# === SOMBRA CRUD (Shadow Path Delete/Edit) ===
+
+@router.delete("/sombra/sendas/{senda_name}")
+async def delete_shadow_path(senda_name: str):
+    """Delete a shadow path by name (admin only)"""
+    current = await db.sombra_rules.find_one({"_id": "main"})
+    if not current:
+        raise HTTPException(status_code=404, detail="Sombra rules not found")
+    
+    sendas = current.get("sendas_sombra", [])
+    original_len = len(sendas)
+    sendas = [s for s in sendas if s.get("senda") != senda_name]
+    
+    if len(sendas) == original_len:
+        raise HTTPException(status_code=404, detail=f"Shadow path '{senda_name}' not found")
+    
+    await db.sombra_rules.update_one(
+        {"_id": "main"},
+        {"$set": {"sendas_sombra": sendas}}
+    )
+    
+    return {"message": f"Shadow path '{senda_name}' deleted successfully"}
+
+
+@router.put("/sombra/sendas/{senda_name}")
+async def update_shadow_path(senda_name: str, data: dict = Body(...)):
+    """Update a shadow path by name (admin only)"""
+    current = await db.sombra_rules.find_one({"_id": "main"})
+    if not current:
+        raise HTTPException(status_code=404, detail="Sombra rules not found")
+    
+    sendas = current.get("sendas_sombra", [])
+    
+    # Find and update entries for this senda
+    new_senda = data.get("senda", senda_name)
+    new_descripcion = data.get("descripcion")
+    new_defectos = data.get("defectos", [])
+    ocupacion = data.get("ocupacion")
+    
+    # Remove old entries
+    sendas = [s for s in sendas if s.get("senda") != senda_name]
+    
+    # Add new entries
+    for defecto in new_defectos:
+        if defecto.get("nombre"):
+            sendas.append({
+                "senda": new_senda,
+                "ocupacion": ocupacion,
+                "descripcion_senda": new_descripcion,
+                "defecto": defecto.get("nombre"),
+                "descripcion": defecto.get("descripcion"),
+                "efecto_juego": defecto.get("efecto_juego")
+            })
+    
+    await db.sombra_rules.update_one(
+        {"_id": "main"},
+        {"$set": {"sendas_sombra": sendas}}
+    )
+    
+    return {"message": f"Shadow path '{new_senda}' updated successfully"}
