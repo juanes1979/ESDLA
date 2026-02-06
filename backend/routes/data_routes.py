@@ -1142,18 +1142,18 @@ async def delete_arte(arte_id: str):
 
 @router.get("/recompensas")
 async def get_recompensas():
-    """Get rewards data"""
+    """Get rewards data including mejoras, niveles, bendiciones"""
     recompensas = await db.recompensas.find_one({"_id": "main"})
     if not recompensas:
         return {
-            "mejoras_equipo": [],
+            "mejoras": [],
             "niveles_recompensa": [],
-            "bonificador_competencia": []
+            "bendiciones": None
         }
     return {
-        "mejoras_equipo": recompensas.get("mejoras_equipo", []),
+        "mejoras": recompensas.get("mejoras", recompensas.get("mejoras_equipo", [])),
         "niveles_recompensa": recompensas.get("niveles_recompensa", []),
-        "bonificador_competencia": recompensas.get("bonificador_competencia", [])
+        "bendiciones": recompensas.get("bendiciones")
     }
 
 
