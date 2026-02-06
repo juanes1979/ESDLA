@@ -1443,11 +1443,37 @@ const RulesPage = () => {
               grouped[s.senda].push(s);
             });
             
+            const handleDeleteSenda = async (sendaName) => {
+              if (!window.confirm(`¿Estás seguro de eliminar la senda "${sendaName}" y todos sus defectos?`)) return;
+              try {
+                await api.delete(`/data/sombra/sendas/${encodeURIComponent(sendaName)}`);
+                toast.success(`Senda "${sendaName}" eliminada`);
+                // Reload sombra data
+                const sombraRes = await api.get('/data/sombra');
+                setData(sombraRes.data);
+              } catch (err) {
+                toast.error('Error al eliminar la senda');
+              }
+            };
+            
             return Object.entries(grouped).map(([senda, defectos]) => (
               <div key={senda} className="mb-6 last:mb-0">
-                <h4 className="font-heading text-md text-[hsl(var(--torch-orange))] mb-3 bg-black/30 p-2 rounded">
-                  {senda}
-                </h4>
+                <div className="flex justify-between items-center bg-black/30 p-2 rounded mb-3">
+                  <h4 className="font-heading text-md text-[hsl(var(--torch-orange))]">
+                    {senda}
+                  </h4>
+                  {isAdmin && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 w-7 p-0 text-destructive hover:bg-destructive/20"
+                      onClick={() => handleDeleteSenda(senda)}
+                      title="Eliminar senda"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  )}
+                </div>
                 <div className="space-y-2">
                   {defectos.map((d, i) => (
                     <div key={i} className="bg-black/10 p-3 rounded border-l-2 border-[hsl(var(--destructive))/50]">
