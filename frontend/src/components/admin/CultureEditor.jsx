@@ -528,14 +528,67 @@ const CultureEditor = ({ culture, races, onSave, onClose, onCopy }) => {
                       </div>
                     </div>
 
-                    {/* Additional Competency */}
-                    <div>
-                      <Label>Competencia Adicional</Label>
-                      <Input
-                        value={formData.competencia_adicional}
-                        onChange={(e) => handleChange('competencia_adicional', e.target.value)}
-                        placeholder="Ej: Competencia en armaduras ligeras"
-                      />
+                    {/* Additional Competency - Selector by category */}
+                    <div className="border border-border/30 rounded-lg p-3">
+                      <Label className="mb-2 block">Competencia Adicional (Herramientas/Juegos/Instrumentos/Pipa)</Label>
+                      <div className="grid md:grid-cols-2 gap-4">
+                        <div>
+                          <Label className="text-xs text-muted-foreground mb-1 block">Categoría</Label>
+                          <Select 
+                            value={formData.competencia_adicional_categoria || 'none'} 
+                            onValueChange={(v) => {
+                              handleChange('competencia_adicional_categoria', v === 'none' ? '' : v);
+                              handleChange('competencia_adicional', ''); // Reset item when category changes
+                            }}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Seleccionar categoría" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="none">Sin competencia adicional</SelectItem>
+                              {COMPETENCIA_ADICIONAL_CATEGORIAS.map(cat => (
+                                <SelectItem key={cat.value} value={cat.value}>{cat.label}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        {formData.competencia_adicional_categoria && formData.competencia_adicional_categoria !== 'pipa' && (
+                          <div>
+                            <Label className="text-xs text-muted-foreground mb-1 block">Elemento específico</Label>
+                            <Select 
+                              value={formData.competencia_adicional || 'none'} 
+                              onValueChange={(v) => handleChange('competencia_adicional', v === 'none' ? '' : v)}
+                            >
+                              <SelectTrigger>
+                                <SelectValue placeholder="Seleccionar..." />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="none">A elegir por el jugador</SelectItem>
+                                {COMPETENCIA_ADICIONAL_CATEGORIAS
+                                  .find(c => c.value === formData.competencia_adicional_categoria)?.items
+                                  .map(item => (
+                                    <SelectItem key={item} value={item}>{item}</SelectItem>
+                                  ))
+                                }
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        )}
+                        {formData.competencia_adicional_categoria === 'pipa' && (
+                          <div className="flex items-center">
+                            <span className="text-sm text-[hsl(var(--gold))]">✓ Competencia en Pipa</span>
+                          </div>
+                        )}
+                      </div>
+                      {formData.competencia_adicional_categoria && (
+                        <p className="text-xs text-muted-foreground mt-2">
+                          Competencia seleccionada: <span className="text-[hsl(var(--gold))]">
+                            {formData.competencia_adicional_categoria === 'pipa' 
+                              ? 'Pipa' 
+                              : formData.competencia_adicional || `${COMPETENCIA_ADICIONAL_CATEGORIAS.find(c => c.value === formData.competencia_adicional_categoria)?.label} (a elegir)`}
+                          </span>
+                        </p>
+                      )}
                     </div>
                   </div>
                 </CollapsibleSection>
