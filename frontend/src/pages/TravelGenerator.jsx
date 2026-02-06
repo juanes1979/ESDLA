@@ -521,7 +521,7 @@ const TravelGenerator = () => {
                 <SelectContent>
                   {monturas.map(m => (
                     <SelectItem key={m.nombre} value={m.nombre}>
-                      {m.nombre} ({m.velocidad} pies) {m.con_montura && `+${m.mod_con} CON`}
+                      {m.nombre} ({Math.round(m.velocidad * 0.3048)}m) {m.con_montura && `+${m.mod_con} CON`}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -549,37 +549,57 @@ const TravelGenerator = () => {
         </CardHeader>
         <CardContent className="space-y-4">
           <p className="text-sm text-muted-foreground">
-            Asigna héroes a cada papel. Un héroe puede tener varios papeles pero sufre -5 en pruebas.
+            Asigna personajes a cada papel. Un héroe puede tener varios papeles pero sufre -5 en pruebas.
           </p>
           
-          <div className="grid md:grid-cols-2 gap-4">
-            {[
-              { key: 'guia', nombre: 'Guía', desc: 'Ruta, descanso, suministros' },
-              { key: 'cazador', nombre: 'Cazador', desc: 'Encontrar comida' },
-              { key: 'vigia', nombre: 'Vigía', desc: 'Vigilancia' },
-              { key: 'explorador', nombre: 'Explorador', desc: 'Campamento, caminos' }
-            ].map(papel => (
-              <div key={papel.key} className={`p-3 rounded border ${
-                checkMultipleRoles(config.papeles[papel.key]) 
-                  ? 'border-yellow-500 bg-yellow-900/10' 
-                  : 'border-border/30'
-              }`}>
-                <Label className="text-[hsl(var(--gold))]">{papel.nombre}</Label>
-                <p className="text-xs text-muted-foreground mb-2">{papel.desc}</p>
-                <Input
-                  value={config.papeles[papel.key]}
-                  onChange={(e) => setConfig(prev => ({
-                    ...prev,
-                    papeles: { ...prev.papeles, [papel.key]: e.target.value }
-                  }))}
-                  placeholder="Nombre del héroe"
-                />
-                {checkMultipleRoles(config.papeles[papel.key]) && (
-                  <p className="text-xs text-yellow-400 mt-1">⚠️ Múltiples papeles: -5 en pruebas</p>
-                )}
-              </div>
-            ))}
-          </div>
+          {personajes.length === 0 ? (
+            <div className="p-4 bg-yellow-900/20 rounded border border-yellow-500/30">
+              <p className="text-yellow-400 text-sm">
+                ⚠️ No hay personajes creados. Crea personajes primero para poder asignarlos a los papeles de viaje.
+              </p>
+            </div>
+          ) : (
+            <div className="grid md:grid-cols-2 gap-4">
+              {[
+                { key: 'guia', nombre: 'Guía', desc: 'Ruta, descanso, suministros', habilidad: 'Viajar (Sab)' },
+                { key: 'cazador', nombre: 'Cazador', desc: 'Encontrar comida', habilidad: 'Cazar (Sab)' },
+                { key: 'vigia', nombre: 'Vigía', desc: 'Vigilancia', habilidad: 'Percepción (Sab)' },
+                { key: 'explorador', nombre: 'Explorador', desc: 'Campamento, caminos', habilidad: 'Explorar (Sab)' }
+              ].map(papel => (
+                <div key={papel.key} className={`p-3 rounded border ${
+                  checkMultipleRoles(config.papeles[papel.key]) 
+                    ? 'border-yellow-500 bg-yellow-900/10' 
+                    : 'border-border/30'
+                }`}>
+                  <Label className="text-[hsl(var(--gold))]">{papel.nombre}</Label>
+                  <p className="text-xs text-muted-foreground mb-1">{papel.desc}</p>
+                  <p className="text-xs text-[hsl(var(--magic-blue))] mb-2">Habilidad: {papel.habilidad}</p>
+                  <Select 
+                    value={config.papeles[papel.key]} 
+                    onValueChange={(v) => setConfig(prev => ({
+                      ...prev,
+                      papeles: { ...prev.papeles, [papel.key]: v }
+                    }))}
+                  >
+                    <SelectTrigger data-testid={`select-${papel.key}`}>
+                      <SelectValue placeholder="Seleccionar personaje" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="">Sin asignar</SelectItem>
+                      {personajes.map(p => (
+                        <SelectItem key={p.id} value={p.id}>
+                          {p.nombre} {p.vocacion_nombre ? `(${p.vocacion_nombre})` : ''} - Nv.{p.nivel || 1}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {checkMultipleRoles(config.papeles[papel.key]) && config.papeles[papel.key] && (
+                    <p className="text-xs text-yellow-400 mt-1">⚠️ Múltiples papeles: -5 en pruebas</p>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
         </CardContent>
       </Card>
       
