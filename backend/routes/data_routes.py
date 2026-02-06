@@ -1549,3 +1549,15 @@ async def update_shadow_path(senda_name: str, data: dict = Body(...)):
     )
     
     return {"message": f"Shadow path '{new_senda}' updated successfully"}
+
+
+# === VIAJE (Travel Rules) ===
+
+@router.get("/viaje")
+async def get_viaje_rules():
+    """Get travel rules: papeles, secuencia, fatiga, duracion, acontecimientos"""
+    viaje = await db.viaje_rules.find_one({"_id": "main"})
+    if not viaje:
+        return None
+    # Remove _id from response
+    return {k: v for k, v in viaje.items() if k != '_id'}
