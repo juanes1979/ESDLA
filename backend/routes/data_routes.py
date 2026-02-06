@@ -1758,6 +1758,56 @@ async def get_comunidad_rules():
     return {k: v for k, v in comunidad.items() if k != '_id'}
 
 
+# === NPCs, ENEMIES, ANIMALS ===
+
+@router.get("/npcs")
+async def get_all_npcs(categoria: Optional[str] = None):
+    """Get all NPCs/enemies/animals, optionally filtered by category"""
+    query = {}
+    if categoria:
+        query["categoria"] = categoria
+    
+    npcs = await db.npcs.find(query).to_list(500)
+    
+    # Group by category
+    grouped = {
+        'malignos': [],
+        'pnj': [],
+        'animales': [],
+        'especiales': []
+    }
+    
+    for npc in npcs:
+        cat = npc.get('categoria', 'especiales')
+        if cat in grouped:
+            grouped[cat].append({
+                'id': npc['_id'],
+                'nombre': npc.get('nombre'),
+                'descripcion': npc.get('descripcion'),
+                'tipo': npc.get('tipo'),
+                'clase_armadura': npc.get('clase_armadura'),
+                'puntos_golpe': npc.get('puntos_golpe'),
+                'velocidad': npc.get('velocidad'),
+                'velocidad_nota': npc.get('velocidad_nota'),
+                'atributos': npc.get('atributos'),
+                'sentidos': npc.get('sentidos'),
+                'experiencia': npc.get('experiencia'),
+                'especial': npc.get('especial'),
+                'acciones': npc.get('acciones')
+            })
+    
+    return grouped
+
+
+@router.get("/npcs/{npc_id}")
+async def get_npc(npc_id: str):
+    """Get a single NPC by ID"""
+    npc = await db.npcs.find_one({"_id": npc_id})
+    if not npc:
+        raise HTTPException(status_code=404, detail="NPC not found")
+    return {k: v for k, v in npc.items() if k != '_id' or k == '_id'}
+
+
 # === VIAJE (Travel Rules) ===
 
 @router.get("/viaje")
