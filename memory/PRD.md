@@ -5,164 +5,132 @@ Build a comprehensive web application to play a modified version of the "Lord of
 
 **User's preferred language**: Español
 
-## Current State (2026-02-05)
+## Current State (2026-02-06)
 
-### ✅ COMPLETED: Admin CRUD System for Game Rules (P0)
-- **User Context with Auto-Admin** - DONE
-  - Created `/app/frontend/src/contexts/UserContext.jsx`
-  - Admin user "Maestro" active by default (no login required during development)
-  - Crown icon and username visible in header when admin is active
-  
-- **CRUD for Races** - DONE
-  - Backend endpoints: GET/POST/PUT/DELETE `/api/data/races`
-  - Frontend: RaceEditor modal, Create Race button, Edit/Delete buttons on each race
-  - 5 races seeded: Elfos, Enanos, Hombres, Hobbits, Medio Elfos
-  
-- **CRUD for Cultures** - DONE
-  - Backend endpoints: GET/POST/PUT/DELETE `/api/data/cultures`
-  - Frontend: CultureEditor modal with full form (nombre, raza, características físicas, bonificadores, idiomas, competencias, rasgos)
-  - Copy culture feature available
-  - 19 cultures with edit/delete buttons
-  
-- **CRUD for Backgrounds (Trasfondos)** - DONE
-  - Backend endpoints: GET/POST/PUT/DELETE `/api/data/backgrounds`
-  - Frontend: BackgroundEditor modal
-  - Copy background feature available
-  - 114 backgrounds with edit/delete buttons
-  
-- **CRUD for Occupations (Ocupaciones)** - DONE
-  - Backend endpoints: GET/POST/PUT/DELETE `/api/data/occupations`
-  - Frontend: OccupationEditor modal with all fields (vocación, dado de golpe, características, salvaciones, competencias armas/armaduras, habilidades especiales 1-6, maldición sombra)
-  - Copy occupation feature available
-  - 6 occupations with edit/delete buttons
+### ✅ COMPLETED: Página 3 - Campo descripcion_ocupacion
+- Campo multilínea en posición (x:723, y:259, width:882, height:150, fontSize:35)
+- Muestra la descripción corta de la ocupación (fila 16 hoja Ocupaciones)
+- Se guarda automáticamente en el personaje durante el paso 3 y finalización
 
-### ✅ COMPLETED: PDF Generation (P1)
-- **PDF Download Button** - DONE
-  - Added "Descargar PDF" button on character sheet header
-  - Uses html2canvas and jsPDF libraries
-  - Generates 3-page PDF with all character data
-  - Auto-captures each page at scale 1 for best quality
-  - Downloads as `{character_name}_ficha.pdf`
+### ✅ COMPLETED: Editor de Culturas Ampliado
+**Nueva sección: Trasfondos de la Cultura**
+- Checkbox múltiple para seleccionar trasfondos asociados
+- Campo `trasfondos_ids` guardado en la cultura
 
-### Previous Completed Work
+**Nueva sección: Configuración de Virtudes** (aparece cuando "Virtud al nivel 1" está activado)
+- **Copiar virtudes de otra cultura**: Dropdown para seleccionar otra cultura de la cual copiar virtudes
+- **Permite elegir virtudes comunes**: Checkbox para permitir acceso a virtudes comunes
+- **Virtudes propias de esta cultura**: Lista de checkboxes para seleccionar virtudes específicas
+- **Vista previa**: Muestra las virtudes disponibles para el jugador según la configuración
 
-### ✅ COMPLETED: Character Sheet Refactoring & Multi-line Fields
-- Split `InteractiveCharacterSheet.jsx` into smaller components:
-  - `SheetPage1.jsx` - Page 1 rendering
-  - `SheetPage2.jsx` - Page 2 rendering
-  - `SheetPage3.jsx` - Page 3 rendering
-- Multi-line text fields working (descripcion_sombra, descripcion_trasfondo, rasgos_distintivos)
-- Page navigation between pages 1-3
-- Cultural tool proficiencies correctly displayed
+### ✅ COMPLETED: Visualización de Virtudes en RulesPage
+- Nueva sección "Virtudes Disponibles (Nivel 1)" para culturas con `tiene_virtud_inicial=true`
+- Muestra grid de 2 columnas con nombre, descripción y rasgos de cada virtud
+- Carga automática de virtudes al expandir la cultura via API
 
-### ✅ COMPLETED: Data Extraction & Database
-- 19 Cultures with complete data
-- 114 Backgrounds with trait descriptions
-- 6 Occupations with weapon/armor proficiencies correctly separated
-- 100 Virtues with all bonuses
-- 19 Name sets for character name generation
-- Full equipment catalog (29 armas, 9 armaduras, 17 herramientas, 114 equipo general)
+### ✅ COMPLETED: Nuevo Endpoint API
+- `GET /api/data/cultures/{culture_id}/virtues`
+- Devuelve las virtudes disponibles según configuración:
+  - Virtudes propias de la cultura
+  - Virtudes copiadas de otra cultura
+  - Virtudes comunes (si está permitido)
+- Elimina duplicados automáticamente
 
-### ✅ COMPLETED: Rules Page Enhancement
-- "Precios de Equipo" section with searchable equipment list
-- Expandable occupation cards with full details
-- Expandable culture cards with full details
-- **NEW**: Admin buttons for CRUD operations
+## Completed Work (Previous Sessions)
 
-### ✅ COMPLETED: Character Sheet Features
-- Weapon/armor proficiencies correctly separated
-- All 19 skills with modifiers
-- Equipment items 1-28 across pages
-- Currency display (mp, mo, me, mc)
-- Shadow path with description
+### ✅ Sistema CRUD de Admin
+- **Razas**: CRUD completo con 5 razas base
+- **Culturas**: CRUD completo con editor extendido
+- **Trasfondos**: CRUD completo con 114 trasfondos
+- **Ocupaciones**: CRUD completo con 6 ocupaciones
+
+### ✅ Generación de PDF
+- Botón "Descargar PDF" en hoja de personaje
+- Genera PDF de 3 páginas con todos los datos
+
+### ✅ Hoja de Personaje (3 páginas)
+- Página 1: Datos básicos, características, competencias
+- Página 2: Inventario, equipamiento, habilidades
+- Página 3: Ocupación con descripción corta (NUEVO) y habilidades especiales
+
+### ✅ Usuario Admin por Defecto
+- Usuario "Maestro" activo automáticamente sin login
+- Indicador visual en header con icono de corona
 
 ## 📋 PENDING TASKS
 
 ### P0 - High Priority
-1. **Full User Authentication System** (DEFERRED by user request)
-   - Currently: Admin user "Maestro" active by default for development
-   - Future: Login, registration, password management
-   - Roles: "Director de juego" (Admin) / "Usuario" (User)
-   - Admin credentials: Maestro / 123456
+1. **Implementar selección de Virtud en creador de personajes**
+   - Cuando la cultura tiene `tiene_virtud_inicial=true`
+   - Mostrar virtudes disponibles según configuración de la cultura
+   - Guardar virtud seleccionada con todos sus datos:
+     - Nombre, descripción, rasgos
+     - Aumentos de características directos y a elegir
+     - Competencias en salvaciones adicionales
+     - PG extra, puntos de comunidad, CA extra
+     - Competencias a elegir adicionales
 
 ### P1 - Medium Priority
-1. **Phase 2 (Background)** - Partial implementation exists
-   - Needs traits with descriptions display
-   - Tool selection sub-menus
-   
-2. **Phase 4 (Virtue)** - Needs complete implementation
-   - Only for specific cultures at level 1
-   - Filter by culture + COMMON
+1. **Sistema de Autenticación Completo**
+   - Login, registro, gestión de contraseñas
+   - Roles: Director de juego (Admin) / Usuario
+   - Admin credentials: Maestro / 123456
+
+2. **Completar Paso 2 (Trasfondo)** del creador
+3. **Completar Paso 4 (Virtud)** del creador
 
 ### P2 - Lower Priority
-1. Refactor `Step1Culture.jsx` (1500+ lines) into sub-components
-2. Fix data extractor for remaining edge cases
+1. Refactorizar `Step1Culture.jsx` (1500+ líneas)
 
 ## 📋 FUTURE/BACKLOG TASKS
-- Game Master (DM) Screen
-- Online Gameplay Interface (Map, Chat, Dice)
-- AI Integration for story/NPC generation
 
-## ⚠️ CRITICAL RULES
-1. Weapons DO NOT repeat across blocks
-2. Skill competencies DO NOT repeat across phases
-3. Tool competencies DO NOT repeat
-4. Expertise ONLY from already-competent skills
-5. Instruments/Games trigger sub-selection
-6. Save ALL data including descriptions
-7. Virtues filter by culture + COMMON
-8. Virtues exclude existing competencies
+### Sistema de Usuarios (Pendiente - Documentado)
+- **Maestro**: Admin absoluto, crea Admins
+- **Admin**: Copia propia de BD, crea Jugadores (máx 100 fichas, 25 jugadores)
+- **Jugador**: Solo sus personajes (máx 10 fichas)
+- Panel de configuración para Maestro con límites editables
+- Sistema de backup/restauración de BD inicial
+
+### Otras funcionalidades
+- Pantalla del Director de Juego
+- Interfaz de juego online (Mapa, Chat, Dados)
+- Integración IA para historias/NPCs
 
 ## Technical Stack
 - **Backend:** FastAPI, Motor, MongoDB
 - **Frontend:** React, Tailwind, Shadcn UI
 - **PDF:** jsPDF, html2canvas
-- **Data:** openpyxl for Excel parsing
 
-## Key Files (Updated 2026-02-05)
-- `/app/frontend/src/contexts/UserContext.jsx` - Admin user context (NEW)
-- `/app/frontend/src/pages/RulesPage.jsx` - Rules page with full CRUD UI
-- `/app/frontend/src/components/admin/` - Editor components (RaceEditor, CultureEditor, BackgroundEditor, OccupationEditor)
-- `/app/frontend/src/pages/InteractiveCharacterSheet.jsx` - Character sheet with PDF generation
-- `/app/backend/routes/data_routes.py` - Backend CRUD endpoints for all game data
-- `/app/frontend/src/components/character-sheet/` - Sheet page components
+## Key Files (Updated 2026-02-06)
+- `/app/frontend/src/components/character-sheet/SheetPage3.jsx` - Campo descripcion_ocupacion multilínea
+- `/app/frontend/src/components/admin/CultureEditor.jsx` - Secciones de Trasfondos y Virtudes
+- `/app/frontend/src/pages/RulesPage.jsx` - Visualización de virtudes disponibles
+- `/app/backend/routes/data_routes.py` - Endpoint cultures/{id}/virtues
+- `/app/backend/routes/character_routes.py` - Guardar descripcion_corta
 
-## Key DB Schema
-- **races:** Base race definitions (Elfos, Enanos, Hombres, Hobbits, Medio Elfos)
-- **cultures:** Specific culture data with all attributes
-- **culture_names:** Name components for each culture
-- **backgrounds:** Background/origin data
-- **occupations:** Occupation/class data
-- **characters:** Finalized character data
-- **virtues, mecenas, equipment_catalog:** Other game data
+## Key API Endpoints (Updated 2026-02-06)
+- `GET /api/data/cultures/{culture_id}/virtues` - Virtudes disponibles para una cultura
+- `PATCH /api/draft/{draft_id}/step3` - Ahora guarda descripcion_corta
+- `POST /api/draft/{draft_id}/finalize` - Incluye descripcion_corta
 
-## Key API Endpoints (Updated 2026-02-05)
-### CRUD Endpoints (Admin)
-- `GET/POST/PUT/DELETE /api/data/races`
-- `GET/POST/PUT/DELETE /api/data/cultures`
-- `POST /api/data/cultures/{id}/copy`
-- `GET/POST/PUT/DELETE /api/data/backgrounds`
-- `POST /api/data/backgrounds/{id}/copy`
-- `GET/POST/PUT/DELETE /api/data/occupations`
-- `POST /api/data/occupations/{id}/copy`
+## Key DB Schema (Updated)
+**cultures** - Nuevos campos:
+- `trasfondos_ids`: Lista de IDs de trasfondos asociados
+- `virtudes_propias`: Lista de IDs de virtudes específicas
+- `copiar_virtudes_de`: ID de cultura de la cual copiar virtudes
+- `permite_virtudes_comunes`: Boolean
 
-### Read Endpoints
-- `GET /api/data/cultures` - All cultures
-- `GET /api/data/names` - All name components
-- `GET /api/data/equipment-catalog` - Full equipment with prices
-- `GET /api/data/sheet-positions` - Character sheet layouts
+**characters** - Nuevos campos:
+- `descripcion_corta`: Descripción corta de la ocupación
 
 ## Test Reports
-- `/app/test_reports/iteration_10.json` - Admin CRUD tests (100% pass)
-- `/app/backend/tests/test_crud_admin.py` - Backend CRUD test suite
+- `/app/test_reports/iteration_11.json` - Culture virtues features (100% pass)
 
-## Session Changelog (2026-02-05)
-1. Created UserContext with Maestro admin user active by default
-2. Implemented full CRUD UI for Races on RulesPage
-3. Implemented full CRUD UI for Cultures with CultureEditor modal
-4. Implemented full CRUD UI for Backgrounds with BackgroundEditor modal
-5. Implemented full CRUD UI for Occupations with OccupationEditor modal
-6. Added PDF generation to character sheet using html2canvas + jsPDF
-7. Added edit/delete buttons to all data cards (cultures, backgrounds, occupations)
-8. Added "Razas Base" section showing races with admin controls
-9. All tests passed: 16/16 backend, 100% frontend
+## Session Changelog (2026-02-06)
+1. Añadido campo `descripcion_ocupacion` multilínea en SheetPage3
+2. Extendido CultureEditor con sección "Trasfondos de la Cultura"
+3. Extendido CultureEditor con sección "Configuración de Virtudes"
+4. Añadido endpoint GET /api/data/cultures/{id}/virtues
+5. Actualizado RulesPage para mostrar virtudes disponibles
+6. Actualizado step3 y finalize para guardar descripcion_corta
+7. Tests 100% passed: Backend 13/13, Frontend UI verificado
