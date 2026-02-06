@@ -87,10 +87,11 @@ Build a comprehensive web application to play a modified version of the "Lord of
 ## Session Changelog (2026-02-06 - Latest)
 1. Implementado sistema de Level Up completo con LevelUpButton en ficha de personaje
 2. LevelUpModal carga datos de ocupación desde BD cuando no están en personaje
-3. Refactorizada RulesPage.jsx en 5 componentes separados
+3. Refactorizada RulesPage.jsx en 6 componentes separados
 4. Corregido bug en VariosSection.jsx (estructura de datos API)
 5. Agregado endpoint PATCH /api/characters/{id} para actualizaciones
-6. Tests 100% - Todas las secciones refactorizadas funcionando
+6. **NUEVA SECCIÓN: Fase de Comunidad** con estructura, Yule y 10 empresas
+7. Tests 100% - Todas las secciones refactorizadas funcionando
 
 ## Database Collections
 - `artes` - 8 documentos
