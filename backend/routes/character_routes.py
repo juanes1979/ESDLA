@@ -748,6 +748,7 @@ async def finalize_character(draft_id: str):
         "descripcion_cultura": draft.get('descripcion_cultura'),
         "descripcion_riqueza": draft.get('descripcion_riqueza'),
         "riqueza": draft.get('riqueza'),
+        "descripcion_corta": draft.get('descripcion_corta'),  # Short description from row 16
         "descripcion_ocupacion": draft.get('descripcion_ocupacion'),
         "descripcion_ocupacion_larga": draft.get('descripcion_ocupacion_larga'),
         
