@@ -1237,15 +1237,7 @@ const RulesPage = () => {
         return renderCombate();
       
       case 'travel':
-        return (
-          <div className="card-parchment rounded-lg p-6">
-            <h3 className="font-heading text-xl text-[hsl(var(--gold))] mb-4">Viajes</h3>
-            <p className="text-muted-foreground">
-              Las reglas de viaje permiten a la compañía explorar la Tierra Media, 
-              enfrentándose a los peligros del camino y descubriendo nuevas tierras.
-            </p>
-          </div>
-        );
+        return renderViaje();
       
       case 'community':
         return (
