@@ -222,14 +222,23 @@ const TravelGenerator = () => {
     }
     
     if (!config.papeles.guia) {
-      toast.error('Debe haber al menos un Guía');
+      toast.error('Debe haber al menos un Guía asignado');
       return;
     }
     
     setModo('generando');
     
+    // Resolve hero IDs to names for the API
+    const papelesConNombres = {};
+    Object.entries(config.papeles).forEach(([key, heroId]) => {
+      papelesConNombres[key] = heroId ? getHeroName(heroId) : '';
+    });
+    
     try {
-      const res = await api.post('/data/viajes/generar', config);
+      const res = await api.post('/data/viajes/generar', {
+        ...config,
+        papeles: papelesConNombres
+      });
       setResultado(res.data);
       setEventosActuales(res.data.eventos || []);
       setEventoIndex(0);
