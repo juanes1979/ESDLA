@@ -1551,6 +1551,213 @@ async def update_shadow_path(senda_name: str, data: dict = Body(...)):
     return {"message": f"Shadow path '{new_senda}' updated successfully"}
 
 
+# === COMUNIDAD (Community Phase Rules) ===
+
+@router.get("/comunidad")
+async def get_comunidad_rules():
+    """Get community phase rules: estructura, yule, empresas"""
+    comunidad = await db.comunidad_rules.find_one({"_id": "main"})
+    if not comunidad:
+        # Return default structure if not in DB
+        return {
+            "introduccion": {
+                "titulo": "FASE DE COMUNIDAD",
+                "descripcion": "La fase de comunidad es una modalidad de juego guiada por las decisiones de los jugadores. Mientras que en la fase de aventuras los jugadores reaccionan a las indicaciones del Maestro del saber, durante la fase de comunidad pueden desarrollar las historias y ambiciones de sus héroes y controlar su progresión.",
+                "rol_maestro": "El Maestro del saber adopta un papel más pasivo y escucha lo que los jugadores cuentan sobre sus personajes.",
+                "narracion": "Se anima a narrar con detalle lo que hacen los héroes durante este periodo, incluso actividades sin efecto directo en las reglas: investigar pistas, atender asuntos personales o desarrollar relaciones surgidas en la fase de aventuras anterior."
+            },
+            "limites_narrativos": {
+                "descripcion": "Los jugadores deben tener en cuenta:",
+                "limites": [
+                    "La duración de la fase de comunidad",
+                    "Sus límites geográficos",
+                    "Que no deben introducir elementos propios de una fase de aventuras (explorar lugares nunca visitados, conocer figuras importantes nuevas, etc.)"
+                ],
+                "cuando": [
+                    "Marca la conclusión de una fase de aventuras",
+                    "Suele jugarse al final de una sesión",
+                    "También puede abrir una sesión antes de iniciar nuevas aventuras"
+                ]
+            },
+            "estructura": {
+                "descripcion": "Todas las fases de comunidad siguen esta secuencia:",
+                "pasos": [
+                    {
+                        "numero": 1,
+                        "titulo": "Establecer la duración",
+                        "descripcion": "La fase de comunidad abarca más tiempo que una fase de aventuras. Los acontecimientos se describen de forma general. Los días y semanas pasan mientras los héroes descansan, trabajan o estudian.",
+                        "duracion": {
+                            "minimo": "1 semana",
+                            "maximo_habitual": "una estación completa",
+                            "nota": "La fase de comunidad más larga suele coincidir con las festividades de invierno (Yule)"
+                        }
+                    },
+                    {
+                        "numero": 2,
+                        "titulo": "Elegir el destino",
+                        "descripcion": "Tras decidir la duración, los jugadores eligen dónde pasarán este periodo.",
+                        "reglas": [
+                            "La compañía suele reunirse en un refugio seguro",
+                            "Debe estar a una distancia razonable del último lugar de aventuras",
+                            "Debe ser coherente con la duración disponible",
+                            "Puede elegirse cualquier lugar visitado anteriormente",
+                            "El viaje hasta el destino se considera realizado 'entre bastidores', salvo que se quiera jugar"
+                        ],
+                        "refugios_recomendados": ["Bree", "Rivendel"],
+                        "nota_refugios": "Son lugares seguros, con anfitriones dispuestos a acoger a los viajeros y propicios para la sanación"
+                    },
+                    {
+                        "numero": 3,
+                        "titulo": "Recuperación espiritual",
+                        "descripcion": "El descanso y la vida cotidiana refuerzan la fe de los héroes en que sus esfuerzos tienen sentido. Si la fase de aventuras ha tenido resultados positivos contra la Sombra, la compañía reduce su puntuación de Sombra.",
+                        "tabla_reduccion": [
+                            {"impacto": "Interferencia menor en la Sombra", "reduccion": "-1 punto"},
+                            {"impacto": "Obstáculo o daño real al Enemigo", "reduccion": "hasta -2 puntos"},
+                            {"impacto": "Proezas notables que llaman la atención del Enemigo", "reduccion": "hasta -3 puntos"}
+                        ]
+                    },
+                    {
+                        "numero": 4,
+                        "titulo": "Elegir empresas",
+                        "descripcion": "Las empresas son actividades prolongadas que solo pueden realizarse durante la fase de comunidad.",
+                        "seleccion": [
+                            {"tipo": "Fase ordinaria", "empresas": "1 empresa"},
+                            {"tipo": "Fase de Yule", "empresas": "cada jugador elige 1 empresa propia"}
+                        ],
+                        "empresa_gratuita": "Siempre puede elegirse una extra si se cumplen requisitos de ocupación o competencias",
+                        "resumen": [
+                            {"tipo": "Fase ordinaria", "maximo": "2 empresas"},
+                            {"tipo": "Fase de Yule", "maximo": "número de héroes + 1"}
+                        ],
+                        "nota": "Deben elegirse empresas distintas, salvo las marcadas como actividades de Yule"
+                    }
+                ]
+            },
+            "yule": {
+                "titulo": "YULE (FIN DE AÑO)",
+                "descripcion": "Aproximadamente cada tres fases de comunidad llega el invierno y el final del año.",
+                "caracteristicas": [
+                    "La compañía suele pasar toda la estación fría en comunidad",
+                    "Muchos héroes regresan temporalmente a casa",
+                    "Tres meses bastan para viajar desde la mayoría de regiones"
+                ],
+                "paso_anos": {
+                    "titulo": "El paso de los años",
+                    "efectos": [
+                        "Todos los héroes envejecen un año",
+                        "El tiempo de reflexión puede otorgar sabiduría"
+                    ],
+                    "regla_px": {
+                        "descripcion": "Quienes no elijan Sanar cicatrices obtienen PX adicionales:",
+                        "formula": "PX = Inteligencia × 10 × nivel",
+                        "ejemplo": "Nivel 3, INT 13 → 390 PX"
+                    },
+                    "maestro": [
+                        "Informar de cambios en el mundo",
+                        "Introducir noticias relevantes",
+                        "Preparar el trasfondo de la siguiente fase de aventuras"
+                    ]
+                }
+            },
+            "empresas": [
+                {
+                    "nombre": "Educar a un heredero",
+                    "tipo": "Yule",
+                    "descripcion": "El héroe invierte tiempo y dinero en formar a un sucesor.",
+                    "coste": "Mínimo 50 peniques de plata",
+                    "efecto": "Se registra en la hoja de personaje. Cuando el héroe muera o se retire: Experiencia del heredero = cantidad invertida × nivel del héroe",
+                    "maximo": "La mitad de los PX actuales del héroe",
+                    "bonus": "Hereda hasta 3 objetos mágicos",
+                    "nota": "La primera vez debe asignarse un nombre al heredero",
+                    "gratuita": False
+                },
+                {
+                    "nombre": "Escribir una canción",
+                    "tipo": "Ordinaria",
+                    "descripcion": "El héroe compone una Balada, Canción de victoria o Canción de viaje.",
+                    "efecto": "Se añade a la lista de canciones de la compañía",
+                    "uso": "Acción adicional + Carisma (Interpretación) CD 15",
+                    "tipos_cancion": [
+                        {"tipo": "Balada", "efecto": "Ventaja en la primera prueba durante un concilio"},
+                        {"tipo": "Canción de victoria", "efecto": "Ventaja en la primera tirada de ataque"},
+                        {"tipo": "Canción de viaje", "efecto": "Ventaja en la siguiente salvación de fatiga"}
+                    ],
+                    "limite_uso": "Cada canción se usa una vez por fase de aventuras",
+                    "gratuita": True,
+                    "requisito_gratuita": "Competencia en Interpretación o instrumentos"
+                },
+                {
+                    "nombre": "Estudiar mapas historiados e ilustrados",
+                    "tipo": "Ordinaria",
+                    "descripcion": "El héroe estudia mapas y pergaminos.",
+                    "efecto": "Ventaja en pruebas de orientación hasta la siguiente fase de comunidad",
+                    "gratuita": True,
+                    "requisito_gratuita": "Erudito o competencia en cartografía"
+                },
+                {
+                    "nombre": "Estudiar objetos mágicos",
+                    "tipo": "Ordinaria",
+                    "descripcion": "Permite comprender las propiedades de objetos mágicos de la compañía.",
+                    "gratuita": True,
+                    "requisito_gratuita": "Buscador de tesoros o competencia en Saber antiguo"
+                },
+                {
+                    "nombre": "Fortalecer la comunidad",
+                    "tipo": "Ordinaria",
+                    "descripcion": "Refuerza los vínculos del grupo.",
+                    "efecto": "+1 a la puntuación de Comunidad hasta la siguiente fase de comunidad",
+                    "gratuita": True,
+                    "requisito_gratuita": "Capitán o competencias sociales (cervecería, juegos)"
+                },
+                {
+                    "nombre": "Recopilar rumores",
+                    "tipo": "Ordinaria",
+                    "descripcion": "Se investigan noticias y relatos.",
+                    "efecto": "El Maestro del saber entrega un rumor relevante. Ventaja en pruebas de Inteligencia relacionadas con él hasta la siguiente fase",
+                    "gratuita": True,
+                    "requisito_gratuita": "Guardián o competencia en Investigación"
+                },
+                {
+                    "nombre": "Cambiar equipo aventurero",
+                    "tipo": "Ordinaria",
+                    "descripcion": "Durante la fase de comunidad se puede comprar y vender equipo, sustituir armas y armaduras disponibles en el destino.",
+                    "gratuita": False
+                },
+                {
+                    "nombre": "Reunión con un mecenas",
+                    "tipo": "Ordinaria",
+                    "descripcion": "La compañía se reúne con un aliado influyente.",
+                    "efecto": "Posible ayuda o misión. Héroes favorecidos por el mecenas comienzan la siguiente aventura con inspiración",
+                    "gratuita": True,
+                    "requisito_gratuita": "Mensajero o competencia en caligrafía"
+                },
+                {
+                    "nombre": "Sanar cicatrices",
+                    "tipo": "Yule",
+                    "descripcion": "El héroe se centra en su recuperación interior.",
+                    "efecto": "Elimina 1 cicatriz de Sombra",
+                    "penalizacion": "No obtiene PX adicionales ese año",
+                    "gratuita": False
+                },
+                {
+                    "nombre": "Volver a contar una historia",
+                    "tipo": "Yule",
+                    "descripcion": "El héroe narra un episodio vivido y aprende de él.",
+                    "permite": [
+                        "Cambiar un rasgo distintivo",
+                        "Sustituir una competencia con herramientas",
+                        "Cambiar competencias vinculadas a Pericia",
+                        "Sustituir un estilo de lucha"
+                    ],
+                    "nota": "Debe basarse en una cualidad demostrada en la historia narrada",
+                    "gratuita": False
+                }
+            ]
+        }
+    # Remove _id from response
+    return {k: v for k, v in comunidad.items() if k != '_id'}
+
+
 # === VIAJE (Travel Rules) ===
 
 @router.get("/viaje")
