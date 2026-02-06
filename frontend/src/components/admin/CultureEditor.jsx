@@ -344,7 +344,7 @@ const CultureEditor = ({ culture, races, onSave, onClose, onCopy }) => {
                       />
                     </div>
                   </div>
-                </Section>
+                </CollapsibleSection>
 
                 {/* PHYSICAL CHARACTERISTICS */}
                 <CollapsibleSection id="physical" title="Características Físicas" isActive={activeSection === 'physical'} onToggle={handleSectionToggle}>
@@ -404,7 +404,7 @@ const CultureEditor = ({ culture, races, onSave, onClose, onCopy }) => {
                       <Input value={peloText} onChange={(e) => setPeloText(e.target.value)} placeholder="Rubio, Castaño, Negro" />
                     </div>
                   </div>
-                </Section>
+                </CollapsibleSection>
 
                 {/* ATTRIBUTE BONUSES */}
                 <CollapsibleSection id="attributes" title="Bonificadores de Características" isActive={activeSection === 'attributes'} onToggle={handleSectionToggle}>
@@ -428,7 +428,7 @@ const CultureEditor = ({ culture, races, onSave, onClose, onCopy }) => {
                     />
                     <Label className="text-sm">Puede elegir +1 en una característica adicional</Label>
                   </div>
-                </Section>
+                </CollapsibleSection>
 
                 {/* LANGUAGES */}
                 <CollapsibleSection id="languages" title="Idiomas" isActive={activeSection === 'languages'} onToggle={handleSectionToggle}>
@@ -440,7 +440,7 @@ const CultureEditor = ({ culture, races, onSave, onClose, onCopy }) => {
                       placeholder="Ej: OESTRÓN 5, SINDARIN 5"
                     />
                   </div>
-                </Section>
+                </CollapsibleSection>
 
                 {/* COMPETENCIES */}
                 <CollapsibleSection id="competencies" title="Competencias" isActive={activeSection === 'competencies'} onToggle={handleSectionToggle}>
@@ -519,7 +519,7 @@ const CultureEditor = ({ culture, races, onSave, onClose, onCopy }) => {
                       />
                     </div>
                   </div>
-                </Section>
+                </CollapsibleSection>
 
                 {/* CULTURAL TRAITS */}
                 <CollapsibleSection id="traits" title="Rasgos Culturales" isActive={activeSection === 'traits'} onToggle={handleSectionToggle}>
@@ -532,7 +532,7 @@ const CultureEditor = ({ culture, races, onSave, onClose, onCopy }) => {
                       placeholder="Sueños élficos: Los elfos no necesitan dormir...&#10;Habilidad élfica: Si no estás desanimado..."
                     />
                   </div>
-                </Section>
+                </CollapsibleSection>
 
                 {/* SPECIALS */}
                 <CollapsibleSection id="specials" title="Especiales de Cultura" color="torch-orange" isActive={activeSection === 'specials'} onToggle={handleSectionToggle}>
@@ -562,7 +562,7 @@ const CultureEditor = ({ culture, races, onSave, onClose, onCopy }) => {
                       </div>
                     </div>
                   </div>
-                </Section>
+                </CollapsibleSection>
 
                 {/* BACKGROUNDS - NEW */}
                 <CollapsibleSection id="backgrounds" title="Trasfondos de la Cultura" color="magic-blue" isActive={activeSection === 'backgrounds'} onToggle={handleSectionToggle}>
@@ -586,7 +586,7 @@ const CultureEditor = ({ culture, races, onSave, onClose, onCopy }) => {
                       Seleccionados: {formData.trasfondos_ids?.length || 0}
                     </p>
                   </div>
-                </Section>
+                </CollapsibleSection>
 
                 {/* VIRTUES CONFIGURATION - NEW */}
                 {formData.tiene_virtud_inicial && (
@@ -671,7 +671,7 @@ const CultureEditor = ({ culture, races, onSave, onClose, onCopy }) => {
                         </div>
                       </div>
                     </div>
-                  </Section>
+                  </CollapsibleSection>
                 )}
               </div>
             )}
