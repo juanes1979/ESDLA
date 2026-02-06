@@ -98,17 +98,19 @@ const TravelGenerator = () => {
   useEffect(() => {
     const loadData = async () => {
       try {
-        const [regionesRes, distanciasRes, monturasRes, viajesRes] = await Promise.all([
+        const [regionesRes, distanciasRes, monturasRes, viajesRes, personajesRes] = await Promise.all([
           api.get('/data/clima'),
           api.get('/data/distancias'),
           api.get('/data/monturas'),
-          api.get('/data/viajes/guardados')
+          api.get('/data/viajes/guardados'),
+          api.get('/characters')
         ]);
         
         setRegiones(regionesRes.data || []);
         setDistancias(distanciasRes.data || { rutas: [], puntos_interes: [] });
         setMonturas(monturasRes.data || []);
         setViajesGuardados(viajesRes.data || []);
+        setPersonajes(personajesRes.data?.characters || []);
       } catch (err) {
         console.error('Error loading travel data:', err);
       }
