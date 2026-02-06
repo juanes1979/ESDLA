@@ -34,7 +34,7 @@ const VariosSection = ({ data }) => {
           )}
 
           {/* Tabla de dificultad */}
-          {data.pruebas_habilidad.tabla_dificultad && (
+          {data.pruebas_habilidad.dificultad && (
             <div className="overflow-x-auto">
               <p className="text-sm text-muted-foreground mb-2">Tabla de Clase de Dificultad (CD):</p>
               <table className="w-full text-sm">
@@ -42,13 +42,15 @@ const VariosSection = ({ data }) => {
                   <tr className="border-b border-border/30">
                     <th className="text-left py-2 px-2">Dificultad</th>
                     <th className="text-center py-2 px-2">CD</th>
+                    <th className="text-left py-2 px-2">Descripción</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {data.pruebas_habilidad.tabla_dificultad.map((row, i) => (
+                  {data.pruebas_habilidad.dificultad.map((row, i) => (
                     <tr key={i} className="border-b border-border/10">
-                      <td className="py-2 px-2">{row.dificultad}</td>
+                      <td className="py-2 px-2">{row.nombre || row.dificultad}</td>
                       <td className="text-center py-2 px-2 text-[hsl(var(--gold))] font-bold">{row.cd}</td>
+                      <td className="py-2 px-2 text-xs text-muted-foreground">{row.descripcion}</td>
                     </tr>
                   ))}
                 </tbody>
