@@ -148,6 +148,10 @@ const RulesPage = () => {
             const combateRes = await api.get('/data/combate');
             setData(combateRes.data);
             break;
+          case 'travel':
+            const viajeRes = await api.get('/data/viaje');
+            setData(viajeRes.data);
+            break;
           default:
             setData(null);
         }
