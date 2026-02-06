@@ -81,21 +81,21 @@ const SalariosSection = ({ data }) => {
       )}
 
       {/* Workers Tables */}
-      {data.categorias?.no_cualificados && renderCategoriaTable(
+      {data.categorias?.trabajadores_no_cualificados && renderCategoriaTable(
         "Trabajadores No Cualificados", 
-        data.categorias.no_cualificados,
+        data.categorias.trabajadores_no_cualificados,
         <Users className="w-4 h-4" />
       )}
       
-      {data.categorias?.cualificados && renderCategoriaTable(
+      {data.categorias?.trabajadores_cualificados && renderCategoriaTable(
         "Trabajadores Cualificados", 
-        data.categorias.cualificados,
+        data.categorias.trabajadores_cualificados,
         <Crown className="w-4 h-4" />
       )}
       
-      {data.categorias?.nobles_guerreros && renderCategoriaTable(
+      {data.categorias?.nobles_y_guerreros && renderCategoriaTable(
         "Nobles y Guerreros", 
-        data.categorias.nobles_guerreros,
+        data.categorias.nobles_y_guerreros,
         <Swords className="w-4 h-4" />
       )}
       
