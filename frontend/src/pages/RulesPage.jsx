@@ -721,55 +721,141 @@ const RulesPage = () => {
   const renderEquipmentTables = () => {
     if (!data) return null;
     
-    const categories = [
-      { key: 'armas', name: 'Armas', fields: ['nombre', 'precio', 'dano', 'herida', 'peso_kg'] },
-      { key: 'armaduras', name: 'Armaduras', fields: ['nombre', 'precio', 'armadura', 'peso_kg'] },
-      { key: 'escudos', name: 'Escudos', fields: ['nombre', 'precio', 'armadura', 'peso_kg'] },
-      { key: 'equipo_general', name: 'Equipo General', fields: ['nombre', 'precio', 'peso_kg'] },
-      { key: 'herramientas', name: 'Herramientas', fields: ['nombre', 'precio', 'peso_kg'] },
-      { key: 'monturas', name: 'Monturas', fields: ['nombre', 'precio', 'velocidad', 'capacidad_carga'] },
+    // Group categories by section with titles
+    const sections = [
+      {
+        title: "⚔️ Armas",
+        categories: [
+          { key: 'armas_sencillas_cc', name: 'Armas Sencillas (Cuerpo a Cuerpo)', fields: ['nombre', 'precio', 'dano', 'modificador', 'herida', 'peso_kg'] },
+          { key: 'armas_sencillas_distancia', name: 'Armas Sencillas (Distancia)', fields: ['nombre', 'precio', 'dano', 'alcance', 'herida', 'peso_kg'] },
+          { key: 'armas_marciales_cc', name: 'Armas Marciales (Cuerpo a Cuerpo)', fields: ['nombre', 'precio', 'dano', 'modificador', 'herida', 'peso_kg'] },
+          { key: 'armas_marciales_distancia', name: 'Armas Marciales (Distancia)', fields: ['nombre', 'precio', 'dano', 'alcance', 'herida', 'peso_kg'] },
+        ]
+      },
+      {
+        title: "🛡️ Armaduras",
+        categories: [
+          { key: 'armaduras_ligeras', name: 'Armaduras Ligeras', fields: ['nombre', 'precio', 'ca', 'comentarios', 'peso_kg'] },
+          { key: 'armaduras_medias', name: 'Armaduras Medias', fields: ['nombre', 'precio', 'ca', 'comentarios', 'peso_kg'] },
+          { key: 'armaduras_pesadas', name: 'Armaduras Pesadas', fields: ['nombre', 'precio', 'ca', 'comentarios', 'peso_kg'] },
+          { key: 'escudos', name: 'Escudos', fields: ['nombre', 'precio', 'ca', 'peso_kg'] },
+        ]
+      },
+      {
+        title: "🎒 Equipo y Herramientas",
+        categories: [
+          { key: 'equipo_general', name: 'Equipo General', fields: ['nombre', 'precio', 'peso_kg'] },
+          { key: 'herramientas', name: 'Herramientas', fields: ['nombre', 'precio', 'peso_kg'] },
+          { key: 'juegos', name: 'Juegos', fields: ['nombre', 'precio', 'peso_kg'] },
+          { key: 'instrumentos_musicales', name: 'Instrumentos Musicales', fields: ['nombre', 'precio', 'peso_kg'] },
+        ]
+      },
+      {
+        title: "🍖 Consumibles y Alimentación",
+        categories: [
+          { key: 'consumibles', name: 'Consumibles y Alimentación', fields: ['nombre', 'precio', 'peso_kg'] },
+          { key: 'comida_posadas', name: 'Comida en Posadas y Restaurantes', fields: ['nombre', 'precio', 'peso_kg'] },
+        ]
+      },
+      {
+        title: "🌿 Hierbas y Venenos",
+        categories: [
+          { key: 'hierbas', name: 'Hierbas Medicinales y Pociones', fields: ['nombre', 'precio', 'forma_preparacion', 'efecto', 'peso_kg'] },
+          { key: 'venenos', name: 'Venenos', fields: ['nombre', 'precio', 'forma_preparacion', 'efecto', 'peso_kg'] },
+        ]
+      },
+      {
+        title: "🐴 Monturas y Transporte",
+        categories: [
+          { key: 'monturas', name: 'Monturas', fields: ['nombre', 'precio', 'velocidad', 'capacidad_carga', 'capacidad_monta'] },
+          { key: 'accesorios_monturas', name: 'Accesorios de Monturas', fields: ['nombre', 'precio', 'peso_kg'] },
+          { key: 'transporte_terrestre', name: 'Transporte Terrestre', fields: ['nombre', 'precio', 'capacidad_kg'] },
+          { key: 'transporte_maritimo', name: 'Transporte Marítimo', fields: ['nombre', 'precio', 'capacidad_kg'] },
+        ]
+      },
+      {
+        title: "🏗️ Elementos de Construcción",
+        categories: [
+          { key: 'construccion', name: 'Elementos de Construcción', fields: ['nombre', 'precio', 'peso_kg', 'm2'] },
+        ]
+      },
     ];
 
+    // Render a single table
+    const renderTable = (cat) => {
+      const items = data[cat.key];
+      if (!items?.length) return null;
+      
+      const filtered = filterData(items, searchTerm);
+      if (!filtered?.length) return null;
+      
+      return (
+        <div key={cat.key} className="card-parchment rounded-lg p-4">
+          <h4 className="font-heading text-md text-[hsl(var(--magic-blue))] mb-3">{cat.name}</h4>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-border/30">
+                  <th className="text-left py-2 px-2">Nombre</th>
+                  <th className="text-right py-2 px-2">Precio</th>
+                  {cat.fields.includes('dano') && <th className="text-center py-2 px-2">Daño</th>}
+                  {cat.fields.includes('modificador') && <th className="text-center py-2 px-2">Tipo</th>}
+                  {cat.fields.includes('alcance') && <th className="text-center py-2 px-2">Alcance</th>}
+                  {cat.fields.includes('herida') && <th className="text-center py-2 px-2">Herida</th>}
+                  {cat.fields.includes('ca') && <th className="text-center py-2 px-2">CA</th>}
+                  {cat.fields.includes('comentarios') && <th className="text-left py-2 px-2">Modificadores</th>}
+                  {cat.fields.includes('forma_preparacion') && <th className="text-center py-2 px-2">Preparación</th>}
+                  {cat.fields.includes('efecto') && <th className="text-left py-2 px-2">Efecto</th>}
+                  {cat.fields.includes('velocidad') && <th className="text-center py-2 px-2">Vel.</th>}
+                  {cat.fields.includes('capacidad_carga') && <th className="text-center py-2 px-2">Carga</th>}
+                  {cat.fields.includes('capacidad_monta') && <th className="text-center py-2 px-2">Cap. Monta</th>}
+                  {cat.fields.includes('capacidad_kg') && <th className="text-center py-2 px-2">Cap. (Kg)</th>}
+                  {cat.fields.includes('m2') && <th className="text-center py-2 px-2">m²</th>}
+                  {cat.fields.includes('peso_kg') && <th className="text-right py-2 px-2">Peso</th>}
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.map((item, i) => (
+                  <tr key={i} className="border-b border-border/10 hover:bg-black/10">
+                    <td className="py-2 px-2">{item.nombre}</td>
+                    <td className="text-right py-2 px-2 text-[hsl(var(--gold))]">{formatPrice(item.precio, item.moneda)}</td>
+                    {cat.fields.includes('dano') && <td className="text-center py-2 px-2 text-[hsl(var(--torch-orange))]">{item.dano || '-'}</td>}
+                    {cat.fields.includes('modificador') && <td className="text-center py-2 px-2 text-xs">{item.modificador || '-'}</td>}
+                    {cat.fields.includes('alcance') && <td className="text-center py-2 px-2">{item.alcance || '-'}</td>}
+                    {cat.fields.includes('herida') && <td className="text-center py-2 px-2">{item.herida || '-'}</td>}
+                    {cat.fields.includes('ca') && <td className="text-center py-2 px-2 text-[hsl(var(--magic-blue))]">{item.ca || '-'}</td>}
+                    {cat.fields.includes('comentarios') && <td className="text-left py-2 px-2 text-xs text-muted-foreground">{item.comentarios || '-'}</td>}
+                    {cat.fields.includes('forma_preparacion') && <td className="text-center py-2 px-2 text-xs">{item.forma_preparacion || '-'}</td>}
+                    {cat.fields.includes('efecto') && <td className="text-left py-2 px-2 text-xs text-muted-foreground max-w-[200px] truncate" title={item.efecto}>{item.efecto || '-'}</td>}
+                    {cat.fields.includes('velocidad') && <td className="text-center py-2 px-2">{item.velocidad || '-'}</td>}
+                    {cat.fields.includes('capacidad_carga') && <td className="text-center py-2 px-2">{item.capacidad_carga || '-'}</td>}
+                    {cat.fields.includes('capacidad_monta') && <td className="text-center py-2 px-2 text-xs">{item.capacidad_monta || '-'}</td>}
+                    {cat.fields.includes('capacidad_kg') && <td className="text-center py-2 px-2">{item.capacidad_kg || '-'}</td>}
+                    {cat.fields.includes('m2') && <td className="text-center py-2 px-2">{item.m2 || '-'}</td>}
+                    {cat.fields.includes('peso_kg') && <td className="text-right py-2 px-2 text-muted-foreground">{item.peso_kg ? `${item.peso_kg} kg` : '-'}</td>}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      );
+    };
+
     return (
-      <div className="space-y-6">
-        {categories.map(cat => {
-          const items = data[cat.key];
-          if (!items?.length) return null;
-          
-          const filtered = filterData(items, searchTerm);
+      <div className="space-y-8">
+        {sections.map((section, sectionIdx) => {
+          // Check if any category in this section has items
+          const hasItems = section.categories.some(cat => data[cat.key]?.length > 0);
+          if (!hasItems) return null;
           
           return (
-            <div key={cat.key} className="card-parchment rounded-lg p-4">
-              <h3 className="font-heading text-lg text-[hsl(var(--gold))] mb-4">{cat.name}</h3>
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-border/30">
-                      <th className="text-left py-2 px-2">Nombre</th>
-                      <th className="text-right py-2 px-2">Precio</th>
-                      {cat.fields.includes('dano') && <th className="text-center py-2 px-2">Daño</th>}
-                      {cat.fields.includes('herida') && <th className="text-center py-2 px-2">Herida</th>}
-                      {cat.fields.includes('armadura') && <th className="text-center py-2 px-2">CA</th>}
-                      {cat.fields.includes('velocidad') && <th className="text-center py-2 px-2">Vel.</th>}
-                      {cat.fields.includes('capacidad_carga') && <th className="text-center py-2 px-2">Carga</th>}
-                      <th className="text-right py-2 px-2">Peso</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filtered.map((item, i) => (
-                      <tr key={i} className="border-b border-border/10 hover:bg-black/10">
-                        <td className="py-2 px-2">{item.nombre}</td>
-                        <td className="text-right py-2 px-2 text-[hsl(var(--gold))]">{formatPrice(item.precio, item.moneda)}</td>
-                        {cat.fields.includes('dano') && <td className="text-center py-2 px-2">{item.dano || '-'}</td>}
-                        {cat.fields.includes('herida') && <td className="text-center py-2 px-2">{item.herida || '-'}</td>}
-                        {cat.fields.includes('armadura') && <td className="text-center py-2 px-2">{item.armadura || item.ca || '-'}</td>}
-                        {cat.fields.includes('velocidad') && <td className="text-center py-2 px-2">{item.velocidad || '-'}</td>}
-                        {cat.fields.includes('capacidad_carga') && <td className="text-center py-2 px-2">{item.capacidad_carga || '-'}</td>}
-                        <td className="text-right py-2 px-2 text-muted-foreground">{item.peso_kg ? `${item.peso_kg} kg` : '-'}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+            <div key={sectionIdx}>
+              <h3 className="font-heading text-xl text-[hsl(var(--gold))] mb-4 border-b border-[hsl(var(--gold))/30] pb-2">
+                {section.title}
+              </h3>
+              <div className="space-y-4">
+                {section.categories.map(cat => renderTable(cat))}
               </div>
             </div>
           );
