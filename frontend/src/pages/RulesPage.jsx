@@ -17,6 +17,8 @@ import RaceEditor from '@/components/admin/RaceEditor';
 import BackgroundEditor from '@/components/admin/BackgroundEditor';
 import OccupationEditor from '@/components/admin/OccupationEditor';
 import EquipmentEditor from '@/components/admin/EquipmentEditor';
+// Refactored rule section components
+import { SombraSection, CombateSection, SalariosSection, VariosSection, ViajeSection } from '@/components/rules';
 
 const RULE_CATEGORIES = [
   { id: 'cultures', name: 'Culturas', icon: Users, color: 'gold', description: 'Las razas y pueblos de la Tierra Media' },
