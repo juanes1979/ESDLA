@@ -164,21 +164,21 @@ const OccupationEditor = ({ occupation, onSave, onClose, onCopy }) => {
     },
     
     // Profession paths (specializations)
-    caminos: occupation?.caminos || {
-      nombre_especialidad: '', // e.g., "Especialidad de Explorador"
-      nivel_especializacion: 3,
-      especialidades: [
-        {
-          nombre: '',
-          descripcion: '',
-          caracteristicas: ['', '', '']
-        },
-        {
-          nombre: '',
-          descripcion: '',
-          caracteristicas: ['', '', '']
-        }
-      ]
+    caminos: {
+      nombre_especialidad: occupation?.caminos?.nombre_especialidad || '',
+      nivel_especializacion: occupation?.caminos?.nivel_especializacion || 3,
+      especialidades: occupation?.caminos?.especialidades?.length === 2 
+        ? occupation.caminos.especialidades.map(esp => ({
+            nombre: esp?.nombre || '',
+            descripcion: esp?.descripcion || '',
+            caracteristicas: esp?.caracteristicas?.length === 3 
+              ? esp.caracteristicas 
+              : ['', '', '']
+          }))
+        : [
+            { nombre: '', descripcion: '', caracteristicas: ['', '', ''] },
+            { nombre: '', descripcion: '', caracteristicas: ['', '', ''] }
+          ]
     },
     
     // Virtue and Art levels
