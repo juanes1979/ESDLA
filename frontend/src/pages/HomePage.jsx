@@ -90,7 +90,24 @@ const HomePage = () => {
             </p>
           </button>
 
-          {/* Feature 4 - Juego en Línea (Próximamente) */}
+          {/* Feature 4 - Generador de Viajes */}
+          <button
+            onClick={() => navigate('/travel')}
+            className="card-parchment rounded-lg p-6 text-center hover:bg-[hsl(var(--gold))/5] transition-all cursor-pointer border-2 border-transparent hover:border-[hsl(var(--gold))/30]"
+            data-testid="feature-travel"
+          >
+            <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-[hsl(var(--gold))/20] flex items-center justify-center">
+              <Map className="w-8 h-8 text-[hsl(var(--gold))]" />
+            </div>
+            <h3 className="font-heading text-xl text-foreground mb-2">
+              Generador de Viajes
+            </h3>
+            <p className="text-muted-foreground text-sm">
+              Genera viajes con clima, acontecimientos y fatiga.
+            </p>
+          </button>
+
+          {/* Feature 5 - Juego en Línea (Próximamente) */}
           <div 
             className="card-parchment rounded-lg p-6 text-center opacity-60 relative"
             data-testid="feature-online-game"
