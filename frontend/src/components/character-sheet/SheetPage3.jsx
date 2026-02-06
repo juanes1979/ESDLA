@@ -10,13 +10,9 @@ export const PAGE3_FIELDS = {
   nombre: { x: 77, y: 250, width: 600, fontSize: 45, align: 'center' },
   ocupacion_nivel: { x: 723, y: 210, width: 330, fontSize: 40, align: 'left' },
   // Descripción corta de la ocupación (fila 16 hoja Ocupaciones) - MULTILINEA
-  descripcion_ocupacion: { x: 723, y: 259, width: 882, height: 100, fontSize: 32, align: 'left', multiline: true },
+  descripcion_ocupacion: { x: 723, y: 259, width: 882, height: 150, fontSize: 35, align: 'left', multiline: true },
   
-  // VIRTUD - En la zona superior derecha, debajo de la descripción corta de ocupación
-  virtud_nombre: { x: 723, y: 375, width: 400, fontSize: 28, align: 'left' },
-  virtud_rasgos: { x: 1150, y: 375, width: 450, height: 55, fontSize: 24, align: 'left', multiline: true },
-  
-  // Combined occupation description with all special abilities - MULTILINE
+  // Combined occupation description with all special abilities AND VIRTUE at the end - MULTILINE
   descripcion_ocupacion_larga: { x: 77, y: 445, width: 1530, height: 1600, fontSize: 40, align: 'left', multiline: true },
 };
 
