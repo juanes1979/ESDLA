@@ -842,11 +842,28 @@ const TravelGenerator = () => {
         
         {modo === 'configurar' && (
           <>
-            {renderViajesGuardados()}
-            <div className="mt-6">
-              {renderConfiguracion()}
-            </div>
+            {viajesGuardados.length > 0 && (
+              <div className="mb-4">
+                <Button 
+                  variant="outline" 
+                  onClick={() => setModo('historial')}
+                  className="text-[hsl(var(--gold))] w-full"
+                >
+                  📜 Ver Viajes Guardados ({viajesGuardados.length})
+                </Button>
+              </div>
+            )}
+            {renderConfiguracion()}
           </>
+        )}
+        
+        {modo === 'historial' && (
+          <div className="space-y-4">
+            <Button variant="outline" onClick={() => setModo('configurar')}>
+              <ArrowLeft className="w-4 h-4 mr-2" /> Volver a Configuración
+            </Button>
+            {renderViajesGuardados()}
+          </div>
         )}
         
         {modo === 'generando' && (
