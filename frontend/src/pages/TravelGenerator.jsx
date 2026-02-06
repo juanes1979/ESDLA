@@ -185,13 +185,14 @@ const TravelGenerator = () => {
   
   // Check if hero has multiple roles
   const checkMultipleRoles = (heroId) => {
-    if (!heroId) return false;
-    const roles = Object.values(config.papeles).filter(p => p === heroId);
+    if (!heroId || heroId === 'none') return false;
+    const roles = Object.values(config.papeles).filter(p => p && p !== 'none' && p === heroId);
     return roles.length > 1;
   };
   
   // Get hero name by ID
   const getHeroName = (heroId) => {
+    if (!heroId || heroId === 'none') return '';
     const hero = personajes.find(p => p.id === heroId);
     return hero?.nombre || '';
   };
