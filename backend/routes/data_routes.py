@@ -76,6 +76,12 @@ class CultureCreate(BaseModel):
     capacidad_carga_x2: Optional[bool] = False
     tiene_virtud_inicial: Optional[bool] = False
     mejora_noldor: Optional[bool] = False
+    # NEW: Associated backgrounds
+    trasfondos_ids: Optional[List[str]] = []
+    # NEW: Virtues configuration
+    virtudes_propias: Optional[List[str]] = []  # List of virtue IDs specific to this culture
+    copiar_virtudes_de: Optional[str] = ""  # Culture ID to copy virtues from
+    permite_virtudes_comunes: Optional[bool] = False  # Can choose common virtues too
 
 class CultureNamesCreate(BaseModel):
     cultura: str
