@@ -91,7 +91,12 @@ Build a comprehensive web application to play a modified version of the "Lord of
 4. Corregido bug en VariosSection.jsx (estructura de datos API)
 5. Agregado endpoint PATCH /api/characters/{id} para actualizaciones
 6. **NUEVA SECCIÓN: Fase de Comunidad** con estructura, Yule y 10 empresas
-7. Tests 100% - Todas las secciones refactorizadas funcionando
+7. **MEJORA: Generador de Viajes**
+   - Origen y Destino ahora son dropdowns separados (no rutas cerradas)
+   - Papeles de viaje ahora seleccionan personajes de la BD
+   - Sistema métrico en lugar de imperial (velocidad en metros)
+   - Detección automática de rutas conocidas
+8. Tests 100% - Todas las secciones refactorizadas funcionando
 
 ## Database Collections
 - `artes` - 8 documentos
