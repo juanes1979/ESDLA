@@ -1590,6 +1590,464 @@ const RulesPage = () => {
     );
   };
 
+  // === RENDER SALARIOS ===
+  const renderSalarios = () => {
+    if (!data) return <p className="text-muted-foreground">No hay datos de salarios cargados</p>;
+    
+    const renderCategoriaTable = (titulo, trabajadores, icon) => (
+      <div className="card-parchment rounded-lg p-4 mb-4">
+        <h3 className="font-heading text-lg text-[hsl(var(--gold))] mb-3 border-b border-[hsl(var(--gold))/30] pb-2">
+          {icon} {titulo}
+        </h3>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-border/30 text-xs">
+                <th className="text-left py-2 px-2">Ocupación</th>
+                <th className="text-center py-2 px-2">Mod.</th>
+                <th className="text-center py-2 px-2">Bajo</th>
+                <th className="text-center py-2 px-2">Medio</th>
+                <th className="text-center py-2 px-2">Alto</th>
+                <th className="text-center py-2 px-2">Diario</th>
+                <th className="text-left py-2 px-2">Notas</th>
+              </tr>
+            </thead>
+            <tbody>
+              {trabajadores?.map((t, i) => (
+                <tr key={i} className="border-b border-border/10">
+                  <td className="py-2 px-2 font-medium text-[hsl(var(--torch-orange))]">{t.ocupacion}</td>
+                  <td className="py-2 px-2 text-center text-[hsl(var(--magic-blue))]">x{t.modificador}</td>
+                  <td className="py-2 px-2 text-center">{t.salario_bajo} mc</td>
+                  <td className="py-2 px-2 text-center font-semibold text-[hsl(var(--gold))]">{t.salario_medio} mc</td>
+                  <td className="py-2 px-2 text-center">{t.salario_alto} mc</td>
+                  <td className="py-2 px-2 text-center text-xs">{t.diario} mc</td>
+                  <td className="py-2 px-2 text-xs text-muted-foreground">{t.notas}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    );
+
+    const renderModificadores = (titulo, mods, colorClass) => (
+      <div className="bg-black/10 p-3 rounded mb-3">
+        <h4 className={`font-semibold ${colorClass} mb-2`}>{titulo}</h4>
+        <div className="space-y-1">
+          {mods?.map((m, i) => (
+            <div key={i} className="flex justify-between items-center text-sm py-1 border-b border-border/10 last:border-0">
+              <span>{m.region || m.tipo || m.relacion || m.situacion}</span>
+              <span className={`font-mono ${m.modificador >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                {m.modificador >= 0 ? '+' : ''}{(m.modificador * 100).toFixed(0)}%
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+
+    return (
+      <div className="space-y-6">
+        {/* Header */}
+        <div className="card-parchment rounded-lg p-4">
+          <h2 className="font-heading text-xl text-[hsl(var(--gold))] mb-2">💰 {data.descripcion}</h2>
+          <p className="text-sm text-muted-foreground">{data.nota}</p>
+        </div>
+
+        {/* Categories Tables */}
+        {renderCategoriaTable('Trabajadores No Cualificados', data.categorias?.trabajadores_no_cualificados, '👷')}
+        {renderCategoriaTable('Trabajadores Cualificados', data.categorias?.trabajadores_cualificados, '🔨')}
+        {renderCategoriaTable('Nobles y Guerreros', data.categorias?.nobles_y_guerreros, '⚔️')}
+        {renderCategoriaTable('Razas Especiales', data.categorias?.razas_especiales, '✨')}
+
+        {/* Modificadores */}
+        <div className="card-parchment rounded-lg p-4">
+          <h3 className="font-heading text-lg text-[hsl(var(--magic-blue))] mb-4 border-b border-[hsl(var(--magic-blue))/30] pb-2">
+            📊 Modificadores de Salario
+          </h3>
+          <p className="text-sm text-muted-foreground mb-4">
+            Aplica estos modificadores al salario base según las circunstancias.
+          </p>
+          <div className="grid md:grid-cols-2 gap-4">
+            {renderModificadores('Por Región', data.modificadores?.por_region, 'text-[hsl(var(--gold))]')}
+            {renderModificadores('Por Tipo de Asentamiento', data.modificadores?.por_asentamiento, 'text-[hsl(var(--torch-orange))]')}
+            {renderModificadores('Por Relación con el PJ', data.modificadores?.por_relacion, 'text-[hsl(var(--magic-blue))]')}
+            {renderModificadores('Por Contexto Histórico', data.modificadores?.por_contexto, 'text-destructive')}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // === RENDER VARIOS (Multiple Rules) ===
+  const renderVarios = () => {
+    if (!data) return <p className="text-muted-foreground">No hay reglas varias cargadas</p>;
+    
+    return (
+      <div className="space-y-6">
+        {/* Pruebas de Habilidad */}
+        {data.pruebas_habilidad && (
+          <div className="card-parchment rounded-lg p-4">
+            <h3 className="font-heading text-lg text-[hsl(var(--magic-blue))] mb-4 border-b border-[hsl(var(--magic-blue))/30] pb-2">
+              🎲 Pruebas de Habilidad
+            </h3>
+            <p className="text-sm text-muted-foreground mb-4">{data.pruebas_habilidad.descripcion}</p>
+            
+            {/* Habilidades por Característica */}
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-3 mb-4">
+              {Object.entries(data.pruebas_habilidad.habilidades_por_caracteristica || {}).map(([carac, habs]) => (
+                <div key={carac} className="bg-black/10 p-3 rounded">
+                  <h4 className="font-bold text-[hsl(var(--gold))] text-sm mb-2">{carac}</h4>
+                  <ul className="text-xs space-y-1">
+                    {habs.map((h, i) => <li key={i}>• {h}</li>)}
+                  </ul>
+                </div>
+              ))}
+            </div>
+            
+            {/* Tabla de Dificultad */}
+            <h4 className="font-semibold text-[hsl(var(--torch-orange))] mb-2">Tabla de Dificultad</h4>
+            <p className="text-xs text-muted-foreground mb-3">{data.pruebas_habilidad.nota_elevacion}</p>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-border/30">
+                    <th className="text-left py-2 px-2">Dificultad</th>
+                    <th className="text-center py-2 px-2">CD</th>
+                    <th className="text-left py-2 px-2">Descripción</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {data.pruebas_habilidad.dificultad?.map((d, i) => (
+                    <tr key={i} className="border-b border-border/10">
+                      <td className="py-2 px-2 font-medium text-[hsl(var(--torch-orange))]">{d.nombre}</td>
+                      <td className="py-2 px-2 text-center font-bold text-[hsl(var(--gold))]">{d.cd}</td>
+                      <td className="py-2 px-2 text-xs text-muted-foreground">{d.descripcion}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* Ventaja */}
+        {data.ventaja && (
+          <div className="card-parchment rounded-lg p-4">
+            <h3 className="font-heading text-lg text-[hsl(var(--gold))] mb-4 border-b border-[hsl(var(--gold))/30] pb-2">
+              ⚖️ Ventaja y Desventaja
+            </h3>
+            <p className="text-sm mb-4">{data.ventaja.descripcion}</p>
+            <div className="grid md:grid-cols-2 gap-4">
+              {data.ventaja.reglas?.map((r, i) => (
+                <div key={i} className={`p-4 rounded text-center ${r.tipo === 'Ventaja' ? 'bg-green-900/20 border border-green-500/30' : 'bg-red-900/20 border border-red-500/30'}`}>
+                  <p className={`text-2xl font-bold ${r.tipo === 'Ventaja' ? 'text-green-400' : 'text-red-400'}`}>
+                    {r.tipo === 'Ventaja' ? '+5' : '-5'}
+                  </p>
+                  <p className="text-sm font-medium mt-1">{r.tipo}</p>
+                  <p className="text-xs text-muted-foreground mt-1">{r.efecto}</p>
+                </div>
+              ))}
+            </div>
+            {data.ventaja.nota && (
+              <p className="text-sm text-muted-foreground mt-3 text-center italic">{data.ventaja.nota}</p>
+            )}
+          </div>
+        )}
+
+        {/* Cansancio */}
+        {data.cansancio && (
+          <div className="card-parchment rounded-lg p-4">
+            <h3 className="font-heading text-lg text-[hsl(var(--torch-orange))] mb-4 border-b border-[hsl(var(--torch-orange))/30] pb-2">
+              😴 Cansancio
+            </h3>
+            <p className="text-sm text-muted-foreground mb-4">{data.cansancio.descripcion}</p>
+            
+            <div className="overflow-x-auto mb-4">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-border/30">
+                    <th className="text-center py-2 px-2 w-20">Nivel</th>
+                    <th className="text-left py-2 px-2">Consecuencia</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {data.cansancio.niveles?.map((n, i) => (
+                    <tr key={i} className={`border-b border-border/10 ${n.nivel === 6 ? 'bg-red-900/20' : ''}`}>
+                      <td className="py-2 px-2 text-center">
+                        <span className={`inline-block w-8 h-8 rounded-full ${n.nivel === 6 ? 'bg-red-500' : 'bg-[hsl(var(--torch-orange))]'} text-black font-bold leading-8`}>
+                          {n.nivel}
+                        </span>
+                      </td>
+                      <td className={`py-2 px-2 ${n.nivel === 6 ? 'text-red-400 font-bold' : ''}`}>{n.consecuencia}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="grid md:grid-cols-2 gap-3">
+              {data.cansancio.reglas?.map((r, i) => (
+                <div key={i} className="bg-black/10 p-3 rounded">
+                  <p className="font-semibold text-[hsl(var(--gold))] text-sm">{r.regla}</p>
+                  <p className="text-xs text-muted-foreground mt-1">{r.efecto}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Inspiración */}
+        {data.inspiracion && (
+          <div className="card-parchment rounded-lg p-4">
+            <h3 className="font-heading text-lg text-[hsl(var(--magic-blue))] mb-4 border-b border-[hsl(var(--magic-blue))/30] pb-2">
+              ✨ Inspiración
+            </h3>
+            <p className="text-sm mb-4">{data.inspiracion.descripcion}</p>
+            
+            <div className="grid md:grid-cols-2 gap-4">
+              <div className="bg-black/10 p-3 rounded">
+                <h4 className="font-semibold text-[hsl(var(--gold))] mb-2">¿Cómo se obtiene?</h4>
+                <ul className="text-sm space-y-1">
+                  {data.inspiracion.como_obtener?.map((o, i) => (
+                    <li key={i}>• {o}</li>
+                  ))}
+                </ul>
+                <p className="text-xs text-muted-foreground mt-2 italic">{data.inspiracion.nota_acumulacion}</p>
+              </div>
+              
+              <div className="bg-black/10 p-3 rounded">
+                <h4 className="font-semibold text-[hsl(var(--torch-orange))] mb-2">¿Cómo se usa?</h4>
+                <ul className="text-sm space-y-1">
+                  {data.inspiracion.como_usar?.map((u, i) => (
+                    <li key={i}>• {u}</li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Ojo de Mordor */}
+        {data.ojo_de_mordor && (
+          <div className="card-parchment rounded-lg p-4">
+            <h3 className="font-heading text-lg text-destructive mb-4 border-b border-destructive/30 pb-2">
+              👁️ Ojo de Mordor
+            </h3>
+            <p className="text-sm text-muted-foreground mb-4">{data.ojo_de_mordor.descripcion}</p>
+            
+            <div className="grid md:grid-cols-2 gap-4 mb-4">
+              {/* Puntuación Inicial */}
+              <div className="bg-black/10 p-3 rounded">
+                <h4 className="font-semibold text-[hsl(var(--torch-orange))] mb-2">Puntuación Inicial</h4>
+                <div className="space-y-1">
+                  {data.ojo_de_mordor.puntuacion_inicial?.map((p, i) => (
+                    <div key={i} className="flex justify-between text-sm">
+                      <span>{p.condicion}</span>
+                      <span className="font-bold text-red-400">+{p.puntos}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              
+              {/* Durante el Juego */}
+              <div className="bg-black/10 p-3 rounded">
+                <h4 className="font-semibold text-[hsl(var(--magic-blue))] mb-2">Durante el Juego</h4>
+                <div className="space-y-1">
+                  {data.ojo_de_mordor.durante_juego?.map((d, i) => (
+                    <div key={i} className="flex justify-between text-sm">
+                      <span>{d.evento}</span>
+                      <span className="font-bold text-red-400">+{d.puntos}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Episodios de Revelación */}
+            <div className="bg-red-900/10 p-3 rounded border border-red-500/30 mb-4">
+              <h4 className="font-semibold text-red-400 mb-2">Episodios de Revelación</h4>
+              <p className="text-sm">{data.ojo_de_mordor.episodios_revelacion}</p>
+              <p className="text-sm mt-2 text-muted-foreground italic">{data.ojo_de_mordor.volver_nivel_inicial}</p>
+            </div>
+
+            {/* La Caza */}
+            {data.ojo_de_mordor.la_caza && (
+              <div className="bg-black/10 p-3 rounded">
+                <h4 className="font-semibold text-destructive mb-2">La Caza</h4>
+                <p className="text-sm text-muted-foreground mb-2">{data.ojo_de_mordor.la_caza.descripcion}</p>
+                
+                <div className="grid md:grid-cols-2 gap-3">
+                  <div>
+                    <p className="text-xs font-semibold text-[hsl(var(--gold))] mb-1">Umbrales por Región</p>
+                    {data.ojo_de_mordor.la_caza.regiones?.map((r, i) => (
+                      <div key={i} className="flex justify-between text-sm py-1">
+                        <span>{r.region}</span>
+                        <span className="font-mono text-[hsl(var(--torch-orange))]">{r.umbral}</span>
+                      </div>
+                    ))}
+                  </div>
+                  <div>
+                    <p className="text-xs font-semibold text-[hsl(var(--magic-blue))] mb-1">Modificadores</p>
+                    {data.ojo_de_mordor.la_caza.modificadores?.map((m, i) => (
+                      <div key={i} className="text-xs py-1 border-b border-border/10 last:border-0">
+                        <span className={`font-mono ${m.modificador.startsWith('+') ? 'text-green-400' : 'text-red-400'}`}>{m.modificador}</span>
+                        <span className="ml-2 text-muted-foreground">{m.descripcion}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Más Allá del Nivel 10 */}
+        {data.mas_alla_nivel_10 && (
+          <div className="card-parchment rounded-lg p-4 bg-[hsl(var(--gold))/10]">
+            <h3 className="font-heading text-lg text-[hsl(var(--gold))] mb-2">
+              🏔️ Más Allá del Nivel 10
+            </h3>
+            <p className="text-sm italic">{data.mas_alla_nivel_10.descripcion}</p>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  // === RENDER COMBATE ===
+  const renderCombate = () => {
+    if (!data) return <p className="text-muted-foreground">No hay reglas de combate cargadas</p>;
+    
+    return (
+      <div className="space-y-6">
+        {/* Estructura del Combate */}
+        {data.estructura && (
+          <div className="card-parchment rounded-lg p-4">
+            <h3 className="font-heading text-lg text-destructive mb-4 border-b border-destructive/30 pb-2">
+              ⚔️ {data.estructura.descripcion}
+            </h3>
+            <div className="space-y-3">
+              {data.estructura.fases?.map((f, i) => (
+                <div key={i} className="flex gap-4 items-start p-3 bg-black/10 rounded">
+                  <span className="w-8 h-8 rounded-full bg-destructive text-white font-bold flex items-center justify-center flex-shrink-0">
+                    {i + 1}
+                  </span>
+                  <div>
+                    <p className="font-semibold text-[hsl(var(--gold))]">{f.fase}</p>
+                    <p className="text-sm text-muted-foreground">{f.descripcion}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Acciones */}
+        {data.acciones && (
+          <div className="card-parchment rounded-lg p-4">
+            <h3 className="font-heading text-lg text-[hsl(var(--torch-orange))] mb-4 border-b border-[hsl(var(--torch-orange))/30] pb-2">
+              🎬 {data.acciones.descripcion}
+            </h3>
+            <div className="grid md:grid-cols-2 gap-3">
+              {data.acciones.lista?.map((a, i) => (
+                <div key={i} className="bg-black/10 p-3 rounded border-l-4 border-[hsl(var(--torch-orange))]">
+                  <p className="font-semibold text-[hsl(var(--gold))]">{a.accion}</p>
+                  <p className="text-sm text-muted-foreground">{a.descripcion}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Atacar */}
+        {data.atacar && (
+          <div className="card-parchment rounded-lg p-4">
+            <h3 className="font-heading text-lg text-[hsl(var(--magic-blue))] mb-4 border-b border-[hsl(var(--magic-blue))/30] pb-2">
+              🎯 {data.atacar.descripcion}
+            </h3>
+            
+            <div className="space-y-3 mb-4">
+              {data.atacar.pasos?.map((p, i) => (
+                <div key={i} className="flex gap-3 items-start">
+                  <span className="w-6 h-6 rounded bg-[hsl(var(--magic-blue))] text-black text-sm font-bold flex items-center justify-center flex-shrink-0">
+                    {i + 1}
+                  </span>
+                  <div>
+                    <p className="font-medium text-[hsl(var(--gold))]">{p.paso}</p>
+                    <p className="text-sm text-muted-foreground">{p.descripcion}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Críticos */}
+            <h4 className="font-semibold text-[hsl(var(--torch-orange))] mb-2">Tiradas Especiales</h4>
+            <div className="grid md:grid-cols-2 gap-3">
+              {data.atacar.criticos?.map((c, i) => (
+                <div key={i} className={`p-3 rounded text-center ${c.tirada === 20 ? 'bg-green-900/20 border border-green-500/30' : 'bg-red-900/20 border border-red-500/30'}`}>
+                  <p className={`text-3xl font-bold ${c.tirada === 20 ? 'text-green-400' : 'text-red-400'}`}>
+                    {c.tirada}
+                  </p>
+                  <p className="text-sm mt-1">{c.efecto}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Muerte e Inconsciencia */}
+        {data.muerte_e_inconsciencia && (
+          <div className="card-parchment rounded-lg p-4">
+            <h3 className="font-heading text-lg text-destructive mb-4 border-b border-destructive/30 pb-2">
+              💀 Muerte e Inconsciencia
+            </h3>
+            
+            <div className="grid md:grid-cols-2 gap-4 mb-4">
+              <div className="bg-red-900/20 p-3 rounded border border-red-500/30">
+                <h4 className="font-semibold text-red-400 mb-2">Muerte</h4>
+                <p className="text-sm">{data.muerte_e_inconsciencia.muerte}</p>
+              </div>
+              <div className="bg-yellow-900/20 p-3 rounded border border-yellow-500/30">
+                <h4 className="font-semibold text-yellow-400 mb-2">Inconsciencia</h4>
+                <p className="text-sm">{data.muerte_e_inconsciencia.inconsciencia}</p>
+              </div>
+            </div>
+
+            {/* Tiradas de Salvación de Muerte */}
+            {data.muerte_e_inconsciencia.tiradas_salvacion_muerte && (
+              <div className="bg-black/10 p-4 rounded mb-4">
+                <h4 className="font-semibold text-[hsl(var(--torch-orange))] mb-2">
+                  Tiradas de Salvación de la Muerte
+                </h4>
+                <p className="text-sm text-muted-foreground mb-3">
+                  {data.muerte_e_inconsciencia.tiradas_salvacion_muerte.descripcion}
+                </p>
+                <div className="space-y-2">
+                  {data.muerte_e_inconsciencia.tiradas_salvacion_muerte.reglas?.map((r, i) => (
+                    <div key={i} className="flex justify-between items-center text-sm py-1 border-b border-border/10 last:border-0">
+                      <span className="font-mono text-[hsl(var(--magic-blue))]">{r.resultado}</span>
+                      <span className="text-muted-foreground">{r.efecto}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div className="bg-green-900/20 p-3 rounded border border-green-500/30">
+              <h4 className="font-semibold text-green-400 mb-2">Estabilizar</h4>
+              <p className="text-sm">{data.muerte_e_inconsciencia.estabilizar}</p>
+            </div>
+            
+            <p className="text-sm text-muted-foreground mt-3 italic">
+              {data.muerte_e_inconsciencia.nota_enemigos}
+            </p>
+          </div>
+        )}
+      </div>
+    );
+  };
+
   // Handle virtue delete
   const handleDeleteVirtud = async (id, nombre) => {
     if (!window.confirm(`¿Estás seguro de eliminar la virtud "${nombre}"?`)) return;
