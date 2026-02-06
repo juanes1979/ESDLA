@@ -880,6 +880,7 @@ const RulesPage = () => {
 
     return (
       <div className="space-y-8">
+        {adminButton}
         {sections.map((section, sectionIdx) => {
           // Check if any category in this section has items
           const hasItems = section.categories.some(cat => data[cat.key]?.length > 0);
