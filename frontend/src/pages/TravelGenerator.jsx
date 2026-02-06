@@ -603,7 +603,7 @@ const TravelGenerator = () => {
                       <SelectValue placeholder="Seleccionar personaje" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">Sin asignar</SelectItem>
+                      <SelectItem value="none">Sin asignar</SelectItem>
                       {personajes.map(p => (
                         <SelectItem key={p.id} value={p.id}>
                           {p.nombre} {p.vocacion_nombre ? `(${p.vocacion_nombre})` : ''} - Nv.{p.nivel || 1}
@@ -611,7 +611,7 @@ const TravelGenerator = () => {
                       ))}
                     </SelectContent>
                   </Select>
-                  {checkMultipleRoles(config.papeles[papel.key]) && config.papeles[papel.key] && (
+                  {checkMultipleRoles(config.papeles[papel.key]) && config.papeles[papel.key] && config.papeles[papel.key] !== 'none' && (
                     <p className="text-xs text-yellow-400 mt-1">⚠️ Múltiples papeles: -5 en pruebas</p>
                   )}
                 </div>
