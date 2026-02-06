@@ -1118,25 +1118,13 @@ const RulesPage = () => {
         return renderEquipmentTables();
       
       case 'shadow':
-        return (
-          <div className="card-parchment rounded-lg p-6">
-            <h3 className="font-heading text-xl text-[hsl(var(--destructive))] mb-4">La Sombra</h3>
-            <p className="text-muted-foreground mb-4">
-              La Sombra representa la corrupción que acecha a todos los habitantes de la Tierra Media. 
-              A medida que un personaje acumula puntos de Sombra, se acerca más a la oscuridad.
-            </p>
-            <div className="space-y-3">
-              <div className="bg-black/20 p-3 rounded">
-                <p className="font-bold">Desanimado</p>
-                <p className="text-sm text-muted-foreground">Cuando los puntos de Sombra igualan o superan tu puntuación de Esperanza</p>
-              </div>
-              <div className="bg-black/20 p-3 rounded">
-                <p className="font-bold">Angustiado</p>
-                <p className="text-sm text-muted-foreground">Cuando acumulas cicatrices de Sombra permanentes</p>
-              </div>
-            </div>
-          </div>
-        );
+        return renderSombra();
+      
+      case 'artes':
+        return renderArtes();
+      
+      case 'recompensas':
+        return renderRecompensas();
       
       case 'travel':
         return (
@@ -1162,6 +1150,296 @@ const RulesPage = () => {
       
       default:
         return null;
+    }
+  };
+
+  // === RENDER SOMBRA ===
+  const renderSombra = () => {
+    if (!data) return <p className="text-muted-foreground">No hay datos de Sombra cargados</p>;
+    
+    return (
+      <div className="space-y-6">
+        {/* PAVOR */}
+        <div className="card-parchment rounded-lg p-4">
+          <h3 className="font-heading text-lg text-[hsl(var(--destructive))] mb-4 border-b border-[hsl(var(--destructive))/30] pb-2">
+            🌑 PAVOR
+          </h3>
+          <p className="text-sm text-muted-foreground mb-4">
+            Se puede obtener puntos de sombra al ser testigo de acontecimientos terribles.
+            <br /><span className="text-[hsl(var(--magic-blue))]">Tirada de salvación de CARISMA. Si tiene éxito se retira 1 punto.</span>
+          </p>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-border/30">
+                  <th className="text-left py-2 px-2">Fuente</th>
+                  <th className="text-left py-2 px-2">Ejemplo</th>
+                  <th className="text-center py-2 px-2">Puntos</th>
+                </tr>
+              </thead>
+              <tbody>
+                {data.pavor?.map((p, i) => (
+                  <tr key={i} className="border-b border-border/10">
+                    <td className="py-2 px-2">{p.fuente}</td>
+                    <td className="py-2 px-2 text-muted-foreground text-xs">{p.ejemplo}</td>
+                    <td className="text-center py-2 px-2 text-[hsl(var(--destructive))] font-bold">{p.puntos_sombra}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {/* AVARICIA */}
+        <div className="card-parchment rounded-lg p-4">
+          <h3 className="font-heading text-lg text-[hsl(var(--gold))] mb-4 border-b border-[hsl(var(--gold))/30] pb-2">
+            💰 AVARICIA
+          </h3>
+          <p className="text-sm text-muted-foreground mb-4">
+            Propio deseo de riquezas. Tesoros mágicos o artefactos encontrados.
+            <br /><span className="text-[hsl(var(--magic-blue))]">Tirada de salvación de SABIDURÍA. Si tiene éxito se retira 1 punto.</span>
+          </p>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-border/30">
+                  <th className="text-left py-2 px-2">Tesoro Mágico</th>
+                  <th className="text-left py-2 px-2">Descripción</th>
+                  <th className="text-center py-2 px-2">Puntos</th>
+                </tr>
+              </thead>
+              <tbody>
+                {data.avaricia?.map((a, i) => (
+                  <tr key={i} className="border-b border-border/10">
+                    <td className="py-2 px-2 font-medium">{a.tesoro_magico}</td>
+                    <td className="py-2 px-2 text-muted-foreground text-xs">{a.descripcion}</td>
+                    <td className="text-center py-2 px-2 text-[hsl(var(--gold))] font-bold">{a.puntos_sombra}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {/* FECHORÍAS */}
+        <div className="card-parchment rounded-lg p-4">
+          <h3 className="font-heading text-lg text-[hsl(var(--torch-orange))] mb-4 border-b border-[hsl(var(--torch-orange))/30] pb-2">
+            ⚠️ FECHORÍAS
+          </h3>
+          <p className="text-sm text-muted-foreground mb-4">
+            La intención es lo que cuenta. Si la fechoría es sin querer, se puede reducir a la mitad.
+            <br /><span className="text-[hsl(var(--destructive))]">NO se puede realizar tirada de salvación.</span>
+          </p>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-border/30">
+                  <th className="text-left py-2 px-2">Acción</th>
+                  <th className="text-center py-2 px-2">Puntos</th>
+                </tr>
+              </thead>
+              <tbody>
+                {data.fechorias?.map((f, i) => (
+                  <tr key={i} className="border-b border-border/10">
+                    <td className="py-2 px-2">{f.accion}</td>
+                    <td className="text-center py-2 px-2 text-[hsl(var(--torch-orange))] font-bold">{f.puntos_sombra}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {/* ESTADOS */}
+        <div className="card-parchment rounded-lg p-4">
+          <h3 className="font-heading text-lg text-[hsl(var(--magic-blue))] mb-4 border-b border-[hsl(var(--magic-blue))/30] pb-2">
+            😰 ESTADOS PROVOCADOS POR LA SOMBRA
+          </h3>
+          <div className="space-y-4">
+            {data.estados?.map((e, i) => (
+              <div key={i} className="bg-black/20 p-4 rounded border-l-4 border-[hsl(var(--destructive))]">
+                <p className="font-bold text-[hsl(var(--torch-orange))] text-lg">{e.nombre}</p>
+                <p className="text-sm text-muted-foreground mt-1"><strong>Condición:</strong> {e.condicion}</p>
+                <div className="mt-2">
+                  <p className="text-xs font-bold text-[hsl(var(--destructive))]">Efectos:</p>
+                  <ul className="list-disc list-inside text-sm mt-1">
+                    {e.efectos?.map((ef, j) => (
+                      <li key={j}>{ef}</li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* SENDAS DE LA SOMBRA */}
+        <div className="card-parchment rounded-lg p-4">
+          <h3 className="font-heading text-lg text-[hsl(var(--destructive))] mb-4 border-b border-[hsl(var(--destructive))/30] pb-2">
+            💀 SENDAS DE LA SOMBRA - DEFECTOS
+          </h3>
+          <p className="text-sm text-muted-foreground mb-4">
+            Tras el brote de locura se adquieren los siguientes defectos según el origen de la Sombra.
+            Los héroes que desarrollan los cuatro defectos de una senda sucumben ante la Sombra.
+          </p>
+          
+          {/* Group by senda */}
+          {(() => {
+            const grouped = {};
+            data.sendas_sombra?.forEach(s => {
+              if (!grouped[s.senda]) grouped[s.senda] = [];
+              grouped[s.senda].push(s);
+            });
+            
+            return Object.entries(grouped).map(([senda, defectos]) => (
+              <div key={senda} className="mb-6 last:mb-0">
+                <h4 className="font-heading text-md text-[hsl(var(--torch-orange))] mb-3 bg-black/30 p-2 rounded">
+                  {senda}
+                </h4>
+                <div className="space-y-2">
+                  {defectos.map((d, i) => (
+                    <div key={i} className="bg-black/10 p-3 rounded border-l-2 border-[hsl(var(--destructive))/50]">
+                      <p className="font-bold text-sm">{d.defecto}</p>
+                      <p className="text-xs text-muted-foreground mt-1">{d.descripcion}</p>
+                      {d.efecto_juego && (
+                        <p className="text-xs text-[hsl(var(--magic-blue))] mt-1 italic">{d.efecto_juego}</p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ));
+          })()}
+        </div>
+      </div>
+    );
+  };
+
+  // === RENDER ARTES ===
+  const renderArtes = () => {
+    if (!data?.length) return <p className="text-muted-foreground">No hay artes cargadas</p>;
+    
+    return (
+      <div className="space-y-4">
+        <div className="card-parchment rounded-lg p-4">
+          <h3 className="font-heading text-lg text-[hsl(var(--magic-blue))] mb-4 border-b border-[hsl(var(--magic-blue))/30] pb-2">
+            📜 Artes
+          </h3>
+          <div className="space-y-4">
+            {data.map((arte, i) => (
+              <div key={i} className="bg-black/10 p-4 rounded border border-border/20">
+                <p className="font-bold text-[hsl(var(--torch-orange))] text-lg">{arte.nombre}</p>
+                {arte.descripcion_corta && (
+                  <p className="text-sm text-muted-foreground mt-1 italic">{arte.descripcion_corta}</p>
+                )}
+                {arte.descripcion && (
+                  <div className="mt-3 p-3 bg-[hsl(var(--magic-blue))/10] rounded">
+                    <p className="text-sm">{arte.descripcion}</p>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // === RENDER RECOMPENSAS ===
+  const renderRecompensas = () => {
+    if (!data) return <p className="text-muted-foreground">No hay recompensas cargadas</p>;
+    
+    return (
+      <div className="space-y-6">
+        {/* Mejoras de Equipo */}
+        <div className="card-parchment rounded-lg p-4">
+          <h3 className="font-heading text-lg text-[hsl(var(--gold))] mb-4 border-b border-[hsl(var(--gold))/30] pb-2">
+            ⚔️ Mejoras de Equipo
+          </h3>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-border/30">
+                  <th className="text-left py-2 px-2">Tipo</th>
+                  <th className="text-left py-2 px-2">Recompensa</th>
+                  <th className="text-left py-2 px-2">Efecto Mecánico</th>
+                  <th className="text-left py-2 px-2">Restricciones</th>
+                </tr>
+              </thead>
+              <tbody>
+                {data.mejoras_equipo?.map((m, i) => (
+                  <tr key={i} className="border-b border-border/10">
+                    <td className="py-2 px-2 text-[hsl(var(--magic-blue))]">{m.tipo}</td>
+                    <td className="py-2 px-2 font-medium text-[hsl(var(--torch-orange))]">{m.nombre}</td>
+                    <td className="py-2 px-2">{m.efecto_mecanico}</td>
+                    <td className="py-2 px-2 text-muted-foreground text-xs">{m.restricciones}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {/* Niveles de Recompensa */}
+        <div className="card-parchment rounded-lg p-4">
+          <h3 className="font-heading text-lg text-[hsl(var(--torch-orange))] mb-4 border-b border-[hsl(var(--torch-orange))/30] pb-2">
+            📈 Niveles de Recompensa
+          </h3>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            {data.niveles_recompensa?.map((n, i) => (
+              <div key={i} className="bg-black/10 p-3 rounded text-center">
+                <p className="text-2xl font-bold text-[hsl(var(--gold))]">Nivel {n.nivel}</p>
+                <p className="text-sm text-muted-foreground">{n.recompensa}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Bonificador por Competencia */}
+        {data.bonificador_competencia?.length > 0 && (
+          <div className="card-parchment rounded-lg p-4">
+            <h3 className="font-heading text-lg text-[hsl(var(--magic-blue))] mb-4 border-b border-[hsl(var(--magic-blue))/30] pb-2">
+              🎯 Bonificador por Competencia
+            </h3>
+            <p className="text-sm text-muted-foreground mb-3">
+              Según el nivel del personaje, la tirada de bonificación por competencia varía.
+            </p>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              {data.bonificador_competencia.map((b, i) => (
+                <div key={i} className="bg-black/10 p-3 rounded text-center">
+                  <p className="text-sm text-muted-foreground">Nivel {b.nivel}</p>
+                  <p className="text-xl font-bold text-[hsl(var(--torch-orange))]">{b.tirada}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Bendiciones */}
+        <div className="card-parchment rounded-lg p-4">
+          <h3 className="font-heading text-lg text-[hsl(var(--gold))] mb-4 border-b border-[hsl(var(--gold))/30] pb-2">
+            ✨ Bendiciones
+          </h3>
+          <p className="text-sm">
+            Los objetos que se envuelven en bendiciones élicas obtienen propiedades especiales 
+            que ayudan contra las fuerzas oscuras de la Tierra Media.
+          </p>
+        </div>
+      </div>
+    );
+  };
+
+  // Handle virtue delete
+  const handleDeleteVirtud = async (id, nombre) => {
+    if (!window.confirm(`¿Estás seguro de eliminar la virtud "${nombre}"?`)) return;
+    try {
+      await api.delete(`/data/virtudes/${id}`);
+      toast.success('Virtud eliminada');
+      // Reload virtues
+      const res = await api.get('/data/virtudes');
+      setData(res.data?.virtudes || []);
+    } catch (err) {
+      toast.error('Error al eliminar la virtud');
     }
   };
 
