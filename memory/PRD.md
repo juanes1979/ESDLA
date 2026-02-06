@@ -9,53 +9,40 @@ Build a comprehensive web application to play a modified version of the "Lord of
 
 ### ✅ COMPLETED This Session
 
-#### Nuevas Secciones de Reglas
-1. **Artes** - 8 artes con descripciones completas extraídas del Excel
-   - Arte de la fabricación, medicina, oratoria, runas, bosques, armas, bestias, canciones
-   - Descripciones formateadas con párrafos y listas
+#### P0: Level Up System & Refactorization
+1. **Level Up Modal Enhancement**
+   - LevelUpButton ahora visible en la ficha de personaje junto al nivel
+   - Modal carga datos de ocupación desde la BD cuando no están en el personaje
+   - Parsea `virtudes_texto` para determinar niveles de selección de virtudes/artes
+   - Soporta campos `ocupacion` y `vocacion_nombre` para compatibilidad
+   - Endpoint PATCH `/api/characters/{id}` para actualizar personaje al subir de nivel
 
-2. **Recompensas** - Sistema completo
-   - Mejoras de Equipo: 6 mejoras (Afilada, Cruel, Dolorosa, Ajustada, Hábilmente fabricada, Reforzado)
-   - Niveles de Recompensa: Nivel 3, 5, 7, 9
-   - **Bendiciones**: Descripción completa + tabla de dados por nivel (1d4 a 1d12)
+2. **RulesPage Refactorization**
+   - Creados 5 componentes separados en `/app/frontend/src/components/rules/`:
+     - `SombraSection.jsx` - Pavor, Avaricia, Fechorías, Estados, Sendas
+     - `CombateSection.jsx` - Estructura, Acciones, Atacar, Muerte
+     - `SalariosSection.jsx` - 4 categorías de trabajadores
+     - `VariosSection.jsx` - Pruebas, Ventaja, Cansancio, Inspiración, Ojo de Mordor
+     - `ViajeSection.jsx` - Papeles, Secuencia, Fatiga, Duración, Acontecimientos
+   - Index file para fácil importación: `/app/frontend/src/components/rules/index.js`
+   - Mejora significativa en mantenibilidad del código
 
-3. **Salarios** - Nueva sección completa
-   - 4 categorías de trabajadores (No cualificados, Cualificados, Nobles/Guerreros, Razas Especiales)
-   - Columnas: Ocupación, Modificador, Salario Bajo/Medio/Alto, Diario, Notas
-   - Modificadores: Por región, asentamiento, relación, contexto histórico
-
-4. **Reglas Varias** - Nueva sección
-   - **Pruebas de Habilidad**: Habilidades por característica + Tabla de dificultad (CD 5-30)
-   - **Ventaja/Desventaja**: +5/-5 con visual verde/rojo
-   - **Cansancio**: 6 niveles con consecuencias
-   - **Inspiración**: Cómo obtener y usar
-   - **Ojo de Mordor**: Puntuación inicial, durante juego, La Caza
-   - **Más Allá del Nivel 10**: Límite de nivel
-
-5. **Combate** - Nueva sección
-   - Estructura: 4 fases (Posiciones, Sorpresa, Iniciativa, Turnos)
-   - Acciones: 10 acciones disponibles
-   - Atacar: 5 pasos + críticos (20/1)
-   - Muerte e Inconsciencia: Tiradas de salvación, estabilizar
-
-6. **Sombra** - Mejoras
-   - Admin (Maestro) puede eliminar sendas de sombra
-   - Botón de eliminar visible junto a cada senda
-
-### ✅ COMPLETED (Sesiones anteriores)
-- P0: OccupationEditor.jsx completo con todos los bloques de equipo
-- P1: Sub-selecciones de instrumentos/juegos en Step2Background
+#### Sesiones Anteriores (resumen)
+- Generador de Viajes (`/travel`) - Completo con cálculo de fatiga, eventos, clima
+- Secciones de reglas: Artes, Recompensas, Salarios, Combate, Reglas Varias
+- OccupationEditor completo
+- Sub-selecciones de instrumentos/juegos en trasfondos
 - 100 Virtudes con campos de elección
 - Catálogo de Equipo (21 categorías)
-- Sección de Sombra con 8 subsecciones
+- Sistema de Sombra con eliminación de sendas
 
 ## 📋 UPCOMING TASKS
 
-### P1 - Medium Priority
-1. **Virtue/Art Selection Levels in Character Creator**: 
-   - Implementar selección de virtud/arte por nivel en sistema de subida de nivel
+### P1 - Next Priority
+1. **PDF Export for Travel Generator**
+   - Exportar logs de viaje generados a PDF
 
-### P2 - Low Priority
+### P2 - Medium Priority
 1. **Sistema de Autenticación Completo**
    - Login, registro, roles (Maestro > Admin > Jugador)
 2. **Gestión de Base de Datos**
