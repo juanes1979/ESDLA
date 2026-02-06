@@ -138,33 +138,62 @@ const TravelGenerator = () => {
   useEffect(() => {
     const montura = monturas.find(m => m.nombre === config.montura);
     if (montura) {
-      setConfig(prev => ({ ...prev, velocidad: montura.velocidad }));
+      // Convert feet to meters (1 foot = 0.3048 meters)
+      const velocidadMetros = Math.round(montura.velocidad * 0.3048);
+      setConfig(prev => ({ ...prev, velocidad: velocidadMetros }));
     }
   }, [config.montura, monturas]);
   
-  // Handle predefined route selection
-  const handleRutaSelect = (ruta) => {
-    setConfig(prev => ({
-      ...prev,
-      origen: ruta.origen,
-      destino: ruta.destino,
-      casillas: ruta.casillas,
-      region: ruta.region,
-      tipo_terreno: ruta.tipo_terreno
-    }));
-    
-    // Set tipo_tierra based on destination
-    const punto = distancias.puntos_interes?.find(p => p.nombre === ruta.destino);
-    if (punto) {
-      setConfig(prev => ({ ...prev, tipo_tierra: punto.tipo_tierra }));
-    }
+  // Get unique locations from routes and points of interest
+  const getUbicaciones = () => {
+    const ubicaciones = new Set();
+    distancias.rutas?.forEach(r => {
+      ubicaciones.add(r.origen);
+      ubicaciones.add(r.destino);
+    });
+    distancias.puntos_interes?.forEach(p => {
+      ubicaciones.add(p.nombre);
+    });
+    return Array.from(ubicaciones).sort();
   };
   
+  // Auto-calculate distance when origin/destination change
+  useEffect(() => {
+    if (config.origen && config.destino && config.origen !== config.destino) {
+      // Find direct route
+      const ruta = distancias.rutas?.find(r => 
+        (r.origen === config.origen && r.destino === config.destino) ||
+        (r.origen === config.destino && r.destino === config.origen)
+      );
+      
+      if (ruta) {
+        setConfig(prev => ({
+          ...prev,
+          casillas: ruta.casillas,
+          region: ruta.region,
+          tipo_terreno: ruta.tipo_terreno
+        }));
+        
+        // Set tipo_tierra based on destination
+        const punto = distancias.puntos_interes?.find(p => p.nombre === config.destino);
+        if (punto) {
+          setConfig(prev => ({ ...prev, tipo_tierra: punto.tipo_tierra }));
+        }
+      }
+    }
+  }, [config.origen, config.destino, distancias]);
+  
   // Check if hero has multiple roles
-  const checkMultipleRoles = (heroName) => {
-    if (!heroName) return false;
-    const roles = Object.values(config.papeles).filter(p => p === heroName);
+  const checkMultipleRoles = (heroId) => {
+    if (!heroId) return false;
+    const roles = Object.values(config.papeles).filter(p => p === heroId);
     return roles.length > 1;
+  };
+  
+  // Get hero name by ID
+  const getHeroName = (heroId) => {
+    const hero = personajes.find(p => p.id === heroId);
+    return hero?.nombre || '';
   };
   
   // Update heroes with multiple roles
