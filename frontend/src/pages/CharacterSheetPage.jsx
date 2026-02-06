@@ -13,6 +13,7 @@ import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 import api from '@/services/api';
+import { LevelUpButton } from '@/components/LevelUpModal';
 
 const getModifier = (score) => Math.floor((score - 10) / 2);
 const formatModifier = (mod) => mod >= 0 ? `+${mod}` : `${mod}`;
