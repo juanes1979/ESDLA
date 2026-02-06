@@ -2076,6 +2076,365 @@ const RulesPage = () => {
     );
   };
 
+  // === RENDER VIAJE ===
+  const renderViaje = () => {
+    if (!data) return <p className="text-muted-foreground">No hay reglas de viaje cargadas</p>;
+    
+    return (
+      <div className="space-y-6">
+        {/* Introducción */}
+        {data.introduccion && (
+          <div className="card-parchment rounded-lg p-4">
+            <h2 className="font-heading text-xl text-[hsl(var(--gold))] mb-3 border-b border-[hsl(var(--gold))/30] pb-2">
+              🗺️ {data.introduccion.titulo}
+            </h2>
+            <p className="text-sm">{data.introduccion.descripcion}</p>
+          </div>
+        )}
+
+        {/* Papeles de Viaje */}
+        {data.papeles_viaje && (
+          <div className="card-parchment rounded-lg p-4">
+            <h3 className="font-heading text-lg text-[hsl(var(--torch-orange))] mb-4 border-b border-[hsl(var(--torch-orange))/30] pb-2">
+              👥 Papeles de Viaje
+            </h3>
+            <p className="text-sm text-muted-foreground mb-4">{data.papeles_viaje.descripcion}</p>
+            
+            <div className="grid md:grid-cols-2 gap-3 mb-4">
+              {data.papeles_viaje.papeles?.map((p, i) => (
+                <div key={i} className="bg-black/10 p-3 rounded border-l-4 border-[hsl(var(--gold))]">
+                  <p className="font-bold text-[hsl(var(--gold))]">{p.papel}</p>
+                  <p className="text-sm text-muted-foreground">{p.funcion}</p>
+                </div>
+              ))}
+            </div>
+
+            {/* Asignación de papeles */}
+            <div className="bg-[hsl(var(--magic-blue))/10] p-3 rounded">
+              <h4 className="font-semibold text-[hsl(var(--magic-blue))] mb-2">Cómo asignar los papeles</h4>
+              <ul className="text-sm space-y-1">
+                {data.papeles_viaje.asignacion?.reglas?.map((r, i) => (
+                  <li key={i}>• {r}</li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        )}
+
+        {/* Secuencia del Viaje */}
+        {data.secuencia_viaje && (
+          <div className="card-parchment rounded-lg p-4">
+            <h3 className="font-heading text-lg text-[hsl(var(--magic-blue))] mb-4 border-b border-[hsl(var(--magic-blue))/30] pb-2">
+              📋 Secuencia del Viaje
+            </h3>
+            <p className="text-sm text-muted-foreground mb-4 italic">{data.secuencia_viaje.nota}</p>
+            
+            <div className="space-y-4">
+              {data.secuencia_viaje.pasos?.map((paso, i) => (
+                <div key={i} className="bg-black/10 p-4 rounded">
+                  <div className="flex items-start gap-3 mb-2">
+                    <span className="w-8 h-8 rounded-full bg-[hsl(var(--magic-blue))] text-white font-bold flex items-center justify-center flex-shrink-0">
+                      {paso.numero}
+                    </span>
+                    <div className="flex-1">
+                      <h4 className="font-bold text-[hsl(var(--gold))]">{paso.titulo}</h4>
+                      <p className="text-sm text-muted-foreground">{paso.descripcion}</p>
+                    </div>
+                  </div>
+                  
+                  {paso.consideraciones && (
+                    <div className="ml-11 mt-2">
+                      <p className="text-xs font-semibold text-[hsl(var(--torch-orange))] mb-1">Consideraciones:</p>
+                      <ul className="text-xs space-y-1">
+                        {paso.consideraciones.map((c, ci) => <li key={ci}>• {c}</li>)}
+                      </ul>
+                    </div>
+                  )}
+                  
+                  {paso.maestro && (
+                    <div className="ml-11 mt-2">
+                      <p className="text-xs font-semibold text-[hsl(var(--magic-blue))] mb-1">El Maestro del saber:</p>
+                      <ul className="text-xs space-y-1">
+                        {paso.maestro.map((m, mi) => <li key={mi}>• {m}</li>)}
+                      </ul>
+                    </div>
+                  )}
+                  
+                  {paso.prueba && (
+                    <div className="ml-11 mt-2 bg-[hsl(var(--gold))/10] p-2 rounded">
+                      <p className="text-sm font-semibold text-[hsl(var(--gold))]">{paso.prueba.tipo}</p>
+                      {paso.prueba.alternativas && (
+                        <p className="text-xs text-muted-foreground">
+                          Alternativas: {paso.prueba.alternativas.join(', ')}
+                        </p>
+                      )}
+                      <p className="text-xs text-red-400 mt-1">{paso.prueba.penalizacion}</p>
+                    </div>
+                  )}
+                  
+                  {paso.resultados && (
+                    <div className="ml-11 mt-3">
+                      <p className="text-xs font-semibold mb-2">Distancia al acontecimiento:</p>
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                        {paso.resultados.map((r, ri) => (
+                          <div key={ri} className={`p-2 rounded text-center text-xs ${r.resultado.includes('Éxito') ? 'bg-green-900/20' : 'bg-red-900/20'}`}>
+                            <p className={`font-semibold ${r.resultado.includes('Éxito') ? 'text-green-400' : 'text-red-400'}`}>{r.resultado}</p>
+                            <p className="text-muted-foreground">{r.distancia}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Fatiga */}
+        {data.fatiga && (
+          <div className="card-parchment rounded-lg p-4">
+            <h3 className="font-heading text-lg text-[hsl(var(--torch-orange))] mb-4 border-b border-[hsl(var(--torch-orange))/30] pb-2">
+              😰 Fatiga
+            </h3>
+            <p className="text-sm mb-4">{data.fatiga.descripcion}</p>
+            
+            <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-2 mb-3">
+              {data.fatiga.resultados?.map((r, i) => (
+                <div key={i} className={`p-3 rounded text-center ${r.resultado === 'Éxito' ? 'bg-green-900/20' : 'bg-red-900/20'}`}>
+                  <p className={`font-semibold ${r.resultado === 'Éxito' ? 'text-green-400' : 'text-red-400'}`}>{r.resultado}</p>
+                  <p className="text-xs text-muted-foreground">{r.efecto}</p>
+                </div>
+              ))}
+            </div>
+            
+            <p className="text-sm text-[hsl(var(--magic-blue))] italic">🐴 {data.fatiga.montura}</p>
+          </div>
+        )}
+
+        {/* Duración del Viaje */}
+        {data.duracion_viaje && (
+          <div className="card-parchment rounded-lg p-4">
+            <h3 className="font-heading text-lg text-[hsl(var(--gold))] mb-4 border-b border-[hsl(var(--gold))/30] pb-2">
+              ⏱️ Duración del Viaje
+            </h3>
+            <p className="text-sm text-muted-foreground mb-3">{data.duracion_viaje.descripcion}</p>
+            
+            <div className="grid md:grid-cols-2 gap-3 mb-4">
+              {data.duracion_viaje.reglas?.map((r, i) => (
+                <div key={i} className="bg-black/10 p-2 rounded flex justify-between items-center">
+                  <span className="text-sm">{r.condicion}</span>
+                  <span className="text-sm font-mono text-[hsl(var(--torch-orange))]">{r.duracion}</span>
+                </div>
+              ))}
+            </div>
+
+            <div className="grid md:grid-cols-2 gap-4">
+              <div className="bg-yellow-900/20 p-3 rounded border border-yellow-500/30">
+                <h4 className="font-semibold text-yellow-400 mb-2">⛰️ Terreno Difícil</h4>
+                <ul className="text-sm space-y-1">
+                  {data.duracion_viaje.terreno_dificil?.reglas?.map((r, i) => (
+                    <li key={i}>• {r}</li>
+                  ))}
+                </ul>
+              </div>
+              
+              <div className="bg-red-900/20 p-3 rounded border border-red-500/30">
+                <h4 className="font-semibold text-red-400 mb-2">🏃 Marcha Forzada</h4>
+                <p className="text-sm">{data.duracion_viaje.marcha_forzada?.efecto}</p>
+                <p className="text-xs text-muted-foreground mt-1">{data.duracion_viaje.marcha_forzada?.salvacion}</p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Áreas Peligrosas */}
+        {data.areas_peligrosas && (
+          <div className="card-parchment rounded-lg p-4">
+            <h3 className="font-heading text-lg text-destructive mb-4 border-b border-destructive/30 pb-2">
+              ⚠️ Áreas Peligrosas
+            </h3>
+            <p className="text-sm mb-3">{data.areas_peligrosas.descripcion}</p>
+            <ul className="text-sm space-y-1">
+              {data.areas_peligrosas.reglas?.map((r, i) => (
+                <li key={i}>• {r}</li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {/* Otras Reglas */}
+        {data.otras_reglas && (
+          <div className="card-parchment rounded-lg p-4">
+            <h3 className="font-heading text-lg text-[hsl(var(--magic-blue))] mb-4 border-b border-[hsl(var(--magic-blue))/30] pb-2">
+              📜 Otras Reglas de Viaje
+            </h3>
+            <div className="grid md:grid-cols-2 gap-4">
+              {data.otras_reglas.advertir_amenazas && (
+                <div className="bg-black/10 p-3 rounded">
+                  <h4 className="font-semibold text-[hsl(var(--gold))]">👁️ Advertir Amenazas</h4>
+                  <p className="text-sm">{data.otras_reglas.advertir_amenazas.descripcion}</p>
+                  <p className="text-xs text-red-400 mt-1">{data.otras_reglas.advertir_amenazas.penalizacion}</p>
+                </div>
+              )}
+              {data.otras_reglas.sigilo && (
+                <div className="bg-black/10 p-3 rounded">
+                  <h4 className="font-semibold text-[hsl(var(--torch-orange))]">🤫 Sigilo</h4>
+                  <p className="text-sm">{data.otras_reglas.sigilo.descripcion}</p>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Experiencia por Viaje */}
+        {data.experiencia_viaje && (
+          <div className="card-parchment rounded-lg p-4">
+            <h3 className="font-heading text-lg text-[hsl(var(--gold))] mb-4 border-b border-[hsl(var(--gold))/30] pb-2">
+              ⭐ Experiencia por Viaje
+            </h3>
+            <p className="text-sm text-muted-foreground mb-2">Se otorgan PX solo si:</p>
+            <ul className="text-sm mb-4 space-y-1">
+              {data.experiencia_viaje.condiciones?.map((c, i) => (
+                <li key={i}>• {c}</li>
+              ))}
+            </ul>
+            <p className="text-sm text-[hsl(var(--magic-blue))] mb-3">{data.experiencia_viaje.calculo}</p>
+            
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-border/30">
+                    <th className="text-left py-2 px-2">Terreno</th>
+                    <th className="text-center py-2 px-2">T. Fronterizas</th>
+                    <th className="text-center py-2 px-2">T. Salvajes</th>
+                    <th className="text-center py-2 px-2">T. Oscuras</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {data.experiencia_viaje.tabla?.map((t, i) => (
+                    <tr key={i} className="border-b border-border/10">
+                      <td className="py-2 px-2 font-medium">{t.terreno}</td>
+                      <td className="py-2 px-2 text-center text-green-400">{t.fronterizas}</td>
+                      <td className="py-2 px-2 text-center text-yellow-400">{t.salvajes}</td>
+                      <td className="py-2 px-2 text-center text-red-400">{t.oscuras}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* Acontecimientos de Viaje */}
+        {data.acontecimientos && (
+          <div className="card-parchment rounded-lg p-4">
+            <h3 className="font-heading text-lg text-destructive mb-4 border-b border-destructive/30 pb-2">
+              🎲 Acontecimientos de Viaje
+            </h3>
+            
+            {/* Secuencia */}
+            <div className="mb-4">
+              <h4 className="font-semibold text-[hsl(var(--torch-orange))] mb-2">Secuencia:</h4>
+              <div className="flex flex-wrap gap-2">
+                {data.acontecimientos.secuencia?.map((s, i) => (
+                  <div key={i} className="bg-black/10 px-3 py-1 rounded text-sm">
+                    <span className="font-semibold text-[hsl(var(--gold))]">{s.paso}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Objetivos (1d3) */}
+            <div className="mb-4">
+              <h4 className="font-semibold text-[hsl(var(--magic-blue))] mb-2">Elegir objetivos (1d3):</h4>
+              <div className="grid grid-cols-3 gap-2">
+                {data.acontecimientos.objetivos?.map((o, i) => (
+                  <div key={i} className="bg-black/10 p-2 rounded text-center">
+                    <p className="text-2xl font-bold text-[hsl(var(--gold))]">{o.d3}</p>
+                    <p className="text-sm font-semibold">{o.objetivo}</p>
+                    <p className="text-xs text-muted-foreground">{o.prueba}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* CD por Terreno */}
+            <div className="mb-4 grid md:grid-cols-2 gap-4">
+              <div className="bg-black/10 p-3 rounded">
+                <h4 className="font-semibold text-[hsl(var(--gold))] mb-2">CD según Terreno:</h4>
+                {data.acontecimientos.cd_terreno?.map((c, i) => (
+                  <div key={i} className="flex justify-between text-sm py-1">
+                    <span>{c.terreno}</span>
+                    <span className="font-mono text-[hsl(var(--torch-orange))]">CD {c.cd}</span>
+                  </div>
+                ))}
+              </div>
+              
+              <div className="bg-black/10 p-3 rounded">
+                <h4 className="font-semibold text-[hsl(var(--magic-blue))] mb-2">Tirada según Región:</h4>
+                {data.acontecimientos.tirada_region && Object.entries(data.acontecimientos.tirada_region).map(([region, mod], i) => (
+                  <div key={i} className="flex justify-between text-sm py-1">
+                    <span className="capitalize">Tierra {region}</span>
+                    <span className={`font-semibold ${mod === 'Ventaja' ? 'text-green-400' : mod === 'Desventaja' ? 'text-red-400' : 'text-muted-foreground'}`}>{mod}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Penalizadores */}
+            <div className="mb-4 bg-red-900/10 p-3 rounded border border-red-500/30">
+              <h4 className="font-semibold text-red-400 mb-2">Penalizadores:</h4>
+              <ul className="text-sm space-y-1">
+                {data.acontecimientos.penalizadores?.map((p, i) => (
+                  <li key={i}>• {p}</li>
+                ))}
+              </ul>
+            </div>
+
+            {/* Tabla de Acontecimientos */}
+            <h4 className="font-semibold text-[hsl(var(--torch-orange))] mb-3">Tabla de Acontecimientos (1d20):</h4>
+            <div className="space-y-2">
+              {data.acontecimientos.tabla_acontecimientos?.map((a, i) => (
+                <div key={i} className={`p-3 rounded border-l-4 ${
+                  a.nombre === 'Terrible desgracia' ? 'bg-red-900/20 border-red-500' :
+                  a.nombre === 'Desesperanza' ? 'bg-purple-900/20 border-purple-500' :
+                  a.nombre === 'Decisiones erróneas' ? 'bg-orange-900/20 border-orange-500' :
+                  a.nombre === 'Percance' ? 'bg-yellow-900/20 border-yellow-500' :
+                  a.nombre === 'Atajo' ? 'bg-blue-900/20 border-blue-500' :
+                  a.nombre === 'Encuentro casual' ? 'bg-cyan-900/20 border-cyan-500' :
+                  'bg-green-900/20 border-green-500'
+                }`}>
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <span className="font-mono text-[hsl(var(--gold))] mr-2">{a.d20}</span>
+                      <span className="font-bold">{a.nombre}</span>
+                    </div>
+                  </div>
+                  <p className="text-sm text-[hsl(var(--torch-orange))] mt-1">{a.consecuencias}</p>
+                  <p className="text-xs text-muted-foreground mt-1 italic">{a.descripcion}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Describir Acontecimientos */}
+        {data.describir_acontecimientos && (
+          <div className="card-parchment rounded-lg p-4 bg-[hsl(var(--gold))/10]">
+            <h3 className="font-heading text-lg text-[hsl(var(--gold))] mb-2">
+              📖 Describir los Acontecimientos
+            </h3>
+            <p className="text-sm">{data.describir_acontecimientos.descripcion}</p>
+            <p className="text-sm text-muted-foreground mt-2 italic">
+              <strong>Objetivo:</strong> {data.describir_acontecimientos.objetivo}
+            </p>
+          </div>
+        )}
+      </div>
+    );
+  };
+
   // Handle virtue delete
   const handleDeleteVirtud = async (id, nombre) => {
     if (!window.confirm(`¿Estás seguro de eliminar la virtud "${nombre}"?`)) return;
