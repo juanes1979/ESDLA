@@ -14,14 +14,17 @@ const CombateSection = ({ data }) => {
           <h3 className="font-heading text-lg text-[hsl(var(--destructive))] mb-4 border-b border-[hsl(var(--destructive))/30] pb-2">
             ⚔️ ESTRUCTURA DEL COMBATE
           </h3>
+          {data.estructura.descripcion && (
+            <p className="text-sm text-muted-foreground mb-4">{data.estructura.descripcion}</p>
+          )}
           {data.estructura.fases?.map((fase, i) => (
             <div key={i} className="mb-4">
-              <p className="font-bold text-[hsl(var(--torch-orange))]">{fase.nombre}</p>
+              <p className="font-bold text-[hsl(var(--torch-orange))]">{fase.fase || fase.nombre}</p>
               <p className="text-sm text-muted-foreground mt-1">{fase.descripcion}</p>
               {fase.pasos?.length > 0 && (
                 <ul className="list-disc list-inside text-sm text-muted-foreground ml-4 mt-2">
                   {fase.pasos.map((paso, j) => (
-                    <li key={j}>{paso}</li>
+                    <li key={j}>{typeof paso === 'string' ? paso : paso.descripcion || paso.nombre}</li>
                   ))}
                 </ul>
               )}
@@ -36,13 +39,13 @@ const CombateSection = ({ data }) => {
           <h3 className="font-heading text-lg text-[hsl(var(--magic-blue))] mb-4 border-b border-[hsl(var(--magic-blue))/30] pb-2">
             🎯 ACCIONES EN COMBATE
           </h3>
-          {data.acciones.introduccion && (
-            <p className="text-sm text-muted-foreground mb-4">{data.acciones.introduccion}</p>
+          {data.acciones.descripcion && (
+            <p className="text-sm text-muted-foreground mb-4">{data.acciones.descripcion}</p>
           )}
           <div className="grid md:grid-cols-2 gap-3">
             {data.acciones.lista?.map((accion, i) => (
               <div key={i} className="bg-black/10 p-3 rounded">
-                <p className="font-bold text-[hsl(var(--gold))]">{accion.nombre}</p>
+                <p className="font-bold text-[hsl(var(--gold))]">{accion.accion || accion.nombre}</p>
                 <p className="text-xs text-muted-foreground mt-1">{accion.descripcion}</p>
               </div>
             ))}
@@ -56,8 +59,8 @@ const CombateSection = ({ data }) => {
           <h3 className="font-heading text-lg text-[hsl(var(--torch-orange))] mb-4 border-b border-[hsl(var(--torch-orange))/30] pb-2">
             🗡️ ATACAR
           </h3>
-          {data.atacar.introduccion && (
-            <p className="text-sm text-muted-foreground mb-4">{data.atacar.introduccion}</p>
+          {data.atacar.descripcion && (
+            <p className="text-sm text-muted-foreground mb-4">{data.atacar.descripcion}</p>
           )}
           {data.atacar.pasos?.length > 0 && (
             <div className="space-y-2">
@@ -67,8 +70,8 @@ const CombateSection = ({ data }) => {
                     {i + 1}
                   </span>
                   <div>
-                    <p className="font-medium text-foreground">{paso.nombre || paso}</p>
-                    {paso.descripcion && (
+                    <p className="font-medium text-foreground">{typeof paso === 'string' ? paso : paso.paso || paso.nombre}</p>
+                    {typeof paso === 'object' && paso.descripcion && (
                       <p className="text-xs text-muted-foreground mt-1">{paso.descripcion}</p>
                     )}
                   </div>
