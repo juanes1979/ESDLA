@@ -659,11 +659,11 @@ const OccupationEditor = ({ occupation, onSave, onClose, onCopy }) => {
             <Section title="🔧 Herramienta Fija (sin elegir)">
               <Select
                 value={formData.equipo_herramienta_fija}
-                onValueChange={(v) => handleChange('equipo_herramienta_fija', v)}
+                onValueChange={(v) => handleChange('equipo_herramienta_fija', v === 'ninguna' ? '' : v)}
               >
                 <SelectTrigger><SelectValue placeholder="Seleccionar herramienta fija..." /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Ninguna</SelectItem>
+                  <SelectItem value="ninguna">Ninguna</SelectItem>
                   {getAllTools().map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
                 </SelectContent>
               </Select>
