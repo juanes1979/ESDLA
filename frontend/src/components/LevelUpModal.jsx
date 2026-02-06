@@ -146,8 +146,8 @@ const LevelUpModal = ({
   }, [isOpen, character, canChooseVirtue, canChooseArt]);
   
   // Calculate stats for new level
-  const conModifier = Math.floor(((character?.caracteristicas?.CON || 10) - 10) / 2);
-  const hpGain = calculateHPGain(character?.ocupacion_dado_golpe, conModifier);
+  const conModifier = Math.floor(((character?.atributos?.constitucion || character?.caracteristicas?.CON || 10) - 10) / 2);
+  const hpGain = calculateHPGain(character?.dado_golpe || character?.ocupacion_dado_golpe, conModifier);
   const newHP = (character?.puntos_golpe_max || 0) + hpGain;
   const newProfBonus = getProficiencyBonus(newLevel);
   const currentProfBonus = getProficiencyBonus(currentLevel);
