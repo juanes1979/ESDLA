@@ -285,22 +285,27 @@ const Step2Background = ({ draftId, draft, onComplete, onBack }) => {
                       {(bg.competencias_herramientas_1?.length > 0 || bg.competencias_herramientas_2?.length > 0) && (
                         <div>
                           <span className="text-[hsl(var(--gold))] text-sm">Herramientas:</span>
-                          <div className="flex flex-wrap gap-2 mt-1">
+                          <div className="space-y-2 mt-1">
+                            {/* Tools from competencias_herramientas_1 */}
                             {bg.competencias_herramientas_1?.map((tool, i) => {
                               const subType = needsSubSelection(tool);
                               if (subType) {
+                                const options = subType === 'instrumentos' ? equipmentLists.instrumentos_musicales : equipmentLists.juegos;
                                 return (
-                                  <div key={i} className="w-full">
-                                    <span className="text-xs text-muted-foreground">{tool} - Elige:</span>
-                                    <div className="grid grid-cols-3 gap-1 mt-1">
-                                      {(subType === 'instrumentos' ? equipmentLists.instrumentos_musicales : equipmentLists.juegos).map((item) => (
+                                  <div key={i} className="w-full p-2 bg-black/20 rounded border border-[hsl(var(--gold))/30]">
+                                    <span className="text-xs text-[hsl(var(--torch-orange))] font-medium block mb-2">
+                                      {tool} - Elige uno:
+                                    </span>
+                                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-1">
+                                      {options.map((item) => (
                                         <button
                                           key={item}
                                           onClick={() => setSelectedTool1(item)}
                                           className={cn(
-                                            "selection-card p-1 rounded text-xs",
+                                            "selection-card p-2 rounded text-xs text-left",
                                             selectedTool1 === item && "selected"
                                           )}
+                                          data-testid={`tool1-${item}`}
                                         >
                                           {item}
                                         </button>
@@ -310,16 +315,46 @@ const Step2Background = ({ draftId, draft, onComplete, onBack }) => {
                                 );
                               }
                               return (
-                                <span key={i} className="text-xs bg-black/30 px-2 py-1 rounded">
+                                <span key={i} className="inline-block text-xs bg-black/30 px-2 py-1 rounded mr-1">
                                   {tool}
                                 </span>
                               );
                             })}
-                            {bg.competencias_herramientas_2?.map((tool, i) => (
-                              <span key={`t2-${i}`} className="text-xs bg-black/30 px-2 py-1 rounded">
-                                {tool}
-                              </span>
-                            ))}
+                            
+                            {/* Tools from competencias_herramientas_2 */}
+                            {bg.competencias_herramientas_2?.map((tool, i) => {
+                              const subType = needsSubSelection(tool);
+                              if (subType) {
+                                const options = subType === 'instrumentos' ? equipmentLists.instrumentos_musicales : equipmentLists.juegos;
+                                return (
+                                  <div key={`t2-${i}`} className="w-full p-2 bg-black/20 rounded border border-[hsl(var(--magic-blue))/30]">
+                                    <span className="text-xs text-[hsl(var(--magic-blue))] font-medium block mb-2">
+                                      {tool} - Elige uno:
+                                    </span>
+                                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-1">
+                                      {options.map((item) => (
+                                        <button
+                                          key={item}
+                                          onClick={() => setSelectedTool2(item)}
+                                          className={cn(
+                                            "selection-card p-2 rounded text-xs text-left",
+                                            selectedTool2 === item && "selected"
+                                          )}
+                                          data-testid={`tool2-${item}`}
+                                        >
+                                          {item}
+                                        </button>
+                                      ))}
+                                    </div>
+                                  </div>
+                                );
+                              }
+                              return (
+                                <span key={`t2-${i}`} className="inline-block text-xs bg-black/30 px-2 py-1 rounded mr-1">
+                                  {tool}
+                                </span>
+                              );
+                            })}
                           </div>
                         </div>
                       )}
