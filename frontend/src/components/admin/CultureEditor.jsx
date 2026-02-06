@@ -111,6 +111,7 @@ const CultureEditor = ({ culture, races, onSave, onClose, onCopy }) => {
     competencia_herramienta_elegir_2: [],
     competencia_habilidad_elegir: [],
     competencia_adicional: '',
+    competencia_adicional_categoria: '',  // Category: herramientas, juegos, instrumentos, pipa
     rasgos_fisicos: { ojos: [], piel: [], pelo: [] },
     rasgos_culturales: [],
     pg_extra_nivel: 0,
