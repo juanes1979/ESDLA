@@ -1268,6 +1268,9 @@ const RulesPage = () => {
       case 'community':
         return <ComunidadSection data={data} />;
       
+      case 'npcs':
+        return <NPCsSection data={data} />;
+      
       default:
         return null;
     }
