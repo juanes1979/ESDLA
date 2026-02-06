@@ -211,6 +211,76 @@ async def get_virtue(virtue_id: str):
     return serialize_doc(virtue)
 
 
+@router.get("/cultures/{culture_id}/virtues")
+async def get_culture_virtues(culture_id: str):
+    """Get available virtues for a specific culture based on its configuration"""
+    culture = await db.cultures.find_one({"_id": culture_id})
+    if not culture:
+        raise HTTPException(status_code=404, detail="Culture not found")
+    
+    virtues = []
+    virtue_ids = set()
+    
+    # Get virtues from copied culture
+    if culture.get("copiar_virtudes_de"):
+        source_culture = await db.cultures.find_one({"_id": culture["copiar_virtudes_de"]})
+        if source_culture:
+            # Get virtues by type (culture name)
+            source_virtues = await db.virtues.find({
+                "$or": [
+                    {"tipo": source_culture.get("nombre")},
+                    {"cultura": source_culture.get("nombre")}
+                ]
+            }).to_list(100)
+            for v in source_virtues:
+                if v["_id"] not in virtue_ids:
+                    virtues.append(v)
+                    virtue_ids.add(v["_id"])
+    
+    # Get own virtues by IDs
+    if culture.get("virtudes_propias"):
+        own_virtues = await db.virtues.find({
+            "_id": {"$in": culture["virtudes_propias"]}
+        }).to_list(100)
+        for v in own_virtues:
+            if v["_id"] not in virtue_ids:
+                virtues.append(v)
+                virtue_ids.add(v["_id"])
+    
+    # Get virtues by culture name (auto-linked)
+    culture_virtues = await db.virtues.find({
+        "$or": [
+            {"tipo": culture.get("nombre")},
+            {"cultura": culture.get("nombre")}
+        ]
+    }).to_list(100)
+    for v in culture_virtues:
+        if v["_id"] not in virtue_ids:
+            virtues.append(v)
+            virtue_ids.add(v["_id"])
+    
+    # Get common virtues if allowed
+    if culture.get("permite_virtudes_comunes"):
+        common_virtues = await db.virtues.find({
+            "$or": [
+                {"es_comun": True},
+                {"tipo": "COMUNES"}
+            ]
+        }).to_list(100)
+        for v in common_virtues:
+            if v["_id"] not in virtue_ids:
+                virtues.append(v)
+                virtue_ids.add(v["_id"])
+    
+    return {
+        "culture_id": culture_id,
+        "culture_name": culture.get("nombre"),
+        "tiene_virtud_inicial": culture.get("tiene_virtud_inicial", False),
+        "permite_virtudes_comunes": culture.get("permite_virtudes_comunes", False),
+        "virtues": serialize_docs(virtues)
+    }
+
+
 # === ARTS ===
 
 @router.get("/arts")
