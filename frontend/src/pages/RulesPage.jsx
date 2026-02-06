@@ -54,6 +54,7 @@ const RulesPage = () => {
   const [expandedOccupation, setExpandedOccupation] = useState(null);
   const [expandedBackground, setExpandedBackground] = useState(null);
   const [cultureNames, setCultureNames] = useState({});
+  const [cultureVirtues, setCultureVirtues] = useState({});  // Cache for culture virtues
   
   // Admin modal states
   const [showRaceEditor, setShowRaceEditor] = useState(false);
