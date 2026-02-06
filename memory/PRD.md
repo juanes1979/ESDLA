@@ -7,13 +7,7 @@ Build a comprehensive web application to play a modified version of the "Lord of
 
 ## Current State (2026-02-06)
 
-### ✅ COMPLETED: Sección de Sombra Completa
-Añadidas las secciones que faltaban de la hoja "Sombra":
-- **🔮 HECHICERÍA** (filas 33-35): Se reciben puntos de sombra cuando un servidor maligno tiene conocimientos de magia oscura...
-- **💪 FORTALECER LA VOLUNTAD** (filas 37-40): Antes de que la sombra llegue a los puntos de sabiduría, puede elegirse recibir una cicatriz...
-- **☠️ CÓMO SUCUMBIR ANTE LA SOMBRA** (fila 59): La siguiente vez que su puntuación de Sombra alcanza la de su Sabiduría, no quedan angustiados, sino que se les retira del juego.
-
-### ✅ COMPLETED: Editor de Ocupaciones Completo
+### ✅ COMPLETED: P0 - Editor de Ocupaciones Completo
 Nuevo OccupationEditor con TODOS los campos:
 
 **Limitaciones de selección:**
@@ -31,6 +25,12 @@ Nuevo OccupationEditor con TODOS los campos:
 - Herramientas/juegos/instrumentos a elegir + cantidad
 - Habilidades con competencia a elegir + cantidad
 - Herramienta fija (sin elegir)
+- Herramientas a elegir + cantidad
+- Armas disponibles a elegir + cantidad
+- Armas a elegir + cantidad
+- Opción A o B: Armaduras y Armas
+- Opción A o B: Solo Armas
+- Opción A o B: Armas + Escudo
 
 **Caminos de la Profesión:**
 - Nombre de especialidad (ej: "Especialidad de Explorador")
@@ -44,48 +44,58 @@ Nuevo OccupationEditor con TODOS los campos:
 - Niveles para artes (ej: "6")
 - Descripción de artes
 
+### ✅ COMPLETED: P1 - Sub-selecciones en Step2Background
+Cuando un trasfondo tiene como herramienta "Instrumento musical" o "Juegos":
+- Se muestra un grid con opciones específicas
+- **Instrumentos**: 10 opciones (Acordeón, Arpa, Clarinete, etc.)
+- **Juegos**: 6 opciones (Bolos, Cartas de Barliman, Dados, etc.)
+- UI mejorada con bordes de colores y título "Elige uno:"
+
 ### ✅ COMPLETED (Sesión anterior): Virtudes Completas
 100 virtudes con elegir_caracteristica, elegir_salvacion, elegir_habilidad, elegir_herramienta
 
 ### ✅ COMPLETED (Sesión anterior): Catálogo de Equipo (21 categorías)
 Monturas con capacidad_pequeno/capacidad_mediano
 
-## 📋 PENDING TASKS
-
-### P0 - Pendientes del Editor de Ocupaciones
-1. **Bloques adicionales de equipo** (mencionados por usuario):
-   - Opción A o B (armaduras/armas)
-   - Armas disponibles + número a elegir
-   - Opción A o B con armas en B
-   - Opción A (armas + escudo) o B (2 bloques de armas)
-
-### P1 - Medium Priority
-1. **Sistema de Autenticación Completo**
-   - Login, registro, roles (Maestro > Admin > Jugador)
+### ✅ COMPLETED (Sesión anterior): Sección de Sombra Completa
+8 secciones: PAVOR, AVARICIA, FECHORÍAS, HECHICERÍA, FORTALECER LA VOLUNTAD, CÓMO SUCUMBIR, ESTADOS, SENDAS
 
 ## 📋 FUTURE/BACKLOG TASKS
-- Pantalla del Director de Juego
-- Interfaz de juego online
-- Integración IA
+
+### P1 - Medium Priority
+1. **Virtue/Art Selection Levels in Character Creator**: 
+   - El OccupationEditor captura a qué niveles puede elegir virtud/arte
+   - Implementar esta lógica en el sistema de subida de nivel
+
+### P2 - Low Priority
+1. **Sistema de Autenticación Completo**
+   - Login, registro, roles (Maestro > Admin > Jugador)
+2. **Gestión de Base de Datos**
+   - Backup y restore de datos del juego
+
+### P3 - Future Tasks
+- Pantalla del Director de Juego (DM Screen)
+- Interfaz de juego online (mapas, chat, tiradas)
+- Integración IA para generación de historias/NPCs
 
 ## Key Files
-- `/app/backend/routes/data_routes.py` - Endpoints sombra, sombra/sendas
-- `/app/frontend/src/pages/RulesPage.jsx` - renderSombra con 8 secciones
-- `/app/frontend/src/components/admin/OccupationEditor.jsx` - Editor completo
+- `/app/backend/routes/data_routes.py` - Endpoints sombra, sombra/sendas, equipment-lists
+- `/app/frontend/src/pages/RulesPage.jsx` - Página principal de reglas
+- `/app/frontend/src/components/admin/OccupationEditor.jsx` - Editor completo de ocupaciones
+- `/app/frontend/src/components/character-creator/steps/Step2Background.jsx` - Selección de trasfondo con sub-selecciones
 
 ## Key API Endpoints
-- `GET /api/data/sombra` - Retorna 8 secciones: pavor, avaricia, fechorias, estados, sendas_sombra, hechiceria, fortalecer_voluntad, como_sucumbir
-- `POST /api/data/sombra/sendas` - Guarda defectos de ocupación en sombra_rules
+- `GET /api/data/sombra` - Retorna 8 secciones de sombra
+- `POST /api/data/sombra/sendas` - Guarda defectos de ocupación
+- `GET /api/data/equipment-lists` - Retorna juegos (6) e instrumentos (10)
+- `GET /api/data/equipment-catalog` - Retorna 21 categorías de equipo
 - `POST /api/data/occupations` - Crear ocupación con todos los campos
 
 ## Test Reports
-- `/app/test_reports/iteration_16.json` - Sombra + OccupationEditor (100% pass)
+- `/app/test_reports/iteration_16.json` - Sombra + OccupationEditor initial (100% pass)
+- `/app/test_reports/iteration_17.json` - P0 Equipment + P1 Sub-selections (100% pass)
 
 ## Session Changelog (2026-02-06)
-1. Añadidas secciones Hechicería, Fortalecer voluntad, Cómo sucumbir a Sombra
-2. Creado OccupationEditor completo con validaciones (max 2/2/3)
-3. Senda de sombra con 4 defectos obligatorios
-4. Caminos de profesión con 2 especialidades
-5. Sincronización de defectos a sombra_rules
-6. Bug fixed: OccupationEditor maneja ocupaciones existentes sin arrays
-7. Tests 100% (16 backend + 11 frontend)
+1. Verificado OccupationEditor completo con todos los bloques de equipo
+2. Mejorado Step2Background con sub-selecciones para instrumentos/juegos
+3. Tests 100% - 13 backend + 18 frontend
