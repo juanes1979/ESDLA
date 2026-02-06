@@ -9,7 +9,8 @@ export const PAGE3_FIELDS = {
   // Basic Info
   nombre: { x: 77, y: 250, width: 600, fontSize: 45, align: 'center' },
   ocupacion_nivel: { x: 723, y: 210, width: 330, fontSize: 40, align: 'left' },
-  descripcion_ocupacion: { x: 723, y: 245, width: 882, fontSize: 35, align: 'left' },
+  // Descripción corta de la ocupación (fila 16 hoja Ocupaciones) - MULTILINEA
+  descripcion_ocupacion: { x: 723, y: 259, width: 882, height: 150, fontSize: 35, align: 'left', multiline: true },
   
   // Combined occupation description with all special abilities - MULTILINE
   descripcion_ocupacion_larga: { x: 77, y: 445, width: 1530, height: 1600, fontSize: 40, align: 'left', multiline: true },
