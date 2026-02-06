@@ -247,22 +247,21 @@ const CultureEditor = ({ culture, races, onSave, onClose, onCopy }) => {
   };
 
   // Section toggle helper
+  const handleSectionToggle = (id) => {
+    setActiveSection(activeSection === id ? null : id);
+  };
+
+  // Wrapper for CollapsibleSection
   const Section = ({ id, title, children, color = 'gold' }) => (
-    <div className="border border-border/30 rounded-lg overflow-hidden">
-      <button
-        type="button"
-        className={`w-full flex items-center justify-between p-3 bg-black/20 hover:bg-black/30 transition-colors`}
-        onClick={() => setActiveSection(activeSection === id ? null : id)}
-      >
-        <h3 className={`font-heading text-[hsl(var(--${color}))]`}>{title}</h3>
-        {activeSection === id ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-      </button>
-      {activeSection === id && (
-        <div className="p-4">
-          {children}
-        </div>
-      )}
-    </div>
+    <CollapsibleSection
+      id={id}
+      title={title}
+      isActive={activeSection === id}
+      onToggle={handleSectionToggle}
+      color={color}
+    >
+      {children}
+    </CollapsibleSection>
   );
 
   return (
