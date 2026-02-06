@@ -203,8 +203,13 @@ const CharacterSheetPage = () => {
               <p className="text-lg text-muted-foreground">
                 {character.cultura_nombre} {character.vocacion_nombre}
               </p>
-              <div className="flex gap-4 mt-2 text-sm text-muted-foreground">
+              <div className="flex gap-4 mt-2 text-sm text-muted-foreground items-center">
                 <span>Nivel {character.nivel || 1}</span>
+                <LevelUpButton 
+                  character={character} 
+                  onLevelUp={(data) => setCharacter(prev => ({ ...prev, ...data }))}
+                  className="text-xs py-1 h-auto"
+                />
                 <span>·</span>
                 <span>{character.edad} años</span>
                 <span>·</span>
