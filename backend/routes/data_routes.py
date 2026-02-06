@@ -1561,3 +1561,320 @@ async def get_viaje_rules():
         return None
     # Remove _id from response
     return {k: v for k, v in viaje.items() if k != '_id'}
+
+
+# === TRAVEL GENERATOR ===
+
+@router.get("/clima")
+async def get_clima_regiones():
+    """Get all climate regions"""
+    regiones = await db.clima.find({}).to_list(100)
+    return [{"id": r["_id"], "nombre": r["nombre"]} for r in regiones]
+
+
+@router.get("/clima/{region}")
+async def get_clima_region(region: str):
+    """Get climate data for a specific region"""
+    clima = await db.clima.find_one({"_id": region})
+    if not clima:
+        raise HTTPException(status_code=404, detail=f"Region '{region}' not found")
+    return {k: v for k, v in clima.items() if k != '_id'}
+
+
+@router.get("/distancias")
+async def get_distancias():
+    """Get predefined travel distances"""
+    distancias = await db.distancias_viaje.find_one({"_id": "main"})
+    if not distancias:
+        return {"rutas": [], "puntos_interes": []}
+    return {
+        "rutas": distancias.get("rutas", []),
+        "puntos_interes": distancias.get("puntos_interes", [])
+    }
+
+
+@router.get("/monturas")
+async def get_monturas():
+    """Get available mounts for travel"""
+    monturas = await db.monturas_viaje.find_one({"_id": "main"})
+    if not monturas:
+        return []
+    return monturas.get("monturas", [])
+
+
+class TravelConfig(BaseModel):
+    origen: str
+    destino: str
+    region: str
+    casillas: int
+    tipo_terreno: str  # camino, campo_abierto, terreno_dificil
+    tipo_tierra: str  # fronteriza, salvaje, oscura
+    mes: str  # Mes élfico
+    montura: str
+    velocidad: int
+    marcha_forzada: bool = False
+    papeles: dict  # {"guia": "Héroe1", "cazador": "Héroe2", ...}
+    heroes_multiples_papeles: list = []  # Héroes que asumen varios papeles
+
+
+class SavedTravel(BaseModel):
+    nombre: str
+    config: dict
+    eventos: list
+    resultado: dict
+    fecha: str = None
+
+
+@router.post("/viajes/generar")
+async def generar_viaje(config: TravelConfig):
+    """Generate a complete travel with events based on rules"""
+    import random
+    from datetime import datetime
+    
+    # Get climate data
+    clima = await db.clima.find_one({"_id": config.region})
+    clima_mes = clima.get("meses", {}).get(config.mes, {}) if clima else {}
+    
+    # Calculate climate modifiers
+    modificadores_clima = []
+    cd_extra_clima = 0
+    
+    temp_media = clima_mes.get("temp_media", 15)
+    lluvias = clima_mes.get("lluvias_mm", 0)
+    viento = clima_mes.get("viento_kmh", 0)
+    prob_lluvia = clima_mes.get("prob_lluvia", 0)
+    
+    # Lluvia fuerte
+    if lluvias > 70:
+        cd_extra_clima += 2
+        modificadores_clima.append({"tipo": "Lluvia fuerte", "efecto": "+2 CD en pruebas de viaje", "valor": lluvias})
+    
+    # Temperatura extrema
+    if temp_media < 0 or temp_media > 30:
+        cd_extra_clima += 1
+        modificadores_clima.append({"tipo": "Temperatura extrema", "efecto": "+1 CD en fatiga", "valor": temp_media})
+    
+    # Viento fuerte
+    desventaja_viento = viento > 20
+    if desventaja_viento:
+        modificadores_clima.append({"tipo": "Viento fuerte", "efecto": "Desventaja en pruebas de Explorar", "valor": viento})
+    
+    # Nieve/Hielo
+    terreno_dificil_clima = temp_media < -10
+    if terreno_dificil_clima:
+        modificadores_clima.append({"tipo": "Nieve/Hielo", "efecto": "Terreno difícil automático", "valor": temp_media})
+    
+    # Season penalties
+    estacion = "invierno" if config.mes in ["Nénimë", "Súlimë", "Ringarë"] else \
+               "otono" if config.mes in ["Narquelië", "Hísimë"] else \
+               "primavera" if config.mes in ["Coiviennë", "Víressë", "Lótessë"] else "verano"
+    desventaja_estacion = estacion in ["otono", "invierno"]
+    
+    # CD base según terreno
+    cd_terreno = {"camino": 10, "campo_abierto": 15, "terreno_dificil": 20}
+    cd_base = cd_terreno.get(config.tipo_terreno, 15)
+    
+    # Ajustar terreno si hay nieve/hielo
+    tipo_terreno_efectivo = "terreno_dificil" if terreno_dificil_clima else config.tipo_terreno
+    
+    # Calculate travel duration
+    velocidad = config.velocidad
+    casillas_por_dia = 1
+    
+    if velocidad <= 15:
+        casillas_por_dia = 0.5
+    elif velocidad >= 80:
+        casillas_por_dia = 3
+    elif velocidad >= 50:
+        casillas_por_dia = 2
+    
+    if tipo_terreno_efectivo == "terreno_dificil":
+        casillas_por_dia /= 2
+    
+    if config.marcha_forzada:
+        casillas_por_dia *= 2
+    
+    dias_estimados = int(config.casillas / casillas_por_dia) if casillas_por_dia > 0 else config.casillas
+    
+    # Generate events
+    eventos = []
+    casilla_actual = 0
+    cd_fatiga_acumulada = 0
+    dias_extra = 0
+    
+    # Tabla de acontecimientos
+    tabla_acontecimientos = [
+        {"rango": (1, 2), "nombre": "Terrible desgracia", "cd_fatiga": 3, "grave": True},
+        {"rango": (3, 4), "nombre": "Desesperanza", "cd_fatiga": 2, "sombra_grupo": True},
+        {"rango": (5, 6), "nombre": "Decisiones erróneas", "cd_fatiga": 2, "sombra_objetivo": True},
+        {"rango": (7, 14), "nombre": "Percance", "cd_fatiga": 1, "dia_extra": True},
+        {"rango": (15, 17), "nombre": "Atajo", "cd_fatiga": 1, "dia_menos": True},
+        {"rango": (18, 19), "nombre": "Encuentro casual", "cd_fatiga": 1, "encuentro": True},
+        {"rango": (20, 20), "nombre": "Vista agradable", "cd_fatiga": 0, "inspiracion": True},
+    ]
+    
+    while casilla_actual < config.casillas:
+        # Prueba de orientación (Guía)
+        penalizacion_guia = -5 if config.papeles.get("guia") in config.heroes_multiples_papeles else 0
+        
+        # Simular tirada
+        tirada_orientacion = random.randint(1, 20) + penalizacion_guia
+        cd_orientacion = 15 + cd_extra_clima
+        
+        # Calcular distancia al acontecimiento
+        diferencia = tirada_orientacion - cd_orientacion
+        if diferencia >= 5:
+            distancia = 4
+        elif diferencia >= 0:
+            distancia = 3
+        elif diferencia >= -4:
+            distancia = 2
+        else:
+            distancia = 1
+        
+        casilla_evento = casilla_actual + distancia
+        
+        if casilla_evento >= config.casillas:
+            # Viaje termina sin más eventos
+            break
+        
+        casilla_actual = casilla_evento
+        
+        # Determinar objetivo (1d3)
+        d3 = random.randint(1, 3)
+        objetivos = {1: "Exploradores", 2: "Vigías", 3: "Cazadores"}
+        pruebas = {1: "Sabiduría (Explorar)", 2: "Sabiduría (Percepción)", 3: "Sabiduría (Cazar)"}
+        
+        # Tirada de acontecimiento (1d20 con ventaja/desventaja según región)
+        if config.tipo_tierra == "fronteriza":
+            tirada_evento = max(random.randint(1, 20), random.randint(1, 20))  # Ventaja
+        elif config.tipo_tierra == "oscura":
+            tirada_evento = min(random.randint(1, 20), random.randint(1, 20))  # Desventaja
+        else:
+            tirada_evento = random.randint(1, 20)
+        
+        # Determinar tipo de acontecimiento
+        acontecimiento = None
+        for a in tabla_acontecimientos:
+            if a["rango"][0] <= tirada_evento <= a["rango"][1]:
+                acontecimiento = a
+                break
+        
+        if acontecimiento:
+            cd_fatiga_acumulada += acontecimiento["cd_fatiga"]
+            
+            # Simular resolución
+            penalizacion_papel = -5 if config.papeles.get(objetivos[d3].lower()[:4]) in config.heroes_multiples_papeles else 0
+            tirada_resolucion = random.randint(1, 20) + penalizacion_papel
+            
+            # Aplicar desventaja si corresponde
+            if desventaja_estacion or (desventaja_viento and d3 == 1):
+                tirada_resolucion = min(tirada_resolucion, random.randint(1, 20) + penalizacion_papel)
+            
+            cd_evento = cd_base + cd_extra_clima
+            exito = tirada_resolucion >= cd_evento
+            
+            evento = {
+                "casilla": casilla_actual,
+                "tirada_orientacion": tirada_orientacion,
+                "tirada_evento": tirada_evento,
+                "d3": d3,
+                "objetivo": objetivos[d3],
+                "prueba": pruebas[d3],
+                "acontecimiento": acontecimiento["nombre"],
+                "cd": cd_evento,
+                "tirada_resolucion": tirada_resolucion,
+                "exito": exito,
+                "consecuencias": []
+            }
+            
+            # Aplicar consecuencias según éxito/fracaso
+            if not exito:
+                if acontecimiento.get("dia_extra"):
+                    dias_extra += 1
+                    cd_fatiga_acumulada += 2
+                    evento["consecuencias"].append("+1 día de viaje, +2 CD fatiga")
+                if acontecimiento.get("sombra_grupo"):
+                    evento["consecuencias"].append("Toda la compañía gana 1 punto de Sombra")
+                if acontecimiento.get("sombra_objetivo"):
+                    evento["consecuencias"].append(f"{objetivos[d3]} gana 1 punto de Sombra")
+                if acontecimiento.get("grave"):
+                    evento["consecuencias"].append("Salvación de Destreza o 0 PG / mitad PG")
+            else:
+                if acontecimiento.get("dia_menos"):
+                    dias_extra -= 1
+                    evento["consecuencias"].append("-1 día de viaje")
+                if acontecimiento.get("encuentro"):
+                    evento["consecuencias"].append("Encuentro favorable con habitantes locales")
+                if acontecimiento.get("inspiracion"):
+                    evento["consecuencias"].append("Todos los héroes obtienen Inspiración")
+            
+            eventos.append(evento)
+    
+    # Calcular resultado final
+    dias_totales = dias_estimados + dias_extra
+    cd_fatiga_final = 10 + cd_fatiga_acumulada
+    
+    # Bonus por montura
+    montura_info = None
+    monturas_data = await db.monturas_viaje.find_one({"_id": "main"})
+    if monturas_data:
+        for m in monturas_data.get("monturas", []):
+            if m["nombre"] == config.montura:
+                montura_info = m
+                break
+    
+    mod_con_montura = montura_info.get("mod_con", 0) if montura_info and montura_info.get("con_montura") else 0
+    
+    resultado = {
+        "dias_base": dias_estimados,
+        "dias_extra": dias_extra,
+        "dias_totales": dias_totales,
+        "cd_fatiga": cd_fatiga_final,
+        "mod_con_montura": mod_con_montura,
+        "eventos_totales": len(eventos),
+        "clima": {
+            "temperatura": temp_media,
+            "lluvias": lluvias,
+            "viento": viento,
+            "estacion": estacion
+        },
+        "modificadores_clima": modificadores_clima,
+        "terreno_efectivo": tipo_terreno_efectivo
+    }
+    
+    return {
+        "config": config.dict(),
+        "eventos": eventos,
+        "resultado": resultado
+    }
+
+
+@router.post("/viajes/guardar")
+async def guardar_viaje(viaje: SavedTravel):
+    """Save a generated travel for future reference"""
+    from datetime import datetime
+    
+    viaje_dict = viaje.dict()
+    viaje_dict["fecha"] = viaje.fecha or datetime.now().isoformat()
+    viaje_dict["_id"] = None  # Let MongoDB generate ID
+    
+    result = await db.viajes_guardados.insert_one(viaje_dict)
+    return {"id": str(result.inserted_id), "message": "Viaje guardado correctamente"}
+
+
+@router.get("/viajes/guardados")
+async def get_viajes_guardados():
+    """Get all saved travels"""
+    viajes = await db.viajes_guardados.find({}).sort("fecha", -1).to_list(100)
+    return [{**{k: v for k, v in v.items() if k != '_id'}, "id": str(v["_id"])} for v in viajes]
+
+
+@router.delete("/viajes/{viaje_id}")
+async def delete_viaje(viaje_id: str):
+    """Delete a saved travel"""
+    from bson import ObjectId
+    result = await db.viajes_guardados.delete_one({"_id": ObjectId(viaje_id)})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Viaje no encontrado")
+    return {"message": "Viaje eliminado"}
