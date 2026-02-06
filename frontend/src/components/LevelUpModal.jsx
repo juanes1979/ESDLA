@@ -98,11 +98,36 @@ const LevelUpModal = ({
   
   // Check if new level allows virtue or art selection
   useEffect(() => {
-    if (character?.ocupacion_virtudes_texto) {
-      const config = parseVirtueLevels(character.ocupacion_virtudes_texto);
-      setLevelConfig(config);
+    const loadOccupationData = async () => {
+      // If we already have virtudes_texto, use it
+      if (character?.ocupacion_virtudes_texto?.length > 0) {
+        const config = parseVirtueLevels(character.ocupacion_virtudes_texto);
+        setLevelConfig(config);
+        return;
+      }
+      
+      // Otherwise, try to load from occupation
+      if (character?.ocupacion) {
+        try {
+          const res = await api.get('/data/occupations');
+          const occupations = res.data?.occupations || res.data || [];
+          const occupation = occupations.find(o => 
+            o.vocacion === character.ocupacion || o.vocacion?.toLowerCase() === character.ocupacion?.toLowerCase()
+          );
+          if (occupation?.virtudes_texto) {
+            const config = parseVirtueLevels(occupation.virtudes_texto);
+            setLevelConfig(config);
+          }
+        } catch (err) {
+          console.error('Error loading occupation:', err);
+        }
+      }
+    };
+    
+    if (isOpen && character) {
+      loadOccupationData();
     }
-  }, [character]);
+  }, [isOpen, character]);
   
   const canChooseVirtue = levelConfig.virtudes.includes(newLevel);
   const canChooseArt = levelConfig.artes.includes(newLevel);
