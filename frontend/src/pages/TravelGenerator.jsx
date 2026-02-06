@@ -251,10 +251,19 @@ const TravelGenerator = () => {
     const nombre = prompt('Nombre para este viaje:', `${config.origen} → ${config.destino}`);
     if (!nombre) return;
     
+    // Resolve hero names from IDs
+    const papelesConNombres = {};
+    Object.entries(config.papeles).forEach(([key, heroId]) => {
+      papelesConNombres[key] = heroId ? getHeroName(heroId) : '';
+    });
+    
     try {
       await api.post('/data/viajes/guardar', {
         nombre,
-        config: resultado.config,
+        config: {
+          ...resultado.config,
+          papeles: papelesConNombres
+        },
         eventos: resultado.eventos,
         resultado: resultado.resultado
       });
