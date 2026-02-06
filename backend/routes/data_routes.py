@@ -1070,7 +1070,8 @@ async def get_recompensas():
 @router.get("/virtudes")
 async def get_all_virtudes():
     """Get all virtues with complete data (name, description, traits, stats)"""
-    virtudes = await db.virtudes.find({}).to_list(200)
+    # Use 'virtues' collection (that's where the data is)
+    virtudes = await db.virtues.find({}).to_list(200)
     return {"virtudes": serialize_docs(virtudes)}
 
 
@@ -1079,7 +1080,7 @@ async def create_virtud(virtud: dict = Body(...)):
     """Create a new virtue"""
     virtud["_id"] = str(uuid.uuid4())
     virtud["created_at"] = now_utc()
-    await db.virtudes.insert_one(virtud)
+    await db.virtues.insert_one(virtud)
     return {"id": virtud["_id"], "message": "Virtud created successfully"}
 
 
@@ -1087,7 +1088,7 @@ async def create_virtud(virtud: dict = Body(...)):
 async def update_virtud(virtud_id: str, virtud: dict = Body(...)):
     """Update an existing virtue"""
     virtud["updated_at"] = now_utc()
-    result = await db.virtudes.update_one({"_id": virtud_id}, {"$set": virtud})
+    result = await db.virtues.update_one({"_id": virtud_id}, {"$set": virtud})
     if result.matched_count == 0:
         raise HTTPException(status_code=404, detail="Virtud not found")
     return {"message": "Virtud updated successfully"}
@@ -1096,7 +1097,7 @@ async def update_virtud(virtud_id: str, virtud: dict = Body(...)):
 @router.delete("/virtudes/{virtud_id}")
 async def delete_virtud(virtud_id: str):
     """Delete a virtue"""
-    result = await db.virtudes.delete_one({"_id": virtud_id})
+    result = await db.virtues.delete_one({"_id": virtud_id})
     if result.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Virtud not found")
     return {"message": "Virtud deleted successfully"}
