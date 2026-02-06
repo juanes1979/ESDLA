@@ -406,6 +406,7 @@ async def update_draft_step3(draft_id: str, data: CharacterCreateStep3):
         "maldicion_nombre": occupation.get('maldicion_nombre'),
         "maldicion_descripcion": occupation.get('maldicion_descripcion'),
         # Occupation descriptions and special abilities
+        "descripcion_corta": occupation.get('descripcion_corta', ''),  # Short description from row 16
         "descripcion_ocupacion": occupation.get('descripcion_ocupacion', ''),
         "descripcion_ocupacion_larga": occupation.get('descripcion_ocupacion_larga', ''),
         "especiales_ocupacion1": occupation.get('especiales_ocupacion1', ''),
