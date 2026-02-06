@@ -169,22 +169,6 @@ const SheetPage2 = ({ character, scale, fieldPositions = {} }) => {
         scale={scale} 
       />
       
-      {/* VIRTUD section - Only show if character has a virtue */}
-      {character.virtud_nombre && (
-        <>
-          <DisplayField 
-            {...getPos('virtud_nombre')} 
-            value={`★ ${character.virtud_nombre}`} 
-            scale={scale} 
-          />
-          <DisplayField 
-            {...getPos('virtud_descripcion')} 
-            value={character.virtud_rasgos || character.virtud_descripcion || ''} 
-            scale={scale} 
-          />
-        </>
-      )}
-      
       {/* Resources */}
       <DisplayField {...getPos('puntos_comunidad')} value={character.puntos_comunidad ? character.puntos_comunidad : ''} scale={scale} />
       <DisplayField {...getPos('heredero')} value={character.heredero || ''} scale={scale} />
