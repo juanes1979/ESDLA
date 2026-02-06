@@ -846,8 +846,11 @@ const RulesPage = () => {
                     {cat.fields.includes('comentarios') && <td className="text-left py-2 px-2 text-xs text-muted-foreground">{item.comentarios || '-'}</td>}
                     {cat.fields.includes('forma_preparacion') && <td className="text-center py-2 px-2 text-xs">{item.forma_preparacion || '-'}</td>}
                     {cat.fields.includes('efecto') && <td className="text-left py-2 px-2 text-xs text-muted-foreground max-w-[200px] truncate" title={item.efecto}>{item.efecto || '-'}</td>}
-                    {cat.fields.includes('velocidad') && <td className="text-center py-2 px-2">{item.velocidad || '-'}</td>}
                     {cat.fields.includes('capacidad_carga') && <td className="text-center py-2 px-2">{item.capacidad_carga || '-'}</td>}
+                    {cat.fields.includes('constitucion') && <td className="text-center py-2 px-2 text-[hsl(var(--torch-orange))]">{item.constitucion || '-'}</td>}
+                    {cat.fields.includes('velocidad') && <td className="text-center py-2 px-2">{item.velocidad || '-'}</td>}
+                    {cat.fields.includes('capacidad_pequeno') && <td className="text-center py-2 px-2">{item.capacidad_pequeno ? '✓' : '-'}</td>}
+                    {cat.fields.includes('capacidad_mediano') && <td className="text-center py-2 px-2">{item.capacidad_mediano ? '✓' : '-'}</td>}
                     {cat.fields.includes('capacidad_monta') && <td className="text-center py-2 px-2 text-xs">{item.capacidad_monta || '-'}</td>}
                     {cat.fields.includes('capacidad_kg') && <td className="text-center py-2 px-2">{item.capacidad_kg || '-'}</td>}
                     {cat.fields.includes('m2') && <td className="text-center py-2 px-2">{item.m2 || '-'}</td>}
