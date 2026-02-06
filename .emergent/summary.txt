@@ -1,148 +1,140 @@
 <analysis>**original_problem_statement:**
-The user wants to build a comprehensive web application to play a modified version of the Lord of the Rings 5e tabletop role-playing game, based on their detailed Excel file (). The primary goal is a detailed, multi-phase character creator (Culture, Background, Occupation, Virtue) that produces a 3-page printable PDF character sheet visually identical to the user's design.
+The user wants to build a comprehensive web application for playing a modified version of the Lord of the Rings 5e tabletop role-playing game. The primary goal is a detailed, multi-phase character creator (Culture, Background, Occupation, Virtue) that produces a 3-page printable PDF character sheet visually identical to the user's provided designs.
 
 **PRODUCT REQUIREMENTS:**
-The application must include a full user authentication system (with an admin role), a page to view and manage all created characters, and a rules reference section. Recently, the user has requested a major new feature: a complete management system (CRUD - Create, Read, Update, Delete) for all core game data (Races, Cultures, Backgrounds, Occupations). This system should be accessible only to an admin user (Director de juego). The first step was to significantly enhance the display of Cultures on the rules page to show all associated data, which has now been completed.
+The application must include a full user authentication system (with an admin role), a page to view and manage all created characters, and a rules reference section. A major feature has been implemented: a complete admin-only management system (CRUD) for all core game data (Races, Cultures, Backgrounds, Occupations). The user has also outlined future requirements for a multi-level user system (Maestro > Admin > Player) with configurable limits and a database backup/restore mechanism.
 
 **User's preferred language**: Español
 
 **what currently exists?**
-A full-stack React/FastAPI/MongoDB application with a functional, multi-step character creator. The core feature is an interactive, 3-page character sheet that dynamically renders character data onto high-resolution background images.
+A full-stack React/FastAPI/MongoDB application with a functional, multi-step character creator. The application features an interactive 3-page character sheet that dynamically renders data onto high-resolution background images and can be exported as a PDF.
 
-The  has been completely overhauled to provide a highly detailed, structured view of all Cultures, fetching data from multiple database collections (, ) as per the user's latest request. The backend includes API endpoints and Pydantic models to support a new CRUD system for Races and Cultures, and the initial Race data has been seeded. The frontend UI for this CRUD system has not been built yet.
+A comprehensive rules page () serves as the hub for an admin-only CRUD system for Races, Cultures, Backgrounds, and Occupations. The admin user, Maestro, is currently hardcoded as active for development purposes, eliminating the need for login.
 
-All critical bugs from the previous session (incorrect data on Page 2, broken navigation, missing proficiencies) have been fixed and verified.
+The system for managing game rules is highly detailed:
+-   **Culture Editor:** Allows linking backgrounds to a culture and configuring how virtues are handled (e.g., use its own unique virtues, copy from another culture, allow common virtues).
+-   **Character Creator:** The virtue selection step () is fully dynamic, fetching and displaying the correct virtues based on the character's chosen culture and its configuration.
+-   **Character Sheet:** The selected virtue is displayed on Page 3, appended to the end of the occupation's detailed description text, per the user's latest request.
 
 **Last working item**:
--   **Last item agent was working:** The agent was beginning **Phase 2** of a major new feature: implementing a CRUD (Create, Read, Update, Delete) system for game data. The agent had just finished adding the necessary backend infrastructure for managing Races and Cultures. This included:
-    1.  Creating Pydantic models for  and  creation/updates in .
-    2.  Adding , , and  API endpoints for  and .
-    3.  Seeding the initial Races (Elfos, Enanos, Hombres, Hobbits) into a new  collection.
-    4.  Creating a placeholder frontend component at  to house the upcoming form.
--   **Status:** IN PROGRESS
--   **Agent Testing Done:** Y (for the backend endpoints via curl)
--   **Which testing method agent to use?** Frontend testing agent (once the admin UI is built).
+-   **Last item agent was working:** The user requested the implementation of the next steps in the character creator. The agent was about to begin working on making the Background selection step fully functional.
+-   **Status:** NOT STARTED
+-   **Agent Testing Done:** Y (For all previously completed tasks)
+-   **Which testing method agent to use?** Frontend testing agent
 -   **User Testing Done:** N
 
 **All Pending/In progress Issue list**:
--   None. All previous issues have been resolved. The current focus is on new feature development.
+-   None.
 
 **In progress Task List**:
--   **Task 1: Implement Full CRUD for Game Rules (P0)**
-    -   **Where to resume:** The backend endpoints and data models for Race/Culture CRUD are complete. The next step is to build the frontend interface for an admin user to manage this data. This involves:
-        1.  Adding Crear Raza and Crear Cultura buttons to , visible only to admin users.
-        2.  Building out the form logic within  to handle creating and editing cultures, including a copy from existing feature.
-        3.  Building a similar, simpler form for creating/editing Races.
-    -   **What will be achieved with this?** This will give the admin user full control over the game's core data, allowing them to add new content like Medio Elfos or custom cultures without developer intervention.
-    -   **Status:** IN PROGRESS
-    -   **Should Test frontend/backend/both after fix?** Both
-    -   **Blocked on something:** The **User Authentication** task is a soft blocker. While development can proceed, the admin-only restriction cannot be fully implemented and tested without a login system.
+-   None. The agent is about to start new tasks.
 
 **Upcoming and Future Tasks**
 
 **Upcoming Tasks:**
--   **(P0) Implement Full User Authentication System:** This is now critical to support admin-only features. Login, registration, and password management. Roles: Director de juego (Admin) and Usuario (User). Permanent admin user Maestro (password: ).
--   **(P1) Implement CRUD for Trasfondos & Ocupaciones:** Phase 3 of the rules management feature.
--   **(P1) Implement PDF Generation:** The Imprimir button on the character sheet needs to be implemented.
--   **(P2) Fully Implement Phase 2 (Background) & Phase 4 (Virtue):** Complete the remaining steps in the character creation wizard.
+-   **(P0) Complete Character Creator - Step 2 (Background):** The agent needs to fully implement . This involves filtering available backgrounds based on the character's selected culture, allowing the user to make a selection, handling any associated choices (like skill proficiencies), and saving the data to the character draft.
+-   **(P1) Add Sub-selections for Proficiencies (Instrumentos/Juegos):** When a character gains proficiency in Instrumentos musicales or Juegos (either through culture or background), a secondary selector should appear, allowing the user to choose a specific instrument or game from a predefined list. This makes the selection more granular and rule-compliant.
 
 **Future Tasks:**
--   Game Master (DM) Screen.
--   Online Gameplay Interface (Map, Chat, Dice Rolls).
--   AI Integration for story/NPC generation.
+-   **User Management System:**
+    -   Implement a full authentication system (Login, Registration) to replace the hardcoded admin user.
+    -   Create a multi-level user hierarchy:  (super-admin),  (game master), and  (player).
+    -   Admins will manage their own copy of the game database to avoid affecting the master data.
+    -   Implement configurable limits on how many characters and players an Admin can create.
+-   **Database Management:**
+    -   Create a feature to back up and restore the master version of the game data (races, cultures, etc.).
+-   **Gameplay Features:**
+    -   Game Master (DM) Screen.
+    -   Online gameplay interface (map, chat, dice rolls).
+-   **AI Integration:**
+    -   AI-powered story and NPC generation.
 
 **Completed work in this session**
--   **Major Refactor of Character Sheet:** The monolithic  was successfully broken down into smaller, manageable components: , , and the newly created .
--   **Fixed All Critical Bugs:** Resolved all pending issues from the previous session, including fixing data rendering on Page 2, fixing page navigation, implementing multi-line text fields, and resolving the recurring cultural proficiency bug. The fixes were verified by the testing agent.
--   **Implemented Character Sheet Page 3:** Created  to display detailed occupation information, including a concatenated, multi-line description of all special occupation abilities.
--   **Implemented User-Requested Fixes:** Addressed numerous UI tweaks and minor bug fixes, such as preventing duplicate tool selection in the character creator, adding mandatory validation for background choices, adjusting field positions and font sizes, and conditionally hiding '0' values.
--   **Completed Phase 1 of Rules Management:** Massively overhauled  to display a comprehensive, structured view of all culture data (description, wealth, physical traits, skills, cultural traits, special abilities, and a full breakdown of naming conventions).
+-   **Full Admin CRUD System:** Implemented a complete Create, Read, Update, Delete interface for Races, Cultures, Backgrounds, and Occupations, accessible from the .
+-   **Advanced Virtue Management:**
+    -   The  was enhanced to allow fine-grained control over which virtues a culture can access.
+    -    was updated to display the available virtues for each culture.
+    -   The character creator's virtue step () was rewritten to be fully dynamic based on culture selection.
+-   **Character Sheet Refinements:**
+    -   Implemented PDF generation (, ).
+    -   Adjusted the layout of Page 3 to show the  of the occupation in a specific multiline field.
+    -   Moved the selected Virtue's display to be concatenated at the end of the long occupation description on Page 3, as requested by the user with image references.
+-   **Competency Selector:** Replaced the Competencia Adicional free-text input in the  with a categorized dropdown selector, and added Pipa as a new tool option.
 
 **Earlier issues found/mentioned but not fixed**
--   None. All issues from the previous handoff and user messages in this session have been addressed.
+-   None.
 
 **Known issue recurrence from previous fork**
--   **Issue recurrence in previous fork:** Mixed-up proficiencies on the character sheet.
--   **Recurrence count:** 3+
--   **Status:** **RESOLVED**. The testing agent explicitly verified that cultural tool proficiencies are now correctly displayed on the character sheet.
+-   None.
 
 **Code Architecture**
 
 
 **Key Technical Concepts**
--   **Backend:** FastAPI, Pydantic, Motor (for MongoDB)
--   **Frontend:** React, JavaScript (ES6+), TailwindCSS, Shadcn/UI
--   **Database:** MongoDB
--   **Data Parsing:** openpyxl
+-   **Backend:** FastAPI, Pydantic, Motor (async MongoDB driver).
+-   **Frontend:** React (Hooks, Context API), JavaScript (ES6+), TailwindCSS, Shadcn/UI.
+-   **PDF Generation:**  and  for client-side rendering.
+-   **Database:** MongoDB.
 
 **key DB schema**
--   **races:** (NEW) Stores base race definitions (e.g., Elfos, Enanos).
--   **cultures:** Stores static data for each specific culture.
--   **culture_names:** Stores name components (prefixes, suffixes, surnames) for each culture.
--   **characters:** Stores finalized character data.
--   **backgrounds, occupations, virtues, mecenas:** Other static game data collections.
--   **sheet_positions:** Stores JSON layouts for character sheet pages.
-
-**changes in tech stack**
--   None.
+-   **characters:** Stores finalized character sheets. Now includes comprehensive data for the selected virtue (e.g., , ) and the  of the occupation.
+-   **cultures:** Stores culture definitions. Now includes fields for virtue configuration (, ), linked backgrounds (), and proficiency choices ().
+-   **races, backgrounds, occupations, virtues:** Store other static game data.
 
 **All files of reference**
--   **/app/frontend/src/pages/RulesPage.jsx**: Heavily rewritten to provide a detailed view of cultures and will be the entry point for the new admin CRUD UI.
--   **/app/backend/routes/data_routes.py**: Extended with Pydantic models and CRUD endpoints for races and cultures.
--   **/app/frontend/src/components/character-sheet/SheetPage3.jsx**: New component created to render the third page of the character sheet.
--   **/app/frontend/src/components/character-creator/steps/Step2Background.jsx**: Modified to add mandatory choice validation.
--   **/app/frontend/src/components/character-creator/steps/Step3Occupation.jsx**: Modified to fix a duplicate selection bug.
--   **/app/backend/routes/character_routes.py**: Updated to save additional fields (e.g., , full occupation details) to the character object upon finalization.
+-   **/app/frontend/src/components/character-creator/steps/Step2Background.jsx**: The next file to be implemented.
+-   **/app/frontend/src/components/admin/CultureEditor.jsx**: Contains the logic for editing cultures, including the new proficiency selector.
+-   **/app/frontend/src/components/character-creator/steps/Step5Virtue.jsx**: Contains the logic for the dynamic virtue selection step.
+-   **/app/frontend/src/components/character-sheet/SheetPage3.jsx**: Contains the logic for rendering the occupation and virtue description.
+-   **/app/backend/routes/character_routes.py**: Contains the backend logic for saving character draft steps, including the full virtue data.
+-   **/app/backend/routes/data_routes.py**: Contains the endpoint  used to fetch available virtues.
 
 **Areas that need refactoring**:
--    is now very large. As the CRUD functionality is added, its state management and UI components should be broken into smaller, dedicated files (e.g., , , etc.).
+-   None at the moment. The agent has been refactoring components like  and  as new functionality was added.
 
 **key api endpoints**
--   : (NEW) Create a new race (admin only).
--   : (NEW) Create a new culture (admin only).
--   : (NEW) Update a culture (admin only).
--   : Retrieves all cultures for the rules page.
--   : Retrieves all name components for the rules page.
--   : Creates/updates the final character object from a draft.
--   : Saves/updates the layout for a character sheet page.
+-   : (NEW) Fetches the list of available virtues for a specific culture based on its configuration.
+-   : Updated to accept and save the full data object for the selected virtue.
+-   : Updated to include all virtue-related fields in the final character document.
+-   : Endpoints for creating new races, cultures, backgrounds, etc.
+-   : Endpoints for updating game data.
 
 **Critical Info for New Agent**
--   The user's primary focus has shifted to a major new feature: an admin-only CRUD system for all game data. The work is planned in phases. Phase 1 (enhanced Culture view) is done. You are starting Phase 2 (Race/Culture CRUD frontend).
--   The User Authentication task should be prioritized to properly gate the new admin features. The user has already provided credentials (/).
--   The backend for Race/Culture CRUD is already built in . Your main task is to build the corresponding frontend UI inside  and the new  component. The UI should only be visible to admin users.
+-   The user is highly engaged and provides specific, iterative feedback, often with annotated images. Pay close attention to these details.
+-   The immediate priority is to continue building out the character creator, starting with .
+-   The Maestro admin user is hardcoded via . Do not implement a real login system until the user prioritizes the User Authentication task.
+-   The user has outlined a significant amount of future work regarding multi-level user roles and database management. Keep this in mind for context, but focus on the immediate tasks.
 
 **documents and test reports created in this job**
--   /app/test_reports/iteration_9.json
--   /app/memory/PRD.md (updated with recent changes)
+-   /app/test_reports/iteration_13.json
+-   /app/memory/PRD.md (Continuously updated)
 
 **Last 10 User Messages and any pending HUMAN messages**
-1.  **User:** Requests a major new feature: a full CRUD system for game rules (Races, Cultures, etc.) for an admin user, starting with an enhanced view for Cultures.
-2.  **Agent:** Asks clarifying questions about the scope, data fields, and permissions.
-3.  **User:** Provides detailed answers, confirming requirements for the new CRUD system.
-4.  **Agent:** Proposes a 3-phase plan (1. View, 2. Race/Culture CRUD, 3. Background/Occupation CRUD) and starts Phase 1.
-5.  **Agent:** Completes the enhanced culture view and shows screenshots.
-6.  **User:** Requests minor tweaks: show all name parts (no ...) and add placeholder fields for HP, Load, and Virtue. Approves moving to Phase 2.
-7.  **Agent:** Implements the tweaks and confirms Phase 1 is complete.
-8.  **Agent:** Begins backend work for Phase 2: creating models and endpoints for Race/Culture CRUD.
-9.  **Agent:** Creates a placeholder for the frontend  component.
-10. **PENDING HUMAN MESSAGE:** The user is waiting for the agent to build the frontend UI for the Race and Culture CRUD system (Phase 2).
+1.  **User:** Requests to implement Step 2 (Background) and add sub-selections for Instruments/Games. (PENDING)
+2.  **User:** Provides images specifying that the selected virtue should be moved from its own field and appended to the end of the long occupation description on Page 3. (Completed)
+3.  **User:** Asks the agent to implement adding the selected virtue to the character sheet. (Completed)
+4.  **User:** Requests adding Pipa as a tool and implementing the dynamic virtue selection step in the character creator. (Completed)
+5.  **User:** Clarifies that a specific field on Page 3 should show the *short* occupation description, not a different one. (Completed)
+6.  **User:** Provides a large set of requirements via text and image, detailing how the virtue system should work when creating/editing cultures and outlining future plans for multi-level user roles. (Completed/Noted)
+7.  **Agent:** Asks for confirmation on the plan to implement the new virtue and background features.
+8.  **User:** Agrees to the plan.
+9.  **Agent:** Asks for confirmation on the plan for the admin CRUD system.
+10. **User:** Approves the plan to build the CRUD system (P0/P1 tasks) and agrees to use a hardcoded Maestro user for now to avoid repeated logins during development. (Completed)
 
 **Project Health Check:**
--   **Broken:** No. The core application is stable and all previously known bugs have been fixed. The current work is new feature development.
+-   **Stable:** The application is in a good state. All previously identified bugs have been fixed, and recently implemented features have passed tests. The current work involves adding new functionality to the character creator.
 
 **3rd Party Integrations**
--   **jspdf, html2canvas:** Installed for client-side PDF generation, but implementation is pending.
--   **openpyxl:** Used in the backend for parsing the  file.
+-   **jspdf, html2canvas:** Used for client-side PDF generation.
+-   **openpyxl:** Used in the backend to parse the original  data file.
 
 **Testing status**
--   **Testing agent used after significant changes:** YES. Used successfully after the major refactoring and bug-fixing effort.
--   **Troubleshoot agent used after agent stuck in loop:** NO
+-   **Testing agent used after significant changes:** YES. Used multiple times to verify the CRUD system, PDF generation, and virtue implementation, with 100% success on the last run.
 -   **Test files created:** None.
 -   **Known regressions:** None.
 
 **Credentials to test flow:**
--   **Admin Username:** 
--   **Admin Password:** 
+-   No login required. The admin user Maestro is active by default.
 
 **What agent forgot to execute**
--   Nothing. The agent has been systematically following the user's requests.</analysis>
+-   Nothing. The agent has been systematically working through the user's requests.</analysis>
