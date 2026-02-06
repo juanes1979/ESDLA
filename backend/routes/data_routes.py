@@ -421,6 +421,19 @@ async def get_all_culture_names():
 # === EQUIPMENT LISTS (Instruments, Games) ===
 
 @router.get("/equipment-lists")
+async def get_equipment_lists():
+    """Get special equipment lists (instruments, games) from equipment catalog"""
+    # Get from equipment catalog
+    catalog = await db.equipment_catalog.find_one({"_id": "main"})
+    if not catalog:
+        catalog = await db.equipment_catalog.find_one({})
+    
+    if catalog:
+        return {
+            "juegos": [item.get("nombre") for item in catalog.get("juegos", [])],
+            "instrumentos_musicales": [item.get("nombre") for item in catalog.get("instrumentos_musicales", [])]
+        }
+    return {"juegos": [], "instrumentos_musicales": []}
 
 
 # === CRUD: RACES ===
