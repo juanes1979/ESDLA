@@ -633,42 +633,72 @@ const TravelGenerator = () => {
             <div className="grid md:grid-cols-2 gap-4">
               {[
                 { key: 'guia', nombre: 'Guía', desc: 'Ruta, descanso, suministros', habilidad: 'Viajar (Sab)' },
-                { key: 'cazador', nombre: 'Cazador', desc: 'Encontrar comida', habilidad: 'Cazar (Sab)' },
+                { key: 'cazador', nombre: 'Cazador', desc: 'Encontrar comida', habilidad: 'Supervivencia (Sab)' },
                 { key: 'vigia', nombre: 'Vigía', desc: 'Vigilancia', habilidad: 'Percepción (Sab)' },
                 { key: 'explorador', nombre: 'Explorador', desc: 'Campamento, caminos', habilidad: 'Explorar (Sab)' }
-              ].map(papel => (
-                <div key={papel.key} className={`p-3 rounded border ${
-                  checkMultipleRoles(config.papeles[papel.key]) 
-                    ? 'border-yellow-500 bg-yellow-900/10' 
-                    : 'border-border/30'
-                }`}>
-                  <Label className="text-[hsl(var(--gold))]">{papel.nombre}</Label>
-                  <p className="text-xs text-muted-foreground mb-1">{papel.desc}</p>
-                  <p className="text-xs text-[hsl(var(--magic-blue))] mb-2">Habilidad: {papel.habilidad}</p>
-                  <Select 
-                    value={config.papeles[papel.key]} 
-                    onValueChange={(v) => setConfig(prev => ({
-                      ...prev,
-                      papeles: { ...prev.papeles, [papel.key]: v }
-                    }))}
-                  >
-                    <SelectTrigger data-testid={`select-${papel.key}`}>
-                      <SelectValue placeholder="Seleccionar personaje" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">Sin asignar</SelectItem>
-                      {personajes.map(p => (
-                        <SelectItem key={p.id} value={p.id}>
-                          {p.nombre} {p.vocacion_nombre ? `(${p.vocacion_nombre})` : ''} - Nv.{p.nivel || 1}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  {checkMultipleRoles(config.papeles[papel.key]) && config.papeles[papel.key] && config.papeles[papel.key] !== 'none' && (
-                    <p className="text-xs text-yellow-400 mt-1">⚠️ Múltiples papeles: -5 en pruebas</p>
-                  )}
-                </div>
-              ))}
+              ].map(papel => {
+                const selectedHeroId = config.papeles[papel.key];
+                const modifier = getModifierDisplay(selectedHeroId, papel.key);
+                const hasMultipleRoles = checkMultipleRoles(selectedHeroId);
+                
+                return (
+                  <div key={papel.key} className={`p-3 rounded border ${
+                    hasMultipleRoles 
+                      ? 'border-yellow-500 bg-yellow-900/10' 
+                      : selectedHeroId && selectedHeroId !== 'none' && modifier?.hasProficiency
+                        ? 'border-green-500/50 bg-green-900/10'
+                        : 'border-border/30'
+                  }`}>
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <Label className="text-[hsl(var(--gold))]">{papel.nombre}</Label>
+                        <p className="text-xs text-muted-foreground mb-1">{papel.desc}</p>
+                        <p className="text-xs text-[hsl(var(--magic-blue))]">Habilidad: {papel.habilidad}</p>
+                      </div>
+                      {modifier && (
+                        <div className={`text-center px-2 py-1 rounded ${
+                          modifier.hasProficiency ? 'bg-green-500/20' : 'bg-black/20'
+                        }`}>
+                          <p className={`text-lg font-bold ${
+                            modifier.hasProficiency ? 'text-green-400' : 'text-muted-foreground'
+                          }`}>
+                            {modifier.display}
+                          </p>
+                          <p className="text-[10px] text-muted-foreground">{modifier.breakdown}</p>
+                        </div>
+                      )}
+                    </div>
+                    <Select 
+                      value={selectedHeroId || 'none'} 
+                      onValueChange={(v) => setConfig(prev => ({
+                        ...prev,
+                        papeles: { ...prev.papeles, [papel.key]: v }
+                      }))}
+                    >
+                      <SelectTrigger data-testid={`select-${papel.key}`} className="mt-2">
+                        <SelectValue placeholder="Seleccionar personaje" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">Sin asignar</SelectItem>
+                        {personajes.map(p => {
+                          const pMod = getModifierDisplay(p.id, papel.key);
+                          return (
+                            <SelectItem key={p.id} value={p.id}>
+                              {p.nombre} {pMod ? `(${pMod.display})` : ''} - Nv.{p.nivel || 1}
+                            </SelectItem>
+                          );
+                        })}
+                      </SelectContent>
+                    </Select>
+                    {hasMultipleRoles && selectedHeroId && selectedHeroId !== 'none' && (
+                      <p className="text-xs text-yellow-400 mt-1">⚠️ Múltiples papeles: -5 en pruebas</p>
+                    )}
+                    {modifier?.hasProficiency && !hasMultipleRoles && (
+                      <p className="text-xs text-green-400 mt-1">✓ Competencia en {papel.habilidad.split(' ')[0]}</p>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           )}
         </CardContent>
