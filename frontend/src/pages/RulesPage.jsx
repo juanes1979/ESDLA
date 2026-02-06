@@ -983,7 +983,7 @@ const RulesPage = () => {
                   {/* Stat increases */}
                   {(v.aumenta_fuerza || v.aumenta_destreza || v.aumenta_constitucion || 
                     v.aumenta_inteligencia || v.aumenta_sabiduria || v.aumenta_carisma) && (
-                    <div className="mt-3 flex flex-wrap gap-2">
+                    <div className="mt-3 flex flex-wrap gap-2 items-center">
                       <span className="text-xs font-bold text-[hsl(var(--gold))]">Aumenta en 1:</span>
                       {v.aumenta_fuerza && <span className="px-2 py-1 bg-red-500/20 text-red-400 text-xs rounded">FUE</span>}
                       {v.aumenta_destreza && <span className="px-2 py-1 bg-green-500/20 text-green-400 text-xs rounded">DES</span>}
@@ -994,11 +994,72 @@ const RulesPage = () => {
                     </div>
                   )}
                   
-                  {/* Additional benefits */}
-                  {v.beneficios && (
-                    <div className="mt-3">
-                      <p className="text-xs font-bold text-[hsl(var(--torch-orange))]">Beneficios:</p>
-                      <p className="text-sm mt-1">{v.beneficios}</p>
+                  {/* Choose stat to increase */}
+                  {v.elegir_caracteristica?.length > 0 && (
+                    <div className="mt-3 flex flex-wrap gap-2 items-center">
+                      <span className="text-xs font-bold text-[hsl(var(--torch-orange))]">Elegir +1 en:</span>
+                      {v.elegir_caracteristica.map((stat, idx) => (
+                        <span key={idx} className="px-2 py-1 bg-[hsl(var(--torch-orange))/20] text-[hsl(var(--torch-orange))] text-xs rounded border border-[hsl(var(--torch-orange))/30]">
+                          {stat.substring(0, 3)}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                  
+                  {/* Choose saving throw proficiency */}
+                  {v.elegir_salvacion?.length > 0 && (
+                    <div className="mt-3 flex flex-wrap gap-2 items-center">
+                      <span className="text-xs font-bold text-[hsl(var(--magic-blue))]">Elegir competencia en salvación:</span>
+                      {v.elegir_salvacion.map((save, idx) => (
+                        <span key={idx} className="px-2 py-1 bg-[hsl(var(--magic-blue))/20] text-[hsl(var(--magic-blue))] text-xs rounded border border-[hsl(var(--magic-blue))/30]">
+                          {save.substring(0, 3)}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                  
+                  {/* Bonuses */}
+                  {(v.bonus_puntos_golpe || v.bonus_comunidad || v.bonus_ca) && (
+                    <div className="mt-3 flex flex-wrap gap-3">
+                      {v.bonus_puntos_golpe && (
+                        <span className="px-3 py-1 bg-red-500/20 text-red-400 text-xs rounded flex items-center gap-1">
+                          <span className="font-bold">+{v.bonus_puntos_golpe}</span> PG
+                        </span>
+                      )}
+                      {v.bonus_comunidad && (
+                        <span className="px-3 py-1 bg-blue-500/20 text-blue-400 text-xs rounded flex items-center gap-1">
+                          <span className="font-bold">+{v.bonus_comunidad}</span> Comunidad
+                        </span>
+                      )}
+                      {v.bonus_ca && (
+                        <span className="px-3 py-1 bg-green-500/20 text-green-400 text-xs rounded flex items-center gap-1">
+                          <span className="font-bold">+{v.bonus_ca}</span> CA
+                        </span>
+                      )}
+                    </div>
+                  )}
+                  
+                  {/* Choose skill proficiency */}
+                  {v.elegir_habilidad?.length > 0 && (
+                    <div className="mt-3 p-2 bg-[hsl(var(--gold))/10] rounded">
+                      <p className="text-xs font-bold text-[hsl(var(--gold))] mb-1">Elegir competencia en habilidad:</p>
+                      <div className="flex flex-wrap gap-1">
+                        {v.elegir_habilidad.map((skill, idx) => (
+                          <span key={idx} className="px-2 py-1 bg-black/20 text-xs rounded">{skill}</span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  
+                  {/* Choose tool proficiency */}
+                  {v.elegir_herramienta?.length > 0 && (
+                    <div className="mt-3 p-2 bg-[hsl(var(--torch-orange))/10] rounded">
+                      <p className="text-xs font-bold text-[hsl(var(--torch-orange))] mb-1">Elegir competencia en herramienta:</p>
+                      <div className="flex flex-wrap gap-1">
+                        {v.elegir_herramienta.map((tool, idx) => (
+                          <span key={idx} className="px-2 py-1 bg-black/20 text-xs rounded">{tool}</span>
+                        ))}
+                      </div>
                     </div>
                   )}
                 </div>
