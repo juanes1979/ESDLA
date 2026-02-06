@@ -506,7 +506,7 @@ async def update_draft_step4(draft_id: str, data: CharacterCreateStep4):
 
 @router.patch("/draft/{draft_id}/step5")
 async def update_draft_step5(draft_id: str, data: CharacterCreateStep5):
-    """Update draft with Step 5 data (virtue) - Solo para culturas que obtienen virtud"""
+    """Update draft with Step 5 data (virtue) - All virtue data with bonuses"""
     virtue = await db.virtues.find_one({"_id": data.virtud_id})
     if not virtue:
         raise HTTPException(status_code=404, detail="Virtue not found")
@@ -516,21 +516,35 @@ async def update_draft_step5(draft_id: str, data: CharacterCreateStep5):
     if not draft:
         raise HTTPException(status_code=404, detail="Draft not found")
     
-    # Apply virtue attribute increases
+    # Apply fixed virtue attribute increases
     atributos = draft.get('atributos_finales', {})
-    aumentos = virtue.get('aumentos_caracteristica', {})
+    caracteristicas_fijas = data.virtud_caracteristicas_fijas or virtue.get('caracteristicas_fijas', {})
     
-    for attr, bonus in aumentos.items():
-        if attr in atributos:
+    for attr, bonus in caracteristicas_fijas.items():
+        if attr in atributos and bonus:
             atributos[attr] += bonus
     
+    # Build the update with all virtue data
     update = {
         "virtud_id": data.virtud_id,
-        "virtud_nombre": virtue['nombre'],
-        "virtud_descripcion": virtue.get('descripcion'),
-        "rasgos_virtud": virtue.get('rasgos_hoja_pj'),
+        "virtud_nombre": data.virtud_nombre or virtue.get('nombre'),
+        "virtud_descripcion": data.virtud_descripcion or virtue.get('descripcion'),
+        "virtud_rasgos": data.virtud_rasgos or virtue.get('rasgos_virtud') or virtue.get('competencias_texto'),
+        # Characteristic bonuses
+        "virtud_caracteristicas_fijas": caracteristicas_fijas,
+        "virtud_caracteristicas_elegir": data.virtud_caracteristicas_elegir or virtue.get('caracteristicas_elegir', []),
+        # Saving throw proficiencies to choose
+        "virtud_salvaciones_elegir": data.virtud_salvaciones_elegir or virtue.get('salvaciones_elegir', []),
+        # Extra stats
+        "virtud_pg_extra": data.virtud_pg_extra or virtue.get('puntos_golpe_extra', 0),
+        "virtud_comunidad_extra": data.virtud_comunidad_extra or virtue.get('puntos_comunidad_extra', 0),
+        "virtud_ca_extra": data.virtud_ca_extra or virtue.get('clase_armadura_extra', 0),
+        # Skill/tool proficiencies to choose
+        "virtud_habilidades_elegir": data.virtud_habilidades_elegir or virtue.get('competencias_habilidades_elegir', []),
+        "virtud_herramientas_elegir": data.virtud_herramientas_elegir or virtue.get('competencias_herramientas_elegir', []),
+        # Update attributes with fixed bonuses
         "atributos_finales": atributos,
-        "paso_actual": 6,  # Sigue al paso de habilidades
+        "paso_actual": 6,  # Continue to skills step
         "updated_at": now_utc(),
     }
     
