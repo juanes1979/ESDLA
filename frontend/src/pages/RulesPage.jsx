@@ -63,6 +63,8 @@ const RulesPage = () => {
   const [showCultureEditor, setShowCultureEditor] = useState(false);
   const [showBackgroundEditor, setShowBackgroundEditor] = useState(false);
   const [showOccupationEditor, setShowOccupationEditor] = useState(false);
+  const [showVirtudEditor, setShowVirtudEditor] = useState(false);
+  const [showEquipmentEditor, setShowEquipmentEditor] = useState(false);
   const [editingItem, setEditingItem] = useState(null);
 
   // Load races for culture editor
