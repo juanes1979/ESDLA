@@ -707,10 +707,21 @@ async def finalize_character(draft_id: str):
         "dado_golpe": draft.get('dado_golpe'),
         # Attributes
         "atributos": final_attributes,
-        # Virtue (optional - only 3 cultures get virtue at level 1)
+        # Virtue (optional - only cultures with tiene_virtud_inicial get virtue at level 1)
         "virtud_id": draft.get('virtud_id'),
         "virtud_nombre": draft.get('virtud_nombre'),
-        "rasgos_virtud": draft.get('rasgos_virtud'),
+        "virtud_descripcion": draft.get('virtud_descripcion'),
+        "virtud_rasgos": draft.get('virtud_rasgos'),
+        "virtud_caracteristicas_fijas": draft.get('virtud_caracteristicas_fijas', {}),
+        "virtud_caracteristicas_elegir": draft.get('virtud_caracteristicas_elegir', []),
+        "virtud_salvaciones_elegir": draft.get('virtud_salvaciones_elegir', []),
+        "virtud_pg_extra": draft.get('virtud_pg_extra', 0),
+        "virtud_comunidad_extra": draft.get('virtud_comunidad_extra', 0),
+        "virtud_ca_extra": draft.get('virtud_ca_extra', 0),
+        "virtud_habilidades_elegir": draft.get('virtud_habilidades_elegir', []),
+        "virtud_herramientas_elegir": draft.get('virtud_herramientas_elegir', []),
+        # Legacy field for backwards compatibility
+        "rasgos_virtud": draft.get('virtud_rasgos') or draft.get('rasgos_virtud'),
         # Cultural traits (rasgos culturales from culture)
         "rasgos_culturales": draft.get('rasgos_culturales', []),
         # ALL Skills and competencies consolidated
