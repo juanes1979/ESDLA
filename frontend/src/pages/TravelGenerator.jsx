@@ -197,6 +197,58 @@ const TravelGenerator = () => {
     return hero?.nombre || '';
   };
   
+  // Calculate skill modifier for a hero
+  const getSkillModifier = (heroId, atributo, competencia = null) => {
+    if (!heroId || heroId === 'none') return null;
+    const hero = personajes.find(p => p.id === heroId);
+    if (!hero || !hero.atributos) return null;
+    
+    // Get attribute modifier
+    const attrValue = hero.atributos[atributo] || 10;
+    const attrMod = Math.floor((attrValue - 10) / 2);
+    
+    // Get proficiency bonus (based on level)
+    const nivel = hero.nivel || 1;
+    const profBonus = Math.ceil(nivel / 4) + 1;
+    
+    // Check if hero has the skill proficiency
+    const habilidades = hero.habilidades || [];
+    const hasProficiency = competencia && habilidades.some(h => 
+      h.toLowerCase().includes(competencia.toLowerCase())
+    );
+    
+    const totalMod = attrMod + (hasProficiency ? profBonus : 0);
+    return {
+      total: totalMod,
+      attrMod,
+      profBonus: hasProficiency ? profBonus : 0,
+      hasProficiency
+    };
+  };
+  
+  // Get modifier display string
+  const getModifierDisplay = (heroId, papel) => {
+    const skillMap = {
+      guia: { atributo: 'sabiduria', competencia: 'Viajar' },
+      cazador: { atributo: 'sabiduria', competencia: 'Supervivencia' },
+      vigia: { atributo: 'sabiduria', competencia: 'Percepción' },
+      explorador: { atributo: 'sabiduria', competencia: 'Explorar' }
+    };
+    
+    const config = skillMap[papel];
+    if (!config) return null;
+    
+    const mod = getSkillModifier(heroId, config.atributo, config.competencia);
+    if (!mod) return null;
+    
+    const sign = mod.total >= 0 ? '+' : '';
+    return {
+      display: `${sign}${mod.total}`,
+      hasProficiency: mod.hasProficiency,
+      breakdown: `SAB ${mod.attrMod >= 0 ? '+' : ''}${mod.attrMod}${mod.hasProficiency ? ` + ${mod.profBonus} comp` : ''}`
+    };
+  };
+  
   // Update heroes with multiple roles
   useEffect(() => {
     const heroesConMultiples = [];
