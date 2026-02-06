@@ -1332,6 +1332,35 @@ const RulesPage = () => {
           </div>
         </div>
 
+        {/* HECHICERÍA */}
+        {data.hechiceria && (
+          <div className="card-parchment rounded-lg p-4">
+            <h3 className="font-heading text-lg text-purple-400 mb-4 border-b border-purple-400/30 pb-2">
+              🔮 HECHICERÍA
+            </h3>
+            <p className="text-sm text-muted-foreground">
+              {data.hechiceria.descripcion}
+            </p>
+          </div>
+        )}
+
+        {/* FORTALECER LA VOLUNTAD */}
+        {data.fortalecer_voluntad && (
+          <div className="card-parchment rounded-lg p-4">
+            <h3 className="font-heading text-lg text-[hsl(var(--magic-blue))] mb-4 border-b border-[hsl(var(--magic-blue))/30] pb-2">
+              💪 FORTALECER LA VOLUNTAD
+            </h3>
+            <p className="text-sm text-muted-foreground mb-3">
+              {data.fortalecer_voluntad.descripcion}
+            </p>
+            {data.fortalecer_voluntad.nota && (
+              <p className="text-xs text-[hsl(var(--gold))] italic bg-[hsl(var(--gold))/10] p-2 rounded">
+                {data.fortalecer_voluntad.nota}
+              </p>
+            )}
+          </div>
+        )}
+
         {/* ESTADOS */}
         <div className="card-parchment rounded-lg p-4">
           <h3 className="font-heading text-lg text-[hsl(var(--magic-blue))] mb-4 border-b border-[hsl(var(--magic-blue))/30] pb-2">
@@ -1354,6 +1383,23 @@ const RulesPage = () => {
             ))}
           </div>
         </div>
+
+        {/* CÓMO SUCUMBIR ANTE LA SOMBRA */}
+        {data.como_sucumbir && (
+          <div className="card-parchment rounded-lg p-4 border-2 border-[hsl(var(--destructive))]">
+            <h3 className="font-heading text-lg text-[hsl(var(--destructive))] mb-4 border-b border-[hsl(var(--destructive))/30] pb-2">
+              ☠️ CÓMO SUCUMBIR ANTE LA SOMBRA
+            </h3>
+            <p className="text-sm text-muted-foreground mb-3">
+              {data.como_sucumbir.descripcion}
+            </p>
+            <div className="bg-[hsl(var(--destructive))/20] p-3 rounded border border-[hsl(var(--destructive))/50]">
+              <p className="text-sm font-bold text-[hsl(var(--destructive))]">
+                ⚠️ {data.como_sucumbir.consecuencia}
+              </p>
+            </div>
+          </div>
+        )}
 
         {/* SENDAS DE LA SOMBRA */}
         <div className="card-parchment rounded-lg p-4">
