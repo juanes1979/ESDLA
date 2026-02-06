@@ -878,7 +878,7 @@ const RulesPage = () => {
     );
   };
 
-  // Render virtues
+  // Render virtues - Complete data with all fields
   const renderVirtues = () => {
     if (!data?.length) return <p className="text-muted-foreground">No hay virtudes cargadas</p>;
     
@@ -887,21 +887,97 @@ const RulesPage = () => {
     // Group by culture
     const grouped = {};
     filtered.forEach(v => {
-      const cult = v.cultura || 'General';
+      const cult = v.cultura || 'Comunes';
       if (!grouped[cult]) grouped[cult] = [];
       grouped[cult].push(v);
     });
 
     return (
       <div className="space-y-6">
+        {/* Admin button to create new virtue */}
+        {isAdmin && (
+          <div className="flex justify-end mb-4">
+            <Button
+              onClick={() => {
+                setEditingItem(null);
+                setShowVirtudEditor(true);
+              }}
+              className="btn-fantasy"
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              Nueva Virtud
+            </Button>
+          </div>
+        )}
+        
         {Object.entries(grouped).map(([cultura, virtudes]) => (
           <div key={cultura} className="card-parchment rounded-lg p-4">
-            <h3 className="font-heading text-lg text-[hsl(var(--gold))] mb-4">{cultura}</h3>
-            <div className="space-y-3">
+            <h3 className="font-heading text-lg text-[hsl(var(--gold))] mb-4 border-b border-[hsl(var(--gold))/30] pb-2">
+              {cultura}
+            </h3>
+            <div className="space-y-4">
               {virtudes.map((v, i) => (
-                <div key={i} className="bg-black/10 p-3 rounded">
-                  <p className="font-bold text-[hsl(var(--torch-orange))]">{v.nombre}</p>
-                  {v.descripcion && <p className="text-sm text-muted-foreground mt-1">{v.descripcion}</p>}
+                <div key={i} className="bg-black/10 p-4 rounded border border-border/20">
+                  <div className="flex justify-between items-start">
+                    <p className="font-bold text-[hsl(var(--torch-orange))] text-lg">{v.nombre}</p>
+                    {isAdmin && (
+                      <div className="flex gap-2">
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => {
+                            setEditingItem(v);
+                            setShowVirtudEditor(true);
+                          }}
+                        >
+                          <Edit className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="text-destructive"
+                          onClick={() => handleDeleteVirtud(v._id, v.nombre)}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                  
+                  {/* Description */}
+                  {v.descripcion && (
+                    <p className="text-sm text-muted-foreground mt-2 italic">{v.descripcion}</p>
+                  )}
+                  
+                  {/* Rasgos (traits to note on sheet) */}
+                  {v.rasgos && (
+                    <div className="mt-3 p-2 bg-[hsl(var(--magic-blue))/10] rounded">
+                      <p className="text-xs font-bold text-[hsl(var(--magic-blue))] mb-1">Rasgos a indicar en la ficha:</p>
+                      <p className="text-sm">{v.rasgos}</p>
+                    </div>
+                  )}
+                  
+                  {/* Stat increases */}
+                  {(v.aumenta_fuerza || v.aumenta_destreza || v.aumenta_constitucion || 
+                    v.aumenta_inteligencia || v.aumenta_sabiduria || v.aumenta_carisma) && (
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      <span className="text-xs font-bold text-[hsl(var(--gold))]">Aumenta en 1:</span>
+                      {v.aumenta_fuerza && <span className="px-2 py-1 bg-red-500/20 text-red-400 text-xs rounded">FUE</span>}
+                      {v.aumenta_destreza && <span className="px-2 py-1 bg-green-500/20 text-green-400 text-xs rounded">DES</span>}
+                      {v.aumenta_constitucion && <span className="px-2 py-1 bg-orange-500/20 text-orange-400 text-xs rounded">CON</span>}
+                      {v.aumenta_inteligencia && <span className="px-2 py-1 bg-blue-500/20 text-blue-400 text-xs rounded">INT</span>}
+                      {v.aumenta_sabiduria && <span className="px-2 py-1 bg-purple-500/20 text-purple-400 text-xs rounded">SAB</span>}
+                      {v.aumenta_carisma && <span className="px-2 py-1 bg-pink-500/20 text-pink-400 text-xs rounded">CAR</span>}
+                    </div>
+                  )}
+                  
+                  {/* Additional benefits */}
+                  {v.beneficios && (
+                    <div className="mt-3">
+                      <p className="text-xs font-bold text-[hsl(var(--torch-orange))]">Beneficios:</p>
+                      <p className="text-sm mt-1">{v.beneficios}</p>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
