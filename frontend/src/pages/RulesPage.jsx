@@ -159,6 +159,10 @@ const RulesPage = () => {
             const comunidadRes = await api.get('/data/comunidad');
             setData(comunidadRes.data);
             break;
+          case 'npcs':
+            const npcsRes = await api.get('/data/npcs');
+            setData(npcsRes.data);
+            break;
           default:
             setData(null);
         }
