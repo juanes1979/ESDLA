@@ -823,8 +823,13 @@ async def finalize_character(draft_id: str):
         "caminos_profesion1": draft.get('caminos_profesion1'),
         "caminos_profesion2": draft.get('caminos_profesion2'),
         
-        # NEW: Virtudes de ocupación y virtudes seleccionadas
-        "virtudes_ocupacion": draft.get('virtudes_ocupacion'),
+        # NEW: Virtudes de ocupación y virtudes seleccionadas (texto para level-up)
+        "ocupacion_virtudes_texto": draft.get('ocupacion_virtudes_texto', []),
+        "virtudes_ocupacion": draft.get('virtudes_ocupacion') or draft.get('ocupacion_virtudes_ocupacion'),
+        # Virtues and arts obtained through level-up
+        "virtudes_obtenidas": draft.get('virtudes_obtenidas', []),
+        "artes_obtenidas": draft.get('artes_obtenidas', []),
+        "espacios_arte": draft.get('espacios_arte', 0),
         "virtud1": draft.get('virtud1'),
         "virtud1_descripcion": draft.get('virtud1_descripcion'),
         "virtud1_rasgos": draft.get('virtud1_rasgos'),
