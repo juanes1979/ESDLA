@@ -160,9 +160,18 @@ const BackgroundsSection = ({ onEdit, onDelete, onRefresh }) => {
             {/* Rasgos */}
             {bg.rasgos_descripciones?.length > 0 && (
               <Section title="Rasgos del Trasfondo">
-                <ul className="space-y-1">
+                <ul className="space-y-2">
                   {bg.rasgos_descripciones.map((rasgo, i) => (
-                    <li key={i} className="text-xs bg-black/10 p-2 rounded text-foreground">{rasgo}</li>
+                    <li key={i} className="text-xs bg-black/10 p-2 rounded text-foreground">
+                      {typeof rasgo === 'string' ? (
+                        rasgo
+                      ) : (
+                        <div>
+                          <span className="font-bold text-[hsl(var(--gold))]">{rasgo.nombre}: </span>
+                          <span className="text-muted-foreground">{rasgo.descripcion}</span>
+                        </div>
+                      )}
+                    </li>
                   ))}
                 </ul>
               </Section>
