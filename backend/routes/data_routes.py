@@ -1761,11 +1761,17 @@ async def get_comunidad_rules():
 # === NPCs, ENEMIES, ANIMALS ===
 
 @router.get("/npcs")
-async def get_all_npcs(categoria: Optional[str] = None):
-    """Get all NPCs/enemies/animals, optionally filtered by category"""
+async def get_all_npcs(categoria: Optional[str] = None, search: Optional[str] = None):
+    """Get all NPCs/enemies/animals, optionally filtered by category and search term"""
     query = {}
     if categoria:
         query["categoria"] = categoria
+    if search:
+        query["$or"] = [
+            {"nombre": {"$regex": search, "$options": "i"}},
+            {"tipo": {"$regex": search, "$options": "i"}},
+            {"descripcion": {"$regex": search, "$options": "i"}}
+        ]
     
     npcs = await db.npcs.find(query).to_list(500)
     
@@ -1780,21 +1786,57 @@ async def get_all_npcs(categoria: Optional[str] = None):
     for npc in npcs:
         cat = npc.get('categoria', 'especiales')
         if cat in grouped:
-            grouped[cat].append({
+            # Build comprehensive NPC object
+            npc_data = {
                 'id': npc['_id'],
                 'nombre': npc.get('nombre'),
                 'descripcion': npc.get('descripcion'),
                 'tipo': npc.get('tipo'),
+                'tamanio': npc.get('tamanio'),
+                'alineamiento': npc.get('alineamiento'),
+                # Combat stats
                 'clase_armadura': npc.get('clase_armadura'),
+                'descripcion_armadura': npc.get('descripcion_armadura'),
                 'puntos_golpe': npc.get('puntos_golpe'),
+                'dados_golpe': npc.get('dados_golpe'),
                 'velocidad': npc.get('velocidad'),
+                'velocidades_especiales': npc.get('velocidades_especiales'),
                 'velocidad_nota': npc.get('velocidad_nota'),
+                # Attributes
                 'atributos': npc.get('atributos'),
+                # Saves & Skills
+                'tiradas_salvacion': npc.get('tiradas_salvacion'),
+                'habilidades': npc.get('habilidades'),
+                'percepcion_pasiva': npc.get('percepcion_pasiva', 10),
+                # Resistances & Immunities
+                'resistencias': npc.get('resistencias', []),
+                'inmunidades_dano': npc.get('inmunidades_dano', []),
+                'inmunidades_estados': npc.get('inmunidades_estados', []),
+                'vulnerabilidades': npc.get('vulnerabilidades', []),
+                # Senses & Languages  
                 'sentidos': npc.get('sentidos'),
+                'idiomas': npc.get('idiomas', []),
+                # Challenge
+                'desafio': npc.get('desafio'),
                 'experiencia': npc.get('experiencia'),
+                'bonificador_competencia': npc.get('bonificador_competencia', 2),
+                # Special Abilities (new structured format)
+                'especiales': npc.get('especiales', []),
+                # Legacy 'especial' field for backwards compatibility
                 'especial': npc.get('especial'),
-                'acciones': npc.get('acciones')
-            })
+                # Weapons (new structured format)
+                'armas': npc.get('armas', []),
+                # Other Actions
+                'acciones': npc.get('acciones'),
+                'ataque_multiple': npc.get('ataque_multiple'),
+                # Reactions
+                'reacciones': npc.get('reacciones', []),
+                # Legendary Actions
+                'acciones_legendarias': npc.get('acciones_legendarias', []),
+                # AI-generated story
+                'historia': npc.get('historia')
+            }
+            grouped[cat].append(npc_data)
     
     return grouped
 
