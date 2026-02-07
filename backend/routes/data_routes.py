@@ -149,6 +149,53 @@ async def get_backgrounds(culture_id: Optional[str] = None, cultura: Optional[st
     return {"backgrounds": serialize_docs(backgrounds)}
 
 
+@router.get("/backgrounds/grouped/by-race")
+async def get_backgrounds_grouped():
+    """Get backgrounds grouped by race and culture for organized display"""
+    # Get all backgrounds
+    backgrounds = await db.backgrounds.find({}).to_list(500)
+    
+    # Get all cultures to map culture name -> race
+    cultures = await db.cultures.find({}).to_list(100)
+    culture_to_race = {}
+    for c in cultures:
+        nombre = c.get("nombre", "")
+        raza = c.get("raza") or c.get("categoria") or "Otros"
+        culture_to_race[nombre.lower()] = raza
+    
+    # Group backgrounds by race -> culture
+    grouped = {}
+    for bg in backgrounds:
+        cultura = bg.get("cultura", "Sin Cultura")
+        # Find the race for this culture
+        raza = culture_to_race.get(cultura.lower(), "Otros")
+        
+        if raza not in grouped:
+            grouped[raza] = {}
+        if cultura not in grouped[raza]:
+            grouped[raza][cultura] = []
+        
+        grouped[raza][cultura].append(serialize_doc(bg))
+    
+    # Sort races and cultures alphabetically
+    result = {}
+    race_order = ["Elfos", "Enanos", "Hobbits", "Hombres", "Otros"]
+    for race in race_order:
+        if race in grouped:
+            result[race] = {}
+            for cultura in sorted(grouped[race].keys()):
+                result[race][cultura] = grouped[race][cultura]
+    
+    # Add any races not in our predefined order
+    for race in sorted(grouped.keys()):
+        if race not in result:
+            result[race] = {}
+            for cultura in sorted(grouped[race].keys()):
+                result[race][cultura] = grouped[race][cultura]
+    
+    return {"grouped": result, "total": len(backgrounds)}
+
+
 @router.get("/backgrounds/{background_id}")
 async def get_background(background_id: str):
     """Get a specific background by ID"""
