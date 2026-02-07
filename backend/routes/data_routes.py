@@ -2056,6 +2056,116 @@ async def update_npc(npc_id: str, data: dict = Body(...)):
     
     updated = await db.npcs.find_one({"_id": npc_id})
     result = {k: v for k, v in updated.items() if k != '_id'}
+
+
+
+# === LOCATIONS (Map Locations) ===
+
+@router.get("/locations")
+async def get_locations(
+    region: Optional[str] = None,
+    tipo: Optional[str] = None,
+    refugio: Optional[bool] = None,
+    search: Optional[str] = None
+):
+    """Get map locations for Middle-earth, with optional filters"""
+    query = {}
+    
+    if region:
+        query["region"] = {"$regex": region, "$options": "i"}
+    if tipo:
+        query["tipo"] = tipo
+    if refugio is not None:
+        query["refugio"] = refugio
+    if search:
+        query["$or"] = [
+            {"nombre": {"$regex": search, "$options": "i"}},
+            {"nombre_sindarin": {"$regex": search, "$options": "i"}},
+            {"descripcion": {"$regex": search, "$options": "i"}}
+        ]
+    
+    locations = await db.locations.find(query).to_list(500)
+    return {"locations": serialize_docs(locations), "total": len(locations)}
+
+
+@router.get("/locations/regions")
+async def get_location_regions():
+    """Get list of all regions with location counts"""
+    pipeline = [
+        {"$group": {"_id": "$region", "count": {"$sum": 1}}},
+        {"$sort": {"_id": 1}}
+    ]
+    result = await db.locations.aggregate(pipeline).to_list(50)
+    return {"regions": [{"region": r["_id"], "count": r["count"]} for r in result]}
+
+
+@router.get("/locations/types")
+async def get_location_types():
+    """Get list of all location types"""
+    types = await db.locations.distinct("tipo")
+    return {"types": sorted(types)}
+
+
+@router.get("/locations/{location_id}")
+async def get_location(location_id: str):
+    """Get a specific location by ID"""
+    location = await db.locations.find_one({"_id": location_id})
+    if not location:
+        raise HTTPException(status_code=404, detail="Location not found")
+    return serialize_doc(location)
+
+
+@router.post("/locations")
+async def create_location(location: dict = Body(...)):
+    """Create a new location (admin only)"""
+    # Generate ID
+    count = await db.locations.count_documents({})
+    location["_id"] = f"loc_{count+1:03d}"
+    location["created_at"] = now_utc()
+    
+    await db.locations.insert_one(location)
+    return {"id": location["_id"], "message": "Location created successfully"}
+
+
+@router.put("/locations/{location_id}")
+async def update_location(location_id: str, location: dict = Body(...)):
+    """Update a location (admin only)"""
+    location["updated_at"] = now_utc()
+    result = await db.locations.update_one({"_id": location_id}, {"$set": location})
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Location not found")
+    return {"message": "Location updated successfully"}
+
+
+@router.delete("/locations/{location_id}")
+async def delete_location(location_id: str):
+    """Delete a location (admin only)"""
+    result = await db.locations.delete_one({"_id": location_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Location not found")
+    return {"message": "Location deleted successfully"}
+
+
+@router.get("/locations/for-travel")
+async def get_locations_for_travel():
+    """Get locations suitable for travel generator (refugios and major points)"""
+    # Get all locations that can be travel destinations
+    locations = await db.locations.find({
+        "$or": [
+            {"refugio": True},
+            {"tipo": {"$in": ["ciudad", "ciudad_capital", "pueblo", "puerto", "reino_elfico", "reino_enano", "region"]}}
+        ]
+    }).to_list(200)
+    
+    # Group by region for easier UI
+    by_region = {}
+    for loc in locations:
+        region = loc.get("region", "Otros")
+        if region not in by_region:
+            by_region[region] = []
+        by_region[region].append(serialize_doc(loc))
+    
+    return {"by_region": by_region, "total": len(locations)}
     result['id'] = updated['_id']
     return result
 
