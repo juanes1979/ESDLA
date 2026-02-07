@@ -2106,6 +2106,28 @@ async def get_location_types():
     return {"types": sorted(types)}
 
 
+@router.get("/locations/for-travel")
+async def get_locations_for_travel():
+    """Get locations suitable for travel generator (refugios and major points)"""
+    # Get all locations that can be travel destinations
+    locations = await db.locations.find({
+        "$or": [
+            {"refugio": True},
+            {"tipo": {"$in": ["ciudad", "ciudad_capital", "pueblo", "puerto", "reino_elfico", "reino_enano", "region"]}}
+        ]
+    }).to_list(200)
+    
+    # Group by region for easier UI
+    by_region = {}
+    for loc in locations:
+        region = loc.get("region", "Otros")
+        if region not in by_region:
+            by_region[region] = []
+        by_region[region].append(serialize_doc(loc))
+    
+    return {"by_region": by_region, "total": len(locations)}
+
+
 @router.get("/locations/{location_id}")
 async def get_location(location_id: str):
     """Get a specific location by ID"""
@@ -2144,30 +2166,6 @@ async def delete_location(location_id: str):
     if result.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Location not found")
     return {"message": "Location deleted successfully"}
-
-
-@router.get("/locations/for-travel")
-async def get_locations_for_travel():
-    """Get locations suitable for travel generator (refugios and major points)"""
-    # Get all locations that can be travel destinations
-    locations = await db.locations.find({
-        "$or": [
-            {"refugio": True},
-            {"tipo": {"$in": ["ciudad", "ciudad_capital", "pueblo", "puerto", "reino_elfico", "reino_enano", "region"]}}
-        ]
-    }).to_list(200)
-    
-    # Group by region for easier UI
-    by_region = {}
-    for loc in locations:
-        region = loc.get("region", "Otros")
-        if region not in by_region:
-            by_region[region] = []
-        by_region[region].append(serialize_doc(loc))
-    
-    return {"by_region": by_region, "total": len(locations)}
-    result['id'] = updated['_id']
-    return result
 
 
 @router.delete("/npcs/{npc_id}")
