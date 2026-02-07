@@ -1189,19 +1189,56 @@ async def delete_arte(arte_id: str):
 
 @router.get("/recompensas")
 async def get_recompensas():
-    """Get rewards data including mejoras, niveles, bendiciones"""
+    """Get rewards data including mejoras, niveles, bendiciones, and info general"""
     recompensas = await db.recompensas.find_one({"_id": "main"})
     if not recompensas:
         return {
             "mejoras": [],
             "niveles_recompensa": [],
-            "bendiciones": None
+            "bendiciones": None,
+            "info_general": None,
+            "armas_con_nombre": None
         }
     return {
         "mejoras": recompensas.get("mejoras", recompensas.get("mejoras_equipo", [])),
         "niveles_recompensa": recompensas.get("niveles_recompensa", []),
-        "bendiciones": recompensas.get("bendiciones")
+        "bendiciones": recompensas.get("bendiciones"),
+        "info_general": recompensas.get("info_general"),
+        "armas_con_nombre": recompensas.get("armas_con_nombre")
     }
+
+
+@router.get("/recompensas/mejoras")
+async def get_mejoras_aplicables(tipo_equipo: Optional[str] = None):
+    """Get applicable rewards for a specific equipment type (arma, armadura, escudo)"""
+    recompensas = await db.recompensas.find_one({"_id": "main"})
+    if not recompensas:
+        return {"mejoras": []}
+    
+    mejoras = recompensas.get("mejoras", [])
+    
+    if tipo_equipo:
+        # Filter by equipment type
+        tipo_lower = tipo_equipo.lower()
+        filtered = []
+        for m in mejoras:
+            tipos_aplicables = m.get("tipos_aplicables", [])
+            tipo_mejora = m.get("tipo", "").lower()
+            
+            # Check if this reward can be applied to this equipment type
+            if tipo_lower in ["arma", "arma_cuerpo_cuerpo", "arma_distancia"]:
+                if tipo_mejora == "arma" or any("arma" in t for t in tipos_aplicables):
+                    filtered.append(m)
+            elif tipo_lower in ["armadura", "armadura_ligera", "armadura_media", "armadura_pesada"]:
+                if tipo_mejora == "armadura" or any("armadura" in t for t in tipos_aplicables):
+                    filtered.append(m)
+            elif tipo_lower == "escudo":
+                if tipo_mejora == "escudo" or "escudo" in tipos_aplicables:
+                    filtered.append(m)
+        
+        return {"mejoras": filtered}
+    
+    return {"mejoras": mejoras}
 
 
 # === VIRTUDES (Virtues) - Complete data ===
