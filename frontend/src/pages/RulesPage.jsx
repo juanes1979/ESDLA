@@ -1538,15 +1538,89 @@ const RulesPage = () => {
                 {arte.descripcion_corta && (
                   <p className="text-sm text-muted-foreground italic border-l-2 border-[hsl(var(--gold))/50] pl-3 mb-3">{arte.descripcion_corta}</p>
                 )}
+                
+                {/* Descripción */}
                 {arte.descripcion && (
                   <div className="mt-3 p-3 bg-[hsl(var(--magic-blue))/10] rounded border border-[hsl(var(--magic-blue))/20]">
                     {arte.descripcion.split('\n\n').map((paragraph, pIdx) => (
                       <p key={pIdx} className="text-sm mb-2 last:mb-0 whitespace-pre-wrap">
-                        {paragraph.startsWith('•') ? (
-                          <span className="text-[hsl(var(--gold))]">{paragraph}</span>
-                        ) : paragraph}
+                        {paragraph}
                       </p>
                     ))}
+                  </div>
+                )}
+                
+                {/* Requisitos */}
+                {arte.requisitos?.length > 0 && (
+                  <div className="mt-3 p-3 bg-[hsl(var(--destructive))/10] rounded border border-[hsl(var(--destructive))/20]">
+                    <p className="text-xs font-bold text-[hsl(var(--destructive))] mb-2">⚠️ Requisitos</p>
+                    <ul className="list-disc list-inside text-sm space-y-1">
+                      {arte.requisitos.map((req, rIdx) => (
+                        <li key={rIdx}>{req}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                
+                {/* Opciones */}
+                {arte.opciones?.length > 0 && (
+                  <div className="mt-3 space-y-2">
+                    <p className="text-xs font-bold text-[hsl(var(--gold))] mb-2">⚡ Opciones de uso</p>
+                    {arte.opciones.map((opcion, oIdx) => (
+                      <div key={oIdx} className="p-3 bg-[hsl(var(--gold))/10] rounded border border-[hsl(var(--gold))/20]">
+                        <p className="font-semibold text-[hsl(var(--gold))]">{opcion.tipo}</p>
+                        <p className="text-sm mt-1">{opcion.efecto}</p>
+                        {opcion.exito && (
+                          <p className="text-sm mt-1 text-green-400"><strong>Éxito:</strong> {opcion.exito}</p>
+                        )}
+                        {opcion.exito_magico && (
+                          <p className="text-sm mt-1 text-purple-400"><strong>Éxito Mágico:</strong> {opcion.exito_magico}</p>
+                        )}
+                        {opcion.ejemplos && (
+                          <p className="text-xs text-muted-foreground mt-1"><strong>Ejemplos:</strong> {opcion.ejemplos.join(', ')}</p>
+                        )}
+                        {opcion.nota && (
+                          <p className="text-xs text-yellow-400/80 mt-1 italic">📝 {opcion.nota}</p>
+                        )}
+                        {opcion.nivel_5 && (
+                          <p className="text-xs text-cyan-400 mt-2"><strong>Nivel 5:</strong> {opcion.nivel_5}</p>
+                        )}
+                        {opcion.alternativa && (
+                          <p className="text-sm mt-2 p-2 bg-black/20 rounded"><strong>Alternativa:</strong> {opcion.alternativa}</p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+                
+                {/* Mejora Nivel 5 (general) */}
+                {arte.nivel_5 && (
+                  <div className="mt-3 p-3 bg-cyan-500/10 rounded border border-cyan-500/30">
+                    <p className="text-sm"><strong className="text-cyan-400">📈 Al alcanzar nivel 5:</strong> {arte.nivel_5}</p>
+                  </div>
+                )}
+                
+                {/* Reglas especiales */}
+                {arte.reglas_especiales?.length > 0 && (
+                  <div className="mt-3 p-3 bg-black/20 rounded border border-border/30">
+                    <p className="text-xs font-bold text-muted-foreground mb-2">📋 Reglas Especiales</p>
+                    <ul className="list-disc list-inside text-sm space-y-1 text-muted-foreground">
+                      {arte.reglas_especiales.map((regla, rIdx) => (
+                        <li key={rIdx}>{regla}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                
+                {/* Tipos de perdición (para Arte de las Runas) */}
+                {arte.tipos_perdicion?.length > 0 && (
+                  <div className="mt-3 p-2 bg-[hsl(var(--destructive))/10] rounded">
+                    <p className="text-xs font-bold text-[hsl(var(--destructive))]">Tipos de Perdición disponibles:</p>
+                    <div className="flex flex-wrap gap-1 mt-1">
+                      {arte.tipos_perdicion.map((tipo, tIdx) => (
+                        <span key={tIdx} className="px-2 py-0.5 bg-[hsl(var(--destructive))/20] rounded text-xs">{tipo}</span>
+                      ))}
+                    </div>
                   </div>
                 )}
               </div>
