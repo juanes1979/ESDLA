@@ -1228,10 +1228,13 @@ const RulesPage = () => {
           : <p className="text-muted-foreground">No se encontraron culturas</p>;
       
       case 'backgrounds':
-        const filteredBackgrounds = filterData(data, searchTerm);
-        return filteredBackgrounds?.length > 0 
-          ? filteredBackgrounds.map(renderBackgroundDetail)
-          : <p className="text-muted-foreground">No se encontraron trasfondos</p>;
+        return (
+          <BackgroundsSection 
+            onEdit={(bg) => openEditor('background', bg)}
+            onDelete={(id, name) => handleDelete('backgrounds', id, name)}
+            onRefresh={reloadData}
+          />
+        );
       
       case 'occupations':
         const filteredOccs = filterData(data, searchTerm);
