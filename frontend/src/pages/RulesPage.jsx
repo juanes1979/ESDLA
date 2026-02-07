@@ -1275,6 +1275,9 @@ const RulesPage = () => {
           setData(npcsRes.data);
         }} />;
       
+      case 'nameless':
+        return <CriaturasSinNombreSection />;
+      
       default:
         return null;
     }
