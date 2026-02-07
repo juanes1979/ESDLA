@@ -9,3 +9,4 @@ export { default as VariosSection } from './VariosSection';
 export { default as ViajeSection } from './ViajeSection';
 export { default as ComunidadSection } from './ComunidadSection';
 export { default as NPCsSection } from './NPCsSection';
+export { default as NPCEditor } from './NPCEditor';
