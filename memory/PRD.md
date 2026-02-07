@@ -9,78 +9,79 @@ Build a comprehensive web application to play a modified version of the "Lord of
 
 ### ✅ COMPLETED This Session
 
-#### P0: Sistema Completo de NPCs/Bestiario
+#### P0: Trasfondos Reorganizados por Raza/Cultura
+- Nuevo endpoint `GET /api/data/backgrounds/grouped/by-race` agrupa 114 trasfondos
+- Componente `BackgroundsSection.jsx` con tabs por raza:
+  - Elfos: 5 culturas, 30 trasfondos
+  - Enanos: 4 culturas, 24 trasfondos
+  - Hobbits: 3 culturas, 18 trasfondos
+  - Hombres: 7 culturas, 42 trasfondos
+- Culturas colapsables dentro de cada tab
+- Trasfondos expandibles con competencias, herramientas y rasgos
 
-**1. Nuevo Modelo de Datos Estructurado para NPCs**
-- Separación de `especiales` como lista de objetos `{nombre, descripcion}`
-- `armas` estructuradas con `{nombre, tipo, bonificador_impacto, alcance_metros, dano, tipo_dano, efecto}`
-- `acciones` y `reacciones` como listas estructuradas
-- Soporte para resistencias, inmunidades_dano, inmunidades_estados, vulnerabilidades
-- Campo `historia` preparado para IA futura
+#### P1: Sistema de Recompensas de Equipamiento
+- Datos completos extraídos del PDF `Recompensas.pdf`
+- Endpoint actualizado `GET /api/data/recompensas` con:
+  - `info_general`: Reglas de cuándo elegir, aplicación, interpretación, inmunidad argumental, préstamo
+  - `niveles_recompensa`: Niveles 3, 5, 7, 9 con descripciones
+  - `mejoras`: 6 mejoras detalladas (AFILADA, AJUSTADA, CRUEL, DOLOROSA, HÁBILMENTE FABRICADA, REFORZADO)
+  - `bendiciones`: Descripción y tabla de dados por nivel
+  - `armas_con_nombre`: Tradiciones por cultura (Elfos, Hombres, Dúnedain, Hobbits, Enanos)
+- UI actualizada con cards detalladas mostrando efectos, restricciones y reglas de "El Anillo Único"
 
-**2. Extracción de Datos de PDFs y Excel**
-- Procesados 4 PDFs de adversarios (Adversarios.pdf, elfos, moria, gusano)
-- Procesado nuevo PDF "Adversarios Bosque Negro" - Convertido de formato "The One Ring" a 5e
-- Procesado Excel `pnj.xlsx` para PNJ y animales
-
-**3. Total de NPCs en Base de Datos: 71**
-| Categoría | Cantidad | Descripción |
-|-----------|----------|-------------|
-| Malignos | 29 | Orcos, trolls, espectros, humanos malignos, arañas, trasgos |
-| PNJ | 9 | Frontero, Guardia, Cazador, Jinete de Rohan, Montaraz, etc. |
-| Animales | 18 | Lobo, Caballo, Huargo, Oso, Águila, Araña gigante, etc. |
-| Especiales | 15 | Balrog, Nazgûl, Vástagos de Ella-Laraña, Smaug, Ent, etc. |
-
-**4. Criaturas del Bosque Negro (Convertidas a 5e)**
-- Lugarteniente de Dol Guldur - CA 15, 95 PG, Desafío 5
-- Fantasma del Bosque - CA 14, 78 PG, Desafío 4
-- Mensajero de Mordor - CA 14, 78 PG, Desafío 4
-- Araña Cazadora - CA 14, 39 PG, Desafío 2
-- Espectro del Bosque - CA 15, 54 PG, Desafío 3
-- Trasgo del Bosque - CA 13, 10 PG, Desafío 1/4
-- Sarqin, la Madre de Todas - CA 16, 150 PG, Desafío 10
-- Tauler el Cazador - CA 17, 95 PG, Desafío 7
-- Tyulqin la Tejedora - CA 16, 95 PG, Desafío 8
-
-**5. Endpoints CRUD Completos**
-- `GET /api/data/npcs` - Listado agrupado por categoría con búsqueda
-- `POST /api/data/npcs` - Crear nuevo NPC
-- `PATCH /api/data/npcs/{id}` - Actualizar NPC
-- `DELETE /api/data/npcs/{id}` - Eliminar NPC
-- `POST /api/data/npcs/{id}/copy` - Copiar NPC
-
-**6. Editor Visual de NPCs (NPCEditor.jsx)**
-- Modal con 7 pestañas: Básico, Atributos, Defensa, Especiales, Armas, Acciones, Historia
+#### P1: Sistema de Ubicaciones del Mapa
+- Creada colección `locations` con 37 ubicaciones de la Tierra Media
+- Ubicaciones organizadas por región:
+  - Eriador: 8 (La Comarca, Bree, Rivendel, Puertos Grises, etc.)
+  - Rhovanion: 5 (Erebor, Valle, Esgaroth, etc.)
+  - Gondor: 5 (Minas Tirith, Osgiliath, Dol Amroth, etc.)
+  - Rohan: 3 (Edoras, Abismo de Helm, Fangorn)
+  - Mordor: 3 (Barad-dûr, Monte del Destino, Morannon)
+  - Y más regiones...
+- Endpoints:
+  - `GET /api/data/locations` - Lista completa con filtros
+  - `GET /api/data/locations/for-travel` - Agrupado para generador de viajes
+  - `GET /api/data/locations/regions` - Lista de regiones
+  - CRUD completo (POST, PUT, DELETE)
+- Cada ubicación tiene: nombre, nombre_sindarin, región, tipo, coordenadas x/y, peligro, refugio
 
 ### Sesiones Anteriores (resumen)
-- Generador de Viajes (`/travel`) - Completo
+- Sistema completo de NPCs/Bestiario (71 NPCs)
+- Generador de Viajes (`/travel`)
 - Sistema de Level Up con modal
-- Secciones de reglas: Fase de Comunidad, Artes, Recompensas, etc.
+- Secciones de reglas: Fase de Comunidad, Artes, Criaturas sin Nombre
 - Creador de personajes con ficha PDF
 - 100 Virtudes, Catálogo de Equipo
 
 ## 📋 UPCOMING TASKS
 
 ### P1 - Next Priority
-1. **PDF Export for Travel Generator**
-2. **Más animales** (faltan muchos del Excel original)
+1. **Integrar ubicaciones en el Generador de Viajes** - Usar el endpoint `/locations/for-travel` para los dropdowns
+2. **Añadir más ubicaciones del mapa** - El usuario proporcionará imágenes de mapas para extraer más lugares
 
 ### P2 - Medium Priority
-1. **Sistema de Autenticación** (Maestro > Admin > Jugador)
-2. **Backup/Restore de base de datos**
+1. **PDF Export for Travel Generator**
+2. **Sistema de Autenticación** (Maestro > Admin > Jugador)
+3. **Backup/Restore de base de datos**
 
 ### P3 - Future Tasks
 - Pantalla del DM
 - Interfaz de juego online
 - **Integración IA para historias de NPCs**
-- Limpieza de código obsoleto
+- Refactorización completa de RulesPage.jsx
 
 ## Key Files
-- `/app/backend/routes/data_routes.py` - Endpoints CRUD de NPCs
-- `/app/backend/load_npcs_v2.py` - Script original de NPCs (30 criaturas de PDFs)
-- `/app/backend/load_npcs_new.py` - Script con PNJ, Animales, Bosque Negro (41 criaturas)
-- `/app/frontend/src/components/rules/NPCsSection.jsx` - Vista del bestiario
-- `/app/frontend/src/components/rules/NPCEditor.jsx` - Editor visual de NPCs
+- `/app/backend/routes/data_routes.py` - Endpoints CRUD de backgrounds, recompensas, locations
+- `/app/backend/create_locations.py` - Script de carga inicial de ubicaciones
+- `/app/backend/update_recompensas.py` - Script de actualización de recompensas
+- `/app/frontend/src/components/rules/BackgroundsSection.jsx` - Nuevo componente con tabs
+- `/app/frontend/src/pages/RulesPage.jsx` - renderRecompensas actualizado
 
 ## Testing
-- `/app/test_reports/iteration_20.json` - 100% pass rate
+- `/app/test_reports/iteration_21.json` - 100% pass rate (29/29 backend, all frontend)
+- Bug arreglado: rasgos_descripciones ahora maneja strings y objetos
+
+## Database Collections
+- `locations`: 37 documentos con coordenadas x/y para mapa
+- `recompensas`: Documento único con mejoras, niveles, bendiciones, armas_con_nombre
+- `backgrounds`: 114 documentos agrupables por raza/cultura
