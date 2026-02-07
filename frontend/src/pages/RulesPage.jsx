@@ -1269,7 +1269,10 @@ const RulesPage = () => {
         return <ComunidadSection data={data} />;
       
       case 'npcs':
-        return <NPCsSection data={data} />;
+        return <NPCsSection data={data} onRefresh={async () => {
+          const npcsRes = await api.get('/data/npcs');
+          setData(npcsRes.data);
+        }} />;
       
       default:
         return null;
