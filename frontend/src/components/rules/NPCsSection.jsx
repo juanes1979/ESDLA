@@ -1,16 +1,23 @@
 /**
  * NPCs Section - Enemies, NPCs, Animals, Specials
- * Displays all non-player characters with stats and abilities
+ * Displays all non-player characters with structured stats and abilities
+ * V2: Support for new structured data model with separate weapons, actions, specials
  */
 import { useState } from 'react';
-import { Skull, Users, PawPrint, Sparkles, Shield, Heart, Zap, Eye, Swords, ChevronDown, ChevronUp } from 'lucide-react';
+import { Skull, Users, PawPrint, Sparkles, Shield, Heart, Zap, Eye, Swords, ChevronDown, ChevronUp, Plus, Edit2, Trash2, Copy, BookOpen } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import NPCEditor from './NPCEditor';
 
-const NPCsSection = ({ data }) => {
+const API_URL = process.env.REACT_APP_BACKEND_URL;
+
+const NPCsSection = ({ data, onRefresh }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [activeCategory, setActiveCategory] = useState('malignos');
   const [expandedNPC, setExpandedNPC] = useState(null);
+  const [showEditor, setShowEditor] = useState(false);
+  const [editingNPC, setEditingNPC] = useState(null);
 
   if (!data) return <p className="text-muted-foreground">No hay datos de NPCs cargados</p>;
 
@@ -38,16 +45,228 @@ const NPCsSection = ({ data }) => {
   const currentNPCs = filterNPCs(data[activeCategory]);
   const currentCategory = categories.find(c => c.id === activeCategory);
 
+  const handleCreateNew = () => {
+    setEditingNPC(null);
+    setShowEditor(true);
+  };
+
+  const handleEdit = (npc) => {
+    setEditingNPC(npc);
+    setShowEditor(true);
+  };
+
+  const handleDelete = async (npc) => {
+    if (!window.confirm(`¿Eliminar "${npc.nombre}"? Esta acción no se puede deshacer.`)) return;
+    
+    try {
+      const response = await fetch(`${API_URL}/api/data/npcs/${npc.id}`, { method: 'DELETE' });
+      if (response.ok && onRefresh) {
+        onRefresh();
+      }
+    } catch (err) {
+      console.error('Error deleting NPC:', err);
+    }
+  };
+
+  const handleCopy = async (npc) => {
+    const newName = prompt('Nombre para la copia:', `${npc.nombre} (copia)`);
+    if (!newName) return;
+    
+    try {
+      const response = await fetch(`${API_URL}/api/data/npcs/${npc.id}/copy`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ new_name: newName })
+      });
+      if (response.ok && onRefresh) {
+        onRefresh();
+      }
+    } catch (err) {
+      console.error('Error copying NPC:', err);
+    }
+  };
+
+  const handleSave = (savedNPC) => {
+    setShowEditor(false);
+    setEditingNPC(null);
+    if (onRefresh) onRefresh();
+  };
+
+  // Render structured specials
+  const renderSpeciales = (especiales) => {
+    if (!especiales || especiales.length === 0) return null;
+    return (
+      <div className="space-y-2">
+        <p className="text-xs text-purple-400 font-bold flex items-center gap-1">
+          <Sparkles className="w-4 h-4" /> Habilidades Especiales
+        </p>
+        {especiales.map((esp, i) => (
+          <div key={i} className="p-2 bg-purple-500/10 rounded">
+            <p className="font-semibold text-purple-300">{esp.nombre}</p>
+            <p className="text-sm text-muted-foreground">{esp.descripcion}</p>
+          </div>
+        ))}
+      </div>
+    );
+  };
+
+  // Render structured weapons
+  const renderArmas = (armas, ataqueMultiple) => {
+    if ((!armas || armas.length === 0) && !ataqueMultiple) return null;
+    return (
+      <div className="space-y-2">
+        <p className="text-xs text-[hsl(var(--destructive))] font-bold flex items-center gap-1">
+          <Swords className="w-4 h-4" /> Ataques
+        </p>
+        {ataqueMultiple && (
+          <p className="text-sm text-muted-foreground italic bg-[hsl(var(--destructive))/5] p-2 rounded">
+            <strong>Ataque Múltiple:</strong> {ataqueMultiple}
+          </p>
+        )}
+        {armas?.map((arma, i) => (
+          <div key={i} className="p-2 bg-[hsl(var(--destructive))/10] rounded">
+            <div className="flex items-center justify-between">
+              <p className="font-semibold text-[hsl(var(--destructive))]">{arma.nombre}</p>
+              <Badge variant="outline" className="text-xs">{arma.tipo}</Badge>
+            </div>
+            <div className="grid grid-cols-3 gap-2 mt-1 text-sm">
+              <span><strong>+{arma.bonificador_impacto}</strong> al impacto</span>
+              <span>{arma.alcance_metros}</span>
+              <span><strong>{arma.dano}</strong> {arma.tipo_dano}</span>
+            </div>
+            {arma.efecto && (
+              <p className="text-xs text-muted-foreground mt-1 italic">{arma.efecto}</p>
+            )}
+          </div>
+        ))}
+      </div>
+    );
+  };
+
+  // Render structured actions
+  const renderAcciones = (acciones) => {
+    if (!acciones || (Array.isArray(acciones) && acciones.length === 0)) return null;
+    
+    // Handle legacy string format
+    if (typeof acciones === 'string') {
+      return (
+        <div className="flex items-start gap-2 p-2 bg-[hsl(var(--gold))/10] rounded">
+          <Swords className="w-4 h-4 text-[hsl(var(--gold))] mt-0.5" />
+          <div>
+            <p className="text-xs text-[hsl(var(--gold))] font-bold">Acciones</p>
+            <p className="text-sm text-muted-foreground">{acciones}</p>
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <div className="space-y-2">
+        <p className="text-xs text-[hsl(var(--gold))] font-bold flex items-center gap-1">
+          <Zap className="w-4 h-4" /> Otras Acciones
+        </p>
+        {acciones.map((acc, i) => (
+          <div key={i} className="p-2 bg-[hsl(var(--gold))/10] rounded">
+            <p className="font-semibold text-[hsl(var(--gold))]">{acc.nombre}</p>
+            <p className="text-sm text-muted-foreground">{acc.descripcion}</p>
+          </div>
+        ))}
+      </div>
+    );
+  };
+
+  // Render reactions
+  const renderReacciones = (reacciones) => {
+    if (!reacciones || reacciones.length === 0) return null;
+    return (
+      <div className="space-y-2">
+        <p className="text-xs text-[hsl(var(--torch-orange))] font-bold flex items-center gap-1">
+          <Zap className="w-4 h-4" /> Reacciones
+        </p>
+        {reacciones.map((rea, i) => (
+          <div key={i} className="p-2 bg-[hsl(var(--torch-orange))/10] rounded">
+            <p className="font-semibold text-[hsl(var(--torch-orange))]">{rea.nombre}</p>
+            <p className="text-sm text-muted-foreground">{rea.descripcion}</p>
+          </div>
+        ))}
+      </div>
+    );
+  };
+
+  // Render defenses
+  const renderDefensas = (npc) => {
+    const hasDefenses = (npc.resistencias?.length > 0) || 
+                        (npc.inmunidades_dano?.length > 0) || 
+                        (npc.inmunidades_estados?.length > 0) ||
+                        (npc.vulnerabilidades?.length > 0);
+    if (!hasDefenses) return null;
+
+    return (
+      <div className="space-y-2">
+        {npc.resistencias?.length > 0 && (
+          <div>
+            <p className="text-xs text-blue-400 font-bold">Resistencias</p>
+            <div className="flex flex-wrap gap-1 mt-1">
+              {npc.resistencias.map((r, i) => (
+                <Badge key={i} variant="outline" className="text-blue-400 border-blue-400/30">{r}</Badge>
+              ))}
+            </div>
+          </div>
+        )}
+        {npc.inmunidades_dano?.length > 0 && (
+          <div>
+            <p className="text-xs text-green-400 font-bold">Inmunidades (Daño)</p>
+            <div className="flex flex-wrap gap-1 mt-1">
+              {npc.inmunidades_dano.map((r, i) => (
+                <Badge key={i} variant="outline" className="text-green-400 border-green-400/30">{r}</Badge>
+              ))}
+            </div>
+          </div>
+        )}
+        {npc.inmunidades_estados?.length > 0 && (
+          <div>
+            <p className="text-xs text-purple-400 font-bold">Inmunidades (Estados)</p>
+            <div className="flex flex-wrap gap-1 mt-1">
+              {npc.inmunidades_estados.map((r, i) => (
+                <Badge key={i} variant="outline" className="text-purple-400 border-purple-400/30">{r}</Badge>
+              ))}
+            </div>
+          </div>
+        )}
+        {npc.vulnerabilidades?.length > 0 && (
+          <div>
+            <p className="text-xs text-red-400 font-bold">Vulnerabilidades</p>
+            <div className="flex flex-wrap gap-1 mt-1">
+              {npc.vulnerabilidades.map((r, i) => (
+                <Badge key={i} variant="outline" className="text-red-400 border-red-400/30">{r}</Badge>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
+
   return (
     <div className="space-y-4">
-      {/* Search */}
-      <div className="relative">
-        <Input
-          placeholder="Buscar NPC, enemigo, animal..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="bg-black/20"
-        />
+      {/* Header with Add button */}
+      <div className="flex items-center justify-between">
+        <div className="relative flex-1 mr-4">
+          <Input
+            placeholder="Buscar NPC, enemigo, animal..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="bg-black/20"
+            data-testid="npc-search-input"
+          />
+        </div>
+        <Button 
+          onClick={handleCreateNew}
+          className="bg-[hsl(var(--gold))] text-black hover:bg-[hsl(var(--gold))]/80"
+          data-testid="create-npc-button"
+        >
+          <Plus className="w-4 h-4 mr-2" /> Crear NPC
+        </Button>
       </div>
 
       {/* Category tabs */}
@@ -63,6 +282,7 @@ const NPCsSection = ({ data }) => {
                   ? `border-[hsl(var(--${cat.color}))] bg-[hsl(var(--${cat.color}))/20] text-[hsl(var(--${cat.color}))]`
                   : 'border-border/30 hover:border-border/50'
               }`}
+              data-testid={`category-tab-${cat.id}`}
             >
               <Icon className="w-4 h-4" />
               <span>{cat.name}</span>
@@ -85,11 +305,13 @@ const NPCsSection = ({ data }) => {
                   ? `border-[hsl(var(--${currentCategory?.color || 'gold'}))]`
                   : 'border-border/20'
               }`}
+              data-testid={`npc-card-${npc.id}`}
             >
               {/* Header - Always visible */}
               <button
                 onClick={() => setExpandedNPC(expandedNPC === npc.id ? null : npc.id)}
                 className="w-full p-3 text-left flex items-center justify-between"
+                data-testid={`npc-expand-${npc.id}`}
               >
                 <div className="flex items-center gap-3">
                   <div className={`w-10 h-10 rounded-full bg-[hsl(var(--${currentCategory?.color || 'gold'}))/20] flex items-center justify-center`}>
@@ -131,35 +353,64 @@ const NPCsSection = ({ data }) => {
               {/* Expanded content */}
               {expandedNPC === npc.id && (
                 <div className="p-4 pt-0 border-t border-border/20 space-y-4">
+                  {/* Action buttons */}
+                  <div className="flex gap-2 justify-end">
+                    <Button variant="ghost" size="sm" onClick={() => handleEdit(npc)} data-testid={`edit-npc-${npc.id}`}>
+                      <Edit2 className="w-4 h-4 mr-1" /> Editar
+                    </Button>
+                    <Button variant="ghost" size="sm" onClick={() => handleCopy(npc)}>
+                      <Copy className="w-4 h-4 mr-1" /> Copiar
+                    </Button>
+                    <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive" onClick={() => handleDelete(npc)}>
+                      <Trash2 className="w-4 h-4 mr-1" /> Eliminar
+                    </Button>
+                  </div>
+
                   {/* Description */}
                   {npc.descripcion && (
                     <p className="text-sm text-muted-foreground italic">{npc.descripcion}</p>
                   )}
 
                   {/* Stats grid */}
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
                     <div className="bg-[hsl(var(--magic-blue))/10] p-2 rounded text-center">
                       <Shield className="w-4 h-4 mx-auto text-[hsl(var(--magic-blue))]" />
                       <p className="text-xs text-muted-foreground mt-1">CA</p>
                       <p className="text-lg font-bold text-[hsl(var(--magic-blue))]">{npc.clase_armadura}</p>
+                      {npc.descripcion_armadura && (
+                        <p className="text-xs text-muted-foreground">{npc.descripcion_armadura}</p>
+                      )}
                     </div>
                     <div className="bg-red-500/10 p-2 rounded text-center">
                       <Heart className="w-4 h-4 mx-auto text-red-400" />
                       <p className="text-xs text-muted-foreground mt-1">PG</p>
                       <p className="text-lg font-bold text-red-400">{npc.puntos_golpe}</p>
+                      {npc.dados_golpe && (
+                        <p className="text-xs text-muted-foreground">{npc.dados_golpe}</p>
+                      )}
                     </div>
                     <div className="bg-yellow-500/10 p-2 rounded text-center">
                       <Zap className="w-4 h-4 mx-auto text-yellow-400" />
                       <p className="text-xs text-muted-foreground mt-1">Velocidad</p>
                       <p className="text-lg font-bold text-yellow-400">{npc.velocidad}m</p>
-                      {npc.velocidad_nota && (
-                        <p className="text-xs text-muted-foreground">{npc.velocidad_nota}</p>
+                      {npc.velocidades_especiales && Object.keys(npc.velocidades_especiales).length > 0 && (
+                        <p className="text-xs text-muted-foreground">
+                          {Object.entries(npc.velocidades_especiales).map(([k, v]) => `${k}: ${v}m`).join(', ')}
+                        </p>
                       )}
                     </div>
                     <div className="bg-[hsl(var(--gold))/10] p-2 rounded text-center">
                       <Sparkles className="w-4 h-4 mx-auto text-[hsl(var(--gold))]" />
                       <p className="text-xs text-muted-foreground mt-1">PX</p>
                       <p className="text-lg font-bold text-[hsl(var(--gold))]">{npc.experiencia}</p>
+                      {npc.desafio && (
+                        <p className="text-xs text-muted-foreground">Desafío: {npc.desafio}</p>
+                      )}
+                    </div>
+                    <div className="bg-cyan-500/10 p-2 rounded text-center">
+                      <Eye className="w-4 h-4 mx-auto text-cyan-400" />
+                      <p className="text-xs text-muted-foreground mt-1">Percepción</p>
+                      <p className="text-lg font-bold text-cyan-400">{npc.percepcion_pasiva || 10}</p>
                     </div>
                   </div>
 
@@ -186,18 +437,37 @@ const NPCsSection = ({ data }) => {
                   )}
 
                   {/* Senses */}
-                  {npc.sentidos && (
+                  {npc.sentidos && (Array.isArray(npc.sentidos) ? npc.sentidos.length > 0 : npc.sentidos) && (
                     <div className="flex items-start gap-2 p-2 bg-black/10 rounded">
                       <Eye className="w-4 h-4 text-[hsl(var(--magic-blue))] mt-0.5" />
                       <div>
                         <p className="text-xs text-[hsl(var(--magic-blue))] font-bold">Sentidos</p>
-                        <p className="text-sm text-muted-foreground">{npc.sentidos}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {Array.isArray(npc.sentidos) ? npc.sentidos.join(', ') : npc.sentidos}
+                        </p>
                       </div>
                     </div>
                   )}
 
-                  {/* Special abilities */}
-                  {npc.especial && (
+                  {/* Languages */}
+                  {npc.idiomas?.length > 0 && (
+                    <div className="flex items-start gap-2 p-2 bg-black/10 rounded">
+                      <BookOpen className="w-4 h-4 text-[hsl(var(--gold))] mt-0.5" />
+                      <div>
+                        <p className="text-xs text-[hsl(var(--gold))] font-bold">Idiomas</p>
+                        <p className="text-sm text-muted-foreground">{npc.idiomas.join(', ')}</p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Defenses */}
+                  {renderDefensas(npc)}
+
+                  {/* Special abilities (new structured format) */}
+                  {renderSpeciales(npc.especiales)}
+
+                  {/* Legacy especial field */}
+                  {npc.especial && !npc.especiales?.length && (
                     <div className="flex items-start gap-2 p-2 bg-purple-500/10 rounded">
                       <Sparkles className="w-4 h-4 text-purple-400 mt-0.5" />
                       <div>
@@ -207,13 +477,22 @@ const NPCsSection = ({ data }) => {
                     </div>
                   )}
 
-                  {/* Actions */}
-                  {npc.acciones && (
-                    <div className="flex items-start gap-2 p-2 bg-[hsl(var(--destructive))/10] rounded">
-                      <Swords className="w-4 h-4 text-[hsl(var(--destructive))] mt-0.5" />
+                  {/* Weapons (new structured format) */}
+                  {renderArmas(npc.armas, npc.ataque_multiple)}
+
+                  {/* Other Actions */}
+                  {renderAcciones(npc.acciones)}
+
+                  {/* Reactions */}
+                  {renderReacciones(npc.reacciones)}
+
+                  {/* Historia (if present) */}
+                  {npc.historia && (
+                    <div className="flex items-start gap-2 p-3 bg-[hsl(var(--gold))/10] rounded border border-[hsl(var(--gold))/30]">
+                      <BookOpen className="w-4 h-4 text-[hsl(var(--gold))] mt-0.5" />
                       <div>
-                        <p className="text-xs text-[hsl(var(--destructive))] font-bold">Acciones</p>
-                        <p className="text-sm text-muted-foreground">{npc.acciones}</p>
+                        <p className="text-xs text-[hsl(var(--gold))] font-bold">Historia / Trasfondo</p>
+                        <p className="text-sm text-muted-foreground whitespace-pre-wrap">{npc.historia}</p>
                       </div>
                     </div>
                   )}
@@ -223,6 +502,18 @@ const NPCsSection = ({ data }) => {
           ))
         )}
       </div>
+
+      {/* NPC Editor Modal */}
+      {showEditor && (
+        <NPCEditor 
+          npc={editingNPC}
+          onSave={handleSave}
+          onClose={() => {
+            setShowEditor(false);
+            setEditingNPC(null);
+          }}
+        />
+      )}
     </div>
   );
 };
