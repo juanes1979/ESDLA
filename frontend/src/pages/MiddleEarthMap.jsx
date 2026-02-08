@@ -693,40 +693,40 @@ const MiddleEarthMap = () => {
           {/* Map images as background */}
           {showMapBackground && (
             <g opacity={mapOpacity}>
-              {/* Eriador - Northwest */}
+              {/* Eriador - Northwest (x: 0-45, y: 42-90 in our coords -> top-left in SVG) */}
               <image
                 href={MAP_IMAGES.eriador.url}
-                x={0}
-                y={0}
-                width={550}
-                height={500}
+                x={-50}
+                y={-50}
+                width={600}
+                height={550}
                 preserveAspectRatio="xMidYMid slice"
               />
-              {/* Rhovanion - Northeast */}
+              {/* Rhovanion - Northeast (x: 40-95, y: 42-90 -> top-right) */}
               <image
                 href={MAP_IMAGES.rhovanion.url}
-                x={450}
-                y={0}
-                width={550}
-                height={500}
+                x={400}
+                y={-50}
+                width={650}
+                height={550}
                 preserveAspectRatio="xMidYMid slice"
               />
-              {/* Gondor - Southwest */}
+              {/* Gondor - Southwest (x: 0-65, y: 0-55 -> bottom-left) */}
               <image
                 href={MAP_IMAGES.gondor.url}
-                x={0}
-                y={400}
-                width={550}
-                height={500}
+                x={-50}
+                y={380}
+                width={650}
+                height={570}
                 preserveAspectRatio="xMidYMid slice"
               />
-              {/* Mordor - Southeast */}
+              {/* Mordor - Southeast (x: 48-95, y: 0-55 -> bottom-right) */}
               <image
                 href={MAP_IMAGES.mordor.url}
-                x={450}
-                y={400}
-                width={550}
-                height={500}
+                x={430}
+                y={380}
+                width={620}
+                height={570}
                 preserveAspectRatio="xMidYMid slice"
               />
             </g>
