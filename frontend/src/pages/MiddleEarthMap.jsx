@@ -692,53 +692,54 @@ const MiddleEarthMap = () => {
           {/* Background */}
           <rect width={MAP_WIDTH} height={MAP_HEIGHT} fill="#1a1510" />
           
-          {/* Map images as background */}
+          {/* Map images as background - Clean player maps without decorative borders */}
           {showMapBackground && (
             <g opacity={mapOpacity}>
               {/* 
-                Los mapas tienen bordes decorativos con runas que crean líneas visibles.
-                Aumentamos el solapamiento para minimizar este efecto.
-                Para unión perfecta, usar mapas de jugador (sin bordes decorativos).
+                Mapas de jugador (sin bordes decorativos) para unión visual perfecta.
+                Layout: 2x2 grid
+                  ERIADOR (NW) | RHOVANION (NE)
+                  GONDOR (SW)  | MORDOR (SE)
               */}
               
               {/* Eriador - Top Left (northwest) */}
               <image
                 href={MAP_IMAGES.eriador.url}
-                x={-150}
-                y={-150}
-                width={700}
-                height={650}
-                preserveAspectRatio="xMidYMid slice"
+                x={0}
+                y={0}
+                width={500}
+                height={450}
+                preserveAspectRatio="xMidYMid meet"
               />
               
               {/* Rhovanion - Top Right (northeast) */}
               <image
                 href={MAP_IMAGES.rhovanion.url}
-                x={320}
-                y={-150}
-                width={730}
-                height={650}
-                preserveAspectRatio="xMidYMid slice"
+                x={500}
+                y={0}
+                width={500}
+                height={450}
+                preserveAspectRatio="xMidYMid meet"
               />
               
               {/* Gondor/Rohan - Bottom Left (southwest) */}
               <image
                 href={MAP_IMAGES.gondor.url}
-                x={-150}
-                y={250}
-                width={700}
-                height={700}
-                preserveAspectRatio="xMidYMid slice"
+                x={0}
+                y={450}
+                width={500}
+                height={450}
+                preserveAspectRatio="xMidYMid meet"
               />
               
               {/* Mordor - Bottom Right (southeast) */}
               <image
                 href={MAP_IMAGES.mordor.url}
-                x={320}
-                y={250}
-                width={730}
-                height={700}
-                preserveAspectRatio="xMidYMid slice"
+                x={500}
+                y={450}
+                width={500}
+                height={450}
+                preserveAspectRatio="xMidYMid meet"
               />
             </g>
           )}
