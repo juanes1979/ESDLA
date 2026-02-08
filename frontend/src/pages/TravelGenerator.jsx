@@ -441,50 +441,197 @@ const TravelGenerator = () => {
   // Render configuration form
   const renderConfiguracion = () => (
     <div className="space-y-6">
-      {/* Origen y Destino */}
+      {/* Origen y Destino - NEW with Map Locations */}
       <Card className="card-parchment">
         <CardHeader className="pb-2">
           <CardTitle className="text-lg text-[hsl(var(--gold))]">
             <Map className="w-5 h-5 inline mr-2" />
             Origen y Destino
+            <Badge variant="outline" className="ml-2 text-xs">
+              {allLocations.length} ubicaciones disponibles
+            </Badge>
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid md:grid-cols-2 gap-4">
+            {/* Origin selector */}
             <div>
-              <Label>Origen</Label>
-              <Select value={config.origen} onValueChange={(v) => setConfig(prev => ({ ...prev, origen: v }))}>
+              <Label className="flex items-center gap-2">
+                <MapPin className="w-4 h-4 text-green-400" />
+                Origen
+              </Label>
+              <Select 
+                value={config.origenId} 
+                onValueChange={(v) => {
+                  const loc = allLocations.find(l => l.id === v);
+                  setConfig(prev => ({ 
+                    ...prev, 
+                    origenId: v,
+                    origen: loc?.nombre || ''
+                  }));
+                }}
+              >
                 <SelectTrigger data-testid="select-origen">
-                  <SelectValue placeholder="Seleccionar origen" />
+                  <SelectValue placeholder="Seleccionar origen">
+                    {config.origen && (
+                      <span className="flex items-center gap-2">
+                        <MapPin className="w-3 h-3" />
+                        {config.origen}
+                      </span>
+                    )}
+                  </SelectValue>
                 </SelectTrigger>
-                <SelectContent>
-                  {getUbicaciones().map(ubicacion => (
-                    <SelectItem key={ubicacion} value={ubicacion} disabled={ubicacion === config.destino}>
-                      {ubicacion}
-                    </SelectItem>
-                  ))}
+                <SelectContent className="max-h-80">
+                  <ScrollArea className="h-72">
+                    {Object.entries(locationsByRegion).map(([region, locs]) => (
+                      <SelectGroup key={region}>
+                        <SelectLabel className="text-[hsl(var(--gold))] font-bold">{region}</SelectLabel>
+                        {locs.map(loc => (
+                          <SelectItem 
+                            key={loc.id} 
+                            value={loc.id} 
+                            disabled={loc.id === config.destinoId}
+                          >
+                            <div className="flex items-center gap-2">
+                              {loc.refugio && <Shield className="w-3 h-3 text-green-400" />}
+                              <span>{loc.nombre}</span>
+                              {loc.nombre_sindarin && (
+                                <span className="text-xs text-muted-foreground">({loc.nombre_sindarin})</span>
+                              )}
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectGroup>
+                    ))}
+                  </ScrollArea>
                 </SelectContent>
               </Select>
+              {/* Show origin info */}
+              {config.origenId && (
+                <div className="mt-1 text-xs text-muted-foreground">
+                  {allLocations.find(l => l.id === config.origenId)?.descripcion?.substring(0, 60)}...
+                </div>
+              )}
             </div>
+            
+            {/* Destination selector */}
             <div>
-              <Label>Destino</Label>
-              <Select value={config.destino} onValueChange={(v) => setConfig(prev => ({ ...prev, destino: v }))}>
+              <Label className="flex items-center gap-2">
+                <MapPin className="w-4 h-4 text-red-400" />
+                Destino
+              </Label>
+              <Select 
+                value={config.destinoId} 
+                onValueChange={(v) => {
+                  const loc = allLocations.find(l => l.id === v);
+                  setConfig(prev => ({ 
+                    ...prev, 
+                    destinoId: v,
+                    destino: loc?.nombre || ''
+                  }));
+                }}
+              >
                 <SelectTrigger data-testid="select-destino">
-                  <SelectValue placeholder="Seleccionar destino" />
+                  <SelectValue placeholder="Seleccionar destino">
+                    {config.destino && (
+                      <span className="flex items-center gap-2">
+                        <MapPin className="w-3 h-3" />
+                        {config.destino}
+                      </span>
+                    )}
+                  </SelectValue>
                 </SelectTrigger>
-                <SelectContent>
-                  {getUbicaciones().map(ubicacion => (
-                    <SelectItem key={ubicacion} value={ubicacion} disabled={ubicacion === config.origen}>
-                      {ubicacion}
-                    </SelectItem>
-                  ))}
+                <SelectContent className="max-h-80">
+                  <ScrollArea className="h-72">
+                    {Object.entries(locationsByRegion).map(([region, locs]) => (
+                      <SelectGroup key={region}>
+                        <SelectLabel className="text-[hsl(var(--gold))] font-bold">{region}</SelectLabel>
+                        {locs.map(loc => (
+                          <SelectItem 
+                            key={loc.id} 
+                            value={loc.id} 
+                            disabled={loc.id === config.origenId}
+                          >
+                            <div className="flex items-center gap-2">
+                              {loc.refugio && <Shield className="w-3 h-3 text-green-400" />}
+                              <span>{loc.nombre}</span>
+                              {loc.nombre_sindarin && (
+                                <span className="text-xs text-muted-foreground">({loc.nombre_sindarin})</span>
+                              )}
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectGroup>
+                    ))}
+                  </ScrollArea>
                 </SelectContent>
               </Select>
+              {/* Show destination info */}
+              {config.destinoId && (
+                <div className="mt-1 text-xs text-muted-foreground">
+                  {allLocations.find(l => l.id === config.destinoId)?.descripcion?.substring(0, 60)}...
+                </div>
+              )}
             </div>
           </div>
           
-          {/* Show route info if found */}
-          {config.origen && config.destino && config.origen !== config.destino && (
+          {/* Route Info Card - NEW */}
+          {loadingRoute && (
+            <div className="p-4 bg-black/10 rounded animate-pulse">
+              <p className="text-muted-foreground">Calculando ruta...</p>
+            </div>
+          )}
+          
+          {routeInfo && !loadingRoute && (
+            <div className="p-4 bg-black/10 rounded space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-[hsl(var(--gold))] font-bold flex items-center gap-2">
+                  <Route className="w-4 h-4" />
+                  Ruta Calculada
+                </span>
+                <Badge variant="outline">{routeInfo.route.direction.cardinal}</Badge>
+              </div>
+              
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+                <div className="bg-black/10 p-2 rounded text-center">
+                  <p className="text-2xl font-bold text-[hsl(var(--torch-orange))]">{routeInfo.route.distance_km}</p>
+                  <p className="text-xs text-muted-foreground">km ({routeInfo.route.distance_miles} millas)</p>
+                </div>
+                <div className="bg-black/10 p-2 rounded text-center">
+                  <p className="text-2xl font-bold text-[hsl(var(--magic-blue))]">{routeInfo.route.distance_hexes}</p>
+                  <p className="text-xs text-muted-foreground">hexágonos</p>
+                </div>
+                <div className="bg-black/10 p-2 rounded text-center">
+                  <p className="text-2xl font-bold text-[hsl(var(--gold))]">{routeInfo.route.estimated_days}</p>
+                  <p className="text-xs text-muted-foreground">días (estimado)</p>
+                </div>
+                <div className="bg-black/10 p-2 rounded text-center">
+                  <p className={`text-lg font-bold ${DANGER_COLORS[routeInfo.route.danger_level] || 'text-yellow-400'}`}>
+                    {routeInfo.route.danger_level.toUpperCase()}
+                  </p>
+                  <p className="text-xs text-muted-foreground">peligro</p>
+                </div>
+              </div>
+              
+              <div className="flex flex-wrap gap-2">
+                <Badge className="bg-[hsl(var(--torch-orange))/20] text-[hsl(var(--torch-orange))]">
+                  Terreno: {TIPOS_TERRENO.find(t => t.id === routeInfo.route.terrain_difficulty)?.nombre || routeInfo.route.terrain_difficulty}
+                </Badge>
+                <Badge className="bg-[hsl(var(--magic-blue))/20] text-[hsl(var(--magic-blue))]">
+                  {TIPOS_TIERRA.find(t => t.id === routeInfo.route.land_type)?.icon} {TIPOS_TIERRA.find(t => t.id === routeInfo.route.land_type)?.nombre || routeInfo.route.land_type}
+                </Badge>
+                {routeInfo.destination.refugio && (
+                  <Badge className="bg-green-500/20 text-green-400">
+                    <Shield className="w-3 h-3 mr-1" />
+                    Destino es refugio
+                  </Badge>
+                )}
+              </div>
+            </div>
+          )}
+          
+          {/* Legacy route info fallback */}
+          {!routeInfo && config.origen && config.destino && config.origen !== config.destino && !loadingRoute && (
             <div className="p-3 bg-black/10 rounded">
               {distancias.rutas?.find(r => 
                 (r.origen === config.origen && r.destino === config.destino) ||
@@ -498,7 +645,7 @@ const TravelGenerator = () => {
                 </div>
               ) : (
                 <span className="text-yellow-400">
-                  ⚠️ Ruta no predefinida - configura manualmente las casillas
+                  ⚠️ Configura manualmente las casillas si la ruta no se calculó
                 </span>
               )}
             </div>
