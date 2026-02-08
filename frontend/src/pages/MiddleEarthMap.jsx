@@ -100,25 +100,27 @@ const MiddleEarthMap = () => {
   const [filterType, setFilterType] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
   
-  // Map image URLs (Master maps with locations)
+  // Map image URLs - Player maps (clean, without decorative borders)
   const MAP_IMAGES = {
     // The 4 maps positioned to form a complete world map
-    // Coordinates are approximate based on the content of each map
+    // Layout:
+    //   ERIADOR (NW) | RHOVANION (NE)
+    //   GONDOR (SW)  | MORDOR (SE)
     eriador: {
-      url: 'https://customer-assets.emergentagent.com/job_rings-rpg-game/artifacts/6ov2ttvp_Mapa-03-Eriador-MMS-HR.jpg',
-      x: 0, y: 0, width: 500, height: 500
+      url: 'https://customer-assets.emergentagent.com/job_c7e3a7c3-5d85-46bd-b91f-9f0c34045f08/artifacts/rc50v5ir_Mapa-03-Eriador-MMS-HR.jpg',
+      x: 0, y: 0, width: 500, height: 450
     },
     rhovanion: {
-      url: 'https://customer-assets.emergentagent.com/job_rings-rpg-game/artifacts/325p6yac_Mapa-04-Rhovanion-MMS-HR.jpg',
-      x: 400, y: 0, width: 500, height: 500
+      url: 'https://customer-assets.emergentagent.com/job_c7e3a7c3-5d85-46bd-b91f-9f0c34045f08/artifacts/hweoecgy_Mapa-04-Rhovanion-MMS-HR.jpg',
+      x: 500, y: 0, width: 500, height: 450
     },
     gondor: {
-      url: 'https://customer-assets.emergentagent.com/job_rings-rpg-game/artifacts/fdi33s41_Mapa-01-Gondor-MMS-HR.jpg',
-      x: 100, y: 350, width: 500, height: 500
+      url: 'https://customer-assets.emergentagent.com/job_c7e3a7c3-5d85-46bd-b91f-9f0c34045f08/artifacts/vlt5od8m_Mapa-01-Gondor-MMS-HR.jpg',
+      x: 0, y: 450, width: 500, height: 450
     },
     mordor: {
-      url: 'https://customer-assets.emergentagent.com/job_rings-rpg-game/artifacts/bu3boc81_Mapa-02-Mordor-MMS-HR.jpg',
-      x: 500, y: 350, width: 500, height: 500
+      url: 'https://customer-assets.emergentagent.com/job_c7e3a7c3-5d85-46bd-b91f-9f0c34045f08/artifacts/ikcantpd_Mapa-02-Mordor-MMS-HR.jpg',
+      x: 500, y: 450, width: 500, height: 450
     }
   };
   
