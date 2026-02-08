@@ -557,6 +557,15 @@ const MiddleEarthMap = () => {
             
             <div className="flex items-center gap-2">
               <Switch
+                checked={showMapBackground}
+                onCheckedChange={setShowMapBackground}
+                id="map-bg"
+              />
+              <Label htmlFor="map-bg" className="text-sm">Mapa</Label>
+            </div>
+            
+            <div className="flex items-center gap-2">
+              <Switch
                 checked={showLabels}
                 onCheckedChange={setShowLabels}
                 id="labels"
@@ -572,6 +581,22 @@ const MiddleEarthMap = () => {
               />
               <Label htmlFor="land-types" className="text-sm">Tipo Tierra</Label>
             </div>
+            
+            {/* Map opacity slider */}
+            {showMapBackground && (
+              <div className="flex items-center gap-2">
+                <Label className="text-sm">Opacidad:</Label>
+                <input
+                  type="range"
+                  min="0.2"
+                  max="1"
+                  step="0.1"
+                  value={mapOpacity}
+                  onChange={(e) => setMapOpacity(parseFloat(e.target.value))}
+                  className="w-20 h-2 accent-[hsl(var(--gold))]"
+                />
+              </div>
+            )}
           </div>
         </div>
         
