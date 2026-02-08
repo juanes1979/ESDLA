@@ -742,68 +742,17 @@ const MiddleEarthMap = () => {
           {/* Background */}
           <rect width={MAP_WIDTH} height={MAP_HEIGHT} fill="#1a1510" />
           
-          {/* Map images as background - Clean player maps with gradient edge blending */}
+          {/* Map images as background - Unified Middle-earth map */}
           {showMapBackground && (
             <g opacity={mapOpacity}>
-              {/* 
-                Mapas de jugador con máscaras de degradado en los bordes
-                para crear transiciones suaves entre las imágenes.
-              */}
-              
-              {/* Eriador - Top Left (northwest) */}
+              {/* Single unified map covering the entire area */}
               <image
-                href={MAP_IMAGES.eriador.url}
-                x={-40}
-                y={-40}
-                width={570}
-                height={530}
+                href={MAP_IMAGES.unified.url}
+                x={-50}
+                y={-30}
+                width={1100}
+                height={980}
                 preserveAspectRatio="xMidYMid slice"
-                style={{ mixBlendMode: 'normal' }}
-              />
-              
-              {/* Rhovanion - Top Right (northeast) */}
-              <image
-                href={MAP_IMAGES.rhovanion.url}
-                x={460}
-                y={-40}
-                width={590}
-                height={530}
-                preserveAspectRatio="xMidYMid slice"
-                style={{ mixBlendMode: 'normal' }}
-              />
-              
-              {/* Gondor/Rohan - Bottom Left (southwest) */}
-              <image
-                href={MAP_IMAGES.gondor.url}
-                x={-40}
-                y={350}
-                width={570}
-                height={600}
-                preserveAspectRatio="xMidYMid slice"
-                style={{ mixBlendMode: 'normal' }}
-              />
-              
-              {/* Mordor - Bottom Right (southeast) */}
-              <image
-                href={MAP_IMAGES.mordor.url}
-                x={460}
-                y={350}
-                width={590}
-                height={600}
-                preserveAspectRatio="xMidYMid slice"
-                style={{ mixBlendMode: 'normal' }}
-              />
-              
-              {/* Overlay gradient to blend seams */}
-              <rect 
-                x={450} y={-40} width={30} height={530} 
-                fill="url(#fadeRight)" 
-                style={{ mixBlendMode: 'multiply', opacity: 0.3 }}
-              />
-              <rect 
-                x={-40} y={340} width={1100} height={30} 
-                fill="url(#fadeBottom)" 
-                style={{ mixBlendMode: 'multiply', opacity: 0.3 }}
               />
             </g>
           )}
