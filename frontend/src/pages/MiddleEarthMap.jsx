@@ -706,14 +706,14 @@ const MiddleEarthMap = () => {
             <g opacity={mapOpacity}>
               {/* 
                 Single unified map - positioned to align with location markers
-                The map needs to be shifted left and scaled to match coordinates
+                Shifted left to align western coast with location coordinates
               */}
               <image
                 href={MAP_IMAGES.unified.url}
-                x={-150}
-                y={-80}
-                width={1250}
-                height={1050}
+                x={-220}
+                y={-100}
+                width={1350}
+                height={1100}
                 preserveAspectRatio="xMinYMin slice"
               />
             </g>
