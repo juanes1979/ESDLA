@@ -689,19 +689,67 @@ const MiddleEarthMap = () => {
             transformOrigin: 'center center',
           }}
         >
+          {/* SVG Definitions for gradient masks */}
+          <defs>
+            {/* Gradient masks for smooth edge blending */}
+            {/* Eriador mask - fade right and bottom edges */}
+            <linearGradient id="fadeRight" x1="0%" y1="0%" x2="100%" y2="0%">
+              <stop offset="0%" stopColor="white" stopOpacity="1" />
+              <stop offset="85%" stopColor="white" stopOpacity="1" />
+              <stop offset="100%" stopColor="white" stopOpacity="0" />
+            </linearGradient>
+            <linearGradient id="fadeBottom" x1="0%" y1="0%" x2="0%" y2="100%">
+              <stop offset="0%" stopColor="white" stopOpacity="1" />
+              <stop offset="85%" stopColor="white" stopOpacity="1" />
+              <stop offset="100%" stopColor="white" stopOpacity="0" />
+            </linearGradient>
+            <linearGradient id="fadeLeft" x1="100%" y1="0%" x2="0%" y2="0%">
+              <stop offset="0%" stopColor="white" stopOpacity="1" />
+              <stop offset="85%" stopColor="white" stopOpacity="1" />
+              <stop offset="100%" stopColor="white" stopOpacity="0" />
+            </linearGradient>
+            <linearGradient id="fadeTop" x1="0%" y1="100%" x2="0%" y2="0%">
+              <stop offset="0%" stopColor="white" stopOpacity="1" />
+              <stop offset="85%" stopColor="white" stopOpacity="1" />
+              <stop offset="100%" stopColor="white" stopOpacity="0" />
+            </linearGradient>
+            
+            {/* Combined masks for each corner */}
+            <mask id="maskEriador">
+              <rect x="-40" y="-40" width="570" height="530" fill="url(#fadeRight)" />
+              <rect x="-40" y="400" width="570" height="90" fill="url(#fadeBottom)" opacity="0.5" />
+            </mask>
+            <mask id="maskRhovanion">
+              <rect x="460" y="-40" width="590" height="530" fill="url(#fadeLeft)" />
+              <rect x="460" y="400" width="590" height="90" fill="url(#fadeBottom)" opacity="0.5" />
+            </mask>
+            <mask id="maskGondor">
+              <rect x="-40" y="350" width="570" height="600" fill="url(#fadeRight)" />
+              <rect x="-40" y="350" width="570" height="90" fill="url(#fadeTop)" opacity="0.5" />
+            </mask>
+            <mask id="maskMordor">
+              <rect x="460" y="350" width="590" height="600" fill="url(#fadeLeft)" />
+              <rect x="460" y="350" width="590" height="90" fill="url(#fadeTop)" opacity="0.5" />
+            </mask>
+            
+            {/* Soft blur filter for blending */}
+            <filter id="softBlend" x="-5%" y="-5%" width="110%" height="110%">
+              <feGaussianBlur in="SourceGraphic" stdDeviation="2" />
+            </filter>
+          </defs>
+          
           {/* Background */}
           <rect width={MAP_WIDTH} height={MAP_HEIGHT} fill="#1a1510" />
           
-          {/* Map images as background - Clean player maps without decorative borders */}
+          {/* Map images as background - Clean player maps with gradient edge blending */}
           {showMapBackground && (
             <g opacity={mapOpacity}>
               {/* 
-                Mapas de jugador (sin bordes decorativos).
-                Configuración con solapamiento para minimizar costuras visibles.
-                Los mapas inferiores se superponen sobre los superiores.
+                Mapas de jugador con máscaras de degradado en los bordes
+                para crear transiciones suaves entre las imágenes.
               */}
               
-              {/* Eriador - Top Left (northwest) - capa inferior */}
+              {/* Eriador - Top Left (northwest) */}
               <image
                 href={MAP_IMAGES.eriador.url}
                 x={-40}
@@ -709,9 +757,10 @@ const MiddleEarthMap = () => {
                 width={570}
                 height={530}
                 preserveAspectRatio="xMidYMid slice"
+                style={{ mixBlendMode: 'normal' }}
               />
               
-              {/* Rhovanion - Top Right (northeast) - capa inferior */}
+              {/* Rhovanion - Top Right (northeast) */}
               <image
                 href={MAP_IMAGES.rhovanion.url}
                 x={460}
@@ -719,9 +768,10 @@ const MiddleEarthMap = () => {
                 width={590}
                 height={530}
                 preserveAspectRatio="xMidYMid slice"
+                style={{ mixBlendMode: 'normal' }}
               />
               
-              {/* Gondor/Rohan - Bottom Left (southwest) - capa superior, superpuesta */}
+              {/* Gondor/Rohan - Bottom Left (southwest) */}
               <image
                 href={MAP_IMAGES.gondor.url}
                 x={-40}
@@ -729,9 +779,10 @@ const MiddleEarthMap = () => {
                 width={570}
                 height={600}
                 preserveAspectRatio="xMidYMid slice"
+                style={{ mixBlendMode: 'normal' }}
               />
               
-              {/* Mordor - Bottom Right (southeast) - capa superior, superpuesta */}
+              {/* Mordor - Bottom Right (southeast) */}
               <image
                 href={MAP_IMAGES.mordor.url}
                 x={460}
@@ -739,6 +790,19 @@ const MiddleEarthMap = () => {
                 width={590}
                 height={600}
                 preserveAspectRatio="xMidYMid slice"
+                style={{ mixBlendMode: 'normal' }}
+              />
+              
+              {/* Overlay gradient to blend seams */}
+              <rect 
+                x={450} y={-40} width={30} height={530} 
+                fill="url(#fadeRight)" 
+                style={{ mixBlendMode: 'multiply', opacity: 0.3 }}
+              />
+              <rect 
+                x={-40} y={340} width={1100} height={30} 
+                fill="url(#fadeBottom)" 
+                style={{ mixBlendMode: 'multiply', opacity: 0.3 }}
               />
             </g>
           )}
