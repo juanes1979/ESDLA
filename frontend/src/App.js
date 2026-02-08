@@ -11,6 +11,7 @@ import RulesPage from "@/pages/RulesPage";
 import InteractiveCharacterSheet from "@/pages/InteractiveCharacterSheet";
 import SheetPositionEditor from "@/pages/SheetPositionEditor";
 import TravelGenerator from "@/pages/TravelGenerator";
+import MiddleEarthMap from "@/pages/MiddleEarthMap";
 import { CharacterCreatorWizard } from "@/components/character-creator";
 
 function App() {
@@ -27,6 +28,7 @@ function App() {
             <Route path="/rules" element={<RulesPage />} />
             <Route path="/sheet-editor" element={<SheetPositionEditor />} />
             <Route path="/travel" element={<TravelGenerator />} />
+            <Route path="/map" element={<MiddleEarthMap />} />
           </Routes>
         </BrowserRouter>
         <Toaster />
