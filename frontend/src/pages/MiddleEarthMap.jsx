@@ -704,13 +704,13 @@ const MiddleEarthMap = () => {
           {/* Map images as background - Unified Middle-earth map */}
           {showMapBackground && (
             <g opacity={mapOpacity}>
-              {/* Single unified map covering the entire area */}
+              {/* Single unified map - adjusted to align with existing location coordinates */}
               <image
                 href={MAP_IMAGES.unified.url}
-                x={-50}
-                y={-30}
-                width={1100}
-                height={980}
+                x={-100}
+                y={-80}
+                width={1200}
+                height={1100}
                 preserveAspectRatio="xMidYMid slice"
               />
             </g>
