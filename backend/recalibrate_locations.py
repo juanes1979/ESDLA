@@ -35,7 +35,7 @@ from pymongo import MongoClient
 
 # MongoDB connection
 MONGO_URL = os.environ.get('MONGO_URL', 'mongodb://localhost:27017')
-DB_NAME = os.environ.get('DB_NAME', 'lotr_game')
+DB_NAME = os.environ.get('DB_NAME', 'test_database')
 
 def get_transformation_params():
     """
