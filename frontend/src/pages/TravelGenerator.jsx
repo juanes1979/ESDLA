@@ -191,20 +191,47 @@ const TravelGenerator = () => {
     }
   }, [config.montura, monturas]);
   
-  // Get unique locations from routes and points of interest
+  // Get unique locations from map database (grouped by region)
   const getUbicaciones = () => {
-    const ubicaciones = new Set();
-    distancias.rutas?.forEach(r => {
-      ubicaciones.add(r.origen);
-      ubicaciones.add(r.destino);
-    });
-    distancias.puntos_interes?.forEach(p => {
-      ubicaciones.add(p.nombre);
-    });
-    return Array.from(ubicaciones).sort();
+    return allLocations;
   };
   
-  // Auto-calculate distance when origin/destination change
+  // Calculate route when origin/destination change (using new map locations)
+  useEffect(() => {
+    const calculateRoute = async () => {
+      if (config.origenId && config.destinoId && config.origenId !== config.destinoId) {
+        setLoadingRoute(true);
+        try {
+          const res = await api.get(`/data/locations/calculate-route/${config.origenId}/${config.destinoId}`);
+          setRouteInfo(res.data);
+          
+          // Auto-fill config from route calculation
+          const route = res.data.route;
+          const origin = res.data.origin;
+          const dest = res.data.destination;
+          
+          setConfig(prev => ({
+            ...prev,
+            casillas: Math.ceil(route.distance_hexes),
+            region: dest.region || origin.region || prev.region,
+            tipo_terreno: route.terrain_difficulty || prev.tipo_terreno,
+            tipo_tierra: route.land_type || prev.tipo_tierra
+          }));
+        } catch (err) {
+          console.error('Error calculating route:', err);
+          setRouteInfo(null);
+        } finally {
+          setLoadingRoute(false);
+        }
+      } else {
+        setRouteInfo(null);
+      }
+    };
+    
+    calculateRoute();
+  }, [config.origenId, config.destinoId]);
+  
+  // Auto-calculate distance when origin/destination change (legacy support)
   useEffect(() => {
     if (config.origen && config.destino && config.origen !== config.destino) {
       // Find direct route
