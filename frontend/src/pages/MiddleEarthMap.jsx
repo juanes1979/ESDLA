@@ -690,8 +690,50 @@ const MiddleEarthMap = () => {
           {/* Background */}
           <rect width={MAP_WIDTH} height={MAP_HEIGHT} fill="#1a1510" />
           
+          {/* Map images as background */}
+          {showMapBackground && (
+            <g opacity={mapOpacity}>
+              {/* Eriador - Northwest */}
+              <image
+                href={MAP_IMAGES.eriador.url}
+                x={0}
+                y={0}
+                width={550}
+                height={500}
+                preserveAspectRatio="xMidYMid slice"
+              />
+              {/* Rhovanion - Northeast */}
+              <image
+                href={MAP_IMAGES.rhovanion.url}
+                x={450}
+                y={0}
+                width={550}
+                height={500}
+                preserveAspectRatio="xMidYMid slice"
+              />
+              {/* Gondor - Southwest */}
+              <image
+                href={MAP_IMAGES.gondor.url}
+                x={0}
+                y={400}
+                width={550}
+                height={500}
+                preserveAspectRatio="xMidYMid slice"
+              />
+              {/* Mordor - Southeast */}
+              <image
+                href={MAP_IMAGES.mordor.url}
+                x={450}
+                y={400}
+                width={550}
+                height={500}
+                preserveAspectRatio="xMidYMid slice"
+              />
+            </g>
+          )}
+          
           {/* Grid lines (optional) */}
-          {showMasterView && (
+          {showMasterView && !showMapBackground && (
             <g opacity={0.1}>
               {Array.from({ length: 11 }, (_, i) => (
                 <React.Fragment key={i}>
@@ -714,8 +756,8 @@ const MiddleEarthMap = () => {
             </g>
           )}
           
-          {/* Region labels (background) */}
-          {showMasterView && zoom > 0.5 && (
+          {/* Region labels (only when no map background) */}
+          {showMasterView && !showMapBackground && zoom > 0.5 && (
             <g opacity={0.3}>
               <text x={150} y={400} fill="#c9a227" fontSize={40} fontWeight="bold">ERIADOR</text>
               <text x={400} y={650} fill="#c9a227" fontSize={35} fontWeight="bold">ROHAN</text>
