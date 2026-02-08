@@ -694,47 +694,48 @@ const MiddleEarthMap = () => {
           {showMapBackground && (
             <g opacity={mapOpacity}>
               {/* 
-                Map Layout - Los 4 mapas se solapan en sus bordes para ocultar
-                las líneas de unión (bordes decorativos con runas)
+                Los mapas tienen bordes decorativos con runas que crean líneas visibles.
+                Aumentamos el solapamiento para minimizar este efecto.
+                Para unión perfecta, usar mapas de jugador (sin bordes decorativos).
               */}
               
               {/* Eriador - Top Left (northwest) */}
               <image
                 href={MAP_IMAGES.eriador.url}
-                x={-120}
-                y={-120}
-                width={650}
-                height={600}
+                x={-150}
+                y={-150}
+                width={700}
+                height={650}
                 preserveAspectRatio="xMidYMid slice"
               />
               
               {/* Rhovanion - Top Right (northeast) */}
               <image
                 href={MAP_IMAGES.rhovanion.url}
-                x={350}
-                y={-120}
-                width={680}
-                height={600}
+                x={320}
+                y={-150}
+                width={730}
+                height={650}
                 preserveAspectRatio="xMidYMid slice"
               />
               
-              {/* Gondor/Rohan - Bottom Left (southwest) - más solapamiento vertical */}
+              {/* Gondor/Rohan - Bottom Left (southwest) */}
               <image
                 href={MAP_IMAGES.gondor.url}
-                x={-120}
-                y={280}
-                width={650}
-                height={650}
+                x={-150}
+                y={250}
+                width={700}
+                height={700}
                 preserveAspectRatio="xMidYMid slice"
               />
               
               {/* Mordor - Bottom Right (southeast) */}
               <image
                 href={MAP_IMAGES.mordor.url}
-                x={350}
-                y={280}
-                width={680}
-                height={650}
+                x={320}
+                y={250}
+                width={730}
+                height={700}
                 preserveAspectRatio="xMidYMid slice"
               />
             </g>
