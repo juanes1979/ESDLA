@@ -707,10 +707,10 @@ const MiddleEarthMap = () => {
               {/* Eriador - Top Left (northwest) */}
               <image
                 href={MAP_IMAGES.eriador.url}
-                x={-20}
-                y={-20}
-                width={550}
-                height={500}
+                x={-30}
+                y={-30}
+                width={560}
+                height={520}
                 preserveAspectRatio="xMidYMid slice"
               />
               
@@ -718,19 +718,19 @@ const MiddleEarthMap = () => {
               <image
                 href={MAP_IMAGES.rhovanion.url}
                 x={470}
-                y={-20}
-                width={560}
-                height={500}
+                y={-30}
+                width={570}
+                height={520}
                 preserveAspectRatio="xMidYMid slice"
               />
               
               {/* Gondor/Rohan - Bottom Left (southwest) */}
               <image
                 href={MAP_IMAGES.gondor.url}
-                x={-20}
-                y={400}
-                width={550}
-                height={530}
+                x={-30}
+                y={380}
+                width={560}
+                height={560}
                 preserveAspectRatio="xMidYMid slice"
               />
               
@@ -738,9 +738,9 @@ const MiddleEarthMap = () => {
               <image
                 href={MAP_IMAGES.mordor.url}
                 x={470}
-                y={400}
-                width={560}
-                height={530}
+                y={380}
+                width={570}
+                height={560}
                 preserveAspectRatio="xMidYMid slice"
               />
             </g>
