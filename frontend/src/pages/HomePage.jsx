@@ -107,7 +107,24 @@ const HomePage = () => {
             </p>
           </button>
 
-          {/* Feature 5 - Juego en Línea (Próximamente) */}
+          {/* Feature 5 - Mapa de la Tierra Media */}
+          <button
+            onClick={() => navigate('/map')}
+            className="card-parchment rounded-lg p-6 text-center hover:bg-green-500/5 transition-all cursor-pointer border-2 border-transparent hover:border-green-500/30"
+            data-testid="feature-map"
+          >
+            <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-green-500/20 flex items-center justify-center">
+              <Map className="w-8 h-8 text-green-400" />
+            </div>
+            <h3 className="font-heading text-xl text-foreground mb-2">
+              Mapa Interactivo
+            </h3>
+            <p className="text-muted-foreground text-sm">
+              182 ubicaciones de la Tierra Media con rutas y distancias.
+            </p>
+          </button>
+
+          {/* Feature 6 - Juego en Línea (Próximamente) */}
           <div 
             className="card-parchment rounded-lg p-6 text-center opacity-60 relative"
             data-testid="feature-online-game"
