@@ -706,19 +706,24 @@ const MiddleEarthMap = () => {
             <g opacity={mapOpacity}>
               {/* 
                 Single unified map - calibrated to match location coordinates
-                Map image: 2400x1600 pixels
-                Coordinate system: 0-100 on both axes
-                Key reference points:
-                - Hobbiton: x=24, y=56 (should be western shire area)
-                - Minas Tirith: x=52, y=32 (should be Gondor)
-                - Erebor: x=62, y=65 (northeast, Rhovanion)
+                The coordinate system uses 0-100 range where:
+                - x increases from west to east
+                - y increases from south to north (flipped in rendering)
+                
+                Key calibration points from database:
+                - Hobbiton: x=24, y=56 → should be in The Shire (northwest)
+                - Minas Tirith: x=52, y=32 → should be in Gondor (south-center)
+                - Erebor: x=62, y=65 → should be in Rhovanion (northeast)
+                - Edoras: x=30, y=44 → should be in Rohan
+                
+                Adjusting map position to align with these coordinates
               */}
               <image
                 href={MAP_IMAGES.unified.url}
-                x={-180}
-                y={-120}
-                width={1350}
-                height={1150}
+                x={-50}
+                y={-50}
+                width={1150}
+                height={1000}
                 preserveAspectRatio="xMinYMin slice"
               />
             </g>
