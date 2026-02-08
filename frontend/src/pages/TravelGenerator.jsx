@@ -1,11 +1,12 @@
 /**
  * Travel Generator Component
  * Generates travel events based on LOTR 5e rules
+ * Now integrated with the Middle-earth map locations database
  */
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Button } from '../components/ui/button';
 import { Card, CardHeader, CardTitle, CardContent } from '../components/ui/card';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, SelectGroup, SelectLabel } from '../components/ui/select';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
 import { Switch } from '../components/ui/switch';
@@ -14,7 +15,7 @@ import { ScrollArea } from '../components/ui/scroll-area';
 import { 
   Map, Users, Compass, CloudRain, Thermometer, Wind, 
   ChevronRight, Play, Save, Trash2, Clock, Mountain,
-  Sun, Moon, Snowflake, Leaf, ArrowLeft, Plus
+  Sun, Moon, Snowflake, Leaf, ArrowLeft, Plus, MapPin, Route, AlertTriangle, Shield
 } from 'lucide-react';
 import { toast } from 'sonner';
 import api from '../services/api';
@@ -34,17 +35,33 @@ const MESES_ELFICOS = [
   { id: "Ringarë", nombre: "Ringarë (Diciembre)", estacion: "invierno" },
 ];
 
+// Updated terrain types to match map data
 const TIPOS_TERRENO = [
-  { id: "camino", nombre: "Camino", cd: 10, color: "green" },
-  { id: "campo_abierto", nombre: "Campo abierto", cd: 15, color: "yellow" },
-  { id: "terreno_dificil", nombre: "Terreno difícil", cd: 20, color: "red" },
+  { id: "facil", nombre: "Fácil", cd: 10, color: "green", velocidad: 1 },
+  { id: "moderado", nombre: "Moderado", cd: 12, color: "lime", velocidad: 0.75 },
+  { id: "dificil", nombre: "Difícil", cd: 15, color: "yellow", velocidad: 0.5 },
+  { id: "muy_dificil", nombre: "Muy Difícil", cd: 18, color: "orange", velocidad: 0.33 },
+  { id: "desalentador", nombre: "Desalentador", cd: 20, color: "red", velocidad: 0.25 },
+  { id: "infranqueable", nombre: "Infranqueable", cd: 25, color: "purple", velocidad: 0.1 },
 ];
 
+// Updated land types to match map data
 const TIPOS_TIERRA = [
-  { id: "fronteriza", nombre: "Tierra Fronteriza", ventaja: true, color: "green" },
-  { id: "salvaje", nombre: "Tierra Salvaje", ventaja: false, color: "yellow" },
-  { id: "oscura", nombre: "Tierra Oscura", desventaja: true, color: "red" },
+  { id: "tierras_libres", nombre: "Tierras Libres", ventaja: true, color: "green", icon: "🟢" },
+  { id: "fronterizas", nombre: "Tierras Fronterizas", ventaja: false, color: "yellow", icon: "🟡" },
+  { id: "tierras_salvajes", nombre: "Tierras Salvajes", ventaja: false, color: "orange", icon: "🟠" },
+  { id: "tierras_sombra", nombre: "Tierras de la Sombra", desventaja: true, color: "red", icon: "🔴" },
+  { id: "tierras_oscuras", nombre: "Tierras Oscuras", desventaja: true, color: "purple", icon: "⚫" },
 ];
+
+// Danger level colors
+const DANGER_COLORS = {
+  bajo: "text-green-400",
+  medio: "text-yellow-400", 
+  alto: "text-orange-400",
+  muy_alto: "text-red-400",
+  extremo: "text-purple-400"
+};
 
 const SeasonIcon = ({ estacion }) => {
   switch (estacion) {
