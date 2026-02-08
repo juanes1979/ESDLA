@@ -102,10 +102,11 @@ const MiddleEarthMap = () => {
   
   // Map image URLs - Player maps (clean, without decorative borders)
   const MAP_IMAGES = {
-    // The 4 maps positioned to form a complete world map
-    // Layout:
-    //   ERIADOR (NW) | RHOVANION (NE)
-    //   GONDOR (SW)  | MORDOR (SE)
+    // Single unified map of Middle-earth (clean version)
+    unified: {
+      url: 'https://customer-assets.emergentagent.com/job_c7e3a7c3-5d85-46bd-b91f-9f0c34045f08/artifacts/t9634c1y_Tierra%20media.jpg',
+    },
+    // Individual maps for reference (4-part layout)
     eriador: {
       url: 'https://customer-assets.emergentagent.com/job_c7e3a7c3-5d85-46bd-b91f-9f0c34045f08/artifacts/rc50v5ir_Mapa-03-Eriador-MMS-HR.jpg',
       x: 0, y: 0, width: 500, height: 450
