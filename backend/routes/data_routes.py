@@ -2168,6 +2168,172 @@ async def delete_location(location_id: str):
     return {"message": "Location deleted successfully"}
 
 
+@router.get("/locations/calculate-route/{origin_id}/{destination_id}")
+async def calculate_route(origin_id: str, destination_id: str):
+    """Calculate route between two locations including distance, terrain, and estimated travel time"""
+    import math
+    
+    origin = await db.locations.find_one({"_id": origin_id})
+    destination = await db.locations.find_one({"_id": destination_id})
+    
+    if not origin:
+        raise HTTPException(status_code=404, detail="Origin location not found")
+    if not destination:
+        raise HTTPException(status_code=404, detail="Destination location not found")
+    
+    # Calculate distance using coordinates
+    # Each coordinate unit represents roughly 4 miles (1 hex)
+    dx = destination.get("x", 0) - origin.get("x", 0)
+    dy = destination.get("y", 0) - origin.get("y", 0)
+    
+    # Euclidean distance in hexes
+    distance_hexes = math.sqrt(dx**2 + dy**2)
+    
+    # Convert to miles and km (1 hex = 4 miles = 6.4 km)
+    distance_miles = round(distance_hexes * 4, 1)
+    distance_km = round(distance_hexes * 6.4, 1)
+    
+    # Determine average terrain difficulty
+    terrain_weights = {
+        "facil": 1,
+        "moderado": 1.5,
+        "dificil": 2,
+        "muy_dificil": 3,
+        "desalentador": 4,
+        "infranqueable": 10
+    }
+    
+    origin_terrain = origin.get("terreno", "moderado")
+    dest_terrain = destination.get("terreno", "moderado")
+    
+    # Use the harder terrain as the baseline
+    origin_weight = terrain_weights.get(origin_terrain, 1.5)
+    dest_weight = terrain_weights.get(dest_terrain, 1.5)
+    avg_weight = (origin_weight + dest_weight) / 2
+    
+    # Calculate travel time
+    # Base: 24 miles per day on foot on easy terrain
+    # Adjust for terrain difficulty
+    base_miles_per_day = 24
+    adjusted_miles_per_day = base_miles_per_day / avg_weight
+    
+    travel_days = round(distance_miles / adjusted_miles_per_day, 1)
+    if travel_days < 0.5:
+        travel_days = 0.5  # Minimum half day
+    
+    # Determine danger level
+    danger_levels = {
+        "bajo": 1,
+        "medio": 2,
+        "alto": 3,
+        "muy_alto": 4,
+        "extremo": 5
+    }
+    origin_danger = danger_levels.get(origin.get("peligro", "medio"), 2)
+    dest_danger = danger_levels.get(destination.get("peligro", "medio"), 2)
+    max_danger = max(origin_danger, dest_danger)
+    
+    danger_names = {1: "bajo", 2: "medio", 3: "alto", 4: "muy_alto", 5: "extremo"}
+    route_danger = danger_names.get(max_danger, "medio")
+    
+    # Determine land type for the route
+    land_priority = ["tierras_oscuras", "tierras_sombra", "tierras_salvajes", "fronterizas", "tierras_libres"]
+    origin_land = origin.get("tipo_tierra", "tierras_salvajes")
+    dest_land = destination.get("tipo_tierra", "tierras_salvajes")
+    
+    # Use the more dangerous land type
+    origin_priority = land_priority.index(origin_land) if origin_land in land_priority else 2
+    dest_priority = land_priority.index(dest_land) if dest_land in land_priority else 2
+    route_land = land_priority[min(origin_priority, dest_priority)]
+    
+    return {
+        "origin": serialize_doc(origin),
+        "destination": serialize_doc(destination),
+        "route": {
+            "distance_hexes": round(distance_hexes, 1),
+            "distance_miles": distance_miles,
+            "distance_km": distance_km,
+            "estimated_days": travel_days,
+            "terrain_difficulty": max(origin_terrain, dest_terrain, key=lambda t: terrain_weights.get(t, 1)),
+            "land_type": route_land,
+            "danger_level": route_danger,
+            "direction": {
+                "dx": dx,
+                "dy": dy,
+                "cardinal": get_cardinal_direction(dx, dy)
+            }
+        }
+    }
+
+
+def get_cardinal_direction(dx, dy):
+    """Get cardinal direction from coordinate delta"""
+    import math
+    if dx == 0 and dy == 0:
+        return "mismo lugar"
+    
+    angle = math.atan2(dy, dx) * 180 / math.pi
+    
+    if -22.5 <= angle < 22.5:
+        return "Este"
+    elif 22.5 <= angle < 67.5:
+        return "Noreste"
+    elif 67.5 <= angle < 112.5:
+        return "Norte"
+    elif 112.5 <= angle < 157.5:
+        return "Noroeste"
+    elif angle >= 157.5 or angle < -157.5:
+        return "Oeste"
+    elif -157.5 <= angle < -112.5:
+        return "Suroeste"
+    elif -112.5 <= angle < -67.5:
+        return "Sur"
+    else:
+        return "Sureste"
+
+
+@router.post("/locations/search-nearby")
+async def search_nearby_locations(data: dict = Body(...)):
+    """Find locations near a given point or within a region"""
+    x = data.get("x")
+    y = data.get("y")
+    radius = data.get("radius", 10)  # Default 10 hexes
+    region = data.get("region")
+    tipo_tierra = data.get("tipo_tierra")
+    refugio_only = data.get("refugio_only", False)
+    
+    query = {}
+    
+    if region:
+        query["region"] = {"$regex": region, "$options": "i"}
+    if tipo_tierra:
+        query["tipo_tierra"] = tipo_tierra
+    if refugio_only:
+        query["refugio"] = True
+    
+    locations = await db.locations.find(query).to_list(500)
+    
+    # If x, y provided, filter by distance
+    if x is not None and y is not None:
+        import math
+        nearby = []
+        for loc in locations:
+            loc_x = loc.get("x", 0)
+            loc_y = loc.get("y", 0)
+            distance = math.sqrt((loc_x - x)**2 + (loc_y - y)**2)
+            if distance <= radius:
+                loc_data = serialize_doc(loc)
+                loc_data["distance_hexes"] = round(distance, 1)
+                loc_data["distance_km"] = round(distance * 6.4, 1)
+                nearby.append(loc_data)
+        
+        # Sort by distance
+        nearby.sort(key=lambda l: l["distance_hexes"])
+        return {"locations": nearby, "total": len(nearby)}
+    
+    return {"locations": serialize_docs(locations), "total": len(locations)}
+
+
 @router.delete("/npcs/{npc_id}")
 async def delete_npc(npc_id: str):
     """Delete an NPC (admin only)"""
