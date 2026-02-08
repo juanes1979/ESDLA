@@ -696,51 +696,48 @@ const MiddleEarthMap = () => {
           {showMapBackground && (
             <g opacity={mapOpacity}>
               {/* 
-                Mapas de jugador (sin bordes decorativos) para unión visual perfecta.
-                Los mapas comparten regiones en sus bordes que deben superponerse:
-                - Eriador-Gondor: Tierras Brunas, Prados Grises, Fangorn
-                - Eriador-Rhovanion: Montañas Nubladas, Lorien
-                - Gondor-Mordor: Oestemnet, Estemnet, Lebennin, Belfalas
-                - Rhovanion-Mordor: Tierras Pardas, Dagorlad
+                Mapas de jugador (sin bordes decorativos).
+                Configuración con solapamiento para minimizar costuras visibles.
+                Los mapas inferiores se superponen sobre los superiores.
               */}
               
-              {/* Eriador - Top Left (northwest) */}
+              {/* Eriador - Top Left (northwest) - capa inferior */}
               <image
                 href={MAP_IMAGES.eriador.url}
-                x={-30}
-                y={-30}
-                width={560}
-                height={520}
+                x={-40}
+                y={-40}
+                width={570}
+                height={530}
                 preserveAspectRatio="xMidYMid slice"
               />
               
-              {/* Rhovanion - Top Right (northeast) */}
+              {/* Rhovanion - Top Right (northeast) - capa inferior */}
               <image
                 href={MAP_IMAGES.rhovanion.url}
-                x={470}
-                y={-30}
-                width={570}
-                height={520}
+                x={460}
+                y={-40}
+                width={590}
+                height={530}
                 preserveAspectRatio="xMidYMid slice"
               />
               
-              {/* Gondor/Rohan - Bottom Left (southwest) */}
+              {/* Gondor/Rohan - Bottom Left (southwest) - capa superior, superpuesta */}
               <image
                 href={MAP_IMAGES.gondor.url}
-                x={-30}
-                y={380}
-                width={560}
-                height={560}
+                x={-40}
+                y={350}
+                width={570}
+                height={600}
                 preserveAspectRatio="xMidYMid slice"
               />
               
-              {/* Mordor - Bottom Right (southeast) */}
+              {/* Mordor - Bottom Right (southeast) - capa superior, superpuesta */}
               <image
                 href={MAP_IMAGES.mordor.url}
-                x={470}
-                y={380}
-                width={570}
-                height={560}
+                x={460}
+                y={350}
+                width={590}
+                height={600}
                 preserveAspectRatio="xMidYMid slice"
               />
             </g>
