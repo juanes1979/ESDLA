@@ -690,50 +690,9 @@ const MiddleEarthMap = () => {
             transformOrigin: 'center center',
           }}
         >
-          {/* SVG Definitions for gradient masks */}
+          {/* SVG Definitions */}
           <defs>
-            {/* Gradient masks for smooth edge blending */}
-            {/* Eriador mask - fade right and bottom edges */}
-            <linearGradient id="fadeRight" x1="0%" y1="0%" x2="100%" y2="0%">
-              <stop offset="0%" stopColor="white" stopOpacity="1" />
-              <stop offset="85%" stopColor="white" stopOpacity="1" />
-              <stop offset="100%" stopColor="white" stopOpacity="0" />
-            </linearGradient>
-            <linearGradient id="fadeBottom" x1="0%" y1="0%" x2="0%" y2="100%">
-              <stop offset="0%" stopColor="white" stopOpacity="1" />
-              <stop offset="85%" stopColor="white" stopOpacity="1" />
-              <stop offset="100%" stopColor="white" stopOpacity="0" />
-            </linearGradient>
-            <linearGradient id="fadeLeft" x1="100%" y1="0%" x2="0%" y2="0%">
-              <stop offset="0%" stopColor="white" stopOpacity="1" />
-              <stop offset="85%" stopColor="white" stopOpacity="1" />
-              <stop offset="100%" stopColor="white" stopOpacity="0" />
-            </linearGradient>
-            <linearGradient id="fadeTop" x1="0%" y1="100%" x2="0%" y2="0%">
-              <stop offset="0%" stopColor="white" stopOpacity="1" />
-              <stop offset="85%" stopColor="white" stopOpacity="1" />
-              <stop offset="100%" stopColor="white" stopOpacity="0" />
-            </linearGradient>
-            
-            {/* Combined masks for each corner */}
-            <mask id="maskEriador">
-              <rect x="-40" y="-40" width="570" height="530" fill="url(#fadeRight)" />
-              <rect x="-40" y="400" width="570" height="90" fill="url(#fadeBottom)" opacity="0.5" />
-            </mask>
-            <mask id="maskRhovanion">
-              <rect x="460" y="-40" width="590" height="530" fill="url(#fadeLeft)" />
-              <rect x="460" y="400" width="590" height="90" fill="url(#fadeBottom)" opacity="0.5" />
-            </mask>
-            <mask id="maskGondor">
-              <rect x="-40" y="350" width="570" height="600" fill="url(#fadeRight)" />
-              <rect x="-40" y="350" width="570" height="90" fill="url(#fadeTop)" opacity="0.5" />
-            </mask>
-            <mask id="maskMordor">
-              <rect x="460" y="350" width="590" height="600" fill="url(#fadeLeft)" />
-              <rect x="460" y="350" width="590" height="90" fill="url(#fadeTop)" opacity="0.5" />
-            </mask>
-            
-            {/* Soft blur filter for blending */}
+            {/* Soft blur filter (for potential future use) */}
             <filter id="softBlend" x="-5%" y="-5%" width="110%" height="110%">
               <feGaussianBlur in="SourceGraphic" stdDeviation="2" />
             </filter>
