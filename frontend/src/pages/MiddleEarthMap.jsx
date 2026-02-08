@@ -694,54 +694,47 @@ const MiddleEarthMap = () => {
           {showMapBackground && (
             <g opacity={mapOpacity}>
               {/* 
-                Map Layout (based on geographic connections):
-                - Eriador and Rhovanion share their eastern/western borders at the Misty Mountains
-                - Gondor/Rohan is south of both, with Fangorn at the top
-                - Mordor is east of Gondor, connected via Ithilien
-                
-                The maps overlap at key geographic features:
-                - Fangorn forest appears in multiple maps
-                - Misty Mountains connect Eriador-Rhovanion
-                - Ithilien connects Gondor-Mordor
+                Map Layout - Los 4 mapas se solapan en sus bordes para ocultar
+                las líneas de unión (bordes decorativos con runas)
               */}
               
               {/* Eriador - Top Left (northwest) */}
               <image
                 href={MAP_IMAGES.eriador.url}
-                x={-100}
-                y={-100}
-                width={620}
-                height={580}
+                x={-120}
+                y={-120}
+                width={650}
+                height={600}
                 preserveAspectRatio="xMidYMid slice"
               />
               
-              {/* Rhovanion - Top Right (northeast) - overlaps with Eriador at Misty Mountains */}
+              {/* Rhovanion - Top Right (northeast) */}
               <image
                 href={MAP_IMAGES.rhovanion.url}
-                x={380}
-                y={-100}
-                width={620}
-                height={580}
+                x={350}
+                y={-120}
+                width={680}
+                height={600}
                 preserveAspectRatio="xMidYMid slice"
               />
               
-              {/* Gondor/Rohan - Bottom Left (southwest) - overlaps with Eriador/Rhovanion at Fangorn */}
+              {/* Gondor/Rohan - Bottom Left (southwest) - más solapamiento vertical */}
               <image
                 href={MAP_IMAGES.gondor.url}
-                x={-100}
-                y={320}
-                width={620}
-                height={600}
+                x={-120}
+                y={280}
+                width={650}
+                height={650}
                 preserveAspectRatio="xMidYMid slice"
               />
               
-              {/* Mordor - Bottom Right (southeast) - overlaps with Gondor at Ithilien */}
+              {/* Mordor - Bottom Right (southeast) */}
               <image
                 href={MAP_IMAGES.mordor.url}
-                x={380}
-                y={320}
-                width={620}
-                height={600}
+                x={350}
+                y={280}
+                width={680}
+                height={650}
                 preserveAspectRatio="xMidYMid slice"
               />
             </g>
