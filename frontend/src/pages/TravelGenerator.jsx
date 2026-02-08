@@ -123,12 +123,13 @@ const TravelGenerator = () => {
   useEffect(() => {
     const loadData = async () => {
       try {
-        const [regionesRes, distanciasRes, monturasRes, viajesRes, personajesRes] = await Promise.all([
+        const [regionesRes, distanciasRes, monturasRes, viajesRes, personajesRes, locationsRes] = await Promise.all([
           api.get('/data/clima'),
           api.get('/data/distancias'),
           api.get('/data/monturas'),
           api.get('/data/viajes/guardados'),
-          api.get('/characters/')
+          api.get('/characters/'),
+          api.get('/data/locations')
         ]);
         
         setRegiones(regionesRes.data || []);
@@ -136,6 +137,27 @@ const TravelGenerator = () => {
         setMonturas(monturasRes.data || []);
         setViajesGuardados(viajesRes.data || []);
         setPersonajes(personajesRes.data?.characters || []);
+        
+        // Process locations by region
+        const locations = locationsRes.data?.locations || [];
+        setAllLocations(locations);
+        
+        // Group by region
+        const byRegion = {};
+        locations.forEach(loc => {
+          const region = loc.region || 'Otros';
+          if (!byRegion[region]) {
+            byRegion[region] = [];
+          }
+          byRegion[region].push(loc);
+        });
+        
+        // Sort locations within each region
+        Object.keys(byRegion).forEach(region => {
+          byRegion[region].sort((a, b) => a.nombre.localeCompare(b.nombre));
+        });
+        
+        setLocationsByRegion(byRegion);
       } catch (err) {
         console.error('Error loading travel data:', err);
       }
