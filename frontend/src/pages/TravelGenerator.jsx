@@ -82,16 +82,24 @@ const TravelGenerator = () => {
   const [climaActual, setClimaActual] = useState(null);
   const [personajes, setPersonajes] = useState([]);
   
+  // NEW: Map locations from database
+  const [allLocations, setAllLocations] = useState([]);
+  const [locationsByRegion, setLocationsByRegion] = useState({});
+  const [routeInfo, setRouteInfo] = useState(null);
+  const [loadingRoute, setLoadingRoute] = useState(false);
+  
   // Form states
   const [modo, setModo] = useState('configurar'); // configurar, generando, resultado
   
   const [config, setConfig] = useState({
     origen: '',
+    origenId: '',
     destino: '',
+    destinoId: '',
     region: '',
     casillas: 5,
-    tipo_terreno: 'campo_abierto',
-    tipo_tierra: 'salvaje',
+    tipo_terreno: 'moderado',
+    tipo_tierra: 'tierras_salvajes',
     mes: 'Cermië',
     montura: 'A pie',
     velocidad: 9, // metros instead of feet
