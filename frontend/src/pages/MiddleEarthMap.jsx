@@ -142,6 +142,11 @@ const MiddleEarthMap = () => {
   const [pendingChanges, setPendingChanges] = useState({});
   const [savingChanges, setSavingChanges] = useState(false);
   
+  // Location edit/delete state
+  const [editingLocation, setEditingLocation] = useState(null);
+  const [editFormData, setEditFormData] = useState({});
+  const [isDeleting, setIsDeleting] = useState(false);
+  
   // Filter state
   const [showMasterView, setShowMasterView] = useState(true);
   const [showLabels, setShowLabels] = useState(true);
