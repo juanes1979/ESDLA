@@ -936,15 +936,35 @@ const MiddleEarthMap = () => {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => setZoom(z => Math.max(0.3, z - 0.2))}
+              onClick={() => setZoom(z => Math.max(0.1, z - 0.2))}
             >
               <ZoomOut className="w-4 h-4" />
             </Button>
-            <span className="text-sm w-12 text-center">{Math.round(zoom * 100)}%</span>
+            <input
+              type="text"
+              value={`${Math.round(zoom * 100)}%`}
+              onChange={(e) => {
+                const val = e.target.value.replace('%', '').trim();
+                const num = parseInt(val, 10);
+                if (!isNaN(num) && num >= 10 && num <= 1000) {
+                  setZoom(num / 100);
+                }
+              }}
+              onBlur={(e) => {
+                const val = e.target.value.replace('%', '').trim();
+                const num = parseInt(val, 10);
+                if (isNaN(num) || num < 10) {
+                  setZoom(0.1);
+                } else if (num > 1000) {
+                  setZoom(10);
+                }
+              }}
+              className="w-16 text-center text-sm bg-background border border-input rounded px-1 py-1"
+            />
             <Button
               variant="outline"
               size="sm"
-              onClick={() => setZoom(z => Math.min(5, z + 0.2))}
+              onClick={() => setZoom(z => Math.min(10, z + 0.2))}
             >
               <ZoomIn className="w-4 h-4" />
             </Button>
