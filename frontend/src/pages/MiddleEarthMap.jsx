@@ -393,6 +393,13 @@ const MiddleEarthMap = () => {
       return null;
     }
     
+    // Calculate inverse scale to keep markers same size regardless of zoom
+    const inverseZoom = 1 / zoom;
+    // Base marker size (will stay constant on screen)
+    const baseSize = editMode ? 4 : 6;
+    const markerSize = baseSize * inverseZoom;
+    const hitAreaSize = 15 * inverseZoom;
+    
     return (
       <g
         key={loc.id}
@@ -405,14 +412,21 @@ const MiddleEarthMap = () => {
         }}
         data-testid={`map-location-${loc.id}`}
       >
-        {/* Edit mode indicator - larger hit area */}
+        {/* Invisible hit area for easier clicking */}
+        <circle
+          r={hitAreaSize}
+          fill="transparent"
+          stroke="none"
+        />
+        
+        {/* Edit mode indicator */}
         {editMode && (
           <circle
-            r={20}
+            r={hitAreaSize * 0.8}
             fill="transparent"
             stroke={isModified ? '#f59e0b' : '#3b82f6'}
-            strokeWidth={isDraggingThis ? 3 : 1}
-            strokeDasharray={isDraggingThis ? 'none' : '4 2'}
+            strokeWidth={1 * inverseZoom}
+            strokeDasharray={isDraggingThis ? 'none' : `${3 * inverseZoom} ${2 * inverseZoom}`}
             opacity={0.6}
           />
         )}
@@ -420,30 +434,30 @@ const MiddleEarthMap = () => {
         {/* Glow for selected/route points */}
         {(isSelected || isOrigin || isDestination) && !editMode && (
           <circle
-            r={isSelected ? 18 : 14}
+            r={markerSize * 2}
             fill="none"
             stroke={isOrigin ? '#22c55e' : isDestination ? '#ef4444' : '#c9a227'}
-            strokeWidth={3}
+            strokeWidth={2 * inverseZoom}
             opacity={0.8}
             className="animate-pulse"
           />
         )}
         
-        {/* Background circle */}
+        {/* Main marker - simple dot */}
         <circle
-          r={loc.refugio ? 10 : 8}
+          r={markerSize}
           fill={color}
           stroke={editMode && isModified ? '#f59e0b' : loc.refugio ? '#22c55e' : '#333'}
-          strokeWidth={editMode && isModified ? 3 : loc.refugio ? 2 : 1}
+          strokeWidth={(editMode && isModified ? 2 : 1) * inverseZoom}
           opacity={0.9}
         />
         
-        {/* Icon (only in master view with zoom > 0.8) */}
-        {showMasterView && zoom > 0.8 && (
+        {/* Icon (only when NOT in edit mode and zoom is reasonable) */}
+        {!editMode && showMasterView && zoom > 0.8 && zoom < 2.5 && (
           <text
             textAnchor="middle"
             dominantBaseline="central"
-            fontSize={12}
+            fontSize={10 * inverseZoom}
             style={{ pointerEvents: 'none' }}
           >
             {icon}
@@ -451,18 +465,33 @@ const MiddleEarthMap = () => {
         )}
         
         {/* Label */}
-        {showLabels && zoom > 0.6 && (
+        {showLabels && !editMode && zoom > 0.6 && (
           <text
-            y={16}
+            y={12 * inverseZoom}
             textAnchor="middle"
             fill="#fff"
-            fontSize={Math.max(8, 10 / zoom)}
+            fontSize={8 * inverseZoom}
             fontWeight="bold"
             stroke="#000"
-            strokeWidth={0.5}
+            strokeWidth={0.3 * inverseZoom}
             style={{ pointerEvents: 'none' }}
           >
             {loc.nombre.length > 15 ? loc.nombre.substring(0, 12) + '...' : loc.nombre}
+          </text>
+        )}
+        
+        {/* Minimal label in edit mode (only name, smaller) */}
+        {editMode && showLabels && (
+          <text
+            y={8 * inverseZoom}
+            textAnchor="middle"
+            fill="#fff"
+            fontSize={6 * inverseZoom}
+            stroke="#000"
+            strokeWidth={0.2 * inverseZoom}
+            style={{ pointerEvents: 'none' }}
+          >
+            {loc.nombre.length > 20 ? loc.nombre.substring(0, 17) + '...' : loc.nombre}
           </text>
         )}
       </g>
