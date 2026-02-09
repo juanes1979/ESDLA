@@ -711,6 +711,12 @@ const MiddleEarthMap = () => {
             </Badge>
           </div>
           
+          {/* Coordinates display */}
+          <div className="text-xs text-muted-foreground">
+            Coordenadas: ({loc.x}, {loc.y})
+          </div>
+          
+          {/* Route buttons */}
           <div className="flex gap-2 pt-2 border-t border-border/30">
             <Button
               size="sm"
@@ -737,6 +743,218 @@ const MiddleEarthMap = () => {
             >
               <MapPin className="w-3 h-3 mr-1 text-red-400" />
               Destino
+            </Button>
+          </div>
+          
+          {/* Edit/Delete buttons - Only for Maestro */}
+          {showMasterView && (
+            <div className="flex gap-2 pt-2 border-t border-border/30">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => startEditingLocation(loc)}
+                className="flex-1"
+              >
+                ✏️ Editar
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => deleteLocation(loc)}
+                disabled={isDeleting}
+                className="flex-1 text-red-400 border-red-400/50 hover:bg-red-400/10"
+              >
+                🗑️ Eliminar
+              </Button>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    );
+  };
+  
+  // Render edit location panel
+  const renderEditPanel = () => {
+    if (!editingLocation) return null;
+    
+    return (
+      <Card className="absolute top-4 right-4 w-96 card-parchment z-30 max-h-[90vh] overflow-y-auto">
+        <CardHeader className="pb-2">
+          <div className="flex justify-between items-start">
+            <CardTitle className="text-lg text-[hsl(var(--gold))]">
+              ✏️ Editar Ubicación
+            </CardTitle>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                setEditingLocation(null);
+                setEditFormData({});
+              }}
+            >
+              <X className="w-4 h-4" />
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {/* Name */}
+          <div>
+            <label className="text-xs text-muted-foreground">Nombre</label>
+            <Input
+              value={editFormData.nombre}
+              onChange={(e) => setEditFormData({ ...editFormData, nombre: e.target.value })}
+              placeholder="Nombre de la ubicación"
+            />
+          </div>
+          
+          {/* Sindarin name */}
+          <div>
+            <label className="text-xs text-muted-foreground">Nombre Sindarin (opcional)</label>
+            <Input
+              value={editFormData.nombre_sindarin}
+              onChange={(e) => setEditFormData({ ...editFormData, nombre_sindarin: e.target.value })}
+              placeholder="Nombre en Sindarin"
+            />
+          </div>
+          
+          {/* Region */}
+          <div>
+            <label className="text-xs text-muted-foreground">Región</label>
+            <Input
+              value={editFormData.region}
+              onChange={(e) => setEditFormData({ ...editFormData, region: e.target.value })}
+              placeholder="Región"
+            />
+          </div>
+          
+          {/* Type */}
+          <div>
+            <label className="text-xs text-muted-foreground">Tipo</label>
+            <Select value={editFormData.tipo} onValueChange={(v) => setEditFormData({ ...editFormData, tipo: v })}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {Object.entries(TYPE_NAMES).map(([key, name]) => (
+                  <SelectItem key={key} value={key}>{LOCATION_ICONS[key]} {name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          
+          {/* Terrain */}
+          <div>
+            <label className="text-xs text-muted-foreground">Terreno</label>
+            <Select value={editFormData.terreno} onValueChange={(v) => setEditFormData({ ...editFormData, terreno: v })}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="facil">Fácil</SelectItem>
+                <SelectItem value="moderado">Moderado</SelectItem>
+                <SelectItem value="dificil">Difícil</SelectItem>
+                <SelectItem value="severo">Severo</SelectItem>
+                <SelectItem value="peligroso">Peligroso</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          
+          {/* Land type */}
+          <div>
+            <label className="text-xs text-muted-foreground">Tipo de Tierra</label>
+            <Select value={editFormData.tipo_tierra} onValueChange={(v) => setEditFormData({ ...editFormData, tipo_tierra: v })}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="tierras_libres">Tierras Libres</SelectItem>
+                <SelectItem value="tierras_fronterizas">Tierras Fronterizas</SelectItem>
+                <SelectItem value="tierras_salvajes">Tierras Salvajes</SelectItem>
+                <SelectItem value="tierras_de_la_sombra">Tierras de la Sombra</SelectItem>
+                <SelectItem value="tierras_oscuras">Tierras Oscuras</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          
+          {/* Danger */}
+          <div>
+            <label className="text-xs text-muted-foreground">Nivel de Peligro</label>
+            <Select value={editFormData.peligro} onValueChange={(v) => setEditFormData({ ...editFormData, peligro: v })}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="bajo">Bajo</SelectItem>
+                <SelectItem value="medio">Medio</SelectItem>
+                <SelectItem value="alto">Alto</SelectItem>
+                <SelectItem value="muy_alto">Muy Alto</SelectItem>
+                <SelectItem value="extremo">Extremo</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          
+          {/* Coordinates */}
+          <div className="flex gap-2">
+            <div className="flex-1">
+              <label className="text-xs text-muted-foreground">X</label>
+              <Input
+                type="number"
+                step="0.1"
+                value={editFormData.x}
+                onChange={(e) => setEditFormData({ ...editFormData, x: parseFloat(e.target.value) || 0 })}
+              />
+            </div>
+            <div className="flex-1">
+              <label className="text-xs text-muted-foreground">Y</label>
+              <Input
+                type="number"
+                step="0.1"
+                value={editFormData.y}
+                onChange={(e) => setEditFormData({ ...editFormData, y: parseFloat(e.target.value) || 0 })}
+              />
+            </div>
+          </div>
+          
+          {/* Refuge checkbox */}
+          <div className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              id="refugio-edit"
+              checked={editFormData.refugio}
+              onChange={(e) => setEditFormData({ ...editFormData, refugio: e.target.checked })}
+              className="w-4 h-4"
+            />
+            <label htmlFor="refugio-edit" className="text-sm">Es un refugio seguro</label>
+          </div>
+          
+          {/* Description */}
+          <div>
+            <label className="text-xs text-muted-foreground">Descripción</label>
+            <textarea
+              value={editFormData.descripcion}
+              onChange={(e) => setEditFormData({ ...editFormData, descripcion: e.target.value })}
+              placeholder="Descripción del lugar..."
+              className="w-full h-24 p-2 text-sm bg-background border border-input rounded resize-none"
+            />
+          </div>
+          
+          {/* Action buttons */}
+          <div className="flex gap-2 pt-2 border-t border-border/30">
+            <Button
+              size="sm"
+              onClick={saveEditedLocation}
+              className="flex-1 bg-green-600 hover:bg-green-700"
+            >
+              💾 Guardar
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => deleteLocation(editingLocation)}
+              disabled={isDeleting}
+              className="flex-1 text-red-400 border-red-400/50 hover:bg-red-400/10"
+            >
+              🗑️ Eliminar
             </Button>
           </div>
         </CardContent>
