@@ -1080,6 +1080,181 @@ const MiddleEarthMap = () => {
     );
   };
   
+  // Render create new location panel
+  const renderCreatePanel = () => {
+    if (!isCreatingLocation) return null;
+    
+    return (
+      <Card className="absolute top-4 right-4 w-96 card-parchment z-30 max-h-[90vh] overflow-y-auto">
+        <CardHeader className="pb-2">
+          <div className="flex justify-between items-start">
+            <CardTitle className="text-lg text-[hsl(var(--gold))]">
+              ➕ Crear Nueva Ubicación
+            </CardTitle>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={cancelCreatingLocation}
+            >
+              <X className="w-4 h-4" />
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {/* Position indicator */}
+          {newLocationCoords ? (
+            <div className="p-2 bg-green-900/30 border border-green-600/50 rounded text-sm text-green-200">
+              📍 Posición seleccionada: ({newLocationCoords.x}, {newLocationCoords.y})
+            </div>
+          ) : (
+            <div className="p-2 bg-yellow-900/30 border border-yellow-600/50 rounded text-sm text-yellow-200">
+              ⚠️ Haz clic en el mapa para seleccionar la posición
+            </div>
+          )}
+          
+          {/* Name */}
+          <div>
+            <label className="text-xs text-muted-foreground">Nombre *</label>
+            <Input
+              value={newLocationData.nombre}
+              onChange={(e) => setNewLocationData({ ...newLocationData, nombre: e.target.value })}
+              placeholder="Nombre de la ubicación"
+            />
+          </div>
+          
+          {/* Sindarin name */}
+          <div>
+            <label className="text-xs text-muted-foreground">Nombre Sindarin (opcional)</label>
+            <Input
+              value={newLocationData.nombre_sindarin}
+              onChange={(e) => setNewLocationData({ ...newLocationData, nombre_sindarin: e.target.value })}
+              placeholder="Nombre en Sindarin"
+            />
+          </div>
+          
+          {/* Region */}
+          <div>
+            <label className="text-xs text-muted-foreground">Región</label>
+            <Input
+              value={newLocationData.region}
+              onChange={(e) => setNewLocationData({ ...newLocationData, region: e.target.value })}
+              placeholder="Ej: Gondor, Rohan, Eriador..."
+            />
+          </div>
+          
+          {/* Type */}
+          <div>
+            <label className="text-xs text-muted-foreground">Tipo</label>
+            <Select value={newLocationData.tipo} onValueChange={(v) => setNewLocationData({ ...newLocationData, tipo: v })}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {Object.entries(TYPE_NAMES).map(([key, name]) => (
+                  <SelectItem key={key} value={key}>{LOCATION_ICONS[key]} {name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          
+          {/* Terrain */}
+          <div>
+            <label className="text-xs text-muted-foreground">Terreno</label>
+            <Select value={newLocationData.terreno} onValueChange={(v) => setNewLocationData({ ...newLocationData, terreno: v })}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="facil">Fácil</SelectItem>
+                <SelectItem value="moderado">Moderado</SelectItem>
+                <SelectItem value="dificil">Difícil</SelectItem>
+                <SelectItem value="severo">Severo</SelectItem>
+                <SelectItem value="peligroso">Peligroso</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          
+          {/* Land type */}
+          <div>
+            <label className="text-xs text-muted-foreground">Tipo de Tierra</label>
+            <Select value={newLocationData.tipo_tierra} onValueChange={(v) => setNewLocationData({ ...newLocationData, tipo_tierra: v })}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="tierras_libres">Tierras Libres</SelectItem>
+                <SelectItem value="tierras_fronterizas">Tierras Fronterizas</SelectItem>
+                <SelectItem value="tierras_salvajes">Tierras Salvajes</SelectItem>
+                <SelectItem value="tierras_de_la_sombra">Tierras de la Sombra</SelectItem>
+                <SelectItem value="tierras_oscuras">Tierras Oscuras</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          
+          {/* Danger */}
+          <div>
+            <label className="text-xs text-muted-foreground">Nivel de Peligro</label>
+            <Select value={newLocationData.peligro} onValueChange={(v) => setNewLocationData({ ...newLocationData, peligro: v })}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="bajo">Bajo</SelectItem>
+                <SelectItem value="medio">Medio</SelectItem>
+                <SelectItem value="alto">Alto</SelectItem>
+                <SelectItem value="muy_alto">Muy Alto</SelectItem>
+                <SelectItem value="extremo">Extremo</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          
+          {/* Refuge checkbox */}
+          <div className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              id="refugio-new"
+              checked={newLocationData.refugio}
+              onChange={(e) => setNewLocationData({ ...newLocationData, refugio: e.target.checked })}
+              className="w-4 h-4"
+            />
+            <label htmlFor="refugio-new" className="text-sm">Es un refugio seguro</label>
+          </div>
+          
+          {/* Description */}
+          <div>
+            <label className="text-xs text-muted-foreground">Descripción</label>
+            <textarea
+              value={newLocationData.descripcion}
+              onChange={(e) => setNewLocationData({ ...newLocationData, descripcion: e.target.value })}
+              placeholder="Descripción del lugar..."
+              className="w-full h-20 p-2 text-sm bg-background border border-input rounded resize-none"
+            />
+          </div>
+          
+          {/* Action buttons */}
+          <div className="flex gap-2 pt-2 border-t border-border/30">
+            <Button
+              size="sm"
+              onClick={saveNewLocation}
+              disabled={!newLocationCoords || !newLocationData.nombre.trim()}
+              className="flex-1 bg-green-600 hover:bg-green-700"
+            >
+              💾 Crear Ubicación
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={cancelCreatingLocation}
+              className="flex-1 text-red-400 border-red-400/50 hover:bg-red-400/10"
+            >
+              ❌ Cancelar
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  };
+  
   // Render route info panel
   const renderRoutePanel = () => {
     if (!routeInfo) return null;
