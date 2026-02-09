@@ -1602,9 +1602,11 @@ const MiddleEarthMap = () => {
         onMouseUp={handleMouseUp}
         onMouseLeave={handleMouseUp}
         style={{ 
-          cursor: editMode 
-            ? (draggingLocation ? 'grabbing' : 'crosshair') 
-            : (isDragging ? 'grabbing' : 'grab') 
+          cursor: isCreatingLocation 
+            ? 'crosshair'
+            : editMode 
+              ? (draggingLocation ? 'grabbing' : 'crosshair') 
+              : (isDragging ? 'grabbing' : 'grab') 
         }}
       >
         <svg
