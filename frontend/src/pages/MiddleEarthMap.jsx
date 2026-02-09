@@ -1686,6 +1686,32 @@ const MiddleEarthMap = () => {
           
           {/* Locations */}
           {filteredLocations.map(renderLocation)}
+          
+          {/* Temporary marker for new location */}
+          {isCreatingLocation && newLocationCoords && (
+            <g transform={`translate(${coordToPos(newLocationCoords.x, newLocationCoords.y).x}, ${coordToPos(newLocationCoords.x, newLocationCoords.y).y})`}>
+              <circle
+                r={10 / zoom}
+                fill="#22c55e"
+                stroke="#fff"
+                strokeWidth={3 / zoom}
+                opacity={0.9}
+                className="animate-pulse"
+              />
+              <text
+                y={-15 / zoom}
+                textAnchor="middle"
+                fill="#22c55e"
+                fontSize={12 / zoom}
+                fontWeight="bold"
+                stroke="#000"
+                strokeWidth={2 / zoom}
+                paintOrder="stroke"
+              >
+                Nueva ubicación
+              </text>
+            </g>
+          )}
         </svg>
         
         {/* Info panels */}
