@@ -1559,7 +1559,7 @@ const MiddleEarthMap = () => {
               onChange={(e) => {
                 const val = e.target.value.replace('%', '').trim();
                 const num = parseInt(val, 10);
-                if (!isNaN(num) && num >= 10 && num <= 1000) {
+                if (!isNaN(num) && num >= 10 && num <= 1500) {
                   setZoom(num / 100);
                 }
               }}
