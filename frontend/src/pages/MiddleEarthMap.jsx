@@ -576,16 +576,30 @@ const MiddleEarthMap = () => {
         .replace(/[^a-z0-9_]/g, '') + '_' + Date.now();
       
       const locationToCreate = {
-        ...newLocationData,
-        id,
+        nombre: newLocationData.nombre,
+        nombre_sindarin: newLocationData.nombre_sindarin || '',
+        region: newLocationData.region,
+        tipo: newLocationData.tipo,
+        terreno: newLocationData.terreno,
+        tipo_tierra: newLocationData.tipo_tierra,
+        peligro: newLocationData.peligro,
+        refugio: newLocationData.refugio,
+        descripcion: newLocationData.descripcion || '',
         x: newLocationCoords.x,
         y: newLocationCoords.y,
       };
       
+      console.log('Creating location:', locationToCreate);
       const res = await api.post('/data/locations', locationToCreate);
+      console.log('Response:', res.data);
       
-      // Add to local state
-      setLocations(prev => [...prev, { ...locationToCreate, ...res.data }]);
+      // Add to local state with the ID from the response
+      const newLoc = { 
+        ...locationToCreate, 
+        id: res.data.id,
+        _id: res.data.id 
+      };
+      setLocations(prev => [...prev, newLoc]);
       
       toast.success(`"${newLocationData.nombre}" creado correctamente`);
       setIsCreatingLocation(false);
@@ -605,7 +619,8 @@ const MiddleEarthMap = () => {
       });
     } catch (err) {
       console.error('Error creating location:', err);
-      toast.error('Error al crear la ubicación');
+      const errorMsg = err.response?.data?.detail || err.message || 'Error desconocido';
+      toast.error(`Error al crear: ${errorMsg}`);
     }
   };
   
