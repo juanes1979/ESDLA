@@ -394,6 +394,71 @@ const MiddleEarthMap = () => {
     }
   };
   
+  // Start editing a location
+  const startEditingLocation = (loc) => {
+    setEditingLocation(loc);
+    setEditFormData({
+      nombre: loc.nombre || '',
+      nombre_sindarin: loc.nombre_sindarin || '',
+      region: loc.region || '',
+      tipo: loc.tipo || '',
+      terreno: loc.terreno || '',
+      tipo_tierra: loc.tipo_tierra || '',
+      peligro: loc.peligro || 'bajo',
+      refugio: loc.refugio || false,
+      descripcion: loc.descripcion || '',
+      x: loc.x || 50,
+      y: loc.y || 50,
+    });
+    setSelectedLocation(null);
+  };
+  
+  // Save edited location
+  const saveEditedLocation = async () => {
+    if (!editingLocation) return;
+    
+    try {
+      await api.put(`/data/locations/${editingLocation.id}`, editFormData);
+      
+      // Update local state
+      setLocations(prev => prev.map(loc => 
+        loc.id === editingLocation.id 
+          ? { ...loc, ...editFormData }
+          : loc
+      ));
+      
+      toast.success(`"${editFormData.nombre}" guardado correctamente`);
+      setEditingLocation(null);
+      setEditFormData({});
+    } catch (err) {
+      console.error('Error saving location:', err);
+      toast.error('Error al guardar la ubicación');
+    }
+  };
+  
+  // Delete a location
+  const deleteLocation = async (loc) => {
+    if (!window.confirm(`¿Estás seguro de que quieres eliminar "${loc.nombre}"? Esta acción no se puede deshacer.`)) {
+      return;
+    }
+    
+    setIsDeleting(true);
+    try {
+      await api.delete(`/data/locations/${loc.id}`);
+      
+      // Remove from local state
+      setLocations(prev => prev.filter(l => l.id !== loc.id));
+      
+      toast.success(`"${loc.nombre}" eliminado correctamente`);
+      setSelectedLocation(null);
+      setEditingLocation(null);
+    } catch (err) {
+      console.error('Error deleting location:', err);
+      toast.error('Error al eliminar la ubicación');
+    }
+    setIsDeleting(false);
+  };
+  
   // Handle location click
   const handleLocationClick = (loc, e) => {
     e.stopPropagation();
