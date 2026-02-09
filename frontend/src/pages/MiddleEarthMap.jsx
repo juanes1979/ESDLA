@@ -863,14 +863,15 @@ const MiddleEarthMap = () => {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => setZoom(z => Math.min(3, z + 0.2))}
+              onClick={() => setZoom(z => Math.min(5, z + 0.2))}
             >
               <ZoomIn className="w-4 h-4" />
             </Button>
             <Button
               variant="outline"
               size="sm"
-              onClick={() => { setZoom(1); setPan({ x: 0, y: 0 }); }}
+              onClick={() => setPan({ x: 0, y: 0 })}
+              title="Centrar mapa (mantiene zoom)"
             >
               <Move className="w-4 h-4" />
             </Button>
