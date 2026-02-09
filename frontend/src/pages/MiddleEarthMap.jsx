@@ -209,46 +209,26 @@ const MiddleEarthMap = () => {
     y: Math.round(((MAP_HEIGHT - mapY) / MAP_HEIGHT) * 100 * 10) / 10,
   });
   
-  // Get SVG coordinates from mouse event
+  // Get SVG coordinates from mouse event using native SVG method
   const getSVGPoint = (e) => {
-    if (!mapRef.current || !containerRef.current) return null;
+    if (!mapRef.current) return null;
     
-    const container = containerRef.current;
-    const rect = container.getBoundingClientRect();
-    
-    // Mouse position relative to container
-    const mouseX = e.clientX - rect.left;
-    const mouseY = e.clientY - rect.top;
-    
-    // Convert to SVG viewBox coordinates, accounting for zoom and pan
-    // The SVG has transform: translate(pan.x, pan.y) scale(zoom)
-    // The viewBox is 0 0 MAP_WIDTH MAP_HEIGHT
-    
-    // First, get the center of the container (transform-origin)
-    const centerX = rect.width / 2;
-    const centerY = rect.height / 2;
-    
-    // Calculate position relative to center
-    const relX = mouseX - centerX;
-    const relY = mouseY - centerY;
-    
-    // Account for zoom (scale around center)
-    const scaledX = relX / zoom;
-    const scaledY = relY / zoom;
-    
-    // Account for pan (translation before zoom)
-    const panAdjustedX = scaledX - pan.x / zoom;
-    const panAdjustedY = scaledY - pan.y / zoom;
-    
-    // Convert back to absolute coordinates
-    const absX = panAdjustedX + centerX;
-    const absY = panAdjustedY + centerY;
-    
-    // Scale to viewBox dimensions
-    const viewBoxX = (absX / rect.width) * MAP_WIDTH;
-    const viewBoxY = (absY / rect.height) * MAP_HEIGHT;
-    
-    return { x: viewBoxX, y: viewBoxY };
+    try {
+      const svg = mapRef.current;
+      const pt = svg.createSVGPoint();
+      pt.x = e.clientX;
+      pt.y = e.clientY;
+      
+      // Get the inverse of the screen transformation matrix
+      const ctm = svg.getScreenCTM();
+      if (!ctm) return null;
+      
+      const svgP = pt.matrixTransform(ctm.inverse());
+      return { x: svgP.x, y: svgP.y };
+    } catch (err) {
+      console.error('Error getting SVG point:', err);
+      return null;
+    }
   };
   
   // Handle mouse events for panning (disabled when dragging location in edit mode)
