@@ -147,6 +147,23 @@ const MiddleEarthMap = () => {
   const [editFormData, setEditFormData] = useState({});
   const [isDeleting, setIsDeleting] = useState(false);
   
+  // Create new location state
+  const [isCreatingLocation, setIsCreatingLocation] = useState(false);
+  const [newLocationCoords, setNewLocationCoords] = useState(null);
+  const [newLocationData, setNewLocationData] = useState({
+    nombre: '',
+    nombre_sindarin: '',
+    region: '',
+    tipo: 'ciudad',
+    terreno: 'moderado',
+    tipo_tierra: 'tierras_libres',
+    peligro: 'bajo',
+    refugio: false,
+    descripcion: '',
+    x: 50,
+    y: 50,
+  });
+  
   // Filter state
   const [showMasterView, setShowMasterView] = useState(true);
   const [showLabels, setShowLabels] = useState(true);
