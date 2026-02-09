@@ -120,6 +120,30 @@ const TYPE_CATEGORIES = {
   'Otros': ['region', 'almenaras', 'monumento', 'lugar_especial'],
 };
 
+// Available regions for location creation
+const REGIONS = [
+  'Angmar',
+  'Bosque Negro',
+  'Eriador',
+  'Este de las Montañas',
+  'Fangorn',
+  'Gondor',
+  'Gondor/Harad',
+  'Gondor/Rohan',
+  'Harad',
+  'La Comarca',
+  'Montañas Nubladas',
+  'Mordor',
+  'Mordor/Harad',
+  'Nan Curunír',
+  'Norte',
+  'Rhovanion',
+  'Rhûn',
+  'Rohan',
+  'Rohan/Gondor',
+  'Sur',
+];
+
 const MiddleEarthMap = () => {
   // Data state
   const [locations, setLocations] = useState([]);
