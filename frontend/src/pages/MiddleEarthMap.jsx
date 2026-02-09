@@ -564,6 +564,11 @@ const MiddleEarthMap = () => {
       return;
     }
     
+    if (!newLocationData.region) {
+      toast.error('Selecciona una región');
+      return;
+    }
+    
     try {
       // Generate a unique ID
       const id = newLocationData.nombre.toLowerCase()
