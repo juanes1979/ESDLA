@@ -89,6 +89,13 @@ const MiddleEarthMap = () => {
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   
+  // Edit mode state
+  const [editMode, setEditMode] = useState(false);
+  const [draggingLocation, setDraggingLocation] = useState(null);
+  const [dragLocationStart, setDragLocationStart] = useState({ x: 0, y: 0 });
+  const [pendingChanges, setPendingChanges] = useState({});
+  const [savingChanges, setSavingChanges] = useState(false);
+  
   // Filter state
   const [showMasterView, setShowMasterView] = useState(true);
   const [showLabels, setShowLabels] = useState(true);
