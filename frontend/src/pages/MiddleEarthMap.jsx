@@ -514,34 +514,37 @@ const MiddleEarthMap = () => {
           </text>
         )}
         
-        {/* Label */}
-        {showLabels && !editMode && zoom > 0.6 && (
+        {/* Label - readable at any zoom level */}
+        {showLabels && !editMode && (
           <text
-            y={12 * inverseZoom}
+            y={Math.max(8, 14 * inverseZoom)}
             textAnchor="middle"
             fill="#fff"
-            fontSize={8 * inverseZoom}
+            fontSize={Math.max(6, 10 * inverseZoom)}
             fontWeight="bold"
             stroke="#000"
-            strokeWidth={0.3 * inverseZoom}
+            strokeWidth={Math.max(0.3, 0.5 * inverseZoom)}
+            paintOrder="stroke"
             style={{ pointerEvents: 'none' }}
           >
-            {loc.nombre.length > 15 ? loc.nombre.substring(0, 12) + '...' : loc.nombre}
+            {loc.nombre}
           </text>
         )}
         
-        {/* Minimal label in edit mode (only name, smaller) */}
+        {/* Label in edit mode - always readable */}
         {editMode && showLabels && (
           <text
-            y={8 * inverseZoom}
+            y={Math.max(6, 10 * inverseZoom)}
             textAnchor="middle"
             fill="#fff"
-            fontSize={6 * inverseZoom}
+            fontSize={Math.max(5, 8 * inverseZoom)}
+            fontWeight="bold"
             stroke="#000"
-            strokeWidth={0.2 * inverseZoom}
+            strokeWidth={Math.max(0.2, 0.4 * inverseZoom)}
+            paintOrder="stroke"
             style={{ pointerEvents: 'none' }}
           >
-            {loc.nombre.length > 20 ? loc.nombre.substring(0, 17) + '...' : loc.nombre}
+            {loc.nombre}
           </text>
         )}
       </g>
