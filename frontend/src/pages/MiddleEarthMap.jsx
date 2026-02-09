@@ -231,10 +231,14 @@ const MiddleEarthMap = () => {
     }
   };
   
-  // Handle mouse events for panning (disabled when dragging location in edit mode)
+  // Handle mouse events for panning
   const handleMouseDown = (e) => {
-    if (editMode && draggingLocation) return;
-    if (e.button === 0 && !editMode) {
+    // Don't start panning if we're dragging a location
+    if (draggingLocation) return;
+    
+    // In edit mode, only start panning if clicking on empty space (not on a marker)
+    // The marker's onMouseDown will handle location dragging
+    if (e.button === 0) {
       setIsDragging(true);
       setDragStart({ x: e.clientX - pan.x, y: e.clientY - pan.y });
     }
