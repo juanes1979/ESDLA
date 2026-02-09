@@ -353,6 +353,10 @@ const MiddleEarthMap = () => {
   
   // Get location color based on settings
   const getLocationColor = (loc) => {
+    // In edit mode, highlight modified locations
+    if (editMode && pendingChanges[loc.id]) {
+      return '#f59e0b'; // Orange for modified
+    }
     if (showLandTypes) {
       return LAND_COLORS[loc.tipo_tierra] || '#888';
     }
@@ -368,6 +372,8 @@ const MiddleEarthMap = () => {
     const isSelected = selectedLocation?.id === loc.id;
     const isOrigin = routeOrigin?.id === loc.id;
     const isDestination = routeDestination?.id === loc.id;
+    const isDraggingThis = draggingLocation?.id === loc.id;
+    const isModified = pendingChanges[loc.id] !== undefined;
     const color = getLocationColor(loc);
     const icon = LOCATION_ICONS[loc.tipo] || '📍';
     
@@ -380,12 +386,28 @@ const MiddleEarthMap = () => {
       <g
         key={loc.id}
         transform={`translate(${pos.x}, ${pos.y})`}
-        onClick={(e) => handleLocationClick(loc, e)}
-        style={{ cursor: 'pointer' }}
+        onMouseDown={(e) => editMode ? handleLocationDragStart(loc, e) : handleLocationClick(loc, e)}
+        onClick={(e) => !editMode && handleLocationClick(loc, e)}
+        style={{ 
+          cursor: editMode ? (isDraggingThis ? 'grabbing' : 'grab') : 'pointer',
+          userSelect: 'none',
+        }}
         data-testid={`map-location-${loc.id}`}
       >
+        {/* Edit mode indicator - larger hit area */}
+        {editMode && (
+          <circle
+            r={20}
+            fill="transparent"
+            stroke={isModified ? '#f59e0b' : '#3b82f6'}
+            strokeWidth={isDraggingThis ? 3 : 1}
+            strokeDasharray={isDraggingThis ? 'none' : '4 2'}
+            opacity={0.6}
+          />
+        )}
+        
         {/* Glow for selected/route points */}
-        {(isSelected || isOrigin || isDestination) && (
+        {(isSelected || isOrigin || isDestination) && !editMode && (
           <circle
             r={isSelected ? 18 : 14}
             fill="none"
@@ -400,8 +422,8 @@ const MiddleEarthMap = () => {
         <circle
           r={loc.refugio ? 10 : 8}
           fill={color}
-          stroke={loc.refugio ? '#22c55e' : '#333'}
-          strokeWidth={loc.refugio ? 2 : 1}
+          stroke={editMode && isModified ? '#f59e0b' : loc.refugio ? '#22c55e' : '#333'}
+          strokeWidth={editMode && isModified ? 3 : loc.refugio ? 2 : 1}
           opacity={0.9}
         />
         
