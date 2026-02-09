@@ -1691,6 +1691,7 @@ const MiddleEarthMap = () => {
         {/* Info panels */}
         {renderInfoPanel()}
         {renderEditPanel()}
+        {renderCreatePanel()}
         {renderRoutePanel()}
         
         {/* Legend */}
