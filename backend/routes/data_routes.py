@@ -2140,13 +2140,16 @@ async def get_location(location_id: str):
 @router.post("/locations")
 async def create_location(location: dict = Body(...)):
     """Create a new location (admin only)"""
-    # Generate ID
-    count = await db.locations.count_documents({})
-    location["_id"] = f"loc_{count+1:03d}"
+    import uuid
+    
+    # Generate unique ID using UUID to avoid duplicates
+    unique_id = f"loc_{uuid.uuid4().hex[:8]}"
+    location["_id"] = unique_id
+    location["id"] = unique_id
     location["created_at"] = now_utc()
     
     await db.locations.insert_one(location)
-    return {"id": location["_id"], "message": "Location created successfully"}
+    return {"id": unique_id, "message": "Location created successfully"}
 
 
 @router.put("/locations/{location_id}")
