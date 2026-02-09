@@ -681,7 +681,65 @@ const MiddleEarthMap = () => {
               Mapa de la Tierra Media
             </h1>
             <Badge variant="outline">{filteredLocations.length} ubicaciones</Badge>
+            
+            {/* Edit mode toggle - Only for Maestro */}
+            {showMasterView && (
+              <div className="flex items-center gap-2 ml-4">
+                <Button
+                  variant={editMode ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => {
+                    if (editMode && Object.keys(pendingChanges).length > 0) {
+                      // Ask confirmation before exiting edit mode with changes
+                      if (window.confirm('¿Descartar cambios pendientes?')) {
+                        discardChanges();
+                        setEditMode(false);
+                      }
+                    } else {
+                      setEditMode(!editMode);
+                    }
+                  }}
+                  className={editMode ? "bg-orange-600 hover:bg-orange-700" : ""}
+                >
+                  {editMode ? '🔧 Editando' : '✏️ Editar Posiciones'}
+                </Button>
+                
+                {editMode && Object.keys(pendingChanges).length > 0 && (
+                  <>
+                    <Badge className="bg-orange-500">{Object.keys(pendingChanges).length} cambios</Badge>
+                    <Button
+                      variant="default"
+                      size="sm"
+                      onClick={savePendingChanges}
+                      disabled={savingChanges}
+                      className="bg-green-600 hover:bg-green-700"
+                    >
+                      {savingChanges ? '💾 Guardando...' : '💾 Guardar'}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={discardChanges}
+                      className="text-red-400 border-red-400 hover:bg-red-400/10"
+                    >
+                      ❌ Descartar
+                    </Button>
+                  </>
+                )}
+              </div>
+            )}
           </div>
+          
+          {/* Edit mode instructions */}
+          {editMode && (
+            <div className="w-full bg-orange-900/30 border border-orange-600/50 rounded-md p-2 mt-2">
+              <p className="text-sm text-orange-200">
+                <strong>Modo Edición:</strong> Arrastra los marcadores para reposicionar ubicaciones. 
+                Los cambios se marcan en <span className="text-orange-400">naranja</span>. 
+                Guarda cuando termines.
+              </p>
+            </div>
+          )}
           
           {/* View controls */}
           <div className="flex items-center gap-4">
