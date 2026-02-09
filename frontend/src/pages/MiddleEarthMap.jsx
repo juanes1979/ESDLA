@@ -1165,14 +1165,19 @@ const MiddleEarthMap = () => {
             />
           </div>
           
-          {/* Region */}
+          {/* Region - Dropdown */}
           <div>
-            <label className="text-xs text-muted-foreground">Región</label>
-            <Input
-              value={newLocationData.region}
-              onChange={(e) => setNewLocationData({ ...newLocationData, region: e.target.value })}
-              placeholder="Ej: Gondor, Rohan, Eriador..."
-            />
+            <label className="text-xs text-muted-foreground">Región *</label>
+            <Select value={newLocationData.region} onValueChange={(v) => setNewLocationData({ ...newLocationData, region: v })}>
+              <SelectTrigger>
+                <SelectValue placeholder="Selecciona una región" />
+              </SelectTrigger>
+              <SelectContent>
+                {REGIONS.map(region => (
+                  <SelectItem key={region} value={region}>{region}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
           
           {/* Type */}
