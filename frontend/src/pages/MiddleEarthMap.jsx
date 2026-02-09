@@ -203,15 +203,57 @@ const MiddleEarthMap = () => {
     y: MAP_HEIGHT - (y / 100) * MAP_HEIGHT, // Flip Y axis
   });
   
-  // Handle mouse events for panning
+  // Convert map position back to coordinates
+  const posToCoord = (mapX, mapY) => ({
+    x: Math.round((mapX / MAP_WIDTH) * 100 * 10) / 10,
+    y: Math.round(((MAP_HEIGHT - mapY) / MAP_HEIGHT) * 100 * 10) / 10,
+  });
+  
+  // Get SVG point from mouse event
+  const getSVGPoint = (e) => {
+    if (!mapRef.current) return null;
+    const svg = mapRef.current;
+    const pt = svg.createSVGPoint();
+    pt.x = e.clientX;
+    pt.y = e.clientY;
+    const svgP = pt.matrixTransform(svg.getScreenCTM().inverse());
+    return { x: svgP.x, y: svgP.y };
+  };
+  
+  // Handle mouse events for panning (disabled when dragging location in edit mode)
   const handleMouseDown = (e) => {
-    if (e.button === 0) {
+    if (editMode && draggingLocation) return;
+    if (e.button === 0 && !editMode) {
       setIsDragging(true);
       setDragStart({ x: e.clientX - pan.x, y: e.clientY - pan.y });
     }
   };
   
   const handleMouseMove = (e) => {
+    // Handle location dragging in edit mode
+    if (editMode && draggingLocation) {
+      const svgPoint = getSVGPoint(e);
+      if (svgPoint) {
+        const newCoords = posToCoord(svgPoint.x, svgPoint.y);
+        // Update the location's position in pending changes
+        setPendingChanges(prev => ({
+          ...prev,
+          [draggingLocation.id]: {
+            ...draggingLocation,
+            x: newCoords.x,
+            y: newCoords.y,
+          }
+        }));
+        // Update local state for visual feedback
+        setLocations(prev => prev.map(loc => 
+          loc.id === draggingLocation.id 
+            ? { ...loc, x: newCoords.x, y: newCoords.y }
+            : loc
+        ));
+      }
+      return;
+    }
+    
     if (isDragging) {
       setPan({
         x: e.clientX - dragStart.x,
@@ -221,12 +263,80 @@ const MiddleEarthMap = () => {
   };
   
   const handleMouseUp = () => {
+    if (draggingLocation) {
+      setDraggingLocation(null);
+      toast.success(`Posición de "${draggingLocation.nombre}" actualizada`);
+    }
     setIsDragging(false);
+  };
+  
+  // Handle location drag start in edit mode
+  const handleLocationDragStart = (loc, e) => {
+    e.stopPropagation();
+    if (!editMode) return;
+    setDraggingLocation(loc);
+    const svgPoint = getSVGPoint(e);
+    if (svgPoint) {
+      setDragLocationStart({ x: svgPoint.x, y: svgPoint.y });
+    }
+  };
+  
+  // Save pending changes to database
+  const savePendingChanges = async () => {
+    if (Object.keys(pendingChanges).length === 0) {
+      toast.info('No hay cambios pendientes');
+      return;
+    }
+    
+    setSavingChanges(true);
+    let savedCount = 0;
+    let errors = 0;
+    
+    for (const [locId, locData] of Object.entries(pendingChanges)) {
+      try {
+        await api.put(`/data/locations/${locId}`, {
+          x: locData.x,
+          y: locData.y,
+        });
+        savedCount++;
+      } catch (err) {
+        console.error(`Error saving ${locData.nombre}:`, err);
+        errors++;
+      }
+    }
+    
+    setSavingChanges(false);
+    
+    if (errors === 0) {
+      toast.success(`${savedCount} ubicaciones guardadas correctamente`);
+      setPendingChanges({});
+    } else {
+      toast.error(`${errors} errores al guardar. ${savedCount} guardadas.`);
+    }
+  };
+  
+  // Discard pending changes
+  const discardChanges = async () => {
+    setPendingChanges({});
+    // Reload locations from server
+    try {
+      const res = await api.get('/data/locations');
+      setLocations(res.data.locations || []);
+      toast.info('Cambios descartados');
+    } catch (err) {
+      toast.error('Error al recargar ubicaciones');
+    }
   };
   
   // Handle location click
   const handleLocationClick = (loc, e) => {
     e.stopPropagation();
+    
+    // In edit mode, start dragging instead of showing info
+    if (editMode) {
+      handleLocationDragStart(loc, e);
+      return;
+    }
     
     if (e.shiftKey && routeOrigin) {
       // Shift+click sets destination
