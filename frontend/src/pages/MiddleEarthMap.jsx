@@ -1577,7 +1577,7 @@ const MiddleEarthMap = () => {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => setZoom(z => Math.min(10, z + 0.2))}
+              onClick={() => setZoom(z => Math.min(15, z + 0.2))}
             >
               <ZoomIn className="w-4 h-4" />
             </Button>
