@@ -476,6 +476,101 @@ const MiddleEarthMap = () => {
     setIsDeleting(false);
   };
   
+  // Start creating a new location
+  const startCreatingLocation = () => {
+    setIsCreatingLocation(true);
+    setNewLocationCoords(null);
+    setNewLocationData({
+      nombre: '',
+      nombre_sindarin: '',
+      region: '',
+      tipo: 'ciudad',
+      terreno: 'moderado',
+      tipo_tierra: 'tierras_libres',
+      peligro: 'bajo',
+      refugio: false,
+      descripcion: '',
+      x: 50,
+      y: 50,
+    });
+    toast.info('Haz clic en el mapa para seleccionar la ubicación');
+  };
+  
+  // Handle map click for new location
+  const handleMapClickForNewLocation = (e) => {
+    if (!isCreatingLocation) return;
+    
+    const svgPoint = getSVGPoint(e);
+    if (svgPoint) {
+      const coords = posToCoord(svgPoint.x, svgPoint.y);
+      setNewLocationCoords(coords);
+      setNewLocationData(prev => ({
+        ...prev,
+        x: coords.x,
+        y: coords.y,
+      }));
+      toast.success(`Posición seleccionada: (${coords.x}, ${coords.y})`);
+    }
+  };
+  
+  // Save new location
+  const saveNewLocation = async () => {
+    if (!newLocationData.nombre.trim()) {
+      toast.error('El nombre es obligatorio');
+      return;
+    }
+    
+    if (!newLocationCoords) {
+      toast.error('Haz clic en el mapa para seleccionar la posición');
+      return;
+    }
+    
+    try {
+      // Generate a unique ID
+      const id = newLocationData.nombre.toLowerCase()
+        .replace(/\s+/g, '_')
+        .replace(/[^a-z0-9_]/g, '') + '_' + Date.now();
+      
+      const locationToCreate = {
+        ...newLocationData,
+        id,
+        x: newLocationCoords.x,
+        y: newLocationCoords.y,
+      };
+      
+      const res = await api.post('/data/locations', locationToCreate);
+      
+      // Add to local state
+      setLocations(prev => [...prev, { ...locationToCreate, ...res.data }]);
+      
+      toast.success(`"${newLocationData.nombre}" creado correctamente`);
+      setIsCreatingLocation(false);
+      setNewLocationCoords(null);
+      setNewLocationData({
+        nombre: '',
+        nombre_sindarin: '',
+        region: '',
+        tipo: 'ciudad',
+        terreno: 'moderado',
+        tipo_tierra: 'tierras_libres',
+        peligro: 'bajo',
+        refugio: false,
+        descripcion: '',
+        x: 50,
+        y: 50,
+      });
+    } catch (err) {
+      console.error('Error creating location:', err);
+      toast.error('Error al crear la ubicación');
+    }
+  };
+  
+  // Cancel creating location
+  const cancelCreatingLocation = () => {
+    setIsCreatingLocation(false);
+    setNewLocationCoords(null);
+  };
+  
   // Handle location click
   const handleLocationClick = (loc, e) => {
     e.stopPropagation();
