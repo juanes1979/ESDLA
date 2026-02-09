@@ -209,25 +209,44 @@ const MiddleEarthMap = () => {
     y: Math.round(((MAP_HEIGHT - mapY) / MAP_HEIGHT) * 100 * 10) / 10,
   });
   
-  // Get SVG point from mouse event - accounts for zoom and pan transforms
+  // Get SVG coordinates from mouse event
   const getSVGPoint = (e) => {
-    if (!mapRef.current) return null;
-    const svg = mapRef.current;
-    const rect = svg.getBoundingClientRect();
+    if (!mapRef.current || !containerRef.current) return null;
     
-    // Get mouse position relative to SVG element
+    const container = containerRef.current;
+    const rect = container.getBoundingClientRect();
+    
+    // Mouse position relative to container
     const mouseX = e.clientX - rect.left;
     const mouseY = e.clientY - rect.top;
     
-    // Account for zoom and pan transforms
-    // The transform is: translate(pan.x, pan.y) scale(zoom)
-    // So we need to reverse: first remove translation, then divide by zoom
-    const svgX = (mouseX - pan.x) / zoom;
-    const svgY = (mouseY - pan.y) / zoom;
+    // Convert to SVG viewBox coordinates, accounting for zoom and pan
+    // The SVG has transform: translate(pan.x, pan.y) scale(zoom)
+    // The viewBox is 0 0 MAP_WIDTH MAP_HEIGHT
     
-    // Convert to viewBox coordinates (0 to MAP_WIDTH/MAP_HEIGHT)
-    const viewBoxX = (svgX / rect.width) * MAP_WIDTH * zoom;
-    const viewBoxY = (svgY / rect.height) * MAP_HEIGHT * zoom;
+    // First, get the center of the container (transform-origin)
+    const centerX = rect.width / 2;
+    const centerY = rect.height / 2;
+    
+    // Calculate position relative to center
+    const relX = mouseX - centerX;
+    const relY = mouseY - centerY;
+    
+    // Account for zoom (scale around center)
+    const scaledX = relX / zoom;
+    const scaledY = relY / zoom;
+    
+    // Account for pan (translation before zoom)
+    const panAdjustedX = scaledX - pan.x / zoom;
+    const panAdjustedY = scaledY - pan.y / zoom;
+    
+    // Convert back to absolute coordinates
+    const absX = panAdjustedX + centerX;
+    const absY = panAdjustedY + centerY;
+    
+    // Scale to viewBox dimensions
+    const viewBoxX = (absX / rect.width) * MAP_WIDTH;
+    const viewBoxY = (absY / rect.height) * MAP_HEIGHT;
     
     return { x: viewBoxX, y: viewBoxY };
   };
