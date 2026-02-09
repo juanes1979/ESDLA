@@ -74,6 +74,52 @@ const LOCATION_ICONS = {
   lugar_especial: '⭐',
 };
 
+// Human-readable type names
+const TYPE_NAMES = {
+  ciudad_capital: 'Capital',
+  ciudad: 'Ciudad',
+  ciudad_puerto: 'Puerto',
+  ciudad_elfica: 'Ciudad Élfica',
+  pueblo: 'Pueblo',
+  fortaleza: 'Fortaleza',
+  fortaleza_enemiga: 'Fortaleza Enemiga',
+  fortaleza_abandonada: 'Ruinas Fortaleza',
+  reino_enano: 'Reino Enano',
+  reino_elfico: 'Reino Élfico',
+  refugio_elfico: 'Refugio Élfico',
+  refugio: 'Refugio',
+  ruinas: 'Ruinas',
+  bosque: 'Bosque',
+  bosque_antiguo: 'Bosque Antiguo',
+  bosque_elfico: 'Bosque Élfico',
+  bosque_oscuro: 'Bosque Oscuro',
+  cordillera: 'Montañas',
+  volcan: 'Volcán',
+  paso_montaña: 'Paso de Montaña',
+  colinas: 'Colinas',
+  lago: 'Lago',
+  rio: 'Río',
+  pantano: 'Pantano',
+  region: 'Región',
+  vado: 'Vado',
+  camino: 'Camino',
+  puerto: 'Puerto',
+  almenaras: 'Almenaras',
+  monumento: 'Monumento',
+  lugar_especial: 'Lugar Especial',
+};
+
+// Type categories for filtering
+const TYPE_CATEGORIES = {
+  'Asentamientos': ['ciudad_capital', 'ciudad', 'ciudad_puerto', 'ciudad_elfica', 'pueblo', 'refugio', 'refugio_elfico'],
+  'Fortalezas': ['fortaleza', 'fortaleza_enemiga', 'fortaleza_abandonada', 'ruinas'],
+  'Reinos': ['reino_enano', 'reino_elfico'],
+  'Naturaleza': ['bosque', 'bosque_antiguo', 'bosque_elfico', 'bosque_oscuro', 'cordillera', 'volcan', 'colinas', 'pantano'],
+  'Agua': ['lago', 'rio', 'vado'],
+  'Caminos': ['camino', 'paso_montaña', 'puerto', 'ciudad_puerto'],
+  'Otros': ['region', 'almenaras', 'monumento', 'lugar_especial'],
+};
+
 const MiddleEarthMap = () => {
   // Data state
   const [locations, setLocations] = useState([]);
