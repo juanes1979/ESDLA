@@ -1568,8 +1568,8 @@ const MiddleEarthMap = () => {
                 const num = parseInt(val, 10);
                 if (isNaN(num) || num < 10) {
                   setZoom(0.1);
-                } else if (num > 1000) {
-                  setZoom(10);
+                } else if (num > 1500) {
+                  setZoom(15);
                 }
               }}
               className="w-16 text-center text-sm bg-background border border-input rounded px-1 py-1"
