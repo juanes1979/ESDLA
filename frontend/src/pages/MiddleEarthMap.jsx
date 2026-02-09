@@ -1230,13 +1230,42 @@ const MiddleEarthMap = () => {
           </div>
           
           {/* Edit mode instructions */}
-          {editMode && (
-            <div className="w-full bg-orange-900/30 border border-orange-600/50 rounded-md p-2 mt-2">
+          {editMode && !isCreatingLocation && (
+            <div className="w-full bg-orange-900/30 border border-orange-600/50 rounded-md p-2 mt-2 flex items-center justify-between">
               <p className="text-sm text-orange-200">
                 <strong>Modo Edición:</strong> Arrastra los marcadores para reposicionar ubicaciones. 
                 Los cambios se marcan en <span className="text-orange-400">naranja</span>. 
                 Guarda cuando termines.
               </p>
+              <Button
+                size="sm"
+                onClick={startCreatingLocation}
+                className="bg-green-600 hover:bg-green-700 ml-4"
+              >
+                ➕ Crear Ubicación
+              </Button>
+            </div>
+          )}
+          
+          {/* Creating location mode */}
+          {isCreatingLocation && (
+            <div className="w-full bg-green-900/30 border border-green-600/50 rounded-md p-2 mt-2 flex items-center justify-between">
+              <p className="text-sm text-green-200">
+                <strong>Crear Ubicación:</strong> Haz clic en el mapa para seleccionar la posición.
+                {newLocationCoords && (
+                  <span className="ml-2 text-green-400">
+                    Posición: ({newLocationCoords.x}, {newLocationCoords.y})
+                  </span>
+                )}
+              </p>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={cancelCreatingLocation}
+                className="text-red-400 border-red-400/50 hover:bg-red-400/10 ml-4"
+              >
+                ❌ Cancelar
+              </Button>
             </div>
           )}
           
