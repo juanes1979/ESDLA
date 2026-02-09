@@ -526,9 +526,12 @@ const MiddleEarthMap = () => {
     toast.info('Haz clic en el mapa para seleccionar la ubicación');
   };
   
-  // Handle map click for new location
+  // Handle map click for new location - ONLY accepts first click
   const handleMapClickForNewLocation = (e) => {
     if (!isCreatingLocation) return;
+    
+    // If coordinates already selected, don't change them
+    if (newLocationCoords) return;
     
     const svgPoint = getSVGPoint(e);
     if (svgPoint) {
@@ -539,8 +542,14 @@ const MiddleEarthMap = () => {
         x: coords.x,
         y: coords.y,
       }));
-      toast.success(`Posición seleccionada: (${coords.x}, ${coords.y})`);
+      toast.success(`Posición seleccionada: (${coords.x}, ${coords.y}). Ahora rellena los datos.`);
     }
+  };
+  
+  // Reset coordinates for new location (if user wants to change position)
+  const resetNewLocationCoords = () => {
+    setNewLocationCoords(null);
+    toast.info('Haz clic en el mapa para seleccionar nueva posición');
   };
   
   // Save new location
