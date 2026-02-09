@@ -914,9 +914,11 @@ const MiddleEarthMap = () => {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">Todos</SelectItem>
+                <SelectItem value="all">Todos los tipos</SelectItem>
                 {types.map(t => (
-                  <SelectItem key={t} value={t}>{LOCATION_ICONS[t]} {t}</SelectItem>
+                  <SelectItem key={t} value={t}>
+                    {LOCATION_ICONS[t]} {TYPE_NAMES[t] || t}
+                  </SelectItem>
                 ))}
               </SelectContent>
             </Select>
