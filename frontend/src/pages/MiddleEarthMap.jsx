@@ -584,16 +584,16 @@ const MiddleEarthMap = () => {
           </text>
         )}
         
-        {/* Label - readable at any zoom level */}
-        {showLabels && !editMode && (
+        {/* Label - only visible when zoomed in (>100%), fixed size on screen */}
+        {showLabels && !editMode && zoom > 1 && (
           <text
-            y={Math.max(8, 14 * inverseZoom)}
+            y={12 * inverseZoom}
             textAnchor="middle"
             fill="#fff"
-            fontSize={Math.max(6, 10 * inverseZoom)}
+            fontSize={9 * inverseZoom}
             fontWeight="bold"
             stroke="#000"
-            strokeWidth={Math.max(0.3, 0.5 * inverseZoom)}
+            strokeWidth={2.5 * inverseZoom}
             paintOrder="stroke"
             style={{ pointerEvents: 'none' }}
           >
@@ -601,16 +601,16 @@ const MiddleEarthMap = () => {
           </text>
         )}
         
-        {/* Label in edit mode - always readable */}
-        {editMode && showLabels && (
+        {/* Label in edit mode - visible when zoomed in, fixed size */}
+        {editMode && showLabels && zoom > 1 && (
           <text
-            y={Math.max(6, 10 * inverseZoom)}
+            y={10 * inverseZoom}
             textAnchor="middle"
             fill="#fff"
-            fontSize={Math.max(5, 8 * inverseZoom)}
+            fontSize={8 * inverseZoom}
             fontWeight="bold"
             stroke="#000"
-            strokeWidth={Math.max(0.2, 0.4 * inverseZoom)}
+            strokeWidth={2 * inverseZoom}
             paintOrder="stroke"
             style={{ pointerEvents: 'none' }}
           >
