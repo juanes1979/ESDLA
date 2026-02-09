@@ -209,15 +209,27 @@ const MiddleEarthMap = () => {
     y: Math.round(((MAP_HEIGHT - mapY) / MAP_HEIGHT) * 100 * 10) / 10,
   });
   
-  // Get SVG point from mouse event
+  // Get SVG point from mouse event - accounts for zoom and pan transforms
   const getSVGPoint = (e) => {
     if (!mapRef.current) return null;
     const svg = mapRef.current;
-    const pt = svg.createSVGPoint();
-    pt.x = e.clientX;
-    pt.y = e.clientY;
-    const svgP = pt.matrixTransform(svg.getScreenCTM().inverse());
-    return { x: svgP.x, y: svgP.y };
+    const rect = svg.getBoundingClientRect();
+    
+    // Get mouse position relative to SVG element
+    const mouseX = e.clientX - rect.left;
+    const mouseY = e.clientY - rect.top;
+    
+    // Account for zoom and pan transforms
+    // The transform is: translate(pan.x, pan.y) scale(zoom)
+    // So we need to reverse: first remove translation, then divide by zoom
+    const svgX = (mouseX - pan.x) / zoom;
+    const svgY = (mouseY - pan.y) / zoom;
+    
+    // Convert to viewBox coordinates (0 to MAP_WIDTH/MAP_HEIGHT)
+    const viewBoxX = (svgX / rect.width) * MAP_WIDTH * zoom;
+    const viewBoxY = (svgY / rect.height) * MAP_HEIGHT * zoom;
+    
+    return { x: viewBoxX, y: viewBoxY };
   };
   
   // Handle mouse events for panning (disabled when dragging location in edit mode)
