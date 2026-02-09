@@ -1136,8 +1136,16 @@ const MiddleEarthMap = () => {
         <CardContent className="space-y-3">
           {/* Position indicator */}
           {newLocationCoords ? (
-            <div className="p-2 bg-green-900/30 border border-green-600/50 rounded text-sm text-green-200">
-              📍 Posición seleccionada: ({newLocationCoords.x}, {newLocationCoords.y})
+            <div className="p-2 bg-green-900/30 border border-green-600/50 rounded text-sm text-green-200 flex items-center justify-between">
+              <span>📍 Posición: ({newLocationCoords.x}, {newLocationCoords.y})</span>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={resetNewLocationCoords}
+                className="text-xs h-6 px-2"
+              >
+                🔄 Cambiar
+              </Button>
             </div>
           ) : (
             <div className="p-2 bg-yellow-900/30 border border-yellow-600/50 rounded text-sm text-yellow-200">
