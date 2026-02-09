@@ -304,6 +304,12 @@ const MiddleEarthMap = () => {
     // Don't start panning if we're dragging a location
     if (draggingLocation) return;
     
+    // If creating a new location, capture the click position
+    if (isCreatingLocation && e.button === 0) {
+      handleMapClickForNewLocation(e);
+      return;
+    }
+    
     // In edit mode, only start panning if clicking on empty space (not on a marker)
     // The marker's onMouseDown will handle location dragging
     if (e.button === 0) {
