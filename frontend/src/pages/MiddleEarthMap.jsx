@@ -203,7 +203,7 @@ const MiddleEarthMap = () => {
   const MAP_IMAGES = {
     // Single unified map of Middle-earth (clean version)
     unified: {
-      url: 'https://customer-assets.emergentagent.com/job_c7e3a7c3-5d85-46bd-b91f-9f0c34045f08/artifacts/t9634c1y_Tierra%20media.jpg',
+      url: 'https://customer-assets.emergentagent.com/job_c7e3a7c3-5d85-46bd-b91f-9f0c34045f08/artifacts/8bm4010y_Tierra%20Media.jpg',
     },
     // Individual maps for reference (4-part layout)
     eriador: {
