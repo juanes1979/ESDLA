@@ -194,6 +194,7 @@ const MiddleEarthMap = () => {
   
   // Data state
   const [locations, setLocations] = useState([]);
+  const [regionsHierarchy, setRegionsHierarchy] = useState([]);  // Dynamic regions from backend
   const [selectedLocation, setSelectedLocation] = useState(null);
   const [routeOrigin, setRouteOrigin] = useState(null);
   const [routeDestination, setRouteDestination] = useState(null);
