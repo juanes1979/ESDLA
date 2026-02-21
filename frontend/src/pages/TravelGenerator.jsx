@@ -15,10 +15,12 @@ import { ScrollArea } from '../components/ui/scroll-area';
 import { 
   Map, Users, Compass, CloudRain, Thermometer, Wind, 
   ChevronRight, Play, Save, Trash2, Clock, Mountain,
-  Sun, Moon, Snowflake, Leaf, ArrowLeft, Plus, MapPin, Route, AlertTriangle, Shield
+  Sun, Moon, Snowflake, Leaf, ArrowLeft, Plus, MapPin, Route, AlertTriangle, Shield,
+  FileText, Download
 } from 'lucide-react';
 import { toast } from 'sonner';
 import api from '../services/api';
+import { jsPDF } from 'jspdf';
 
 const MESES_ELFICOS = [
   { id: "Nénimë", nombre: "Nénimë (Enero)", estacion: "invierno" },
