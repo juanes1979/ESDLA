@@ -1545,6 +1545,16 @@ const MiddleEarthMap = () => {
       <div className="p-4 border-b border-border/30 bg-black/20">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-4">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => navigate('/')}
+              className="text-muted-foreground hover:text-[hsl(var(--gold))]"
+              data-testid="back-to-home-btn"
+            >
+              <ArrowLeft className="w-4 h-4 mr-1" />
+              Inicio
+            </Button>
             <h1 className="font-heading text-2xl text-[hsl(var(--gold))]">
               <Map className="w-6 h-6 inline mr-2" />
               Mapa de la Tierra Media
