@@ -9,6 +9,30 @@ Build a comprehensive web application to play a modified version of the "Lord of
 
 ### ✅ COMPLETED This Session
 
+#### P0: Sistema de Gestión de Regiones Dinámico 🗺️
+- **Backend CRUD completo** para regiones en `/api/data/regions`:
+  - `GET /regions` - Lista jerárquica de regiones principales con sub-regiones
+  - `GET /regions/flat` - Lista plana para dropdowns simples
+  - `POST /regions` - Crear nueva región (principal o sub-región)
+  - `PUT /regions/{id}` - Actualizar nombre de región
+  - `DELETE /regions/{id}` - Eliminar región (y sub-regiones si es principal)
+  - `POST /regions/seed` - Poblar con 48 regiones iniciales de la Tierra Media
+- **Interfaz de gestión en RulesPage**:
+  - Nueva categoría "Regiones" con icono MapPin
+  - Vista jerárquica: regiones principales con sus sub-regiones
+  - CRUD completo: crear, editar, eliminar regiones y sub-regiones
+  - Botón para cargar regiones iniciales si la colección está vacía
+- **Integración en el Mapa**:
+  - El selector de regiones ahora carga datos dinámicos del backend
+  - Fallback a jerarquía estática si no hay datos
+  - Usado tanto en crear como en editar ubicaciones
+
+#### Mejoras de Navegación
+- **Botón "Inicio"** añadido al mapa para volver a la página principal
+- Usa `useNavigate` de react-router-dom
+
+### ✅ COMPLETED Previous Sessions
+
 #### P0: Trasfondos Reorganizados por Raza/Cultura
 - Nuevo endpoint `GET /api/data/backgrounds/grouped/by-race` 
 - Componente `BackgroundsSection.jsx` con tabs por raza (Elfos, Enanos, Hobbits, Hombres)
