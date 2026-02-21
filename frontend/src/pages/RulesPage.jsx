@@ -1286,6 +1286,9 @@ const RulesPage = () => {
       case 'nameless':
         return <CriaturasSinNombreSection />;
       
+      case 'regions':
+        return renderRegions();
+      
       default:
         return null;
     }
