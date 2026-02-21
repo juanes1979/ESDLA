@@ -120,6 +120,134 @@ const TravelGenerator = () => {
   const [eventosActuales, setEventosActuales] = useState([]);
   const [eventoIndex, setEventoIndex] = useState(0);
   const [modoGeneracion, setModoGeneracion] = useState('automatico'); // automatico, paso_a_paso
+  const [generatingPdf, setGeneratingPdf] = useState(false);
+  
+  // Export travel log to PDF
+  const exportToPDF = async () => {
+    if (!resultado) return;
+    
+    setGeneratingPdf(true);
+    toast.info('Generando PDF del viaje...');
+    
+    try {
+      const pdf = new jsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: 'a4',
+      });
+      
+      const pageWidth = 210;
+      const pageHeight = 297;
+      const margin = 15;
+      let y = margin;
+      
+      // Helper to add new page if needed
+      const checkNewPage = (height) => {
+        if (y + height > pageHeight - margin) {
+          pdf.addPage();
+          y = margin;
+          return true;
+        }
+        return false;
+      };
+      
+      // Title
+      pdf.setFontSize(20);
+      pdf.setTextColor(139, 90, 43); // Brown/gold color
+      pdf.text('Registro de Viaje', pageWidth / 2, y, { align: 'center' });
+      y += 12;
+      
+      // Route info
+      pdf.setFontSize(14);
+      pdf.setTextColor(60, 60, 60);
+      pdf.text(`${config.origen} → ${config.destino}`, pageWidth / 2, y, { align: 'center' });
+      y += 10;
+      
+      // Summary box
+      pdf.setDrawColor(139, 90, 43);
+      pdf.setLineWidth(0.5);
+      pdf.rect(margin, y, pageWidth - 2 * margin, 25);
+      
+      pdf.setFontSize(10);
+      pdf.setTextColor(0, 0, 0);
+      const summaryY = y + 6;
+      pdf.text(`Días totales: ${resultado.resultado.dias_totales}`, margin + 5, summaryY);
+      pdf.text(`Casillas: ${config.casillas}`, margin + 50, summaryY);
+      pdf.text(`Terreno: ${config.tipo_terreno}`, margin + 90, summaryY);
+      pdf.text(`CD Fatiga: ${resultado.resultado.cd_fatiga}`, margin + 5, summaryY + 8);
+      pdf.text(`Eventos: ${resultado.eventos?.length || 0}`, margin + 50, summaryY + 8);
+      pdf.text(`Estación: ${MESES_ELFICOS.find(m => m.id === config.mes)?.estacion || ''}`, margin + 90, summaryY + 8);
+      y += 30;
+      
+      // Events header
+      checkNewPage(15);
+      pdf.setFontSize(14);
+      pdf.setTextColor(139, 90, 43);
+      pdf.text('Acontecimientos del Viaje', margin, y);
+      y += 8;
+      
+      // Events
+      pdf.setFontSize(9);
+      const eventos = resultado.eventos || [];
+      
+      if (eventos.length === 0) {
+        pdf.setTextColor(60, 60, 60);
+        pdf.text('¡Viaje sin incidentes! La compañía llegó sin problemas.', margin, y);
+        y += 6;
+      } else {
+        for (const evento of eventos) {
+          checkNewPage(25);
+          
+          // Event box
+          const boxColor = evento.exito ? [220, 252, 231] : [254, 226, 226]; // green/red light
+          pdf.setFillColor(...boxColor);
+          pdf.setDrawColor(evento.exito ? 34 : 239, evento.exito ? 197 : 68, evento.exito ? 94 : 68);
+          pdf.roundedRect(margin, y, pageWidth - 2 * margin, 20, 2, 2, 'FD');
+          
+          pdf.setTextColor(0, 0, 0);
+          pdf.setFontSize(10);
+          pdf.text(`Casilla ${evento.casilla}: ${evento.acontecimiento}`, margin + 3, y + 5);
+          
+          pdf.setFontSize(8);
+          pdf.setTextColor(60, 60, 60);
+          pdf.text(`Objetivo: ${evento.objetivo} | Prueba: ${evento.prueba}`, margin + 3, y + 10);
+          pdf.text(`Tirada: ${evento.tirada_resolucion} vs CD ${evento.cd} → ${evento.exito ? 'ÉXITO' : 'FRACASO'}`, margin + 3, y + 15);
+          
+          y += 23;
+          
+          // Consequences
+          if (evento.consecuencias?.length > 0) {
+            checkNewPage(evento.consecuencias.length * 4 + 2);
+            for (const cons of evento.consecuencias) {
+              pdf.setFontSize(8);
+              pdf.setTextColor(100, 100, 100);
+              pdf.text(`  • ${cons}`, margin + 5, y);
+              y += 4;
+            }
+            y += 2;
+          }
+        }
+      }
+      
+      // Footer
+      y += 5;
+      checkNewPage(10);
+      pdf.setFontSize(8);
+      pdf.setTextColor(120, 120, 120);
+      pdf.text(`Generado el ${new Date().toLocaleDateString('es-ES')} - LOTR 5e Travel Generator`, pageWidth / 2, y, { align: 'center' });
+      
+      // Save
+      const filename = `viaje_${config.origen}_${config.destino}_${new Date().toISOString().split('T')[0]}.pdf`;
+      pdf.save(filename);
+      
+      toast.success('PDF generado correctamente');
+    } catch (err) {
+      console.error('Error generating PDF:', err);
+      toast.error('Error al generar el PDF');
+    } finally {
+      setGeneratingPdf(false);
+    }
+  };
   
   // Load initial data
   useEffect(() => {
