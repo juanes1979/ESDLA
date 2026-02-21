@@ -27,9 +27,34 @@ Build a comprehensive web application to play a modified version of the "Lord of
   - Fallback a jerarquía estática si no hay datos
   - Usado tanto en crear como en editar ubicaciones
 
+#### P1: Sistema de Recompensas al Equipamiento ⚔️
+- **Modal `EquipmentRewardsModal.jsx`** en la hoja de personaje:
+  - Selección de equipamiento (armas, armaduras, escudos)
+  - Lista de mejoras aplicables filtradas por tipo de equipo
+  - Aplicación de mejoras con persistencia en la base de datos
+  - Visualización de mejoras ya aplicadas en cada equipo
+- **Botón "Recompensas"** añadido al header de InteractiveCharacterSheet
+
+#### P2: Exportar Viajes a PDF 📄
+- **Función `exportToPDF`** en TravelGenerator:
+  - Genera PDF con jsPDF
+  - Incluye: origen/destino, resumen del viaje, días, casillas, terreno
+  - Lista de eventos con tiradas, CD, y consecuencias
+  - Formato estilizado con colores según éxito/fracaso
+- **Botón "Exportar PDF"** añadido junto a "Guardar Viaje"
+
+#### P2: Refactorización del Mapa 🗺️
+- **Nuevos componentes modulares en `/components/map/`**:
+  - `MapControls.jsx` - Controles de zoom, switches de vista
+  - `MapFilters.jsx` - Filtros de región, tipo, búsqueda
+  - `LocationInfoPanel.jsx` - Panel de información de ubicación
+  - `EditLocationPanel.jsx` - Formulario de edición
+  - `CreateLocationPanel.jsx` - Formulario de creación
+  - `RouteInfoPanel.jsx` - Información de ruta calculada
+  - `index.js` - Exportaciones centralizadas
+
 #### Mejoras de Navegación
 - **Botón "Inicio"** añadido al mapa para volver a la página principal
-- Usa `useNavigate` de react-router-dom
 
 ### ✅ COMPLETED Previous Sessions
 
