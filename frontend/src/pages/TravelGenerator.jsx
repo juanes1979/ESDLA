@@ -1220,6 +1220,20 @@ const TravelGenerator = () => {
           <Button onClick={guardarViaje} className="flex-1" data-testid="save-travel-btn">
             <Save className="w-4 h-4 mr-2" /> Guardar Viaje
           </Button>
+          <Button 
+            onClick={exportToPDF} 
+            disabled={generatingPdf}
+            variant="outline"
+            className="flex-1"
+            data-testid="export-travel-pdf-btn"
+          >
+            {generatingPdf ? (
+              <span className="animate-spin mr-2">⏳</span>
+            ) : (
+              <FileText className="w-4 h-4 mr-2" />
+            )}
+            Exportar PDF
+          </Button>
         </div>
       </div>
     );
