@@ -174,6 +174,9 @@ const MiddleEarthMap = () => {
   // Create new location state
   const [isCreatingLocation, setIsCreatingLocation] = useState(false);
   const [newLocationCoords, setNewLocationCoords] = useState(null);
+  const [isCreatingNewType, setIsCreatingNewType] = useState(false);
+  const [newCustomType, setNewCustomType] = useState('');
+  const [customTypes, setCustomTypes] = useState([]); // Store user-created types
   const [newLocationData, setNewLocationData] = useState({
     nombre: '',
     nombre_sindarin: '',
