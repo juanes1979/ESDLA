@@ -109,16 +109,17 @@ Build a comprehensive web application to play a modified version of the "Lord of
 1. **PDF Export for Travel Generator**
 2. **Sistema de Autenticación** (Maestro > Admin > Jugador)
 3. **Backup/Restore de base de datos**
+4. **Refactorizar MiddleEarthMap.jsx** - Actualmente >1800 líneas, dividir en componentes
 
 ### P3 - Future Tasks
 - Pantalla del DM
 - Interfaz de juego online
 - Integración IA para historias de NPCs
 - Refactorización completa de RulesPage.jsx
-- Visualización de mapa interactivo con las coordenadas
 
 ## Database Collections
-- `locations`: 182 documentos con coordenadas x/y, terreno, tipo_tierra, peligro, refugio
+- `locations`: 182+ documentos con coordenadas x/y, terreno, tipo_tierra, peligro, refugio
+- `regions`: 48 documentos con jerarquía parent_id para regiones/sub-regiones
 - `recompensas`: Documento con mejoras, niveles, bendiciones, armas_con_nombre
 - `backgrounds`: 114 documentos agrupables por raza/cultura
 
