@@ -120,28 +120,72 @@ const TYPE_CATEGORIES = {
   'Otros': ['region', 'almenaras', 'monumento', 'lugar_especial'],
 };
 
-// Available regions for location creation
+// Hierarchical region structure - Main regions with sub-regions/provinces
+const REGION_HIERARCHY = {
+  'Eriador': {
+    label: 'Eriador',
+    subregions: ['La Comarca', 'Bree-land', 'Arthedain', 'Cardolan', 'Rhudaur', 'Lindon', 'Eregion']
+  },
+  'Angmar': {
+    label: 'Angmar',
+    subregions: []
+  },
+  'Montañas Nubladas': {
+    label: 'Montañas Nubladas',
+    subregions: ['Paso Alto', 'Moria', 'Este de las Montañas']
+  },
+  'Rhovanion': {
+    label: 'Rhovanion',
+    subregions: ['Bosque Negro', 'Valle del Anduin', 'Valle', 'Erebor', 'Esgaroth', 'Lothlórien', 'Tierras Pardas']
+  },
+  'Fangorn': {
+    label: 'Fangorn',
+    subregions: []
+  },
+  'Rohan': {
+    label: 'Rohan',
+    subregions: ['Folde Este', 'Folde Oeste', 'Cuernavilla', 'Nan Curunír']
+  },
+  'Gondor': {
+    label: 'Gondor',
+    subregions: ['Anórien', 'Ithilien', 'Lebennin', 'Belfalas', 'Lamedon', 'Anfalas', 'Dor-en-Ernil']
+  },
+  'Mordor': {
+    label: 'Mordor',
+    subregions: ['Gorgoroth', 'Nurn', 'Udûn', 'Lithlad']
+  },
+  'Rhûn': {
+    label: 'Rhûn',
+    subregions: ['Dorwinion']
+  },
+  'Harad': {
+    label: 'Harad',
+    subregions: ['Harad Cercano', 'Harad Lejano', 'Umbar']
+  },
+  'Norte': {
+    label: 'Norte (Forodwaith)',
+    subregions: []
+  },
+  'Sur': {
+    label: 'Sur',
+    subregions: []
+  },
+};
+
+// Flat list of all regions for simple dropdowns (backwards compatible)
 const REGIONS = [
-  'Angmar',
-  'Bosque Negro',
-  'Eriador',
-  'Este de las Montañas',
-  'Fangorn',
-  'Gondor',
-  'Gondor/Harad',
-  'Gondor/Rohan',
-  'Harad',
-  'La Comarca',
-  'Montañas Nubladas',
-  'Mordor',
-  'Mordor/Harad',
-  'Nan Curunír',
-  'Norte',
-  'Rhovanion',
-  'Rhûn',
-  'Rohan',
-  'Rohan/Gondor',
-  'Sur',
+  // Main regions
+  'Eriador', 'Angmar', 'Montañas Nubladas', 'Rhovanion', 'Fangorn', 
+  'Rohan', 'Gondor', 'Mordor', 'Rhûn', 'Harad', 'Norte', 'Sur',
+  // Sub-regions
+  'La Comarca', 'Bree-land', 'Arthedain', 'Cardolan', 'Rhudaur', 'Lindon', 'Eregion',
+  'Paso Alto', 'Moria', 'Este de las Montañas',
+  'Bosque Negro', 'Valle del Anduin', 'Valle', 'Erebor', 'Esgaroth', 'Lothlórien', 'Tierras Pardas',
+  'Folde Este', 'Folde Oeste', 'Cuernavilla', 'Nan Curunír',
+  'Anórien', 'Ithilien', 'Lebennin', 'Belfalas', 'Lamedon', 'Anfalas', 'Dor-en-Ernil',
+  'Gorgoroth', 'Nurn', 'Udûn', 'Lithlad',
+  'Dorwinion',
+  'Harad Cercano', 'Harad Lejano', 'Umbar',
 ];
 
 const MiddleEarthMap = () => {
