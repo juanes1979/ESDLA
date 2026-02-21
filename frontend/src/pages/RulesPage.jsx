@@ -1224,6 +1224,338 @@ const RulesPage = () => {
     }
   };
 
+  // === REGION MANAGEMENT FUNCTIONS ===
+  const refreshRegions = async () => {
+    const regionsRes = await api.get('/data/regions');
+    setData(regionsRes.data?.regions || []);
+  };
+
+  const seedRegions = async () => {
+    setRegionLoading(true);
+    try {
+      await api.post('/data/regions/seed');
+      toast.success('Regiones iniciales creadas');
+      await refreshRegions();
+    } catch (err) {
+      toast.error('Error al crear regiones: ' + (err.response?.data?.detail || err.message));
+    } finally {
+      setRegionLoading(false);
+    }
+  };
+
+  const createRegion = async (nombre, parentId = null) => {
+    setRegionLoading(true);
+    try {
+      await api.post('/data/regions', { nombre, parent_id: parentId, orden: data?.length || 0 });
+      toast.success(`Región "${nombre}" creada`);
+      await refreshRegions();
+      setNewRegionName('');
+      setNewSubregionName('');
+      setIsAddingRegion(false);
+      setIsAddingSubregion(false);
+      setSelectedParentRegion(null);
+    } catch (err) {
+      toast.error('Error al crear región: ' + (err.response?.data?.detail || err.message));
+    } finally {
+      setRegionLoading(false);
+    }
+  };
+
+  const updateRegion = async (regionId, newName) => {
+    setRegionLoading(true);
+    try {
+      await api.put(`/data/regions/${regionId}`, { nombre: newName });
+      toast.success('Región actualizada');
+      await refreshRegions();
+      setEditingRegion(null);
+    } catch (err) {
+      toast.error('Error al actualizar región: ' + (err.response?.data?.detail || err.message));
+    } finally {
+      setRegionLoading(false);
+    }
+  };
+
+  const deleteRegion = async (regionId, nombre, hasSubregions = false) => {
+    const msg = hasSubregions 
+      ? `¿Eliminar "${nombre}" y todas sus sub-regiones?`
+      : `¿Eliminar "${nombre}"?`;
+    
+    if (!window.confirm(msg)) return;
+    
+    setRegionLoading(true);
+    try {
+      await api.delete(`/data/regions/${regionId}`);
+      toast.success('Región eliminada');
+      await refreshRegions();
+    } catch (err) {
+      toast.error('Error al eliminar región: ' + (err.response?.data?.detail || err.message));
+    } finally {
+      setRegionLoading(false);
+    }
+  };
+
+  // === RENDER REGIONS ===
+  const renderRegions = () => {
+    const regions = data || [];
+    
+    return (
+      <div className="space-y-6">
+        {/* Header with actions */}
+        <div className="flex flex-wrap items-center justify-between gap-4 pb-4 border-b border-border/30">
+          <div>
+            <h2 className="font-heading text-xl text-[hsl(var(--gold))]">
+              <MapPin className="w-5 h-5 inline mr-2" />
+              Gestión de Regiones
+            </h2>
+            <p className="text-sm text-muted-foreground mt-1">
+              Define las regiones principales y sus sub-regiones para organizar el mapa
+            </p>
+          </div>
+          
+          {isAdmin && (
+            <div className="flex gap-2">
+              {regions.length === 0 && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={seedRegions}
+                  disabled={regionLoading}
+                  data-testid="seed-regions-btn"
+                >
+                  {regionLoading ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : null}
+                  Cargar Regiones Iniciales
+                </Button>
+              )}
+              <Button
+                variant="default"
+                size="sm"
+                onClick={() => setIsAddingRegion(true)}
+                disabled={regionLoading}
+                className="bg-[hsl(var(--gold))] hover:bg-[hsl(var(--gold))]/90 text-black"
+                data-testid="add-region-btn"
+              >
+                <Plus className="w-4 h-4 mr-1" />
+                Nueva Región Principal
+              </Button>
+            </div>
+          )}
+        </div>
+
+        {/* Add new main region form */}
+        {isAddingRegion && (
+          <div className="card-parchment p-4 rounded-lg border-2 border-dashed border-[hsl(var(--gold))]/50">
+            <h3 className="text-sm font-medium text-[hsl(var(--gold))] mb-3">Nueva Región Principal</h3>
+            <div className="flex gap-2">
+              <Input
+                value={newRegionName}
+                onChange={(e) => setNewRegionName(e.target.value)}
+                placeholder="Nombre de la región..."
+                className="flex-1"
+                autoFocus
+                data-testid="new-region-input"
+              />
+              <Button
+                onClick={() => createRegion(newRegionName)}
+                disabled={!newRegionName.trim() || regionLoading}
+                size="sm"
+                className="bg-green-600 hover:bg-green-700"
+              >
+                {regionLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Crear'}
+              </Button>
+              <Button
+                onClick={() => { setIsAddingRegion(false); setNewRegionName(''); }}
+                variant="ghost"
+                size="sm"
+              >
+                Cancelar
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {/* Regions list */}
+        {regions.length === 0 ? (
+          <div className="text-center py-12 text-muted-foreground">
+            <MapPin className="w-12 h-12 mx-auto mb-4 opacity-30" />
+            <p>No hay regiones definidas.</p>
+            {isAdmin && <p className="text-sm mt-2">Haz clic en "Cargar Regiones Iniciales" para empezar con las regiones de la Tierra Media.</p>}
+          </div>
+        ) : (
+          <div className="grid gap-4">
+            {regions.map((region) => (
+              <div key={region.id} className="card-parchment rounded-lg overflow-hidden" data-testid={`region-${region.id}`}>
+                {/* Main region header */}
+                <div className="flex items-center justify-between p-4 bg-black/10">
+                  {editingRegion === region.id ? (
+                    <div className="flex gap-2 flex-1 mr-4">
+                      <Input
+                        defaultValue={region.nombre}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') updateRegion(region.id, e.target.value);
+                          if (e.key === 'Escape') setEditingRegion(null);
+                        }}
+                        className="flex-1"
+                        autoFocus
+                        data-testid={`edit-region-input-${region.id}`}
+                      />
+                      <Button
+                        onClick={(e) => updateRegion(region.id, e.target.previousSibling.value)}
+                        size="sm"
+                        className="bg-green-600 hover:bg-green-700"
+                      >
+                        Guardar
+                      </Button>
+                      <Button
+                        onClick={() => setEditingRegion(null)}
+                        variant="ghost"
+                        size="sm"
+                      >
+                        Cancelar
+                      </Button>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="flex items-center gap-3">
+                        <MapPin className="w-5 h-5 text-[hsl(var(--gold))]" />
+                        <h3 className="font-heading text-lg text-[hsl(var(--gold))]">{region.nombre}</h3>
+                        <span className="text-xs text-muted-foreground bg-black/20 px-2 py-0.5 rounded">
+                          {region.subregions?.length || 0} sub-regiones
+                        </span>
+                      </div>
+                      
+                      {isAdmin && (
+                        <div className="flex gap-1">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setEditingRegion(region.id)}
+                            className="h-8 w-8 p-0"
+                            data-testid={`edit-region-btn-${region.id}`}
+                          >
+                            <Edit className="w-4 h-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                              setSelectedParentRegion(region);
+                              setIsAddingSubregion(true);
+                            }}
+                            className="h-8 w-8 p-0 text-green-500"
+                            data-testid={`add-subregion-btn-${region.id}`}
+                          >
+                            <Plus className="w-4 h-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => deleteRegion(region.id, region.nombre, region.subregions?.length > 0)}
+                            className="h-8 w-8 p-0 text-destructive hover:text-destructive"
+                            data-testid={`delete-region-btn-${region.id}`}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
+                
+                {/* Sub-regions */}
+                {(region.subregions?.length > 0 || (isAddingSubregion && selectedParentRegion?.id === region.id)) && (
+                  <div className="p-4 pt-0">
+                    {/* Add subregion form */}
+                    {isAddingSubregion && selectedParentRegion?.id === region.id && (
+                      <div className="flex gap-2 mb-3 mt-4 p-3 bg-black/10 rounded">
+                        <Input
+                          value={newSubregionName}
+                          onChange={(e) => setNewSubregionName(e.target.value)}
+                          placeholder="Nombre de la sub-región..."
+                          className="flex-1"
+                          autoFocus
+                          data-testid="new-subregion-input"
+                        />
+                        <Button
+                          onClick={() => createRegion(newSubregionName, region.id)}
+                          disabled={!newSubregionName.trim() || regionLoading}
+                          size="sm"
+                          className="bg-green-600 hover:bg-green-700"
+                        >
+                          {regionLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Crear'}
+                        </Button>
+                        <Button
+                          onClick={() => { setIsAddingSubregion(false); setNewSubregionName(''); setSelectedParentRegion(null); }}
+                          variant="ghost"
+                          size="sm"
+                        >
+                          Cancelar
+                        </Button>
+                      </div>
+                    )}
+                    
+                    {/* Subregions list */}
+                    {region.subregions?.length > 0 && (
+                      <div className="flex flex-wrap gap-2 mt-3">
+                        {region.subregions.map((sub) => (
+                          <div
+                            key={sub.id}
+                            className="group flex items-center gap-2 bg-black/20 px-3 py-1.5 rounded text-sm"
+                            data-testid={`subregion-${sub.id}`}
+                          >
+                            {editingRegion === sub.id ? (
+                              <div className="flex gap-2">
+                                <Input
+                                  defaultValue={sub.nombre}
+                                  onKeyDown={(e) => {
+                                    if (e.key === 'Enter') updateRegion(sub.id, e.target.value);
+                                    if (e.key === 'Escape') setEditingRegion(null);
+                                  }}
+                                  className="h-7 text-sm w-32"
+                                  autoFocus
+                                />
+                                <Button
+                                  onClick={(e) => updateRegion(sub.id, e.target.previousSibling.value)}
+                                  size="sm"
+                                  className="h-7 px-2 bg-green-600"
+                                >
+                                  ✓
+                                </Button>
+                              </div>
+                            ) : (
+                              <>
+                                <span>{sub.nombre}</span>
+                                {isAdmin && (
+                                  <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <button
+                                      onClick={() => setEditingRegion(sub.id)}
+                                      className="p-0.5 hover:text-[hsl(var(--gold))]"
+                                    >
+                                      <Edit className="w-3 h-3" />
+                                    </button>
+                                    <button
+                                      onClick={() => deleteRegion(sub.id, sub.nombre)}
+                                      className="p-0.5 hover:text-destructive"
+                                    >
+                                      <Trash2 className="w-3 h-3" />
+                                    </button>
+                                  </div>
+                                )}
+                              </>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  };
+
   // Render content based on category
   const renderContent = () => {
     if (loading) {
