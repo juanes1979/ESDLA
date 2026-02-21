@@ -128,16 +128,14 @@ Build a comprehensive web application to play a modified version of the "Lord of
 ## 📋 UPCOMING TASKS
 
 ### P1 - Next Priority
-1. **Aplicar recompensas al equipamiento** - Botón en la hoja de personaje para mejorar items
+1. **Sistema de Autenticación** (Maestro > Admin > Jugador)
+2. **Backup/Restore de base de datos**
 
 ### P2 - Medium Priority
-1. **PDF Export for Travel Generator**
-2. **Sistema de Autenticación** (Maestro > Admin > Jugador)
-3. **Backup/Restore de base de datos**
-4. **Refactorizar MiddleEarthMap.jsx** - Actualmente >1800 líneas, dividir en componentes
+1. **Integrar componentes refactorizados en MiddleEarthMap.jsx** - Los componentes están creados, falta importarlos y usarlos en el archivo principal
+2. **Pantalla del DM** - Vista centralizada para el director de juego
 
 ### P3 - Future Tasks
-- Pantalla del DM
 - Interfaz de juego online
 - Integración IA para historias de NPCs
 - Refactorización completa de RulesPage.jsx
@@ -147,6 +145,7 @@ Build a comprehensive web application to play a modified version of the "Lord of
 - `regions`: 48 documentos con jerarquía parent_id para regiones/sub-regiones
 - `recompensas`: Documento con mejoras, niveles, bendiciones, armas_con_nombre
 - `backgrounds`: 114 documentos agrupables por raza/cultura
+- `viajes_guardados`: Viajes generados y guardados por los usuarios
 
 ## Testing
 - `/app/test_reports/iteration_21.json` - 100% pass rate
