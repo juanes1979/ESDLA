@@ -7,7 +7,7 @@
  */
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Loader2, ChevronLeft, ChevronRight, Printer, ZoomIn, ZoomOut, Download, FileText } from 'lucide-react';
+import { ArrowLeft, Loader2, ChevronLeft, ChevronRight, Printer, ZoomIn, ZoomOut, Download, FileText, Crown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import html2canvas from 'html2canvas';
@@ -17,6 +17,7 @@ import api from '@/services/api';
 import SheetPage1 from '@/components/character-sheet/SheetPage1';
 import SheetPage2 from '@/components/character-sheet/SheetPage2';
 import SheetPage3 from '@/components/character-sheet/SheetPage3';
+import EquipmentRewardsModal from '@/components/character-sheet/EquipmentRewardsModal';
 
 // Sheet dimensions (based on PDF converted images 1701x2197)
 const SHEET_WIDTH = 1701;
