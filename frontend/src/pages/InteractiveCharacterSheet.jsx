@@ -35,6 +35,7 @@ const InteractiveCharacterSheet = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [scale, setScale] = useState(0.6);
   const [generatingPdf, setGeneratingPdf] = useState(false);
+  const [showRewardsModal, setShowRewardsModal] = useState(false);
   const containerRef = useRef(null);
   const sheetRef = useRef(null);
 
