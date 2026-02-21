@@ -1035,14 +1035,28 @@ const MiddleEarthMap = () => {
             />
           </div>
           
-          {/* Region */}
+          {/* Region - Hierarchical Dropdown */}
           <div>
             <label className="text-xs text-muted-foreground">Región</label>
-            <Input
-              value={editFormData.region}
-              onChange={(e) => setEditFormData({ ...editFormData, region: e.target.value })}
-              placeholder="Región"
-            />
+            <Select value={editFormData.region} onValueChange={(v) => setEditFormData({ ...editFormData, region: v })}>
+              <SelectTrigger>
+                <SelectValue placeholder="Selecciona región" />
+              </SelectTrigger>
+              <SelectContent>
+                {Object.entries(REGION_HIERARCHY).map(([key, data]) => (
+                  <React.Fragment key={key}>
+                    <SelectItem value={key} className="font-bold text-[hsl(var(--gold))]">
+                      📍 {data.label}
+                    </SelectItem>
+                    {data.subregions.map(sub => (
+                      <SelectItem key={sub} value={sub} className="pl-6 text-muted-foreground">
+                        ↳ {sub}
+                      </SelectItem>
+                    ))}
+                  </React.Fragment>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
           
           {/* Type */}
