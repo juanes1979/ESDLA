@@ -1240,7 +1240,7 @@ const MiddleEarthMap = () => {
             />
           </div>
           
-          {/* Region - Dropdown */}
+          {/* Region - Hierarchical Dropdown */}
           <div>
             <label className="text-xs text-muted-foreground">Región *</label>
             <Select value={newLocationData.region} onValueChange={(v) => setNewLocationData({ ...newLocationData, region: v })}>
@@ -1248,8 +1248,17 @@ const MiddleEarthMap = () => {
                 <SelectValue placeholder="Selecciona una región" />
               </SelectTrigger>
               <SelectContent>
-                {REGIONS.map(region => (
-                  <SelectItem key={region} value={region}>{region}</SelectItem>
+                {Object.entries(REGION_HIERARCHY).map(([key, data]) => (
+                  <React.Fragment key={key}>
+                    <SelectItem value={key} className="font-bold text-[hsl(var(--gold))]">
+                      📍 {data.label}
+                    </SelectItem>
+                    {data.subregions.map(sub => (
+                      <SelectItem key={sub} value={sub} className="pl-6 text-muted-foreground">
+                        ↳ {sub}
+                      </SelectItem>
+                    ))}
+                  </React.Fragment>
                 ))}
               </SelectContent>
             </Select>
