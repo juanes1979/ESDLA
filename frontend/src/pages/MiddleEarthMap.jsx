@@ -1211,19 +1211,75 @@ const MiddleEarthMap = () => {
             </Select>
           </div>
           
-          {/* Type */}
+          {/* Type - with option to create new */}
           <div>
             <label className="text-xs text-muted-foreground">Tipo</label>
-            <Select value={newLocationData.tipo} onValueChange={(v) => setNewLocationData({ ...newLocationData, tipo: v })}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {Object.entries(TYPE_NAMES).map(([key, name]) => (
-                  <SelectItem key={key} value={key}>{LOCATION_ICONS[key]} {name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            {!isCreatingNewType ? (
+              <div className="flex gap-2">
+                <Select 
+                  value={newLocationData.tipo} 
+                  onValueChange={(v) => {
+                    if (v === '__new__') {
+                      setIsCreatingNewType(true);
+                    } else {
+                      setNewLocationData({ ...newLocationData, tipo: v });
+                    }
+                  }}
+                >
+                  <SelectTrigger className="flex-1">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Object.entries(TYPE_NAMES).map(([key, name]) => (
+                      <SelectItem key={key} value={key}>{LOCATION_ICONS[key]} {name}</SelectItem>
+                    ))}
+                    {/* Custom types created by user */}
+                    {customTypes.map(ct => (
+                      <SelectItem key={ct} value={ct}>🏷️ {ct}</SelectItem>
+                    ))}
+                    <SelectItem value="__new__" className="text-green-400">
+                      ➕ Crear nuevo tipo...
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            ) : (
+              <div className="flex gap-2">
+                <Input
+                  value={newCustomType}
+                  onChange={(e) => setNewCustomType(e.target.value)}
+                  placeholder="Ej: posada, taberna, granja..."
+                  className="flex-1"
+                  autoFocus
+                />
+                <Button
+                  size="sm"
+                  onClick={() => {
+                    if (newCustomType.trim()) {
+                      const typeKey = newCustomType.toLowerCase().replace(/\s+/g, '_');
+                      setCustomTypes(prev => [...prev, typeKey]);
+                      setNewLocationData({ ...newLocationData, tipo: typeKey });
+                      setNewCustomType('');
+                      setIsCreatingNewType(false);
+                      toast.success(`Tipo "${newCustomType}" creado`);
+                    }
+                  }}
+                  className="bg-green-600 hover:bg-green-700"
+                >
+                  ✓
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => {
+                    setIsCreatingNewType(false);
+                    setNewCustomType('');
+                  }}
+                >
+                  ✕
+                </Button>
+              </div>
+            )}
           </div>
           
           {/* Terrain */}
