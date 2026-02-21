@@ -350,6 +350,14 @@ const InteractiveCharacterSheet = () => {
           </div>
         </div>
       </div>
+      
+      {/* Equipment Rewards Modal */}
+      <EquipmentRewardsModal
+        isOpen={showRewardsModal}
+        onClose={() => setShowRewardsModal(false)}
+        character={character}
+        onCharacterUpdate={(updatedChar) => setCharacter(updatedChar)}
+      />
     </div>
   );
 };
