@@ -190,6 +190,8 @@ const REGIONS = [
 ];
 
 const MiddleEarthMap = () => {
+  const navigate = useNavigate();
+  
   // Data state
   const [locations, setLocations] = useState([]);
   const [selectedLocation, setSelectedLocation] = useState(null);
