@@ -283,21 +283,26 @@ const MiddleEarthMap = () => {
   const MAP_WIDTH = 1000;
   const MAP_HEIGHT = 900;
   
-  // Load locations
+  // Load locations and regions
   useEffect(() => {
-    const loadLocations = async () => {
+    const loadData = async () => {
       try {
         setLoading(true);
-        const res = await api.get('/data/locations');
-        setLocations(res.data.locations || []);
+        // Load locations and regions in parallel
+        const [locRes, regRes] = await Promise.all([
+          api.get('/data/locations'),
+          api.get('/data/regions')
+        ]);
+        setLocations(locRes.data.locations || []);
+        setRegionsHierarchy(regRes.data.regions || []);
       } catch (err) {
-        console.error('Error loading locations:', err);
-        toast.error('Error al cargar ubicaciones');
+        console.error('Error loading data:', err);
+        toast.error('Error al cargar datos del mapa');
       } finally {
         setLoading(false);
       }
     };
-    loadLocations();
+    loadData();
   }, []);
   
   // Calculate route when origin/destination change
