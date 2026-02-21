@@ -2171,6 +2171,162 @@ async def delete_location(location_id: str):
     return {"message": "Location deleted successfully"}
 
 
+# === REGIONS (Hierarchical geography management) ===
+
+class RegionCreate(BaseModel):
+    nombre: str
+    parent_id: Optional[str] = None  # If null, it's a main region
+    descripcion: Optional[str] = ""
+    orden: Optional[int] = 0  # For ordering within parent
+
+class RegionUpdate(BaseModel):
+    nombre: Optional[str] = None
+    parent_id: Optional[str] = None
+    descripcion: Optional[str] = None
+    orden: Optional[int] = None
+
+@router.get("/regions")
+async def get_regions():
+    """Get all regions in a hierarchical structure"""
+    regions = await db.regions.find({}).sort("orden", 1).to_list(500)
+    
+    # Build hierarchy: separate main regions and sub-regions
+    main_regions = []
+    sub_regions_map = {}  # parent_id -> list of sub-regions
+    
+    for r in regions:
+        region_data = serialize_doc(r)
+        parent_id = r.get("parent_id")
+        
+        if parent_id:
+            if parent_id not in sub_regions_map:
+                sub_regions_map[parent_id] = []
+            sub_regions_map[parent_id].append(region_data)
+        else:
+            main_regions.append(region_data)
+    
+    # Attach sub-regions to their parents
+    for main in main_regions:
+        main["subregions"] = sub_regions_map.get(main["id"], [])
+    
+    return {"regions": main_regions, "total": len(regions)}
+
+
+@router.get("/regions/flat")
+async def get_regions_flat():
+    """Get all regions as a flat list (for simple dropdowns)"""
+    regions = await db.regions.find({}).sort([("parent_id", 1), ("orden", 1)]).to_list(500)
+    return {"regions": serialize_docs(regions)}
+
+
+@router.get("/regions/{region_id}")
+async def get_region(region_id: str):
+    """Get a specific region by ID"""
+    region = await db.regions.find_one({"_id": region_id})
+    if not region:
+        raise HTTPException(status_code=404, detail="Region not found")
+    return serialize_doc(region)
+
+
+@router.post("/regions")
+async def create_region(region: RegionCreate):
+    """Create a new region (admin only)"""
+    region_id = f"reg_{str(uuid.uuid4())[:8]}"
+    region_dict = {
+        "_id": region_id,
+        "nombre": region.nombre,
+        "parent_id": region.parent_id,
+        "descripcion": region.descripcion,
+        "orden": region.orden,
+        "created_at": now_utc()
+    }
+    await db.regions.insert_one(region_dict)
+    return {"id": region_id, "message": "Region created successfully"}
+
+
+@router.put("/regions/{region_id}")
+async def update_region(region_id: str, region: RegionUpdate):
+    """Update an existing region"""
+    update_data = {k: v for k, v in region.dict().items() if v is not None}
+    if not update_data:
+        raise HTTPException(status_code=400, detail="No fields to update")
+    
+    update_data["updated_at"] = now_utc()
+    result = await db.regions.update_one({"_id": region_id}, {"$set": update_data})
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Region not found")
+    return {"message": "Region updated successfully"}
+
+
+@router.delete("/regions/{region_id}")
+async def delete_region(region_id: str):
+    """Delete a region. If it's a main region, also delete all its sub-regions"""
+    # Check if region exists
+    region = await db.regions.find_one({"_id": region_id})
+    if not region:
+        raise HTTPException(status_code=404, detail="Region not found")
+    
+    # If it's a main region, delete its sub-regions first
+    if not region.get("parent_id"):
+        await db.regions.delete_many({"parent_id": region_id})
+    
+    # Delete the region itself
+    await db.regions.delete_one({"_id": region_id})
+    return {"message": "Region deleted successfully"}
+
+
+@router.post("/regions/seed")
+async def seed_regions():
+    """Seed the regions collection with initial Middle-earth geography (admin only)"""
+    # Check if already seeded
+    count = await db.regions.count_documents({})
+    if count > 0:
+        return {"message": f"Regions already exist ({count} regions). Use DELETE first if you want to reseed."}
+    
+    # Define initial hierarchy
+    initial_regions = [
+        {"nombre": "Eriador", "subregions": ["La Comarca", "Tierras de Bree", "Arthedain", "Cardolan", "Rhudaur", "Lindon", "Eregion"]},
+        {"nombre": "Angmar", "subregions": []},
+        {"nombre": "Montañas Nubladas", "subregions": ["Paso Alto", "Moria", "Este de las Montañas"]},
+        {"nombre": "Rhovanion", "subregions": ["Bosque Negro", "Valle del Anduin", "Valle", "Erebor", "Esgaroth", "Lothlórien", "Tierras Pardas"]},
+        {"nombre": "Fangorn", "subregions": []},
+        {"nombre": "Rohan", "subregions": ["Folde Este", "Folde Oeste", "Cuernavilla", "Nan Curunír"]},
+        {"nombre": "Gondor", "subregions": ["Anórien", "Ithilien", "Lebennin", "Belfalas", "Lamedon", "Anfalas", "Dor-en-Ernil"]},
+        {"nombre": "Mordor", "subregions": ["Gorgoroth", "Nurn", "Udûn", "Lithlad"]},
+        {"nombre": "Rhûn", "subregions": ["Dorwinion"]},
+        {"nombre": "Harad", "subregions": ["Harad Cercano", "Harad Lejano", "Umbar"]},
+        {"nombre": "Norte (Forodwaith)", "subregions": []},
+        {"nombre": "Sur", "subregions": []},
+    ]
+    
+    created = 0
+    for i, main_reg in enumerate(initial_regions):
+        main_id = f"reg_{str(uuid.uuid4())[:8]}"
+        await db.regions.insert_one({
+            "_id": main_id,
+            "nombre": main_reg["nombre"],
+            "parent_id": None,
+            "descripcion": "",
+            "orden": i,
+            "created_at": now_utc()
+        })
+        created += 1
+        
+        for j, sub_name in enumerate(main_reg["subregions"]):
+            sub_id = f"reg_{str(uuid.uuid4())[:8]}"
+            await db.regions.insert_one({
+                "_id": sub_id,
+                "nombre": sub_name,
+                "parent_id": main_id,
+                "descripcion": "",
+                "orden": j,
+                "created_at": now_utc()
+            })
+            created += 1
+    
+    return {"message": f"Seeded {created} regions successfully"}
+
+
 @router.get("/locations/calculate-route/{origin_id}/{destination_id}")
 async def calculate_route(origin_id: str, destination_id: str):
     """Calculate route between two locations including distance, terrain, and estimated travel time"""
