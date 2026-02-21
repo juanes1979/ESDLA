@@ -124,7 +124,7 @@ const TYPE_CATEGORIES = {
 const REGION_HIERARCHY = {
   'Eriador': {
     label: 'Eriador',
-    subregions: ['La Comarca', 'Bree-land', 'Arthedain', 'Cardolan', 'Rhudaur', 'Lindon', 'Eregion']
+    subregions: ['La Comarca', 'Tierras de Bree', 'Arthedain', 'Cardolan', 'Rhudaur', 'Lindon', 'Eregion']
   },
   'Angmar': {
     label: 'Angmar',
