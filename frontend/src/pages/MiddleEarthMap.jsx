@@ -178,7 +178,7 @@ const REGIONS = [
   'Eriador', 'Angmar', 'Montañas Nubladas', 'Rhovanion', 'Fangorn', 
   'Rohan', 'Gondor', 'Mordor', 'Rhûn', 'Harad', 'Norte', 'Sur',
   // Sub-regions
-  'La Comarca', 'Bree-land', 'Arthedain', 'Cardolan', 'Rhudaur', 'Lindon', 'Eregion',
+  'La Comarca', 'Tierras de Bree', 'Arthedain', 'Cardolan', 'Rhudaur', 'Lindon', 'Eregion',
   'Paso Alto', 'Moria', 'Este de las Montañas',
   'Bosque Negro', 'Valle del Anduin', 'Valle', 'Erebor', 'Esgaroth', 'Lothlórien', 'Tierras Pardas',
   'Folde Este', 'Folde Oeste', 'Cuernavilla', 'Nan Curunír',
