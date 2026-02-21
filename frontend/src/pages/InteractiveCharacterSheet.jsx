@@ -281,6 +281,17 @@ const InteractiveCharacterSheet = () => {
               )}
               {generatingPdf ? 'Generando...' : 'Descargar PDF'}
             </Button>
+            
+            <Button
+              size="sm"
+              onClick={() => setShowRewardsModal(true)}
+              variant="outline"
+              className="border-[hsl(var(--torch-orange))/50] hover:bg-[hsl(var(--torch-orange))/10]"
+              data-testid="rewards-btn"
+            >
+              <Crown className="w-4 h-4 mr-2 text-[hsl(var(--torch-orange))]" />
+              Recompensas
+            </Button>
           </div>
         </div>
       </header>
