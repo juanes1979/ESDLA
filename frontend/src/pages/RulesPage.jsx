@@ -75,6 +75,15 @@ const RulesPage = () => {
   const [showVirtudEditor, setShowVirtudEditor] = useState(false);
   const [showEquipmentEditor, setShowEquipmentEditor] = useState(false);
   const [editingItem, setEditingItem] = useState(null);
+  
+  // Region management states
+  const [editingRegion, setEditingRegion] = useState(null);
+  const [newRegionName, setNewRegionName] = useState('');
+  const [newSubregionName, setNewSubregionName] = useState('');
+  const [selectedParentRegion, setSelectedParentRegion] = useState(null);
+  const [isAddingRegion, setIsAddingRegion] = useState(false);
+  const [isAddingSubregion, setIsAddingSubregion] = useState(false);
+  const [regionLoading, setRegionLoading] = useState(false);
 
   // Load races for culture editor
   useEffect(() => {
