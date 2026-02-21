@@ -165,6 +165,10 @@ const RulesPage = () => {
             const npcsRes = await api.get('/data/npcs');
             setData(npcsRes.data);
             break;
+          case 'regions':
+            const regionsRes = await api.get('/data/regions');
+            setData(regionsRes.data?.regions || []);
+            break;
           default:
             setData(null);
         }
