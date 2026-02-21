@@ -4,6 +4,7 @@
  * Supports player/master view modes
  */
 import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Button } from '../components/ui/button';
 import { Card, CardHeader, CardTitle, CardContent } from '../components/ui/card';
 import { Badge } from '../components/ui/badge';
@@ -15,7 +16,7 @@ import { Input } from '../components/ui/input';
 import { 
   Map, MapPin, Route, Shield, AlertTriangle, Mountain, TreePine, Castle,
   Skull, Home, Anchor, Eye, EyeOff, ZoomIn, ZoomOut, Move, Info, X,
-  Compass, Ruler
+  Compass, Ruler, ArrowLeft
 } from 'lucide-react';
 import { toast } from 'sonner';
 import api from '../services/api';
