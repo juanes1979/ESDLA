@@ -1287,18 +1287,34 @@ const MiddleEarthMap = () => {
                 <SelectValue placeholder="Selecciona una región" />
               </SelectTrigger>
               <SelectContent>
-                {Object.entries(REGION_HIERARCHY).map(([key, data]) => (
-                  <React.Fragment key={key}>
-                    <SelectItem value={key} className="font-bold text-[hsl(var(--gold))]">
-                      📍 {data.label}
-                    </SelectItem>
-                    {data.subregions.map(sub => (
-                      <SelectItem key={sub} value={sub} className="pl-6 text-muted-foreground">
-                        ↳ {sub}
+                {regionsHierarchy.length > 0 ? (
+                  regionsHierarchy.map((region) => (
+                    <React.Fragment key={region.id}>
+                      <SelectItem value={region.nombre} className="font-bold text-[hsl(var(--gold))]">
+                        📍 {region.nombre}
                       </SelectItem>
-                    ))}
-                  </React.Fragment>
-                ))}
+                      {region.subregions?.map(sub => (
+                        <SelectItem key={sub.id} value={sub.nombre} className="pl-6 text-muted-foreground">
+                          ↳ {sub.nombre}
+                        </SelectItem>
+                      ))}
+                    </React.Fragment>
+                  ))
+                ) : (
+                  // Fallback to static REGION_HIERARCHY if no dynamic data
+                  Object.entries(REGION_HIERARCHY).map(([key, data]) => (
+                    <React.Fragment key={key}>
+                      <SelectItem value={key} className="font-bold text-[hsl(var(--gold))]">
+                        📍 {data.label}
+                      </SelectItem>
+                      {data.subregions.map(sub => (
+                        <SelectItem key={sub} value={sub} className="pl-6 text-muted-foreground">
+                          ↳ {sub}
+                        </SelectItem>
+                      ))}
+                    </React.Fragment>
+                  ))
+                )}
               </SelectContent>
             </Select>
           </div>
