@@ -7,7 +7,7 @@
  */
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Loader2, ChevronLeft, ChevronRight, Printer, ZoomIn, ZoomOut, Download, FileText, Crown } from 'lucide-react';
+import { ArrowLeft, Loader2, ChevronLeft, ChevronRight, Printer, ZoomIn, ZoomOut, Download, FileText, Crown, Package } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import html2canvas from 'html2canvas';
