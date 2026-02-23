@@ -863,6 +863,259 @@ const RulesPage = () => {
     { id: 'especial', name: 'Especial', icon: '✨' },
   ];
 
+  // Handle save category availability
+  const handleSaveCategoryAvailability = async () => {
+    if (!editingCategoryKey) return;
+    
+    setSavingCategoryAvailability(true);
+    try {
+      const items = data[editingCategoryKey] || [];
+      const updates = items.map(item => ({
+        categoria: editingCategoryKey,
+        nombre: item.nombre,
+        nivel_asentamiento: categoryAvailability.nivel_asentamiento,
+        regiones_disponibles: categoryAvailability.regiones_disponibles
+      }));
+      
+      await api.post('/data/equipment/batch-set-availability', updates);
+      toast.success(`Disponibilidad actualizada para ${updates.length} items en "${editingCategoryName}"`);
+      
+      // Reload data
+      const equipment = await getEquipmentCatalog();
+      setData(equipment);
+      setShowCategoryAvailabilityEditor(false);
+      setEditingCategoryKey(null);
+    } catch (err) {
+      toast.error('Error al guardar: ' + (err.response?.data?.detail || err.message));
+    } finally {
+      setSavingCategoryAvailability(false);
+    }
+  };
+
+  // Open category availability editor
+  const openCategoryAvailabilityEditor = (categoryKey, categoryName) => {
+    setEditingCategoryKey(categoryKey);
+    setEditingCategoryName(categoryName);
+    setCategoryAvailability({ nivel_asentamiento: [], regiones_disponibles: [] });
+    setShowCategoryAvailabilityEditor(true);
+  };
+
+  // Render category availability editor modal
+  const renderCategoryAvailabilityEditor = () => {
+    if (!showCategoryAvailabilityEditor) return null;
+    
+    const toggleSettlement = (level) => {
+      setCategoryAvailability(prev => {
+        const current = prev.nivel_asentamiento || [];
+        const updated = current.includes(level) 
+          ? current.filter(l => l !== level)
+          : [...current, level];
+        return { ...prev, nivel_asentamiento: updated };
+      });
+    };
+    
+    const toggleRegion = (regionName, subregions = []) => {
+      setCategoryAvailability(prev => {
+        const current = prev.regiones_disponibles || [];
+        const isSelected = current.includes(regionName);
+        let updated;
+        if (isSelected) {
+          const toRemove = [regionName, ...subregions.map(s => s.nombre)];
+          updated = current.filter(r => !toRemove.includes(r));
+        } else {
+          const toAdd = [regionName, ...subregions.map(s => s.nombre)];
+          updated = [...new Set([...current, ...toAdd])];
+        }
+        return { ...prev, regiones_disponibles: updated };
+      });
+    };
+    
+    const toggleSubregion = (subName) => {
+      setCategoryAvailability(prev => {
+        const current = prev.regiones_disponibles || [];
+        const updated = current.includes(subName)
+          ? current.filter(r => r !== subName)
+          : [...current, subName];
+        return { ...prev, regiones_disponibles: updated };
+      });
+    };
+    
+    const selectAllRegions = () => {
+      const allRegions = [];
+      availableRegions.forEach(r => {
+        allRegions.push(r.nombre);
+        r.subregions?.forEach(s => allRegions.push(s.nombre));
+      });
+      setCategoryAvailability(prev => ({ ...prev, regiones_disponibles: allRegions }));
+    };
+    
+    const clearAllRegions = () => {
+      setCategoryAvailability(prev => ({ ...prev, regiones_disponibles: [] }));
+    };
+    
+    const selectAllSettlements = () => {
+      setCategoryAvailability(prev => ({ 
+        ...prev, 
+        nivel_asentamiento: SETTLEMENT_LEVELS.map(l => l.id) 
+      }));
+    };
+    
+    const clearAllSettlements = () => {
+      setCategoryAvailability(prev => ({ ...prev, nivel_asentamiento: [] }));
+    };
+    
+    const itemCount = data[editingCategoryKey]?.length || 0;
+    
+    return (
+      <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4">
+        <div className="bg-[hsl(var(--background))] border border-[hsl(var(--torch-orange))]/50 rounded-lg w-full max-w-3xl max-h-[90vh] overflow-y-auto">
+          <div className="p-4 border-b border-border/30 flex justify-between items-center sticky top-0 bg-[hsl(var(--background))]">
+            <div>
+              <h2 className="font-heading text-xl text-[hsl(var(--torch-orange))] flex items-center gap-2">
+                <Package className="w-5 h-5" />
+                Editar Disponibilidad: {editingCategoryName}
+              </h2>
+              <p className="text-sm text-muted-foreground mt-1">
+                Se aplicará a los {itemCount} items de esta categoría
+              </p>
+            </div>
+            <Button variant="ghost" size="sm" onClick={() => setShowCategoryAvailabilityEditor(false)}>
+              ✕
+            </Button>
+          </div>
+          
+          <div className="p-4 space-y-6">
+            {/* Settlement availability */}
+            <div>
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-sm font-medium text-[hsl(var(--gold))]">Disponibilidad por Asentamiento</h3>
+                <div className="flex gap-2">
+                  <Button variant="outline" size="sm" onClick={selectAllSettlements} className="text-xs h-7">
+                    Todos
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={clearAllSettlements} className="text-xs h-7">
+                    Ninguno
+                  </Button>
+                </div>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {SETTLEMENT_LEVELS.map(level => (
+                  <button
+                    key={level.id}
+                    onClick={() => toggleSettlement(level.id)}
+                    className={`px-4 py-2 rounded border text-sm flex items-center gap-2 transition-colors ${
+                      (categoryAvailability.nivel_asentamiento || []).includes(level.id)
+                        ? 'bg-[hsl(var(--gold))]/20 border-[hsl(var(--gold))] text-[hsl(var(--gold))]'
+                        : 'bg-black/20 border-border/30 text-muted-foreground hover:border-border'
+                    }`}
+                  >
+                    <span className="text-lg">{level.icon}</span>
+                    <span>{level.name}</span>
+                  </button>
+                ))}
+              </div>
+              <p className="text-xs text-muted-foreground mt-2">
+                {(categoryAvailability.nivel_asentamiento || []).length === 0 
+                  ? '⚠️ Sin selección = no disponible en ningún asentamiento'
+                  : `✓ Disponible en ${(categoryAvailability.nivel_asentamiento || []).length} tipos de asentamiento`}
+              </p>
+            </div>
+            
+            {/* Region availability */}
+            <div className="border-t border-border/30 pt-4">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-sm font-medium text-[hsl(var(--magic-blue))]">Disponibilidad por Región</h3>
+                <div className="flex gap-2">
+                  <Button variant="outline" size="sm" onClick={selectAllRegions} className="text-xs h-7">
+                    Todas
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={clearAllRegions} className="text-xs h-7">
+                    Ninguna
+                  </Button>
+                </div>
+              </div>
+              
+              <div className="max-h-64 overflow-y-auto space-y-3 bg-black/10 rounded p-3">
+                {availableRegions.map(region => {
+                  const regionSelected = (categoryAvailability.regiones_disponibles || []).includes(region.nombre);
+                  const subregions = region.subregions || [];
+                  const allSubsSelected = subregions.length > 0 && subregions.every(s => (categoryAvailability.regiones_disponibles || []).includes(s.nombre));
+                  
+                  return (
+                    <div key={region.id} className="text-sm">
+                      <div className="flex items-center gap-2">
+                        <Checkbox
+                          checked={regionSelected || allSubsSelected}
+                          onCheckedChange={() => toggleRegion(region.nombre, subregions)}
+                          id={`cat-reg-${region.id}`}
+                        />
+                        <label htmlFor={`cat-reg-${region.id}`} className="font-medium text-[hsl(var(--gold))] cursor-pointer">
+                          {region.nombre}
+                        </label>
+                        {subregions.length > 0 && (
+                          <span className="text-xs text-muted-foreground">
+                            ({subregions.filter(s => (categoryAvailability.regiones_disponibles || []).includes(s.nombre)).length}/{subregions.length})
+                          </span>
+                        )}
+                      </div>
+                      {subregions.length > 0 && (
+                        <div className="ml-6 mt-1 flex flex-wrap gap-x-4 gap-y-1">
+                          {subregions.map(sub => (
+                            <div key={sub.id} className="flex items-center gap-1">
+                              <Checkbox
+                                checked={(categoryAvailability.regiones_disponibles || []).includes(sub.nombre)}
+                                onCheckedChange={() => toggleSubregion(sub.nombre)}
+                                id={`cat-sub-${sub.id}`}
+                                className="w-3 h-3"
+                              />
+                              <label htmlFor={`cat-sub-${sub.id}`} className="text-xs text-muted-foreground cursor-pointer">
+                                {sub.nombre}
+                              </label>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+              <p className="text-xs text-muted-foreground mt-2">
+                {(categoryAvailability.regiones_disponibles || []).length === 0 
+                  ? '📍 Sin selección = disponible en TODAS las regiones'
+                  : `📍 Disponible en ${(categoryAvailability.regiones_disponibles || []).length} regiones/subregiones`}
+              </p>
+            </div>
+            
+            {/* Warning */}
+            <div className="bg-yellow-500/10 border border-yellow-500/30 rounded p-3">
+              <p className="text-sm text-yellow-400 flex items-center gap-2">
+                <AlertTriangle className="w-4 h-4" />
+                Esta acción sobrescribirá la disponibilidad de TODOS los items en "{editingCategoryName}".
+              </p>
+              <p className="text-xs text-muted-foreground mt-1">
+                Podrás ajustar items individuales después usando el botón de editar en cada fila.
+              </p>
+            </div>
+          </div>
+          
+          <div className="p-4 border-t border-border/30 flex justify-end gap-2 sticky bottom-0 bg-[hsl(var(--background))]">
+            <Button variant="outline" onClick={() => setShowCategoryAvailabilityEditor(false)}>
+              Cancelar
+            </Button>
+            <Button
+              onClick={handleSaveCategoryAvailability}
+              disabled={savingCategoryAvailability}
+              className="bg-[hsl(var(--torch-orange))] hover:bg-[hsl(var(--torch-orange))]/90 text-black"
+            >
+              {savingCategoryAvailability ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Check className="w-4 h-4 mr-2" />}
+              Aplicar a {itemCount} Items
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   // Render equipment item editor modal
   const renderEquipmentItemEditor = () => {
     if (!showEquipmentItemEditor || !editingEquipmentItem) return null;
