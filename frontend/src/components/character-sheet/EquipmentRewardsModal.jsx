@@ -48,43 +48,101 @@ const EquipmentRewardsModal = ({
   // Get character's equipment (weapons, armor, items)
   const getEquipmentList = () => {
     const equipment = [];
+    const addedWeapons = new Set(); // Track to avoid duplicates
     
-    // Weapons
+    // Helper to normalize weapon name
+    const normalizeWeaponName = (name) => {
+      if (!name) return null;
+      return typeof name === 'string' ? name.trim().toLowerCase() : name.nombre?.trim().toLowerCase();
+    };
+    
+    // Helper to add a weapon
+    const addWeapon = (arma, idx, source) => {
+      const nombre = typeof arma === 'string' ? arma : arma?.nombre;
+      if (!nombre) return;
+      
+      const normalizedName = nombre.trim().toLowerCase();
+      if (addedWeapons.has(normalizedName)) return;
+      addedWeapons.add(normalizedName);
+      
+      const mejoras = typeof arma === 'object' ? (arma.mejoras || []) : [];
+      equipment.push({
+        id: `arma_${source}_${idx}`,
+        nombre: nombre,
+        tipo: 'arma',
+        mejoras_aplicadas: mejoras,
+        data: typeof arma === 'object' ? arma : { nombre },
+        index: idx,
+      });
+    };
+    
+    // Weapons from armas array (may be objects or strings)
     const weapons = character?.armas || [];
-    weapons.forEach((arma, idx) => {
-      if (arma?.nombre) {
-        equipment.push({
-          id: `arma_${idx}`,
-          nombre: arma.nombre,
-          tipo: 'arma',
-          mejoras_aplicadas: arma.mejoras || [],
-          data: arma,
-          index: idx,
-        });
+    weapons.forEach((arma, idx) => addWeapon(arma, idx, 'armas'));
+    
+    // Weapons from armas_elegidas (usually strings from character creation)
+    const armasElegidas = character?.armas_elegidas || [];
+    armasElegidas.forEach((arma, idx) => addWeapon(arma, idx, 'elegidas'));
+    
+    // Check inventario for weapons
+    const inventario = character?.inventario || [];
+    inventario.forEach((item, idx) => {
+      const nombre = typeof item === 'string' ? item : item?.nombre;
+      if (!nombre) return;
+      const nombreLower = nombre.toLowerCase();
+      // Check if it's a weapon
+      const weaponKeywords = ['espada', 'daga', 'arco', 'hacha', 'maza', 'lanza', 'martillo', 'bastón', 'garrote'];
+      if (weaponKeywords.some(kw => nombreLower.includes(kw))) {
+        addWeapon(item, idx, 'inv');
       }
     });
     
-    // Armor
-    if (character?.armadura?.nombre) {
-      equipment.push({
-        id: 'armadura',
-        nombre: character.armadura.nombre,
-        tipo: 'armadura',
-        mejoras_aplicadas: character.armadura.mejoras || [],
-        data: character.armadura,
+    // Armor - handle both string and object
+    const armadura = character?.armadura;
+    if (armadura) {
+      const nombre = typeof armadura === 'string' ? armadura : armadura?.nombre;
+      if (nombre) {
+        const mejoras = typeof armadura === 'object' ? (armadura.mejoras || []) : [];
+        equipment.push({
+          id: 'armadura',
+          nombre: nombre,
+          tipo: 'armadura',
+          mejoras_aplicadas: mejoras,
+          data: typeof armadura === 'object' ? armadura : { nombre },
+        });
+      }
+    }
+    
+    // Check armadura_elegida (from character creation)
+    const armaduraElegida = character?.armadura_elegida;
+    if (armaduraElegida && !armadura) {
+      const items = Array.isArray(armaduraElegida) ? armaduraElegida : [armaduraElegida];
+      items.forEach((arm, idx) => {
+        const nombre = typeof arm === 'string' ? arm : arm?.nombre;
+        if (nombre) {
+          equipment.push({
+            id: `armadura_elegida_${idx}`,
+            nombre: nombre,
+            tipo: 'armadura',
+            mejoras_aplicadas: [],
+            data: { nombre },
+          });
+        }
       });
     }
     
     // Shield (if exists in equipment)
     const equipoList = character?.equipo || [];
     equipoList.forEach((item, idx) => {
-      if (item?.nombre?.toLowerCase().includes('escudo')) {
+      const nombre = typeof item === 'string' ? item : item?.nombre;
+      if (nombre && nombre.toLowerCase().includes('escudo')) {
+        const mejoras = typeof item === 'object' ? (item.mejoras || []) : [];
         equipment.push({
           id: `escudo_${idx}`,
-          nombre: item.nombre,
+          nombre: nombre,
           tipo: 'escudo',
-          mejoras_aplicadas: item.mejoras || [],
-          data: item,
+          mejoras_aplicadas: mejoras,
+          data: typeof item === 'object' ? item : { nombre },
           index: idx,
         });
       }
