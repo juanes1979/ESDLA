@@ -43,38 +43,30 @@ Build a comprehensive web application to play a modified version of the "Lord of
   - Formato estilizado con colores según éxito/fracaso
 - **Botón "Exportar PDF"** añadido junto a "Guardar Viaje"
 
-#### P2: Exportar Equipamiento a PDF 🖨️
-- **Modal de selección de categorías** en sección de Precios de Equipo:
-  - 7 categorías seleccionables: Armas, Armaduras, Equipo/Herramientas, Consumibles, Hierbas/Venenos, Monturas/Transporte, Construcción
-  - Opción "Seleccionar Todas" para exportar todo
-  - Indicador del número de tablas por categoría
-- **PDF generado con especificaciones del usuario:**
-  - Formato A4 vertical
-  - Fuente tamaño 10 (Calibri/Helvetica)
-  - Tablas organizadas por secciones
-  - Encabezados repetidos en cada página
-  - Numeración de páginas y fecha de generación
+#### P2: Exportar Equipamiento a PDF con Filtros 🖨️
+- **Modal mejorado** con filtros:
+  - **Filtrar por Asentamiento:** dropdown para mostrar solo items disponibles en ese tipo
+  - **Filtrar por Región:** dropdown jerárquico con todas las regiones/subregiones
+  - Indicador visual cuando hay filtros activos
+- **7 categorías** en grid de 2 columnas
+- **PDF generado** respetando los filtros seleccionados
 
 #### Sistema de Edición y Disponibilidad de Equipamiento 🛠️
 - **Botones de editar/eliminar** en cada fila de equipamiento (visible al pasar el ratón)
 - **Modal de edición completo** con:
   - Campos editables: nombre, precio, moneda, peso, daño, CA, etc.
   - Selector de disponibilidad por asentamiento (Aldea, Pueblo, Villa, Ciudad, Capital, Especial)
-- **Endpoints backend nuevos:**
-  - `POST /equipment/batch-update-prices` - Actualizar precios masivamente
-  - `POST /equipment/set-availability` - Configurar disponibilidad
-  - `POST /equipment/batch-set-availability` - Configurar disponibilidad masiva
-- **Precios actualizados** según especificaciones del usuario:
-  - Monturas: Burro 5mp, Caballo de guerra 40mp, etc.
-  - Accesorios: Alforjas 5mc, Silla de monta 2mp, etc.
-  - Transporte terrestre y marítimo con nuevos precios
-  - Hierbas: Aceite regenerador 157mp, Ungüentos enanos, etc.
-- **Disponibilidad inicial configurada** para 485 items:
-  - Items básicos: disponibles en aldeas
-  - Armas marciales: desde pueblo
-  - Armaduras pesadas: solo ciudades/capitales
-  - Caballos de guerra: ciudades/capitales
-  - Navíos de guerra: especial
+  - **Selector de disponibilidad por región** con jerarquía completa:
+    - Checkboxes para cada región principal y sus subregiones
+    - Botones "Todas" y "Ninguna" para selección rápida
+    - Si no hay selección = disponible en todas las regiones
+- **Precios actualizados y disponibilidad regional configurada:**
+  - Caballos de Rohan: solo en Rohan y Gondor
+  - Caballos de Lothlórien: Lothlórien, Rhovanion, Eriador
+  - Camellos/Elefantes: Harad, Rhûn
+  - Transporte marítimo: solo regiones costeras (Gondor, Belfalas, Umbar, Lindon)
+  - Venenos: Mordor, Angmar, Harad, Rhûn
+  - Hierbas raras: ciudades principales
 
 #### P2: Refactorización del Mapa 🗺️
 - **Nuevos componentes modulares en `/components/map/`**:
