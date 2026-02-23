@@ -150,26 +150,33 @@ const EquipmentManagerModal = ({
     return parts.length > 0 ? parts.join(', ') : '0';
   };
 
-  // Calculate total price
+  // Calculate total price with modifiers
   const getTotalPrice = () => {
     if (!selectedItem) return null;
-    const precio = selectedItem.precio || 0;
+    const precioBase = selectedItem.precio || 0;
     const moneda = selectedItem.moneda || 'mp';
-    return { precio: precio * cantidad, moneda };
+    const modifier = calculateTotalModifier();
+    const precioFinal = Math.round(precioBase * cantidad * modifier * 100) / 100;
+    return { 
+      precioBase: precioBase * cantidad,
+      precioFinal,
+      moneda,
+      modifier,
+    };
   };
 
   // Check if can afford
   const canAfford = () => {
     if (!isPurchase || !selectedItem) return true;
-    const { precio, moneda } = getTotalPrice();
-    if (precio === 0) return true;
+    const priceData = getTotalPrice();
+    if (!priceData || priceData.precioFinal === 0) return true;
     
     // Convert everything to copper for comparison
     const rates = { mo: 1000, mp: 100, me: 10, mc: 1 };
     const dinero = character?.dinero || { mo: 0, mp: 0, me: 0, mc: 0 };
     const totalCopper = (dinero.mo || 0) * rates.mo + (dinero.mp || 0) * rates.mp + 
                         (dinero.me || 0) * rates.me + (dinero.mc || 0) * rates.mc;
-    const costCopper = precio * rates[moneda];
+    const costCopper = priceData.precioFinal * rates[priceData.moneda];
     return totalCopper >= costCopper;
   };
 
