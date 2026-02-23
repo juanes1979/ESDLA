@@ -834,6 +834,10 @@ const SheetPage1 = ({ character, scale, weaponCatalog = [], equipmentCatalog = {
       
       {/* Peso y estorbo */}
       <DisplayField {...PAGE1_FIELDS.peso_transportado} value={pesoTransportado} scale={scale} />
+      {/* Mount weight - only show if there's a mount */}
+      {character.montura?.nombre && parseFloat(pesoMontura) > 0 && (
+        <DisplayField {...PAGE1_FIELDS.peso_montura} value={`(M:${pesoMontura})`} scale={scale} />
+      )}
       <DisplayField {...PAGE1_FIELDS.cargado} value={estorbo.cargado} scale={scale} />
       <DisplayField {...PAGE1_FIELDS.muy_cargado} value={estorbo.muy_cargado} scale={scale} />
       
