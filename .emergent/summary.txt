@@ -16,99 +16,128 @@ PRODUCT REQUIREMENTS:
 **User's preferred language**: Español
 
 **what currently exists?**
-A full-stack React/FastAPI/MongoDB application. The main feature is a highly interactive map page () which includes:
-- A unified, high-resolution map of Middle-earth as the background.
-- Display of 182 game locations, whose coordinates have been meticulously recalibrated to fit the unified map.
-- Full Maestro-level CRUD functionality for locations directly from the map interface:
-    - **Create:** Click-to-place new locations via a form. This form includes a hierarchical region selector and the ability to create new custom location *types* (e.g., posada) on the fly.
-    - **Edit:** A detailed form to edit all properties of a selected location.
-    - **Delete:** Functionality to remove locations.
-    - **Reposition:** A drag-and-drop Edit Positions mode to visually move markers.
-- Advanced map controls:
-    - Zoom up to 1500% via buttons or a direct text input.
-    - Panning is enabled even in edit mode.
-    - Dynamic marker labels that appear only at zoom levels >100% and maintain a constant, readable size. At lower zooms, only small colored dots are shown.
-- A robust backend that uses UUIDs for new location IDs to prevent conflicts.
+The application features a  that has become a central hub for data management. It now includes a comprehensive system for equipment management with full CRUD (Create, Read, Update, Delete) capabilities. This system features an advanced, multi-layered availability model, allowing administrators to define where equipment can be purchased based on both settlement wealth (e.g., Aldea, Pueblo, Ciudad) and specific geographic regions/sub-regions. This availability can be set for individual items or for entire equipment categories in a single batch operation.
+
+Furthermore, the  includes a powerful PDF export feature for equipment lists, which allows users to filter by category, settlement type, and region before generating a formatted document.
+
+Other key features include:
+- An interactive map with location CRUD and dynamic region selectors that pull data from a new, fully manageable region/sub-region hierarchy system.
+- A travel generator with PDF export functionality.
+- A character sheet page with the UI for a new equipment rewards application system (modal is built, logic is pending).
 
 **Last working item**:
--   **Last item agent was working:** The agent implemented the user's request for a hierarchical region selector in the location creation/editing forms.
+-   **Last item agent was working:** The agent implemented a feature to edit the availability (both settlement type and region) for an entire category of equipment at once. This includes a new modal for batch editing, triggered from the header of each equipment table.
 -   **Status:** USER VERIFICATION PENDING
 -   **Agent Testing Done:** Y
 -   **Which testing method agent to use?** screenshot tool
 -   **User Testing Done:** N
 
 **All Pending/In progress Issue list**:
--   Issue 1: Implement a dynamic Region/Sub-region management system (P0)
+-   Issue 1: The Apply Rewards modal on the character sheet has been created, but the backend logic to apply the selected enhancement to the character's equipment item and persist the change is not implemented. (P1)
+-   Issue 2: The  component refactoring was started (files created) but not completed. The monolithic file still contains all the logic. (P1)
+-   Issue 3: The  component has become excessively large and complex, containing logic for multiple modals, CRUD operations, and PDF generation. It urgently needs refactoring. (P2)
 
 **Issues Detail:**
--   **Issue 1: Implement a dynamic Region/Sub-region management system**
-    -   **Attempted fixes:** The agent created a hardcoded, static  constant in  and used it to populate the dropdowns in the create/edit location forms. This visually showed the hierarchy but does not allow the user to manage it.
+-   **Issue 1: Implement Apply Rewards Logic**
+    -   **Attempted fixes:** The UI modal () was created and integrated into the  page.
     -   **Next debug checklist:**
-        1.  Propose a plan to the user to create a new section in the  for managing regions and sub-regions.
-        2.  Create a new backend collection (e.g., ) to store the hierarchy, potentially with a  structure.
-        3.  Develop backend CRUD endpoints for this new collection.
-        4.  Build the frontend UI on the  to allow the Maestro to create, edit, and delete regions and their sub-regions.
-        5.  Refactor  to fetch this dynamic hierarchy from the backend, replacing the hardcoded constant.
-    -   **Why fix this issue and what will be achieved with the fix?** To fulfill the user's explicit request to be able to define and manage the world's geography (Pon en reglas una opción de poder indicar que es una región y que es algo dentro de esa región), moving from a static implementation to a flexible, user-controlled system.
+        1.  Create a new backend endpoint (e.g., ).
+        2.  This endpoint should take a  and modify the specified equipment item's data within the character's document in the database.
+        3.  Implement the  function in  to call this new endpoint.
+        4.  Update the character state on the frontend to reflect the change without a full page reload.
+    -   **Why fix this issue and what will be achieved with the fix?** To complete the P1 task requested by the user, making character progression functional.
     -   **Status:** IN PROGRESS
     -   **Is recurring issue?** N
     -   **Should Test frontend/backend/both after fix?** Both
-    -   **Blocked on other issue:** None.
+    -   **Blocked on other issue:** None
+
+-   **Issue 2: Complete  Refactor**
+    -   **Attempted fixes:** The agent created empty component files (, , , ).
+    -   **Next debug checklist:**
+        1.  Systematically move the relevant logic and JSX from  into the newly created component files.
+        2.  Manage state and props appropriately, lifting state where necessary.
+        3.  Import and render the new components within , turning it into a container component.
+    -   **Why fix this issue and what will be achieved with the fix?** To improve code maintainability, readability, and performance, addressing a critical piece of tech debt.
+    -   **Status:** IN PROGRESS
+    -   **Is recurring issue?** Y
+    -   **Should Test frontend/backend/both after fix?** Frontend
+    -   **Blocked on other issue:** None
+
+-   **Issue 3: Refactor **
+    -   **Attempted fixes:** None. The file has only grown larger.
+    -   **Next debug checklist:**
+        1.  Plan the component breakdown (e.g., , , , ).
+        2.  Create the new component files.
+        3.  Extract logic and JSX from  into the new components, managing state via props and context.
+    -   **Why fix this issue and what will be achieved with the fix?** To manage the high complexity of the page and make future changes feasible.
+    -   **Status:** NOT STARTED
+    -   **Is recurring issue?** Y
+    -   **Should Test frontend/backend/both after fix?** Frontend
+    -   **Blocked on other issue:** None
 
 **In progress Task List**:
--   None.
+-   **Task 1: Complete the Apply Rewards feature**
+    -   **Where to resume:** Implement the backend endpoint and frontend logic as described in Issue 1.
+    -   **What will be achieved with this?** A functional character equipment enhancement system.
+    -   **Status:** IN PROGRESS
+    -   **Should Test frontend/backend/both after fix?** Both
+    -   **Blocked on something:** None
+
+-   **Task 2: Finish refactoring **
+    -   **Where to resume:** Populate the created component files with code from the main  file.
+    -   **What will be achieved with this?** A more modular and maintainable map page.
+    -   **Status:** IN PROGRESS
+    -   **Should Test frontend/backend/both after fix?** Frontend
+    -   **Blocked on something:** None
 
 **Upcoming and Future Tasks**
 **Upcoming Tasks:**
--   **P0: Create Region/Sub-region Management UI:** Complete the work from Issue 1 by building the full backend and frontend system for a user-managed region hierarchy.
--   **P1: Implement Equipment Rewards Application:** This is a pending task from a previous session. The reward data is loaded, but the functionality to apply a reward to a character's equipment item needs to be implemented.
+-   **P2: Refactor :** Break down the massive component into smaller, manageable pieces.
 
 **Future Tasks:**
--   Refactor  and  into smaller components.
--   Allow travel logs from the Travel Generator to be exported to PDF.
--   Implement the full user authentication system with roles.
+-   Implement the full user authentication system with roles (Maestro, Admin, Player).
 -   Create a database backup/restore feature.
 -   Build a Game Master (DM) Screen and an online gameplay interface.
 -   Integrate AI for story/NPC generation.
+-   Build the complete, multi-phase character creator.
 
 **Completed work in this session**
--   **Interactive Map Editor Creation (DONE):**
-    -   Built a Maestro-only editor mode on the map page.
-    -   Implemented drag-and-drop to reposition locations.
-    -   Added full CRUD (Create, Edit, Delete) for locations via UI panels.
-    -   Implemented on-the-fly creation of custom location *types*.
--   **Map Location Recalibration (DONE):**
-    -   Replaced the 4-part map background with a single unified map image provided by the user.
-    -   Executed a complex recalibration of all 182 location coordinates to align with the new map, using an Inverse Distance Weighting (IDW) algorithm based on 13 user-provided reference points.
--   **Map UI/UX Enhancements (DONE):**
-    -   Increased max zoom to 1500% and added a direct text input for zoom level.
-    -   Fixed panning while in edit mode.
-    -   Made location markers non-scaling dots, with text labels that only appear at >100% zoom and maintain a constant readable size.
--   **Backend Robustness (DONE):**
-    -   Fixed a critical bug that caused duplicate key errors on location creation by implementing UUID-based  generation.
+-   **Dynamic Equipment Availability System (DONE):**
+    -   Implemented full CRUD for individual equipment items.
+    -   Added availability controls based on settlement wealth and geographic region.
+    -   Created a batch-editing feature to set availability for entire equipment categories.
+-   **Backend Data Updates (DONE):**
+    -   Created and executed a script to perform a bulk update of hundreds of item prices as requested by the user.
+    -   Created and executed a script to set initial default availability for all equipment.
+-   **PDF Export Enhancements (DONE):**
+    -   Added a feature to export filtered equipment lists to a formatted PDF.
+    -   Added PDF export to the Travel Generator results.
+-   **Dynamic Region Management (DONE):**
+    -   Created a full CRUD system for managing game world regions and sub-regions.
+    -   Integrated this dynamic data into the map's location editor.
+-   **Character Sheet Reward UI (DONE):**
+    -   Created the modal and UI for applying rewards to equipment (backend logic pending).
+-   **Minor UI Improvements (DONE):**
+    -   Added a Back to Home button on the map page.
 
 **Earlier issues found/mentioned but not fixed**
--   **Issue 1: Incomplete  Refactoring**
-    -   **Debug checklist:** Identify remaining  functions in  and extract them into new components.
-    -   **Why to solve this issue and what will be achieved with this?** To improve code maintainability, readability, and address known tech debt.
-    -   **Should Test frontend/backend/both after fix:** Frontend
-    -   **Is recurring issue?** Y
+-   None not already listed in the All Pending/In progress Issue list.
 
 **Known issue recurrence from previous fork**
--   None.
+-   The need to refactor large, monolithic React components (, ) is a recurring issue. The agent has added significant functionality, increasing the urgency of this task.
 
 **Code Architecture**
 
 
 **Key Technical Concepts**
--   **Complex Interactive SVG Map:** Built with React, managing state for zoom, pan, filters, multiple edit modes, and user events (drag, click).
--   **Client-Side State for CRUD:** The map editor uses React state to track pending changes before committing them to the backend.
--   **Coordinate System Transformation:** Logic to transform coordinates between the SVG's coordinate space and the map's logical system, accounting for zoom and pan.
--   **Backend Data Calibration:** Used Python scripts with an Inverse Distance Weighting (IDW) interpolation algorithm to perform a complex recalibration of the  database.
--   **Robust ID Generation:** Switched from a counter-based ID to  on the backend to ensure unique  values for new locations.
+-   **Complex Frontend State Management:**  manages state for multiple modals, dynamic forms, and user selections for PDF generation and batch editing.
+-   **Batch Data Operations:** The backend includes endpoints for performing bulk updates on the equipment collection (e.g., , ).
+-   **Dynamic UI Generation:** The availability editing modals for both items and categories are dynamically rendered with hierarchical checkboxes based on region data fetched from the backend.
+-   **Client-Side PDF Generation ():** Used to create highly customized and filtered PDFs directly on the client.
 
 **key DB schema**
--   ****: . The  is a unique string like .
+-   ****: 
+-   ****: 
 
 **changes in tech stack**
 -   None.
@@ -118,48 +147,44 @@ A full-stack React/FastAPI/MongoDB application. The main feature is a highly int
 -   
 -   
 -   
+-   
 
 **Areas that need refactoring**:
--   **:** This component is now monolithic and extremely large (>1800 lines). It urgently needs to be broken down into smaller, manageable sub-components (, , , , etc.) to improve maintainability.
--   **Backend Calibration Scripts:** The numerous one-off calibration scripts in the  directory are likely obsolete and should be archived or removed.
+-   **:** This is the highest priority. The component is now over 2000 lines long and handles logic for at least four distinct features (equipment tables, item editor, category editor, PDF exporter). It must be broken down into smaller components.
+-   **:** The refactoring that was started needs to be completed to move logic into the dedicated child components.
 
 **key api endpoints**
--   : Creates a new location with a unique UUID-based .
--   : Updates an existing location's data.
--   : Deletes a location.
+-   : Full CRUD for region management.
+-   : Updates a single equipment item, including availability.
+-   : Deletes an equipment item.
+-   : Scripted endpoint for bulk price updates.
+-   : Updates availability for all items in a given category.
 
 **Critical Info for New Agent**
--   Your immediate priority is to address the user's request for a **dynamic region management system**. The current implementation is a static, hardcoded list in the frontend. You must propose and build a full CRUD interface for this, likely within the .
--   The user is very hands-on and provides detailed, iterative feedback. Communicate your plan clearly before implementing.
--   The  component has become very large and complex. Propose refactoring it into smaller components as a necessary step for future development and maintainability.
+-   Your first priority should be to propose a plan to the user that includes completing the in-progress tasks (finishing the map refactor and implementing the rewards logic) and addressing the critical tech debt of refactoring .
+-   The user is highly responsive and provides feature-rich requests. All communication must be in Spanish.
+-   The application's complexity is concentrated in . Any new features related to rules or equipment will require touching this file, making its refactoring essential for future progress.
 
 **documents and test reports created in this job**
--   
--   
--   
--   
--   
--   
+-   None.
 
 **Last 10 User Messages and any pending HUMAN messages**
-1.  **User:** Asks for the region selector in the edit form to also be a hierarchical dropdown. Also asks for a way to manage regions and sub-regions within the Rules section.
-2.  **User:** Reports Bree-land should be Tierras de Bree in the new hierarchy. (Agent fixed).
-3.  **User:** Requests ability to create custom location types (e.g., posada). (Agent implemented).
-4.  **User:** Provides a new, better map image to use as a background. (Agent implemented).
-5.  **User:** Reports being unable to create a location due to an unspecified error, providing a long description text as an example. (Agent found and fixed a backend duplicate  error).
-6.  **User:** Asks to block coordinate changes after the first click when creating a location and to use a dropdown for regions. (Agent implemented).
-7.  **User:** Requests a zoom limit of 1500%. (Agent implemented).
-8.  **User:** Asks for a way to create a new location by clicking on the map while in edit mode. (Agent implemented).
-9.  **User:** Asks for location labels to be always legible and not scale with zoom. (Agent implemented).
-10. **User:** Asks for an option to select a location to edit and delete it completely. (Agent implemented).
+1.  **User:** Asks for batch editing of availability for entire equipment categories at once. (**Implemented, pending verification**)
+2.  **User:** Wants equipment availability tied to specific regions/sub-regions and asks the agent to set logical defaults. Also wants PDF export to be filterable by these new criteria. (**Implemented**)
+3.  **User:** Requests edit/delete buttons for equipment, a large batch of price updates, and introduces the concept of availability based on settlement wealth. (**Implemented**)
+4.  **User:** Asks for a feature to print a formatted PDF of the equipment list, with category selection. (**Implemented**)
+5.  **User:** Approves moving on to P1 (rewards) and P2 (PDF export, map refactor) tasks. (**Partially Implemented**)
+6.  **User:** Requests a back button on the map page. (**Implemented**)
+7.  **User:** (and previous) A series of messages defining the interactive map editor, recalibrating locations, and enhancing map UX. (**Completed in a prior session**)
 
 **Project Health Check:**
 -   **Broken:** None
--   **Mocked:** None
+-   **Mocked:** The Apply Rewards feature on the character sheet has a UI but no backend logic to save the changes.
 
 **3rd Party Integrations**
--   , : Used for client-side PDF generation.
--   : Used in backend scripts.
+-   
+-   
+-   
 
 **Testing status**
 -   **Testing agent used after significant changes:** NO
@@ -168,8 +193,7 @@ A full-stack React/FastAPI/MongoDB application. The main feature is a highly int
 -   **Known regressions:** None
 
 **Credentials to test flow:**
--   No login is required. The application defaults to a Maestro user.
+-   No authentication is currently implemented. The app defaults to an admin/Maestro view.
 
 **What agent forgot to execute**
--   The agent did not create a system for the user to *manage* the region hierarchy. It was only implemented as a static, hardcoded list in the frontend code. This was the user's last major request and is the most important pending item.
--   The agent did not refactor the massive  component.</analysis>
+-   The agent started the refactoring of  by creating new component files but failed to move any of the existing logic or JSX into them, leaving the main file as a monolith. This was part of a user-approved task ().</analysis>
