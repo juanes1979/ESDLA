@@ -363,7 +363,11 @@ const SheetPage1 = ({ character, scale, weaponCatalog = [], equipmentCatalog = {
   
   // Get weapon stats
   const getWeaponStats = (weaponName) => {
-    const normalized = weaponName.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+    // Handle both string and object formats
+    const name = typeof weaponName === 'string' ? weaponName : weaponName?.nombre;
+    if (!name) return { dano: '1d4', herida: 12, distancia: 'C/C' };
+    
+    const normalized = name.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
     for (const weapon of weaponCatalog) {
       const catalogName = weapon.nombre.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
       if (catalogName === normalized || normalized.includes(catalogName) || catalogName.includes(normalized)) {
