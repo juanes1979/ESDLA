@@ -1684,10 +1684,19 @@ const RulesPage = () => {
       );
     };
     
+    // Get all subregions for the dropdown
+    const allRegionsFlat = [];
+    availableRegions.forEach(r => {
+      allRegionsFlat.push({ id: r.id, nombre: r.nombre, isMain: true });
+      r.subregions?.forEach(s => {
+        allRegionsFlat.push({ id: s.id, nombre: s.nombre, isMain: false, parent: r.nombre });
+      });
+    });
+    
     return (
       <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4">
-        <div className="bg-[hsl(var(--background))] border border-[hsl(var(--gold))]/50 rounded-lg w-full max-w-lg">
-          <div className="p-4 border-b border-border/30 flex justify-between items-center">
+        <div className="bg-[hsl(var(--background))] border border-[hsl(var(--gold))]/50 rounded-lg w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+          <div className="p-4 border-b border-border/30 flex justify-between items-center sticky top-0 bg-[hsl(var(--background))]">
             <h2 className="font-heading text-xl text-[hsl(var(--gold))] flex items-center gap-2">
               <Printer className="w-5 h-5" />
               Exportar Listado de Equipo a PDF
@@ -1699,8 +1708,53 @@ const RulesPage = () => {
           
           <div className="p-4 space-y-4">
             <p className="text-sm text-muted-foreground">
-              Selecciona las categorías que deseas incluir en el PDF (A4 vertical, fuente Calibri 10pt):
+              Selecciona las categorías y filtros para el PDF (A4 vertical, fuente Calibri 10pt):
             </p>
+            
+            {/* Filters Section */}
+            <div className="grid grid-cols-2 gap-4 p-3 bg-black/20 rounded-lg border border-border/30">
+              <div>
+                <label className="text-sm font-medium text-[hsl(var(--gold))] mb-2 block">
+                  Filtrar por Asentamiento
+                </label>
+                <select
+                  value={pdfFilterSettlement}
+                  onChange={(e) => setPdfFilterSettlement(e.target.value)}
+                  className="w-full h-9 px-2 bg-background border border-border rounded text-sm"
+                >
+                  <option value="">Todos los asentamientos</option>
+                  {SETTLEMENT_LEVELS.map(level => (
+                    <option key={level.id} value={level.id}>
+                      {level.icon} {level.name}
+                    </option>
+                  ))}
+                </select>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Solo items disponibles en este tipo
+                </p>
+              </div>
+              
+              <div>
+                <label className="text-sm font-medium text-[hsl(var(--magic-blue))] mb-2 block">
+                  Filtrar por Región
+                </label>
+                <select
+                  value={pdfFilterRegion}
+                  onChange={(e) => setPdfFilterRegion(e.target.value)}
+                  className="w-full h-9 px-2 bg-background border border-border rounded text-sm"
+                >
+                  <option value="">Todas las regiones</option>
+                  {allRegionsFlat.map(r => (
+                    <option key={r.id} value={r.nombre}>
+                      {r.isMain ? `📍 ${r.nombre}` : `   ↳ ${r.nombre}`}
+                    </option>
+                  ))}
+                </select>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Solo items disponibles en esta región
+                </p>
+              </div>
+            </div>
             
             {/* Select All */}
             <div className="flex items-center gap-2 pb-2 border-b border-border/30">
@@ -1710,12 +1764,12 @@ const RulesPage = () => {
                 onCheckedChange={toggleAll}
               />
               <label htmlFor="select-all" className="text-sm font-medium cursor-pointer">
-                Seleccionar Todas
+                Seleccionar Todas las Categorías
               </label>
             </div>
             
             {/* Category checkboxes */}
-            <div className="grid grid-cols-1 gap-2 max-h-64 overflow-y-auto">
+            <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto">
               {EQUIPMENT_PDF_SECTIONS.map(section => (
                 <div key={section.id} className="flex items-center gap-2">
                   <Checkbox 
@@ -1725,8 +1779,8 @@ const RulesPage = () => {
                   />
                   <label htmlFor={`cat-${section.id}`} className="text-sm cursor-pointer flex-1">
                     {section.title}
-                    <span className="text-xs text-muted-foreground ml-2">
-                      ({section.categories.length} {section.categories.length === 1 ? 'tabla' : 'tablas'})
+                    <span className="text-xs text-muted-foreground ml-1">
+                      ({section.categories.length})
                     </span>
                   </label>
                 </div>
@@ -1734,22 +1788,38 @@ const RulesPage = () => {
             </div>
           </div>
           
-          <div className="p-4 border-t border-border/30 flex justify-end gap-2">
-            <Button variant="outline" onClick={() => setShowEquipmentPdfModal(false)}>
-              Cancelar
-            </Button>
-            <Button
-              onClick={generateEquipmentPDF}
-              disabled={selectedPdfCategories.length === 0 || generatingEquipmentPdf}
-              className="bg-[hsl(var(--gold))] hover:bg-[hsl(var(--gold))]/90 text-black"
-            >
-              {generatingEquipmentPdf ? (
-                <Loader2 className="w-4 h-4 animate-spin mr-2" />
-              ) : (
-                <FileText className="w-4 h-4 mr-2" />
-              )}
-              Generar PDF
-            </Button>
+          <div className="p-4 border-t border-border/30 flex justify-between items-center sticky bottom-0 bg-[hsl(var(--background))]">
+            <p className="text-xs text-muted-foreground">
+              {pdfFilterSettlement || pdfFilterRegion ? (
+                <span className="text-yellow-400">
+                  Filtro activo: {pdfFilterSettlement && `🏘️ ${SETTLEMENT_LEVELS.find(l => l.id === pdfFilterSettlement)?.name}`}
+                  {pdfFilterSettlement && pdfFilterRegion && ' + '}
+                  {pdfFilterRegion && `📍 ${pdfFilterRegion}`}
+                </span>
+              ) : 'Sin filtros (todo el equipo)'}
+            </p>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={() => setShowEquipmentPdfModal(false)}>
+                Cancelar
+              </Button>
+              <Button
+                onClick={generateEquipmentPDF}
+                disabled={selectedPdfCategories.length === 0 || generatingEquipmentPdf}
+                className="bg-[hsl(var(--gold))] hover:bg-[hsl(var(--gold))]/90 text-black"
+              >
+                {generatingEquipmentPdf ? (
+                  <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                ) : (
+                  <FileText className="w-4 h-4 mr-2" />
+                )}
+                Generar PDF
+              </Button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
           </div>
         </div>
       </div>
