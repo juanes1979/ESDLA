@@ -405,7 +405,8 @@ const SheetPage1 = ({ character, scale, weaponCatalog = [], equipmentCatalog = {
     return Array.from({ length: 8 }, (_, i) => equipment[i] || '');
   };
   
-  // Get weapons (5 max)
+  // Get weapons (5 max) - ONLY weapons WITHOUT rewards
+  // Weapons with rewards are shown in the recompensas section
   const getWeapons = () => {
     const weaponItems = [];
     
@@ -413,6 +414,11 @@ const SheetPage1 = ({ character, scale, weaponCatalog = [], equipmentCatalog = {
     const getName = (item) => {
       if (!item) return null;
       return typeof item === 'string' ? item : item?.nombre;
+    };
+    
+    const getMejoras = (item) => {
+      if (!item || typeof item === 'string') return [];
+      return item.mejoras || [];
     };
     
     const isDuplicate = (nombre) => {
@@ -423,29 +429,138 @@ const SheetPage1 = ({ character, scale, weaponCatalog = [], equipmentCatalog = {
     
     (character.armas_elegidas || []).forEach(arma => {
       const nombre = getName(arma);
-      if (nombre && !isDuplicate(nombre)) {
+      const mejoras = getMejoras(arma);
+      // Skip if has mejoras (will be shown in recompensas section)
+      if (nombre && !isDuplicate(nombre) && mejoras.length === 0) {
         const stats = getWeaponStats(nombre);
-        const mejoras = typeof arma === 'object' ? (arma.mejoras || []) : [];
-        weaponItems.push({ nombre, dano: stats.dano, herida: stats.herida, distancia: stats.distancia, mejoras });
+        weaponItems.push({ nombre, dano: stats.dano, herida: stats.herida, distancia: stats.distancia, mejoras: [] });
       }
     });
     (character.inventario || []).forEach(item => {
       const nombre = getName(item);
-      if (isWeapon(nombre) && !isDuplicate(nombre)) {
+      const mejoras = getMejoras(item);
+      if (isWeapon(nombre) && !isDuplicate(nombre) && mejoras.length === 0) {
         const stats = getWeaponStats(nombre);
-        const mejoras = typeof item === 'object' ? (item.mejoras || []) : [];
-        weaponItems.push({ nombre, dano: item.dano || stats.dano, herida: item.herida || stats.herida, distancia: item.distancia || stats.distancia, mejoras });
+        weaponItems.push({ nombre, dano: item.dano || stats.dano, herida: item.herida || stats.herida, distancia: item.distancia || stats.distancia, mejoras: [] });
       }
     });
     (character.equipo_ocupacion || []).forEach(item => {
       const nombre = getName(item);
-      if (isWeapon(nombre) && !isDuplicate(nombre)) {
+      const mejoras = getMejoras(item);
+      if (isWeapon(nombre) && !isDuplicate(nombre) && mejoras.length === 0) {
         const stats = getWeaponStats(nombre);
-        const mejoras = typeof item === 'object' ? (item.mejoras || []) : [];
-        weaponItems.push({ nombre, dano: stats.dano, herida: stats.herida, distancia: stats.distancia, mejoras });
+        weaponItems.push({ nombre, dano: stats.dano, herida: stats.herida, distancia: stats.distancia, mejoras: [] });
       }
     });
     return Array.from({ length: 5 }, (_, i) => weaponItems[i] || { nombre: '', dano: '', herida: '', distancia: '' });
+  };
+  
+  // Get items with rewards (armas, armadura, escudo) - max 6
+  // Format: "NOMBRE DAÑO HERIDA DISTANCIA RECOMPENSA: mejora1, mejora2"
+  const getRecompensasRows = () => {
+    const recompensaItems = [];
+    
+    const getName = (item) => {
+      if (!item) return null;
+      return typeof item === 'string' ? item : item?.nombre;
+    };
+    
+    const getMejoras = (item) => {
+      if (!item || typeof item === 'string') return [];
+      return item.mejoras || [];
+    };
+    
+    const addedNames = new Set();
+    
+    // Check armas_elegidas
+    (character.armas_elegidas || []).forEach(arma => {
+      const nombre = getName(arma);
+      const mejoras = getMejoras(arma);
+      if (nombre && mejoras.length > 0 && !addedNames.has(nombre.toLowerCase())) {
+        addedNames.add(nombre.toLowerCase());
+        const stats = getWeaponStats(nombre);
+        recompensaItems.push({
+          nombre,
+          dano: stats.dano,
+          herida: stats.herida,
+          distancia: stats.distancia,
+          mejoras,
+        });
+      }
+    });
+    
+    // Check inventario weapons
+    (character.inventario || []).forEach(item => {
+      const nombre = getName(item);
+      const mejoras = getMejoras(item);
+      if (isWeapon(nombre) && mejoras.length > 0 && !addedNames.has(nombre.toLowerCase())) {
+        addedNames.add(nombre.toLowerCase());
+        const stats = getWeaponStats(nombre);
+        recompensaItems.push({
+          nombre,
+          dano: item.dano || stats.dano,
+          herida: item.herida || stats.herida,
+          distancia: item.distancia || stats.distancia,
+          mejoras,
+        });
+      }
+    });
+    
+    // Check equipo_ocupacion weapons
+    (character.equipo_ocupacion || []).forEach(item => {
+      const nombre = getName(item);
+      const mejoras = getMejoras(item);
+      if (isWeapon(nombre) && mejoras.length > 0 && !addedNames.has(nombre.toLowerCase())) {
+        addedNames.add(nombre.toLowerCase());
+        const stats = getWeaponStats(nombre);
+        recompensaItems.push({
+          nombre,
+          dano: stats.dano,
+          herida: stats.herida,
+          distancia: stats.distancia,
+          mejoras,
+        });
+      }
+    });
+    
+    // Check armadura
+    const armadura = character.armadura;
+    if (armadura) {
+      const nombre = getName(armadura);
+      const mejoras = getMejoras(armadura);
+      if (nombre && mejoras.length > 0) {
+        recompensaItems.push({
+          nombre,
+          dano: '-',
+          herida: '-',
+          distancia: '-',
+          mejoras,
+        });
+      }
+    }
+    
+    // Check equipo for shields with mejoras
+    (character.equipo || []).forEach(item => {
+      const nombre = getName(item);
+      const mejoras = getMejoras(item);
+      if (nombre && mejoras.length > 0 && !addedNames.has(nombre.toLowerCase())) {
+        addedNames.add(nombre.toLowerCase());
+        recompensaItems.push({
+          nombre,
+          dano: '-',
+          herida: '-',
+          distancia: '-',
+          mejoras,
+        });
+      }
+    });
+    
+    // Format each item: "NOMBRE DAÑO HERIDA DIST RECOMPENSA: mejora1, mejora2"
+    return Array.from({ length: 6 }, (_, i) => {
+      const item = recompensaItems[i];
+      if (!item) return '';
+      return `${item.nombre} ${item.dano} ${item.herida} ${item.distancia} [${item.mejoras.join(', ')}]`;
+    });
   };
   
   // Get languages and tools
