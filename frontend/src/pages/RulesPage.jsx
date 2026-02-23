@@ -3852,6 +3852,9 @@ const RulesPage = () => {
       
       {/* Equipment PDF Export Modal */}
       {renderEquipmentPdfModal()}
+      
+      {/* Equipment Item Editor Modal */}
+      {renderEquipmentItemEditor()}
     </div>
   );
 };
