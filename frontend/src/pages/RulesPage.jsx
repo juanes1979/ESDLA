@@ -1516,8 +1516,24 @@ const RulesPage = () => {
         y += 5;
         
         for (const cat of section.categories) {
-          const items = data[cat.key];
+          let items = data[cat.key];
           if (!items?.length) continue;
+          
+          // Apply filters
+          if (pdfFilterSettlement) {
+            items = items.filter(item => {
+              const levels = item.nivel_asentamiento || [];
+              return levels.length === 0 || levels.includes(pdfFilterSettlement);
+            });
+          }
+          if (pdfFilterRegion) {
+            items = items.filter(item => {
+              const regions = item.regiones_disponibles || [];
+              return regions.length === 0 || regions.includes(pdfFilterRegion);
+            });
+          }
+          
+          if (!items.length) continue;
           
           checkNewPage(12);
           
