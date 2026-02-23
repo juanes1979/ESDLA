@@ -499,11 +499,12 @@ const EquipmentManagerModal = ({
               <div className="col-span-4 border-l border-border/30 pl-4">
                 <h4 className="font-medium mb-3 text-[hsl(var(--gold))]">Añadir Item</h4>
                 {selectedItem ? (
-                  <div className="space-y-4">
+                  <ScrollArea className="h-[55vh]">
+                  <div className="space-y-4 pr-2">
                     <div className="p-3 bg-secondary/30 rounded">
                       <h5 className="font-medium">{selectedItem.nombre}</h5>
                       <div className="text-sm text-muted-foreground mt-1 space-y-1">
-                        {selectedItem.precio > 0 && <p>Precio: {selectedItem.precio} {selectedItem.moneda || 'mp'}</p>}
+                        {selectedItem.precio > 0 && <p>Precio base: {selectedItem.precio} {selectedItem.moneda || 'mp'}</p>}
                         {selectedItem.peso_kg > 0 && <p>Peso: {selectedItem.peso_kg} kg</p>}
                         {selectedItem.dano && <p>Daño: {selectedItem.dano}</p>}
                         {selectedItem.ca && <p>CA: +{selectedItem.ca}</p>}
@@ -546,11 +547,106 @@ const EquipmentManagerModal = ({
                       </div>
                     </div>
                     
+                    {/* Price Modifiers - Only show when purchasing */}
+                    {isPurchase && selectedItem.precio > 0 && priceModifiers && (
+                      <div className="space-y-2 border border-border/30 rounded p-3">
+                        <button 
+                          onClick={() => setShowModifiers(!showModifiers)}
+                          className="flex items-center gap-2 w-full text-left text-sm font-medium text-[hsl(var(--gold))]"
+                        >
+                          {showModifiers ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+                          Modificadores de Precio ({(calculateTotalModifier() * 100).toFixed(0)}%)
+                        </button>
+                        
+                        {showModifiers && (
+                          <div className="space-y-3 mt-2">
+                            {/* Region */}
+                            <div>
+                              <Label className="text-xs text-muted-foreground">Región</Label>
+                              <select 
+                                className="w-full mt-1 bg-secondary/50 border border-border/30 rounded p-2 text-sm"
+                                value={selectedModifiers.region?.nombre || ''}
+                                onChange={(e) => {
+                                  const mod = priceModifiers.region.find(m => m.nombre === e.target.value);
+                                  setSelectedModifiers(prev => ({ ...prev, region: mod || null }));
+                                }}
+                              >
+                                <option value="">Sin modificador (100%)</option>
+                                {priceModifiers.region.map((m, i) => (
+                                  <option key={i} value={m.nombre}>{m.nombre} ({(m.modificador * 100).toFixed(0)}%)</option>
+                                ))}
+                              </select>
+                            </div>
+                            
+                            {/* Settlement */}
+                            <div>
+                              <Label className="text-xs text-muted-foreground">Asentamiento</Label>
+                              <select 
+                                className="w-full mt-1 bg-secondary/50 border border-border/30 rounded p-2 text-sm"
+                                value={selectedModifiers.asentamiento?.nombre || ''}
+                                onChange={(e) => {
+                                  const mod = priceModifiers.asentamiento.find(m => m.nombre === e.target.value);
+                                  setSelectedModifiers(prev => ({ ...prev, asentamiento: mod || null }));
+                                }}
+                              >
+                                <option value="">Sin modificador (100%)</option>
+                                {priceModifiers.asentamiento.map((m, i) => (
+                                  <option key={i} value={m.nombre}>{m.nombre} ({(m.modificador * 100).toFixed(0)}%)</option>
+                                ))}
+                              </select>
+                            </div>
+                            
+                            {/* Relationship */}
+                            <div>
+                              <Label className="text-xs text-muted-foreground">Relación con el vendedor</Label>
+                              <select 
+                                className="w-full mt-1 bg-secondary/50 border border-border/30 rounded p-2 text-sm"
+                                value={selectedModifiers.relacion?.nombre || ''}
+                                onChange={(e) => {
+                                  const mod = priceModifiers.relacion.find(m => m.nombre === e.target.value);
+                                  setSelectedModifiers(prev => ({ ...prev, relacion: mod || null }));
+                                }}
+                              >
+                                <option value="">Sin modificador (100%)</option>
+                                {priceModifiers.relacion.map((m, i) => (
+                                  <option key={i} value={m.nombre}>{m.nombre} ({(m.modificador * 100).toFixed(0)}%)</option>
+                                ))}
+                              </select>
+                            </div>
+                            
+                            {/* Context */}
+                            <div>
+                              <Label className="text-xs text-muted-foreground">Contexto histórico</Label>
+                              <select 
+                                className="w-full mt-1 bg-secondary/50 border border-border/30 rounded p-2 text-sm"
+                                value={selectedModifiers.contexto?.nombre || ''}
+                                onChange={(e) => {
+                                  const mod = priceModifiers.contexto.find(m => m.nombre === e.target.value);
+                                  setSelectedModifiers(prev => ({ ...prev, contexto: mod || null }));
+                                }}
+                              >
+                                <option value="">Sin modificador (100%)</option>
+                                {priceModifiers.contexto.map((m, i) => (
+                                  <option key={i} value={m.nombre}>{m.nombre} ({(m.modificador * 100).toFixed(0)}%)</option>
+                                ))}
+                              </select>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                    
                     {isPurchase && selectedItem.precio > 0 && (
                       <div className={`p-3 rounded ${canAfford() ? 'bg-green-900/30' : 'bg-red-900/30'}`}>
-                        <p className="text-sm">
-                          <strong>Total:</strong> {getTotalPrice()?.precio} {getTotalPrice()?.moneda}
-                        </p>
+                        <div className="text-sm space-y-1">
+                          <p><span className="text-muted-foreground">Base:</span> {getTotalPrice()?.precioBase} {getTotalPrice()?.moneda}</p>
+                          {getTotalPrice()?.modifier !== 1 && (
+                            <p><span className="text-muted-foreground">Modificador:</span> x{getTotalPrice()?.modifier.toFixed(2)} ({(getTotalPrice()?.modifier * 100).toFixed(0)}%)</p>
+                          )}
+                          <p className="font-bold text-base">
+                            <strong>Total:</strong> {getTotalPrice()?.precioFinal} {getTotalPrice()?.moneda}
+                          </p>
+                        </div>
                         {!canAfford() && (
                           <p className="text-xs text-red-400 flex items-center gap-1 mt-1">
                             <AlertTriangle className="w-3 h-3" />
