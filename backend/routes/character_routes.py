@@ -1016,12 +1016,14 @@ async def apply_equipment_reward(character_id: str, data: ApplyEquipmentReward):
             raise HTTPException(status_code=400, detail="equipment_index required for weapons")
         
         # Determine which array to use based on source
-        if source == 'elegidas':
-            array_key = 'armas_elegidas'
-        elif source == 'inv':
-            array_key = 'inventario'
-        else:
-            array_key = 'armas'
+        source_map = {
+            'armas': 'armas',
+            'elegidas': 'armas_elegidas',
+            'inv': 'inventario',
+            'ocupacion': 'equipo_ocupacion',
+            'trasfondo': 'equipo_trasfondo',
+        }
+        array_key = source_map.get(source, 'armas')
         
         armas = character.get(array_key, [])
         if data.equipment_index < 0 or data.equipment_index >= len(armas):
