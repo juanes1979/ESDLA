@@ -214,14 +214,14 @@ Build a comprehensive web application to play a modified version of the "Lord of
 
 ## 📋 UPCOMING TASKS
 
-### P1 - In Progress / Next Priority
+### P1 - Next Priority
 1. **Finalizar refactorización de `MiddleEarthMap.jsx`** - Los componentes modulares están creados en `/components/map/`, falta mover la lógica del archivo principal
-2. **Sistema de Autenticación** (Maestro > Admin > Jugador)
-3. **Backup/Restore de base de datos**
+2. **Refactorizar `RulesPage.jsx`** (~4000+ líneas) - Extraer componentes para mejorar mantenibilidad
 
 ### P2 - Medium Priority
-1. **Refactorizar `RulesPage.jsx`** (~2000+ líneas) - Extraer componentes: `EquipmentTable`, `EquipmentEditorModal`, `CategoryEditorModal`, `EquipmentPdfModal`
-2. **Pantalla del DM** - Vista centralizada para el director de juego
+1. **Sistema de Autenticación** (Maestro > Admin > Jugador)
+2. **Backup/Restore de base de datos**
+3. **Pantalla del DM** - Vista centralizada para el director de juego
 
 ### P3 - Future Tasks
 - Interfaz de juego online
