@@ -1390,6 +1390,133 @@ async def delete_equipment_item(categoria: str, item_nombre: str):
     return {"message": f"Item '{item_nombre}' deleted"}
 
 
+@router.post("/equipment/batch-update-prices")
+async def batch_update_equipment_prices(updates: List[dict] = Body(...)):
+    """
+    Update prices for multiple equipment items.
+    Each update should have: { categoria, nombre, precio, moneda (optional) }
+    """
+    catalog = await db.equipment_catalog.find_one({"_id": "main"})
+    if not catalog:
+        raise HTTPException(status_code=404, detail="Equipment catalog not found")
+    
+    updated_count = 0
+    not_found = []
+    
+    for update in updates:
+        categoria = update.get("categoria")
+        nombre = update.get("nombre")
+        nuevo_precio = update.get("precio")
+        moneda = update.get("moneda")
+        
+        if not categoria or not nombre or nuevo_precio is None:
+            continue
+        
+        if categoria not in catalog:
+            not_found.append(f"{categoria}/{nombre}")
+            continue
+        
+        found = False
+        for item in catalog[categoria]:
+            if item.get("nombre", "").lower() == nombre.lower():
+                item["precio"] = nuevo_precio
+                if moneda:
+                    item["moneda"] = moneda
+                found = True
+                updated_count += 1
+                break
+        
+        if not found:
+            not_found.append(f"{categoria}/{nombre}")
+    
+    # Save all changes
+    await db.equipment_catalog.update_one(
+        {"_id": "main"},
+        {"$set": catalog}
+    )
+    
+    return {
+        "message": f"Updated {updated_count} items",
+        "updated_count": updated_count,
+        "not_found": not_found
+    }
+
+
+@router.post("/equipment/set-availability")
+async def set_equipment_availability(data: dict = Body(...)):
+    """
+    Set availability for equipment items based on settlement level and regions.
+    data: { categoria, nombre, nivel_asentamiento: [], regiones_disponibles: [] }
+    
+    Niveles de asentamiento: aldea, pueblo, villa, ciudad, capital, especial
+    """
+    categoria = data.get("categoria")
+    nombre = data.get("nombre")
+    nivel_asentamiento = data.get("nivel_asentamiento", [])
+    regiones_disponibles = data.get("regiones_disponibles", [])
+    
+    catalog = await db.equipment_catalog.find_one({"_id": "main"})
+    if not catalog or categoria not in catalog:
+        raise HTTPException(status_code=404, detail="Category not found")
+    
+    found = False
+    for item in catalog[categoria]:
+        if item.get("nombre", "").lower() == nombre.lower():
+            item["nivel_asentamiento"] = nivel_asentamiento
+            item["regiones_disponibles"] = regiones_disponibles
+            found = True
+            break
+    
+    if not found:
+        raise HTTPException(status_code=404, detail="Item not found")
+    
+    await db.equipment_catalog.update_one(
+        {"_id": "main"},
+        {"$set": {categoria: catalog[categoria]}}
+    )
+    
+    return {"message": f"Availability updated for '{nombre}'"}
+
+
+@router.post("/equipment/batch-set-availability")
+async def batch_set_equipment_availability(updates: List[dict] = Body(...)):
+    """
+    Set availability for multiple items at once.
+    Each update: { categoria, nombre, nivel_asentamiento: [], regiones_disponibles: [] }
+    """
+    catalog = await db.equipment_catalog.find_one({"_id": "main"})
+    if not catalog:
+        raise HTTPException(status_code=404, detail="Equipment catalog not found")
+    
+    updated_count = 0
+    
+    for update in updates:
+        categoria = update.get("categoria")
+        nombre = update.get("nombre")
+        nivel_asentamiento = update.get("nivel_asentamiento", [])
+        regiones_disponibles = update.get("regiones_disponibles", [])
+        
+        if not categoria or not nombre:
+            continue
+        
+        if categoria not in catalog:
+            continue
+        
+        for item in catalog[categoria]:
+            if item.get("nombre", "").lower() == nombre.lower():
+                item["nivel_asentamiento"] = nivel_asentamiento
+                item["regiones_disponibles"] = regiones_disponibles
+                updated_count += 1
+                break
+    
+    await db.equipment_catalog.update_one(
+        {"_id": "main"},
+        {"$set": catalog}
+    )
+    
+    return {"message": f"Updated availability for {updated_count} items"}
+
+
 # === EQUIPMENT CATEGORIES METADATA ===
 
 @router.get("/equipment-categories")
