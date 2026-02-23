@@ -1836,11 +1836,6 @@ const RulesPage = () => {
       </div>
     );
   };
-          </div>
-        </div>
-      </div>
-    );
-  };
 
   // Render virtues - Complete data with all fields
   const renderVirtues = () => {
