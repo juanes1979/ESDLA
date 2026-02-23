@@ -43,6 +43,18 @@ Build a comprehensive web application to play a modified version of the "Lord of
   - Formato estilizado con colores según éxito/fracaso
 - **Botón "Exportar PDF"** añadido junto a "Guardar Viaje"
 
+#### P2: Exportar Equipamiento a PDF 🖨️
+- **Modal de selección de categorías** en sección de Precios de Equipo:
+  - 7 categorías seleccionables: Armas, Armaduras, Equipo/Herramientas, Consumibles, Hierbas/Venenos, Monturas/Transporte, Construcción
+  - Opción "Seleccionar Todas" para exportar todo
+  - Indicador del número de tablas por categoría
+- **PDF generado con especificaciones del usuario:**
+  - Formato A4 vertical
+  - Fuente tamaño 10 (Calibri/Helvetica)
+  - Tablas organizadas por secciones
+  - Encabezados repetidos en cada página
+  - Numeración de páginas y fecha de generación
+
 #### P2: Refactorización del Mapa 🗺️
 - **Nuevos componentes modulares en `/components/map/`**:
   - `MapControls.jsx` - Controles de zoom, switches de vista
