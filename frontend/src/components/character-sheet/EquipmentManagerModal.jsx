@@ -271,43 +271,85 @@ const EquipmentManagerModal = ({
   // Get all character equipment for management tab
   const getAllEquipment = () => {
     const items = [];
+    const addedWeapons = new Set();
     
-    // Weapons
-    (character.armas || []).forEach((arma, idx) => {
-      const nombre = typeof arma === 'object' ? arma.nombre : arma;
-      items.push({
-        nombre,
-        categoria: 'armas',
-        tipo: 'Arma',
-        peso: arma.peso_kg || 0,
-        canMove: false, // Weapons always on character
-        index: idx,
+    // Helper to add weapons from different sources
+    const addWeapons = (armasArray, source) => {
+      (armasArray || []).forEach((arma, idx) => {
+        const nombre = typeof arma === 'object' ? arma.nombre : arma;
+        if (!nombre || addedWeapons.has(nombre.toLowerCase())) return;
+        addedWeapons.add(nombre.toLowerCase());
+        
+        const mejoras = typeof arma === 'object' ? (arma.mejoras || []) : [];
+        items.push({
+          nombre: mejoras.length > 0 ? `${nombre} [${mejoras.join(', ')}]` : nombre,
+          nombreBase: nombre,
+          categoria: 'armas',
+          tipo: 'Arma',
+          peso: arma?.peso_kg || 0,
+          canMove: false, // Weapons always on character
+          index: idx,
+          source: source,
+          mejoras,
+        });
       });
-    });
+    };
+    
+    // Weapons from armas array
+    addWeapons(character.armas, 'armas');
+    
+    // Weapons from armas_elegidas (character creation)
+    addWeapons(character.armas_elegidas, 'elegidas');
     
     // Armor
     const armadura = character.armadura;
     if (armadura && (typeof armadura === 'string' ? armadura : armadura.nombre)) {
+      const nombre = typeof armadura === 'object' ? armadura.nombre : armadura;
+      const mejoras = typeof armadura === 'object' ? (armadura.mejoras || []) : [];
       items.push({
-        nombre: typeof armadura === 'object' ? armadura.nombre : armadura,
+        nombre: mejoras.length > 0 ? `${nombre} [${mejoras.join(', ')}]` : nombre,
+        nombreBase: nombre,
         categoria: 'armaduras',
         tipo: 'Armadura',
-        peso: armadura.peso_kg || 0,
+        peso: armadura?.peso_kg || 0,
         canMove: false, // Armor always on character
+        mejoras,
       });
+    }
+    
+    // Armor from armadura_elegida (character creation)
+    if (!armadura && character.armadura_elegida) {
+      const armElegida = Array.isArray(character.armadura_elegida) 
+        ? character.armadura_elegida[0] 
+        : character.armadura_elegida;
+      if (armElegida) {
+        const nombre = typeof armElegida === 'object' ? armElegida.nombre : armElegida;
+        items.push({
+          nombre,
+          nombreBase: nombre,
+          categoria: 'armaduras',
+          tipo: 'Armadura',
+          peso: 0,
+          canMove: false,
+          mejoras: [],
+        });
+      }
     }
     
     // Shield/Equipment
     (character.equipo || []).forEach((item, idx) => {
       const nombre = typeof item === 'object' ? item.nombre : item;
+      const mejoras = typeof item === 'object' ? (item.mejoras || []) : [];
       items.push({
-        nombre,
+        nombre: mejoras.length > 0 ? `${nombre} [${mejoras.join(', ')}]` : nombre,
+        nombreBase: nombre,
         categoria: nombre?.toLowerCase().includes('escudo') ? 'escudos' : 'equipo',
         tipo: nombre?.toLowerCase().includes('escudo') ? 'Escudo' : 'Equipo',
-        peso: item.peso_kg || 0,
+        peso: item?.peso_kg || 0,
         canMove: !nombre?.toLowerCase().includes('escudo'), // Shields can't be moved
-        portadoPor: item.portado_por || 'personaje',
+        portadoPor: item?.portado_por || 'personaje',
         index: idx,
+        mejoras,
       });
     });
     
@@ -318,14 +360,29 @@ const EquipmentManagerModal = ({
       items.push({
         nombre: cantidad > 1 ? `${nombre} (x${cantidad})` : nombre,
         nombreBase: nombre,
-        categoria: item.categoria || 'equipo_general',
+        categoria: item?.categoria || 'equipo_general',
         tipo: 'Inventario',
-        peso: (item.peso_kg || 0) * cantidad,
+        peso: (item?.peso_kg || 0) * cantidad,
         canMove: true,
-        portadoPor: item.portado_por || 'personaje',
+        portadoPor: item?.portado_por || 'personaje',
         index: idx,
       });
     });
+    
+    // Mount
+    const montura = character.montura;
+    if (montura && montura.nombre) {
+      items.push({
+        nombre: `${montura.nombre} (Cap: ${montura.capacidad_carga || 0}kg)`,
+        nombreBase: montura.nombre,
+        categoria: 'monturas',
+        tipo: 'Montura',
+        peso: 0,
+        canMove: false,
+        isMontura: true,
+        capacidad: montura.capacidad_carga || 0,
+      });
+    }
     
     return items;
   };
