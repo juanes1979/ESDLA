@@ -1028,7 +1028,7 @@ const RulesPage = () => {
               </div>
             )}
             
-            {/* Availability section */}
+            {/* Availability by Settlement */}
             <div className="border-t border-border/30 pt-4">
               <h3 className="text-sm font-medium text-[hsl(var(--gold))] mb-3">Disponibilidad por Asentamiento</h3>
               <div className="flex flex-wrap gap-2">
@@ -1047,8 +1047,106 @@ const RulesPage = () => {
                   </button>
                 ))}
               </div>
+            </div>
+            
+            {/* Availability by Region */}
+            <div className="border-t border-border/30 pt-4">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-sm font-medium text-[hsl(var(--magic-blue))]">Disponibilidad por Región</h3>
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      // Select all regions
+                      const allRegions = [];
+                      availableRegions.forEach(r => {
+                        allRegions.push(r.nombre);
+                        r.subregions?.forEach(s => allRegions.push(s.nombre));
+                      });
+                      updateField('regiones_disponibles', allRegions);
+                    }}
+                    className="text-xs h-7"
+                  >
+                    Todas
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => updateField('regiones_disponibles', [])}
+                    className="text-xs h-7"
+                  >
+                    Ninguna
+                  </Button>
+                </div>
+              </div>
+              
+              <div className="max-h-48 overflow-y-auto space-y-2 bg-black/10 rounded p-2">
+                {availableRegions.map(region => {
+                  const regionSelected = (item.regiones_disponibles || []).includes(region.nombre);
+                  const subregions = region.subregions || [];
+                  const allSubsSelected = subregions.length > 0 && subregions.every(s => (item.regiones_disponibles || []).includes(s.nombre));
+                  
+                  const toggleRegion = () => {
+                    const current = item.regiones_disponibles || [];
+                    let updated;
+                    if (regionSelected) {
+                      // Remove region and all its subregions
+                      const toRemove = [region.nombre, ...subregions.map(s => s.nombre)];
+                      updated = current.filter(r => !toRemove.includes(r));
+                    } else {
+                      // Add region and all its subregions
+                      const toAdd = [region.nombre, ...subregions.map(s => s.nombre)];
+                      updated = [...new Set([...current, ...toAdd])];
+                    }
+                    updateField('regiones_disponibles', updated);
+                  };
+                  
+                  const toggleSubregion = (subName) => {
+                    const current = item.regiones_disponibles || [];
+                    const updated = current.includes(subName)
+                      ? current.filter(r => r !== subName)
+                      : [...current, subName];
+                    updateField('regiones_disponibles', updated);
+                  };
+                  
+                  return (
+                    <div key={region.id} className="text-sm">
+                      <div className="flex items-center gap-2">
+                        <Checkbox
+                          checked={regionSelected || allSubsSelected}
+                          onCheckedChange={toggleRegion}
+                          id={`reg-${region.id}`}
+                        />
+                        <label htmlFor={`reg-${region.id}`} className="font-medium text-[hsl(var(--gold))] cursor-pointer">
+                          {region.nombre}
+                        </label>
+                      </div>
+                      {subregions.length > 0 && (
+                        <div className="ml-6 mt-1 flex flex-wrap gap-x-3 gap-y-1">
+                          {subregions.map(sub => (
+                            <div key={sub.id} className="flex items-center gap-1">
+                              <Checkbox
+                                checked={(item.regiones_disponibles || []).includes(sub.nombre)}
+                                onCheckedChange={() => toggleSubregion(sub.nombre)}
+                                id={`sub-${sub.id}`}
+                                className="w-3 h-3"
+                              />
+                              <label htmlFor={`sub-${sub.id}`} className="text-xs text-muted-foreground cursor-pointer">
+                                {sub.nombre}
+                              </label>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
               <p className="text-xs text-muted-foreground mt-2">
-                Selecciona en qué tipos de asentamiento estará disponible este artículo.
+                {(item.regiones_disponibles || []).length === 0 
+                  ? 'Sin restricción regional (disponible en todas las regiones)'
+                  : `Disponible en ${(item.regiones_disponibles || []).length} regiones/subregiones`}
               </p>
             </div>
           </div>
