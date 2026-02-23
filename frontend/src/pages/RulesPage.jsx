@@ -214,6 +214,10 @@ const RulesPage = () => {
             const regionsRes = await api.get('/data/regions');
             setData(regionsRes.data?.regions || []);
             break;
+          case 'price_modifiers':
+            const priceModRes = await api.get('/data/modificadores-precio');
+            setData(priceModRes.data);
+            break;
           default:
             setData(null);
         }
