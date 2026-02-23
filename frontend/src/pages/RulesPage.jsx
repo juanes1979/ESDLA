@@ -78,6 +78,11 @@ const RulesPage = () => {
   const [showEquipmentEditor, setShowEquipmentEditor] = useState(false);
   const [editingItem, setEditingItem] = useState(null);
   
+  // Equipment PDF export states
+  const [showEquipmentPdfModal, setShowEquipmentPdfModal] = useState(false);
+  const [selectedPdfCategories, setSelectedPdfCategories] = useState([]);
+  const [generatingEquipmentPdf, setGeneratingEquipmentPdf] = useState(false);
+  
   // Region management states
   const [editingRegion, setEditingRegion] = useState(null);
   const [newRegionName, setNewRegionName] = useState('');
