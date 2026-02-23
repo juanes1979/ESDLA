@@ -301,6 +301,74 @@ const EquipmentManagerModal = ({
     // Weapons from armas_elegidas (character creation)
     addWeapons(character.armas_elegidas, 'elegidas');
     
+    // Process equipo_ocupacion (occupation equipment) - weapons, armor, and other items
+    (character.equipo_ocupacion || []).forEach((item, idx) => {
+      const nombre = typeof item === 'object' ? item.nombre : item;
+      if (!nombre) return;
+      const mejoras = typeof item === 'object' ? (item.mejoras || []) : [];
+      const normalizedName = nombre.toLowerCase();
+      
+      // Check if it's a weapon
+      const weaponNames = ['espada', 'daga', 'arco', 'lanza', 'hacha', 'bastón', 'baston', 'maza', 'martillo', 'ballesta', 'cimitarra', 'estoque', 'garrote', 'hoz', 'flajelo', 'piqueta', 'látigo', 'latigo'];
+      const isWeapon = weaponNames.some(w => normalizedName.includes(w));
+      
+      // Check if it's armor
+      const armorNames = ['armadura', 'cota', 'coleto', 'coraza', 'peto'];
+      const isArmor = armorNames.some(a => normalizedName.includes(a));
+      
+      // Check if it's a shield
+      const isShield = normalizedName.includes('escudo');
+      
+      if (isWeapon && !addedWeapons.has(normalizedName)) {
+        addedWeapons.add(normalizedName);
+        items.push({
+          nombre: mejoras.length > 0 ? `${nombre} [${mejoras.join(', ')}]` : nombre,
+          nombreBase: nombre,
+          categoria: 'armas',
+          tipo: 'Arma',
+          peso: item?.peso_kg || 0,
+          canMove: false,
+          index: idx,
+          source: 'ocupacion',
+          mejoras,
+        });
+      } else if (isArmor) {
+        items.push({
+          nombre: mejoras.length > 0 ? `${nombre} [${mejoras.join(', ')}]` : nombre,
+          nombreBase: nombre,
+          categoria: 'armaduras',
+          tipo: 'Armadura',
+          peso: item?.peso_kg || 0,
+          canMove: false,
+          index: idx,
+          mejoras,
+        });
+      } else if (isShield) {
+        items.push({
+          nombre: mejoras.length > 0 ? `${nombre} [${mejoras.join(', ')}]` : nombre,
+          nombreBase: nombre,
+          categoria: 'escudos',
+          tipo: 'Escudo',
+          peso: item?.peso_kg || 0,
+          canMove: false,
+          index: idx,
+          mejoras,
+        });
+      } else if (!isWeapon && !isArmor && !isShield) {
+        // Other occupation equipment (carcaj, flechas, etc.)
+        items.push({
+          nombre,
+          nombreBase: nombre,
+          categoria: 'equipo_ocupacion',
+          tipo: 'Equipo Ocupación',
+          peso: item?.peso_kg || 0,
+          canMove: true,
+          portadoPor: item?.portado_por || 'personaje',
+          index: idx,
+        });
+      }
+    });
+    
     // Armor
     const armadura = character.armadura;
     if (armadura && (typeof armadura === 'string' ? armadura : armadura.nombre)) {
