@@ -294,6 +294,17 @@ const InteractiveCharacterSheet = () => {
               <Crown className="w-4 h-4 mr-2 text-[hsl(var(--torch-orange))]" />
               Recompensas
             </Button>
+            
+            <Button
+              size="sm"
+              onClick={() => setShowEquipmentModal(true)}
+              variant="outline"
+              className="border-[hsl(var(--magic-blue))/50] hover:bg-[hsl(var(--magic-blue))/10]"
+              data-testid="equipment-btn"
+            >
+              <Package className="w-4 h-4 mr-2 text-[hsl(var(--magic-blue))]" />
+              Equipo
+            </Button>
           </div>
         </div>
       </header>
