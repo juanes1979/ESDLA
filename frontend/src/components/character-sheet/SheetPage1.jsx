@@ -201,6 +201,14 @@ export const PAGE1_FIELDS = {
   arma_5_herida: { x: 901, y: 1230, width: 81, fontSize: 22, align: 'left' },
   arma_5_distancia: { x: 1008, y: 1230, width: 70, fontSize: 22, align: 'left' },
   
+  // Recompensas - 6 filas (armas/armadura/escudo con mejoras aplicadas)
+  recompensa1: { x: 641, y: 1331, width: 439, fontSize: 22, align: 'left' },
+  recompensa2: { x: 641, y: 1374, width: 439, fontSize: 22, align: 'left' },
+  recompensa3: { x: 641, y: 1421, width: 439, fontSize: 22, align: 'left' },
+  recompensa4: { x: 641, y: 1468, width: 439, fontSize: 22, align: 'left' },
+  recompensa5: { x: 641, y: 1514, width: 439, fontSize: 22, align: 'left' },
+  recompensa6: { x: 641, y: 1560, width: 439, fontSize: 22, align: 'left' },
+  
   // Idiomas y herramientas - 7 filas
   idioma_herr_1: { x: 109, y: 1830, width: 435, fontSize: 31, align: 'left' },
   idioma_herr_2: { x: 109, y: 1869, width: 435, fontSize: 31, align: 'left' },
