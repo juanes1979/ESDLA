@@ -909,11 +909,13 @@ const RulesPage = () => {
                   {cat.fields.includes('capacidad_kg') && <th className="text-center py-2 px-2">Cap. (Kg)</th>}
                   {cat.fields.includes('m2') && <th className="text-center py-2 px-2">m²</th>}
                   {cat.fields.includes('peso_kg') && <th className="text-right py-2 px-2">Peso</th>}
+                  <th className="text-center py-2 px-2 w-12">Disp.</th>
+                  {isAdmin && <th className="text-center py-2 px-2 w-20">Acciones</th>}
                 </tr>
               </thead>
               <tbody>
                 {filtered.map((item, i) => (
-                  <tr key={i} className="border-b border-border/10 hover:bg-black/10">
+                  <tr key={i} className="border-b border-border/10 hover:bg-black/10 group">
                     <td className="py-2 px-2">{item.nombre}</td>
                     <td className="text-right py-2 px-2 text-[hsl(var(--gold))]">{formatPrice(item.precio, item.moneda)}</td>
                     {cat.fields.includes('dano') && <td className="text-center py-2 px-2 text-[hsl(var(--torch-orange))]">{item.dano || '-'}</td>}
@@ -933,6 +935,40 @@ const RulesPage = () => {
                     {cat.fields.includes('capacidad_kg') && <td className="text-center py-2 px-2">{item.capacidad_kg || '-'}</td>}
                     {cat.fields.includes('m2') && <td className="text-center py-2 px-2">{item.m2 || '-'}</td>}
                     {cat.fields.includes('peso_kg') && <td className="text-right py-2 px-2 text-muted-foreground">{item.peso_kg ? `${item.peso_kg} kg` : '-'}</td>}
+                    <td className="text-center py-2 px-2">
+                      {item.nivel_asentamiento?.length > 0 ? (
+                        <span className="text-xs text-muted-foreground" title={item.nivel_asentamiento.join(', ')}>
+                          {item.nivel_asentamiento.length === 5 ? '🌍' : 
+                           item.nivel_asentamiento.includes('aldea') ? '🏡' : 
+                           item.nivel_asentamiento.includes('pueblo') ? '🏘️' : 
+                           item.nivel_asentamiento.includes('villa') ? '🏛️' : 
+                           item.nivel_asentamiento.includes('ciudad') ? '🏰' : '👑'}
+                        </span>
+                      ) : '-'}
+                    </td>
+                    {isAdmin && (
+                      <td className="text-center py-2 px-2">
+                        <div className="flex gap-1 justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                          <button
+                            onClick={() => {
+                              setEditingEquipmentItem({ ...item, categoria: cat.key });
+                              setShowEquipmentItemEditor(true);
+                            }}
+                            className="p-1 hover:text-[hsl(var(--gold))]"
+                            title="Editar"
+                          >
+                            <Edit className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => handleDeleteEquipmentItem(cat.key, item.nombre)}
+                            className="p-1 hover:text-destructive"
+                            title="Eliminar"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </td>
+                    )}
                   </tr>
                 ))}
               </tbody>
