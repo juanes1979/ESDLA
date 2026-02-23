@@ -953,6 +953,376 @@ const RulesPage = () => {
     );
   };
 
+  // Equipment PDF export configuration
+  const EQUIPMENT_PDF_SECTIONS = [
+    {
+      id: 'armas',
+      title: 'Armas',
+      categories: [
+        { key: 'armas_sencillas_cc', name: 'Armas Sencillas (Cuerpo a Cuerpo)', fields: ['nombre', 'precio', 'dano', 'modificador', 'herida', 'peso_kg'] },
+        { key: 'armas_sencillas_distancia', name: 'Armas Sencillas (Distancia)', fields: ['nombre', 'precio', 'dano', 'alcance', 'herida', 'peso_kg'] },
+        { key: 'armas_marciales_cc', name: 'Armas Marciales (Cuerpo a Cuerpo)', fields: ['nombre', 'precio', 'dano', 'modificador', 'herida', 'peso_kg'] },
+        { key: 'armas_marciales_distancia', name: 'Armas Marciales (Distancia)', fields: ['nombre', 'precio', 'dano', 'alcance', 'herida', 'peso_kg'] },
+      ]
+    },
+    {
+      id: 'armaduras',
+      title: 'Armaduras y Escudos',
+      categories: [
+        { key: 'armaduras_ligeras', name: 'Armaduras Ligeras', fields: ['nombre', 'precio', 'ca', 'comentarios', 'peso_kg'] },
+        { key: 'armaduras_medias', name: 'Armaduras Medias', fields: ['nombre', 'precio', 'ca', 'comentarios', 'peso_kg'] },
+        { key: 'armaduras_pesadas', name: 'Armaduras Pesadas', fields: ['nombre', 'precio', 'ca', 'comentarios', 'peso_kg'] },
+        { key: 'escudos', name: 'Escudos', fields: ['nombre', 'precio', 'ca', 'peso_kg'] },
+      ]
+    },
+    {
+      id: 'equipo_herramientas',
+      title: 'Equipo y Herramientas',
+      categories: [
+        { key: 'equipo_general', name: 'Equipo General', fields: ['nombre', 'precio', 'peso_kg'] },
+        { key: 'herramientas', name: 'Herramientas', fields: ['nombre', 'precio', 'peso_kg'] },
+        { key: 'juegos', name: 'Juegos', fields: ['nombre', 'precio', 'peso_kg'] },
+        { key: 'instrumentos_musicales', name: 'Instrumentos Musicales', fields: ['nombre', 'precio', 'peso_kg'] },
+      ]
+    },
+    {
+      id: 'consumibles',
+      title: 'Consumibles y Alimentación',
+      categories: [
+        { key: 'consumibles', name: 'Consumibles y Alimentación', fields: ['nombre', 'precio', 'peso_kg'] },
+        { key: 'comida_posadas', name: 'Comida en Posadas y Restaurantes', fields: ['nombre', 'precio', 'peso_kg'] },
+      ]
+    },
+    {
+      id: 'hierbas_venenos',
+      title: 'Hierbas y Venenos',
+      categories: [
+        { key: 'hierbas', name: 'Hierbas Medicinales y Pociones', fields: ['nombre', 'precio', 'efecto', 'peso_kg'] },
+        { key: 'venenos', name: 'Venenos', fields: ['nombre', 'precio', 'efecto', 'peso_kg'] },
+      ]
+    },
+    {
+      id: 'monturas_transporte',
+      title: 'Monturas y Transporte',
+      categories: [
+        { key: 'monturas', name: 'Monturas', fields: ['nombre', 'precio', 'velocidad', 'capacidad_carga'] },
+        { key: 'accesorios_monturas', name: 'Accesorios de Monturas', fields: ['nombre', 'precio', 'peso_kg'] },
+        { key: 'transporte_terrestre', name: 'Transporte Terrestre', fields: ['nombre', 'precio', 'capacidad_kg'] },
+        { key: 'transporte_maritimo', name: 'Transporte Marítimo', fields: ['nombre', 'precio', 'capacidad_kg'] },
+      ]
+    },
+    {
+      id: 'construccion',
+      title: 'Elementos de Construcción',
+      categories: [
+        { key: 'construccion', name: 'Elementos de Construcción', fields: ['nombre', 'precio', 'peso_kg', 'm2'] },
+      ]
+    },
+  ];
+
+  // Generate Equipment PDF
+  const generateEquipmentPDF = async () => {
+    if (selectedPdfCategories.length === 0) {
+      toast.error('Selecciona al menos una categoría');
+      return;
+    }
+    
+    setGeneratingEquipmentPdf(true);
+    toast.info('Generando PDF de equipamiento...');
+    
+    try {
+      const pdf = new jsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: 'a4',
+      });
+      
+      const pageWidth = 210;
+      const pageHeight = 297;
+      const margin = 12;
+      const contentWidth = pageWidth - 2 * margin;
+      let y = margin;
+      
+      // Set Calibri-like font (Helvetica is closest standard PDF font)
+      pdf.setFont('helvetica');
+      
+      const checkNewPage = (height) => {
+        if (y + height > pageHeight - margin) {
+          pdf.addPage();
+          y = margin;
+          return true;
+        }
+        return false;
+      };
+      
+      // Title
+      pdf.setFontSize(16);
+      pdf.setTextColor(139, 90, 43);
+      pdf.text('LISTADO DE EQUIPAMIENTO', pageWidth / 2, y, { align: 'center' });
+      y += 8;
+      
+      pdf.setFontSize(9);
+      pdf.setTextColor(100, 100, 100);
+      pdf.text('El Señor de los Anillos 5e - Precios y Características', pageWidth / 2, y, { align: 'center' });
+      y += 10;
+      
+      // Process selected sections
+      const selectedSections = EQUIPMENT_PDF_SECTIONS.filter(s => selectedPdfCategories.includes(s.id));
+      
+      for (const section of selectedSections) {
+        checkNewPage(15);
+        
+        // Section title
+        pdf.setFontSize(12);
+        pdf.setTextColor(139, 90, 43);
+        pdf.text(section.title.toUpperCase(), margin, y);
+        y += 1;
+        pdf.setDrawColor(139, 90, 43);
+        pdf.setLineWidth(0.3);
+        pdf.line(margin, y, pageWidth - margin, y);
+        y += 5;
+        
+        for (const cat of section.categories) {
+          const items = data[cat.key];
+          if (!items?.length) continue;
+          
+          checkNewPage(12);
+          
+          // Category title
+          pdf.setFontSize(10);
+          pdf.setTextColor(60, 90, 130);
+          pdf.text(cat.name, margin, y);
+          y += 5;
+          
+          // Table header
+          pdf.setFontSize(8);
+          pdf.setTextColor(80, 80, 80);
+          pdf.setFillColor(240, 235, 220);
+          pdf.rect(margin, y - 3, contentWidth, 5, 'F');
+          
+          let colX = margin + 2;
+          const colWidths = calculateColumnWidths(cat.fields, contentWidth);
+          
+          // Headers
+          const headerLabels = {
+            nombre: 'Nombre',
+            precio: 'Precio',
+            dano: 'Daño',
+            modificador: 'Tipo',
+            alcance: 'Alcance',
+            herida: 'Herida',
+            ca: 'CA',
+            comentarios: 'Modificadores',
+            efecto: 'Efecto',
+            peso_kg: 'Peso',
+            velocidad: 'Velocidad',
+            capacidad_carga: 'Carga',
+            capacidad_kg: 'Capacidad',
+            m2: 'm²',
+          };
+          
+          cat.fields.forEach((field, idx) => {
+            const align = field === 'nombre' || field === 'efecto' || field === 'comentarios' ? 'left' : 'center';
+            pdf.text(headerLabels[field] || field, align === 'center' ? colX + colWidths[idx] / 2 : colX, y, { align });
+            colX += colWidths[idx];
+          });
+          y += 5;
+          
+          // Table rows - Font size 10 as requested
+          pdf.setFontSize(10);
+          pdf.setTextColor(30, 30, 30);
+          
+          for (const item of items) {
+            // Check if we need a new page
+            if (checkNewPage(6)) {
+              // Repeat header on new page
+              pdf.setFontSize(8);
+              pdf.setTextColor(80, 80, 80);
+              pdf.setFillColor(240, 235, 220);
+              pdf.rect(margin, y - 3, contentWidth, 5, 'F');
+              
+              colX = margin + 2;
+              cat.fields.forEach((field, idx) => {
+                const align = field === 'nombre' || field === 'efecto' || field === 'comentarios' ? 'left' : 'center';
+                pdf.text(headerLabels[field] || field, align === 'center' ? colX + colWidths[idx] / 2 : colX, y, { align });
+                colX += colWidths[idx];
+              });
+              y += 5;
+              pdf.setFontSize(10);
+              pdf.setTextColor(30, 30, 30);
+            }
+            
+            colX = margin + 2;
+            cat.fields.forEach((field, idx) => {
+              let value = '';
+              if (field === 'precio') {
+                value = formatPrice(item.precio, item.moneda);
+              } else if (field === 'peso_kg') {
+                value = item.peso_kg ? `${item.peso_kg} kg` : '-';
+              } else {
+                value = item[field]?.toString() || '-';
+              }
+              
+              // Truncate long text
+              const maxChars = Math.floor(colWidths[idx] / 2);
+              if (value.length > maxChars && field !== 'nombre') {
+                value = value.substring(0, maxChars - 2) + '...';
+              }
+              
+              const align = field === 'nombre' || field === 'efecto' || field === 'comentarios' ? 'left' : 'center';
+              pdf.text(value, align === 'center' ? colX + colWidths[idx] / 2 : colX, y, { align });
+              colX += colWidths[idx];
+            });
+            y += 5;
+          }
+          
+          y += 3; // Space after table
+        }
+        
+        y += 5; // Space after section
+      }
+      
+      // Footer
+      const pageCount = pdf.getNumberOfPages();
+      for (let i = 1; i <= pageCount; i++) {
+        pdf.setPage(i);
+        pdf.setFontSize(8);
+        pdf.setTextColor(120, 120, 120);
+        pdf.text(`Página ${i} de ${pageCount}`, pageWidth / 2, pageHeight - 8, { align: 'center' });
+        pdf.text(`Generado el ${new Date().toLocaleDateString('es-ES')}`, pageWidth - margin, pageHeight - 8, { align: 'right' });
+      }
+      
+      // Save
+      const filename = `equipamiento_lotr5e_${new Date().toISOString().split('T')[0]}.pdf`;
+      pdf.save(filename);
+      
+      toast.success('PDF generado correctamente');
+      setShowEquipmentPdfModal(false);
+    } catch (err) {
+      console.error('Error generating PDF:', err);
+      toast.error('Error al generar el PDF');
+    } finally {
+      setGeneratingEquipmentPdf(false);
+    }
+  };
+  
+  // Calculate column widths based on fields
+  const calculateColumnWidths = (fields, totalWidth) => {
+    const baseWidths = {
+      nombre: 45,
+      precio: 20,
+      dano: 15,
+      modificador: 20,
+      alcance: 15,
+      herida: 12,
+      ca: 12,
+      comentarios: 35,
+      efecto: 50,
+      peso_kg: 15,
+      velocidad: 15,
+      capacidad_carga: 18,
+      capacidad_kg: 18,
+      m2: 12,
+    };
+    
+    let widths = fields.map(f => baseWidths[f] || 20);
+    const totalBase = widths.reduce((a, b) => a + b, 0);
+    const scale = (totalWidth - 4) / totalBase;
+    return widths.map(w => w * scale);
+  };
+
+  // Equipment PDF Export Modal
+  const renderEquipmentPdfModal = () => {
+    if (!showEquipmentPdfModal) return null;
+    
+    const allSelected = selectedPdfCategories.length === EQUIPMENT_PDF_SECTIONS.length;
+    
+    const toggleAll = () => {
+      if (allSelected) {
+        setSelectedPdfCategories([]);
+      } else {
+        setSelectedPdfCategories(EQUIPMENT_PDF_SECTIONS.map(s => s.id));
+      }
+    };
+    
+    const toggleCategory = (id) => {
+      setSelectedPdfCategories(prev => 
+        prev.includes(id) ? prev.filter(c => c !== id) : [...prev, id]
+      );
+    };
+    
+    return (
+      <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4">
+        <div className="bg-[hsl(var(--background))] border border-[hsl(var(--gold))]/50 rounded-lg w-full max-w-lg">
+          <div className="p-4 border-b border-border/30 flex justify-between items-center">
+            <h2 className="font-heading text-xl text-[hsl(var(--gold))] flex items-center gap-2">
+              <Printer className="w-5 h-5" />
+              Exportar Listado de Equipo a PDF
+            </h2>
+            <Button variant="ghost" size="sm" onClick={() => setShowEquipmentPdfModal(false)}>
+              ✕
+            </Button>
+          </div>
+          
+          <div className="p-4 space-y-4">
+            <p className="text-sm text-muted-foreground">
+              Selecciona las categorías que deseas incluir en el PDF (A4 vertical, fuente Calibri 10pt):
+            </p>
+            
+            {/* Select All */}
+            <div className="flex items-center gap-2 pb-2 border-b border-border/30">
+              <Checkbox 
+                id="select-all"
+                checked={allSelected}
+                onCheckedChange={toggleAll}
+              />
+              <label htmlFor="select-all" className="text-sm font-medium cursor-pointer">
+                Seleccionar Todas
+              </label>
+            </div>
+            
+            {/* Category checkboxes */}
+            <div className="grid grid-cols-1 gap-2 max-h-64 overflow-y-auto">
+              {EQUIPMENT_PDF_SECTIONS.map(section => (
+                <div key={section.id} className="flex items-center gap-2">
+                  <Checkbox 
+                    id={`cat-${section.id}`}
+                    checked={selectedPdfCategories.includes(section.id)}
+                    onCheckedChange={() => toggleCategory(section.id)}
+                  />
+                  <label htmlFor={`cat-${section.id}`} className="text-sm cursor-pointer flex-1">
+                    {section.title}
+                    <span className="text-xs text-muted-foreground ml-2">
+                      ({section.categories.length} {section.categories.length === 1 ? 'tabla' : 'tablas'})
+                    </span>
+                  </label>
+                </div>
+              ))}
+            </div>
+          </div>
+          
+          <div className="p-4 border-t border-border/30 flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setShowEquipmentPdfModal(false)}>
+              Cancelar
+            </Button>
+            <Button
+              onClick={generateEquipmentPDF}
+              disabled={selectedPdfCategories.length === 0 || generatingEquipmentPdf}
+              className="bg-[hsl(var(--gold))] hover:bg-[hsl(var(--gold))]/90 text-black"
+            >
+              {generatingEquipmentPdf ? (
+                <Loader2 className="w-4 h-4 animate-spin mr-2" />
+              ) : (
+                <FileText className="w-4 h-4 mr-2" />
+              )}
+              Generar PDF
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   // Render virtues - Complete data with all fields
   const renderVirtues = () => {
     if (!data?.length) return <p className="text-muted-foreground">No hay virtudes cargadas</p>;
