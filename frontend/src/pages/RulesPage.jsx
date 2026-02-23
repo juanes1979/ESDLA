@@ -791,6 +791,272 @@ const RulesPage = () => {
     );
   };
 
+  // Handle delete equipment item
+  const handleDeleteEquipmentItem = async (categoria, nombre) => {
+    if (!window.confirm(`¿Eliminar "${nombre}" de ${categoria}?`)) return;
+    
+    try {
+      await api.delete(`/data/equipment/${categoria}/${encodeURIComponent(nombre)}`);
+      toast.success(`"${nombre}" eliminado`);
+      // Reload data
+      const equipment = await getEquipmentCatalog();
+      setData(equipment);
+    } catch (err) {
+      toast.error('Error al eliminar: ' + (err.response?.data?.detail || err.message));
+    }
+  };
+
+  // Handle save equipment item
+  const handleSaveEquipmentItem = async () => {
+    if (!editingEquipmentItem) return;
+    
+    setSavingEquipmentItem(true);
+    try {
+      const { categoria, ...itemData } = editingEquipmentItem;
+      const originalNombre = editingEquipmentItem._originalNombre || editingEquipmentItem.nombre;
+      
+      await api.put(`/data/equipment/${categoria}/${encodeURIComponent(originalNombre)}`, itemData);
+      toast.success(`"${itemData.nombre}" actualizado`);
+      
+      // Reload data
+      const equipment = await getEquipmentCatalog();
+      setData(equipment);
+      setShowEquipmentItemEditor(false);
+      setEditingEquipmentItem(null);
+    } catch (err) {
+      toast.error('Error al guardar: ' + (err.response?.data?.detail || err.message));
+    } finally {
+      setSavingEquipmentItem(false);
+    }
+  };
+
+  // Settlement levels for availability
+  const SETTLEMENT_LEVELS = [
+    { id: 'aldea', name: 'Aldea', icon: '🏡' },
+    { id: 'pueblo', name: 'Pueblo', icon: '🏘️' },
+    { id: 'villa', name: 'Villa', icon: '🏛️' },
+    { id: 'ciudad', name: 'Ciudad', icon: '🏰' },
+    { id: 'capital', name: 'Capital', icon: '👑' },
+    { id: 'especial', name: 'Especial', icon: '✨' },
+  ];
+
+  // Render equipment item editor modal
+  const renderEquipmentItemEditor = () => {
+    if (!showEquipmentItemEditor || !editingEquipmentItem) return null;
+    
+    const item = editingEquipmentItem;
+    
+    const updateField = (field, value) => {
+      setEditingEquipmentItem(prev => ({
+        ...prev,
+        [field]: value,
+        _originalNombre: prev._originalNombre || prev.nombre
+      }));
+    };
+    
+    const toggleSettlement = (level) => {
+      const current = item.nivel_asentamiento || [];
+      const updated = current.includes(level) 
+        ? current.filter(l => l !== level)
+        : [...current, level];
+      updateField('nivel_asentamiento', updated);
+    };
+    
+    return (
+      <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4">
+        <div className="bg-[hsl(var(--background))] border border-[hsl(var(--gold))]/50 rounded-lg w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+          <div className="p-4 border-b border-border/30 flex justify-between items-center sticky top-0 bg-[hsl(var(--background))]">
+            <h2 className="font-heading text-xl text-[hsl(var(--gold))] flex items-center gap-2">
+              <Edit className="w-5 h-5" />
+              Editar: {item.nombre}
+            </h2>
+            <Button variant="ghost" size="sm" onClick={() => { setShowEquipmentItemEditor(false); setEditingEquipmentItem(null); }}>
+              ✕
+            </Button>
+          </div>
+          
+          <div className="p-4 space-y-4">
+            {/* Basic fields */}
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="text-sm text-muted-foreground">Nombre</label>
+                <Input
+                  value={item.nombre || ''}
+                  onChange={(e) => updateField('nombre', e.target.value)}
+                />
+              </div>
+              <div className="flex gap-2">
+                <div className="flex-1">
+                  <label className="text-sm text-muted-foreground">Precio</label>
+                  <Input
+                    type="number"
+                    value={item.precio || 0}
+                    onChange={(e) => updateField('precio', parseFloat(e.target.value) || 0)}
+                  />
+                </div>
+                <div className="w-24">
+                  <label className="text-sm text-muted-foreground">Moneda</label>
+                  <select
+                    value={item.moneda || 'mp'}
+                    onChange={(e) => updateField('moneda', e.target.value)}
+                    className="w-full h-10 px-2 bg-background border border-border rounded"
+                  >
+                    <option value="mc">mc</option>
+                    <option value="me">me</option>
+                    <option value="mp">mp</option>
+                    <option value="mo">mo</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+            
+            {/* Optional fields based on item type */}
+            <div className="grid grid-cols-3 gap-4">
+              {item.peso_kg !== undefined && (
+                <div>
+                  <label className="text-sm text-muted-foreground">Peso (kg)</label>
+                  <Input
+                    type="number"
+                    step="0.1"
+                    value={item.peso_kg || 0}
+                    onChange={(e) => updateField('peso_kg', parseFloat(e.target.value) || 0)}
+                  />
+                </div>
+              )}
+              {item.dano !== undefined && (
+                <div>
+                  <label className="text-sm text-muted-foreground">Daño</label>
+                  <Input
+                    value={item.dano || ''}
+                    onChange={(e) => updateField('dano', e.target.value)}
+                  />
+                </div>
+              )}
+              {item.ca !== undefined && (
+                <div>
+                  <label className="text-sm text-muted-foreground">CA</label>
+                  <Input
+                    value={item.ca || ''}
+                    onChange={(e) => updateField('ca', e.target.value)}
+                  />
+                </div>
+              )}
+              {item.alcance !== undefined && (
+                <div>
+                  <label className="text-sm text-muted-foreground">Alcance</label>
+                  <Input
+                    value={item.alcance || ''}
+                    onChange={(e) => updateField('alcance', e.target.value)}
+                  />
+                </div>
+              )}
+              {item.herida !== undefined && (
+                <div>
+                  <label className="text-sm text-muted-foreground">Herida</label>
+                  <Input
+                    type="number"
+                    value={item.herida || 0}
+                    onChange={(e) => updateField('herida', parseInt(e.target.value) || 0)}
+                  />
+                </div>
+              )}
+              {item.velocidad !== undefined && (
+                <div>
+                  <label className="text-sm text-muted-foreground">Velocidad</label>
+                  <Input
+                    type="number"
+                    value={item.velocidad || 0}
+                    onChange={(e) => updateField('velocidad', parseInt(e.target.value) || 0)}
+                  />
+                </div>
+              )}
+              {item.capacidad_carga !== undefined && (
+                <div>
+                  <label className="text-sm text-muted-foreground">Capacidad Carga</label>
+                  <Input
+                    type="number"
+                    value={item.capacidad_carga || 0}
+                    onChange={(e) => updateField('capacidad_carga', parseInt(e.target.value) || 0)}
+                  />
+                </div>
+              )}
+              {item.capacidad_kg !== undefined && (
+                <div>
+                  <label className="text-sm text-muted-foreground">Capacidad (kg)</label>
+                  <Input
+                    type="number"
+                    value={item.capacidad_kg || 0}
+                    onChange={(e) => updateField('capacidad_kg', parseInt(e.target.value) || 0)}
+                  />
+                </div>
+              )}
+            </div>
+            
+            {/* Text fields */}
+            {item.efecto !== undefined && (
+              <div>
+                <label className="text-sm text-muted-foreground">Efecto</label>
+                <textarea
+                  value={item.efecto || ''}
+                  onChange={(e) => updateField('efecto', e.target.value)}
+                  className="w-full h-20 bg-black/20 border border-border rounded px-2 py-1 text-sm"
+                />
+              </div>
+            )}
+            {item.comentarios !== undefined && (
+              <div>
+                <label className="text-sm text-muted-foreground">Comentarios/Modificadores</label>
+                <textarea
+                  value={item.comentarios || ''}
+                  onChange={(e) => updateField('comentarios', e.target.value)}
+                  className="w-full h-16 bg-black/20 border border-border rounded px-2 py-1 text-sm"
+                />
+              </div>
+            )}
+            
+            {/* Availability section */}
+            <div className="border-t border-border/30 pt-4">
+              <h3 className="text-sm font-medium text-[hsl(var(--gold))] mb-3">Disponibilidad por Asentamiento</h3>
+              <div className="flex flex-wrap gap-2">
+                {SETTLEMENT_LEVELS.map(level => (
+                  <button
+                    key={level.id}
+                    onClick={() => toggleSettlement(level.id)}
+                    className={`px-3 py-1.5 rounded border text-sm flex items-center gap-1.5 transition-colors ${
+                      (item.nivel_asentamiento || []).includes(level.id)
+                        ? 'bg-[hsl(var(--gold))]/20 border-[hsl(var(--gold))] text-[hsl(var(--gold))]'
+                        : 'bg-black/20 border-border/30 text-muted-foreground hover:border-border'
+                    }`}
+                  >
+                    <span>{level.icon}</span>
+                    <span>{level.name}</span>
+                  </button>
+                ))}
+              </div>
+              <p className="text-xs text-muted-foreground mt-2">
+                Selecciona en qué tipos de asentamiento estará disponible este artículo.
+              </p>
+            </div>
+          </div>
+          
+          <div className="p-4 border-t border-border/30 flex justify-end gap-2 sticky bottom-0 bg-[hsl(var(--background))]">
+            <Button variant="outline" onClick={() => { setShowEquipmentItemEditor(false); setEditingEquipmentItem(null); }}>
+              Cancelar
+            </Button>
+            <Button
+              onClick={handleSaveEquipmentItem}
+              disabled={savingEquipmentItem}
+              className="bg-[hsl(var(--gold))] hover:bg-[hsl(var(--gold))]/90 text-black"
+            >
+              {savingEquipmentItem ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Check className="w-4 h-4 mr-2" />}
+              Guardar
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   // Render equipment tables
   const renderEquipmentTables = () => {
     if (!data) return null;
