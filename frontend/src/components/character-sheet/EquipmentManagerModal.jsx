@@ -333,7 +333,7 @@ const EquipmentManagerModal = ({
             )}
             {weightSummary?.tiene_montura && (
               <div className="flex items-center gap-2 bg-blue-900/30 px-3 py-1 rounded">
-                <Horse className="w-4 h-4 text-blue-400" />
+                <Landmark className="w-4 h-4 text-blue-400" />
                 <span>{weightSummary.nombre_montura}: {weightSummary.peso_montura}/{weightSummary.capacidad_montura} kg</span>
               </div>
             )}
