@@ -14,7 +14,7 @@ import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { 
   X, Package, Plus, Trash2, Search, ShoppingCart, Gift, 
-  Loader2, AlertTriangle, Horse, User, Scale, Coins,
+  Loader2, AlertTriangle, Landmark, User, Scale, Coins,
   Sword, Shield, ChevronDown, ChevronRight
 } from 'lucide-react';
 import { toast } from 'sonner';
