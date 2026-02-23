@@ -994,6 +994,7 @@ class ApplyEquipmentReward(BaseModel):
     """Data to apply a reward/upgrade to equipment"""
     equipment_type: str  # 'arma', 'armadura', 'escudo'
     equipment_index: Optional[int] = None  # Index in array for armas/equipo
+    equipment_source: Optional[str] = "armas"  # 'armas', 'elegidas', 'inv' - where the weapon is stored
     mejora_nombre: str  # Name of the reward/upgrade to apply
     mejora_efecto: Optional[str] = None  # Effect description (optional)
 
@@ -1007,15 +1008,24 @@ async def apply_equipment_reward(character_id: str, data: ApplyEquipmentReward):
     
     update = {"updated_at": now_utc()}
     equipment_type = data.equipment_type.lower()
+    source = data.equipment_source or "armas"
     
     if equipment_type == 'arma':
         # Apply to weapon at specified index
         if data.equipment_index is None:
             raise HTTPException(status_code=400, detail="equipment_index required for weapons")
         
-        armas = character.get('armas', [])
+        # Determine which array to use based on source
+        if source == 'elegidas':
+            array_key = 'armas_elegidas'
+        elif source == 'inv':
+            array_key = 'inventario'
+        else:
+            array_key = 'armas'
+        
+        armas = character.get(array_key, [])
         if data.equipment_index < 0 or data.equipment_index >= len(armas):
-            raise HTTPException(status_code=400, detail="Invalid weapon index")
+            raise HTTPException(status_code=400, detail=f"Invalid weapon index for {array_key}")
         
         # Get the weapon and add the mejora
         arma = armas[data.equipment_index]
@@ -1025,14 +1035,14 @@ async def apply_equipment_reward(character_id: str, data: ApplyEquipmentReward):
                 mejoras.append(data.mejora_nombre)
                 arma['mejoras'] = mejoras
                 armas[data.equipment_index] = arma
-                update['armas'] = armas
+                update[array_key] = armas
         else:
             # If weapon is just a string, convert to dict
             armas[data.equipment_index] = {
                 'nombre': arma,
                 'mejoras': [data.mejora_nombre]
             }
-            update['armas'] = armas
+            update[array_key] = armas
             
     elif equipment_type == 'armadura':
         # Apply to armor
