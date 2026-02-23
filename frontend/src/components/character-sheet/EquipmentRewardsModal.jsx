@@ -184,6 +184,7 @@ const EquipmentRewardsModal = ({
       const payload = {
         equipment_type: selectedEquipment.tipo,
         equipment_index: selectedEquipment.index ?? null,
+        equipment_source: selectedEquipment.source || 'armas',
         mejora_nombre: selectedMejora.nombre,
         mejora_efecto: selectedMejora.efecto || null,
       };
