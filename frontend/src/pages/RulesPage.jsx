@@ -4324,6 +4324,9 @@ const RulesPage = () => {
       
       {/* Equipment Item Editor Modal */}
       {renderEquipmentItemEditor()}
+      
+      {/* Category Availability Editor Modal */}
+      {renderCategoryAvailabilityEditor()}
     </div>
   );
 };
