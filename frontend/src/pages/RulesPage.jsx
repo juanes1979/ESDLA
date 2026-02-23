@@ -3542,6 +3542,9 @@ const RulesPage = () => {
           onClose={() => setShowEquipmentEditor(false)}
         />
       )}
+      
+      {/* Equipment PDF Export Modal */}
+      {renderEquipmentPdfModal()}
     </div>
   );
 };
