@@ -790,16 +790,28 @@ const RulesPage = () => {
   const renderEquipmentTables = () => {
     if (!data) return null;
     
-    // Admin button to create new equipment
-    const adminButton = isAdmin && (
-      <div className="flex justify-end mb-4">
+    // Action buttons (admin + PDF export)
+    const actionButtons = (
+      <div className="flex justify-between items-center mb-4">
         <Button
-          onClick={() => setShowEquipmentEditor(true)}
-          className="btn-fantasy"
+          onClick={() => setShowEquipmentPdfModal(true)}
+          variant="outline"
+          className="border-[hsl(var(--gold))]/50 hover:bg-[hsl(var(--gold))]/10"
+          data-testid="export-equipment-pdf-btn"
         >
-          <Plus className="w-4 h-4 mr-2" />
-          Crear Equipo
+          <Printer className="w-4 h-4 mr-2 text-[hsl(var(--gold))]" />
+          Imprimir Listado PDF
         </Button>
+        
+        {isAdmin && (
+          <Button
+            onClick={() => setShowEquipmentEditor(true)}
+            className="btn-fantasy"
+          >
+            <Plus className="w-4 h-4 mr-2" />
+            Crear Equipo
+          </Button>
+        )}
       </div>
     );
     
