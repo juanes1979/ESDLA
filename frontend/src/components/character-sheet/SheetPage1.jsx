@@ -459,7 +459,10 @@ const SheetPage1 = ({ character, scale, weaponCatalog = [], equipmentCatalog = {
   // Helper function to find item weight
   const getItemWeight = (itemName) => {
     if (!itemName) return 0;
-    const normalizedName = itemName.toLowerCase().trim();
+    // Handle both string and object formats
+    const name = typeof itemName === 'string' ? itemName : itemName?.nombre;
+    if (!name) return 0;
+    const normalizedName = name.toLowerCase().trim();
     const allItems = [
       ...(equipmentCatalog.equipo_general || []),
       ...(equipmentCatalog.herramientas || []),
