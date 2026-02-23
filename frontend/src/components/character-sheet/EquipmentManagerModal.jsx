@@ -74,19 +74,31 @@ const EquipmentManagerModal = ({
   const [selectedItem, setSelectedItem] = useState(null);
   const [cantidad, setCantidad] = useState(1);
   const [isPurchase, setIsPurchase] = useState(true);
+  
+  // Price modifiers state
+  const [priceModifiers, setPriceModifiers] = useState(null);
+  const [selectedModifiers, setSelectedModifiers] = useState({
+    region: null,
+    asentamiento: null,
+    relacion: null,
+    contexto: null,
+  });
+  const [showModifiers, setShowModifiers] = useState(false);
 
-  // Load catalog and weight summary
+  // Load catalog, weight summary and price modifiers
   useEffect(() => {
     const loadData = async () => {
       if (!isOpen) return;
       try {
         setLoading(true);
-        const [catalogRes, weightRes] = await Promise.all([
+        const [catalogRes, weightRes, modifiersRes] = await Promise.all([
           api.get('/data/equipment-catalog'),
-          api.get(`/characters/${character.id}/weight-summary`)
+          api.get(`/characters/${character.id}/weight-summary`),
+          api.get('/data/modificadores-precio'),
         ]);
         setCatalog(catalogRes.data || {});
         setWeightSummary(weightRes.data);
+        setPriceModifiers(modifiersRes.data);
       } catch (err) {
         console.error('Error loading data:', err);
         toast.error('Error al cargar datos');
@@ -105,6 +117,16 @@ const EquipmentManagerModal = ({
     } catch (err) {
       console.error('Error refreshing weight:', err);
     }
+  };
+
+  // Calculate total modifier from selected options
+  const calculateTotalModifier = () => {
+    let total = 1.0;
+    if (selectedModifiers.region) total *= selectedModifiers.region.modificador;
+    if (selectedModifiers.asentamiento) total *= selectedModifiers.asentamiento.modificador;
+    if (selectedModifiers.relacion) total *= selectedModifiers.relacion.modificador;
+    if (selectedModifiers.contexto) total *= selectedModifiers.contexto.modificador;
+    return total;
   };
 
   // Filter items based on search
