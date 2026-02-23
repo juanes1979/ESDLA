@@ -715,6 +715,7 @@ const SheetPage1 = ({ character, scale, weaponCatalog = [], equipmentCatalog = {
   const rasgos = getRasgosDistintivos();
   const habFavorecidas = getHabilidadesFavorecidas();
   const pesoTransportado = calcularPesoTransportado();
+  const pesoMontura = calcularPesoMontura();
   const estorbo = calcularEstorbo();
 
   return (
