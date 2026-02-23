@@ -9,18 +9,30 @@ Build a comprehensive web application to play a modified version of the "Lord of
 
 ### ✅ COMPLETED This Session (2025-02-23)
 
+#### Sistema Completo de Gestión de Equipamiento ✅
+- **Nuevo modal `EquipmentManagerModal.jsx`:**
+  - Pestaña "Añadir Equipo": Navegar catálogo por categorías, búsqueda, seleccionar cantidad
+  - Pestaña "Gestionar": Ver todo el equipamiento, eliminar items, mover entre personaje/montura
+  - Tipo de adquisición: "Comprar" (deduce dinero) o "Regalo/Tesoro" (gratis)
+  - Sistema de conversión de monedas (mo > mp > me > mc)
+  - Validación de dinero suficiente antes de comprar
+  - Soporte completo para monturas con capacidad de carga
+  - Visualización de peso y estado de estorbo en tiempo real
+
+- **Nuevos endpoints backend:**
+  - `POST /api/characters/{id}/equipment/add` - Añadir equipo (compra o regalo)
+  - `DELETE /api/characters/{id}/equipment/remove` - Eliminar equipo
+  - `PATCH /api/characters/{id}/equipment/carry` - Mover equipo entre personaje y montura
+  - `GET /api/characters/{id}/weight-summary` - Resumen de peso y estorbo
+
+- **Lógica de peso implementada:**
+  - Armas y armaduras SIEMPRE las lleva el personaje
+  - Items del inventario pueden asignarse a la montura
+  - Peso en montura no cuenta para estorbo del personaje
+  - Capacidad de carga de montura se actualiza en tiempo real
+
 #### P1: Lógica Completa de Aplicar Recompensas ✅
-- **Nuevo endpoint backend** `POST /api/characters/{id}/equipment/apply-reward`:
-  - Aplica mejoras a armas (por índice), armaduras, o escudos
-  - Evita duplicados de mejoras
-  - Convierte equipamiento de string a objeto si es necesario
-  - Retorna el personaje actualizado
-- **Endpoint para eliminar mejoras** `DELETE /api/characters/{id}/equipment/{type}/{index}/reward/{mejora}`:
-  - Permite eliminar mejoras previamente aplicadas
-- **Frontend actualizado** (`EquipmentRewardsModal.jsx`):
-  - Usa el nuevo endpoint dedicado en lugar de PUT genérico
-  - Manejo de errores mejorado con mensajes específicos
-  - Actualización de estado sin recargar página
+(Completado anteriormente en esta sesión)
 
 ---
 
