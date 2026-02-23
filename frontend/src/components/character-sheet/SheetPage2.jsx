@@ -76,13 +76,19 @@ const isWeapon = (itemName) => {
 };
 
 const SheetPage2 = ({ character, scale, fieldPositions = {} }) => {
+  // Helper to get item name from string or object
+  const getItemName = (item) => {
+    if (!item) return null;
+    return typeof item === 'string' ? item : item?.nombre;
+  };
+  
   // Get all equipment items (excluding weapons) - same as page 1 but different indices
   const getAllEquipment = () => {
     const allItems = [
-      ...(character.inventario || []).map(i => typeof i === 'string' ? i : i.nombre),
-      ...(character.equipo_ocupacion || []),
-      ...(character.equipo_trasfondo || []),
-      ...(character.equipo_nivel_vida || []),
+      ...(character.inventario || []).map(i => getItemName(i)),
+      ...(character.equipo_ocupacion || []).map(i => getItemName(i)),
+      ...(character.equipo_trasfondo || []).map(i => getItemName(i)),
+      ...(character.equipo_nivel_vida || []).map(i => getItemName(i)),
     ];
     return allItems.filter(item => item && !isWeapon(item));
   };
