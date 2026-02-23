@@ -5,7 +5,26 @@ Build a comprehensive web application to play a modified version of the "Lord of
 
 **User's preferred language**: Español
 
-## Current State (2025-12-19)
+## Current State (2025-02-23)
+
+### ✅ COMPLETED This Session (2025-02-23)
+
+#### P1: Lógica Completa de Aplicar Recompensas ✅
+- **Nuevo endpoint backend** `POST /api/characters/{id}/equipment/apply-reward`:
+  - Aplica mejoras a armas (por índice), armaduras, o escudos
+  - Evita duplicados de mejoras
+  - Convierte equipamiento de string a objeto si es necesario
+  - Retorna el personaje actualizado
+- **Endpoint para eliminar mejoras** `DELETE /api/characters/{id}/equipment/{type}/{index}/reward/{mejora}`:
+  - Permite eliminar mejoras previamente aplicadas
+- **Frontend actualizado** (`EquipmentRewardsModal.jsx`):
+  - Usa el nuevo endpoint dedicado en lugar de PUT genérico
+  - Manejo de errores mejorado con mensajes específicos
+  - Actualización de estado sin recargar página
+
+---
+
+## Previous State (2025-12-19)
 
 ### ✅ COMPLETED This Session
 
