@@ -2,7 +2,7 @@
 Character API Routes
 Endpoints for character creation and management
 """
-from fastapi import APIRouter, HTTPException, Body
+from fastapi import APIRouter, HTTPException, Body, Query
 from typing import List, Optional, Dict, Any
 from pydantic import BaseModel, Field
 from motor.motor_asyncio import AsyncIOMotorClient
