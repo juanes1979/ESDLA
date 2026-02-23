@@ -5,9 +5,40 @@ Build a comprehensive web application to play a modified version of the "Lord of
 
 **User's preferred language**: Español
 
-## Current State (2025-02-23)
+## Current State (2026-02-23)
 
-### ✅ COMPLETED This Session (2025-02-23)
+### ✅ COMPLETED This Session (2026-02-23)
+
+#### P0: Sistema de Peso de Montura y Gestión de Equipo Completado ✅
+- **`SheetPage1.jsx`** - Sistema de cálculo de peso implementado:
+  - `calcularPesoMontura()` - Calcula peso de items llevados por la montura
+  - `calcularPesoTransportado()` - Excluye peso de items en la montura
+  - Campo `peso_montura` muestra "(M:X.XX)" junto al peso transportado
+  - La montura aparece en la lista de equipo con su capacidad
+
+- **`EquipmentManagerModal.jsx`** - Gestión completa de equipamiento:
+  - Muestra resumen: dinero, peso personaje, peso/capacidad montura
+  - Procesa `equipo_ocupacion` para mostrar armas, armaduras y equipo
+  - Categorización automática: armas, armaduras, escudos, equipo ocupación
+  - Muestra mejoras aplicadas en items (ej: "Espada corta [AFILADA]")
+  - Botones para mover items entre personaje y montura
+  - Total de 18 items mostrados para personaje de prueba
+
+#### P1/P2: Modificadores de Precio en RulesPage ✅
+- **Nueva categoría** "Modificadores de Precio" con icono Coins
+- **Función `renderPriceModifiers()`** que muestra 4 tablas:
+  - Por Región (14 regiones: Eriador, Bosque Negro, Mordor, etc.)
+  - Por Asentamiento (10 tipos: Aldea pequeña, Ciudad, Capital, etc.)
+  - Por Relación con Vendedor (8 tipos: Amigo, Enemigo, etc.)
+  - Por Contexto Histórico (8 tipos: Guerra activa, Paz, etc.)
+- **Colores intuitivos**: verde para descuentos, rojo para aumentos
+- **Ejemplo de cálculo** con fórmula explicada
+
+---
+
+## Previous Session (2025-02-23)
+
+### ✅ COMPLETED Previous Session
 
 #### Sistema Completo de Gestión de Equipamiento ✅
 - **Nuevo modal `EquipmentManagerModal.jsx`:**
