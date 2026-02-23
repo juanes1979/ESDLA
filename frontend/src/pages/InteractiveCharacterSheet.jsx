@@ -371,6 +371,14 @@ const InteractiveCharacterSheet = () => {
         character={character}
         onCharacterUpdate={(updatedChar) => setCharacter(updatedChar)}
       />
+      
+      {/* Equipment Manager Modal */}
+      <EquipmentManagerModal
+        isOpen={showEquipmentModal}
+        onClose={() => setShowEquipmentModal(false)}
+        character={character}
+        onCharacterUpdate={(updatedChar) => setCharacter(updatedChar)}
+      />
     </div>
   );
 };
