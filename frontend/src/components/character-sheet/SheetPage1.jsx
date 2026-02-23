@@ -400,25 +400,41 @@ const SheetPage1 = ({ character, scale, weaponCatalog = [], equipmentCatalog = {
   // Get weapons (5 max)
   const getWeapons = () => {
     const weaponItems = [];
+    
+    // Helper to safely get name and check duplicates
+    const getName = (item) => {
+      if (!item) return null;
+      return typeof item === 'string' ? item : item?.nombre;
+    };
+    
+    const isDuplicate = (nombre) => {
+      if (!nombre) return true;
+      const normalized = nombre.toLowerCase();
+      return weaponItems.some(w => w.nombre?.toLowerCase() === normalized);
+    };
+    
     (character.armas_elegidas || []).forEach(arma => {
-      const nombre = typeof arma === 'string' ? arma : arma.nombre;
-      if (nombre && !weaponItems.some(w => w.nombre.toLowerCase() === nombre.toLowerCase())) {
+      const nombre = getName(arma);
+      if (nombre && !isDuplicate(nombre)) {
         const stats = getWeaponStats(nombre);
-        weaponItems.push({ nombre, dano: stats.dano, herida: stats.herida, distancia: stats.distancia });
+        const mejoras = typeof arma === 'object' ? (arma.mejoras || []) : [];
+        weaponItems.push({ nombre, dano: stats.dano, herida: stats.herida, distancia: stats.distancia, mejoras });
       }
     });
     (character.inventario || []).forEach(item => {
-      const nombre = typeof item === 'string' ? item : item.nombre;
-      if (isWeapon(nombre) && !weaponItems.some(w => w.nombre.toLowerCase() === nombre.toLowerCase())) {
+      const nombre = getName(item);
+      if (isWeapon(nombre) && !isDuplicate(nombre)) {
         const stats = getWeaponStats(nombre);
-        weaponItems.push({ nombre, dano: item.dano || stats.dano, herida: item.herida || stats.herida, distancia: item.distancia || stats.distancia });
+        const mejoras = typeof item === 'object' ? (item.mejoras || []) : [];
+        weaponItems.push({ nombre, dano: item.dano || stats.dano, herida: item.herida || stats.herida, distancia: item.distancia || stats.distancia, mejoras });
       }
     });
     (character.equipo_ocupacion || []).forEach(item => {
-      const nombre = typeof item === 'string' ? item : item;
-      if (isWeapon(nombre) && !weaponItems.some(w => w.nombre.toLowerCase() === nombre.toLowerCase())) {
+      const nombre = getName(item);
+      if (isWeapon(nombre) && !isDuplicate(nombre)) {
         const stats = getWeaponStats(nombre);
-        weaponItems.push({ nombre, dano: stats.dano, herida: stats.herida, distancia: stats.distancia });
+        const mejoras = typeof item === 'object' ? (item.mejoras || []) : [];
+        weaponItems.push({ nombre, dano: stats.dano, herida: stats.herida, distancia: stats.distancia, mejoras });
       }
     });
     return Array.from({ length: 5 }, (_, i) => weaponItems[i] || { nombre: '', dano: '', herida: '', distancia: '' });
