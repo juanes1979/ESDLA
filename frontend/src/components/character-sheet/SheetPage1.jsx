@@ -622,14 +622,35 @@ const SheetPage1 = ({ character, scale, weaponCatalog = [], equipmentCatalog = {
     return 0;
   };
   
-  // Calculate peso transportado
+  // Calculate peso carried by mount
+  const calcularPesoMontura = () => {
+    let pesoMontura = 0;
+    // Check inventario for items carried by mount
+    (character.inventario || []).forEach(item => {
+      if (typeof item === 'object' && item.portado_por === 'montura') {
+        const nombre = item.nombre;
+        const cantidad = item.cantidad || 1;
+        if (item.peso_kg) {
+          pesoMontura += (parseFloat(item.peso_kg) || 0) * cantidad;
+        } else {
+          pesoMontura += getItemWeight(nombre) * cantidad;
+        }
+      }
+    });
+    return pesoMontura.toFixed(2);
+  };
+  
+  // Calculate peso transportado (by character, excluding mount cargo)
   const calcularPesoTransportado = () => {
     let pesoTotal = 0;
     (character.inventario || []).forEach(item => {
+      // Skip items carried by mount
+      if (typeof item === 'object' && item.portado_por === 'montura') return;
+      
       const nombre = typeof item === 'string' ? item : item.nombre;
       const cantidad = typeof item === 'object' ? (item.cantidad || 1) : 1;
-      if (typeof item === 'object' && item.peso) {
-        pesoTotal += (parseFloat(item.peso) || 0) * cantidad;
+      if (typeof item === 'object' && item.peso_kg) {
+        pesoTotal += (parseFloat(item.peso_kg) || 0) * cantidad;
       } else {
         pesoTotal += getItemWeight(nombre) * cantidad;
       }
