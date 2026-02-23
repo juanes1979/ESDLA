@@ -985,3 +985,167 @@ async def update_character(character_id: str, data: dict = Body(...)):
     
     updated = await db.characters.find_one({"_id": character_id})
     return serialize_doc(updated)
+
+
+
+# === EQUIPMENT REWARDS ENDPOINT ===
+
+class ApplyEquipmentReward(BaseModel):
+    """Data to apply a reward/upgrade to equipment"""
+    equipment_type: str  # 'arma', 'armadura', 'escudo'
+    equipment_index: Optional[int] = None  # Index in array for armas/equipo
+    mejora_nombre: str  # Name of the reward/upgrade to apply
+    mejora_efecto: Optional[str] = None  # Effect description (optional)
+
+
+@router.post("/{character_id}/equipment/apply-reward")
+async def apply_equipment_reward(character_id: str, data: ApplyEquipmentReward):
+    """Apply a reward/upgrade to a character's equipment item"""
+    character = await db.characters.find_one({"_id": character_id})
+    if not character:
+        raise HTTPException(status_code=404, detail="Character not found")
+    
+    update = {"updated_at": now_utc()}
+    equipment_type = data.equipment_type.lower()
+    
+    if equipment_type == 'arma':
+        # Apply to weapon at specified index
+        if data.equipment_index is None:
+            raise HTTPException(status_code=400, detail="equipment_index required for weapons")
+        
+        armas = character.get('armas', [])
+        if data.equipment_index < 0 or data.equipment_index >= len(armas):
+            raise HTTPException(status_code=400, detail="Invalid weapon index")
+        
+        # Get the weapon and add the mejora
+        arma = armas[data.equipment_index]
+        if isinstance(arma, dict):
+            mejoras = arma.get('mejoras', [])
+            if data.mejora_nombre not in mejoras:
+                mejoras.append(data.mejora_nombre)
+                arma['mejoras'] = mejoras
+                armas[data.equipment_index] = arma
+                update['armas'] = armas
+        else:
+            # If weapon is just a string, convert to dict
+            armas[data.equipment_index] = {
+                'nombre': arma,
+                'mejoras': [data.mejora_nombre]
+            }
+            update['armas'] = armas
+            
+    elif equipment_type == 'armadura':
+        # Apply to armor
+        armadura = character.get('armadura', {})
+        if isinstance(armadura, dict):
+            mejoras = armadura.get('mejoras', [])
+            if data.mejora_nombre not in mejoras:
+                mejoras.append(data.mejora_nombre)
+                armadura['mejoras'] = mejoras
+                update['armadura'] = armadura
+        elif isinstance(armadura, str):
+            # Convert string to dict
+            update['armadura'] = {
+                'nombre': armadura,
+                'mejoras': [data.mejora_nombre]
+            }
+        else:
+            raise HTTPException(status_code=400, detail="Character has no armor")
+            
+    elif equipment_type == 'escudo':
+        # Apply to shield in equipo array
+        if data.equipment_index is None:
+            raise HTTPException(status_code=400, detail="equipment_index required for shields")
+        
+        equipo = character.get('equipo', [])
+        if data.equipment_index < 0 or data.equipment_index >= len(equipo):
+            raise HTTPException(status_code=400, detail="Invalid equipment index")
+        
+        item = equipo[data.equipment_index]
+        if isinstance(item, dict):
+            mejoras = item.get('mejoras', [])
+            if data.mejora_nombre not in mejoras:
+                mejoras.append(data.mejora_nombre)
+                item['mejoras'] = mejoras
+                equipo[data.equipment_index] = item
+                update['equipo'] = equipo
+        else:
+            equipo[data.equipment_index] = {
+                'nombre': item,
+                'mejoras': [data.mejora_nombre]
+            }
+            update['equipo'] = equipo
+    else:
+        raise HTTPException(status_code=400, detail=f"Unknown equipment type: {equipment_type}")
+    
+    # Update character
+    await db.characters.update_one(
+        {"_id": character_id},
+        {"$set": update}
+    )
+    
+    updated_character = await db.characters.find_one({"_id": character_id})
+    return serialize_doc(updated_character)
+
+
+@router.delete("/{character_id}/equipment/{equipment_type}/{equipment_index}/reward/{mejora_nombre}")
+async def remove_equipment_reward(
+    character_id: str, 
+    equipment_type: str, 
+    equipment_index: int,
+    mejora_nombre: str
+):
+    """Remove a reward/upgrade from a character's equipment item"""
+    character = await db.characters.find_one({"_id": character_id})
+    if not character:
+        raise HTTPException(status_code=404, detail="Character not found")
+    
+    update = {"updated_at": now_utc()}
+    equipment_type = equipment_type.lower()
+    
+    if equipment_type == 'arma':
+        armas = character.get('armas', [])
+        if equipment_index < 0 or equipment_index >= len(armas):
+            raise HTTPException(status_code=400, detail="Invalid weapon index")
+        
+        arma = armas[equipment_index]
+        if isinstance(arma, dict):
+            mejoras = arma.get('mejoras', [])
+            if mejora_nombre in mejoras:
+                mejoras.remove(mejora_nombre)
+                arma['mejoras'] = mejoras
+                armas[equipment_index] = arma
+                update['armas'] = armas
+                
+    elif equipment_type == 'armadura':
+        armadura = character.get('armadura', {})
+        if isinstance(armadura, dict):
+            mejoras = armadura.get('mejoras', [])
+            if mejora_nombre in mejoras:
+                mejoras.remove(mejora_nombre)
+                armadura['mejoras'] = mejoras
+                update['armadura'] = armadura
+                
+    elif equipment_type == 'escudo':
+        equipo = character.get('equipo', [])
+        if equipment_index < 0 or equipment_index >= len(equipo):
+            raise HTTPException(status_code=400, detail="Invalid equipment index")
+        
+        item = equipo[equipment_index]
+        if isinstance(item, dict):
+            mejoras = item.get('mejoras', [])
+            if mejora_nombre in mejoras:
+                mejoras.remove(mejora_nombre)
+                item['mejoras'] = mejoras
+                equipo[equipment_index] = item
+                update['equipo'] = equipo
+    else:
+        raise HTTPException(status_code=400, detail=f"Unknown equipment type: {equipment_type}")
+    
+    await db.characters.update_one(
+        {"_id": character_id},
+        {"$set": update}
+    )
+    
+    updated_character = await db.characters.find_one({"_id": character_id})
+    return serialize_doc(updated_character)
