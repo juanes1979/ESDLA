@@ -18,6 +18,7 @@ import SheetPage1 from '@/components/character-sheet/SheetPage1';
 import SheetPage2 from '@/components/character-sheet/SheetPage2';
 import SheetPage3 from '@/components/character-sheet/SheetPage3';
 import EquipmentRewardsModal from '@/components/character-sheet/EquipmentRewardsModal';
+import EquipmentManagerModal from '@/components/character-sheet/EquipmentManagerModal';
 
 // Sheet dimensions (based on PDF converted images 1701x2197)
 const SHEET_WIDTH = 1701;
