@@ -671,6 +671,7 @@ const EquipmentManagerModal = ({
                       {isPurchase ? 'Comprar' : 'Añadir'} {selectedItem.nombre}
                     </Button>
                   </div>
+                  </ScrollArea>
                 ) : (
                   <p className="text-muted-foreground text-sm">
                     Selecciona un item de la lista para añadirlo.
