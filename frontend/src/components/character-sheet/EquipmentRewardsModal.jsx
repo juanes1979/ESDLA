@@ -85,6 +85,30 @@ const EquipmentRewardsModal = ({
     const armasElegidas = character?.armas_elegidas || [];
     armasElegidas.forEach((arma, idx) => addWeapon(arma, idx, 'elegidas'));
     
+    // Check equipo_ocupacion for weapons (from occupation equipment)
+    const equipoOcupacion = character?.equipo_ocupacion || [];
+    equipoOcupacion.forEach((item, idx) => {
+      const nombre = typeof item === 'string' ? item : item?.nombre;
+      if (!nombre) return;
+      const nombreLower = nombre.toLowerCase();
+      const weaponKeywords = ['espada', 'daga', 'arco', 'hacha', 'maza', 'lanza', 'martillo', 'bastón', 'garrote', 'ballesta', 'cimitarra', 'estoque'];
+      if (weaponKeywords.some(kw => nombreLower.includes(kw))) {
+        addWeapon(item, idx, 'ocupacion');
+      }
+    });
+    
+    // Check equipo_trasfondo for weapons
+    const equipoTrasfondo = character?.equipo_trasfondo || [];
+    equipoTrasfondo.forEach((item, idx) => {
+      const nombre = typeof item === 'string' ? item : item?.nombre;
+      if (!nombre) return;
+      const nombreLower = nombre.toLowerCase();
+      const weaponKeywords = ['espada', 'daga', 'arco', 'hacha', 'maza', 'lanza', 'martillo', 'bastón', 'garrote', 'ballesta', 'cimitarra', 'estoque'];
+      if (weaponKeywords.some(kw => nombreLower.includes(kw))) {
+        addWeapon(item, idx, 'trasfondo');
+      }
+    });
+    
     // Check inventario for weapons
     const inventario = character?.inventario || [];
     inventario.forEach((item, idx) => {
@@ -92,7 +116,7 @@ const EquipmentRewardsModal = ({
       if (!nombre) return;
       const nombreLower = nombre.toLowerCase();
       // Check if it's a weapon
-      const weaponKeywords = ['espada', 'daga', 'arco', 'hacha', 'maza', 'lanza', 'martillo', 'bastón', 'garrote'];
+      const weaponKeywords = ['espada', 'daga', 'arco', 'hacha', 'maza', 'lanza', 'martillo', 'bastón', 'garrote', 'ballesta', 'cimitarra', 'estoque'];
       if (weaponKeywords.some(kw => nombreLower.includes(kw))) {
         addWeapon(item, idx, 'inv');
       }
