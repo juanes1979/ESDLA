@@ -795,6 +795,11 @@ const SheetPage1 = ({ character, scale, weaponCatalog = [], equipmentCatalog = {
         </span>
       ))}
       
+      {/* Recompensas - Items with applied rewards */}
+      {getRecompensasRows().map((recompensa, i) => (
+        <DisplayField key={`recompensa${i+1}`} {...PAGE1_FIELDS[`recompensa${i+1}`]} value={recompensa} scale={scale} />
+      ))}
+      
       {/* Peso y estorbo */}
       <DisplayField {...PAGE1_FIELDS.peso_transportado} value={pesoTransportado} scale={scale} />
       <DisplayField {...PAGE1_FIELDS.cargado} value={estorbo.cargado} scale={scale} />
