@@ -600,7 +600,7 @@ const EquipmentManagerModal = ({
                                 }`}
                                 title="Llevado por montura"
                               >
-                                <Horse className="w-4 h-4" />
+                                <Landmark className="w-4 h-4" />
                               </button>
                             </div>
                           )}
