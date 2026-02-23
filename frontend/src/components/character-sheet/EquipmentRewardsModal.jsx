@@ -121,36 +121,21 @@ const EquipmentRewardsModal = ({
     setApplying(true);
     
     try {
-      // Create updated character data
-      const updatedCharacter = { ...character };
+      // Call the dedicated endpoint for applying rewards
+      const payload = {
+        equipment_type: selectedEquipment.tipo,
+        equipment_index: selectedEquipment.index ?? null,
+        mejora_nombre: selectedMejora.nombre,
+        mejora_efecto: selectedMejora.efecto || null,
+      };
       
-      if (selectedEquipment.tipo === 'arma') {
-        const armas = [...(updatedCharacter.armas || [])];
-        const arma = { ...armas[selectedEquipment.index] };
-        arma.mejoras = [...(arma.mejoras || []), selectedMejora.nombre];
-        armas[selectedEquipment.index] = arma;
-        updatedCharacter.armas = armas;
-      } else if (selectedEquipment.tipo === 'armadura') {
-        updatedCharacter.armadura = {
-          ...updatedCharacter.armadura,
-          mejoras: [...(updatedCharacter.armadura?.mejoras || []), selectedMejora.nombre],
-        };
-      } else if (selectedEquipment.tipo === 'escudo') {
-        const equipo = [...(updatedCharacter.equipo || [])];
-        const item = { ...equipo[selectedEquipment.index] };
-        item.mejoras = [...(item.mejoras || []), selectedMejora.nombre];
-        equipo[selectedEquipment.index] = item;
-        updatedCharacter.equipo = equipo;
-      }
-      
-      // Save to backend
-      await api.put(`/characters/${character.id}`, updatedCharacter);
+      const res = await api.post(`/characters/${character.id}/equipment/apply-reward`, payload);
       
       toast.success(`Mejora "${selectedMejora.nombre}" aplicada a ${selectedEquipment.nombre}`);
       
-      // Update parent component
-      if (onCharacterUpdate) {
-        onCharacterUpdate(updatedCharacter);
+      // Update parent component with returned character data
+      if (onCharacterUpdate && res.data) {
+        onCharacterUpdate(res.data);
       }
       
       // Reset selection
@@ -159,7 +144,8 @@ const EquipmentRewardsModal = ({
       
     } catch (err) {
       console.error('Error applying reward:', err);
-      toast.error('Error al aplicar la mejora');
+      const errorMsg = err.response?.data?.detail || 'Error al aplicar la mejora';
+      toast.error(errorMsg);
     } finally {
       setApplying(false);
     }
