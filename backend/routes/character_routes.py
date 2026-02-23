@@ -1149,3 +1149,397 @@ async def remove_equipment_reward(
     
     updated_character = await db.characters.find_one({"_id": character_id})
     return serialize_doc(updated_character)
+
+
+
+# === EQUIPMENT MANAGEMENT ENDPOINTS ===
+
+# Conversion rates: 1 mo = 10 mp = 100 me = 1000 mc
+COIN_VALUES = {
+    "mo": 1000,  # 1 oro = 1000 base
+    "mp": 100,   # 1 plata = 100 base
+    "me": 10,    # 1 estaño = 10 base
+    "mc": 1      # 1 cobre = 1 base
+}
+
+def convert_to_base(dinero: dict) -> int:
+    """Convert all coins to base value (cobre)"""
+    total = 0
+    for coin, amount in dinero.items():
+        if coin in COIN_VALUES:
+            total += amount * COIN_VALUES[coin]
+    return total
+
+def convert_from_base(base_amount: int) -> dict:
+    """Convert base value back to coins (prioritize larger denominations)"""
+    result = {"mo": 0, "mp": 0, "me": 0, "mc": 0}
+    remaining = base_amount
+    for coin in ["mo", "mp", "me", "mc"]:
+        result[coin] = remaining // COIN_VALUES[coin]
+        remaining = remaining % COIN_VALUES[coin]
+    return result
+
+def price_to_base(precio: float, moneda: str) -> int:
+    """Convert a price to base value"""
+    return int(precio * COIN_VALUES.get(moneda, 100))
+
+
+class AddEquipmentRequest(BaseModel):
+    """Request to add equipment to a character"""
+    item_name: str
+    item_category: str  # equipo_general, armas_sencillas_cc, monturas, etc.
+    cantidad: int = 1
+    is_purchase: bool = True  # True = compra, False = regalo/tesoro
+    precio: Optional[float] = None  # Si es diferente al del catálogo
+    moneda: Optional[str] = "mp"
+    # Additional item data
+    peso_kg: Optional[float] = None
+    dano: Optional[str] = None
+    ca: Optional[int] = None
+    herida: Optional[int] = None
+    alcance: Optional[str] = None
+    capacidad_carga: Optional[int] = None  # Para monturas
+
+
+class UpdateEquipmentCarryRequest(BaseModel):
+    """Request to update what the character/mount carries"""
+    item_index: int
+    carried_by: str  # "personaje" or "montura"
+
+
+@router.post("/{character_id}/equipment/add")
+async def add_equipment_to_character(character_id: str, data: AddEquipmentRequest):
+    """
+    Add equipment to a character.
+    - If is_purchase=True, deduct money from character (must have enough)
+    - If is_purchase=False, add without cost (gift/treasure/reward)
+    - For mounts: add to character.montura and update carrying capacity
+    """
+    character = await db.characters.find_one({"_id": character_id})
+    if not character:
+        raise HTTPException(status_code=404, detail="Character not found")
+    
+    # Get equipment catalog to find item details
+    catalog = await db.equipment_catalog.find_one({"_id": "main"})
+    if not catalog:
+        raise HTTPException(status_code=500, detail="Equipment catalog not found")
+    
+    # Find item in catalog
+    catalog_item = None
+    category_items = catalog.get(data.item_category, [])
+    for item in category_items:
+        if item.get("nombre", "").lower() == data.item_name.lower():
+            catalog_item = item
+            break
+    
+    # Build item object
+    new_item = {
+        "nombre": data.item_name,
+        "cantidad": data.cantidad,
+        "categoria": data.item_category,
+        "peso_kg": data.peso_kg or (catalog_item.get("peso_kg") if catalog_item else 0),
+        "portado_por": "personaje",  # Default: carried by character
+        "es_regalo": not data.is_purchase,
+    }
+    
+    # Add category-specific fields
+    if "armas" in data.item_category:
+        new_item["dano"] = data.dano or (catalog_item.get("dano") if catalog_item else "")
+        new_item["herida"] = data.herida or (catalog_item.get("herida") if catalog_item else 0)
+        new_item["alcance"] = data.alcance or (catalog_item.get("alcance") if catalog_item else "")
+        new_item["tipo"] = catalog_item.get("modificador") if catalog_item else ""
+    elif "armaduras" in data.item_category or data.item_category == "escudos":
+        new_item["ca"] = data.ca or (catalog_item.get("ca") if catalog_item else 0)
+    
+    # Handle purchase
+    if data.is_purchase:
+        precio = data.precio if data.precio is not None else (catalog_item.get("precio", 0) if catalog_item else 0)
+        moneda = data.moneda or (catalog_item.get("moneda", "mp") if catalog_item else "mp")
+        
+        if precio > 0:
+            precio_total = precio * data.cantidad
+            precio_base = price_to_base(precio_total, moneda)
+            
+            dinero_actual = character.get("dinero", {"mo": 0, "mp": 0, "me": 0, "mc": 0})
+            dinero_base = convert_to_base(dinero_actual)
+            
+            if dinero_base < precio_base:
+                # Calculate what they can afford
+                can_afford = dinero_base // price_to_base(precio, moneda)
+                raise HTTPException(
+                    status_code=400, 
+                    detail=f"Dinero insuficiente. Necesitas {precio_total} {moneda}. Tienes {dinero_actual}. Puedes comprar máximo {can_afford} unidades."
+                )
+            
+            # Deduct money
+            nuevo_dinero_base = dinero_base - precio_base
+            nuevo_dinero = convert_from_base(nuevo_dinero_base)
+            new_item["precio_pagado"] = precio_total
+            new_item["moneda_pagada"] = moneda
+    else:
+        new_item["precio_pagado"] = 0
+    
+    update = {"updated_at": now_utc()}
+    
+    # Handle mounts specially
+    if data.item_category == "monturas":
+        # Add mount to character
+        mount_data = {
+            "nombre": data.item_name,
+            "capacidad_carga": data.capacidad_carga or (catalog_item.get("capacidad_carga") if catalog_item else 0),
+            "velocidad": catalog_item.get("velocidad") if catalog_item else 0,
+            "constitucion": catalog_item.get("constitucion") if catalog_item else "",
+            "equipo": [],  # Equipment carried by mount
+        }
+        update["montura"] = mount_data
+    elif "armas" in data.item_category:
+        # Add to armas array
+        armas = character.get("armas", [])
+        armas.append(new_item)
+        update["armas"] = armas
+    elif "armaduras" in data.item_category:
+        # Replace armor
+        update["armadura"] = new_item
+    elif data.item_category == "escudos":
+        # Add to equipo
+        equipo = character.get("equipo", [])
+        equipo.append(new_item)
+        update["equipo"] = equipo
+    else:
+        # Add to inventario
+        inventario = character.get("inventario", [])
+        # Check if item already exists
+        found = False
+        for i, item in enumerate(inventario):
+            if isinstance(item, dict) and item.get("nombre", "").lower() == data.item_name.lower():
+                inventario[i]["cantidad"] = inventario[i].get("cantidad", 1) + data.cantidad
+                found = True
+                break
+        if not found:
+            inventario.append(new_item)
+        update["inventario"] = inventario
+    
+    # Update money if purchase
+    if data.is_purchase and precio > 0:
+        update["dinero"] = nuevo_dinero
+    
+    await db.characters.update_one(
+        {"_id": character_id},
+        {"$set": update}
+    )
+    
+    updated = await db.characters.find_one({"_id": character_id})
+    return {
+        "message": f"{'Comprado' if data.is_purchase else 'Añadido'}: {data.item_name} x{data.cantidad}",
+        "character": serialize_doc(updated)
+    }
+
+
+@router.delete("/{character_id}/equipment/remove")
+async def remove_equipment_from_character(
+    character_id: str,
+    item_name: str = Query(...),
+    item_category: str = Query(...),
+    cantidad: int = Query(default=1)
+):
+    """Remove equipment from a character's inventory"""
+    character = await db.characters.find_one({"_id": character_id})
+    if not character:
+        raise HTTPException(status_code=404, detail="Character not found")
+    
+    update = {"updated_at": now_utc()}
+    removed = False
+    
+    if item_category == "monturas":
+        # Remove mount
+        if character.get("montura", {}).get("nombre", "").lower() == item_name.lower():
+            update["montura"] = {}
+            removed = True
+    elif "armas" in item_category:
+        armas = character.get("armas", [])
+        for i, arma in enumerate(armas):
+            nombre = arma.get("nombre") if isinstance(arma, dict) else arma
+            if nombre and nombre.lower() == item_name.lower():
+                armas.pop(i)
+                removed = True
+                break
+        update["armas"] = armas
+    elif "armaduras" in item_category:
+        armadura = character.get("armadura", {})
+        if isinstance(armadura, dict) and armadura.get("nombre", "").lower() == item_name.lower():
+            update["armadura"] = {}
+            removed = True
+    elif item_category == "escudos":
+        equipo = character.get("equipo", [])
+        for i, item in enumerate(equipo):
+            nombre = item.get("nombre") if isinstance(item, dict) else item
+            if nombre and nombre.lower() == item_name.lower():
+                equipo.pop(i)
+                removed = True
+                break
+        update["equipo"] = equipo
+    else:
+        inventario = character.get("inventario", [])
+        for i, item in enumerate(inventario):
+            nombre = item.get("nombre") if isinstance(item, dict) else item
+            if nombre and nombre.lower() == item_name.lower():
+                current_qty = item.get("cantidad", 1) if isinstance(item, dict) else 1
+                if current_qty <= cantidad:
+                    inventario.pop(i)
+                else:
+                    inventario[i]["cantidad"] = current_qty - cantidad
+                removed = True
+                break
+        update["inventario"] = inventario
+    
+    if not removed:
+        raise HTTPException(status_code=404, detail=f"Item '{item_name}' not found")
+    
+    await db.characters.update_one(
+        {"_id": character_id},
+        {"$set": update}
+    )
+    
+    updated = await db.characters.find_one({"_id": character_id})
+    return {
+        "message": f"Eliminado: {item_name}",
+        "character": serialize_doc(updated)
+    }
+
+
+@router.patch("/{character_id}/equipment/carry")
+async def update_equipment_carrier(character_id: str, data: UpdateEquipmentCarryRequest):
+    """
+    Update who carries an item (character or mount).
+    For calculating encumbrance:
+    - Items carried by mount don't count towards character's weight
+    - Weapons and armor ALWAYS count (character always wears them)
+    """
+    character = await db.characters.find_one({"_id": character_id})
+    if not character:
+        raise HTTPException(status_code=404, detail="Character not found")
+    
+    if not character.get("montura", {}).get("nombre"):
+        raise HTTPException(status_code=400, detail="Character has no mount")
+    
+    inventario = character.get("inventario", [])
+    if data.item_index < 0 or data.item_index >= len(inventario):
+        raise HTTPException(status_code=400, detail="Invalid item index")
+    
+    item = inventario[data.item_index]
+    if isinstance(item, dict):
+        item["portado_por"] = data.carried_by
+        inventario[data.item_index] = item
+    else:
+        inventario[data.item_index] = {
+            "nombre": item,
+            "cantidad": 1,
+            "portado_por": data.carried_by
+        }
+    
+    await db.characters.update_one(
+        {"_id": character_id},
+        {"$set": {"inventario": inventario, "updated_at": now_utc()}}
+    )
+    
+    updated = await db.characters.find_one({"_id": character_id})
+    return serialize_doc(updated)
+
+
+@router.get("/{character_id}/weight-summary")
+async def get_character_weight_summary(character_id: str):
+    """
+    Calculate detailed weight summary for character including mount.
+    Returns:
+    - Total weight carried by character
+    - Total weight on mount
+    - Encumbrance status
+    - Mount's remaining capacity
+    """
+    character = await db.characters.find_one({"_id": character_id})
+    if not character:
+        raise HTTPException(status_code=404, detail="Character not found")
+    
+    # Get equipment catalog for weights
+    catalog = await db.equipment_catalog.find_one({"_id": "main"})
+    
+    def get_weight(item_name: str, item_data: dict = None) -> float:
+        if item_data and item_data.get("peso_kg"):
+            return float(item_data.get("peso_kg", 0))
+        if not catalog:
+            return 0
+        # Search all categories
+        for category_items in catalog.values():
+            if isinstance(category_items, list):
+                for item in category_items:
+                    if item.get("nombre", "").lower() == item_name.lower():
+                        return float(item.get("peso_kg", 0))
+        return 0
+    
+    peso_personaje = 0
+    peso_montura = 0
+    
+    # Weapons (always on character)
+    for arma in character.get("armas", []):
+        nombre = arma.get("nombre") if isinstance(arma, dict) else arma
+        peso = arma.get("peso_kg") if isinstance(arma, dict) else None
+        peso_personaje += get_weight(nombre, arma if isinstance(arma, dict) else None)
+    
+    # Armor (always on character)
+    armadura = character.get("armadura", {})
+    if isinstance(armadura, dict) and armadura.get("nombre"):
+        peso_personaje += get_weight(armadura.get("nombre"), armadura)
+    
+    # Shield/Equipo (always on character for now)
+    for item in character.get("equipo", []):
+        nombre = item.get("nombre") if isinstance(item, dict) else item
+        peso_personaje += get_weight(nombre, item if isinstance(item, dict) else None)
+    
+    # Inventory items - check who carries them
+    for item in character.get("inventario", []):
+        if isinstance(item, dict):
+            nombre = item.get("nombre", "")
+            cantidad = item.get("cantidad", 1)
+            peso = get_weight(nombre, item) * cantidad
+            
+            if item.get("portado_por") == "montura":
+                peso_montura += peso
+            else:
+                peso_personaje += peso
+        else:
+            peso_personaje += get_weight(item)
+    
+    # Add coin weight (1 coin ≈ 9g)
+    dinero = character.get("dinero", {})
+    total_coins = sum(dinero.values())
+    peso_personaje += total_coins * 0.009
+    
+    # Calculate encumbrance
+    attrs = character.get("atributos", character.get("caracteristicas", character.get("atributos_finales", {})))
+    fuerza = attrs.get("fuerza", 10)
+    
+    # Base capacity = Strength * 6.8 kg (15 lb per point)
+    # With x2 (dwarf trait): doubled
+    capacidad_base = fuerza * 6.8
+    if character.get("capacidad_carga_x2"):
+        capacidad_base *= 2
+    
+    limite_cargado = fuerza * 2.5  # Encumbered threshold
+    limite_muy_cargado = fuerza * 4  # Heavily encumbered threshold
+    
+    # Mount info
+    montura = character.get("montura", {})
+    capacidad_montura = montura.get("capacidad_carga", 0) if montura else 0
+    
+    return {
+        "peso_personaje": round(peso_personaje, 2),
+        "peso_montura": round(peso_montura, 2),
+        "capacidad_personaje": round(capacidad_base, 2),
+        "limite_cargado": round(limite_cargado, 2),
+        "limite_muy_cargado": round(limite_muy_cargado, 2),
+        "estado_carga": "muy_cargado" if peso_personaje > limite_muy_cargado else ("cargado" if peso_personaje > limite_cargado else "normal"),
+        "tiene_montura": bool(montura.get("nombre")),
+        "nombre_montura": montura.get("nombre", ""),
+        "capacidad_montura": capacidad_montura,
+        "capacidad_montura_restante": round(capacidad_montura - peso_montura, 2) if capacidad_montura else 0,
+    }
