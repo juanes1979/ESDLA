@@ -16,83 +16,91 @@ PRODUCT REQUIREMENTS:
 **User's preferred language**: Español
 
 **what currently exists?**
-The application features a  that has become a central hub for data management. It now includes a comprehensive system for equipment management with full CRUD (Create, Read, Update, Delete) capabilities. This system features an advanced, multi-layered availability model, allowing administrators to define where equipment can be purchased based on both settlement wealth (e.g., Aldea, Pueblo, Ciudad) and specific geographic regions/sub-regions. This availability can be set for individual items or for entire equipment categories in a single batch operation.
-
-Furthermore, the  includes a powerful PDF export feature for equipment lists, which allows users to filter by category, settlement type, and region before generating a formatted document.
-
-Other key features include:
-- An interactive map with location CRUD and dynamic region selectors that pull data from a new, fully manageable region/sub-region hierarchy system.
-- A travel generator with PDF export functionality.
-- A character sheet page with the UI for a new equipment rewards application system (modal is built, logic is pending).
+The application now has a highly advanced equipment management system integrated into the . This includes:
+- **Rewards System**: A fully functional feature to apply permanent enhancements (rewards) to a character's weapons, armor, and shields.
+- **Equipment Management Modal**: A comprehensive modal that allows players to add, remove, and manage their inventory. It supports purchasing items (deducting from the character's wallet, with currency conversion) or adding them as gifts.
+- **Mount Inventory**: Players can manage which items are carried by their character versus their mount, with weight calculations handled separately.
+- **Price Modifier System**: When purchasing items, users can select various modifiers (based on region, settlement, seller relationship, etc.) that dynamically adjust the final price.
+- **Robust Character Sheet**: The character sheet pages (, ) have been repeatedly debugged and patched to handle inconsistent data structures (items as  vs. ), making them more resilient to crashes. Items with rewards are now correctly displayed in a dedicated section of the PDF-style sheet.
 
 **Last working item**:
--   **Last item agent was working:** The agent implemented a feature to edit the availability (both settlement type and region) for an entire category of equipment at once. This includes a new modal for batch editing, triggered from the header of each equipment table.
--   **Status:** USER VERIFICATION PENDING
--   **Agent Testing Done:** Y
--   **Which testing method agent to use?** screenshot tool
+-   **Last item agent was working:** The agent was implementing a user request to enhance the mount and weight system on the official character sheet (). This involved:
+    1.  Adding a new field to the character sheet to display the total weight carried by the mount.
+    2.  Modifying the character's Peso Transportado (Carried Weight) to exclude the weight of items on the mount.
+    3.  Ensuring the mount itself appears in the equipment list.
+    4.  Updating the equipment management modal to correctly list all items, including weapons from all sources.
+-   **Status:** IN PROGRESS
+-   **Agent Testing Done:** N
+-   **Which testing method agent to use?** screenshot tool. Test the  page and its Equipo modal to verify the new weight fields and complete equipment list.
 -   **User Testing Done:** N
 
 **All Pending/In progress Issue list**:
--   Issue 1: The Apply Rewards modal on the character sheet has been created, but the backend logic to apply the selected enhancement to the character's equipment item and persist the change is not implemented. (P1)
--   Issue 2: The  component refactoring was started (files created) but not completed. The monolithic file still contains all the logic. (P1)
--   Issue 3: The  component has become excessively large and complex, containing logic for multiple modals, CRUD operations, and PDF generation. It urgently needs refactoring. (P2)
+-   Issue 1: Complete mount weight display and equipment management features. (P0)
+-   Issue 2: The  component refactoring was started but never completed. (P1)
+-   Issue 3: The  component is excessively large and complex and needs to be refactored into smaller components. (P2)
+-   Issue 4: The new price modifiers are functional for purchasing but are not yet displayed on the  for reference, as requested by the user. (P2)
 
 **Issues Detail:**
--   **Issue 1: Implement Apply Rewards Logic**
-    -   **Attempted fixes:** The UI modal () was created and integrated into the  page.
+-   **Issue 1: Complete Mount Weight & Equipment Management Update**
+    -   **Attempted fixes:** The agent has modified  to add new calculation logic and fields, and updated  to fetch a wider range of equipment. The work is mid-way through implementation.
     -   **Next debug checklist:**
-        1.  Create a new backend endpoint (e.g., ).
-        2.  This endpoint should take a  and modify the specified equipment item's data within the character's document in the database.
-        3.  Implement the  function in  to call this new endpoint.
-        4.  Update the character state on the frontend to reflect the change without a full page reload.
-    -   **Why fix this issue and what will be achieved with the fix?** To complete the P1 task requested by the user, making character progression functional.
+        1.  Verify the new functions  and the modified  in  are working correctly.
+        2.  Ensure the new field for mount weight is added to  and renders on the character sheet.
+        3.  Test the  to confirm all character equipment (weapons, armor, inventory, mount) is displayed and manageable.
+        4.  Take a screenshot of the  page to verify the UI changes.
+    -   **Why fix this issue and what will be achieved with the fix?** This will complete the user's latest request for a more detailed and accurate inventory and weight management system.
     -   **Status:** IN PROGRESS
     -   **Is recurring issue?** N
-    -   **Should Test frontend/backend/both after fix?** Both
-    -   **Blocked on other issue:** None
-
--   **Issue 2: Complete  Refactor**
-    -   **Attempted fixes:** The agent created empty component files (, , , ).
-    -   **Next debug checklist:**
-        1.  Systematically move the relevant logic and JSX from  into the newly created component files.
-        2.  Manage state and props appropriately, lifting state where necessary.
-        3.  Import and render the new components within , turning it into a container component.
-    -   **Why fix this issue and what will be achieved with the fix?** To improve code maintainability, readability, and performance, addressing a critical piece of tech debt.
-    -   **Status:** IN PROGRESS
-    -   **Is recurring issue?** Y
     -   **Should Test frontend/backend/both after fix?** Frontend
     -   **Blocked on other issue:** None
 
--   **Issue 3: Refactor **
-    -   **Attempted fixes:** None. The file has only grown larger.
+-   **Issue 2: Complete  Refactor**
+    -   **Attempted fixes:** Empty component files (, etc.) were created in a previous session, but no logic has been moved.
     -   **Next debug checklist:**
-        1.  Plan the component breakdown (e.g., , , , ).
-        2.  Create the new component files.
-        3.  Extract logic and JSX from  into the new components, managing state via props and context.
-    -   **Why fix this issue and what will be achieved with the fix?** To manage the high complexity of the page and make future changes feasible.
+        1.  Systematically move the relevant logic and JSX from  into the dedicated child component files.
+        2.  Manage state and props appropriately, lifting state where necessary.
+    -   **Why fix this issue and what will be achieved with the fix?** To improve code maintainability and address critical tech debt.
     -   **Status:** NOT STARTED
     -   **Is recurring issue?** Y
     -   **Should Test frontend/backend/both after fix?** Frontend
     -   **Blocked on other issue:** None
 
-**In progress Task List**:
--   **Task 1: Complete the Apply Rewards feature**
-    -   **Where to resume:** Implement the backend endpoint and frontend logic as described in Issue 1.
-    -   **What will be achieved with this?** A functional character equipment enhancement system.
-    -   **Status:** IN PROGRESS
-    -   **Should Test frontend/backend/both after fix?** Both
-    -   **Blocked on something:** None
+-   **Issue 3: Refactor **
+    -   **Attempted fixes:** None. The file has only grown in previous sessions.
+    -   **Next debug checklist:**
+        1.  Plan the component breakdown (e.g., , , ).
+        2.  Create new component files and extract logic and JSX from .
+    -   **Why fix this issue and what will be achieved with the fix?** To manage the extreme complexity of the page and make future changes feasible.
+    -   **Status:** NOT STARTED
+    -   **Is recurring issue?** Y
+    -   **Should Test frontend/backend/both after fix?** Frontend
+    -   **Blocked on other issue:** None
 
--   **Task 2: Finish refactoring **
-    -   **Where to resume:** Populate the created component files with code from the main  file.
-    -   **What will be achieved with this?** A more modular and maintainable map page.
+-   **Issue 4: Display Price Modifiers on Rules Page**
+    -   **Attempted fixes:** None. The backend and data exist, but the frontend for this page has not been built.
+    -   **Next debug checklist:**
+        1.  In , fetch data from the  endpoint.
+        2.  Create a new component to render the modifiers in tables, similar to how they are shown in the user's provided image.
+        3.  Add this new component to the .
+    -   **Why fix this issue and what will be achieved with the fix?** This will complete the user's request for the price modifier feature by making the modifiers visible for reference.
+    -   **Status:** NOT STARTED
+    -   **Is recurring issue?** N
+    -   **Should Test frontend/backend/both after fix?** Frontend
+    -   **Blocked on other issue:** None
+
+**In progress Task List**:
+-   **Task 1: Complete Mount Weight & Equipment Management Update**
+    -   **Where to resume:** Resume work in  and . The next step is to test the changes made so far.
+    -   **What will be achieved with this?** A fully functional and accurate weight tracking system that distinguishes between character and mount inventory.
     -   **Status:** IN PROGRESS
     -   **Should Test frontend/backend/both after fix?** Frontend
     -   **Blocked on something:** None
 
 **Upcoming and Future Tasks**
 **Upcoming Tasks:**
--   **P2: Refactor :** Break down the massive component into smaller, manageable pieces.
+-   **P1:** Complete  Refactor.
+-   **P2:** Display Price Modifiers on .
+-   **P2:** Refactor the monolithic .
 
 **Future Tasks:**
 -   Implement the full user authentication system with roles (Maestro, Admin, Player).
@@ -102,42 +110,28 @@ Other key features include:
 -   Build the complete, multi-phase character creator.
 
 **Completed work in this session**
--   **Dynamic Equipment Availability System (DONE):**
-    -   Implemented full CRUD for individual equipment items.
-    -   Added availability controls based on settlement wealth and geographic region.
-    -   Created a batch-editing feature to set availability for entire equipment categories.
--   **Backend Data Updates (DONE):**
-    -   Created and executed a script to perform a bulk update of hundreds of item prices as requested by the user.
-    -   Created and executed a script to set initial default availability for all equipment.
--   **PDF Export Enhancements (DONE):**
-    -   Added a feature to export filtered equipment lists to a formatted PDF.
-    -   Added PDF export to the Travel Generator results.
--   **Dynamic Region Management (DONE):**
-    -   Created a full CRUD system for managing game world regions and sub-regions.
-    -   Integrated this dynamic data into the map's location editor.
--   **Character Sheet Reward UI (DONE):**
-    -   Created the modal and UI for applying rewards to equipment (backend logic pending).
--   **Minor UI Improvements (DONE):**
-    -   Added a Back to Home button on the map page.
+-   **Apply Rewards Feature (DONE):** Implemented the backend and frontend for applying permanent enhancements to equipment.
+-   **Advanced Equipment Management Modal (DONE):** Created a modal on the character sheet for buying, adding, and deleting equipment, including mount inventory management.
+-   **Price Modifier System (DONE):** Implemented a dynamic price calculation system based on user-selectable modifiers for equipment purchases.
+-   **Critical Character Sheet Bug Fixes (DONE):** Resolved a series of crashes on  and  caused by inconsistent data types for equipment (string vs. object) after applying rewards.
+-   **PDF Character Sheet Update (DONE):** Items with rewards are now moved to a dedicated Recompensas section on the character sheet display.
 
 **Earlier issues found/mentioned but not fixed**
--   None not already listed in the All Pending/In progress Issue list.
+-   The user requested that price modifiers be displayed on the  for reference. The agent implemented the backend and the purchasing logic but did not add the display tables to the .
 
 **Known issue recurrence from previous fork**
--   The need to refactor large, monolithic React components (, ) is a recurring issue. The agent has added significant functionality, increasing the urgency of this task.
+-   The technical debt of large, monolithic React components (, ) persists and is growing.  and the new  are also becoming very complex and are candidates for future refactoring.
 
 **Code Architecture**
 
 
 **Key Technical Concepts**
--   **Complex Frontend State Management:**  manages state for multiple modals, dynamic forms, and user selections for PDF generation and batch editing.
--   **Batch Data Operations:** The backend includes endpoints for performing bulk updates on the equipment collection (e.g., , ).
--   **Dynamic UI Generation:** The availability editing modals for both items and categories are dynamically rendered with hierarchical checkboxes based on region data fetched from the backend.
--   **Client-Side PDF Generation ():** Used to create highly customized and filtered PDFs directly on the client.
+-   **Defensive Programming in React:** A key theme was patching frontend functions (, , etc.) to handle multiple possible data shapes for the same logical entity (e.g., a weapon being a  or an ), preventing crashes.
+-   **Complex Frontend State Management:** The  is a prime example, handling dynamic price calculations, inventory states, character currency, and UI state simultaneously.
+-   **Composite Data Fetching:** The frontend now aggregates equipment data from multiple fields within the character document (, , , ) to present a unified list to the user.
 
 **key DB schema**
--   ****: 
--   ****: 
+-   ****: The  array now supports a  field. Equipment items (, , , and items in ) are frequently converted from  to  () when a reward is applied.
 
 **changes in tech stack**
 -   None.
@@ -150,36 +144,40 @@ Other key features include:
 -   
 
 **Areas that need refactoring**:
--   **:** This is the highest priority. The component is now over 2000 lines long and handles logic for at least four distinct features (equipment tables, item editor, category editor, PDF exporter). It must be broken down into smaller components.
--   **:** The refactoring that was started needs to be completed to move logic into the dedicated child components.
+-   ****: Critically needs to be broken down.
+-   ****: The planned refactor is still pending.
+-   ****: Has become very large and complex due to repeated additions and patches. It should be considered for a future refactor.
+-   ****: This new component is already large and could be split into smaller, more focused components for better maintainability.
 
 **key api endpoints**
--   : Full CRUD for region management.
--   : Updates a single equipment item, including availability.
--   : Deletes an equipment item.
--   : Scripted endpoint for bulk price updates.
--   : Updates availability for all items in a given category.
+-   : Applies a reward enhancement to a piece of equipment.
+-   : Handles all equipment transactions: purchasing, adding as gift, deleting, and moving to/from a mount.
+-   : Retrieves the list of price modifiers for display and calculation.
 
 **Critical Info for New Agent**
--   Your first priority should be to propose a plan to the user that includes completing the in-progress tasks (finishing the map refactor and implementing the rewards logic) and addressing the critical tech debt of refactoring .
--   The user is highly responsive and provides feature-rich requests. All communication must be in Spanish.
--   The application's complexity is concentrated in . Any new features related to rules or equipment will require touching this file, making its refactoring essential for future progress.
+-   Your immediate task is to finish the implementation of the mount weight display on the character sheet. This involves verifying calculations in  and testing the UI.
+-   Be extremely cautious when working with equipment data on the frontend. It can exist as a simple string or a complex object. Always check the data type before accessing properties or calling string methods like . Many functions in  now contain patterns for this.
+-   The user is highly engaged and provides detailed, complex feature requests related to the character sheet. All communication must be in Spanish.
+-   After completing the current task, you should propose a plan that includes addressing the pending refactoring tasks (, ) to manage growing technical debt.
 
 **documents and test reports created in this job**
--   None.
+-    was updated.
 
 **Last 10 User Messages and any pending HUMAN messages**
-1.  **User:** Asks for batch editing of availability for entire equipment categories at once. (**Implemented, pending verification**)
-2.  **User:** Wants equipment availability tied to specific regions/sub-regions and asks the agent to set logical defaults. Also wants PDF export to be filterable by these new criteria. (**Implemented**)
-3.  **User:** Requests edit/delete buttons for equipment, a large batch of price updates, and introduces the concept of availability based on settlement wealth. (**Implemented**)
-4.  **User:** Asks for a feature to print a formatted PDF of the equipment list, with category selection. (**Implemented**)
-5.  **User:** Approves moving on to P1 (rewards) and P2 (PDF export, map refactor) tasks. (**Partially Implemented**)
-6.  **User:** Requests a back button on the map page. (**Implemented**)
-7.  **User:** (and previous) A series of messages defining the interactive map editor, recalibrating locations, and enhancing map UX. (**Completed in a prior session**)
+1.  **User:** Requests adding a field for mount weight to the character sheet, subtracting it from the character's total carried weight, and ensuring the mount and all weapons are manageable in the equipment modal. **(In Progress)**
+2.  **User:** Provided an image of price modifiers and asked to integrate them into equipment purchasing and display them in the rules section. **(Partially Implemented - purchase logic is done, display on rules page is pending)**
+3.  **User:** Reported a crash on page 2 of the character sheet and requested that items with rewards be moved to a separate recompensa section on the PDF sheet, providing JSON coordinates. **(Resolved)**
+4.  **User:** Reported a crash when viewing the character sheet after a reward had been applied. **(Resolved)**
+5.  **User:** Reported an error () when applying a reward. **(Resolved)**
+6.  **User:** Provided a screenshot showing the rewards modal was empty because it wasn't finding the character's weapons. **(Resolved)**
+7.  **User:** Requested a complex equipment management system for the character sheet, including purchasing, currency management, weight, and mount inventory. **(Implemented)**
+8.  **User:** Confirmed a previous fix and asked the agent to start implementing the Apply Rewards feature. **(Completed)**
+9.  **User:** (Older) Asked for a feature to add/modify/delete equipment. **(Superseded by more detailed request)**
+10. **User:** (Older) Confirmed that batch editing of equipment availability was working. **(Completed)**
 
 **Project Health Check:**
 -   **Broken:** None
--   **Mocked:** The Apply Rewards feature on the character sheet has a UI but no backend logic to save the changes.
+-   **Mocked:** None
 
 **3rd Party Integrations**
 -   
@@ -193,7 +191,8 @@ Other key features include:
 -   **Known regressions:** None
 
 **Credentials to test flow:**
--   No authentication is currently implemented. The app defaults to an admin/Maestro view.
+-   No authentication is implemented.
 
 **What agent forgot to execute**
--   The agent started the refactoring of  by creating new component files but failed to move any of the existing logic or JSX into them, leaving the main file as a monolith. This was part of a user-approved task ().</analysis>
+-   The refactoring of  and  remains pending from the previous fork.
+-   The user's request to display the new price modifiers in the  for reference has not been implemented.</analysis>
