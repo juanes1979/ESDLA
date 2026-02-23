@@ -28,6 +28,7 @@ const RULE_CATEGORIES = [
   { id: 'occupations', name: 'Ocupaciones', icon: Swords, color: 'magic-blue', description: 'Las vocaciones heroicas' },
   { id: 'virtues', name: 'Virtudes', icon: Sparkles, color: 'torch-orange', description: 'Dones especiales por cultura' },
   { id: 'equipment', name: 'Precios de Equipo', icon: Package, color: 'gold', description: 'Lista completa con precios y pesos' },
+  { id: 'price_modifiers', name: 'Modificadores de Precio', icon: Coins, color: 'torch-orange', description: 'Ajustes de precio por región, asentamiento y contexto' },
   { id: 'shadow', name: 'Sombra', icon: Moon, color: 'destructive', description: 'La corrupción y sus efectos' },
   { id: 'artes', name: 'Artes', icon: BookOpen, color: 'magic-blue', description: 'Habilidades especiales' },
   { id: 'recompensas', name: 'Recompensas', icon: Crown, color: 'gold', description: 'Mejoras de equipo y bendiciones' },
