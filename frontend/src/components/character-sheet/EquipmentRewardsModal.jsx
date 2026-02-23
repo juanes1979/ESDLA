@@ -70,6 +70,7 @@ const EquipmentRewardsModal = ({
         id: `arma_${source}_${idx}`,
         nombre: nombre,
         tipo: 'arma',
+        source: source, // 'armas', 'elegidas', 'inv'
         mejoras_aplicadas: mejoras,
         data: typeof arma === 'object' ? arma : { nombre },
         index: idx,
