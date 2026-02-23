@@ -55,6 +55,27 @@ Build a comprehensive web application to play a modified version of the "Lord of
   - Encabezados repetidos en cada página
   - Numeración de páginas y fecha de generación
 
+#### Sistema de Edición y Disponibilidad de Equipamiento 🛠️
+- **Botones de editar/eliminar** en cada fila de equipamiento (visible al pasar el ratón)
+- **Modal de edición completo** con:
+  - Campos editables: nombre, precio, moneda, peso, daño, CA, etc.
+  - Selector de disponibilidad por asentamiento (Aldea, Pueblo, Villa, Ciudad, Capital, Especial)
+- **Endpoints backend nuevos:**
+  - `POST /equipment/batch-update-prices` - Actualizar precios masivamente
+  - `POST /equipment/set-availability` - Configurar disponibilidad
+  - `POST /equipment/batch-set-availability` - Configurar disponibilidad masiva
+- **Precios actualizados** según especificaciones del usuario:
+  - Monturas: Burro 5mp, Caballo de guerra 40mp, etc.
+  - Accesorios: Alforjas 5mc, Silla de monta 2mp, etc.
+  - Transporte terrestre y marítimo con nuevos precios
+  - Hierbas: Aceite regenerador 157mp, Ungüentos enanos, etc.
+- **Disponibilidad inicial configurada** para 485 items:
+  - Items básicos: disponibles en aldeas
+  - Armas marciales: desde pueblo
+  - Armaduras pesadas: solo ciudades/capitales
+  - Caballos de guerra: ciudades/capitales
+  - Navíos de guerra: especial
+
 #### P2: Refactorización del Mapa 🗺️
 - **Nuevos componentes modulares en `/components/map/`**:
   - `MapControls.jsx` - Controles de zoom, switches de vista
