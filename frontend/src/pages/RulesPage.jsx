@@ -87,6 +87,20 @@ const RulesPage = () => {
   const [showEquipmentItemEditor, setShowEquipmentItemEditor] = useState(false);
   const [editingEquipmentItem, setEditingEquipmentItem] = useState(null);
   const [savingEquipmentItem, setSavingEquipmentItem] = useState(false);
+  const [availableRegions, setAvailableRegions] = useState([]);
+  
+  // Load regions for equipment availability
+  useEffect(() => {
+    const loadRegions = async () => {
+      try {
+        const res = await api.get('/data/regions');
+        setAvailableRegions(res.data?.regions || []);
+      } catch (err) {
+        console.error('Error loading regions:', err);
+      }
+    };
+    loadRegions();
+  }, []);
   
   // Region management states
   const [editingRegion, setEditingRegion] = useState(null);
