@@ -393,12 +393,21 @@ const SheetPage1 = ({ character, scale, weaponCatalog = [], equipmentCatalog = {
   // Get all equipment items (excluding weapons)
   const getAllEquipment = () => {
     const allItems = [
-      ...(character.inventario || []).map(i => typeof i === 'string' ? i : i.nombre),
-      ...(character.equipo_ocupacion || []),
-      ...(character.equipo_trasfondo || []),
-      ...(character.equipo_nivel_vida || []),
+      ...(character.inventario || []).map(i => {
+        const nombre = typeof i === 'string' ? i : i.nombre;
+        const portado = typeof i === 'object' && i.portado_por === 'montura' ? ' (M)' : '';
+        return nombre + portado;
+      }),
+      ...(character.equipo_ocupacion || []).map(i => typeof i === 'string' ? i : i.nombre),
+      ...(character.equipo_trasfondo || []).map(i => typeof i === 'string' ? i : i.nombre),
+      ...(character.equipo_nivel_vida || []).map(i => typeof i === 'string' ? i : i.nombre),
     ];
-    return allItems.filter(item => !isWeapon(item));
+    // Add mount if exists
+    const montura = character.montura;
+    if (montura && montura.nombre) {
+      allItems.push(`🐴 ${montura.nombre} (${montura.capacidad_carga || 0}kg cap.)`);
+    }
+    return allItems.filter(item => item && !isWeapon(item));
   };
   
   const getEquipmentRows = () => {
