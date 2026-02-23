@@ -91,6 +91,13 @@ const RulesPage = () => {
   const [savingEquipmentItem, setSavingEquipmentItem] = useState(false);
   const [availableRegions, setAvailableRegions] = useState([]);
   
+  // Category availability editor states
+  const [showCategoryAvailabilityEditor, setShowCategoryAvailabilityEditor] = useState(false);
+  const [editingCategoryKey, setEditingCategoryKey] = useState(null);
+  const [editingCategoryName, setEditingCategoryName] = useState('');
+  const [categoryAvailability, setCategoryAvailability] = useState({ nivel_asentamiento: [], regiones_disponibles: [] });
+  const [savingCategoryAvailability, setSavingCategoryAvailability] = useState(false);
+  
   // Load regions for equipment availability
   useEffect(() => {
     const loadRegions = async () => {
