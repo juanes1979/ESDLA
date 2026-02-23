@@ -1530,7 +1530,21 @@ const RulesPage = () => {
       
       return (
         <div key={cat.key} className="card-parchment rounded-lg p-4">
-          <h4 className="font-heading text-md text-[hsl(var(--magic-blue))] mb-3">{cat.name}</h4>
+          <div className="flex items-center justify-between mb-3">
+            <h4 className="font-heading text-md text-[hsl(var(--magic-blue))]">{cat.name}</h4>
+            {isAdmin && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => openCategoryAvailabilityEditor(cat.key, cat.name)}
+                className="h-7 text-xs border-[hsl(var(--torch-orange))]/50 hover:bg-[hsl(var(--torch-orange))]/10"
+                title="Editar disponibilidad de toda la categoría"
+              >
+                <MapPin className="w-3 h-3 mr-1 text-[hsl(var(--torch-orange))]" />
+                Disponibilidad ({items.length})
+              </Button>
+            )}
+          </div>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
