@@ -186,12 +186,16 @@ const EquipmentManagerModal = ({
     
     setProcessing(true);
     try {
+      // Get price with modifiers applied
+      const priceData = getTotalPrice();
+      const finalPrice = isPurchase && priceData ? priceData.precioFinal / cantidad : 0;
+      
       const res = await api.post(`/characters/${character.id}/equipment/add`, {
         item_name: selectedItem.nombre,
         item_category: selectedCategory,
         cantidad: cantidad,
         is_purchase: isPurchase,
-        precio: selectedItem.precio,
+        precio: finalPrice, // Use modified price
         moneda: selectedItem.moneda || 'mp',
         peso_kg: selectedItem.peso_kg,
         dano: selectedItem.dano,
