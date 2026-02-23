@@ -290,7 +290,10 @@ const getModifier = (value) => {
 // Check if item is a weapon
 const isWeapon = (itemName) => {
   if (!itemName) return false;
-  const normalized = itemName.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  // Handle both string and object formats
+  const name = typeof itemName === 'string' ? itemName : itemName?.nombre;
+  if (!name) return false;
+  const normalized = name.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
   return WEAPON_NAMES.some(w => normalized.includes(w));
 };
 
