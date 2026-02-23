@@ -2764,6 +2764,9 @@ const RulesPage = () => {
       case 'equipment':
         return renderEquipmentTables();
       
+      case 'price_modifiers':
+        return renderPriceModifiers();
+      
       case 'shadow':
         return <SombraSection data={data} isAdmin={isAdmin} onDeleteSenda={handleDeleteSenda} />;
       
