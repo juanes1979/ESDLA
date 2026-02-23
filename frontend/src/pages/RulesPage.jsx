@@ -82,6 +82,8 @@ const RulesPage = () => {
   const [showEquipmentPdfModal, setShowEquipmentPdfModal] = useState(false);
   const [selectedPdfCategories, setSelectedPdfCategories] = useState([]);
   const [generatingEquipmentPdf, setGeneratingEquipmentPdf] = useState(false);
+  const [pdfFilterSettlement, setPdfFilterSettlement] = useState('');
+  const [pdfFilterRegion, setPdfFilterRegion] = useState('');
   
   // Equipment item editor states
   const [showEquipmentItemEditor, setShowEquipmentItemEditor] = useState(false);
