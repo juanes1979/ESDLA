@@ -3058,6 +3058,259 @@ async def delete_road(road_id: str):
     return {"message": "Camino eliminado"}
 
 
+# === TRAVEL CALCULATION (New rules) ===
+
+class TravelCalculationRequest(BaseModel):
+    """Request model for travel calculation with full rules"""
+    ritmo: str = "normal"  # lento, normal, rapido
+    terreno: str = "moderado"  # facil, moderado, dificil, muy_dificil, desalentador, infranqueable
+    camino: str = "ninguno"  # ninguno, sendero, secundario, real
+    region: str = "tierras_salvajes"  # tierras_libres, tierras_fronterizas, tierras_salvajes, tierras_sombra, tierras_oscuras
+    montura: bool = False
+    horas_extra: int = 0  # Forced march hours
+    distancia_total_km: Optional[float] = None  # If calculating days for a distance
+
+
+@router.post("/travel/calculate")
+async def calculate_travel(request: TravelCalculationRequest):
+    """
+    Calculate travel distance/time using the full LOTR 5e rules.
+    
+    Rules:
+    - Base distance: Lento 24km, Normal 36km, Rápido 48km per day (8 hours)
+    - Terrain modifiers: Fácil ×1, Moderado ×0.75, Difícil ×0.5, etc.
+    - Road modifiers: Secundario ×1.10, Real ×1.25
+    - Special case: Sendero in moderado terrain = ×1 (cancels penalty)
+    - Mount: ×1.5 (not applicable in muy_dificil+ terrain)
+    - Forced march: +distance, Constitution save DC = 10 + hours + region_mod
+    """
+    # Base distances per day (8 hours)
+    DISTANCIA_BASE = {"lento": 24, "normal": 36, "rapido": 48}
+    
+    # Terrain modifiers
+    MOD_TERRENO = {
+        "facil": 1.0,
+        "moderado": 0.75,
+        "dificil": 0.5,
+        "muy_dificil": 0.33,
+        "desalentador": 0.25,
+        "infranqueable": 0
+    }
+    
+    # Road modifiers
+    MOD_CAMINO = {"ninguno": 1.0, "sendero": 1.0, "secundario": 1.10, "real": 1.25}
+    
+    # Region modifiers for forced march CD
+    MOD_CD_REGION = {
+        "tierras_libres": 0,
+        "tierras_fronterizas": 1,
+        "tierras_salvajes": 0,
+        "tierras_sombra": 2,
+        "tierras_oscuras": 3
+    }
+    
+    # Validate fast pace restrictions
+    if request.ritmo == "rapido" and request.region in ["tierras_salvajes", "tierras_sombra", "tierras_oscuras"]:
+        return {
+            "error": True,
+            "mensaje": f"El ritmo rápido no está permitido en {request.region.replace('_', ' ').title()}.",
+            "sugerencia": "Usa ritmo normal o lento."
+        }
+    
+    # Check infranqueable terrain
+    if request.terreno == "infranqueable":
+        return {
+            "error": True,
+            "mensaje": "Terreno infranqueable. No se puede atravesar directamente.",
+            "sugerencia": "Busca un paso de montaña o ruta alternativa.",
+            "es_infranqueable": True
+        }
+    
+    advertencias = []
+    
+    # 1. Base distance
+    distancia = DISTANCIA_BASE.get(request.ritmo, 36)
+    base = distancia
+    
+    # 2. Terrain modifier
+    mod_terreno = MOD_TERRENO.get(request.terreno, 1.0)
+    
+    # Special case: sendero in moderado terrain
+    if request.camino == "sendero" and request.terreno == "moderado":
+        mod_terreno = 1.0  # Sendero cancels moderado penalty
+    
+    distancia *= mod_terreno
+    
+    # 3. Road modifier
+    mod_camino = MOD_CAMINO.get(request.camino, 1.0)
+    
+    # Region affects road bonus
+    if request.region == "tierras_sombra" and mod_camino > 1.0:
+        # Shadow lands: road bonus halved
+        bonus = mod_camino - 1.0
+        mod_camino = 1.0 + (bonus / 2)
+        advertencias.append("En Tierras de la Sombra, el bonus del camino se reduce a la mitad.")
+    elif request.region == "tierras_oscuras":
+        # Dark lands: no road bonus
+        mod_camino = 1.0
+        advertencias.append("En Tierras Oscuras, los caminos no proporcionan bonus.")
+    
+    distancia *= mod_camino
+    
+    # 4. Mount modifier
+    mod_montura = 1.0
+    montura_usada = False
+    if request.montura:
+        if request.terreno not in ["muy_dificil", "desalentador", "infranqueable"]:
+            mod_montura = 1.5
+            montura_usada = True
+        else:
+            advertencias.append(f"No se puede usar montura en terreno {request.terreno.replace('_', ' ')}.")
+    
+    distancia *= mod_montura
+    
+    # Round to 1 decimal
+    distancia_base = round(distancia, 1)
+    
+    # 5. Forced march
+    distancia_extra = 0
+    cd_constitucion = None
+    if request.horas_extra > 0:
+        km_por_hora = distancia_base / 8
+        distancia_extra = round(km_por_hora * request.horas_extra, 1)
+        
+        cd_base = 10 + request.horas_extra
+        mod_region = MOD_CD_REGION.get(request.region, 0)
+        cd_constitucion = cd_base + mod_region
+        
+        advertencias.append(f"Marcha forzada: CD {cd_constitucion} Constitución por cada hora extra. Fallo = 1 nivel de cansancio.")
+    
+    distancia_total = distancia_base + distancia_extra
+    
+    # Calculate days if distance provided
+    dias_info = None
+    if request.distancia_total_km and request.distancia_total_km > 0:
+        if distancia_total > 0:
+            dias = request.distancia_total_km / distancia_total
+            dias_completos = int(dias)
+            horas_parciales = round((dias - dias_completos) * 8, 1)
+            dias_info = {
+                "dias_totales": round(dias, 1),
+                "dias_completos": dias_completos,
+                "horas_ultimo_dia": horas_parciales,
+                "resumen": f"El viaje de {request.distancia_total_km} km toma {dias_completos} días" +
+                          (f" y {horas_parciales} horas" if horas_parciales > 0 else "")
+            }
+    
+    return {
+        "error": False,
+        "distancia_total_km": round(distancia_total, 1),
+        "distancia_base_km": distancia_base,
+        "distancia_marcha_forzada_km": distancia_extra,
+        "detalles": {
+            "ritmo": request.ritmo,
+            "base_km": base,
+            "terreno": request.terreno,
+            "mod_terreno": mod_terreno,
+            "camino": request.camino,
+            "mod_camino": round(mod_camino, 2),
+            "region": request.region,
+            "montura_usada": montura_usada,
+            "mod_montura": mod_montura,
+            "horas_extra": request.horas_extra,
+            "cd_constitucion": cd_constitucion,
+        },
+        "dias_info": dias_info,
+        "advertencias": advertencias,
+        "formula": f"{base} × {mod_terreno} × {round(mod_camino, 2)} × {mod_montura} = {distancia_base} km/día"
+    }
+
+
+@router.get("/travel/options")
+async def get_travel_options():
+    """Get all available travel options for UI dropdowns"""
+    return {
+        "ritmos": [
+            {"value": "lento", "label": "Lento", "descripcion": "Cauteloso, permite explorar. 24 km/día.", "km_dia": 24},
+            {"value": "normal", "label": "Normal", "descripcion": "Ritmo estándar. 36 km/día.", "km_dia": 36},
+            {"value": "rapido", "label": "Rápido", "descripcion": "Acelerado, no permitido en zonas peligrosas. 48 km/día.", "km_dia": 48},
+        ],
+        "terrenos": [
+            {"value": "facil", "label": "Fácil", "modificador": 1.0, "color": "#d3ba84", "descripcion": "Caminos, llanuras"},
+            {"value": "moderado", "label": "Moderado", "modificador": 0.75, "color": "#948c4d", "descripcion": "Colinas, bosques claros"},
+            {"value": "dificil", "label": "Difícil", "modificador": 0.5, "color": "#c38d4f", "descripcion": "Bosques densos, páramos"},
+            {"value": "muy_dificil", "label": "Muy Difícil", "modificador": 0.33, "color": "#a57044", "descripcion": "Montañas, pantanos. Sin montura."},
+            {"value": "desalentador", "label": "Desalentador", "modificador": 0.25, "color": "#af4b27", "descripcion": "Volcánico, maldito. Sin montura."},
+            {"value": "infranqueable", "label": "Infranqueable", "modificador": 0, "color": "#664540", "descripcion": "Solo por pasos de montaña."},
+        ],
+        "caminos": [
+            {"value": "ninguno", "label": "Sin camino", "modificador": 1.0, "color": "#666666"},
+            {"value": "sendero", "label": "Sendero", "modificador": 1.0, "color": "#8B7355", "nota": "Anula penalización en terreno moderado"},
+            {"value": "secundario", "label": "Camino Secundario", "modificador": 1.10, "color": "#C4A574"},
+            {"value": "real", "label": "Camino Real", "modificador": 1.25, "color": "#FFD700"},
+        ],
+        "regiones": [
+            {"value": "tierras_libres", "label": "Tierras Libres", "prob_encuentro": 5, "color": "#4ade80"},
+            {"value": "tierras_fronterizas", "label": "Tierras Fronterizas", "prob_encuentro": 15, "color": "#facc15"},
+            {"value": "tierras_salvajes", "label": "Tierras Salvajes", "prob_encuentro": 25, "color": "#fb923c"},
+            {"value": "tierras_sombra", "label": "Tierras de la Sombra", "prob_encuentro": 40, "color": "#f87171"},
+            {"value": "tierras_oscuras", "label": "Tierras Oscuras", "prob_encuentro": 60, "color": "#991b1b"},
+        ],
+    }
+
+
+@router.post("/travel/find-route")
+async def find_alternative_route(origin_id: str, destination_id: str):
+    """
+    Find alternative route when direct path goes through infranqueable terrain.
+    Returns mountain passes and suggested waypoints.
+    """
+    # Get origin and destination
+    origin = await db.locations.find_one({"_id": origin_id})
+    destination = await db.locations.find_one({"_id": destination_id})
+    
+    if not origin or not destination:
+        raise HTTPException(status_code=404, detail="Ubicación no encontrada")
+    
+    # Get all mountain passes
+    passes = await db.locations.find({"es_paso_montana": True}).to_list(50)
+    
+    # Get all roads that might help
+    roads = await db.roads.find({}).to_list(100)
+    
+    # Simple distance calculation (Euclidean for now)
+    def calc_distance(loc1, loc2):
+        dx = loc1.get('x', 0) - loc2.get('x', 0)
+        dy = loc1.get('y', 0) - loc2.get('y', 0)
+        return (dx**2 + dy**2) ** 0.5
+    
+    # Find passes that are roughly between origin and destination
+    relevant_passes = []
+    origin_to_dest = calc_distance(origin, destination)
+    
+    for p in passes:
+        origin_to_pass = calc_distance(origin, p)
+        pass_to_dest = calc_distance(p, destination)
+        
+        # Pass is relevant if it doesn't add too much distance (max 50% extra)
+        total_via_pass = origin_to_pass + pass_to_dest
+        if total_via_pass < origin_to_dest * 1.5:
+            p['id'] = str(p.pop('_id'))
+            p['distancia_extra_percent'] = round((total_via_pass / origin_to_dest - 1) * 100, 1)
+            relevant_passes.append(p)
+    
+    # Sort by extra distance
+    relevant_passes.sort(key=lambda x: x.get('distancia_extra_percent', 100))
+    
+    return {
+        "origen": {"nombre": origin.get('nombre'), "id": origin_id},
+        "destino": {"nombre": destination.get('nombre'), "id": destination_id},
+        "pasos_sugeridos": relevant_passes[:5],  # Top 5 suggestions
+        "mensaje": "Ruta directa bloqueada. Considera usar uno de estos pasos de montaña." if relevant_passes else "No se encontraron pasos de montaña cercanos.",
+        "tiene_alternativas": len(relevant_passes) > 0
+    }
+
+
 # === MODIFICADORES DE PRECIO (Price Modifiers) ===
 
 # Default price modifiers data
