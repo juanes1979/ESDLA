@@ -1940,6 +1940,75 @@ const MiddleEarthMap = () => {
             className="w-48"
           />
           
+          {/* Road controls */}
+          {editMode && (
+            <div className="flex items-center gap-2 border-l border-border pl-4">
+              <Button
+                variant={showRoads ? "default" : "outline"}
+                size="sm"
+                onClick={() => setShowRoads(!showRoads)}
+                title="Mostrar/ocultar caminos"
+              >
+                🛤️
+              </Button>
+              
+              {!isDrawingRoad ? (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={startDrawingRoad}
+                  className="bg-amber-600/20 hover:bg-amber-600/40"
+                >
+                  ✏️ Dibujar Camino
+                </Button>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-green-400 animate-pulse">
+                    Dibujando... ({currentRoad?.puntos?.length || 0} puntos)
+                  </span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={finishDrawingRoad}
+                    disabled={!currentRoad || currentRoad.puntos.length < 2}
+                    className="bg-green-600/20 hover:bg-green-600/40"
+                  >
+                    ✓ Guardar
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={cancelDrawingRoad}
+                    className="bg-red-600/20 hover:bg-red-600/40"
+                  >
+                    ✗ Cancelar
+                  </Button>
+                </div>
+              )}
+            </div>
+          )}
+          
+          {/* Road type selector when drawing */}
+          {editMode && !isDrawingRoad && (
+            <div className="flex items-center gap-2">
+              <select
+                value={roadFormData.tipo}
+                onChange={(e) => setRoadFormData(prev => ({ ...prev, tipo: e.target.value }))}
+                className="h-8 text-xs bg-black/30 border border-border/30 rounded px-2"
+              >
+                {Object.entries(ROAD_TYPES).map(([key, val]) => (
+                  <option key={key} value={key}>{val.label}</option>
+                ))}
+              </select>
+              <Input
+                value={roadFormData.nombre}
+                onChange={(e) => setRoadFormData(prev => ({ ...prev, nombre: e.target.value }))}
+                placeholder="Nombre del camino..."
+                className="w-40 h-8 text-xs"
+              />
+            </div>
+          )}
+          
           {/* Zoom controls */}
           <div className="flex items-center gap-2 ml-auto">
             <Button
