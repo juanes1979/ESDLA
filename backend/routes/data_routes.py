@@ -2983,6 +2983,81 @@ async def delete_viaje(viaje_id: str):
     return {"message": "Viaje eliminado"}
 
 
+# === ROADS (Map Roads/Paths) ===
+
+class RoadCreate(BaseModel):
+    nombre: str
+    tipo: str = "secundario"  # sendero, secundario, real
+    descripcion: Optional[str] = ""
+    puntos: List[Dict[str, float]] = []  # [{x: float, y: float}, ...]
+
+class RoadUpdate(BaseModel):
+    nombre: Optional[str] = None
+    tipo: Optional[str] = None
+    descripcion: Optional[str] = None
+    puntos: Optional[List[Dict[str, float]]] = None
+
+
+@router.get("/roads")
+async def get_roads():
+    """Get all roads/paths from the map"""
+    roads = await db.roads.find({}).to_list(500)
+    for road in roads:
+        road['id'] = str(road.pop('_id'))
+    return {"roads": roads, "total": len(roads)}
+
+
+@router.get("/roads/{road_id}")
+async def get_road(road_id: str):
+    """Get a specific road by ID"""
+    road = await db.roads.find_one({"_id": road_id})
+    if not road:
+        raise HTTPException(status_code=404, detail="Camino no encontrado")
+    road['id'] = str(road.pop('_id'))
+    return road
+
+
+@router.post("/roads")
+async def create_road(road: RoadCreate):
+    """Create a new road/path"""
+    road_dict = road.dict()
+    road_dict['_id'] = f"road_{uuid.uuid4().hex[:8]}"
+    road_dict['created_at'] = now_utc()
+    road_dict['updated_at'] = now_utc()
+    
+    await db.roads.insert_one(road_dict)
+    
+    road_dict['id'] = road_dict.pop('_id')
+    return road_dict
+
+
+@router.put("/roads/{road_id}")
+async def update_road(road_id: str, road: RoadUpdate):
+    """Update an existing road"""
+    update_data = {k: v for k, v in road.dict().items() if v is not None}
+    if not update_data:
+        raise HTTPException(status_code=400, detail="No hay datos para actualizar")
+    
+    update_data['updated_at'] = now_utc()
+    
+    result = await db.roads.update_one({"_id": road_id}, {"$set": update_data})
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Camino no encontrado")
+    
+    updated = await db.roads.find_one({"_id": road_id})
+    updated['id'] = str(updated.pop('_id'))
+    return updated
+
+
+@router.delete("/roads/{road_id}")
+async def delete_road(road_id: str):
+    """Delete a road"""
+    result = await db.roads.delete_one({"_id": road_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Camino no encontrado")
+    return {"message": "Camino eliminado"}
+
+
 # === MODIFICADORES DE PRECIO (Price Modifiers) ===
 
 # Default price modifiers data
