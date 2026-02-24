@@ -2432,6 +2432,7 @@ const MiddleEarthMap = () => {
         {renderEditPanel()}
         {renderCreatePanel()}
         {renderRoutePanel()}
+        {renderRoadsPanel()}
         
         {/* Legend */}
         <Card className="absolute bottom-4 left-4 w-64 card-parchment z-10 opacity-90">
