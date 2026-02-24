@@ -5,9 +5,25 @@ Build a comprehensive web application to play a modified version of the "Lord of
 
 **User's preferred language**: Español
 
-## Current State (2026-02-23)
+## Current State (2026-02-24)
 
-### ✅ COMPLETED This Session (2026-02-23)
+### ✅ COMPLETED This Session (2026-02-24)
+
+#### Campo MonturaPeso en Hoja de Personaje ✅
+- **Nuevo campo `montura_peso`** añadido a `PAGE1_FIELDS` en `SheetPage1.jsx`
+- **Formato:** `MONTURA, PesoCargadoKg/PesoMaxKg`
+- **Cálculo de PesoCargado:**
+  - Peso del equipo en la montura (carga asignada)
+  - + Peso del equipo del personaje (lo que lleva encima)
+  - + Peso del personaje (como jinete)
+- **Ejemplo:** "Caballo de caminos, 55 Kg/150 Kg"
+- **Solo se muestra si el personaje tiene montura**
+
+---
+
+## Previous Session (2026-02-23)
+
+### ✅ COMPLETED Previous Session (2026-02-23)
 
 #### P0: Sistema de Peso de Montura y Gestión de Equipo Completado ✅
 - **`SheetPage1.jsx`** - Sistema de cálculo de peso implementado:
