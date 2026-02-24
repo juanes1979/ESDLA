@@ -324,6 +324,19 @@ const MiddleEarthMap = () => {
     loadData();
   }, []);
   
+  // Load roads from database
+  useEffect(() => {
+    const loadRoads = async () => {
+      try {
+        const res = await api.get('/data/roads');
+        setRoads(res.data.roads || []);
+      } catch (err) {
+        console.error('Error loading roads:', err);
+      }
+    };
+    loadRoads();
+  }, []);
+  
   // Calculate route when origin/destination change
   useEffect(() => {
     const calculateRoute = async () => {
