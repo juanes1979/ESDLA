@@ -2589,6 +2589,67 @@ const MiddleEarthMap = () => {
               Peligro: {route.danger_level}
             </Badge>
           </div>
+          
+          {/* Pathfinding Result */}
+          {calculatedPath && calculatedPath.success && (
+            <div className="mt-3 pt-3 border-t border-border/30">
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-xs font-bold text-cyan-400 flex items-center gap-1">
+                  <Route className="w-3 h-3" />
+                  Ruta Óptima (A*)
+                </p>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-5 text-xs"
+                  onClick={() => setShowCalculatedPath(!showCalculatedPath)}
+                >
+                  {showCalculatedPath ? '👁️' : '👁️‍🗨️'}
+                </Button>
+              </div>
+              
+              <div className="grid grid-cols-3 gap-2 text-center text-xs">
+                <div className="bg-cyan-500/10 p-1 rounded">
+                  <p className="font-bold text-cyan-400">{calculatedPath.total_distance_km}</p>
+                  <p className="text-muted-foreground">km total</p>
+                </div>
+                <div className="bg-cyan-500/10 p-1 rounded">
+                  <p className="font-bold text-cyan-400">{calculatedPath.estimated_days}</p>
+                  <p className="text-muted-foreground">días</p>
+                </div>
+                <div className="bg-cyan-500/10 p-1 rounded">
+                  <p className="font-bold text-green-400">{calculatedPath.roads_used?.length || 0}</p>
+                  <p className="text-muted-foreground">caminos</p>
+                </div>
+              </div>
+              
+              {calculatedPath.roads_used?.length > 0 && (
+                <div className="mt-2 flex flex-wrap gap-1">
+                  {calculatedPath.roads_used.map((road, idx) => (
+                    <Badge key={idx} className="bg-yellow-500/20 text-yellow-400 text-xs py-0">
+                      🛤️ {road}
+                    </Badge>
+                  ))}
+                </div>
+              )}
+              
+              {calculatedPath.rivers_crossed?.length > 0 && (
+                <div className="mt-2 flex flex-wrap gap-1">
+                  {calculatedPath.rivers_crossed.map((river, idx) => (
+                    <Badge key={idx} className="bg-blue-500/20 text-blue-400 text-xs py-0">
+                      🌊 {river.type}
+                    </Badge>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+          
+          {isCalculatingPath && (
+            <div className="mt-2 text-center">
+              <p className="text-xs text-cyan-400 animate-pulse">Calculando ruta óptima...</p>
+            </div>
+          )}
         </CardContent>
       </Card>
     );
