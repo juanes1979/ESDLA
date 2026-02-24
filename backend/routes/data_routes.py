@@ -2305,12 +2305,16 @@ class RegionCreate(BaseModel):
     parent_id: Optional[str] = None  # If null, it's a main region
     descripcion: Optional[str] = ""
     orden: Optional[int] = 0  # For ordering within parent
+    tipo_terreno: Optional[str] = None  # Fácil, Moderado, Difícil, Muy Difícil, Desalentador, Infranqueable
+    clase_region: Optional[str] = None  # Tierras Libres, Tierras Fronterizas, Tierras Salvajes, Tierras de la sombra, Tierras Oscuras
 
 class RegionUpdate(BaseModel):
     nombre: Optional[str] = None
     parent_id: Optional[str] = None
     descripcion: Optional[str] = None
     orden: Optional[int] = None
+    tipo_terreno: Optional[str] = None
+    clase_region: Optional[str] = None
 
 @router.get("/regions")
 async def get_regions():
