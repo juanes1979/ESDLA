@@ -753,6 +753,543 @@ const MiddleEarthMap = () => {
   
   // ==================== END ROAD DRAWING FUNCTIONS ====================
   
+  // ==================== RIVER DRAWING FUNCTIONS ====================
+  
+  // Start drawing a new river
+  const startDrawingRiver = () => {
+    setIsDrawingRiver(true);
+    setCurrentRiver({
+      id: `river_${Date.now()}`,
+      nombre: riverFormData.nombre || 'Nuevo Río',
+      tipo: riverFormData.tipo,
+      puntos: [],
+    });
+    toast.info('Haz clic en el mapa para añadir puntos al río. Doble clic para terminar.');
+  };
+  
+  // Add point to current river
+  const addRiverPoint = (e) => {
+    if (!isDrawingRiver || !currentRiver) return;
+    
+    const svgPoint = getSVGPoint(e);
+    if (!svgPoint) return;
+    
+    const coords = posToCoord(svgPoint.x, svgPoint.y);
+    
+    setCurrentRiver(prev => ({
+      ...prev,
+      puntos: [...prev.puntos, { x: coords.x, y: coords.y }],
+    }));
+  };
+  
+  // Finish drawing current river
+  const finishDrawingRiver = async () => {
+    if (!currentRiver || currentRiver.puntos.length < 2) {
+      toast.error('El río debe tener al menos 2 puntos');
+      return;
+    }
+    
+    try {
+      const res = await api.post('/data/rivers', currentRiver);
+      setRivers(prev => [...prev, res.data]);
+      toast.success(`Río "${currentRiver.nombre}" guardado`);
+    } catch (err) {
+      console.error('Error saving river:', err);
+      toast.error('Error al guardar el río');
+    }
+    
+    setIsDrawingRiver(false);
+    setCurrentRiver(null);
+  };
+  
+  // Cancel drawing river
+  const cancelDrawingRiver = () => {
+    setIsDrawingRiver(false);
+    setCurrentRiver(null);
+    toast.info('Dibujo de río cancelado');
+  };
+  
+  // Delete a river
+  const deleteRiver = async (riverId) => {
+    if (!window.confirm('¿Eliminar este río?')) return;
+    
+    try {
+      await api.delete(`/data/rivers/${riverId}`);
+      setRivers(prev => prev.filter(r => r.id !== riverId));
+      setSelectedRiver(null);
+      toast.success('Río eliminado');
+    } catch (err) {
+      console.error('Error deleting river:', err);
+      toast.error('Error al eliminar el río');
+    }
+  };
+  
+  // Update river properties
+  const updateRiver = async (riverId, updates) => {
+    try {
+      const res = await api.put(`/data/rivers/${riverId}`, updates);
+      setRivers(prev => prev.map(r => r.id === riverId ? { ...r, ...updates } : r));
+      toast.success('Río actualizado');
+      setEditingRiverId(null);
+      return res.data;
+    } catch (err) {
+      console.error('Error updating river:', err);
+      toast.error('Error al actualizar el río');
+    }
+  };
+  
+  // Convert river points to SVG path
+  const riverToPath = (river) => {
+    if (!river.puntos || river.puntos.length < 2) return '';
+    
+    const points = river.puntos.map(p => coordToPos(p.x, p.y));
+    let d = `M ${points[0].x} ${points[0].y}`;
+    
+    for (let i = 1; i < points.length; i++) {
+      d += ` L ${points[i].x} ${points[i].y}`;
+    }
+    
+    return d;
+  };
+  
+  // Handle map click for river drawing
+  const handleMapClickForRiver = (e) => {
+    if (!isDrawingRiver) return;
+    
+    if (e.detail === 2) {
+      finishDrawingRiver();
+      return;
+    }
+    
+    addRiverPoint(e);
+  };
+  
+  // Render rivers management panel
+  const renderRiversPanel = () => {
+    if (!showRiversPanel) return null;
+    
+    return (
+      <Card className="absolute top-4 right-4 w-80 card-parchment z-20 max-h-[80vh] overflow-hidden flex flex-col">
+        <CardHeader className="pb-2 flex-shrink-0">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-lg text-[hsl(var(--magic-blue))] flex items-center gap-2">
+              🌊 Gestión de Ríos
+            </CardTitle>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowRiversPanel(false)}
+              className="h-6 w-6 p-0"
+            >
+              ✕
+            </Button>
+          </div>
+          <p className="text-xs text-muted-foreground">{rivers.length} ríos guardados</p>
+        </CardHeader>
+        <CardContent className="flex-1 overflow-y-auto space-y-2 p-3">
+          {rivers.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-4">
+              No hay ríos dibujados.<br/>
+              Usa "Dibujar Río" para crear uno.
+            </p>
+          ) : (
+            rivers.map(river => {
+              const riverStyle = RIVER_TYPES[river.tipo] || RIVER_TYPES.profundo;
+              const isEditing = editingRiverId === river.id;
+              
+              return (
+                <div 
+                  key={river.id}
+                  className={`p-3 rounded-lg border transition-all ${
+                    selectedRiver?.id === river.id 
+                      ? 'border-blue-500 bg-blue-900/20' 
+                      : 'border-border/30 bg-black/20 hover:bg-black/30'
+                  }`}
+                >
+                  {isEditing ? (
+                    <div className="space-y-2">
+                      <Input
+                        value={river.nombre}
+                        onChange={(e) => setRivers(prev => prev.map(r => 
+                          r.id === river.id ? { ...r, nombre: e.target.value } : r
+                        ))}
+                        className="h-8 text-sm"
+                        placeholder="Nombre del río"
+                      />
+                      <select
+                        value={river.tipo}
+                        onChange={(e) => setRivers(prev => prev.map(r => 
+                          r.id === river.id ? { ...r, tipo: e.target.value } : r
+                        ))}
+                        className="w-full h-8 text-sm bg-black/30 border border-border/30 rounded px-2"
+                      >
+                        {Object.entries(RIVER_TYPES).map(([key, val]) => (
+                          <option key={key} value={key}>{val.label}</option>
+                        ))}
+                      </select>
+                      <div className="flex gap-2">
+                        <Button
+                          size="sm"
+                          className="flex-1 h-7 bg-blue-600 hover:bg-blue-700"
+                          onClick={() => updateRiver(river.id, { nombre: river.nombre, tipo: river.tipo })}
+                        >
+                          Guardar
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-7"
+                          onClick={() => setEditingRiverId(null)}
+                        >
+                          Cancelar
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div>
+                      <div className="flex items-center gap-2 mb-1">
+                        <div 
+                          className="w-4 h-1 rounded"
+                          style={{ backgroundColor: riverStyle.color }}
+                        />
+                        <span className="font-medium text-sm flex-1">{river.nombre}</span>
+                        <span 
+                          className="text-xs px-1.5 py-0.5 rounded"
+                          style={{ backgroundColor: riverStyle.color + '40', color: riverStyle.color }}
+                        >
+                          {riverStyle.label}
+                        </span>
+                      </div>
+                      <p className="text-xs text-muted-foreground mb-1">
+                        {riverStyle.description}
+                      </p>
+                      <p className="text-xs text-muted-foreground mb-2">
+                        {river.puntos?.length || 0} puntos
+                      </p>
+                      <div className="flex gap-1">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-6 text-xs flex-1"
+                          onClick={() => {
+                            setSelectedRiver(river);
+                            if (river.puntos?.length > 0) {
+                              const mid = river.puntos[Math.floor(river.puntos.length / 2)];
+                              const pos = coordToPos(mid.x, mid.y);
+                              setPan({ x: -pos.x * zoom + window.innerWidth / 2, y: -pos.y * zoom + window.innerHeight / 2 });
+                            }
+                          }}
+                        >
+                          👁️ Ver
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-6 text-xs"
+                          onClick={() => setEditingRiverId(river.id)}
+                        >
+                          ✏️
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-6 text-xs text-red-400 hover:text-red-300"
+                          onClick={() => deleteRiver(river.id)}
+                        >
+                          🗑️
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })
+          )}
+        </CardContent>
+        
+        <div className="p-3 border-t border-border/30 flex-shrink-0">
+          <div className="flex justify-between text-xs text-muted-foreground">
+            <span>🏊 Vadeable: {rivers.filter(r => r.tipo === 'vadeable').length}</span>
+            <span>🌊 Profundo: {rivers.filter(r => r.tipo === 'profundo').length}</span>
+            <span>⛔ Infranq.: {rivers.filter(r => r.tipo === 'infranqueable').length}</span>
+          </div>
+        </div>
+      </Card>
+    );
+  };
+  
+  // ==================== END RIVER DRAWING FUNCTIONS ====================
+  
+  // ==================== BARRIER DRAWING FUNCTIONS ====================
+  
+  // Start drawing a new barrier
+  const startDrawingBarrier = () => {
+    setIsDrawingBarrier(true);
+    setCurrentBarrier({
+      id: `barrier_${Date.now()}`,
+      nombre: barrierFormData.nombre || 'Nueva Barrera',
+      tipo: barrierFormData.tipo,
+      puntos: [],
+    });
+    toast.info('Haz clic en el mapa para añadir puntos a la barrera. Doble clic para terminar.');
+  };
+  
+  // Add point to current barrier
+  const addBarrierPoint = (e) => {
+    if (!isDrawingBarrier || !currentBarrier) return;
+    
+    const svgPoint = getSVGPoint(e);
+    if (!svgPoint) return;
+    
+    const coords = posToCoord(svgPoint.x, svgPoint.y);
+    
+    setCurrentBarrier(prev => ({
+      ...prev,
+      puntos: [...prev.puntos, { x: coords.x, y: coords.y }],
+    }));
+  };
+  
+  // Finish drawing current barrier
+  const finishDrawingBarrier = async () => {
+    if (!currentBarrier || currentBarrier.puntos.length < 2) {
+      toast.error('La barrera debe tener al menos 2 puntos');
+      return;
+    }
+    
+    try {
+      const res = await api.post('/data/barriers', currentBarrier);
+      setBarriers(prev => [...prev, res.data]);
+      toast.success(`Barrera "${currentBarrier.nombre}" guardada`);
+    } catch (err) {
+      console.error('Error saving barrier:', err);
+      toast.error('Error al guardar la barrera');
+    }
+    
+    setIsDrawingBarrier(false);
+    setCurrentBarrier(null);
+  };
+  
+  // Cancel drawing barrier
+  const cancelDrawingBarrier = () => {
+    setIsDrawingBarrier(false);
+    setCurrentBarrier(null);
+    toast.info('Dibujo de barrera cancelado');
+  };
+  
+  // Delete a barrier
+  const deleteBarrier = async (barrierId) => {
+    if (!window.confirm('¿Eliminar esta barrera?')) return;
+    
+    try {
+      await api.delete(`/data/barriers/${barrierId}`);
+      setBarriers(prev => prev.filter(b => b.id !== barrierId));
+      setSelectedBarrier(null);
+      toast.success('Barrera eliminada');
+    } catch (err) {
+      console.error('Error deleting barrier:', err);
+      toast.error('Error al eliminar la barrera');
+    }
+  };
+  
+  // Update barrier properties
+  const updateBarrier = async (barrierId, updates) => {
+    try {
+      const res = await api.put(`/data/barriers/${barrierId}`, updates);
+      setBarriers(prev => prev.map(b => b.id === barrierId ? { ...b, ...updates } : b));
+      toast.success('Barrera actualizada');
+      setEditingBarrierId(null);
+      return res.data;
+    } catch (err) {
+      console.error('Error updating barrier:', err);
+      toast.error('Error al actualizar la barrera');
+    }
+  };
+  
+  // Convert barrier points to SVG path
+  const barrierToPath = (barrier) => {
+    if (!barrier.puntos || barrier.puntos.length < 2) return '';
+    
+    const points = barrier.puntos.map(p => coordToPos(p.x, p.y));
+    let d = `M ${points[0].x} ${points[0].y}`;
+    
+    for (let i = 1; i < points.length; i++) {
+      d += ` L ${points[i].x} ${points[i].y}`;
+    }
+    
+    return d;
+  };
+  
+  // Handle map click for barrier drawing
+  const handleMapClickForBarrier = (e) => {
+    if (!isDrawingBarrier) return;
+    
+    if (e.detail === 2) {
+      finishDrawingBarrier();
+      return;
+    }
+    
+    addBarrierPoint(e);
+  };
+  
+  // Render barriers management panel
+  const renderBarriersPanel = () => {
+    if (!showBarriersPanel) return null;
+    
+    return (
+      <Card className="absolute top-4 right-4 w-80 card-parchment z-20 max-h-[80vh] overflow-hidden flex flex-col">
+        <CardHeader className="pb-2 flex-shrink-0">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-lg text-[hsl(var(--torch-orange))] flex items-center gap-2">
+              ⛰️ Barreras Infranqueables
+            </CardTitle>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowBarriersPanel(false)}
+              className="h-6 w-6 p-0"
+            >
+              ✕
+            </Button>
+          </div>
+          <p className="text-xs text-muted-foreground">{barriers.length} barreras guardadas</p>
+        </CardHeader>
+        <CardContent className="flex-1 overflow-y-auto space-y-2 p-3">
+          {barriers.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-4">
+              No hay barreras dibujadas.<br/>
+              Usa "Dibujar Barrera" para crear una.
+            </p>
+          ) : (
+            barriers.map(barrier => {
+              const barrierStyle = BARRIER_TYPES[barrier.tipo] || BARRIER_TYPES.montana;
+              const isEditing = editingBarrierId === barrier.id;
+              
+              return (
+                <div 
+                  key={barrier.id}
+                  className={`p-3 rounded-lg border transition-all ${
+                    selectedBarrier?.id === barrier.id 
+                      ? 'border-orange-500 bg-orange-900/20' 
+                      : 'border-border/30 bg-black/20 hover:bg-black/30'
+                  }`}
+                >
+                  {isEditing ? (
+                    <div className="space-y-2">
+                      <Input
+                        value={barrier.nombre}
+                        onChange={(e) => setBarriers(prev => prev.map(b => 
+                          b.id === barrier.id ? { ...b, nombre: e.target.value } : b
+                        ))}
+                        className="h-8 text-sm"
+                        placeholder="Nombre de la barrera"
+                      />
+                      <select
+                        value={barrier.tipo}
+                        onChange={(e) => setBarriers(prev => prev.map(b => 
+                          b.id === barrier.id ? { ...b, tipo: e.target.value } : b
+                        ))}
+                        className="w-full h-8 text-sm bg-black/30 border border-border/30 rounded px-2"
+                      >
+                        {Object.entries(BARRIER_TYPES).map(([key, val]) => (
+                          <option key={key} value={key}>{val.label}</option>
+                        ))}
+                      </select>
+                      <div className="flex gap-2">
+                        <Button
+                          size="sm"
+                          className="flex-1 h-7 bg-orange-600 hover:bg-orange-700"
+                          onClick={() => updateBarrier(barrier.id, { nombre: barrier.nombre, tipo: barrier.tipo })}
+                        >
+                          Guardar
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-7"
+                          onClick={() => setEditingBarrierId(null)}
+                        >
+                          Cancelar
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div>
+                      <div className="flex items-center gap-2 mb-1">
+                        <div 
+                          className="w-4 h-1 rounded"
+                          style={{ 
+                            backgroundColor: barrierStyle.color,
+                            borderStyle: 'dashed'
+                          }}
+                        />
+                        <span className="font-medium text-sm flex-1">{barrier.nombre}</span>
+                        <span 
+                          className="text-xs px-1.5 py-0.5 rounded"
+                          style={{ backgroundColor: barrierStyle.color + '40', color: barrierStyle.color }}
+                        >
+                          {barrierStyle.label}
+                        </span>
+                      </div>
+                      <p className="text-xs text-muted-foreground mb-1">
+                        {barrierStyle.description}
+                      </p>
+                      <p className="text-xs text-muted-foreground mb-2">
+                        {barrier.puntos?.length || 0} puntos
+                      </p>
+                      <div className="flex gap-1">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-6 text-xs flex-1"
+                          onClick={() => {
+                            setSelectedBarrier(barrier);
+                            if (barrier.puntos?.length > 0) {
+                              const mid = barrier.puntos[Math.floor(barrier.puntos.length / 2)];
+                              const pos = coordToPos(mid.x, mid.y);
+                              setPan({ x: -pos.x * zoom + window.innerWidth / 2, y: -pos.y * zoom + window.innerHeight / 2 });
+                            }
+                          }}
+                        >
+                          👁️ Ver
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-6 text-xs"
+                          onClick={() => setEditingBarrierId(barrier.id)}
+                        >
+                          ✏️
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-6 text-xs text-red-400 hover:text-red-300"
+                          onClick={() => deleteBarrier(barrier.id)}
+                        >
+                          🗑️
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })
+          )}
+        </CardContent>
+        
+        <div className="p-3 border-t border-border/30 flex-shrink-0">
+          <div className="flex justify-between text-xs text-muted-foreground">
+            <span>⛰️ Montañas: {barriers.filter(b => b.tipo === 'montana').length}</span>
+            <span>🪨 Acantilados: {barriers.filter(b => b.tipo === 'acantilado').length}</span>
+            <span>🚫 Fronteras: {barriers.filter(b => b.tipo === 'frontera').length}</span>
+          </div>
+        </div>
+      </Card>
+    );
+  };
+  
+  // ==================== END BARRIER DRAWING FUNCTIONS ====================
+  
   // Handle mouse events for panning
   const handleMouseDown = (e) => {
     // Handle road drawing
