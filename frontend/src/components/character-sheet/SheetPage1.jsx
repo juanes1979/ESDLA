@@ -865,6 +865,11 @@ const SheetPage1 = ({ character, scale, weaponCatalog = [], equipmentCatalog = {
       <DisplayField {...PAGE1_FIELDS.cargado} value={estorbo.cargado} scale={scale} />
       <DisplayField {...PAGE1_FIELDS.muy_cargado} value={estorbo.muy_cargado} scale={scale} />
       
+      {/* Montura - "MONTURA, PesoCargado/PesoMax" */}
+      {character.montura?.nombre && (
+        <DisplayField {...PAGE1_FIELDS.montura_peso} value={getMonturaDisplayText()} scale={scale} />
+      )}
+      
       {/* Idiomas y Herramientas */}
       {idiomasRows.map((item, i) => (
         <DisplayField key={`idioma_herr_${i+1}`} {...PAGE1_FIELDS[`idioma_herr_${i+1}`]} value={item} scale={scale} />
