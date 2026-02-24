@@ -9,15 +9,28 @@ Build a comprehensive web application to play a modified version of the "Lord of
 
 ### ✅ COMPLETED This Session (2026-02-24)
 
+#### Sistema de Tipos de Terreno y Clases de Peligro ✅
+**Backend:**
+- Nuevos campos `tipo_terreno` y `clase_region` añadidos a regiones y ubicaciones
+- Script `analyze_map_terrain.py` que analiza los colores del mapa y asigna automáticamente:
+  - Tipos de terreno basados en colores: Fácil (#d3ba84), Moderado (#948c4d), Difícil (#c38d4f), Muy Difícil (#a57044), Desalentador (#af4b27), Infranqueable (#664540)
+  - Clases de peligro basadas en lore: Tierras Libres, Fronterizas, Salvajes, de la Sombra, Oscuras
+- Campo `es_paso_montana` para identificar pasos de montaña que permiten atravesar terreno infranqueable
+- Módulo `travel_config.py` con multiplicadores y cálculos para el generador de viajes
+
+**Frontend (RulesPage.jsx):**
+- Selectores de tipo de terreno y clase de región para cada región y subregión
+- Badges de colores que muestran visualmente la dificultad y peligro
+- Leyenda explicativa con multiplicadores de tiempo de viaje y porcentajes de encuentros
+
+**Datos actualizados:**
+- 211 ubicaciones con tipo de terreno y clase de peligro
+- 100 regiones con tipo de terreno y clase de peligro
+- Pasos de montaña identificados: Moria, Paso de Caradhras, Paso Alto, Morannon, etc.
+
 #### Campo MonturaPeso en Hoja de Personaje ✅
-- **Nuevo campo `montura_peso`** añadido a `PAGE1_FIELDS` en `SheetPage1.jsx`
-- **Formato:** `MONTURA, PesoCargadoKg/PesoMaxKg`
-- **Cálculo de PesoCargado:**
-  - Peso del equipo en la montura (carga asignada)
-  - + Peso del equipo del personaje (lo que lleva encima)
-  - + Peso del personaje (como jinete)
-- **Ejemplo:** "Caballo de caminos, 55 Kg/150 Kg"
-- **Solo se muestra si el personaje tiene montura**
+- Nuevo campo `montura_peso` que muestra "MONTURA, PesoCargadoKg/PesoMaxKg"
+- Cálculo incluye: peso equipo montura + peso equipo personaje + peso del jinete
 
 ---
 
