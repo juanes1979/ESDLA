@@ -863,7 +863,19 @@ const SheetPage1 = ({ character, scale, weaponCatalog = [], equipmentCatalog = {
       
       {/* Montura - "MONTURA, PesoCargado/PesoMax" */}
       {character.montura?.nombre && (
-        <DisplayField {...PAGE1_FIELDS.montura_peso} value={getMonturaDisplayText()} scale={scale} />
+        <DisplayField 
+          {...PAGE1_FIELDS.montura_peso} 
+          value={(() => {
+            const nombreMontura = character.montura.nombre;
+            const capacidadMax = character.montura.capacidad_carga || 150;
+            const pesoEquipoMontura = parseFloat(pesoMontura) || 0;
+            const pesoEquipoPersonaje = parseFloat(pesoTransportado) || 0;
+            const pesoPersonaje = parseFloat(character.peso_kg) || parseFloat(character.peso) || 70;
+            const pesoTotal = Math.round(pesoEquipoMontura + pesoEquipoPersonaje + pesoPersonaje);
+            return `${nombreMontura}, ${pesoTotal} Kg/${capacidadMax} Kg`;
+          })()}
+          scale={scale} 
+        />
       )}
       
       {/* Idiomas y Herramientas */}
