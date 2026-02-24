@@ -3034,7 +3034,7 @@ const MiddleEarthMap = () => {
         onMouseUp={handleMouseUp}
         onMouseLeave={handleMouseUp}
         style={{ 
-          cursor: isCreatingLocation 
+          cursor: isCreatingLocation || isDrawingRoad || isDrawingRiver || isDrawingBarrier
             ? 'crosshair'
             : editMode 
               ? (draggingLocation ? 'grabbing' : 'crosshair') 
