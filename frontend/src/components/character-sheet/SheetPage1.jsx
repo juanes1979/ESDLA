@@ -102,6 +102,9 @@ export const PAGE1_FIELDS = {
   cargado: { x: 1337, y: 368, width: 23, fontSize: 30, align: 'left' },
   muy_cargado: { x: 1337, y: 418, width: 23, fontSize: 30, align: 'left' },
   
+  // Montura - Campo para mostrar "MONTURA, PesoCargado/PesoMax"
+  montura_peso: { x: 1179, y: 470, width: 440, fontSize: 24, align: 'left' },
+  
   // Saving throws - modifiers
   salvacion_fue_mod: { x: 282, y: 683, width: 100, fontSize: 30, align: 'center' },
   salvacion_des_mod: { x: 282, y: 715, width: 100, fontSize: 30, align: 'center' },
