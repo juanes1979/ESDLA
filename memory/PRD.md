@@ -47,6 +47,49 @@ Build a comprehensive web application to play a modified version of the "Lord of
 - Opciones de Ver, Editar y Eliminar para cada barrera
 - Contador de barreras por tipo en el footer del panel
 
+#### Algoritmo de Pathfinding A* ✅ (NEW)
+**Backend (/app/backend/utils/pathfinding.py):**
+- Implementación completa del algoritmo A* para calcular rutas óptimas
+- Consideraciones del algoritmo:
+  - **Terreno:** facil (×1.0), moderado (×1.33), dificil (×2.0), muy_dificil (×3.0), desalentador (×4.0), infranqueable (×∞)
+  - **Caminos:** ninguno (×1.0), sendero (×0.85), secundario (×0.7), real (×0.5)
+  - **Ríos:** vadeable (×1.5, montura permitida), profundo (×3.0, sin montura), infranqueable (×∞)
+  - **Barreras:** Completamente infranqueables, la ruta las evita
+- Velocidad base: 36 km/día
+
+**Endpoints:**
+- `POST /api/data/pathfinding/calculate` - Calcula ruta entre coordenadas o IDs de ubicación
+- `GET /api/data/pathfinding/between/{start_id}/{end_id}` - Shortcut para rutas entre ubicaciones
+
+**Respuesta del pathfinding:**
+```json
+{
+  "success": true,
+  "path": [[x, y], ...],  // Waypoints de la ruta
+  "total_distance_km": 195.1,
+  "estimated_days": 5.3,
+  "roads_used": ["Camino del Este"],
+  "rivers_crossed": [],
+  "terrain_summary": {"dificil": 161.6, "moderado": 27.2, "muy_dificil": 6.4},
+  "warnings": ["📍 Hobbiton → Rivendel"]
+}
+```
+
+**Frontend (TravelGenerator.jsx):**
+- Nuevo panel "Ruta Óptima Calculada (A*)" cuando se selecciona origen/destino
+- Muestra: km total, días estimados, waypoints, caminos usados
+- Desglose de terreno atravesado con badges de colores
+- Lista de ríos a cruzar (si aplica)
+
+**Frontend (MiddleEarthMap.jsx):**
+- Renderizado de ruta calculada como línea cyan sobre el mapa
+- Marcadores de inicio (verde) y fin (rojo)
+- Flecha de dirección en el punto medio
+- Panel de ruta muestra información del pathfinding
+
+**Datos de prueba verificados:**
+- Hobbiton → Rivendel: 195.1 km, 5.3 días, usando Camino del Este, 29 waypoints
+
 #### Sistema de Dibujo de Caminos en el Mapa ✅ (Previous)
 **Backend:**
 - Nuevos endpoints CRUD para caminos: `/api/data/roads`
