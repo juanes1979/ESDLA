@@ -318,16 +318,22 @@ Build a comprehensive web application to play a modified version of the "Lord of
 - `/app/frontend/src/pages/TravelGenerator.jsx` - Integración de ubicaciones
 - `/app/frontend/src/pages/RulesPage.jsx` - Sección Recompensas actualizada
 
+## Key Files Modified This Session (2026-02-24 Rivers & Barriers)
+- `/app/backend/routes/data_routes.py` - Nuevos endpoints CRUD para rivers y barriers
+- `/app/frontend/src/pages/MiddleEarthMap.jsx` - Sistema completo de dibujo de ríos y barreras
+
 ## 📋 UPCOMING TASKS
 
 ### P1 - Next Priority
-1. **Finalizar refactorización de `MiddleEarthMap.jsx`** - Los componentes modulares están creados en `/components/map/`, falta mover la lógica del archivo principal
-2. **Refactorizar `RulesPage.jsx`** (~4000+ líneas) - Extraer componentes para mejorar mantenibilidad
+1. **Algoritmo de Pathfinding para Travel Generator** - Usar datos de ríos y barreras para calcular rutas que eviten terreno infranqueable y crucen ríos correctamente
+2. **Refactorizar `MiddleEarthMap.jsx`** (~3500 líneas) - Los componentes modulares están creados en `/components/map/`, falta mover la lógica del archivo principal
+3. **Refactorizar `RulesPage.jsx`** (~4000+ líneas) - Extraer componentes para mejorar mantenibilidad
 
 ### P2 - Medium Priority
-1. **Sistema de Autenticación** (Maestro > Admin > Jugador)
-2. **Backup/Restore de base de datos**
-3. **Pantalla del DM** - Vista centralizada para el director de juego
+1. **Tool para revisar/corregir datos de terreno** - UI para corregir asignaciones incorrectas del script analyze_map_colors.py
+2. **Sistema de Autenticación** (Maestro > Admin > Jugador)
+3. **Backup/Restore de base de datos**
+4. **Pantalla del DM** - Vista centralizada para el director de juego
 
 ### P3 - Future Tasks
 - Interfaz de juego online
@@ -337,9 +343,12 @@ Build a comprehensive web application to play a modified version of the "Lord of
 ## Database Collections
 - `locations`: 182+ documentos con coordenadas x/y, terreno, tipo_tierra, peligro, refugio
 - `regions`: 48 documentos con jerarquía parent_id para regiones/sub-regiones
+- `roads`: Caminos dibujados en el mapa (nombre, tipo, puntos)
+- `rivers`: Ríos dibujados en el mapa (nombre, tipo: vadeable/profundo/infranqueable, puntos)
+- `barriers`: Barreras/líneas infranqueables dibujadas en el mapa (nombre, tipo: montana/acantilado/frontera, puntos)
 - `recompensas`: Documento con mejoras, niveles, bendiciones, armas_con_nombre
 - `backgrounds`: 114 documentos agrupables por raza/cultura
 - `viajes_guardados`: Viajes generados y guardados por los usuarios
 
 ## Testing
-- `/app/test_reports/iteration_21.json` - 100% pass rate
+- `/app/test_reports/iteration_23.json` - 100% pass rate (Rivers & Barriers feature)
