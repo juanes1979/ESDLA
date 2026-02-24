@@ -1298,6 +1298,18 @@ const MiddleEarthMap = () => {
       return;
     }
     
+    // Handle river drawing
+    if (isDrawingRiver && e.button === 0) {
+      handleMapClickForRiver(e);
+      return;
+    }
+    
+    // Handle barrier drawing
+    if (isDrawingBarrier && e.button === 0) {
+      handleMapClickForBarrier(e);
+      return;
+    }
+    
     // Don't start panning if we're dragging a location
     if (draggingLocation) return;
     
