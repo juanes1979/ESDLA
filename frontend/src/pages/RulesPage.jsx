@@ -2643,17 +2643,45 @@ const RulesPage = () => {
                     </div>
                   ) : (
                     <>
-                      <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-3 flex-wrap">
                         <MapPin className="w-5 h-5 text-[hsl(var(--gold))]" />
                         <h3 className="font-heading text-lg text-[hsl(var(--gold))]">{region.nombre}</h3>
                         <span className="text-xs text-muted-foreground bg-black/20 px-2 py-0.5 rounded">
                           {region.subregions?.length || 0} sub-regiones
                         </span>
+                        {/* Terrain and class badges */}
+                        {region.tipo_terreno && getTerrenoBadge(region.tipo_terreno)}
+                        {region.clase_region && getClaseBadge(region.clase_region)}
                       </div>
                       
                       {isAdmin && (
-                        <div className="flex gap-1">
-                          <Button
+                        <div className="flex items-center gap-2">
+                          {/* Terrain type selector */}
+                          <select
+                            value={region.tipo_terreno || ''}
+                            onChange={(e) => updateRegionTerrain(region.id, 'tipo_terreno', e.target.value || null)}
+                            className="h-8 text-xs bg-black/30 border border-border/30 rounded px-2 text-foreground"
+                            title="Tipo de Terreno"
+                          >
+                            <option value="">Terreno...</option>
+                            {TIPOS_TERRENO.map(t => (
+                              <option key={t.value} value={t.value}>{t.label}</option>
+                            ))}
+                          </select>
+                          {/* Region class selector */}
+                          <select
+                            value={region.clase_region || ''}
+                            onChange={(e) => updateRegionTerrain(region.id, 'clase_region', e.target.value || null)}
+                            className="h-8 text-xs bg-black/30 border border-border/30 rounded px-2 text-foreground"
+                            title="Clase de Región"
+                          >
+                            <option value="">Clase...</option>
+                            {CLASES_REGION.map(c => (
+                              <option key={c.value} value={c.value}>{c.label}</option>
+                            ))}
+                          </select>
+                          <div className="flex gap-1">
+                            <Button
                             variant="ghost"
                             size="sm"
                             onClick={() => setEditingRegion(region.id)}
