@@ -2492,7 +2492,9 @@ const RulesPage = () => {
     const updateRegionTerrain = async (regionId, field, value) => {
       try {
         await api.put(`/data/regions/${regionId}`, { [field]: value });
-        loadCategoryData('regions');
+        // Reload regions data
+        const regionsRes = await api.get('/data/regions');
+        setData(regionsRes.data?.regions || []);
       } catch (err) {
         console.error('Error updating region:', err);
       }
