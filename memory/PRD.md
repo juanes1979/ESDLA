@@ -9,6 +9,35 @@ Build a comprehensive web application to play a modified version of the "Lord of
 
 ### ✅ COMPLETED This Session (2026-02-24)
 
+#### Sistema de Dibujo de Caminos en el Mapa ✅
+**Backend:**
+- Nuevos endpoints CRUD para caminos: `/api/data/roads`
+- Modelo `Road` con: nombre, tipo (sendero/secundario/real), descripcion, puntos (coordenadas)
+- Colección `roads` en MongoDB
+
+**Frontend (MiddleEarthMap.jsx):**
+- Modo de dibujo de caminos con puntos conectados
+- Botón "🛤️ Dibujar Camino" en modo edición
+- Selector de tipo de camino (Sendero, Secundario, Real)
+- Campo para nombre del camino
+- Visualización de caminos con colores por tipo:
+  - Sendero: marrón (#8B7355), línea punteada
+  - Secundario: beige (#C4A574), línea sólida
+  - Real: dorado (#FFD700), línea gruesa
+- Puntos de control verdes durante el dibujo
+- Doble clic para terminar el camino
+
+#### Sistema Completo de Cálculo de Viajes ✅
+**Módulo `travel_config.py` con reglas completas:**
+- **Distancia base**: Lento 24km, Normal 36km, Rápido 48km por día
+- **Modificadores de terreno**: Fácil ×1, Moderado ×0.75, Difícil ×0.5, Muy Difícil ×0.33, Desalentador ×0.25, Infranqueable ×0
+- **Modificadores de camino**: Ninguno ×1, Secundario ×1.10, Real ×1.25
+- **Caso especial sendero**: En terreno moderado usa ×1
+- **Modificadores por región**: Sombra reduce bonus camino 50%, Oscuras anula bonus
+- **Montura**: ×1.5 (no aplica en terreno muy difícil+)
+- **Marcha forzada**: CD = 10 + horas_extra + mod_región (fallo = 1 cansancio)
+- **Ritmo rápido prohibido**: en salvajes, sombra, oscuras
+
 #### Sistema de Tipos de Terreno y Clases de Peligro ✅
 **Backend:**
 - Nuevos campos `tipo_terreno` y `clase_region` añadidos a regiones y ubicaciones
