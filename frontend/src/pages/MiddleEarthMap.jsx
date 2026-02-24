@@ -2780,7 +2780,7 @@ const MiddleEarthMap = () => {
           )}
           
           {/* Road type selector when drawing */}
-          {editMode && !isDrawingRoad && (
+          {editMode && !isDrawingRoad && !isDrawingRiver && !isDrawingBarrier && (
             <div className="flex items-center gap-2">
               <select
                 value={roadFormData.tipo}
@@ -2796,6 +2796,182 @@ const MiddleEarthMap = () => {
                 onChange={(e) => setRoadFormData(prev => ({ ...prev, nombre: e.target.value }))}
                 placeholder="Nombre del camino..."
                 className="w-40 h-8 text-xs"
+              />
+            </div>
+          )}
+          
+          {/* River controls */}
+          {editMode && (
+            <div className="flex items-center gap-2 border-l border-border pl-4">
+              <Button
+                variant={showRivers ? "default" : "outline"}
+                size="sm"
+                onClick={() => setShowRivers(!showRivers)}
+                title="Mostrar/ocultar ríos"
+              >
+                🌊
+              </Button>
+              
+              <Button
+                variant={showRiversPanel ? "default" : "outline"}
+                size="sm"
+                onClick={() => {
+                  setShowRiversPanel(!showRiversPanel);
+                  setShowRoadsPanel(false);
+                  setShowBarriersPanel(false);
+                }}
+                title="Gestionar ríos"
+                className="relative"
+              >
+                💧
+                {rivers.length > 0 && (
+                  <span className="absolute -top-1 -right-1 bg-blue-500 text-white text-xs w-4 h-4 rounded-full flex items-center justify-center">
+                    {rivers.length}
+                  </span>
+                )}
+              </Button>
+              
+              {!isDrawingRiver && !isDrawingRoad && !isDrawingBarrier ? (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={startDrawingRiver}
+                  className="bg-blue-600/20 hover:bg-blue-600/40"
+                >
+                  🌊 Dibujar Río
+                </Button>
+              ) : isDrawingRiver && (
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-blue-400 animate-pulse">
+                    Dibujando río... ({currentRiver?.puntos?.length || 0} puntos)
+                  </span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={finishDrawingRiver}
+                    disabled={!currentRiver || currentRiver.puntos.length < 2}
+                    className="bg-green-600/20 hover:bg-green-600/40"
+                  >
+                    ✓ Guardar
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={cancelDrawingRiver}
+                    className="bg-red-600/20 hover:bg-red-600/40"
+                  >
+                    ✗ Cancelar
+                  </Button>
+                </div>
+              )}
+            </div>
+          )}
+          
+          {/* River type selector when not drawing */}
+          {editMode && !isDrawingRiver && !isDrawingRoad && !isDrawingBarrier && (
+            <div className="flex items-center gap-2">
+              <select
+                value={riverFormData.tipo}
+                onChange={(e) => setRiverFormData(prev => ({ ...prev, tipo: e.target.value }))}
+                className="h-8 text-xs bg-blue-900/30 border border-blue-500/30 rounded px-2"
+              >
+                {Object.entries(RIVER_TYPES).map(([key, val]) => (
+                  <option key={key} value={key}>{val.label}</option>
+                ))}
+              </select>
+              <Input
+                value={riverFormData.nombre}
+                onChange={(e) => setRiverFormData(prev => ({ ...prev, nombre: e.target.value }))}
+                placeholder="Nombre del río..."
+                className="w-32 h-8 text-xs"
+              />
+            </div>
+          )}
+          
+          {/* Barrier controls */}
+          {editMode && (
+            <div className="flex items-center gap-2 border-l border-border pl-4">
+              <Button
+                variant={showBarriers ? "default" : "outline"}
+                size="sm"
+                onClick={() => setShowBarriers(!showBarriers)}
+                title="Mostrar/ocultar barreras"
+              >
+                ⛰️
+              </Button>
+              
+              <Button
+                variant={showBarriersPanel ? "default" : "outline"}
+                size="sm"
+                onClick={() => {
+                  setShowBarriersPanel(!showBarriersPanel);
+                  setShowRoadsPanel(false);
+                  setShowRiversPanel(false);
+                }}
+                title="Gestionar barreras"
+                className="relative"
+              >
+                🚫
+                {barriers.length > 0 && (
+                  <span className="absolute -top-1 -right-1 bg-orange-500 text-white text-xs w-4 h-4 rounded-full flex items-center justify-center">
+                    {barriers.length}
+                  </span>
+                )}
+              </Button>
+              
+              {!isDrawingBarrier && !isDrawingRoad && !isDrawingRiver ? (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={startDrawingBarrier}
+                  className="bg-orange-600/20 hover:bg-orange-600/40"
+                >
+                  ⛰️ Dibujar Barrera
+                </Button>
+              ) : isDrawingBarrier && (
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-orange-400 animate-pulse">
+                    Dibujando barrera... ({currentBarrier?.puntos?.length || 0} puntos)
+                  </span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={finishDrawingBarrier}
+                    disabled={!currentBarrier || currentBarrier.puntos.length < 2}
+                    className="bg-green-600/20 hover:bg-green-600/40"
+                  >
+                    ✓ Guardar
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={cancelDrawingBarrier}
+                    className="bg-red-600/20 hover:bg-red-600/40"
+                  >
+                    ✗ Cancelar
+                  </Button>
+                </div>
+              )}
+            </div>
+          )}
+          
+          {/* Barrier type selector when not drawing */}
+          {editMode && !isDrawingBarrier && !isDrawingRoad && !isDrawingRiver && (
+            <div className="flex items-center gap-2">
+              <select
+                value={barrierFormData.tipo}
+                onChange={(e) => setBarrierFormData(prev => ({ ...prev, tipo: e.target.value }))}
+                className="h-8 text-xs bg-orange-900/30 border border-orange-500/30 rounded px-2"
+              >
+                {Object.entries(BARRIER_TYPES).map(([key, val]) => (
+                  <option key={key} value={key}>{val.label}</option>
+                ))}
+              </select>
+              <Input
+                value={barrierFormData.nombre}
+                onChange={(e) => setBarrierFormData(prev => ({ ...prev, nombre: e.target.value }))}
+                placeholder="Nombre barrera..."
+                className="w-32 h-8 text-xs"
               />
             </div>
           )}
