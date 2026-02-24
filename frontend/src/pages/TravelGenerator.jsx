@@ -817,6 +817,113 @@ const TravelGenerator = () => {
             </div>
           )}
           
+          {/* Pathfinding Result Panel */}
+          {pathfindingResult && pathfindingResult.success && (
+            <div className="mt-4 p-4 bg-gradient-to-r from-blue-900/20 to-purple-900/20 rounded-lg border border-blue-500/30">
+              <div className="flex items-center justify-between mb-3">
+                <h4 className="font-bold text-[hsl(var(--magic-blue))] flex items-center gap-2">
+                  <Route className="w-4 h-4" />
+                  Ruta Óptima Calculada (A*)
+                </h4>
+                {loadingPathfinding && (
+                  <span className="text-xs text-muted-foreground animate-pulse">Calculando...</span>
+                )}
+              </div>
+              
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm mb-3">
+                <div className="bg-black/20 p-2 rounded text-center">
+                  <p className="text-xl font-bold text-[hsl(var(--torch-orange))]">{pathfindingResult.total_distance_km}</p>
+                  <p className="text-xs text-muted-foreground">km total</p>
+                </div>
+                <div className="bg-black/20 p-2 rounded text-center">
+                  <p className="text-xl font-bold text-[hsl(var(--magic-blue))]">{pathfindingResult.estimated_days}</p>
+                  <p className="text-xs text-muted-foreground">días (óptimo)</p>
+                </div>
+                <div className="bg-black/20 p-2 rounded text-center">
+                  <p className="text-xl font-bold text-[hsl(var(--gold))]">{pathfindingResult.path?.length || 0}</p>
+                  <p className="text-xs text-muted-foreground">waypoints</p>
+                </div>
+                <div className="bg-black/20 p-2 rounded text-center">
+                  <p className="text-xl font-bold text-green-400">{pathfindingResult.roads_used?.length || 0}</p>
+                  <p className="text-xs text-muted-foreground">caminos</p>
+                </div>
+              </div>
+              
+              {/* Roads Used */}
+              {pathfindingResult.roads_used?.length > 0 && (
+                <div className="mb-3">
+                  <p className="text-xs text-muted-foreground mb-1">Caminos utilizados:</p>
+                  <div className="flex flex-wrap gap-1">
+                    {pathfindingResult.roads_used.map((road, idx) => (
+                      <Badge key={idx} className="bg-yellow-500/20 text-yellow-400 text-xs">
+                        🛤️ {road}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+              )}
+              
+              {/* Terrain Summary */}
+              {pathfindingResult.terrain_summary && Object.keys(pathfindingResult.terrain_summary).length > 0 && (
+                <div className="mb-3">
+                  <p className="text-xs text-muted-foreground mb-1">Terreno atravesado:</p>
+                  <div className="flex flex-wrap gap-1">
+                    {Object.entries(pathfindingResult.terrain_summary).map(([terrain, km]) => {
+                      const terrainInfo = TIPOS_TERRENO.find(t => t.id === terrain);
+                      return (
+                        <Badge 
+                          key={terrain} 
+                          className={`text-xs ${
+                            terrain === 'facil' ? 'bg-green-500/20 text-green-400' :
+                            terrain === 'moderado' ? 'bg-lime-500/20 text-lime-400' :
+                            terrain === 'dificil' ? 'bg-yellow-500/20 text-yellow-400' :
+                            terrain === 'muy_dificil' ? 'bg-orange-500/20 text-orange-400' :
+                            terrain === 'desalentador' ? 'bg-red-500/20 text-red-400' :
+                            'bg-purple-500/20 text-purple-400'
+                          }`}
+                        >
+                          {terrainInfo?.nombre || terrain}: {km} km
+                        </Badge>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+              
+              {/* Rivers Crossed */}
+              {pathfindingResult.rivers_crossed?.length > 0 && (
+                <div className="mb-3">
+                  <p className="text-xs text-muted-foreground mb-1">Ríos a cruzar:</p>
+                  <div className="flex flex-wrap gap-1">
+                    {pathfindingResult.rivers_crossed.map((river, idx) => (
+                      <Badge 
+                        key={idx} 
+                        className={`text-xs ${
+                          river.type === 'vadeable' ? 'bg-blue-400/20 text-blue-300' :
+                          river.type === 'profundo' ? 'bg-blue-600/20 text-blue-400' :
+                          'bg-blue-900/20 text-blue-500'
+                        }`}
+                      >
+                        🌊 {river.type === 'vadeable' ? 'Vadeable' : river.type === 'profundo' ? 'Profundo' : 'Infranqueable'}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+              )}
+              
+              {/* Warnings */}
+              {pathfindingResult.warnings?.length > 0 && (
+                <div className="space-y-1">
+                  {pathfindingResult.warnings.map((warning, idx) => (
+                    <p key={idx} className="text-xs text-yellow-400 flex items-center gap-1">
+                      {warning}
+                    </p>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+          
           {/* Legacy route info fallback */}
           {!routeInfo && config.origen && config.destino && config.origen !== config.destino && !loadingRoute && (
             <div className="p-3 bg-black/10 rounded">
