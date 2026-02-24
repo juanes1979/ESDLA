@@ -652,6 +652,18 @@ const SheetPage1 = ({ character, scale, weaponCatalog = [], equipmentCatalog = {
     return pesoMontura.toFixed(2);
   };
   
+  // Calculate total weight carried by mount (equipo montura + equipo personaje + peso personaje)
+  const calcularPesoTotalMontura = () => {
+    // Weight of items on mount
+    const pesoEquipoMontura = parseFloat(calcularPesoMontura()) || 0;
+    // Weight of equipment on character
+    const pesoEquipoPersonaje = parseFloat(calcularPesoTransportado()) || 0;
+    // Weight of the character (rider)
+    const pesoPersonaje = parseFloat(character.peso) || 70; // Default 70kg if not set
+    
+    return (pesoEquipoMontura + pesoEquipoPersonaje + pesoPersonaje).toFixed(0);
+  };
+  
   // Calculate peso transportado (by character, excluding mount cargo)
   const calcularPesoTransportado = () => {
     let pesoTotal = 0;
