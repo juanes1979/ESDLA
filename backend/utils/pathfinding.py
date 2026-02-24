@@ -596,8 +596,8 @@ class MiddleEarthPathfinder:
         end_id: str
     ) -> PathResult:
         """Find path between two location IDs"""
-        start_loc = next((l for l in self.locations if l.get('id') == start_id), None)
-        end_loc = next((l for l in self.locations if l.get('id') == end_id), None)
+        start_loc = next((loc for loc in self.locations if loc.get('id') == start_id), None)
+        end_loc = next((loc for loc in self.locations if loc.get('id') == end_id), None)
         
         if not start_loc:
             return PathResult(
