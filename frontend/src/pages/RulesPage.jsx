@@ -2752,11 +2752,11 @@ const RulesPage = () => {
                     
                     {/* Subregions list */}
                     {region.subregions?.length > 0 && (
-                      <div className="flex flex-wrap gap-2 mt-3">
+                      <div className="space-y-2 mt-3">
                         {region.subregions.map((sub) => (
                           <div
                             key={sub.id}
-                            className="group flex items-center gap-2 bg-black/20 px-3 py-1.5 rounded text-sm"
+                            className="group flex items-center justify-between gap-2 bg-black/20 px-3 py-2 rounded text-sm"
                             data-testid={`subregion-${sub.id}`}
                           >
                             {editingRegion === sub.id ? (
@@ -2780,9 +2780,39 @@ const RulesPage = () => {
                               </div>
                             ) : (
                               <>
-                                <span>{sub.nombre}</span>
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <span className="font-medium">{sub.nombre}</span>
+                                  {sub.tipo_terreno && getTerrenoBadge(sub.tipo_terreno)}
+                                  {sub.clase_region && getClaseBadge(sub.clase_region)}
+                                </div>
                                 {isAdmin && (
-                                  <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                  <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                    {/* Terrain selector for subregion */}
+                                    <select
+                                      value={sub.tipo_terreno || ''}
+                                      onChange={(e) => updateRegionTerrain(sub.id, 'tipo_terreno', e.target.value || null)}
+                                      className="h-6 text-xs bg-black/30 border border-border/30 rounded px-1"
+                                      title="Tipo de Terreno"
+                                      onClick={(e) => e.stopPropagation()}
+                                    >
+                                      <option value="">Terreno</option>
+                                      {TIPOS_TERRENO.map(t => (
+                                        <option key={t.value} value={t.value}>{t.label}</option>
+                                      ))}
+                                    </select>
+                                    {/* Class selector for subregion */}
+                                    <select
+                                      value={sub.clase_region || ''}
+                                      onChange={(e) => updateRegionTerrain(sub.id, 'clase_region', e.target.value || null)}
+                                      className="h-6 text-xs bg-black/30 border border-border/30 rounded px-1"
+                                      title="Clase de Región"
+                                      onClick={(e) => e.stopPropagation()}
+                                    >
+                                      <option value="">Clase</option>
+                                      {CLASES_REGION.map(c => (
+                                        <option key={c.value} value={c.value}>{c.label}</option>
+                                      ))}
+                                    </select>
                                     <button
                                       onClick={() => setEditingRegion(sub.id)}
                                       className="p-0.5 hover:text-[hsl(var(--gold))]"
