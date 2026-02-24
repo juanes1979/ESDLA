@@ -28,15 +28,25 @@ Build a comprehensive web application to play a modified version of the "Lord of
 - Doble clic para terminar el camino
 
 #### Sistema Completo de Cálculo de Viajes ✅
-**Módulo `travel_config.py` con reglas completas:**
-- **Distancia base**: Lento 24km, Normal 36km, Rápido 48km por día
-- **Modificadores de terreno**: Fácil ×1, Moderado ×0.75, Difícil ×0.5, Muy Difícil ×0.33, Desalentador ×0.25, Infranqueable ×0
-- **Modificadores de camino**: Ninguno ×1, Secundario ×1.10, Real ×1.25
-- **Caso especial sendero**: En terreno moderado usa ×1
-- **Modificadores por región**: Sombra reduce bonus camino 50%, Oscuras anula bonus
-- **Montura**: ×1.5 (no aplica en terreno muy difícil+)
-- **Marcha forzada**: CD = 10 + horas_extra + mod_región (fallo = 1 cansancio)
-- **Ritmo rápido prohibido**: en salvajes, sombra, oscuras
+**Backend (endpoints nuevos):**
+- `POST /api/data/travel/calculate` - Calcula km/día con todas las reglas
+- `GET /api/data/travel/options` - Opciones para poblar selectores
+- `POST /api/data/travel/find-route` - Busca rutas alternativas por pasos de montaña
+
+**Frontend (TravelGenerator.jsx) - Integrado:**
+- **Selector de Ritmo**: Lento 24km, Normal 36km, Rápido 48km
+- **Selector de Tipo de Camino**: Sin camino, Sendero, Secundario, Real
+- **Selector de Horas de Marcha Forzada**: 0-4 horas con CD dinámico
+- **Calculadora en vivo**: Muestra km/día con fórmula desglosada
+- **Advertencias automáticas**: Ritmo rápido prohibido en regiones peligrosas, montura no disponible en terreno difícil
+- **CD de marcha forzada dinámico**: Incluye modificadores por región
+
+**Reglas implementadas:**
+- Terreno moderado en sendero = ×1 (anula penalización)
+- Tierras de la Sombra reduce bonus de camino 50%
+- Tierras Oscuras anula bonus de camino
+- Montura ×1.5 (no aplica en terreno muy difícil+)
+- Infranqueable = 0 km (requiere paso de montaña)
 
 #### Sistema de Tipos de Terreno y Clases de Peligro ✅
 **Backend:**
