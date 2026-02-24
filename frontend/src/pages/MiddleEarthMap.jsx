@@ -3188,6 +3188,145 @@ const MiddleEarthMap = () => {
             </g>
           )}
           
+          {/* Saved Rivers */}
+          {showRivers && rivers.map(river => {
+            const riverStyle = RIVER_TYPES[river.tipo] || RIVER_TYPES.profundo;
+            const isSelected = selectedRiver?.id === river.id;
+            return (
+              <g key={river.id}>
+                <path
+                  d={riverToPath(river)}
+                  fill="none"
+                  stroke={isSelected ? '#00ffff' : riverStyle.color}
+                  strokeWidth={(riverStyle.width + (isSelected ? 2 : 0)) / zoom}
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  opacity={0.85}
+                  style={{ cursor: 'pointer' }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setSelectedRiver(river);
+                  }}
+                />
+                {/* River label at midpoint */}
+                {showLabels && river.puntos?.length > 1 && (
+                  <text
+                    x={coordToPos(river.puntos[Math.floor(river.puntos.length / 2)].x, river.puntos[Math.floor(river.puntos.length / 2)].y).x}
+                    y={coordToPos(river.puntos[Math.floor(river.puntos.length / 2)].x, river.puntos[Math.floor(river.puntos.length / 2)].y).y - 10 / zoom}
+                    fill={riverStyle.color}
+                    fontSize={10 / zoom}
+                    textAnchor="middle"
+                    fontWeight="bold"
+                    stroke="#000"
+                    strokeWidth={2 / zoom}
+                    paintOrder="stroke"
+                    opacity={0.9}
+                  >
+                    🌊 {river.nombre}
+                  </text>
+                )}
+              </g>
+            );
+          })}
+          
+          {/* Current river being drawn */}
+          {isDrawingRiver && currentRiver && currentRiver.puntos.length > 0 && (
+            <g>
+              <path
+                d={riverToPath(currentRiver)}
+                fill="none"
+                stroke="#00bfff"
+                strokeWidth={4 / zoom}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeDasharray={`${8 / zoom} ${4 / zoom}`}
+                opacity={0.9}
+              />
+              {/* Points markers */}
+              {currentRiver.puntos.map((p, i) => (
+                <circle
+                  key={i}
+                  cx={coordToPos(p.x, p.y).x}
+                  cy={coordToPos(p.x, p.y).y}
+                  r={6 / zoom}
+                  fill={i === 0 ? '#00bfff' : '#4A90D9'}
+                  stroke="#fff"
+                  strokeWidth={2 / zoom}
+                />
+              ))}
+            </g>
+          )}
+          
+          {/* Saved Barriers (Impassable Lines) */}
+          {showBarriers && barriers.map(barrier => {
+            const barrierStyle = BARRIER_TYPES[barrier.tipo] || BARRIER_TYPES.montana;
+            const isSelected = selectedBarrier?.id === barrier.id;
+            return (
+              <g key={barrier.id}>
+                <path
+                  d={barrierToPath(barrier)}
+                  fill="none"
+                  stroke={isSelected ? '#ff6600' : barrierStyle.color}
+                  strokeWidth={(barrierStyle.width + (isSelected ? 2 : 0)) / zoom}
+                  strokeDasharray={barrierStyle.dash.map(d => d / zoom).join(' ')}
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  opacity={0.85}
+                  style={{ cursor: 'pointer' }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setSelectedBarrier(barrier);
+                  }}
+                />
+                {/* Barrier label at midpoint */}
+                {showLabels && barrier.puntos?.length > 1 && (
+                  <text
+                    x={coordToPos(barrier.puntos[Math.floor(barrier.puntos.length / 2)].x, barrier.puntos[Math.floor(barrier.puntos.length / 2)].y).x}
+                    y={coordToPos(barrier.puntos[Math.floor(barrier.puntos.length / 2)].x, barrier.puntos[Math.floor(barrier.puntos.length / 2)].y).y - 10 / zoom}
+                    fill={barrierStyle.color}
+                    fontSize={10 / zoom}
+                    textAnchor="middle"
+                    fontWeight="bold"
+                    stroke="#000"
+                    strokeWidth={2 / zoom}
+                    paintOrder="stroke"
+                    opacity={0.9}
+                  >
+                    ⛰️ {barrier.nombre}
+                  </text>
+                )}
+              </g>
+            );
+          })}
+          
+          {/* Current barrier being drawn */}
+          {isDrawingBarrier && currentBarrier && currentBarrier.puntos.length > 0 && (
+            <g>
+              <path
+                d={barrierToPath(currentBarrier)}
+                fill="none"
+                stroke="#ff6600"
+                strokeWidth={4 / zoom}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeDasharray={`${10 / zoom} ${5 / zoom}`}
+                opacity={0.9}
+              />
+              {/* Points markers */}
+              {currentBarrier.puntos.map((p, i) => (
+                <circle
+                  key={i}
+                  cx={coordToPos(p.x, p.y).x}
+                  cy={coordToPos(p.x, p.y).y}
+                  r={6 / zoom}
+                  fill={i === 0 ? '#ff6600' : '#8B4513'}
+                  stroke="#fff"
+                  strokeWidth={2 / zoom}
+                />
+              ))}
+            </g>
+          )}
+          
           {/* Locations */}
           {filteredLocations.map(renderLocation)}
           
