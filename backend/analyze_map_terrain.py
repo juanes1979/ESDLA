@@ -26,6 +26,9 @@ from motor.motor_asyncio import AsyncIOMotorClient
 import os
 from datetime import datetime, timezone
 
+# Increase PIL limit for large map images
+Image.MAX_IMAGE_PIXELS = 500000000
+
 # MongoDB connection
 MONGO_URL = os.environ.get('MONGO_URL', 'mongodb://localhost:27017')
 DB_NAME = os.environ.get('DB_NAME', 'lotr_app')
