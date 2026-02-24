@@ -2537,6 +2537,7 @@ const MiddleEarthMap = () => {
                 setRouteOrigin(null);
                 setRouteDestination(null);
                 setRouteInfo(null);
+                setCalculatedPath(null);
               }}
             >
               <X className="w-4 h-4" />
