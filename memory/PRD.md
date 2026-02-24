@@ -320,14 +320,18 @@ Build a comprehensive web application to play a modified version of the "Lord of
 
 ## Key Files Modified This Session (2026-02-24 Rivers & Barriers)
 - `/app/backend/routes/data_routes.py` - Nuevos endpoints CRUD para rivers y barriers
-- `/app/frontend/src/pages/MiddleEarthMap.jsx` - Sistema completo de dibujo de ríos y barreras
+
+## Key Files Modified This Session (2026-02-24 Pathfinding A*)
+- `/app/backend/utils/pathfinding.py` - NUEVO: Módulo de pathfinding A* completo
+- `/app/backend/routes/data_routes.py` - Nuevos endpoints pathfinding/calculate y pathfinding/between
+- `/app/frontend/src/pages/TravelGenerator.jsx` - Estado pathfindingResult, panel de ruta óptima
+- `/app/frontend/src/pages/MiddleEarthMap.jsx` - calculatedPath state, renderRoute mejorado para rutas A*
 
 ## 📋 UPCOMING TASKS
 
 ### P1 - Next Priority
-1. **Algoritmo de Pathfinding para Travel Generator** - Usar datos de ríos y barreras para calcular rutas que eviten terreno infranqueable y crucen ríos correctamente
-2. **Refactorizar `MiddleEarthMap.jsx`** (~3500 líneas) - Los componentes modulares están creados en `/components/map/`, falta mover la lógica del archivo principal
-3. **Refactorizar `RulesPage.jsx`** (~4000+ líneas) - Extraer componentes para mejorar mantenibilidad
+1. **Refactorizar `MiddleEarthMap.jsx`** (~3600 líneas) - Los componentes modulares están creados en `/components/map/`, falta mover la lógica del archivo principal
+2. **Refactorizar `RulesPage.jsx`** (~4000+ líneas) - Extraer componentes para mejorar mantenibilidad
 
 ### P2 - Medium Priority
 1. **Tool para revisar/corregir datos de terreno** - UI para corregir asignaciones incorrectas del script analyze_map_colors.py
