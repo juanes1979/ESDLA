@@ -2469,6 +2469,63 @@ const RulesPage = () => {
     // Ensure regions is always an array
     const regions = Array.isArray(data) ? data : (data?.regions || []);
     
+    // Terrain types (difficulty)
+    const TIPOS_TERRENO = [
+      { value: 'facil', label: 'Fácil', color: '#d3ba84' },
+      { value: 'moderado', label: 'Moderado', color: '#948c4d' },
+      { value: 'dificil', label: 'Difícil', color: '#c38d4f' },
+      { value: 'muy_dificil', label: 'Muy Difícil', color: '#a57044' },
+      { value: 'desalentador', label: 'Desalentador', color: '#af4b27' },
+      { value: 'infranqueable', label: 'Infranqueable', color: '#664540' },
+    ];
+    
+    // Region classes (danger level)
+    const CLASES_REGION = [
+      { value: 'tierras_libres', label: 'Tierras Libres', color: '#4ade80' },
+      { value: 'tierras_fronterizas', label: 'Tierras Fronterizas', color: '#facc15' },
+      { value: 'tierras_salvajes', label: 'Tierras Salvajes', color: '#fb923c' },
+      { value: 'tierras_sombra', label: 'Tierras de la Sombra', color: '#f87171' },
+      { value: 'tierras_oscuras', label: 'Tierras Oscuras', color: '#991b1b' },
+    ];
+    
+    // Update region terrain/class
+    const updateRegionTerrain = async (regionId, field, value) => {
+      try {
+        await api.put(`/data/regions/${regionId}`, { [field]: value });
+        loadCategoryData('regions');
+      } catch (err) {
+        console.error('Error updating region:', err);
+      }
+    };
+    
+    // Get terrain badge style
+    const getTerrenoBadge = (tipo) => {
+      const t = TIPOS_TERRENO.find(t => t.value === tipo);
+      if (!t) return null;
+      return (
+        <span 
+          className="px-2 py-0.5 rounded text-xs font-medium" 
+          style={{ backgroundColor: t.color, color: '#000' }}
+        >
+          {t.label}
+        </span>
+      );
+    };
+    
+    // Get class badge style
+    const getClaseBadge = (clase) => {
+      const c = CLASES_REGION.find(c => c.value === clase);
+      if (!c) return null;
+      return (
+        <span 
+          className="px-2 py-0.5 rounded text-xs font-medium" 
+          style={{ backgroundColor: c.color, color: c.value === 'tierras_oscuras' ? '#fff' : '#000' }}
+        >
+          {c.label}
+        </span>
+      );
+    };
+    
     return (
       <div className="space-y-6">
         {/* Header with actions */}
