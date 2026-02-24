@@ -3058,6 +3058,156 @@ async def delete_road(road_id: str):
     return {"message": "Camino eliminado"}
 
 
+# === RIVERS (Ríos) ===
+
+class RiverCreate(BaseModel):
+    nombre: str
+    tipo: str = "profundo"  # vadeable, profundo, infranqueable
+    descripcion: Optional[str] = ""
+    puntos: List[Dict[str, float]] = []  # [{x: float, y: float}, ...]
+
+class RiverUpdate(BaseModel):
+    nombre: Optional[str] = None
+    tipo: Optional[str] = None
+    descripcion: Optional[str] = None
+    puntos: Optional[List[Dict[str, float]]] = None
+
+
+@router.get("/rivers")
+async def get_rivers():
+    """Get all rivers from the map"""
+    rivers = await db.rivers.find({}).to_list(500)
+    for river in rivers:
+        river['id'] = str(river.pop('_id'))
+    return {"rivers": rivers, "total": len(rivers)}
+
+
+@router.get("/rivers/{river_id}")
+async def get_river(river_id: str):
+    """Get a specific river by ID"""
+    river = await db.rivers.find_one({"_id": river_id})
+    if not river:
+        raise HTTPException(status_code=404, detail="Río no encontrado")
+    river['id'] = str(river.pop('_id'))
+    return river
+
+
+@router.post("/rivers")
+async def create_river(river: RiverCreate):
+    """Create a new river"""
+    river_dict = river.dict()
+    river_dict['_id'] = f"river_{uuid.uuid4().hex[:8]}"
+    river_dict['created_at'] = now_utc()
+    river_dict['updated_at'] = now_utc()
+    
+    await db.rivers.insert_one(river_dict)
+    
+    river_dict['id'] = river_dict.pop('_id')
+    return river_dict
+
+
+@router.put("/rivers/{river_id}")
+async def update_river(river_id: str, river: RiverUpdate):
+    """Update an existing river"""
+    update_data = {k: v for k, v in river.dict().items() if v is not None}
+    if not update_data:
+        raise HTTPException(status_code=400, detail="No hay datos para actualizar")
+    
+    update_data['updated_at'] = now_utc()
+    
+    result = await db.rivers.update_one({"_id": river_id}, {"$set": update_data})
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Río no encontrado")
+    
+    updated = await db.rivers.find_one({"_id": river_id})
+    updated['id'] = str(updated.pop('_id'))
+    return updated
+
+
+@router.delete("/rivers/{river_id}")
+async def delete_river(river_id: str):
+    """Delete a river"""
+    result = await db.rivers.delete_one({"_id": river_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Río no encontrado")
+    return {"message": "Río eliminado"}
+
+
+# === BARRIERS (Barreras/Líneas Infranqueables) ===
+
+class BarrierCreate(BaseModel):
+    nombre: str
+    tipo: str = "montana"  # montana, acantilado, frontera
+    descripcion: Optional[str] = ""
+    puntos: List[Dict[str, float]] = []  # [{x: float, y: float}, ...]
+
+class BarrierUpdate(BaseModel):
+    nombre: Optional[str] = None
+    tipo: Optional[str] = None
+    descripcion: Optional[str] = None
+    puntos: Optional[List[Dict[str, float]]] = None
+
+
+@router.get("/barriers")
+async def get_barriers():
+    """Get all barriers/impassable lines from the map"""
+    barriers = await db.barriers.find({}).to_list(500)
+    for barrier in barriers:
+        barrier['id'] = str(barrier.pop('_id'))
+    return {"barriers": barriers, "total": len(barriers)}
+
+
+@router.get("/barriers/{barrier_id}")
+async def get_barrier(barrier_id: str):
+    """Get a specific barrier by ID"""
+    barrier = await db.barriers.find_one({"_id": barrier_id})
+    if not barrier:
+        raise HTTPException(status_code=404, detail="Barrera no encontrada")
+    barrier['id'] = str(barrier.pop('_id'))
+    return barrier
+
+
+@router.post("/barriers")
+async def create_barrier(barrier: BarrierCreate):
+    """Create a new barrier/impassable line"""
+    barrier_dict = barrier.dict()
+    barrier_dict['_id'] = f"barrier_{uuid.uuid4().hex[:8]}"
+    barrier_dict['created_at'] = now_utc()
+    barrier_dict['updated_at'] = now_utc()
+    
+    await db.barriers.insert_one(barrier_dict)
+    
+    barrier_dict['id'] = barrier_dict.pop('_id')
+    return barrier_dict
+
+
+@router.put("/barriers/{barrier_id}")
+async def update_barrier(barrier_id: str, barrier: BarrierUpdate):
+    """Update an existing barrier"""
+    update_data = {k: v for k, v in barrier.dict().items() if v is not None}
+    if not update_data:
+        raise HTTPException(status_code=400, detail="No hay datos para actualizar")
+    
+    update_data['updated_at'] = now_utc()
+    
+    result = await db.barriers.update_one({"_id": barrier_id}, {"$set": update_data})
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Barrera no encontrada")
+    
+    updated = await db.barriers.find_one({"_id": barrier_id})
+    updated['id'] = str(updated.pop('_id'))
+    return updated
+
+
+@router.delete("/barriers/{barrier_id}")
+async def delete_barrier(barrier_id: str):
+    """Delete a barrier"""
+    result = await db.barriers.delete_one({"_id": barrier_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Barrera no encontrada")
+    return {"message": "Barrera eliminada"}
+
+
 # === TRAVEL CALCULATION (New rules) ===
 
 class TravelCalculationRequest(BaseModel):
