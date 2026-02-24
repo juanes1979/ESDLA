@@ -357,6 +357,9 @@ const TravelGenerator = () => {
             tipo_terreno: route.terrain_difficulty || prev.tipo_terreno,
             tipo_tierra: route.land_type || prev.tipo_tierra
           }));
+          
+          // Also calculate optimal path using pathfinding
+          calculatePathfinding(config.origenId, config.destinoId);
         } catch (err) {
           console.error('Error calculating route:', err);
           setRouteInfo(null);
@@ -365,11 +368,31 @@ const TravelGenerator = () => {
         }
       } else {
         setRouteInfo(null);
+        setPathfindingResult(null);
       }
     };
     
     calculateRoute();
   }, [config.origenId, config.destinoId]);
+  
+  // Calculate optimal path using A* pathfinding
+  const calculatePathfinding = async (startId, endId) => {
+    if (!startId || !endId || startId === endId) {
+      setPathfindingResult(null);
+      return;
+    }
+    
+    setLoadingPathfinding(true);
+    try {
+      const res = await api.get(`/data/pathfinding/between/${startId}/${endId}`);
+      setPathfindingResult(res.data);
+    } catch (err) {
+      console.error('Error calculating pathfinding:', err);
+      setPathfindingResult(null);
+    } finally {
+      setLoadingPathfinding(false);
+    }
+  };
   
   // Auto-calculate distance when origin/destination change (legacy support)
   useEffect(() => {
