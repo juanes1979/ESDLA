@@ -417,12 +417,16 @@ const MiddleEarthMap = () => {
         try {
           const res = await api.get(`/data/locations/calculate-route/${routeOrigin.id}/${routeDestination.id}`);
           setRouteInfo(res.data);
+          
+          // Also calculate optimal pathfinding route
+          calculatePathBetweenLocations(routeOrigin.id, routeDestination.id);
         } catch (err) {
           console.error('Error calculating route:', err);
           setRouteInfo(null);
         }
       } else {
         setRouteInfo(null);
+        setCalculatedPath(null);
       }
     };
     calculateRoute();
