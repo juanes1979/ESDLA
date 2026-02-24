@@ -957,10 +957,93 @@ const TravelGenerator = () => {
         </Card>
       )}
       
+      {/* Ritmo y Camino */}
+      <Card className="card-parchment">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-lg text-[hsl(var(--gold))]">🚶 Ritmo y Ruta</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid md:grid-cols-2 gap-4">
+            <div>
+              <Label>Ritmo de Viaje</Label>
+              <Select value={config.ritmo} onValueChange={(v) => setConfig(prev => ({ ...prev, ritmo: v }))}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="lento">🐢 Lento (24 km/día) - Cauteloso</SelectItem>
+                  <SelectItem value="normal">🚶 Normal (36 km/día) - Estándar</SelectItem>
+                  <SelectItem value="rapido">🏃 Rápido (48 km/día) - Acelerado</SelectItem>
+                </SelectContent>
+              </Select>
+              {config.ritmo === 'rapido' && ['tierras_salvajes', 'tierras_sombra', 'tierras_oscuras'].includes(config.tipo_tierra) && (
+                <p className="text-xs text-red-400 mt-1">⚠️ Ritmo rápido no permitido en esta región</p>
+              )}
+            </div>
+            
+            <div>
+              <Label>Tipo de Camino</Label>
+              <Select value={config.tipo_camino} onValueChange={(v) => setConfig(prev => ({ ...prev, tipo_camino: v }))}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ninguno">🌿 Sin camino (×1)</SelectItem>
+                  <SelectItem value="sendero">🥾 Sendero (anula mod. moderado)</SelectItem>
+                  <SelectItem value="secundario">🛤️ Camino Secundario (×1.10)</SelectItem>
+                  <SelectItem value="real">👑 Camino Real (×1.25)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          
+          {/* Travel Calculation Display */}
+          {calculoViaje && !calculoViaje.error && (
+            <div className="p-4 bg-black/20 rounded-lg border border-[hsl(var(--gold))]/30">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-muted-foreground">Distancia por día:</p>
+                  <p className="text-3xl font-bold text-[hsl(var(--gold))]">
+                    {calculoViaje.distancia_total_km} km
+                  </p>
+                  {calculoViaje.distancia_marcha_forzada_km > 0 && (
+                    <p className="text-xs text-muted-foreground">
+                      ({calculoViaje.distancia_base_km} km base + {calculoViaje.distancia_marcha_forzada_km} km marcha forzada)
+                    </p>
+                  )}
+                </div>
+                <div className="text-right">
+                  <p className="text-xs text-muted-foreground font-mono">
+                    {calculoViaje.formula}
+                  </p>
+                </div>
+              </div>
+              
+              {calculoViaje.advertencias?.length > 0 && (
+                <div className="mt-2 space-y-1">
+                  {calculoViaje.advertencias.map((adv, i) => (
+                    <p key={i} className="text-xs text-yellow-400">⚠️ {adv}</p>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+          
+          {calculoViaje?.error && (
+            <div className="p-4 bg-red-900/20 rounded-lg border border-red-500/30">
+              <p className="text-red-400">{calculoViaje.mensaje}</p>
+              {calculoViaje.sugerencia && (
+                <p className="text-sm text-muted-foreground mt-1">{calculoViaje.sugerencia}</p>
+              )}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+      
       {/* Montura y opciones */}
       <Card className="card-parchment">
         <CardHeader className="pb-2">
-          <CardTitle className="text-lg text-[hsl(var(--gold))]">🐴 Montura y Opciones</CardTitle>
+          <CardTitle className="text-lg text-[hsl(var(--gold))]">🐴 Montura y Marcha Forzada</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid md:grid-cols-2 gap-4">
@@ -978,17 +1061,28 @@ const TravelGenerator = () => {
                   ))}
                 </SelectContent>
               </Select>
+              {config.montura !== 'A pie' && ['muy_dificil', 'desalentador', 'infranqueable'].includes(config.tipo_terreno) && (
+                <p className="text-xs text-yellow-400 mt-1">⚠️ Montura no disponible en este terreno</p>
+              )}
             </div>
             
-            <div className="flex items-center justify-between p-3 bg-black/10 rounded">
-              <div>
-                <Label>Marcha Forzada</Label>
-                <p className="text-xs text-muted-foreground">Velocidad x2, CD fatiga 15/día</p>
-              </div>
-              <Switch
-                checked={config.marcha_forzada}
-                onCheckedChange={(v) => setConfig(prev => ({ ...prev, marcha_forzada: v }))}
-              />
+            <div>
+              <Label>Horas de Marcha Forzada</Label>
+              <Select value={config.horas_marcha_forzada.toString()} onValueChange={(v) => setConfig(prev => ({ ...prev, horas_marcha_forzada: parseInt(v) }))}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="0">Sin marcha forzada</SelectItem>
+                  <SelectItem value="1">+1 hora (CD {11 + ({'tierras_fronterizas': 1, 'tierras_sombra': 2, 'tierras_oscuras': 3}[config.tipo_tierra] || 0)})</SelectItem>
+                  <SelectItem value="2">+2 horas (CD {12 + ({'tierras_fronterizas': 1, 'tierras_sombra': 2, 'tierras_oscuras': 3}[config.tipo_tierra] || 0)})</SelectItem>
+                  <SelectItem value="3">+3 horas (CD {13 + ({'tierras_fronterizas': 1, 'tierras_sombra': 2, 'tierras_oscuras': 3}[config.tipo_tierra] || 0)})</SelectItem>
+                  <SelectItem value="4">+4 horas (CD {14 + ({'tierras_fronterizas': 1, 'tierras_sombra': 2, 'tierras_oscuras': 3}[config.tipo_tierra] || 0)})</SelectItem>
+                </SelectContent>
+              </Select>
+              {config.horas_marcha_forzada > 0 && (
+                <p className="text-xs text-orange-400 mt-1">⚠️ Fallo en tirada = 1 nivel de cansancio por hora</p>
+              )}
             </div>
           </div>
         </CardContent>
