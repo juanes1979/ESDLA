@@ -477,6 +477,30 @@ const TravelGenerator = () => {
     setConfig(prev => ({ ...prev, heroes_multiples_papeles: heroesConMultiples }));
   }, [config.papeles]);
   
+  // Calculate travel when parameters change
+  useEffect(() => {
+    const calcularViaje = async () => {
+      try {
+        const tieneMontura = config.montura !== 'A pie' && config.montura !== 'Caminando';
+        
+        const res = await api.post('/data/travel/calculate', {
+          ritmo: config.ritmo,
+          terreno: config.tipo_terreno,
+          camino: config.tipo_camino,
+          region: config.tipo_tierra,
+          montura: tieneMontura,
+          horas_extra: config.horas_marcha_forzada
+        });
+        
+        setCalculoViaje(res.data);
+      } catch (err) {
+        console.error('Error calculating travel:', err);
+      }
+    };
+    
+    calcularViaje();
+  }, [config.ritmo, config.tipo_terreno, config.tipo_camino, config.tipo_tierra, config.montura, config.horas_marcha_forzada]);
+  
   // Generate travel
   const generarViaje = async () => {
     if (!config.origen || !config.destino || !config.region) {
