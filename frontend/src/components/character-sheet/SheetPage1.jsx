@@ -658,8 +658,8 @@ const SheetPage1 = ({ character, scale, weaponCatalog = [], equipmentCatalog = {
     const pesoEquipoMontura = parseFloat(calcularPesoMontura()) || 0;
     // Weight of equipment on character
     const pesoEquipoPersonaje = parseFloat(calcularPesoTransportado()) || 0;
-    // Weight of the character (rider)
-    const pesoPersonaje = parseFloat(character.peso) || 70; // Default 70kg if not set
+    // Weight of the character (rider) - try peso_kg first, then peso, then default 70kg
+    const pesoPersonaje = parseFloat(character.peso_kg) || parseFloat(character.peso) || 70;
     
     return (pesoEquipoMontura + pesoEquipoPersonaje + pesoPersonaje).toFixed(0);
   };
