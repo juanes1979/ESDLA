@@ -2466,7 +2466,8 @@ const RulesPage = () => {
 
   // === RENDER REGIONS ===
   const renderRegions = () => {
-    const regions = data || [];
+    // Ensure regions is always an array
+    const regions = Array.isArray(data) ? data : (data?.regions || []);
     
     return (
       <div className="space-y-6">
