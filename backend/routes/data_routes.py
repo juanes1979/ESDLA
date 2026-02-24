@@ -3208,6 +3208,152 @@ async def delete_barrier(barrier_id: str):
     return {"message": "Barrera eliminada"}
 
 
+# === PATHFINDING ===
+
+class PathfindingRequest(BaseModel):
+    """Request model for pathfinding between two points"""
+    start_x: Optional[float] = None
+    start_y: Optional[float] = None
+    end_x: Optional[float] = None
+    end_y: Optional[float] = None
+    start_location_id: Optional[str] = None
+    end_location_id: Optional[str] = None
+
+
+@router.post("/pathfinding/calculate")
+async def calculate_path(request: PathfindingRequest):
+    """
+    Calculate optimal path between two points or locations
+    Uses A* algorithm considering terrain, roads, rivers, and barriers
+    """
+    from utils.pathfinding import MiddleEarthPathfinder
+    
+    # Load all required data
+    roads = await db.roads.find({}).to_list(500)
+    rivers = await db.rivers.find({}).to_list(500)
+    barriers = await db.barriers.find({}).to_list(500)
+    locations = await db.locations.find({}).to_list(1000)
+    
+    # Clean up MongoDB _id fields
+    for road in roads:
+        road['id'] = str(road.pop('_id'))
+    for river in rivers:
+        river['id'] = str(river.pop('_id'))
+    for barrier in barriers:
+        barrier['id'] = str(barrier.pop('_id'))
+    for loc in locations:
+        loc['id'] = str(loc.pop('_id'))
+    
+    # Initialize pathfinder
+    pathfinder = MiddleEarthPathfinder(
+        roads=roads,
+        rivers=rivers,
+        barriers=barriers,
+        locations=locations
+    )
+    
+    # Find path
+    if request.start_location_id and request.end_location_id:
+        result = pathfinder.find_path_by_location_ids(
+            request.start_location_id,
+            request.end_location_id
+        )
+    elif request.start_x is not None and request.end_x is not None:
+        result = pathfinder.find_path(
+            (request.start_x, request.start_y),
+            (request.end_x, request.end_y)
+        )
+    else:
+        raise HTTPException(
+            status_code=400,
+            detail="Debe proporcionar coordenadas (start_x, start_y, end_x, end_y) o IDs de ubicación (start_location_id, end_location_id)"
+        )
+    
+    # Convert result to dict
+    return {
+        "success": result.success,
+        "path": result.path,
+        "segments": [
+            {
+                "start": seg.start,
+                "end": seg.end,
+                "distance_km": seg.distance_km,
+                "terrain": seg.terrain,
+                "road_type": seg.road_type,
+                "river_crossing": seg.river_crossing,
+                "travel_cost": seg.travel_cost
+            }
+            for seg in result.segments
+        ],
+        "total_distance_km": result.total_distance_km,
+        "total_travel_cost": result.total_travel_cost,
+        "estimated_days": result.estimated_days,
+        "warnings": result.warnings,
+        "rivers_crossed": result.rivers_crossed,
+        "roads_used": result.roads_used,
+        "terrain_summary": result.terrain_summary
+    }
+
+
+@router.get("/pathfinding/between/{start_id}/{end_id}")
+async def get_path_between_locations(start_id: str, end_id: str):
+    """
+    Get optimal path between two location IDs
+    Shortcut endpoint for common use case
+    """
+    from utils.pathfinding import MiddleEarthPathfinder
+    
+    # Load all required data
+    roads = await db.roads.find({}).to_list(500)
+    rivers = await db.rivers.find({}).to_list(500)
+    barriers = await db.barriers.find({}).to_list(500)
+    locations = await db.locations.find({}).to_list(1000)
+    
+    # Clean up MongoDB _id fields
+    for road in roads:
+        road['id'] = str(road.pop('_id'))
+    for river in rivers:
+        river['id'] = str(river.pop('_id'))
+    for barrier in barriers:
+        barrier['id'] = str(barrier.pop('_id'))
+    for loc in locations:
+        loc['id'] = str(loc.pop('_id'))
+    
+    # Initialize pathfinder
+    pathfinder = MiddleEarthPathfinder(
+        roads=roads,
+        rivers=rivers,
+        barriers=barriers,
+        locations=locations
+    )
+    
+    result = pathfinder.find_path_by_location_ids(start_id, end_id)
+    
+    return {
+        "success": result.success,
+        "path": result.path,
+        "segments": [
+            {
+                "start": seg.start,
+                "end": seg.end,
+                "distance_km": seg.distance_km,
+                "terrain": seg.terrain,
+                "road_type": seg.road_type,
+                "river_crossing": seg.river_crossing,
+                "travel_cost": seg.travel_cost
+            }
+            for seg in result.segments
+        ],
+        "total_distance_km": result.total_distance_km,
+        "total_travel_cost": result.total_travel_cost,
+        "estimated_days": result.estimated_days,
+        "warnings": result.warnings,
+        "rivers_crossed": result.rivers_crossed,
+        "roads_used": result.roads_used,
+        "terrain_summary": result.terrain_summary
+    }
+
+
 # === TRAVEL CALCULATION (New rules) ===
 
 class TravelCalculationRequest(BaseModel):
