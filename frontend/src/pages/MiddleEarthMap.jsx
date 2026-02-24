@@ -379,6 +379,32 @@ const MiddleEarthMap = () => {
     loadRoads();
   }, []);
   
+  // Load rivers from database
+  useEffect(() => {
+    const loadRivers = async () => {
+      try {
+        const res = await api.get('/data/rivers');
+        setRivers(res.data.rivers || []);
+      } catch (err) {
+        console.error('Error loading rivers:', err);
+      }
+    };
+    loadRivers();
+  }, []);
+  
+  // Load barriers from database
+  useEffect(() => {
+    const loadBarriers = async () => {
+      try {
+        const res = await api.get('/data/barriers');
+        setBarriers(res.data.barriers || []);
+      } catch (err) {
+        console.error('Error loading barriers:', err);
+      }
+    };
+    loadBarriers();
+  }, []);
+  
   // Calculate route when origin/destination change
   useEffect(() => {
     const calculateRoute = async () => {
