@@ -44,7 +44,7 @@ const FIELD_SUGGESTIONS = [
   'pg_max', 'pg_actual', 'pg_temp', 'dado_golpe',
   
   // Peso y estorbo
-  'peso_transportado', 'cargado', 'muy_cargado',
+  'peso_transportado', 'cargado', 'muy_cargado', 'montura_peso',
   
   // Tiradas de salvación - valores
   'salvacion_fue', 'salvacion_des', 'salvacion_con', 'salvacion_int', 'salvacion_sab', 'salvacion_car',
