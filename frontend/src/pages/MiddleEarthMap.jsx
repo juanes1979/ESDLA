@@ -2113,6 +2113,21 @@ const MiddleEarthMap = () => {
                 🛤️
               </Button>
               
+              <Button
+                variant={showRoadsPanel ? "default" : "outline"}
+                size="sm"
+                onClick={() => setShowRoadsPanel(!showRoadsPanel)}
+                title="Gestionar caminos"
+                className="relative"
+              >
+                📋
+                {roads.length > 0 && (
+                  <span className="absolute -top-1 -right-1 bg-[hsl(var(--gold))] text-black text-xs w-4 h-4 rounded-full flex items-center justify-center">
+                    {roads.length}
+                  </span>
+                )}
+              </Button>
+              
               {!isDrawingRoad ? (
                 <Button
                   variant="outline"
