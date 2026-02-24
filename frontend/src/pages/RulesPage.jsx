@@ -2603,6 +2603,54 @@ const RulesPage = () => {
           </div>
         )}
 
+        {/* Legend - Terrain and Danger Classes */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* Terrain Difficulty Legend */}
+          <div className="card-parchment rounded-lg p-4">
+            <h4 className="font-heading text-sm text-[hsl(var(--gold))] mb-3">
+              Dificultad del Terreno (Afecta tiempo de viaje)
+            </h4>
+            <div className="space-y-1.5 text-xs">
+              {TIPOS_TERRENO.map(t => (
+                <div key={t.value} className="flex items-center gap-2">
+                  <span className="w-3 h-3 rounded" style={{ backgroundColor: t.color }}></span>
+                  <span className="font-medium w-24">{t.label}</span>
+                  <span className="text-muted-foreground">
+                    {t.value === 'facil' && '×1.0 - Caminos, llanuras'}
+                    {t.value === 'moderado' && '×1.25 - Colinas, bosques claros'}
+                    {t.value === 'dificil' && '×1.5 - Bosques densos, páramos'}
+                    {t.value === 'muy_dificil' && '×2.0 - Montañas, pantanos'}
+                    {t.value === 'desalentador' && '×3.0 - Volcánico, maldito'}
+                    {t.value === 'infranqueable' && '⛔ Solo por pasos de montaña'}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+          
+          {/* Danger Class Legend */}
+          <div className="card-parchment rounded-lg p-4">
+            <h4 className="font-heading text-sm text-[hsl(var(--gold))] mb-3">
+              Clase de Peligro (Afecta encuentros)
+            </h4>
+            <div className="space-y-1.5 text-xs">
+              {CLASES_REGION.map(c => (
+                <div key={c.value} className="flex items-center gap-2">
+                  <span className="w-3 h-3 rounded" style={{ backgroundColor: c.color }}></span>
+                  <span className="font-medium w-32">{c.label}</span>
+                  <span className="text-muted-foreground">
+                    {c.value === 'tierras_libres' && '5% encuentros - Seguro'}
+                    {c.value === 'tierras_fronterizas' && '15% encuentros - Ocasional'}
+                    {c.value === 'tierras_salvajes' && '25% encuentros - Regular'}
+                    {c.value === 'tierras_sombra' && '40% encuentros - Frecuente'}
+                    {c.value === 'tierras_oscuras' && '60% encuentros - Constante'}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
         {/* Regions list */}
         {regions.length === 0 ? (
           <div className="text-center py-12 text-muted-foreground">
