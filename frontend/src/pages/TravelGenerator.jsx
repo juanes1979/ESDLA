@@ -102,6 +102,9 @@ const TravelGenerator = () => {
     casillas: 5,
     tipo_terreno: 'moderado',
     tipo_tierra: 'tierras_salvajes',
+    tipo_camino: 'ninguno',  // NEW: ninguno, sendero, secundario, real
+    ritmo: 'normal',         // NEW: lento, normal, rapido
+    horas_marcha_forzada: 0, // NEW: 0-4 hours of forced march
     mes: 'Cermië',
     montura: 'A pie',
     velocidad: 9, // metros instead of feet
@@ -114,6 +117,9 @@ const TravelGenerator = () => {
     },
     heroes_multiples_papeles: []
   });
+  
+  // Travel calculation result
+  const [calculoViaje, setCalculoViaje] = useState(null);
   
   // Result states
   const [resultado, setResultado] = useState(null);
