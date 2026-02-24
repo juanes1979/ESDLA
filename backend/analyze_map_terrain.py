@@ -31,7 +31,7 @@ Image.MAX_IMAGE_PIXELS = 500000000
 
 # MongoDB connection
 MONGO_URL = os.environ.get('MONGO_URL', 'mongodb://localhost:27017')
-DB_NAME = os.environ.get('DB_NAME', 'lotr_app')
+DB_NAME = os.environ.get('DB_NAME', 'test_database')
 
 # Map URLs
 MAP_URLS = {
