@@ -861,6 +861,15 @@ const SheetPage1 = ({ character, scale, weaponCatalog = [], equipmentCatalog = {
         />
       )}
       
+      {/* Campo montura_peso siempre visible para posicionamiento (sin montura muestra texto de ejemplo) */}
+      {!character.montura?.nombre && (
+        <DisplayField 
+          {...PAGE1_FIELDS.montura_peso} 
+          value="Caballo de caminos, 55 Kg/150 Kg"
+          scale={scale} 
+        />
+      )}
+      
       {/* Idiomas y Herramientas */}
       {idiomasRows.map((item, i) => (
         <DisplayField key={`idioma_herr_${i+1}`} {...PAGE1_FIELDS[`idioma_herr_${i+1}`]} value={item} scale={scale} />
