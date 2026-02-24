@@ -90,6 +90,10 @@ const TravelGenerator = () => {
   const [routeInfo, setRouteInfo] = useState(null);
   const [loadingRoute, setLoadingRoute] = useState(false);
   
+  // NEW: Pathfinding state
+  const [pathfindingResult, setPathfindingResult] = useState(null);
+  const [loadingPathfinding, setLoadingPathfinding] = useState(false);
+  
   // Form states
   const [modo, setModo] = useState('configurar'); // configurar, generando, resultado
   
