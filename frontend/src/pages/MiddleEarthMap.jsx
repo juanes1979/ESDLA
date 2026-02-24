@@ -1784,6 +1784,75 @@ const MiddleEarthMap = () => {
   
   // Render route line
   const renderRoute = () => {
+    // Render calculated pathfinding route if available
+    if (calculatedPath && calculatedPath.success && calculatedPath.path?.length > 1 && showCalculatedPath) {
+      const pathPoints = calculatedPath.path.map(p => coordToPos(p[0], p[1]));
+      const pathD = pathPoints.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ');
+      
+      return (
+        <g>
+          {/* Path glow effect */}
+          <path
+            d={pathD}
+            fill="none"
+            stroke="#00ffff"
+            strokeWidth={6 / zoom}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            opacity={0.3}
+            filter="blur(4px)"
+          />
+          
+          {/* Main path line */}
+          <path
+            d={pathD}
+            fill="none"
+            stroke="#00ffff"
+            strokeWidth={3 / zoom}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            opacity={0.8}
+          />
+          
+          {/* Start marker */}
+          <circle
+            cx={pathPoints[0].x}
+            cy={pathPoints[0].y}
+            r={8 / zoom}
+            fill="#22c55e"
+            stroke="#fff"
+            strokeWidth={2 / zoom}
+          />
+          
+          {/* End marker */}
+          <circle
+            cx={pathPoints[pathPoints.length - 1].x}
+            cy={pathPoints[pathPoints.length - 1].y}
+            r={8 / zoom}
+            fill="#ef4444"
+            stroke="#fff"
+            strokeWidth={2 / zoom}
+          />
+          
+          {/* Direction arrow at midpoint */}
+          {pathPoints.length > 2 && (() => {
+            const midIdx = Math.floor(pathPoints.length / 2);
+            const prev = pathPoints[midIdx - 1];
+            const curr = pathPoints[midIdx];
+            const angle = Math.atan2(curr.y - prev.y, curr.x - prev.x) * 180 / Math.PI;
+            return (
+              <polygon
+                points="-8,-5 0,0 -8,5"
+                fill="#00ffff"
+                transform={`translate(${curr.x}, ${curr.y}) rotate(${angle}) scale(${1/zoom})`}
+              />
+            );
+          })()}
+        </g>
+      );
+    }
+    
+    // Fallback to simple line if no pathfinding result
     if (!routeOrigin || !routeDestination) return null;
     
     const originPos = coordToPos(routeOrigin.x, routeOrigin.y);
@@ -1798,8 +1867,8 @@ const MiddleEarthMap = () => {
           x2={destPos.x}
           y2={destPos.y}
           stroke="#c9a227"
-          strokeWidth={3}
-          strokeDasharray="10,5"
+          strokeWidth={3 / zoom}
+          strokeDasharray={`${10/zoom},${5/zoom}`}
           opacity={0.8}
         />
         
@@ -1807,10 +1876,31 @@ const MiddleEarthMap = () => {
         <polygon
           points="-8,-5 0,0 -8,5"
           fill="#c9a227"
-          transform={`translate(${destPos.x}, ${destPos.y}) rotate(${Math.atan2(destPos.y - originPos.y, destPos.x - originPos.x) * 180 / Math.PI})`}
+          transform={`translate(${destPos.x}, ${destPos.y}) rotate(${Math.atan2(destPos.y - originPos.y, destPos.x - originPos.x) * 180 / Math.PI}) scale(${1/zoom})`}
         />
       </g>
     );
+  };
+  
+  // Calculate path between two locations using pathfinding
+  const calculatePathBetweenLocations = async (originId, destinationId) => {
+    if (!originId || !destinationId || originId === destinationId) {
+      setCalculatedPath(null);
+      return;
+    }
+    
+    setIsCalculatingPath(true);
+    try {
+      const res = await api.get(`/data/pathfinding/between/${originId}/${destinationId}`);
+      setCalculatedPath(res.data);
+      toast.success(`Ruta calculada: ${res.data.total_distance_km} km, ${res.data.estimated_days} días`);
+    } catch (err) {
+      console.error('Error calculating path:', err);
+      toast.error('Error calculando ruta');
+      setCalculatedPath(null);
+    } finally {
+      setIsCalculatingPath(false);
+    }
   };
   
   // Render info panel
