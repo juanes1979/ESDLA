@@ -311,6 +311,11 @@ const MiddleEarthMap = () => {
     tipo: 'montana',
   });
   
+  // Pathfinding state
+  const [calculatedPath, setCalculatedPath] = useState(null);  // Pathfinding result
+  const [showCalculatedPath, setShowCalculatedPath] = useState(true);  // Toggle visibility
+  const [isCalculatingPath, setIsCalculatingPath] = useState(false);
+  
   // Map image URLs - Player maps (clean, without decorative borders)
   const MAP_IMAGES = {
     // Single unified map of Middle-earth (clean version)
