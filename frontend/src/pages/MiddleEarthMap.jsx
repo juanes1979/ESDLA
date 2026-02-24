@@ -411,8 +411,129 @@ const MiddleEarthMap = () => {
     }
   };
   
+  // ==================== ROAD DRAWING FUNCTIONS ====================
+  
+  // Start drawing a new road
+  const startDrawingRoad = () => {
+    setIsDrawingRoad(true);
+    setCurrentRoad({
+      id: `road_${Date.now()}`,
+      nombre: roadFormData.nombre || 'Nuevo Camino',
+      tipo: roadFormData.tipo,
+      descripcion: roadFormData.descripcion,
+      puntos: [],  // Array of {x, y} coordinates (percentage)
+    });
+    toast.info('Haz clic en el mapa para añadir puntos al camino. Doble clic para terminar.');
+  };
+  
+  // Add point to current road
+  const addRoadPoint = (e) => {
+    if (!isDrawingRoad || !currentRoad) return;
+    
+    const svgPoint = getSVGPoint(e);
+    if (!svgPoint) return;
+    
+    const coords = posToCoord(svgPoint.x, svgPoint.y);
+    
+    setCurrentRoad(prev => ({
+      ...prev,
+      puntos: [...prev.puntos, { x: coords.x, y: coords.y }],
+    }));
+  };
+  
+  // Finish drawing current road
+  const finishDrawingRoad = async () => {
+    if (!currentRoad || currentRoad.puntos.length < 2) {
+      toast.error('El camino debe tener al menos 2 puntos');
+      return;
+    }
+    
+    try {
+      // Save to database
+      const res = await api.post('/data/roads', currentRoad);
+      setRoads(prev => [...prev, res.data]);
+      toast.success(`Camino "${currentRoad.nombre}" guardado`);
+    } catch (err) {
+      console.error('Error saving road:', err);
+      toast.error('Error al guardar el camino');
+    }
+    
+    setIsDrawingRoad(false);
+    setCurrentRoad(null);
+  };
+  
+  // Cancel drawing
+  const cancelDrawingRoad = () => {
+    setIsDrawingRoad(false);
+    setCurrentRoad(null);
+    toast.info('Dibujo de camino cancelado');
+  };
+  
+  // Delete a road
+  const deleteRoad = async (roadId) => {
+    if (!window.confirm('¿Eliminar este camino?')) return;
+    
+    try {
+      await api.delete(`/data/roads/${roadId}`);
+      setRoads(prev => prev.filter(r => r.id !== roadId));
+      setSelectedRoad(null);
+      toast.success('Camino eliminado');
+    } catch (err) {
+      console.error('Error deleting road:', err);
+      toast.error('Error al eliminar el camino');
+    }
+  };
+  
+  // Update road properties
+  const updateRoad = async (roadId, updates) => {
+    try {
+      const res = await api.put(`/data/roads/${roadId}`, updates);
+      setRoads(prev => prev.map(r => r.id === roadId ? { ...r, ...updates } : r));
+      toast.success('Camino actualizado');
+      return res.data;
+    } catch (err) {
+      console.error('Error updating road:', err);
+      toast.error('Error al actualizar el camino');
+    }
+  };
+  
+  // Convert road points to SVG path
+  const roadToPath = (road) => {
+    if (!road.puntos || road.puntos.length < 2) return '';
+    
+    const points = road.puntos.map(p => coordToPos(p.x, p.y));
+    let d = `M ${points[0].x} ${points[0].y}`;
+    
+    for (let i = 1; i < points.length; i++) {
+      d += ` L ${points[i].x} ${points[i].y}`;
+    }
+    
+    return d;
+  };
+  
+  // Handle map click for road drawing
+  const handleMapClickForRoad = (e) => {
+    if (!isDrawingRoad) return;
+    
+    // Check for double-click to finish
+    if (e.detail === 2) {
+      finishDrawingRoad();
+      return;
+    }
+    
+    addRoadPoint(e);
+  };
+  
+  // ==================== END ROAD DRAWING FUNCTIONS ====================
+  
   // Handle mouse events for panning
   const handleMouseDown = (e) => {
+    // Handle road drawing
+    if (isDrawingRoad && e.button === 0) {
+      handleMapClickForRoad(e);
+      return;
+    }
+    
     // Don't start panning if we're dragging a location
     if (draggingLocation) return;
     
