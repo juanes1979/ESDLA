@@ -2082,6 +2082,76 @@ const MiddleEarthMap = () => {
           {/* Route line */}
           {renderRoute()}
           
+          {/* Saved Roads */}
+          {showRoads && roads.map(road => {
+            const roadStyle = ROAD_TYPES[road.tipo] || ROAD_TYPES.secundario;
+            const isSelected = selectedRoad?.id === road.id;
+            return (
+              <g key={road.id}>
+                <path
+                  d={roadToPath(road)}
+                  fill="none"
+                  stroke={isSelected ? '#00ff00' : roadStyle.color}
+                  strokeWidth={(roadStyle.width + (isSelected ? 2 : 0)) / zoom}
+                  strokeDasharray={roadStyle.dash.map(d => d / zoom).join(' ')}
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  opacity={0.8}
+                  style={{ cursor: 'pointer' }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setSelectedRoad(road);
+                  }}
+                />
+                {/* Road label at midpoint */}
+                {showLabels && road.puntos?.length > 1 && (
+                  <text
+                    x={coordToPos(road.puntos[Math.floor(road.puntos.length / 2)].x, road.puntos[Math.floor(road.puntos.length / 2)].y).x}
+                    y={coordToPos(road.puntos[Math.floor(road.puntos.length / 2)].x, road.puntos[Math.floor(road.puntos.length / 2)].y).y - 10 / zoom}
+                    fill={roadStyle.color}
+                    fontSize={10 / zoom}
+                    textAnchor="middle"
+                    fontWeight="bold"
+                    stroke="#000"
+                    strokeWidth={2 / zoom}
+                    paintOrder="stroke"
+                    opacity={0.9}
+                  >
+                    {road.nombre}
+                  </text>
+                )}
+              </g>
+            );
+          })}
+          
+          {/* Current road being drawn */}
+          {isDrawingRoad && currentRoad && currentRoad.puntos.length > 0 && (
+            <g>
+              <path
+                d={roadToPath(currentRoad)}
+                fill="none"
+                stroke="#00ff00"
+                strokeWidth={3 / zoom}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeDasharray={`${5 / zoom} ${5 / zoom}`}
+                opacity={0.9}
+              />
+              {/* Points markers */}
+              {currentRoad.puntos.map((p, i) => (
+                <circle
+                  key={i}
+                  cx={coordToPos(p.x, p.y).x}
+                  cy={coordToPos(p.x, p.y).y}
+                  r={6 / zoom}
+                  fill={i === 0 ? '#22c55e' : '#00ff00'}
+                  stroke="#fff"
+                  strokeWidth={2 / zoom}
+                />
+              ))}
+            </g>
+          )}
+          
           {/* Locations */}
           {filteredLocations.map(renderLocation)}
           
