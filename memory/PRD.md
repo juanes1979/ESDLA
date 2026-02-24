@@ -9,7 +9,45 @@ Build a comprehensive web application to play a modified version of the "Lord of
 
 ### ✅ COMPLETED This Session (2026-02-24)
 
-#### Sistema de Dibujo de Caminos en el Mapa ✅
+#### Sistema de Dibujo de Ríos en el Mapa ✅ (NEW)
+**Backend:**
+- Nuevos endpoints CRUD para ríos: `/api/data/rivers`
+- Modelo `River` con: nombre, tipo, descripcion, puntos (coordenadas)
+- Colección `rivers` en MongoDB
+- **3 tipos de ríos:**
+  - `vadeable`: Cruzable con montura (color azul claro #4A90D9)
+  - `profundo`: Solo nadando, sin monturas (color azul medio #2E5A8B)
+  - `infranqueable`: Solo barcaza o puente (color azul oscuro #1A3A5C)
+
+**Frontend (MiddleEarthMap.jsx):**
+- Botón "🌊 Dibujar Río" en modo edición
+- Selector de tipo de río (Vadeable, Profundo, Infranqueable)
+- Campo para nombre del río
+- Renderizado de ríos en el SVG con colores según tipo
+- Panel de "Gestión de Ríos" con lista de ríos guardados
+- Opciones de Ver, Editar y Eliminar para cada río
+- Contador de ríos por tipo en el footer del panel
+
+#### Sistema de Dibujo de Barreras/Líneas Infranqueables en el Mapa ✅ (NEW)
+**Backend:**
+- Nuevos endpoints CRUD para barreras: `/api/data/barriers`
+- Modelo `Barrier` con: nombre, tipo, descripcion, puntos (coordenadas)
+- Colección `barriers` en MongoDB
+- **3 tipos de barreras:**
+  - `montana`: Cordillera infranqueable (color marrón #8B4513, línea punteada)
+  - `acantilado`: Pared vertical (color marrón oscuro #654321)
+  - `frontera`: Barrera mágica/peligrosa (color rojo oscuro #4A0000)
+
+**Frontend (MiddleEarthMap.jsx):**
+- Botón "⛰️ Dibujar Barrera" en modo edición
+- Selector de tipo de barrera (Montaña, Acantilado, Frontera Oscura)
+- Campo para nombre de la barrera
+- Renderizado de barreras en el SVG con líneas punteadas según tipo
+- Panel de "Barreras Infranqueables" con lista de barreras guardadas
+- Opciones de Ver, Editar y Eliminar para cada barrera
+- Contador de barreras por tipo en el footer del panel
+
+#### Sistema de Dibujo de Caminos en el Mapa ✅ (Previous)
 **Backend:**
 - Nuevos endpoints CRUD para caminos: `/api/data/roads`
 - Modelo `Road` con: nombre, tipo (sendero/secundario/real), descripcion, puntos (coordenadas)
