@@ -271,6 +271,46 @@ const MiddleEarthMap = () => {
     real: { label: 'Camino Real', color: '#FFD700', width: 4, dash: [] },
   };
   
+  // River types configuration
+  const RIVER_TYPES = {
+    vadeable: { label: 'Vadeable', color: '#4A90D9', width: 3, dash: [], description: 'Cruzable con montura' },
+    profundo: { label: 'Profundo', color: '#2E5A8B', width: 4, dash: [], description: 'Solo nadando, sin monturas' },
+    infranqueable: { label: 'Infranqueable', color: '#1A3A5C', width: 5, dash: [], description: 'Solo barcaza o puente' },
+  };
+  
+  // Barrier types (impassable lines)
+  const BARRIER_TYPES = {
+    montana: { label: 'Montaña', color: '#8B4513', width: 4, dash: [10, 5], description: 'Cordillera infranqueable' },
+    acantilado: { label: 'Acantilado', color: '#654321', width: 3, dash: [5, 3], description: 'Pared vertical' },
+    frontera: { label: 'Frontera Oscura', color: '#4A0000', width: 3, dash: [8, 4], description: 'Barrera mágica/peligrosa' },
+  };
+  
+  // Rivers state
+  const [rivers, setRivers] = useState([]);
+  const [isDrawingRiver, setIsDrawingRiver] = useState(false);
+  const [currentRiver, setCurrentRiver] = useState(null);
+  const [selectedRiver, setSelectedRiver] = useState(null);
+  const [showRivers, setShowRivers] = useState(true);
+  const [showRiversPanel, setShowRiversPanel] = useState(false);
+  const [editingRiverId, setEditingRiverId] = useState(null);
+  const [riverFormData, setRiverFormData] = useState({
+    nombre: '',
+    tipo: 'profundo',
+  });
+  
+  // Barriers state (impassable lines)
+  const [barriers, setBarriers] = useState([]);
+  const [isDrawingBarrier, setIsDrawingBarrier] = useState(false);
+  const [currentBarrier, setCurrentBarrier] = useState(null);
+  const [selectedBarrier, setSelectedBarrier] = useState(null);
+  const [showBarriers, setShowBarriers] = useState(true);
+  const [showBarriersPanel, setShowBarriersPanel] = useState(false);
+  const [editingBarrierId, setEditingBarrierId] = useState(null);
+  const [barrierFormData, setBarrierFormData] = useState({
+    nombre: '',
+    tipo: 'montana',
+  });
+  
   // Map image URLs - Player maps (clean, without decorative borders)
   const MAP_IMAGES = {
     // Single unified map of Middle-earth (clean version)
