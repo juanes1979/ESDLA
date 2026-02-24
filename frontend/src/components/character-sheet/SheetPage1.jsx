@@ -731,15 +731,23 @@ const SheetPage1 = ({ character, scale, weaponCatalog = [], equipmentCatalog = {
   const habFavorecidas = getHabilidadesFavorecidas();
   const pesoTransportado = calcularPesoTransportado();
   const pesoMontura = calcularPesoMontura();
-  const pesoTotalMontura = calcularPesoTotalMontura();
   const estorbo = calcularEstorbo();
   
   // Build mount display string: "MONTURA, PesoCargadoKg/PesoMaxKg"
+  // PesoCargado = equipo en montura + equipo personaje + peso del personaje (jinete)
   const getMonturaDisplayText = () => {
     if (!character.montura?.nombre) return '';
     const nombreMontura = character.montura.nombre;
     const capacidadMax = character.montura.capacidad_carga || 150;
-    return `${nombreMontura}, ${pesoTotalMontura} Kg/${capacidadMax} Kg`;
+    
+    // Use the already calculated values
+    const pesoEquipoMontura = parseFloat(pesoMontura) || 0;
+    const pesoEquipoPersonaje = parseFloat(pesoTransportado) || 0;
+    const pesoPersonaje = parseFloat(character.peso_kg) || parseFloat(character.peso) || 70;
+    
+    const pesoTotal = Math.round(pesoEquipoMontura + pesoEquipoPersonaje + pesoPersonaje);
+    
+    return `${nombreMontura}, ${pesoTotal} Kg/${capacidadMax} Kg`;
   };
 
   return (
