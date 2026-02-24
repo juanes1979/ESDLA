@@ -256,6 +256,8 @@ const MiddleEarthMap = () => {
   const [roads, setRoads] = useState([]);  // All saved roads
   const [selectedRoad, setSelectedRoad] = useState(null);  // Road selected for editing
   const [showRoads, setShowRoads] = useState(true);  // Toggle road visibility
+  const [showRoadsPanel, setShowRoadsPanel] = useState(false);  // Show roads management panel
+  const [editingRoadId, setEditingRoadId] = useState(null);  // Road being edited in panel
   const [roadFormData, setRoadFormData] = useState({
     nombre: '',
     tipo: 'secundario',  // sendero, secundario, real
