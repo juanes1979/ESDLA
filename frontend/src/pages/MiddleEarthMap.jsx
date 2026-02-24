@@ -250,6 +250,25 @@ const MiddleEarthMap = () => {
   const [filterType, setFilterType] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
   
+  // Road/Path drawing state
+  const [isDrawingRoad, setIsDrawingRoad] = useState(false);
+  const [currentRoad, setCurrentRoad] = useState(null);  // Road being drawn
+  const [roads, setRoads] = useState([]);  // All saved roads
+  const [selectedRoad, setSelectedRoad] = useState(null);  // Road selected for editing
+  const [showRoads, setShowRoads] = useState(true);  // Toggle road visibility
+  const [roadFormData, setRoadFormData] = useState({
+    nombre: '',
+    tipo: 'secundario',  // sendero, secundario, real
+    descripcion: '',
+  });
+  
+  // Road types configuration
+  const ROAD_TYPES = {
+    sendero: { label: 'Sendero', color: '#8B7355', width: 2, dash: [5, 5] },
+    secundario: { label: 'Camino Secundario', color: '#C4A574', width: 3, dash: [] },
+    real: { label: 'Camino Real', color: '#FFD700', width: 4, dash: [] },
+  };
+  
   // Map image URLs - Player maps (clean, without decorative borders)
   const MAP_IMAGES = {
     // Single unified map of Middle-earth (clean version)
