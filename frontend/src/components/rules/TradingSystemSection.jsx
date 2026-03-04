@@ -47,6 +47,25 @@ const formatCurrency = (amount, currency = 'mp') => {
   return `${amount.toFixed(2)} ${currency}`;
 };
 
+// Settlement levels hierarchy (higher number = more availability)
+const SETTLEMENT_LEVELS = {
+  'aldea': 1,
+  'pueblo': 2,
+  'ciudad_pequena': 3,
+  'ciudad': 4,
+  'ciudad_grande': 5,
+  'capital': 6,
+};
+
+const SETTLEMENT_LEVEL_NAMES = {
+  1: 'Aldea',
+  2: 'Pueblo', 
+  3: 'Ciudad Pequeña',
+  4: 'Ciudad',
+  5: 'Ciudad Grande',
+  6: 'Capital',
+};
+
 // ============================================================================
 // MAIN COMPONENT
 // ============================================================================
@@ -76,8 +95,9 @@ const TradingSystemSection = ({ isAdmin }) => {
     bendicion: 'ninguna',
     categoria: 'general',
     region: '',
+    nivel_asentamiento: 4, // Default: Ciudad
     modificador_region: 0,
-    tipo_asentamiento: '',
+    tipo_asentamiento: 'ciudad',
     modificador_asentamiento: 0,
     contexto_historico: '',
     relacion: 'neutral',
@@ -91,6 +111,10 @@ const TradingSystemSection = ({ isAdmin }) => {
   const [calcResult, setCalcResult] = useState(null);
   const [calculating, setCalculating] = useState(false);
 
+  // Item search state
+  const [itemSearchQuery, setItemSearchQuery] = useState('');
+  const [showItemDropdown, setShowItemDropdown] = useState(false);
+
   // Flatten equipment for selector (memo at component level)
   const allItems = useMemo(() => {
     const items = [];
@@ -101,6 +125,77 @@ const TradingSystemSection = ({ isAdmin }) => {
     });
     return items;
   }, [equipment]);
+
+  // Filter items based on search, region and settlement level
+  const filteredItems = useMemo(() => {
+    const query = itemSearchQuery.toLowerCase().trim();
+    const selectedRegion = calcForm.region;
+    const selectedSettlement = calcForm.tipo_asentamiento;
+
+    // Map our settlement type keys to the values in the database
+    const settlementKeyToDbValue = {
+      'aldea': 'aldea',
+      'pueblo': 'pueblo',
+      'ciudad_pequena': 'villa',
+      'ciudad': 'ciudad',
+      'ciudad_grande': 'ciudad',
+      'capital': 'capital',
+    };
+    
+    const dbSettlementValue = settlementKeyToDbValue[selectedSettlement] || selectedSettlement;
+
+    return allItems.filter(item => {
+      // Ensure item has a valid nombre
+      if (!item.nombre || typeof item.nombre !== 'string') {
+        return false;
+      }
+      
+      // Filter by search query
+      if (query && !item.nombre.toLowerCase().includes(query)) {
+        return false;
+      }
+      
+      // Filter by settlement level - item must be available at this settlement type
+      if (selectedSettlement && item.nivel_asentamiento && Array.isArray(item.nivel_asentamiento)) {
+        const isAvailable = item.nivel_asentamiento.some(s => 
+          s === dbSettlementValue || 
+          s === 'capital' || // capital has everything
+          (dbSettlementValue === 'capital') // if user selected capital, show everything
+        );
+        if (!isAvailable) {
+          return false;
+        }
+      }
+      
+      // Filter by region if item has region restrictions
+      if (selectedRegion && item.regiones_disponibles?.length > 0) {
+        // Check if item is available in the selected region
+        const regionMatch = item.regiones_disponibles.some(r => 
+          r && typeof r === 'string' && (
+            r.toLowerCase() === 'todas' || 
+            r === selectedRegion ||
+            r.toLowerCase() === selectedRegion.toLowerCase()
+          )
+        );
+        if (!regionMatch) {
+          return false;
+        }
+      }
+      
+      return true;
+    });
+  }, [allItems, itemSearchQuery, calcForm.region, calcForm.tipo_asentamiento]);
+
+  // Group filtered items by category for display
+  const groupedFilteredItems = useMemo(() => {
+    const groups = {};
+    filteredItems.forEach(item => {
+      const cat = item._categoria || 'otros';
+      if (!groups[cat]) groups[cat] = [];
+      groups[cat].push(item);
+    });
+    return groups;
+  }, [filteredItems]);
 
   // ============================================================================
   // DATA LOADING
@@ -140,7 +235,7 @@ const TradingSystemSection = ({ isAdmin }) => {
 
   const loadEquipment = async () => {
     try {
-      const res = await api.get('/data/equipment');
+      const res = await api.get('/data/equipment-catalog');
       setEquipment(res.data || {});
     } catch (err) {
       console.error('Error loading equipment:', err);
@@ -352,6 +447,12 @@ const TradingSystemSection = ({ isAdmin }) => {
   // ============================================================================
 
   const renderCalculatorTab = () => {
+    const handleSelectItem = (item) => {
+      selectEquipmentItem(item, item._categoria);
+      setItemSearchQuery(item.nombre);
+      setShowItemDropdown(false);
+    };
+
     return (
       <div className="grid md:grid-cols-2 gap-6">
         {/* Left: Form */}
@@ -386,34 +487,195 @@ const TradingSystemSection = ({ isAdmin }) => {
             </div>
           </div>
 
-          {/* Item selector */}
-          <div>
-            <label className="text-sm text-muted-foreground mb-1 block">Artículo</label>
-            <select
-              className="w-full bg-black/30 border border-border rounded px-3 py-2"
-              value={calcForm.articulo?.nombre || ''}
-              onChange={(e) => {
-                const item = allItems.find(i => i.nombre === e.target.value);
-                if (item) selectEquipmentItem(item, item._categoria);
-              }}
-              data-testid="item-selector"
-            >
-              <option value="">-- Seleccionar artículo --</option>
-              {Object.entries(equipment).map(([cat, items]) => (
-                Array.isArray(items) && items.length > 0 && (
-                  <optgroup key={cat} label={cat.replace(/_/g, ' ').toUpperCase()}>
-                    {items.map(item => (
-                      <option key={item.nombre} value={item.nombre}>
-                        {item.nombre} ({item.precio} {item.moneda || 'mp'})
-                      </option>
-                    ))}
-                  </optgroup>
-                )
-              ))}
-            </select>
+          {/* LOCATION SECTION - FIRST */}
+          <div className="bg-black/20 rounded-lg p-4 border border-[hsl(var(--gold))]/30">
+            <h4 className="text-sm font-medium text-[hsl(var(--gold))] mb-3 flex items-center gap-2">
+              <Package className="w-4 h-4" />
+              1. Ubicación del Comercio
+            </h4>
+            <p className="text-xs text-muted-foreground mb-3">
+              Selecciona primero la ubicación. El equipo disponible dependerá de la región y tipo de asentamiento.
+            </p>
+            
+            {/* Region selector */}
+            <div className="mb-3">
+              <label className="text-sm text-muted-foreground mb-1 block">Región</label>
+              <select
+                className="w-full bg-black/30 border border-border rounded px-3 py-2"
+                value={calcForm.region}
+                onChange={(e) => {
+                  const selectedRegion = e.target.value;
+                  const regionData = priceModifiers?.region?.find(r => r.nombre === selectedRegion);
+                  // Convert multiplier to percentage (1.1 -> 10, 0.9 -> -10)
+                  const modPercent = regionData ? Math.round((regionData.modificador - 1) * 100) : 0;
+                  setCalcForm(p => ({ 
+                    ...p, 
+                    region: selectedRegion,
+                    modificador_region: modPercent,
+                    articulo: null, // Reset article when region changes
+                    precio_base: 0,
+                    oferta: 0
+                  }));
+                  setItemSearchQuery('');
+                }}
+                data-testid="region-selector"
+              >
+                <option value="">-- Seleccionar región --</option>
+                {priceModifiers?.region?.map(r => {
+                  const modPercent = Math.round((r.modificador - 1) * 100);
+                  return (
+                    <option key={r.nombre} value={r.nombre}>
+                      {r.nombre} ({modPercent >= 0 ? '+' : ''}{modPercent}%)
+                    </option>
+                  );
+                })}
+              </select>
+            </div>
+
+            {/* Settlement type selector */}
+            <div>
+              <label className="text-sm text-muted-foreground mb-1 block">Tipo de Asentamiento</label>
+              <select
+                className="w-full bg-black/30 border border-border rounded px-3 py-2"
+                value={calcForm.tipo_asentamiento}
+                onChange={(e) => {
+                  const settlementType = e.target.value;
+                  const settlementData = priceModifiers?.asentamiento?.find(a => 
+                    a.nombre.toLowerCase().includes(settlementType.replace(/_/g, ' '))
+                  );
+                  const level = SETTLEMENT_LEVELS[settlementType] || 4;
+                  // Convert multiplier to percentage
+                  const modPercent = settlementData ? Math.round((settlementData.modificador - 1) * 100) : 0;
+                  setCalcForm(p => ({ 
+                    ...p, 
+                    tipo_asentamiento: settlementType,
+                    nivel_asentamiento: level,
+                    modificador_asentamiento: modPercent,
+                    articulo: null, // Reset article when settlement changes
+                    precio_base: 0,
+                    oferta: 0
+                  }));
+                  setItemSearchQuery('');
+                }}
+                data-testid="settlement-selector"
+              >
+                <option value="">-- Seleccionar tipo --</option>
+                {Object.entries(SETTLEMENT_LEVELS).map(([key, level]) => {
+                  const settlementData = priceModifiers?.asentamiento?.find(a => 
+                    a.nombre.toLowerCase().includes(key.replace(/_/g, ' '))
+                  );
+                  const modPercent = settlementData ? Math.round((settlementData.modificador - 1) * 100) : 0;
+                  return (
+                    <option key={key} value={key}>
+                      {SETTLEMENT_LEVEL_NAMES[level]} (Nivel {level}) {settlementData ? `(${modPercent >= 0 ? '+' : ''}${modPercent}%)` : ''}
+                    </option>
+                  );
+                })}
+              </select>
+            </div>
           </div>
 
-          {/* Manual price */}
+          {/* ITEM SEARCH SECTION */}
+          <div className="bg-black/20 rounded-lg p-4 border border-border/30">
+            <h4 className="text-sm font-medium text-[hsl(var(--gold))] mb-3 flex items-center gap-2">
+              <Package className="w-4 h-4" />
+              2. Seleccionar Artículo
+            </h4>
+            {calcForm.region && calcForm.tipo_asentamiento ? (
+              <>
+                <p className="text-xs text-muted-foreground mb-2">
+                  Mostrando {filteredItems.length} artículos disponibles en {calcForm.region} ({SETTLEMENT_LEVEL_NAMES[calcForm.nivel_asentamiento] || 'Ciudad'})
+                </p>
+                
+                {/* Search input with dropdown */}
+                <div className="relative">
+                  <Input
+                    type="text"
+                    placeholder="Buscar artículo... (ej: espada, caballo, rubí)"
+                    value={itemSearchQuery}
+                    onChange={(e) => {
+                      setItemSearchQuery(e.target.value);
+                      setShowItemDropdown(true);
+                    }}
+                    onFocus={() => setShowItemDropdown(true)}
+                    className="w-full"
+                    data-testid="item-search"
+                  />
+                  
+                  {/* Dropdown with filtered items */}
+                  {showItemDropdown && (
+                    <div className="absolute z-50 w-full mt-1 bg-black/95 border border-border rounded-lg shadow-lg max-h-80 overflow-y-auto">
+                      {filteredItems.length === 0 ? (
+                        <div className="p-4 text-center text-muted-foreground text-sm">
+                          No hay artículos disponibles con ese nombre en esta ubicación.
+                        </div>
+                      ) : (
+                        Object.entries(groupedFilteredItems).map(([cat, items]) => (
+                          <div key={cat}>
+                            <div className="px-3 py-2 bg-black/50 text-xs font-medium text-[hsl(var(--gold))] uppercase sticky top-0">
+                              {cat.replace(/_/g, ' ')}
+                            </div>
+                            {items.slice(0, 10).map(item => (
+                              <button
+                                key={`${cat}-${item.nombre}`}
+                                className="w-full px-3 py-2 text-left hover:bg-[hsl(var(--gold))]/10 flex justify-between items-center border-b border-border/20 last:border-0"
+                                onClick={() => handleSelectItem(item)}
+                              >
+                                <span className="text-sm">{item.nombre}</span>
+                                <span className="text-xs text-[hsl(var(--torch-orange))]">
+                                  {item.precio} {item.moneda || 'mp'}
+                                </span>
+                              </button>
+                            ))}
+                            {items.length > 10 && (
+                              <div className="px-3 py-1 text-xs text-muted-foreground italic">
+                                ...y {items.length - 10} más. Escribe para filtrar.
+                              </div>
+                            )}
+                          </div>
+                        ))
+                      )}
+                      
+                      {/* Close button */}
+                      <button
+                        className="w-full px-3 py-2 text-xs text-center text-muted-foreground hover:bg-black/50 border-t border-border"
+                        onClick={() => setShowItemDropdown(false)}
+                      >
+                        Cerrar
+                      </button>
+                    </div>
+                  )}
+                </div>
+                
+                {/* Selected item display */}
+                {calcForm.articulo && (
+                  <div className="mt-3 p-3 bg-[hsl(var(--gold))]/10 rounded border border-[hsl(var(--gold))]/30">
+                    <div className="flex justify-between items-center">
+                      <div>
+                        <span className="font-medium text-[hsl(var(--gold))]">{calcForm.articulo.nombre}</span>
+                        <span className="text-xs text-muted-foreground ml-2">({calcForm.categoria})</span>
+                      </div>
+                      <span className="text-[hsl(var(--torch-orange))] font-bold">
+                        {calcForm.precio_base} {calcForm.articulo.moneda || 'mp'}
+                      </span>
+                    </div>
+                    {calcForm.articulo.nivel_asentamiento && (
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Requiere: {SETTLEMENT_LEVEL_NAMES[calcForm.articulo.nivel_asentamiento]} o superior
+                      </p>
+                    )}
+                  </div>
+                )}
+              </>
+            ) : (
+              <div className="text-center py-4 text-muted-foreground">
+                <AlertTriangle className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                <p className="text-sm">Selecciona primero la región y tipo de asentamiento</p>
+              </div>
+            )}
+          </div>
+
+          {/* Manual price override */}
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="text-sm text-muted-foreground mb-1 block">Precio Base</label>
@@ -449,42 +711,6 @@ const TradingSystemSection = ({ isAdmin }) => {
               {config?.blessing_modifiers && Object.entries(config.blessing_modifiers).map(([key, val]) => (
                 <option key={key} value={key}>
                   {val.nombre} ({val.modificador > 0 ? '+' : ''}{val.modificador}%)
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Region modifier */}
-          <div>
-            <label className="text-sm text-muted-foreground mb-1 block">Región (Mod. Precio)</label>
-            <select
-              className="w-full bg-black/30 border border-border rounded px-3 py-2"
-              value={calcForm.modificador_region}
-              onChange={(e) => setCalcForm(p => ({ ...p, modificador_region: parseInt(e.target.value) || 0 }))}
-              data-testid="region-selector"
-            >
-              <option value="0">Sin modificador (0%)</option>
-              {priceModifiers?.por_region?.map(r => (
-                <option key={r.nombre} value={r.modificador}>
-                  {r.nombre} ({r.modificador > 0 ? '+' : ''}{r.modificador}%)
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Settlement modifier */}
-          <div>
-            <label className="text-sm text-muted-foreground mb-1 block">Tipo de Asentamiento</label>
-            <select
-              className="w-full bg-black/30 border border-border rounded px-3 py-2"
-              value={calcForm.modificador_asentamiento}
-              onChange={(e) => setCalcForm(p => ({ ...p, modificador_asentamiento: parseInt(e.target.value) || 0 }))}
-              data-testid="settlement-selector"
-            >
-              <option value="0">Sin modificador (0%)</option>
-              {priceModifiers?.por_asentamiento?.map(a => (
-                <option key={a.nombre} value={a.modificador}>
-                  {a.nombre} ({a.modificador > 0 ? '+' : ''}{a.modificador}%)
                 </option>
               ))}
             </select>
