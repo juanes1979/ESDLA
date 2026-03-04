@@ -44,7 +44,7 @@ const FIELD_SUGGESTIONS = [
   'pg_max', 'pg_actual', 'pg_temp', 'dado_golpe',
   
   // Peso y estorbo
-  'peso_transportado', 'cargado', 'muy_cargado', 'montura_peso',
+  'peso_transportado', 'peso_montura', 'cargado', 'muy_cargado', 'montura_peso',
   
   // Tiradas de salvación - valores
   'salvacion_fue', 'salvacion_des', 'salvacion_con', 'salvacion_int', 'salvacion_sab', 'salvacion_car',
@@ -138,6 +138,7 @@ const SheetPositionEditor = () => {
   const [showMarkers, setShowMarkers] = useState(true);
   const [showTextFields, setShowTextFields] = useState(true);
   const [saveStatus, setSaveStatus] = useState(null); // 'saved', 'loading', 'loaded', 'error'
+  const [searchFilter, setSearchFilter] = useState(''); // NEW: search filter for fields
   const containerRef = useRef(null);
 
   // Load saved positions from DATABASE on mount
@@ -358,8 +359,16 @@ const SheetPositionEditor = () => {
     if (editingId === id) setEditingId(null);
   };
 
-  // Get positions for current page
-  const currentPagePositions = positions.filter(p => p.page === currentPage);
+  // Get positions for current page (with search filter)
+  const currentPagePositions = positions
+    .filter(p => p.page === currentPage)
+    .filter(p => {
+      if (!searchFilter.trim()) return true;
+      const search = searchFilter.toLowerCase();
+      const fieldName = (p.fieldName || '').toString().toLowerCase();
+      const id = (p.id || '').toString().toLowerCase();
+      return fieldName.includes(search) || id.includes(search);
+    });
 
   return (
     <div className="min-h-screen bg-[#1a1a1a]" data-testid="sheet-editor">
@@ -606,9 +615,24 @@ const SheetPositionEditor = () => {
           <h2 className="font-heading text-lg text-[hsl(var(--gold))] mb-2">
             Posiciones - Página {currentPage}
           </h2>
+          
+          {/* Search filter */}
+          <div className="mb-3">
+            <Input
+              placeholder="🔍 Buscar campo (ej: peso, montura...)"
+              value={searchFilter}
+              onChange={(e) => setSearchFilter(e.target.value)}
+              className="h-8 text-sm bg-black/30 border-border/50"
+            />
+          </div>
+          
           <p className="text-xs text-muted-foreground mb-4">
-            Total: {currentPagePositions.length} campos · 
-            <span className="text-green-400 ml-1">{currentPagePositions.filter(p => p.fieldName).length} nombrados</span>
+            {searchFilter ? (
+              <>Encontrados: {currentPagePositions.length} campos</>
+            ) : (
+              <>Total: {currentPagePositions.length} campos · 
+              <span className="text-green-400 ml-1">{currentPagePositions.filter(p => p.fieldName).length} nombrados</span></>
+            )}
           </p>
 
           {currentPagePositions.length === 0 ? (
