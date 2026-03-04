@@ -5,7 +5,21 @@ Build a comprehensive web application to play a modified version of the "Lord of
 
 **User's preferred language**: Español
 
-## Current State (2026-02-24)
+## Current State (2026-03-04)
+
+### ✅ COMPLETED This Session (2026-03-04)
+
+#### P0: Actualización de Posiciones de Campos de la Hoja de Personaje ✅
+- **Base de datos actualizada:** 182 campos totales (146 page1, 32 page2, 4 page3) con las nuevas coordenadas proporcionadas por el usuario
+- **Código fuente sincronizado:**
+  - `SheetPage1.jsx`: Actualizado `peso_transportado` (y: 377→369) y `peso_montura` (x: 1130→1186, y: 428→421, width: 160→116)
+  - `SheetPage2.jsx`: Actualizado `sombra` (y: 418→411), `descripcion_sombra` (y: 465→462), renombrado `rasgos_culturales_2` → `rasgos_personalidad`
+- **Endpoint utilizado:** `PUT /api/data/sheet-positions`
+- **Verificación:** Screenshot de la hoja interactiva confirmando que los campos se renderizan correctamente
+
+---
+
+## Previous State (2026-02-24)
 
 ### ✅ COMPLETED This Session (2026-02-24)
 

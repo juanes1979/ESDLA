@@ -97,8 +97,8 @@ export const PAGE1_FIELDS = {
   percepcion_pasiva: { x: 78, y: 1679, width: 100, fontSize: 65, align: 'center' },
   
   // Peso y estorbo
-  peso_transportado: { x: 1190, y: 377, width: 106, fontSize: 42, align: 'center' },
-  peso_montura: { x: 1130, y: 428, width: 160, fontSize: 24, align: 'center' }, // Weight on mount - widened
+  peso_transportado: { x: 1190, y: 369, width: 106, fontSize: 42, align: 'center' },
+  peso_montura: { x: 1186, y: 421, width: 116, fontSize: 24, align: 'center' },
   cargado: { x: 1337, y: 368, width: 23, fontSize: 30, align: 'left' },
   muy_cargado: { x: 1337, y: 418, width: 23, fontSize: 30, align: 'left' },
   
