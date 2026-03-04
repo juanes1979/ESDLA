@@ -28,7 +28,7 @@ const NAV_ITEMS = [
   },
   {
     id: 'rules',
-    image: 'https://customer-assets.emergentagent.com/job_fab028bf-4de6-413f-8616-34827bc574a6/artifacts/po5mmlm5_Reglas.png',
+    image: 'https://customer-assets.emergentagent.com/job_fab028bf-4de6-413f-8616-34827bc574a6/artifacts/1zm6l45i_Reglas.png',
     title: 'Reglas',
     description: 'Culturas, ocupaciones, equipo y precios.',
     path: '/rules',
@@ -38,7 +38,7 @@ const NAV_ITEMS = [
   // RIGHT SIDE (top to bottom)
   {
     id: 'travel',
-    image: 'https://customer-assets.emergentagent.com/job_fab028bf-4de6-413f-8616-34827bc574a6/artifacts/igam3t8r_Viaje.png',
+    image: 'https://customer-assets.emergentagent.com/job_fab028bf-4de6-413f-8616-34827bc574a6/artifacts/ug4mj9xw_Viaje.png',
     title: 'Generador de Viajes',
     description: 'Genera viajes con clima, acontecimientos y fatiga.',
     path: '/travel',
@@ -47,7 +47,7 @@ const NAV_ITEMS = [
   },
   {
     id: 'map',
-    image: 'https://customer-assets.emergentagent.com/job_fab028bf-4de6-413f-8616-34827bc574a6/artifacts/m22iulb7_Mapa%20interactivo.png',
+    image: 'https://customer-assets.emergentagent.com/job_fab028bf-4de6-413f-8616-34827bc574a6/artifacts/93mcloc1_Mapa%20interactivo.png',
     title: 'Mapa Interactivo',
     description: '216 ubicaciones de la Tierra Media con rutas y distancias.',
     path: '/map',
@@ -56,7 +56,7 @@ const NAV_ITEMS = [
   },
   {
     id: 'online',
-    image: 'https://customer-assets.emergentagent.com/job_fab028bf-4de6-413f-8616-34827bc574a6/artifacts/jlnfdgt4_Juego%20online.png',
+    image: 'https://customer-assets.emergentagent.com/job_fab028bf-4de6-413f-8616-34827bc574a6/artifacts/rl16pe57_Juego%20online.png',
     title: 'Juego en Línea',
     description: 'Mapas, chat y herramientas para el Director.',
     path: null,
