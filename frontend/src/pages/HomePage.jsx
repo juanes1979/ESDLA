@@ -81,6 +81,30 @@ const FloatingNavIcon = ({ item, onNavigate, index }) => {
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
+      {/* Fire glow effect behind medallion */}
+      <div 
+        className="absolute inset-0 rounded-full"
+        style={{
+          background: 'radial-gradient(circle, rgba(255,120,50,0.8) 0%, rgba(255,80,20,0.4) 40%, rgba(200,50,0,0.2) 60%, transparent 70%)',
+          filter: 'blur(8px)',
+          transform: 'scale(1.4)',
+          animation: `fireGlow${index} 2s ease-in-out infinite`,
+          animationDelay: `${index * 0.3}s`
+        }}
+      />
+      
+      {/* Secondary fire layer for depth */}
+      <div 
+        className="absolute inset-0 rounded-full"
+        style={{
+          background: 'radial-gradient(circle, rgba(255,200,100,0.6) 0%, rgba(255,150,50,0.3) 30%, transparent 60%)',
+          filter: 'blur(12px)',
+          transform: 'scale(1.6)',
+          animation: `fireGlow${(index + 3) % 6} 3s ease-in-out infinite`,
+          animationDelay: `${index * 0.5}s`
+        }}
+      />
+      
       {/* Medallion Button */}
       <button
         onClick={() => !item.comingSoon && onNavigate(item.path)}
@@ -93,7 +117,9 @@ const FloatingNavIcon = ({ item, onNavigate, index }) => {
           ${isHovered ? 'scale-115 z-30' : 'scale-100'}
         `}
         style={{
-          animationDelay: `${index * 0.2}s`
+          boxShadow: isHovered 
+            ? '0 0 30px 10px rgba(255,100,30,0.6), 0 0 60px 20px rgba(255,60,0,0.3)' 
+            : '0 0 15px 5px rgba(255,100,30,0.4), 0 0 30px 10px rgba(255,60,0,0.2)'
         }}
         data-testid={`nav-icon-${item.id}`}
       >
@@ -103,31 +129,6 @@ const FloatingNavIcon = ({ item, onNavigate, index }) => {
           alt={item.title}
           className="w-full h-full object-cover"
         />
-        
-        {/* Pulse/Glow animation ring */}
-        <span 
-          className={`
-            absolute inset-0 rounded-full 
-            border-2 border-cyan-400/60
-            animate-pulse
-            ${isHovered ? 'opacity-100' : 'opacity-60'}
-          `}
-          style={{
-            boxShadow: '0 0 15px 3px rgba(34, 211, 238, 0.4), inset 0 0 10px rgba(34, 211, 238, 0.2)',
-            animationDuration: '2s',
-            animationDelay: `${index * 0.3}s`
-          }}
-        />
-        
-        {/* Additional outer glow on hover */}
-        {isHovered && (
-          <span 
-            className="absolute -inset-1 rounded-full animate-ping opacity-30"
-            style={{
-              boxShadow: '0 0 20px 5px rgba(34, 211, 238, 0.5)'
-            }}
-          />
-        )}
         
         {/* Coming Soon Badge */}
         {item.comingSoon && (
@@ -143,24 +144,24 @@ const FloatingNavIcon = ({ item, onNavigate, index }) => {
           absolute top-1/2 -translate-y-1/2 ${tooltipPosition}
           w-64 p-4 rounded-xl
           bg-black/95 backdrop-blur-md
-          border border-cyan-500/40
+          border border-orange-500/40
           shadow-2xl
           transition-all duration-300 ease-out
           ${isHovered ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}
           ${item.side === 'left' ? 'translate-x-0' : 'translate-x-0'}
         `}
         style={{
-          boxShadow: isHovered ? '0 0 30px 5px rgba(34, 211, 238, 0.3)' : 'none'
+          boxShadow: isHovered ? '0 0 30px 5px rgba(255,100,30,0.3)' : 'none'
         }}
       >
-        <h3 className="font-heading text-lg text-cyan-300 mb-2">
+        <h3 className="font-heading text-lg text-orange-300 mb-2">
           {item.title}
         </h3>
         <p className="text-sm text-gray-300 leading-relaxed">
           {item.description}
         </p>
         {!item.comingSoon && (
-          <div className="mt-3 text-xs text-cyan-400 flex items-center gap-1">
+          <div className="mt-3 text-xs text-orange-400 flex items-center gap-1">
             <span>Click para entrar</span>
             <span className="animate-pulse">→</span>
           </div>
@@ -171,6 +172,34 @@ const FloatingNavIcon = ({ item, onNavigate, index }) => {
           </div>
         )}
       </div>
+      
+      {/* CSS for fire animation */}
+      <style>{`
+        @keyframes fireGlow0 {
+          0%, 100% { opacity: 0.6; transform: scale(1.3); }
+          50% { opacity: 1; transform: scale(1.5); }
+        }
+        @keyframes fireGlow1 {
+          0%, 100% { opacity: 0.7; transform: scale(1.4); }
+          50% { opacity: 0.9; transform: scale(1.6); }
+        }
+        @keyframes fireGlow2 {
+          0%, 100% { opacity: 0.5; transform: scale(1.35); }
+          50% { opacity: 0.95; transform: scale(1.55); }
+        }
+        @keyframes fireGlow3 {
+          0%, 100% { opacity: 0.65; transform: scale(1.45); }
+          50% { opacity: 0.85; transform: scale(1.65); }
+        }
+        @keyframes fireGlow4 {
+          0%, 100% { opacity: 0.55; transform: scale(1.38); }
+          50% { opacity: 0.92; transform: scale(1.58); }
+        }
+        @keyframes fireGlow5 {
+          0%, 100% { opacity: 0.72; transform: scale(1.42); }
+          50% { opacity: 0.88; transform: scale(1.62); }
+        }
+      `}</style>
     </div>
   );
 };
