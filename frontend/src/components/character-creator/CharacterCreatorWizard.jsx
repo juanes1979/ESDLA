@@ -229,13 +229,23 @@ export const CharacterCreatorWizard = () => {
           <h1 className="font-heading text-2xl text-[hsl(var(--gold))] text-glow-gold">
             Creador de Personajes
           </h1>
-          <button
-            onClick={handleCancel}
-            className="text-muted-foreground hover:text-foreground transition-colors text-sm"
-            data-testid="cancel-creation-btn"
-          >
-            Cancelar
-          </button>
+          <div className="flex items-center gap-4">
+            <button
+              onClick={() => navigate('/sheet-editor')}
+              className="text-[hsl(var(--magic-blue))] hover:text-[hsl(var(--magic-blue-glow))] transition-colors text-sm flex items-center gap-1"
+              title="Editor de posiciones de la ficha oficial"
+            >
+              <span>📐</span>
+              <span className="hidden sm:inline">Editor Ficha</span>
+            </button>
+            <button
+              onClick={handleCancel}
+              className="text-muted-foreground hover:text-foreground transition-colors text-sm"
+              data-testid="cancel-creation-btn"
+            >
+              Cancelar
+            </button>
+          </div>
         </div>
       </header>
 
