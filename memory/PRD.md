@@ -9,6 +9,75 @@ Build a comprehensive web application to play a modified version of the "Lord of
 
 ### ✅ COMPLETED This Session (2026-03-04)
 
+#### P0: Sistema "Compra-Venta Dinámica" ✅ (NEW)
+Sistema completo de comercio dinámico con generación de diálogos de NPC usando IA.
+
+**Backend (`/app/backend/routes/trading_routes.py`):**
+- **Endpoints de Configuración:**
+  - `GET /api/trading/config` - Configuración completa del sistema
+  - `PUT /api/trading/config` - Actualizar configuración
+  - `POST /api/trading/config/reset` - Restablecer a valores por defecto
+  
+- **Endpoints de Cálculo:**
+  - `POST /api/trading/calculate` - Calcular precio justo y reacción del NPC
+  - `POST /api/trading/calculate-with-dialogue` - Calcular + generar diálogo con LLM
+
+- **Endpoints de NPCs:**
+  - `GET /api/trading/npcs` - Listar NPCs comerciantes
+  - `POST /api/trading/npcs` - Crear NPC
+  - `POST /api/trading/npcs/generate` - Generar NPC aleatorio
+  - `PUT /api/trading/npcs/{id}` - Actualizar NPC
+  - `DELETE /api/trading/npcs/{id}` - Eliminar NPC
+  
+- **Endpoints de Relaciones:**
+  - `GET /api/trading/relationships` - Listar relaciones PJ-NPC
+  - `POST /api/trading/relationships` - Crear/actualizar relación
+
+**Sistema de Cálculo de Precios:**
+1. Precio base del artículo
+2. × Modificador de bendición (+15% a +50%)
+3. × Factor de región (configurable por zona)
+4. × Factor de asentamiento (configurable por tipo)
+5. × Factor de contexto histórico (guerra, prosperidad, hambruna, etc.)
+6. = Precio de mercado
+7. × Factor de relación (Hostil a Hermandad)
+8. × Factor de perfil del comerciante (Normal, Codicioso, Honorable, Desesperado, etc.)
+9. = **Precio Justo Final**
+
+**Sistema de Reacción del NPC:**
+- Tirada d100 modificada por relación y contexto
+- **Resultados:** Acepta, Rechaza, Contraoferta, Enfado (leve/moderado/severo)
+- Cada resultado afecta la relación futura
+
+**Integración LLM (OpenAI GPT-4o):**
+- Genera diálogos narrativos inmersivos en español
+- Refleja personalidad del NPC y resultado de la negociación
+- Indicador "Generado con IA" en la UI
+- Fallback a diálogos pregenerados si LLM falla
+
+**Frontend (`/app/frontend/src/components/rules/TradingSystemSection.jsx`):**
+- **4 Tabs:**
+  1. **Calculadora:** Selector de artículo, modificadores, oferta, botón calcular
+  2. **Configuración:** Editar todos los modificadores del sistema
+  3. **PNJs:** Listar, crear, editar, eliminar, generar aleatorios
+  4. **Relaciones:** Ver historial de relaciones PJ-NPC
+  
+- **Resultado de Cálculo:**
+  - Desglose completo del precio
+  - Tirada de d100 con bonificadores
+  - Resultado visual (verde=acepta, rojo=rechaza, amarillo=contraoferta)
+  - Diálogo del NPC generado por IA
+
+**Nueva categoría en RulesPage:** "Compra-Venta" con icono de monedas
+
+#### Gemas Añadidas al Catálogo de Equipo ✅ (NEW)
+- **102 Gemas Preciosas:** Alejandrita, Rubí, Esmeralda, Zafiro, Diamantes (varios), etc.
+- **130 Gemas Semipreciosas:** Turquesa, Lapislázuli, Malaquita, Obsidiana, etc.
+- Cada gema con nombre, precio y tipo de moneda (mp, mo, mb, mc)
+- Visible en sección "Precios de Equipo" > "💎 GEMAS"
+
+---
+
 #### P0: Actualización de Posiciones de Campos de la Hoja de Personaje ✅
 - **Base de datos actualizada:** 182 campos totales (146 page1, 32 page2, 4 page3) con las nuevas coordenadas proporcionadas por el usuario
 - **Código fuente sincronizado:**
