@@ -12,3 +12,4 @@ export { default as NPCsSection } from './NPCsSection';
 export { default as NPCEditor } from './NPCEditor';
 export { default as CriaturasSinNombreSection } from './CriaturasSinNombreSection';
 export { default as BackgroundsSection } from './BackgroundsSection';
+export { default as CharacterCreationSection } from './CharacterCreationSection';

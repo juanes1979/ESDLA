@@ -20,13 +20,14 @@ import BackgroundEditor from '@/components/admin/BackgroundEditor';
 import OccupationEditor from '@/components/admin/OccupationEditor';
 import EquipmentEditor from '@/components/admin/EquipmentEditor';
 // Refactored rule section components
-import { SombraSection, CombateSection, SalariosSection, VariosSection, ViajeSection, ComunidadSection, NPCsSection, CriaturasSinNombreSection, BackgroundsSection } from '@/components/rules';
+import { SombraSection, CombateSection, SalariosSection, VariosSection, ViajeSection, ComunidadSection, NPCsSection, CriaturasSinNombreSection, BackgroundsSection, CharacterCreationSection } from '@/components/rules';
 
 const RULE_CATEGORIES = [
   { id: 'cultures', name: 'Culturas', icon: Users, color: 'gold', description: 'Las razas y pueblos de la Tierra Media' },
   { id: 'backgrounds', name: 'Trasfondos', icon: Scroll, color: 'torch-orange', description: 'Los orígenes y oficios previos' },
   { id: 'occupations', name: 'Ocupaciones', icon: Swords, color: 'magic-blue', description: 'Las vocaciones heroicas' },
   { id: 'virtues', name: 'Virtudes', icon: Sparkles, color: 'torch-orange', description: 'Dones especiales por cultura' },
+  { id: 'character_creation', name: 'Lógica de Creación', icon: User, color: 'gold', description: 'Dinero y equipo inicial por nivel de vida y ocupación' },
   { id: 'equipment', name: 'Precios de Equipo', icon: Package, color: 'gold', description: 'Lista completa con precios y pesos' },
   { id: 'price_modifiers', name: 'Modificadores de Precio', icon: Coins, color: 'torch-orange', description: 'Ajustes de precio por región, asentamiento y contexto' },
   { id: 'shadow', name: 'Sombra', icon: Moon, color: 'destructive', description: 'La corrupción y sus efectos' },
@@ -2933,6 +2934,9 @@ const RulesPage = () => {
       
       case 'price_modifiers':
         return renderPriceModifiers();
+      
+      case 'character_creation':
+        return <CharacterCreationSection isAdmin={isAdmin} />;
       
       case 'shadow':
         return <SombraSection data={data} isAdmin={isAdmin} onDeleteSenda={handleDeleteSenda} />;

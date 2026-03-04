@@ -3813,3 +3813,255 @@ async def init_salaries():
         await db.salarios.insert_one(s)
     
     return {"message": "Default salaries initialized"}
+
+
+
+# === CHARACTER CREATION CONFIG (Equipment and Money by Level of Life) ===
+
+DEFAULT_WEALTH_LEVELS = {
+    "Pobre": {
+        "descripcion": "Vives al día, con apenas lo necesario para sobrevivir.",
+        "dinero_inicial": {"oro": 0, "plata": 0, "cobre": 5, "estano": 0},
+        "equipo_adicional": []
+    },
+    "Frugal": {
+        "descripcion": "Vives con lo justo, sin lujos pero sin pasar hambre.",
+        "dinero_inicial": {"oro": 0, "plata": 2, "cobre": 10, "estano": 0},
+        "equipo_adicional": []
+    },
+    "Común": {
+        "descripcion": "Tienes lo suficiente para vivir cómodamente.",
+        "dinero_inicial": {"oro": 0, "plata": 10, "cobre": 20, "estano": 0},
+        "equipo_adicional": []
+    },
+    "Próspero": {
+        "descripcion": "Gozas de cierta abundancia y comodidades.",
+        "dinero_inicial": {"oro": 2, "plata": 20, "cobre": 0, "estano": 0},
+        "equipo_adicional": []
+    },
+    "Rico": {
+        "descripcion": "Posees grandes riquezas y vives con lujo.",
+        "dinero_inicial": {"oro": 10, "plata": 50, "cobre": 0, "estano": 0},
+        "equipo_adicional": []
+    }
+}
+
+DEFAULT_OCCUPATION_BONUSES = {
+    "Buscador de tesoros": {
+        "dinero_extra": {"oro": 0, "plata": 5, "cobre": 0, "estano": 0},
+        "equipo_adicional": ["Herramientas de ladrón", "Cuerda (15m)"],
+        "descripcion": "El buscador de tesoros empieza con herramientas básicas de exploración."
+    },
+    "Campeón": {
+        "dinero_extra": {"oro": 0, "plata": 0, "cobre": 0, "estano": 0},
+        "equipo_adicional": ["Escudo"],
+        "descripcion": "El campeón recibe un escudo como parte de su entrenamiento."
+    },
+    "Erudito": {
+        "dinero_extra": {"oro": 0, "plata": 10, "cobre": 0, "estano": 0},
+        "equipo_adicional": ["Libro en blanco", "Tinta", "Pluma"],
+        "descripcion": "El erudito posee materiales de escritura y conocimiento."
+    },
+    "Guardián": {
+        "dinero_extra": {"oro": 0, "plata": 0, "cobre": 0, "estano": 0},
+        "equipo_adicional": ["Kit de curación"],
+        "descripcion": "El guardián está preparado para sanar a sus compañeros."
+    },
+    "Mensajero": {
+        "dinero_extra": {"oro": 0, "plata": 5, "cobre": 0, "estano": 0},
+        "equipo_adicional": ["Mapa local", "Raciones (3 días)"],
+        "descripcion": "El mensajero viaja ligero pero preparado."
+    },
+    "Montaraz": {
+        "dinero_extra": {"oro": 0, "plata": 0, "cobre": 0, "estano": 0},
+        "equipo_adicional": ["Kit de explorador", "Trampa para caza"],
+        "descripcion": "El montaraz domina la supervivencia en la naturaleza."
+    }
+}
+
+DEFAULT_CULTURE_BONUSES = {
+    "_default": {
+        "equipo_cultural": [],
+        "idiomas_adicionales": [],
+        "descripcion": "Sin bonificaciones especiales de cultura."
+    }
+}
+
+
+@router.get("/character-creation-config")
+async def get_character_creation_config():
+    """Get character creation configuration (wealth levels, occupation bonuses, culture bonuses)"""
+    config = await db.character_creation_config.find_one({"_id": "main"})
+    
+    if not config:
+        # Return defaults if no config exists
+        return {
+            "wealth_levels": DEFAULT_WEALTH_LEVELS,
+            "occupation_bonuses": DEFAULT_OCCUPATION_BONUSES,
+            "culture_bonuses": DEFAULT_CULTURE_BONUSES,
+            "updated_at": None
+        }
+    
+    return {
+        "wealth_levels": config.get("wealth_levels", DEFAULT_WEALTH_LEVELS),
+        "occupation_bonuses": config.get("occupation_bonuses", DEFAULT_OCCUPATION_BONUSES),
+        "culture_bonuses": config.get("culture_bonuses", DEFAULT_CULTURE_BONUSES),
+        "updated_at": config.get("updated_at")
+    }
+
+
+@router.put("/character-creation-config")
+async def update_character_creation_config(config: dict = Body(...)):
+    """Update entire character creation configuration"""
+    update_data = {
+        "wealth_levels": config.get("wealth_levels", DEFAULT_WEALTH_LEVELS),
+        "occupation_bonuses": config.get("occupation_bonuses", DEFAULT_OCCUPATION_BONUSES),
+        "culture_bonuses": config.get("culture_bonuses", DEFAULT_CULTURE_BONUSES),
+        "updated_at": now_utc()
+    }
+    
+    await db.character_creation_config.update_one(
+        {"_id": "main"},
+        {"$set": update_data},
+        upsert=True
+    )
+    
+    return {"message": "Configuration saved successfully"}
+
+
+@router.put("/character-creation-config/wealth-levels")
+async def update_wealth_levels(levels: dict = Body(...)):
+    """Update only wealth levels configuration"""
+    await db.character_creation_config.update_one(
+        {"_id": "main"},
+        {"$set": {"wealth_levels": levels, "updated_at": now_utc()}},
+        upsert=True
+    )
+    return {"message": "Wealth levels updated"}
+
+
+@router.put("/character-creation-config/occupation-bonuses")
+async def update_occupation_bonuses(bonuses: dict = Body(...)):
+    """Update only occupation bonuses configuration"""
+    await db.character_creation_config.update_one(
+        {"_id": "main"},
+        {"$set": {"occupation_bonuses": bonuses, "updated_at": now_utc()}},
+        upsert=True
+    )
+    return {"message": "Occupation bonuses updated"}
+
+
+@router.put("/character-creation-config/culture-bonuses")
+async def update_culture_bonuses(bonuses: dict = Body(...)):
+    """Update only culture bonuses configuration"""
+    await db.character_creation_config.update_one(
+        {"_id": "main"},
+        {"$set": {"culture_bonuses": bonuses, "updated_at": now_utc()}},
+        upsert=True
+    )
+    return {"message": "Culture bonuses updated"}
+
+
+@router.post("/character-creation-config/reset")
+async def reset_character_creation_config():
+    """Reset configuration to defaults"""
+    await db.character_creation_config.update_one(
+        {"_id": "main"},
+        {"$set": {
+            "wealth_levels": DEFAULT_WEALTH_LEVELS,
+            "occupation_bonuses": DEFAULT_OCCUPATION_BONUSES,
+            "culture_bonuses": DEFAULT_CULTURE_BONUSES,
+            "updated_at": now_utc()
+        }},
+        upsert=True
+    )
+    return {"message": "Configuration reset to defaults"}
+
+
+@router.get("/character-creation-config/wealth-level/{level_name}")
+async def get_wealth_level(level_name: str):
+    """Get specific wealth level configuration"""
+    config = await db.character_creation_config.find_one({"_id": "main"})
+    
+    if not config:
+        levels = DEFAULT_WEALTH_LEVELS
+    else:
+        levels = config.get("wealth_levels", DEFAULT_WEALTH_LEVELS)
+    
+    if level_name not in levels:
+        raise HTTPException(status_code=404, detail=f"Wealth level '{level_name}' not found")
+    
+    return {"level_name": level_name, "config": levels[level_name]}
+
+
+@router.put("/character-creation-config/wealth-level/{level_name}")
+async def update_single_wealth_level(level_name: str, level_config: dict = Body(...)):
+    """Update a single wealth level"""
+    config = await db.character_creation_config.find_one({"_id": "main"})
+    
+    if not config:
+        levels = dict(DEFAULT_WEALTH_LEVELS)
+    else:
+        levels = config.get("wealth_levels", dict(DEFAULT_WEALTH_LEVELS))
+    
+    levels[level_name] = {
+        "descripcion": level_config.get("descripcion", ""),
+        "dinero_inicial": level_config.get("dinero_inicial", {"oro": 0, "plata": 0, "cobre": 0, "estano": 0}),
+        "equipo_adicional": level_config.get("equipo_adicional", [])
+    }
+    
+    await db.character_creation_config.update_one(
+        {"_id": "main"},
+        {"$set": {"wealth_levels": levels, "updated_at": now_utc()}},
+        upsert=True
+    )
+    
+    return {"message": f"Wealth level '{level_name}' updated"}
+
+
+@router.put("/character-creation-config/occupation-bonus/{occupation_name}")
+async def update_single_occupation_bonus(occupation_name: str, bonus_config: dict = Body(...)):
+    """Update a single occupation bonus"""
+    config = await db.character_creation_config.find_one({"_id": "main"})
+    
+    if not config:
+        bonuses = dict(DEFAULT_OCCUPATION_BONUSES)
+    else:
+        bonuses = config.get("occupation_bonuses", dict(DEFAULT_OCCUPATION_BONUSES))
+    
+    bonuses[occupation_name] = {
+        "dinero_extra": bonus_config.get("dinero_extra", {"oro": 0, "plata": 0, "cobre": 0, "estano": 0}),
+        "equipo_adicional": bonus_config.get("equipo_adicional", []),
+        "descripcion": bonus_config.get("descripcion", "")
+    }
+    
+    await db.character_creation_config.update_one(
+        {"_id": "main"},
+        {"$set": {"occupation_bonuses": bonuses, "updated_at": now_utc()}},
+        upsert=True
+    )
+    
+    return {"message": f"Occupation bonus '{occupation_name}' updated"}
+
+
+@router.delete("/character-creation-config/occupation-bonus/{occupation_name}")
+async def delete_occupation_bonus(occupation_name: str):
+    """Delete an occupation bonus"""
+    config = await db.character_creation_config.find_one({"_id": "main"})
+    
+    if not config:
+        raise HTTPException(status_code=404, detail="Configuration not found")
+    
+    bonuses = config.get("occupation_bonuses", {})
+    
+    if occupation_name not in bonuses:
+        raise HTTPException(status_code=404, detail=f"Occupation bonus '{occupation_name}' not found")
+    
+    del bonuses[occupation_name]
+    
+    await db.character_creation_config.update_one(
+        {"_id": "main"},
+        {"$set": {"occupation_bonuses": bonuses, "updated_at": now_utc()}}
+    )
+    
+    return {"message": f"Occupation bonus '{occupation_name}' deleted"}

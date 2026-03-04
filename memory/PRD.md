@@ -17,6 +17,31 @@ Build a comprehensive web application to play a modified version of the "Lord of
 - **Endpoint utilizado:** `PUT /api/data/sheet-positions`
 - **Verificación:** Screenshot de la hoja interactiva confirmando que los campos se renderizan correctamente
 
+#### P0: Editor de Lógica de Creación de Personajes ✅ (NEW)
+**Backend (`/app/backend/routes/data_routes.py`):**
+- Nueva colección `character_creation_config` en MongoDB
+- Endpoints CRUD:
+  - `GET /api/data/character-creation-config` - Obtener configuración completa
+  - `PUT /api/data/character-creation-config` - Actualizar configuración completa
+  - `PUT /api/data/character-creation-config/wealth-levels` - Actualizar niveles de vida
+  - `PUT /api/data/character-creation-config/occupation-bonuses` - Actualizar bonificaciones por ocupación
+  - `POST /api/data/character-creation-config/reset` - Restablecer a valores por defecto
+  - Endpoints individuales para editar niveles/ocupaciones específicas
+- **Valores por defecto:**
+  - 5 niveles de vida: Pobre (5mc), Frugal (2mp+10mc), Común (10mp+20mc), Próspero (2mo+20mp), Rico (10mo+50mp)
+  - 6 ocupaciones con bonificaciones de dinero y equipo
+
+**Frontend:**
+- Nuevo componente `CharacterCreationSection.jsx` (`/app/frontend/src/components/rules/`)
+- Nueva categoría "Lógica de Creación" en `RulesPage.jsx` (RULE_CATEGORIES)
+- **Características UI:**
+  - Panel colapsable para cada nivel de vida con colores diferenciados
+  - Edición de descripción, dinero inicial (oro/plata/cobre/estaño), equipo adicional
+  - Panel de bonificaciones por ocupación con dinero extra y equipo
+  - Botones: Guardar, Restablecer, Añadir nueva ocupación, Eliminar ocupación
+  - Caja informativa explicando cómo funciona el sistema
+- **Verificación:** Screenshots confirmando funcionamiento correcto de toda la UI
+
 ---
 
 ## Previous State (2026-02-24)
