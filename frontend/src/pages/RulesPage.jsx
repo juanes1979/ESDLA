@@ -4501,25 +4501,30 @@ const RulesPage = () => {
   };
 
   return (
-    <div className="min-h-screen tavern-bg" data-testid="rules-page">
-      <header className="border-b border-border/50 bg-black/70 backdrop-blur-sm sticky top-0 z-50">
+    <div className="min-h-screen relative" data-testid="rules-page" style={{ backgroundColor: '#0f0f10' }}>
+      {/* Background effects */}
+      <div className="fixed inset-0 z-0 pointer-events-none">
+        <div className="absolute top-0 left-0 w-64 h-64 bg-orange-500/10 rounded-full blur-[100px] animate-pulse" />
+        <div className="absolute bottom-0 right-0 w-96 h-96 bg-orange-600/8 rounded-full blur-[120px] animate-pulse" style={{ animationDelay: '1s' }} />
+      </div>
+      
+      <header className="relative z-20 border-b border-orange-900/30 bg-black/50 backdrop-blur-sm sticky top-0">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <Button
-              variant="ghost"
-              size="sm"
+            <button
               onClick={() => selectedCategory ? setSelectedCategory(null) : navigate('/')}
-              className="text-muted-foreground hover:text-foreground"
+              className="p-2 rounded-lg bg-orange-600/20 hover:bg-orange-600/40 
+                       text-orange-400 hover:text-orange-300 transition-all
+                       border border-orange-500/30 hover:border-orange-500/50"
             >
-              <ArrowLeft className="w-4 h-4 mr-2" />
-              {selectedCategory ? 'Categorías' : 'Inicio'}
-            </Button>
+              <ArrowLeft className="w-5 h-5" />
+            </button>
             <div>
-              <h1 className="font-heading text-2xl text-[hsl(var(--gold))]">
+              <h1 className="font-heading text-2xl md:text-3xl text-orange-400 tracking-wide">
                 {selectedCategory ? RULE_CATEGORIES.find(c => c.id === selectedCategory)?.name : 'Reglas del Juego'}
               </h1>
               {!selectedCategory && (
-                <p className="text-sm text-muted-foreground">Consulta las reglas y datos del juego</p>
+                <p className="text-sm text-gray-500">Consulta las reglas y datos del juego</p>
               )}
             </div>
           </div>
@@ -4527,20 +4532,20 @@ const RulesPage = () => {
           <div className="flex items-center gap-3">
             {/* Admin indicator */}
             {isAdmin && (
-              <div className="flex items-center gap-2 bg-[hsl(var(--gold))/20] px-3 py-1 rounded-full">
-                <Crown className="w-4 h-4 text-[hsl(var(--gold))]" />
-                <span className="text-sm text-[hsl(var(--gold))]">{user?.username}</span>
+              <div className="flex items-center gap-2 bg-orange-500/20 px-3 py-1 rounded-full border border-orange-500/30">
+                <Crown className="w-4 h-4 text-orange-400" />
+                <span className="text-sm text-orange-400">{user?.username}</span>
               </div>
             )}
             
             {selectedCategory && (
               <div className="flex items-center gap-2">
-                <Search className="w-4 h-4 text-muted-foreground" />
+                <Search className="w-4 h-4 text-gray-500" />
                 <Input
                   placeholder="Buscar..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-48 bg-black/30 border-border/50"
+                  className="w-48 bg-black/30 border-orange-500/30 text-white placeholder:text-gray-500"
                 />
               </div>
             )}

@@ -2,8 +2,8 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Import medieval/fantasy fonts */
-@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;600;700&family=Crimson+Text:ital,wght@0,400;0,600;0,700;1,400&display=swap');
+/* Import medieval/fantasy fonts - Cinzel Decorative for headings */
+@import url('https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@400;700;900&family=Cinzel:wght@400;500;600;700&family=Crimson+Text:ital,wght@0,400;0,600;0,700;1,400&display=swap');
 
 :root {
   /* LOTR Tavern Dark Theme */
@@ -42,6 +42,9 @@
   --gold: 38 70% 50%;
   --gold-dim: 38 50% 35%;
   --torch-orange: 25 85% 55%;
+  --fire-red: 15 90% 50%;
+  --fire-orange: 25 95% 55%;
+  --fire-yellow: 40 100% 60%;
   --magic-blue: 210 80% 55%;
   --magic-blue-glow: 210 100% 65%;
   --parchment: 40 30% 75%;
@@ -61,7 +64,13 @@ body {
   color: hsl(var(--foreground));
 }
 
+/* Cinzel Decorative for all headings */
 h1, h2, h3, h4, h5, h6, .font-heading {
+  font-family: 'Cinzel Decorative', 'Cinzel', 'Times New Roman', serif;
+}
+
+/* Alternative heading class for regular Cinzel */
+.font-heading-regular {
   font-family: 'Cinzel', 'Times New Roman', serif;
 }
 
