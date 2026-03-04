@@ -42,6 +42,30 @@ Build a comprehensive web application to play a modified version of the "Lord of
   - Caja informativa explicando cómo funciona el sistema
 - **Verificación:** Screenshots confirmando funcionamiento correcto de toda la UI
 
+#### Sistema de Mapas Separados (Maestro/Jugador) ✅ (NEW)
+**Estructura de rutas:**
+- `/map` - Página de selección de mapas (MapSelectionPage.jsx)
+- `/map/master` - Mapa del Maestro con todas las funcionalidades (MiddleEarthMap.jsx)
+- `/map/player` - Mapa del Jugador simplificado (PlayerMap.jsx)
+
+**Página de Selección (`MapSelectionPage.jsx`):**
+- Dos tarjetas estilizadas: Maestro (dorado) y Jugador (azul)
+- Lista de características de cada mapa
+- Indicador visual de "Solo Maestro" con icono de candado (sin efecto aún)
+- Nota explicativa sobre cálculo de viajes
+
+**Mapa del Jugador (`PlayerMap.jsx`):**
+- Nuevo mapa simplificado sin nombres de ubicaciones
+- Imagen: `Mapa jugadores.png` de los artifacts del usuario
+- Funcionalidades: Pan, Zoom, Reset de vista
+- Preparado para mostrar rutas de viaje calculadas
+- Sistema de conversión de coordenadas Master→Player
+
+**Mapa del Maestro:**
+- Actualizado header: "MAPA DEL MAESTRO"
+- Botón "← Mapas" que vuelve a la selección
+- Mantiene todas las funcionalidades existentes
+
 ---
 
 ## Previous State (2026-02-24)

@@ -2676,16 +2676,16 @@ const MiddleEarthMap = () => {
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => navigate('/')}
+              onClick={() => navigate('/map')}
               className="text-muted-foreground hover:text-[hsl(var(--gold))]"
-              data-testid="back-to-home-btn"
+              data-testid="back-to-map-selection-btn"
             >
               <ArrowLeft className="w-4 h-4 mr-1" />
-              Inicio
+              Mapas
             </Button>
             <h1 className="font-heading text-2xl text-[hsl(var(--gold))]">
               <Map className="w-6 h-6 inline mr-2" />
-              Mapa de la Tierra Media
+              Mapa del Maestro
             </h1>
             <Badge variant="outline">{filteredLocations.length} ubicaciones</Badge>
             

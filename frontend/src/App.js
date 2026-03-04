@@ -12,6 +12,8 @@ import InteractiveCharacterSheet from "@/pages/InteractiveCharacterSheet";
 import SheetPositionEditor from "@/pages/SheetPositionEditor";
 import TravelGenerator from "@/pages/TravelGenerator";
 import MiddleEarthMap from "@/pages/MiddleEarthMap";
+import MapSelectionPage from "@/pages/MapSelectionPage";
+import PlayerMap from "@/pages/PlayerMap";
 import FontDemo from "@/pages/FontDemo";
 import { CharacterCreatorWizard } from "@/components/character-creator";
 
@@ -29,7 +31,9 @@ function App() {
             <Route path="/rules" element={<RulesPage />} />
             <Route path="/sheet-editor" element={<SheetPositionEditor />} />
             <Route path="/travel" element={<TravelGenerator />} />
-            <Route path="/map" element={<MiddleEarthMap />} />
+            <Route path="/map" element={<MapSelectionPage />} />
+            <Route path="/map/master" element={<MiddleEarthMap />} />
+            <Route path="/map/player" element={<PlayerMap />} />
             <Route path="/font-demo" element={<FontDemo />} />
           </Routes>
         </BrowserRouter>
