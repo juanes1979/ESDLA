@@ -1,0 +1,1153 @@
+"""
+Trading System Routes
+Handles buy/sell transactions, NPC generation, relationships, and merchant profiles
+"""
+from fastapi import APIRouter, HTTPException, Body
+from datetime import datetime, timezone
+import random
+import uuid
+import os
+import logging
+
+router = APIRouter()
+logger = logging.getLogger(__name__)
+
+def now_utc():
+    return datetime.now(timezone.utc)
+
+# ============================================================================
+# DEFAULT CONFIGURATIONS
+# ============================================================================
+
+# Relationship levels and their trading modifiers
+DEFAULT_RELATIONSHIP_LEVELS = {
+    "hostil": {"nombre": "Hostil", "orden": 1, "mod_compra": 25, "mod_venta": -25, "bono_tirada": -20},
+    "desconocido": {"nombre": "Desconocido", "orden": 2, "mod_compra": 10, "mod_venta": -10, "bono_tirada": -5},
+    "neutral": {"nombre": "Neutral", "orden": 3, "mod_compra": 0, "mod_venta": 0, "bono_tirada": 0},
+    "cordial": {"nombre": "Cordial", "orden": 4, "mod_compra": -10, "mod_venta": 10, "bono_tirada": 5},
+    "amigo": {"nombre": "Amigo", "orden": 5, "mod_compra": -20, "mod_venta": 20, "bono_tirada": 15},
+    "hermandad": {"nombre": "Hermandad", "orden": 6, "mod_compra": -30, "mod_venta": 30, "bono_tirada": 25}
+}
+
+# Blessing/reward modifiers
+DEFAULT_BLESSING_MODIFIERS = {
+    "ninguna": {"nombre": "Ninguna", "modificador": 0},
+    "bendicion_menor": {"nombre": "Bendición Menor", "modificador": 15},
+    "bendicion_mayor": {"nombre": "Bendición Mayor", "modificador": 30},
+    "objeto_legendario": {"nombre": "Objeto Legendario", "modificador": 50},
+    "reliquia_regional": {"nombre": "Reliquia Regional", "modificador": 40}
+}
+
+# Merchant profiles
+DEFAULT_MERCHANT_PROFILES = {
+    "normal": {
+        "nombre": "Normal",
+        "descripcion": "Un comerciante común sin rasgos distintivos.",
+        "umbral_enfado": 30,
+        "margen_contraoferta": 0.5,
+        "probabilidad_engano": 0,
+        "mod_precio_base": 0
+    },
+    "codicioso": {
+        "nombre": "Codicioso",
+        "descripcion": "Solo le importa el dinero. Nunca da un buen precio.",
+        "umbral_enfado": 20,
+        "margen_contraoferta": 0.3,
+        "probabilidad_engano": 15,
+        "mod_precio_base": 10
+    },
+    "honorable": {
+        "nombre": "Honorable",
+        "descripcion": "Comerciante justo que valora la honestidad.",
+        "umbral_enfado": 40,
+        "margen_contraoferta": 0.6,
+        "probabilidad_engano": 0,
+        "mod_precio_base": -5
+    },
+    "desesperado": {
+        "nombre": "Desesperado",
+        "descripcion": "Necesita vender urgentemente. Acepta casi cualquier oferta.",
+        "umbral_enfado": 50,
+        "margen_contraoferta": 0.8,
+        "probabilidad_engano": 5,
+        "mod_precio_base": -15
+    },
+    "mercader_experto": {
+        "nombre": "Mercader Experto",
+        "descripcion": "Conoce el valor exacto de todo. Difícil de engañar.",
+        "umbral_enfado": 25,
+        "margen_contraoferta": 0.4,
+        "probabilidad_engano": 0,
+        "mod_precio_base": 5
+    },
+    "contrabandista": {
+        "nombre": "Contrabandista",
+        "descripcion": "Vende objetos ilegales o robados. Precios variables.",
+        "umbral_enfado": 15,
+        "margen_contraoferta": 0.35,
+        "probabilidad_engano": 25,
+        "mod_precio_base": -20
+    }
+}
+
+# Historical contexts
+DEFAULT_HISTORICAL_CONTEXTS = {
+    "paz_prolongada": {
+        "nombre": "Paz Prolongada",
+        "descripcion": "La región ha disfrutado de paz durante años.",
+        "mod_armas": -15,
+        "mod_lujo": 0,
+        "mod_comida": -5,
+        "mod_general": 0,
+        "bono_tirada": 5
+    },
+    "guerra_activa": {
+        "nombre": "Guerra Activa",
+        "descripcion": "Conflicto armado en la región.",
+        "mod_armas": 40,
+        "mod_lujo": -30,
+        "mod_comida": 20,
+        "mod_general": 10,
+        "bono_tirada": -10
+    },
+    "hambruna": {
+        "nombre": "Hambruna",
+        "descripcion": "Escasez severa de alimentos.",
+        "mod_armas": 0,
+        "mod_lujo": -20,
+        "mod_comida": 50,
+        "mod_general": 15,
+        "bono_tirada": -5
+    },
+    "ruta_comercial_activa": {
+        "nombre": "Ruta Comercial Activa",
+        "descripcion": "Flujo constante de mercancías.",
+        "mod_armas": -5,
+        "mod_lujo": -10,
+        "mod_comida": -10,
+        "mod_general": -10,
+        "bono_tirada": 10
+    },
+    "epidemia": {
+        "nombre": "Epidemia",
+        "descripcion": "Enfermedad azotando la población.",
+        "mod_armas": 0,
+        "mod_lujo": -40,
+        "mod_comida": 10,
+        "mod_general": 20,
+        "bono_tirada": -15
+    },
+    "festividad": {
+        "nombre": "Festividad",
+        "descripcion": "Celebración o feria comercial.",
+        "mod_armas": 0,
+        "mod_lujo": 15,
+        "mod_comida": 5,
+        "mod_general": -5,
+        "bono_tirada": 15
+    },
+    "ocupacion_enemiga": {
+        "nombre": "Ocupación Enemiga",
+        "descripcion": "Territorio bajo control hostil.",
+        "mod_armas": 60,
+        "mod_lujo": -50,
+        "mod_comida": 30,
+        "mod_general": 25,
+        "bono_tirada": -20
+    },
+    "prosperidad": {
+        "nombre": "Prosperidad",
+        "descripcion": "Época de abundancia económica.",
+        "mod_armas": -10,
+        "mod_lujo": 10,
+        "mod_comida": -15,
+        "mod_general": -10,
+        "bono_tirada": 10
+    }
+}
+
+# Trading reaction thresholds
+DEFAULT_TRADING_THRESHOLDS = {
+    "compra": {
+        "zona_aceptacion_auto": 0,  # >= precio_justo
+        "zona_negociable_min": -5,
+        "zona_negociable_max": -15,
+        "zona_riesgo_min": -15,
+        "zona_riesgo_max": -30,
+        "zona_enfado": -30,
+        "prob_acepta_buena_oferta": 80,
+        "prob_contraoferta_buena": 20,
+        "tirada_acepta_negociable": 60,
+        "tirada_contraoferta_negociable": 30,
+        "tirada_contraoferta_riesgo": 75,
+        "tirada_rechaza_riesgo": 40,
+        "prob_enfado_muy_baja": 70
+    },
+    "venta": {
+        "zona_aceptacion_auto": 0,
+        "zona_negociable_min": 5,
+        "zona_negociable_max": 15,
+        "zona_riesgo_min": 15,
+        "zona_riesgo_max": 30,
+        "zona_enfado": 30,
+        "prob_acepta_buena_oferta": 75,
+        "prob_contraoferta_buena": 25,
+        "tirada_acepta_negociable": 55,
+        "tirada_contraoferta_negociable": 25,
+        "tirada_contraoferta_riesgo": 70,
+        "tirada_rechaza_riesgo": 35,
+        "prob_enfado_muy_alta": 65
+    }
+}
+
+# Contraoferta factors by relationship
+DEFAULT_CONTRAOFERTA_FACTORS = {
+    "hostil": 0.2,
+    "desconocido": 0.35,
+    "neutral": 0.5,
+    "cordial": 0.6,
+    "amigo": 0.7,
+    "hermandad": 0.85
+}
+
+# Anger consequences
+DEFAULT_ANGER_CONSEQUENCES = {
+    "leve": {
+        "nombre": "Enfado Leve",
+        "cambio_relacion": -1,
+        "penalizacion_precio": 5,
+        "dias_sin_comercio": 0
+    },
+    "moderado": {
+        "nombre": "Enfado Moderado", 
+        "cambio_relacion": -1,
+        "penalizacion_precio": 10,
+        "dias_sin_comercio": 3
+    },
+    "severo": {
+        "nombre": "Enfado Severo",
+        "cambio_relacion": -2,
+        "penalizacion_precio": 20,
+        "dias_sin_comercio": 7
+    }
+}
+
+
+# ============================================================================
+# TRADING CONFIG ENDPOINTS
+# ============================================================================
+
+@router.get("/trading/config")
+async def get_trading_config(db=None):
+    """Get all trading configuration"""
+    from server import db as database
+    db = database
+    
+    config = await db.trading_config.find_one({"_id": "main"})
+    
+    if not config:
+        return {
+            "relationship_levels": DEFAULT_RELATIONSHIP_LEVELS,
+            "blessing_modifiers": DEFAULT_BLESSING_MODIFIERS,
+            "merchant_profiles": DEFAULT_MERCHANT_PROFILES,
+            "historical_contexts": DEFAULT_HISTORICAL_CONTEXTS,
+            "trading_thresholds": DEFAULT_TRADING_THRESHOLDS,
+            "contraoferta_factors": DEFAULT_CONTRAOFERTA_FACTORS,
+            "anger_consequences": DEFAULT_ANGER_CONSEQUENCES,
+            "updated_at": None
+        }
+    
+    return {
+        "relationship_levels": config.get("relationship_levels", DEFAULT_RELATIONSHIP_LEVELS),
+        "blessing_modifiers": config.get("blessing_modifiers", DEFAULT_BLESSING_MODIFIERS),
+        "merchant_profiles": config.get("merchant_profiles", DEFAULT_MERCHANT_PROFILES),
+        "historical_contexts": config.get("historical_contexts", DEFAULT_HISTORICAL_CONTEXTS),
+        "trading_thresholds": config.get("trading_thresholds", DEFAULT_TRADING_THRESHOLDS),
+        "contraoferta_factors": config.get("contraoferta_factors", DEFAULT_CONTRAOFERTA_FACTORS),
+        "anger_consequences": config.get("anger_consequences", DEFAULT_ANGER_CONSEQUENCES),
+        "updated_at": config.get("updated_at")
+    }
+
+
+@router.put("/trading/config")
+async def update_trading_config(config: dict = Body(...)):
+    """Update trading configuration"""
+    from server import db
+    
+    update_data = {
+        "relationship_levels": config.get("relationship_levels", DEFAULT_RELATIONSHIP_LEVELS),
+        "blessing_modifiers": config.get("blessing_modifiers", DEFAULT_BLESSING_MODIFIERS),
+        "merchant_profiles": config.get("merchant_profiles", DEFAULT_MERCHANT_PROFILES),
+        "historical_contexts": config.get("historical_contexts", DEFAULT_HISTORICAL_CONTEXTS),
+        "trading_thresholds": config.get("trading_thresholds", DEFAULT_TRADING_THRESHOLDS),
+        "contraoferta_factors": config.get("contraoferta_factors", DEFAULT_CONTRAOFERTA_FACTORS),
+        "anger_consequences": config.get("anger_consequences", DEFAULT_ANGER_CONSEQUENCES),
+        "updated_at": now_utc()
+    }
+    
+    await db.trading_config.update_one(
+        {"_id": "main"},
+        {"$set": update_data},
+        upsert=True
+    )
+    
+    return {"message": "Configuración guardada"}
+
+
+@router.put("/trading/config/merchant-profiles")
+async def update_merchant_profiles(profiles: dict = Body(...)):
+    """Update merchant profiles"""
+    from server import db
+    
+    await db.trading_config.update_one(
+        {"_id": "main"},
+        {"$set": {"merchant_profiles": profiles, "updated_at": now_utc()}},
+        upsert=True
+    )
+    return {"message": "Perfiles actualizados"}
+
+
+@router.put("/trading/config/historical-contexts")
+async def update_historical_contexts(contexts: dict = Body(...)):
+    """Update historical contexts"""
+    from server import db
+    
+    await db.trading_config.update_one(
+        {"_id": "main"},
+        {"$set": {"historical_contexts": contexts, "updated_at": now_utc()}},
+        upsert=True
+    )
+    return {"message": "Contextos actualizados"}
+
+
+@router.post("/trading/config/reset")
+async def reset_trading_config():
+    """Reset trading config to defaults"""
+    from server import db
+    
+    await db.trading_config.update_one(
+        {"_id": "main"},
+        {"$set": {
+            "relationship_levels": DEFAULT_RELATIONSHIP_LEVELS,
+            "blessing_modifiers": DEFAULT_BLESSING_MODIFIERS,
+            "merchant_profiles": DEFAULT_MERCHANT_PROFILES,
+            "historical_contexts": DEFAULT_HISTORICAL_CONTEXTS,
+            "trading_thresholds": DEFAULT_TRADING_THRESHOLDS,
+            "contraoferta_factors": DEFAULT_CONTRAOFERTA_FACTORS,
+            "anger_consequences": DEFAULT_ANGER_CONSEQUENCES,
+            "updated_at": now_utc()
+        }},
+        upsert=True
+    )
+    return {"message": "Configuración restablecida"}
+
+
+# ============================================================================
+# NPC TEMPLATES (for random generation)
+# ============================================================================
+
+DEFAULT_NPC_TEMPLATES = {
+    "ocupaciones": [
+        "Herrero del lugar", "Posadero del lugar", "Panadero del lugar", "Pastor del lugar",
+        "Cazador del lugar", "Pescador del lugar", "Jardinero del lugar", "Guardabosques del lugar",
+        "Maestro/a de escuela del lugar", "Sacerdote del lugar", "Mercader ambulante del lugar",
+        "Curtidor del lugar", "Alfarero del lugar", "Cazador del lugar", "Capintero del lugar",
+        "Médico del lugar", "Juglar del lugar"
+    ],
+    "apariencias": [
+        "Tiene una cicatriz prominente en la mejilla", "Siempre lleva ropas limpias y elegantes",
+        "Le faltan varios dientes", "Luce el cabello trenzado", "Es corpulento con apariencia fuerte",
+        "Lleva bisutería de latón", "Es muy flexible", "Es un mercenario", "Tiene aspecto de extranjero",
+        "Tiene un color de piel inusual", "Tiene tatuajes en los brazos", "Tiene arrugas en los ojos",
+        "Tiene una nariz característica", "Le faltan algunos dedos", "Lleva pendientes y pulseras",
+        "Es extremadamente hermoso", "Lleva pendientes y colgantes"
+    ],
+    "rasgos_positivos": [
+        "Es fuerte como un oso", "Es muy persuasivo", "Es muy saludable", "Es muy perspicaz",
+        "Es algo cobarde", "Pero es algo débil", "Pero es un poco manazas", "Aunque tiene un aspecto publicitario",
+        "Es muy sano", "Puede estar enterándose", "Pero es poca amenaza", "Aunque siempre suele estar enfermizo",
+        "Es muy robustez", "Es muy saludable"
+    ],
+    "rasgos_negativos": [
+        "Sin embargo, es sarcástico/torpe, como un carpintero experto", "Pero resulta algo seco",
+        "Pero resulta algo seco", "Pero a veces está demasiado", "Pero es un poco manazas",
+        "Aunque suele estar enfermizo", "Pero a veces resulta aburrido", "Aunque suele estar enfermizo",
+        "Pero resulta un poco/algo", "Pero es un poco manazas", "Aunque suele estar enfermizo"
+    ],
+    "habilidades_especiales": [
+        "Sabe trabajar la madera especialmente fuerte", "Tiene un gran aguante para el alcohol",
+        "Es un cocinero experto. Habla a menudo de vinos", "Se le cae bien a los animales",
+        "Es un carpintero y una experta", "Es un buen rastreador y se orienta", "Es un carpintero o una experta",
+        "Se le caen bien los animales. Es decepción", "Suele hablar gritando para el alcohol",
+        "Tiene una terrera perfecta", "Tiene a tener predicciones proféticas",
+        "Hablar sin dinero complicados", "Teme al altar una palabra incorrecta",
+        "Es un estilador con expertos", "Se le caen bien los animales", "Habla a menudo de vinos",
+        "Tiende a corre a si mismo no me fía", "Sabe cursar a una enfermedad"
+    ],
+    "modos_hablar": [
+        "Suele hablar con voz especialmente fuerte", "Siempre está hablando con bromas",
+        "Habla a menudo de vinos", "Suele moverse caro pro decoro bajo reto",
+        "Es de ciudad informa", "Es caritoso", "Es ambicioso", "Es decente",
+        "Es callado/a", "Es nervioso", "Brusca es toma casa", "Es pesimista",
+        "Es ambiciosos", "Es caritoso", "Es decente", "Es nervioso", "Es ingenuo/a"
+    ],
+    "personalidades": [
+        "Es una persona muy ambiciosa", "Conoce que se compra armas de confianza en la ciudad",
+        "Sabe cual es el mejor hospicador para esconderse en la posada",
+        "Conoce una lista/cifra que conocen los cazadores de las nieblas",
+        "Sabe cargó secretos con los elfos", "Conoce un paseo oculto en la taberna",
+        "Sabe cual es el mejor cazador en el mayor caña/vino de otro reto",
+        "Conoce un paseo oculto en la taberna", "Sabe dónde se hace una oportunidad fuerte en la taberna",
+        "Sabe cuál es el más/mejor cultor o en otra reto"
+    ],
+    "vinculos": [
+        "Siente un gran/amor/riesgo de sentimiento/protección hacia sus compañeros",
+        "Es amistoso con su familia cercana", "Desea un paseo de placeres y descubrir algo",
+        "Busca la solución", "Protege a sus compañeros más débiles", "Perturbe unas provisiones amoladoras",
+        "Pase consciencia/mal de animales", "Desea el riesgo o paseos descubrientes"
+    ],
+    "defectos_secretos": [
+        "Se interesa por las personas", "Busca el mayor riesgo", "Piensa ser por/así en frío/a los demás",
+        "Deseo de placeres", "Busca el conocimiento", "Busca el bien más mayor", "Piensa con demasiado/a",
+        "Resistentes a la bélica", "Deseo del honor. Valora la libertad", "Decir en la justicia. Y honrado a la crueldad"
+    ],
+    "alineamientos_moral": ["Neutral", "Bueno", "Malvado"],
+    "alineamientos_etico": ["Legal", "Neutral", "Caótico"],
+    "profesiones_comerciante": [
+        "Herrero", "Posadero", "Mercader de telas", "Boticario", "Armero", "Joyero",
+        "Vendedor de provisiones", "Curtidor", "Carpintero", "Alfarero", "Pescadero",
+        "Carnicero", "Panadero", "Tabernero", "Herborista", "Comerciante de pieles"
+    ]
+}
+
+
+@router.get("/trading/npc-templates")
+async def get_npc_templates():
+    """Get NPC generation templates"""
+    from server import db
+    
+    templates = await db.npc_templates.find_one({"_id": "main"})
+    
+    if not templates:
+        return DEFAULT_NPC_TEMPLATES
+    
+    return {k: v for k, v in templates.items() if k != "_id"}
+
+
+@router.put("/trading/npc-templates")
+async def update_npc_templates(templates: dict = Body(...)):
+    """Update NPC generation templates"""
+    from server import db
+    
+    templates["updated_at"] = now_utc()
+    
+    await db.npc_templates.update_one(
+        {"_id": "main"},
+        {"$set": templates},
+        upsert=True
+    )
+    return {"message": "Plantillas actualizadas"}
+
+
+# ============================================================================
+# NPC MANAGEMENT
+# ============================================================================
+
+@router.get("/trading/npcs")
+async def get_npcs(location: str = None):
+    """Get all NPCs or filter by location"""
+    from server import db
+    
+    query = {}
+    if location:
+        query["ubicacion"] = location
+    
+    npcs = await db.trading_npcs.find(query).to_list(1000)
+    
+    # Convert ObjectId to string
+    for npc in npcs:
+        npc["_id"] = str(npc["_id"])
+    
+    return {"npcs": npcs, "total": len(npcs)}
+
+
+@router.post("/trading/npcs")
+async def create_npc(npc_data: dict = Body(...)):
+    """Create a new NPC"""
+    from server import db
+    
+    npc = {
+        "_id": str(uuid.uuid4()),
+        "nombre": npc_data.get("nombre", "PNJ Sin Nombre"),
+        "apodo": npc_data.get("apodo", ""),
+        "ocupacion": npc_data.get("ocupacion", ""),
+        "profesion_comerciante": npc_data.get("profesion_comerciante", ""),
+        "apariencia": npc_data.get("apariencia", ""),
+        "rasgo_positivo": npc_data.get("rasgo_positivo", ""),
+        "rasgo_negativo": npc_data.get("rasgo_negativo", ""),
+        "habilidad_especial": npc_data.get("habilidad_especial", ""),
+        "modo_hablar": npc_data.get("modo_hablar", ""),
+        "personalidad": npc_data.get("personalidad", ""),
+        "conocimiento_util": npc_data.get("conocimiento_util", ""),
+        "vinculo": npc_data.get("vinculo", ""),
+        "defecto_secreto": npc_data.get("defecto_secreto", ""),
+        "alineamiento_moral": npc_data.get("alineamiento_moral", "Neutral"),
+        "alineamiento_etico": npc_data.get("alineamiento_etico", "Neutral"),
+        "perfil_comerciante": npc_data.get("perfil_comerciante", "normal"),
+        "ubicacion": npc_data.get("ubicacion", ""),
+        "region": npc_data.get("region", ""),
+        "inventario": npc_data.get("inventario", ""),
+        "notas": npc_data.get("notas", ""),
+        "created_at": now_utc(),
+        "updated_at": now_utc()
+    }
+    
+    await db.trading_npcs.insert_one(npc)
+    
+    return {"message": "PNJ creado", "npc_id": npc["_id"], "npc": npc}
+
+
+@router.post("/trading/npcs/generate")
+async def generate_random_npc(params: dict = Body(...)):
+    """Generate a random NPC based on templates"""
+    from server import db
+    
+    # Get templates
+    templates = await db.npc_templates.find_one({"_id": "main"})
+    if not templates:
+        templates = DEFAULT_NPC_TEMPLATES
+    
+    # Generate random NPC
+    npc = {
+        "_id": str(uuid.uuid4()),
+        "nombre": params.get("nombre", f"PNJ-{random.randint(1000, 9999)}"),
+        "apodo": "",
+        "ocupacion": random.choice(templates.get("ocupaciones", ["Comerciante"])),
+        "profesion_comerciante": random.choice(templates.get("profesiones_comerciante", ["Mercader"])),
+        "apariencia": random.choice(templates.get("apariencias", ["Sin descripción"])),
+        "rasgo_positivo": random.choice(templates.get("rasgos_positivos", [""])),
+        "rasgo_negativo": random.choice(templates.get("rasgos_negativos", [""])),
+        "habilidad_especial": random.choice(templates.get("habilidades_especiales", [""])),
+        "modo_hablar": random.choice(templates.get("modos_hablar", [""])),
+        "personalidad": random.choice(templates.get("personalidades", [""])),
+        "conocimiento_util": "",
+        "vinculo": random.choice(templates.get("vinculos", [""])),
+        "defecto_secreto": random.choice(templates.get("defectos_secretos", [""])),
+        "alineamiento_moral": random.choice(templates.get("alineamientos_moral", ["Neutral"])),
+        "alineamiento_etico": random.choice(templates.get("alineamientos_etico", ["Neutral"])),
+        "perfil_comerciante": params.get("perfil", random.choice(list(DEFAULT_MERCHANT_PROFILES.keys()))),
+        "ubicacion": params.get("ubicacion", ""),
+        "region": params.get("region", ""),
+        "inventario": "",
+        "notas": "",
+        "created_at": now_utc(),
+        "updated_at": now_utc()
+    }
+    
+    # Save if requested
+    if params.get("guardar", False):
+        await db.trading_npcs.insert_one(npc)
+    
+    return {"npc": npc}
+
+
+@router.put("/trading/npcs/{npc_id}")
+async def update_npc(npc_id: str, npc_data: dict = Body(...)):
+    """Update an NPC"""
+    from server import db
+    
+    npc_data["updated_at"] = now_utc()
+    
+    result = await db.trading_npcs.update_one(
+        {"_id": npc_id},
+        {"$set": npc_data}
+    )
+    
+    if result.modified_count == 0:
+        raise HTTPException(status_code=404, detail="PNJ no encontrado")
+    
+    return {"message": "PNJ actualizado"}
+
+
+@router.delete("/trading/npcs/{npc_id}")
+async def delete_npc(npc_id: str):
+    """Delete an NPC"""
+    from server import db
+    
+    result = await db.trading_npcs.delete_one({"_id": npc_id})
+    
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="PNJ no encontrado")
+    
+    return {"message": "PNJ eliminado"}
+
+
+# ============================================================================
+# RELATIONSHIPS
+# ============================================================================
+
+@router.get("/trading/relationships")
+async def get_relationships(character_id: str = None, npc_id: str = None):
+    """Get relationships between characters and NPCs"""
+    from server import db
+    
+    query = {}
+    if character_id:
+        query["character_id"] = character_id
+    if npc_id:
+        query["npc_id"] = npc_id
+    
+    relationships = await db.npc_relationships.find(query).to_list(1000)
+    
+    for rel in relationships:
+        rel["_id"] = str(rel["_id"])
+    
+    return {"relationships": relationships, "total": len(relationships)}
+
+
+@router.post("/trading/relationships")
+async def create_or_update_relationship(data: dict = Body(...)):
+    """Create or update a relationship"""
+    from server import db
+    
+    character_id = data.get("character_id")
+    npc_id = data.get("npc_id")
+    
+    if not character_id or not npc_id:
+        raise HTTPException(status_code=400, detail="character_id y npc_id son requeridos")
+    
+    existing = await db.npc_relationships.find_one({
+        "character_id": character_id,
+        "npc_id": npc_id
+    })
+    
+    if existing:
+        # Update existing
+        update_data = {
+            "nivel": data.get("nivel", existing.get("nivel", "neutral")),
+            "penalizacion_precio": data.get("penalizacion_precio", existing.get("penalizacion_precio", 0)),
+            "dias_sin_comercio": data.get("dias_sin_comercio", existing.get("dias_sin_comercio", 0)),
+            "historial": existing.get("historial", []),
+            "updated_at": now_utc()
+        }
+        
+        # Add new transaction to history if provided
+        if data.get("nueva_transaccion"):
+            update_data["historial"].append({
+                **data["nueva_transaccion"],
+                "fecha": now_utc().isoformat()
+            })
+        
+        await db.npc_relationships.update_one(
+            {"_id": existing["_id"]},
+            {"$set": update_data}
+        )
+        
+        return {"message": "Relación actualizada", "relationship_id": str(existing["_id"])}
+    else:
+        # Create new
+        relationship = {
+            "_id": str(uuid.uuid4()),
+            "character_id": character_id,
+            "npc_id": npc_id,
+            "nivel": data.get("nivel", "desconocido"),
+            "penalizacion_precio": 0,
+            "dias_sin_comercio": 0,
+            "historial": [],
+            "created_at": now_utc(),
+            "updated_at": now_utc()
+        }
+        
+        await db.npc_relationships.insert_one(relationship)
+        
+        return {"message": "Relación creada", "relationship_id": relationship["_id"]}
+
+
+@router.put("/trading/relationships/{rel_id}/change-level")
+async def change_relationship_level(rel_id: str, data: dict = Body(...)):
+    """Change relationship level"""
+    from server import db
+    
+    cambio = data.get("cambio", 0)  # positive or negative
+    razon = data.get("razon", "")
+    
+    relationship = await db.npc_relationships.find_one({"_id": rel_id})
+    if not relationship:
+        raise HTTPException(status_code=404, detail="Relación no encontrada")
+    
+    # Get config
+    config = await db.trading_config.find_one({"_id": "main"})
+    levels = config.get("relationship_levels", DEFAULT_RELATIONSHIP_LEVELS) if config else DEFAULT_RELATIONSHIP_LEVELS
+    
+    # Find current level order
+    current_level = relationship.get("nivel", "neutral")
+    current_order = levels.get(current_level, {}).get("orden", 3)
+    
+    # Calculate new order
+    new_order = max(1, min(6, current_order + cambio))
+    
+    # Find level with that order
+    new_level = current_level
+    for key, val in levels.items():
+        if val.get("orden") == new_order:
+            new_level = key
+            break
+    
+    # Update
+    await db.npc_relationships.update_one(
+        {"_id": rel_id},
+        {
+            "$set": {
+                "nivel": new_level,
+                "updated_at": now_utc()
+            },
+            "$push": {
+                "historial": {
+                    "tipo": "cambio_relacion",
+                    "de": current_level,
+                    "a": new_level,
+                    "razon": razon,
+                    "fecha": now_utc().isoformat()
+                }
+            }
+        }
+    )
+    
+    return {
+        "message": "Nivel de relación actualizado",
+        "nivel_anterior": current_level,
+        "nivel_nuevo": new_level
+    }
+
+
+# ============================================================================
+# TRADING CALCULATOR
+# ============================================================================
+
+@router.post("/trading/calculate")
+async def calculate_trade(params: dict = Body(...)):
+    """
+    Calculate a trade transaction
+    
+    Params:
+        - articulo: dict with nombre, precio_base, categoria, bendicion
+        - region: str
+        - tipo_asentamiento: str
+        - contexto_historico: str
+        - relacion: str (relationship level key)
+        - oferta: float (player's offer)
+        - modo: "compra" or "venta"
+        - perfil_comerciante: str (merchant profile key)
+    """
+    from server import db
+    
+    # Get config
+    config = await db.trading_config.find_one({"_id": "main"})
+    if not config:
+        config = {
+            "relationship_levels": DEFAULT_RELATIONSHIP_LEVELS,
+            "blessing_modifiers": DEFAULT_BLESSING_MODIFIERS,
+            "merchant_profiles": DEFAULT_MERCHANT_PROFILES,
+            "historical_contexts": DEFAULT_HISTORICAL_CONTEXTS,
+            "trading_thresholds": DEFAULT_TRADING_THRESHOLDS,
+            "contraoferta_factors": DEFAULT_CONTRAOFERTA_FACTORS,
+            "anger_consequences": DEFAULT_ANGER_CONSEQUENCES
+        }
+    
+    # Extract params
+    articulo = params.get("articulo", {})
+    precio_base = articulo.get("precio_base", 0)
+    bendicion = articulo.get("bendicion", "ninguna")
+    categoria = articulo.get("categoria", "general")
+    
+    region_mod = params.get("modificador_region", 0)
+    asentamiento_mod = params.get("modificador_asentamiento", 0)
+    contexto_key = params.get("contexto_historico", "")
+    relacion_key = params.get("relacion", "neutral")
+    oferta = params.get("oferta", 0)
+    modo = params.get("modo", "compra")
+    perfil_key = params.get("perfil_comerciante", "normal")
+    
+    # Step 1: Apply blessing modifier
+    blessing_config = config["blessing_modifiers"].get(bendicion, {"modificador": 0})
+    precio_con_bendicion = precio_base * (1 + blessing_config["modificador"] / 100)
+    
+    # Step 2: Apply context modifier
+    contexto_config = config["historical_contexts"].get(contexto_key, {})
+    contexto_mod = contexto_config.get(f"mod_{categoria}", contexto_config.get("mod_general", 0))
+    bono_contexto = contexto_config.get("bono_tirada", 0)
+    
+    # Step 3: Apply region and settlement modifiers (multiplicative)
+    factor_region = 1 + (region_mod / 100)
+    factor_asentamiento = 1 + (asentamiento_mod / 100)
+    factor_contexto = 1 + (contexto_mod / 100)
+    
+    precio_mercado = precio_con_bendicion * factor_region * factor_asentamiento * factor_contexto
+    
+    # Step 4: Apply relationship modifier
+    relacion_config = config["relationship_levels"].get(relacion_key, {"mod_compra": 0, "mod_venta": 0, "bono_tirada": 0})
+    if modo == "compra":
+        factor_relacion = 1 + (relacion_config["mod_compra"] / 100)
+    else:
+        factor_relacion = 1 + (relacion_config["mod_venta"] / 100)
+    bono_relacion = relacion_config["bono_tirada"]
+    
+    # Step 5: Apply merchant profile modifier
+    perfil_config = config["merchant_profiles"].get(perfil_key, {"mod_precio_base": 0, "umbral_enfado": 30})
+    factor_perfil = 1 + (perfil_config.get("mod_precio_base", 0) / 100)
+    
+    precio_justo = precio_mercado * factor_relacion * factor_perfil
+    
+    # Step 6: Calculate offer difference
+    if precio_justo > 0:
+        diferencia_porcentual = ((oferta - precio_justo) / precio_justo) * 100
+    else:
+        diferencia_porcentual = 0
+    
+    # Step 7: Reaction calculation
+    tirada_base = random.randint(1, 100)
+    tirada_modificada = tirada_base + bono_relacion + bono_contexto
+    
+    thresholds = config["trading_thresholds"].get(modo, DEFAULT_TRADING_THRESHOLDS["compra"])
+    contraoferta_factor = config["contraoferta_factors"].get(relacion_key, 0.5)
+    
+    # Determine result
+    resultado = calculate_trade_result(
+        modo=modo,
+        diferencia=diferencia_porcentual,
+        tirada=tirada_modificada,
+        thresholds=thresholds,
+        precio_justo=precio_justo,
+        oferta=oferta,
+        contraoferta_factor=contraoferta_factor,
+        umbral_enfado=perfil_config.get("umbral_enfado", 30)
+    )
+    
+    return {
+        "desglose": {
+            "precio_base": round(precio_base, 2),
+            "precio_con_bendicion": round(precio_con_bendicion, 2),
+            "factor_region": factor_region,
+            "factor_asentamiento": factor_asentamiento,
+            "factor_contexto": factor_contexto,
+            "precio_mercado": round(precio_mercado, 2),
+            "factor_relacion": factor_relacion,
+            "factor_perfil": factor_perfil,
+            "precio_justo": round(precio_justo, 2)
+        },
+        "oferta": oferta,
+        "diferencia_porcentual": round(diferencia_porcentual, 2),
+        "tirada": {
+            "base": tirada_base,
+            "bono_relacion": bono_relacion,
+            "bono_contexto": bono_contexto,
+            "total": tirada_modificada
+        },
+        "resultado": resultado
+    }
+
+
+def calculate_trade_result(modo, diferencia, tirada, thresholds, precio_justo, oferta, contraoferta_factor, umbral_enfado):
+    """Calculate the trade result based on thresholds and dice roll"""
+    
+    resultado = {
+        "tipo": "rechaza",
+        "contraoferta": None,
+        "cambio_relacion": 0,
+        "enfado": None
+    }
+    
+    if modo == "compra":
+        # Player is buying - wants to pay less
+        if diferencia >= thresholds["zona_aceptacion_auto"]:
+            # Good offer - high chance to accept
+            if random.randint(1, 100) <= thresholds["prob_acepta_buena_oferta"]:
+                resultado["tipo"] = "acepta"
+            else:
+                # Small counter-offer
+                resultado["tipo"] = "contraoferta"
+                resultado["contraoferta"] = round(oferta * 1.05, 2)
+        
+        elif diferencia >= thresholds["zona_negociable_max"]:
+            # Negotiable zone
+            if tirada > thresholds["tirada_acepta_negociable"]:
+                resultado["tipo"] = "acepta"
+            elif tirada > thresholds["tirada_contraoferta_negociable"]:
+                resultado["tipo"] = "contraoferta"
+                resultado["contraoferta"] = round(precio_justo + (oferta - precio_justo) * contraoferta_factor, 2)
+            else:
+                resultado["tipo"] = "rechaza"
+        
+        elif diferencia >= thresholds["zona_riesgo_max"]:
+            # Risk zone
+            if tirada > thresholds["tirada_contraoferta_riesgo"]:
+                resultado["tipo"] = "contraoferta"
+                resultado["contraoferta"] = round(precio_justo + (oferta - precio_justo) * contraoferta_factor * 0.5, 2)
+            elif tirada > thresholds["tirada_rechaza_riesgo"]:
+                resultado["tipo"] = "rechaza"
+            else:
+                resultado["tipo"] = "enfado"
+                resultado["enfado"] = "leve"
+                resultado["cambio_relacion"] = -1
+        
+        else:
+            # Insult zone
+            if random.randint(1, 100) <= thresholds["prob_enfado_muy_baja"]:
+                if tirada < umbral_enfado:
+                    resultado["tipo"] = "enfado"
+                    resultado["enfado"] = "severo"
+                    resultado["cambio_relacion"] = -2
+                else:
+                    resultado["tipo"] = "enfado"
+                    resultado["enfado"] = "moderado"
+                    resultado["cambio_relacion"] = -1
+            else:
+                resultado["tipo"] = "rechaza"
+    
+    else:
+        # Player is selling - wants to get more
+        if diferencia <= thresholds["zona_aceptacion_auto"]:
+            # Good price for NPC
+            if random.randint(1, 100) <= thresholds["prob_acepta_buena_oferta"]:
+                resultado["tipo"] = "acepta"
+            else:
+                resultado["tipo"] = "contraoferta"
+                resultado["contraoferta"] = round(oferta * 0.95, 2)
+        
+        elif diferencia <= thresholds["zona_negociable_max"]:
+            if tirada > thresholds["tirada_acepta_negociable"]:
+                resultado["tipo"] = "acepta"
+            elif tirada > thresholds["tirada_contraoferta_negociable"]:
+                resultado["tipo"] = "contraoferta"
+                resultado["contraoferta"] = round(precio_justo + (oferta - precio_justo) * contraoferta_factor, 2)
+            else:
+                resultado["tipo"] = "rechaza"
+        
+        elif diferencia <= thresholds["zona_riesgo_max"]:
+            if tirada > thresholds["tirada_contraoferta_riesgo"]:
+                resultado["tipo"] = "contraoferta"
+                resultado["contraoferta"] = round(precio_justo + (oferta - precio_justo) * contraoferta_factor * 0.5, 2)
+            elif tirada > thresholds["tirada_rechaza_riesgo"]:
+                resultado["tipo"] = "rechaza"
+            else:
+                resultado["tipo"] = "enfado"
+                resultado["enfado"] = "leve"
+                resultado["cambio_relacion"] = -1
+        
+        else:
+            if random.randint(1, 100) <= thresholds.get("prob_enfado_muy_alta", 65):
+                if tirada < umbral_enfado:
+                    resultado["tipo"] = "enfado"
+                    resultado["enfado"] = "severo"
+                    resultado["cambio_relacion"] = -2
+                else:
+                    resultado["tipo"] = "enfado"
+                    resultado["enfado"] = "moderado"
+                    resultado["cambio_relacion"] = -1
+            else:
+                resultado["tipo"] = "rechaza"
+    
+    return resultado
+
+
+
+# ============================================================================
+# LLM DIALOGUE GENERATION
+# ============================================================================
+
+async def generate_npc_dialogue_llm(
+    npc: dict,
+    resultado: dict,
+    modo: str,
+    articulo: dict,
+    precio_justo: float,
+    oferta: float,
+    relacion: str
+) -> str:
+    """Generate NPC dialogue using LLM"""
+    try:
+        from emergentintegrations.llm.chat import LlmChat, UserMessage
+        from dotenv import load_dotenv
+        load_dotenv()
+        
+        api_key = os.environ.get("EMERGENT_LLM_KEY")
+        if not api_key:
+            logger.warning("EMERGENT_LLM_KEY not found, using fallback dialogue")
+            return None
+        
+        # Build context for the LLM
+        perfil = npc.get("perfil_comerciante", "normal")
+        personalidad = npc.get("personalidad", "")
+        modo_hablar = npc.get("modo_hablar", "")
+        ocupacion = npc.get("ocupacion", "comerciante")
+        
+        resultado_tipo = resultado.get("tipo", "rechaza")
+        enfado = resultado.get("enfado", None)
+        contraoferta = resultado.get("contraoferta", None)
+        
+        accion = "comprar" if modo == "compra" else "vender"
+        item_nombre = articulo.get("nombre", "el artículo")
+        
+        # Create prompt
+        prompt = f"""Eres un PNJ comerciante en un juego de rol de El Señor de los Anillos.
+
+DATOS DEL PNJ:
+- Ocupación: {ocupacion}
+- Perfil: {perfil}
+- Personalidad: {personalidad}
+- Modo de hablar: {modo_hablar}
+
+SITUACIÓN:
+- El jugador quiere {accion} "{item_nombre}"
+- Precio justo: {precio_justo:.2f} monedas
+- Oferta del jugador: {oferta:.2f} monedas
+- Relación con el jugador: {relacion}
+
+RESULTADO DE LA NEGOCIACIÓN:
+- Decisión: {resultado_tipo}
+{f'- Nivel de enfado: {enfado}' if enfado else ''}
+{f'- Contraoferta propuesta: {contraoferta:.2f} monedas' if contraoferta else ''}
+
+INSTRUCCIONES:
+Genera UNA SOLA frase corta (máximo 2 oraciones) que el PNJ diría en esta situación, reflejando su personalidad y el resultado de la negociación. 
+- Si acepta: muestra satisfacción o resignación según el precio
+- Si rechaza: explica brevemente por qué no le interesa
+- Si hace contraoferta: propone el nuevo precio de forma natural
+- Si está enfadado: muestra su molestia según la severidad
+
+Responde SOLO con el diálogo del PNJ, sin comillas ni acotaciones."""
+
+        chat = LlmChat(
+            api_key=api_key,
+            session_id=f"trade-{uuid.uuid4().hex[:8]}",
+            system_message="Eres un generador de diálogos para NPCs de un juego de rol ambientado en la Tierra Media. Genera diálogos breves, inmersivos y acordes al tono del Señor de los Anillos."
+        ).with_model("openai", "gpt-4o")
+        
+        user_message = UserMessage(text=prompt)
+        response = await chat.send_message(user_message)
+        
+        return response.strip() if response else None
+        
+    except Exception as e:
+        logger.error(f"Error generating NPC dialogue: {e}")
+        return None
+
+
+def generate_fallback_dialogue(resultado: dict, modo: str, npc: dict) -> str:
+    """Generate fallback dialogue without LLM"""
+    tipo = resultado.get("tipo", "rechaza")
+    enfado = resultado.get("enfado", None)
+    contraoferta = resultado.get("contraoferta", None)
+    perfil = npc.get("perfil_comerciante", "normal")
+    
+    dialogos = {
+        "acepta": {
+            "normal": ["Trato hecho.", "Me parece justo.", "De acuerdo, es un buen precio."],
+            "codicioso": ["Hmm... supongo que está bien.", "Acepto, aunque me deja poco margen."],
+            "honorable": ["Es un trato justo. Que los Valar bendigan nuestro comercio.", "Acepto con gusto."],
+            "desesperado": ["¡Sí, sí, acepto!", "Gracias, de verdad lo necesito."],
+            "mercader_experto": ["Reconozco una buena oferta. Acepto.", "Bien jugado. Trato hecho."],
+            "contrabandista": ["Rápido, antes de que cambie de opinión.", "Hecho. Y no me viste."]
+        },
+        "rechaza": {
+            "normal": ["No, gracias.", "No me interesa a ese precio.", "Vuelve cuando tengas una oferta seria."],
+            "codicioso": ["¿Eso es todo? No me hagas perder el tiempo.", "Ni lo sueñes."],
+            "honorable": ["Me temo que no puedo aceptar eso.", "No sería un trato justo."],
+            "desesperado": ["Incluso yo tengo límites...", "Lo siento, no puedo bajar tanto."],
+            "mercader_experto": ["Eso está muy lejos del valor real.", "Veo que no conoces el mercado."],
+            "contrabandista": ["¿Me tomas por tonto?", "Busca a otro primo."]
+        },
+        "contraoferta": {
+            "normal": [f"¿Qué te parece {contraoferta:.2f}?", f"Podríamos acordar {contraoferta:.2f}."],
+            "codicioso": [f"Lo mínimo que aceptaría es {contraoferta:.2f}.", f"{contraoferta:.2f}, ni una moneda menos."],
+            "honorable": [f"Un precio justo sería {contraoferta:.2f}.", f"Te propongo {contraoferta:.2f} y ambos salimos ganando."],
+            "desesperado": [f"¿Y si lo dejamos en {contraoferta:.2f}?", f"Mira, te lo dejo en {contraoferta:.2f}."],
+            "mercader_experto": [f"El precio justo es {contraoferta:.2f}.", f"Basándome en el mercado: {contraoferta:.2f}."],
+            "contrabandista": [f"{contraoferta:.2f}, tómalo o déjalo.", f"Mi última oferta: {contraoferta:.2f}."]
+        },
+        "enfado": {
+            "leve": {
+                "normal": ["Me estás haciendo perder la paciencia.", "Eso es insultante."],
+                "codicioso": ["¡Fuera de mi tienda!", "¡No me hagas enfadar!"],
+                "honorable": ["Eso ofende mi honor.", "Esperaba más de ti."],
+                "desesperado": ["Incluso en mi situación, eso es demasiado poco.", "Me hieres con esa oferta."],
+                "mercader_experto": ["Me decepciona tu falta de conocimiento.", "Eso es ridículo."],
+                "contrabandista": ["No me vengas con esas.", "Te estás buscando problemas."]
+            },
+            "moderado": {
+                "normal": ["¡No vuelvas hasta que aprendas a negociar!", "¡Largo de aquí!"],
+                "codicioso": ["¡FUERA! ¡No quiero verte más!", "¡Me tomas por idiota!"],
+                "honorable": ["Has deshonrado nuestro trato. Vete.", "Esto termina aquí."],
+                "desesperado": ["¡Por muy desesperado que esté, no soy estúpido!", "¡Vete!"],
+                "mercader_experto": ["Claramente no mereces mi tiempo.", "Nuestro negocio ha terminado."],
+                "contrabandista": ["Acabas de hacer un enemigo.", "Vas a arrepentirte de esto."]
+            },
+            "severo": {
+                "normal": ["¡Guardias! ¡Echad a este sinvergüenza!", "¡Jamás vuelvas a pisar mi tienda!"],
+                "codicioso": ["¡Te voy a hacer la vida imposible en esta ciudad!", "¡Me las pagarás!"],
+                "honorable": ["Has demostrado ser indigno de confianza. Nunca más.", "Que los Valar sean testigos de tu deshonra."],
+                "desesperado": ["¡Maldito seas! ¡Aléjate de mí!", "¡Nunca olvidaré esta afrenta!"],
+                "mercader_experto": ["Tu reputación quedará arruinada en todo el mercado.", "Todos sabrán lo que has hecho."],
+                "contrabandista": ["Acabas de firmarte tu sentencia.", "Mis contactos sabrán de esto."]
+            }
+        }
+    }
+    
+    if tipo == "enfado" and enfado:
+        opciones = dialogos.get("enfado", {}).get(enfado, {}).get(perfil, ["¡Fuera!"])
+    else:
+        opciones = dialogos.get(tipo, {}).get(perfil, ["..."])
+    
+    return random.choice(opciones) if opciones else "..."
+
+
+@router.post("/trading/calculate-with-dialogue")
+async def calculate_trade_with_dialogue(params: dict = Body(...)):
+    """
+    Calculate a trade transaction AND generate NPC dialogue
+    """
+    from server import db
+    
+    # First, do the normal calculation
+    result = await calculate_trade(params)
+    
+    # Get NPC data if provided
+    npc_id = params.get("npc_id")
+    npc = None
+    
+    if npc_id:
+        npc = await db.trading_npcs.find_one({"_id": npc_id})
+    
+    if not npc:
+        npc = {
+            "perfil_comerciante": params.get("perfil_comerciante", "normal"),
+            "personalidad": "",
+            "modo_hablar": "",
+            "ocupacion": "comerciante"
+        }
+    
+    # Try to generate LLM dialogue
+    articulo = params.get("articulo", {})
+    llm_dialogue = await generate_npc_dialogue_llm(
+        npc=npc,
+        resultado=result["resultado"],
+        modo=params.get("modo", "compra"),
+        articulo=articulo,
+        precio_justo=result["desglose"]["precio_justo"],
+        oferta=params.get("oferta", 0),
+        relacion=params.get("relacion", "neutral")
+    )
+    
+    # Use fallback if LLM failed
+    if llm_dialogue:
+        result["dialogo"] = llm_dialogue
+        result["dialogo_fuente"] = "llm"
+    else:
+        result["dialogo"] = generate_fallback_dialogue(
+            result["resultado"], 
+            params.get("modo", "compra"),
+            npc
+        )
+        result["dialogo_fuente"] = "fallback"
+    
+    return result

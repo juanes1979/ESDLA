@@ -20,7 +20,7 @@ import BackgroundEditor from '@/components/admin/BackgroundEditor';
 import OccupationEditor from '@/components/admin/OccupationEditor';
 import EquipmentEditor from '@/components/admin/EquipmentEditor';
 // Refactored rule section components
-import { SombraSection, CombateSection, SalariosSection, VariosSection, ViajeSection, ComunidadSection, NPCsSection, CriaturasSinNombreSection, BackgroundsSection, CharacterCreationSection, TerrainCorrectionTool } from '@/components/rules';
+import { SombraSection, CombateSection, SalariosSection, VariosSection, ViajeSection, ComunidadSection, NPCsSection, CriaturasSinNombreSection, BackgroundsSection, CharacterCreationSection, TerrainCorrectionTool, TradingSystemSection } from '@/components/rules';
 
 const RULE_CATEGORIES = [
   { id: 'cultures', name: 'Culturas', icon: Users, color: 'gold', description: 'Las razas y pueblos de la Tierra Media' },
@@ -30,6 +30,7 @@ const RULE_CATEGORIES = [
   { id: 'character_creation', name: 'Lógica de Creación', icon: User, color: 'gold', description: 'Dinero y equipo inicial por nivel de vida y ocupación' },
   { id: 'terrain_correction', name: 'Terrenos', icon: MapPin, color: 'magic-blue', description: 'Corregir datos de terreno de ubicaciones' },
   { id: 'equipment', name: 'Precios de Equipo', icon: Package, color: 'gold', description: 'Lista completa con precios y pesos' },
+  { id: 'trading_system', name: 'Compra-Venta', icon: Coins, color: 'torch-orange', description: 'Sistema dinámico de negociación con PNJs' },
   { id: 'price_modifiers', name: 'Modificadores de Precio', icon: Coins, color: 'torch-orange', description: 'Ajustes de precio por región, asentamiento y contexto' },
   { id: 'shadow', name: 'Sombra', icon: Moon, color: 'destructive', description: 'La corrupción y sus efectos' },
   { id: 'artes', name: 'Artes', icon: BookOpen, color: 'magic-blue', description: 'Habilidades especiales' },
@@ -1525,6 +1526,13 @@ const RulesPage = () => {
           { key: 'construccion', name: 'Elementos de Construcción', fields: ['nombre', 'precio', 'peso_kg', 'm2'] },
         ]
       },
+      {
+        title: "💎 Gemas",
+        categories: [
+          { key: 'gemas_preciosas', name: 'Gemas Preciosas', fields: ['nombre', 'precio', 'moneda'] },
+          { key: 'gemas_semipreciosas', name: 'Gemas Semipreciosas', fields: ['nombre', 'precio', 'moneda'] },
+        ]
+      },
     ];
 
     // Render a single table
@@ -1730,6 +1738,14 @@ const RulesPage = () => {
       title: 'Elementos de Construcción',
       categories: [
         { key: 'construccion', name: 'Elementos de Construcción', fields: ['nombre', 'precio', 'peso_kg', 'm2'] },
+      ]
+    },
+    {
+      id: 'gemas',
+      title: 'Gemas',
+      categories: [
+        { key: 'gemas_preciosas', name: 'Gemas Preciosas', fields: ['nombre', 'precio', 'moneda'] },
+        { key: 'gemas_semipreciosas', name: 'Gemas Semipreciosas', fields: ['nombre', 'precio', 'moneda'] },
       ]
     },
   ];
@@ -2935,6 +2951,9 @@ const RulesPage = () => {
       
       case 'price_modifiers':
         return renderPriceModifiers();
+      
+      case 'trading_system':
+        return <TradingSystemSection isAdmin={isAdmin} />;
       
       case 'character_creation':
         return <CharacterCreationSection isAdmin={isAdmin} />;

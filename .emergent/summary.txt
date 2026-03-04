@@ -1,172 +1,162 @@
 <analysis>**original_problem_statement:**
 The user wants to build a comprehensive web application for playing a modified version of the Lord of the Rings 5e tabletop role-playing game.
 
-PRODUCT REQUIREMENTS:
+**PRODUCT REQUIREMENTS (Initial):**
 - A detailed, multi-phase character creator that produces a 3-page printable PDF character sheet.
 - A full user authentication system (with Maestro > Admin > Player roles).
 - A page to view and manage all created characters.
 - A rich rules reference section for all core game data (Races, Cultures, Backgrounds, Occupations, Virtues, Equipment, etc.).
 - A complete admin-only management system (CRUD) for all core game data.
-- A feature-rich Travel Generator with a pathfinding algorithm that plots routes on an interactive map, accounting for roads, rivers, terrain, and barriers.
+- A feature-rich Travel Generator with a pathfinding algorithm.
 - A comprehensive Bestiary for NPCs, monsters, and animals.
 - A database backup/restore mechanism.
 - AI-powered story/NPC generation capabilities.
-- A visual, interactive map of Middle-earth with layers for terrain, danger, and drawable elements (roads, rivers, barriers).
-- A full UI/UX thematic overhaul to align with a Lord of the Rings aesthetic, including custom fonts, backgrounds, and interactive elements.
-- A new editable section in the Rules page to define and manage the complex logic of character creation (e.g., equipment/bonuses granted by culture, occupation, etc.).
+- A visual, interactive map of Middle-earth with layers and drawable elements.
+- A full UI/UX thematic overhaul to align with a Lord of the Rings aesthetic.
+
+**PRODUCT REQUIREMENTS (New - Compra-Venta Dinámica):**
+The user has requested a new, complex, and fully editable rule system for dynamic trading.
+- **Objective:** Create a non-deterministic trading rule that calculates a dynamic fair price for an item and simulates an NPC's reaction to a player's offer.
+- **Inputs:** Item, Region, Settlement Type, Relationship with NPC, Historical Context, Player's Offer, and Mode (Buy/Sell).
+- **Price Calculation:**
+    1.  Start with a base price from the Precios de Equipo rule.
+    2.  Apply modifiers for item blessings/rewards (+15% to +50%).
+    3.  Apply cumulative environmental modifiers for Region, Settlement Type, and Historical Context (e.g., war, famine).
+    4.  Adjust based on the player's relationship with the NPC (Hostile to Brotherhood) to determine the final  (fair price).
+- **NPC Reaction System:**
+    1.  Evaluate the percentage difference between the player's offer and the .
+    2.  Use a probabilistic system (random d100 roll modified by relationship and context) to determine the outcome.
+    3.  Outcomes: Accept, Reject, Counter-offer, or Get Angry (negatively impacting the relationship).
+    4.  Different outcome tables for Buying vs. Selling.
+- **NPC Profiles:** The system should eventually support different NPC trader profiles (Greedy, Honorable, Desperate) that alter negotiation behavior.
+- **Relationship & Memory:** The system needs to track the relationship between a specific player character and a specific NPC, with transactions affecting future interactions. The user suggested generating NPCs on the fly for locations and storing relationship data linked to them.
+- **LLM Integration:** The user expressed a strong desire to integrate an LLM to generate narrative and dynamic dialogue for the NPC's reactions.
+- **EDITABILITY:** All modifiers, percentages, thresholds, and NPC generation tables must be editable through a UI for the user to tweak and balance the system.
 
 **User's preferred language**: Español
 
 **what currently exists?**
-The application has undergone a significant visual and functional transformation. The Home page features a dynamic and thematic layout with an epic background image and custom-made, animated icons that serve as the main navigation. A consistent Lord of the Rings theme, including a dark background, the Cinzel Decorative font, and custom fire buttons, has been applied across major pages like Mis Personajes and Reglas.
-
-Functionally, the  is highly advanced, now supporting the drawing and management of roads, rivers, and insurmountable barriers. This data feeds into a new, robust pathfinding algorithm implemented in the backend. The  and the map itself can now calculate and display optimal travel routes between locations, considering all map features.
-
-The character sheet editor () has been improved with a search function, and bugs related to missing or truncated fields have been resolved by updating database entries and component logic.
+The application is a feature-rich tool for a Lord of the Rings TTRPG. Key functionalities include:
+- A consistent, thematic UI with custom fonts and a dark fire aesthetic.
+- A highly interactive map system with two modes: a Maestro map with full editing capabilities (locations, roads, rivers, barriers, pathfinding) and a simplified Jugador map (using a user-provided image) intended for players.
+- A  that acts as an admin panel for managing all core game data (Cultures, Occupations, Equipment, etc.).
+- A new editable Character Creation Logic editor within  to define starting money and equipment bonuses.
+- A new Terrain Data Correction Tool within  that allows an admin to review and fix auto-generated terrain data for all 216 game locations.
+- The character sheet PDF generation system has been updated with new field coordinates provided by the user.
 
 **Last working item**:
--   **Last item agent was working:** The user requested two large tasks simultaneously. The agent began with the first one: updating the coordinates for the printable character sheet fields using two large JSON objects provided by the user.
+-   **Last item agent was working:** The agent started implementing the new Compra-Venta Dinámica (Dynamic Buy/Sell) rule system. Initial backend files (, ) and frontend placeholder components were created.
 -   **Status:** IN PROGRESS
 -   **Agent Testing Done:** N
--   **Which testing method agent to use?** Frontend testing agent. After updating the JSON files, the agent must generate a PDF character sheet to visually verify that all fields are correctly positioned as per the user's new layout.
+-   **Which testing method agent to use?** both. This is a large, complex feature requiring both backend logic validation and frontend UI testing.
 -   **User Testing Done:** N
 
 **All Pending/In progress Issue list**:
--   Issue 1: Update character sheet PDF field positions using the user-provided JSON. (P0)
--   Issue 2: The  field text was truncated and has been fixed by increasing its width in the layout definition. This needs user verification. (P1 - USER VERIFICATION PENDING)
--   Issue 3: The  component has grown to ~3500 lines and is critically in need of refactoring. (P1)
--   Issue 4: The  component is now over 4700 lines and needs to be broken down into smaller components. (P1)
--   Issue 5: The  script made some incorrect terrain assignments. A tool for admins to easily review and correct this data is needed. (P2)
+-   Issue 1: Implement the Compra-Venta Dinámica rule system. (P0)
 
 **Issues Detail:**
--   **Issue 1: Update character sheet PDF field positions**
-    -   **Attempted fixes:** None yet, the task has just been started.
+-   **Issue 1: Implement Compra-Venta Dinámica rule system**
+    -   **Attempted fixes:** The agent has laid the groundwork by creating backend routes, data models, and placeholder frontend components. The basic structure is in place, but the core logic is missing.
     -   **Next debug checklist:**
-        1.  Parse the two JSON objects provided by the user in the last message.
-        2.  Overwrite the contents of  with the first JSON object.
-        3.  Overwrite the contents of  with the second JSON object.
-        4.  Create a test character and generate the PDF to visually confirm the new positions are applied correctly.
-    -   **Why fix this issue and what will be achieved with the fix?** To align the printable character sheet with the user's exact visual specifications.
+        1.  Flesh out the frontend components in  to create the full editable UI as per user requirements (editable modifiers, NPC profiles, relationship effects, etc.).
+        2.  Implement the core logic in  for calculating  and determining the NPC reaction.
+        3.  Create a new MongoDB collection to store NPC-player relationship data.
+        4.  Integrate the NPC generation logic based on the user-provided table.
+        5.  (Optional/Future) Integrate an LLM for generating narrative responses.
+    -   **Why fix this issue and what will be achieved with the fix?** This is the user's current highest priority. It will add a major, unique, and narratively rich gameplay mechanic to the application.
     -   **Status:** IN PROGRESS
     -   **Is recurring issue?** N
-    -   **Should Test frontend/backend/both after fix?** Frontend
-    -   **Blocked on other issue:** None
-
--   **Issue 2: Truncated  field**
-    -   **Attempted fixes:** The agent identified the field and increased its defined width in . The user has since provided a complete new JSON for all field positions, which will override this fix.
-    -   **Next debug checklist:** After implementing the new JSON positions (Issue 1), this issue should be considered resolved, but it's important to verify this specific field is no longer truncated.
-    -   **Why fix this issue and what will be achieved with the fix?** To ensure all data on the character sheet is fully visible.
-    -   **Status:** USER VERIFICATION PENDING
-    -   **Is recurring issue?** N
-    -   **Should Test frontend/backend/both after fix?** Frontend
-    -   **Blocked on other issue:** Issue 1
-
--   **Issue 3 & 4: Refactor  and **
-    -   **Attempted fixes:** None. The components have only grown in complexity.
-    -   **Next debug checklist:**
-        1.  Identify logical units within each component (e.g., ,  for the map; ,  for the rules).
-        2.  Create new, smaller components for these units.
-        3.  Systematically migrate state and logic from the monolithic parent components into the new child components, using props and context for communication.
-    -   **Why fix this issue and what will be achieved with the fix?** To manage extreme technical debt, improve maintainability, and prevent future development from becoming prohibitively difficult. The upcoming task to build a character creation logic editor inside  makes its refactoring even more critical.
-    -   **Status:** NOT STARTED
-    -   **Is recurring issue?** Y
-    -   **Should Test frontend/backend/both after fix?** Frontend
+    -   **Should Test frontend/backend/both after fix?** Both
     -   **Blocked on other issue:** None
 
 **In progress Task List**:
--   **Task 1: Update Character Sheet Field Positions**
-    -   **Where to resume:** The agent has acknowledged the user's request and needs to execute the file operations to update  and .
-    -   **What will be achieved with this?** The character sheet PDF layout will match the user's new design.
+-   **Task 1: Build the Compra-Venta Dinámica System**
+    -   **Where to resume:** Continue building the frontend UI in the newly created component directory: . The agent created , , , and , but they are mostly placeholders.
+    -   **What will be achieved with this?** A fully functional and editable dynamic trading system that enhances the role-playing experience.
     -   **Status:** IN PROGRESS
-    -   **Should Test frontend/backend/both after fix?** Frontend
+    -   **Should Test frontend/backend/both after fix?** Both
     -   **Blocked on something:** None
 
 **Upcoming and Future Tasks**
 **Upcoming Tasks:**
--   **P0:** Create an editable section in the Rules page to define and manage character creation logic (e.g., starting equipment/money for cultures, occupations).
--   **P1:** Refactor  and .
--   **P2:** Build a UI for reviewing and correcting the terrain data that was auto-generated by the  script.
--   **P2:** Continue applying the thematic overhaul (fire buttons, layout) to the remaining pages, such as the Character Creator.
+-   **P1:** Refactor  (~3500 lines) and  (~4700+ lines). These monolithic components are a major source of technical debt and risk.
+-   **P2:** Implement access control to make the Mapa del Maestro accessible only to Maestro or Admin users (once authentication is built).
+-   **P2:** Integrate the Character Creation Logic (starting money/equipment) into the  so that new characters are created with the correct starting values automatically.
 
 **Future Tasks:**
 -   Implement the full user authentication system with roles (Maestro, Admin, Player).
 -   Create a database backup/restore feature.
 -   Build a Game Master (DM) Screen and an online gameplay interface.
--   Integrate AI for story/NPC generation.
--   Build the complete, multi-phase character creator.
+-   Fully integrate LLMs for advanced NPC dialogue and story generation.
 
 **Completed work in this session**
--   **River & Barrier Drawing System (DONE):** Implemented backend endpoints and frontend UI/logic in  for drawing, saving, and managing rivers and insurmountable barriers.
--   **Pathfinding Algorithm (DONE):** Created a backend pathfinding service using Dijkstra's algorithm that finds optimal routes on the map considering roads, rivers, and terrain. Integrated it into the  and  for calculation and visualization.
--   **Homepage UI/UX Overhaul (DONE):** Completely redesigned the homepage () with a new background, custom animated icons in an arc, and interactive tooltips.
--   **Application-wide Theming (DONE):** Implemented a global theme with the Cinzel Decorative font, a dark aesthetic, and created a reusable  component. Applied this theme to  and .
--   **Sheet Editor Link (DONE):** Added a direct link to the Sheet Position Editor from the Character Creator page.
--   **Sheet Editor Search (DONE):** Added a search bar to the  to easily find fields among the 140+ options.
--   **Sheet Editor Field Bug (DONE):** Resolved an issue where the  field was not appearing in the editor by adding its default position to the database.
+-   **Character Sheet Position Update (DONE):** Updated the field coordinates for the printable PDF character sheet by overwriting the  collection in MongoDB with user-provided JSON. Also synchronized the hardcoded values in  and .
+-   **Character Creation Logic Editor (DONE):** Created a new editable section in  to manage starting money (by wealth level) and equipment bonuses (by occupation). This includes backend endpoints and a new React component ().
+-   **Map Mode Selector (DONE):** Implemented a new selection page at  that lets the user choose between the Mapa del Maestro (the existing full-featured map) and a new Mapa del Jugador (a simplified map without labels, using a user-provided image).
+-   **Terrain Data Correction Tool (DONE):** Created a powerful tool in  () that lists all 216 locations, flags ones with data inconsistencies, and allows the admin to filter, search, and manually correct terrain and land-type assignments.
 
 **Earlier issues found/mentioned but not fixed**
--   The refactoring of  and  remains a persistent, unaddressed issue that has worsened significantly.
--   The tool for correcting terrain data from the  script has not been implemented.
+-   The critical refactoring of  and  remains unaddressed and is the most significant technical debt in the project.
 
 **Known issue recurrence from previous fork**
--   The technical debt of monolithic React components (, ) has critically increased. The agent added hundreds of lines of code for new features (drawing systems, pathfinding integration, theming) directly into these files, making them even larger and more unmanageable.
+-   **Monolithic Components:** The agent continued the pattern of adding complexity to the app without addressing the massive size of  and . While new features were built as separate components, they were still integrated into the monolithic , increasing its complexity.
 
 **Code Architecture**
 
 
 **Key Technical Concepts**
--   **Pathfinding Algorithm:** Implemented a graph-based pathfinder using Dijkstra's algorithm in Python to calculate weighted shortest paths.
--   **Advanced CSS Animation:** Created complex animations for the homepage icons, including a flickering fire effect using multi-layered  and .
--   **Application Theming:** Developed a strategy for applying a consistent visual theme across a React application using a combination of global CSS, custom fonts (), and reusable layout components.
--   **Monolithic Component Modification:** Extensive work was done inside massive, multi-thousand-line React components, demonstrating techniques for navigating and modifying complex legacy code.
+-   **Modular Component Architecture:** Started breaking down the monolithic  by creating new features as separate components in a dedicated  subdirectory, even though they are still rendered by the main .
+-   **Dynamic Configuration UI:** The Character Creation Logic Editor and Terrain Correction Tool are examples of UIs built to manage complex application logic and data stored in the database, making the app highly configurable for the admin.
+-   **Conditional Routing:** Introduced a new layer of routing with the  selector page, directing users to different components based on their choice.
 
 **key DB schema**
--   ****: (New Collection) Schema: .
--   ****: (New Collection) Schema: .
--   ****: (Modified) Added an entry for .
+-   ****: (Modified) Updated  and  arrays with new coordinates.
+-   ****: (New) Stores editable game logic. Schema: .
+-   ****: (Modified) Schema contains  and , which the new tool corrects.
+-   ****: (New - Planned) To store the editable rules for the trade system (modifiers, thresholds, etc.).
+-   ****: (New - Planned) To store player-NPC relationship levels. Schema: .
 
 **All files of reference**
--   
--   
--   
--   
--   
--   
--   
+-    (Primary integration point)
+-    (New feature entry point)
+-    (New feature backend)
+-   User message with Compra-Venta Dinámica rules.
+-   User message with NPC generation table image.
 
 **Areas that need refactoring**:
--   ** (CRITICAL):** Now over 4700 lines. The next major task involves adding even more complex logic to it, making its refactoring an absolute necessity to avoid future failure.
--   ** (CRITICAL):** Now around 3500 lines. This component handles map rendering, panning/zooming, location display, and three separate drawing/editing systems. It must be broken down.
+-   ** (CRITICAL):** Now over 4700 lines. It renders multiple complex, stateful sub-components and is becoming unmanageable. It should be refactored into a simple router that renders the appropriate sub-page component.
+-   ** (CRITICAL):** Around 3500 lines. This component handles map rendering, controls, and multiple editing systems. It must be broken down into smaller, focused components (e.g., , , , ).
 
 **key api endpoints**
 -   
 -   
 -   
--   
--   
+-    (Planned)
+-    (Planned)
+-    (Planned)
 
 **Critical Info for New Agent**
--   Your immediate task is to process the user's last message, which contains two large JSON objects. Use them to overwrite  and . After this, you must test by generating a character sheet PDF to verify the new layout.
--   The user's *next* request is to build a complex, editable system within the Rules page to manage the logic of character creation. This will require significant backend and frontend work, primarily within the enormous  file. You must plan this carefully.
--   The technical debt in  and  is severe. Proposing a refactor plan for  before or alongside the character creation logic task is highly recommended.
--   All communication must be in Spanish.
+-   Your immediate and highest priority task (P0) is to build the Compra-Venta Dinámica system based on the user's detailed specification.
+-   **This entire system MUST be editable.** The user's primary requirement is the ability to tweak every single modifier, percentage, and rule via the UI.
+-   You must build this feature within the  as a new section. The placeholder files have already been created for you in  and .
+-   The user has provided an image of an NPC generation table. You will need to build a system to manage these NPC profiles and their relationship with player characters, as this is a core part of the trading mechanic.
+-   Propose a plan to the user that breaks down this large task into smaller, verifiable steps: 1) Build the configuration UI, 2) Implement the backend calculation logic, 3) Build the NPC relationship/memory system, 4) Build the main calculator interface.
+-   Remember to maintain communication in **Español**.
 
 **documents and test reports created in this job**
 -    (updated)
--   
--   
 
 **Last 10 User Messages and any pending HUMAN messages**
-1.  **User:** Requested a new section in Rules to view and edit character creation logic (equipment, money, etc.) AND provided two large JSON objects to update the character sheet field positions. **(Pending Implementation)**
-2.  **User:** Asked why he couldn't see the  field in the Sheet Editor to move it. **(Resolved)**
-3.  **User:** Reported that text on the character sheet PDF was truncated. **(Partially Resolved, new JSON will override)**
-4.  **User:** Requested a link to the Sheet Editor from the Character Creator page. **(Implemented)**
-5.  **User:** Requested to theme the entire application like the home page, including a specific font and fire effects on buttons. **(Implemented for major pages)**
-6.  **User:** Liked the fire effect and asked for it to be implemented. **(Implemented)**
-7.  **User:** Provided new icon images without an outer circle. **(Implemented)**
-8.  **User:** Requested changes to the home page icons: use custom images, arrange them in an arc, and add a blinking effect. **(Implemented)**
-9.  **User:** Approved the home page demo and asked to proceed. **(Implemented)**
-10. **User:** Requested a major UI/UX overhaul of the home page and the entire app. **(In Progress/Partially Implemented)**
+1.  **User:** Provided a highly detailed specification for a new Compra-Venta Dinámica (Dynamic Buy/Sell) rule system. **(Pending Implementation - P0)**
+2.  **Agent:** Asked for clarification on the new trading rule.
+3.  **User:** Provided detailed answers, confirming the need for an editable NPC relationship system, editable NPC profiles, editable context modifiers, and expressing a strong desire for LLM integration for dialogue. Provided an image of an NPC generation table. **(Pending Implementation)**
+4.  **User:** Asked for clarification on two backlog items: complete character creator and terrain correction tool.
+5.  **Agent:** Explained the pending tasks.
+6.  **User:** Agreed that the character creator is mostly done and prioritized building the Herramienta para corregir datos de terreno. **(Implemented)**
+7.  **Agent:** Presented the completed map selector and split maps.
+8.  **User:** Requested the creation of two separate map sections: one for the Maestro (the current map, admin-only) and one for players (using a new, unlabeled map image). **(Implemented)**
+9.  **Agent:** Presented the completed Character Creation Logic editor.
+10. **User:** Approved the plan to build the Lógica de Creación de Personajes editor. **(Implemented)**
 
 **Project Health Check:**
 -   **Broken:** None
@@ -176,17 +166,18 @@ The character sheet editor () has been improved with a search function, and bugs
 -   
 -   
 -   
--    (for Python image processing)
+-   
+-   LLM integration is planned for the new trade system.
 
 **Testing status**
--   **Testing agent used after significant changes:** YES (Used twice, for the map drawing system and the pathfinding feature)
+-   **Testing agent used after significant changes:** NO
 -   **Troubleshoot agent used after agent stuck in loop:** NO
--   **Test files created:** , 
+-   **Test files created:** []
 -   **Known regressions:** None
 
 **Credentials to test flow:**
 -   No authentication is implemented.
 
 **What agent forgot to execute**
--   The critical refactoring of  and  was once again deferred. The agent added hundreds of lines of new features to these files, making the technical debt significantly worse.
--   The tool for correcting terrain data from the  script was not implemented.</analysis>
+-   The critical refactoring of  and  was not performed.
+-   The access control to make the Mapa del Maestro admin-only was mentioned as a goal but not implemented, as it depends on the future authentication system.</analysis>

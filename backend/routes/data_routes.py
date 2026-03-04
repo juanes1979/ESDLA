@@ -1008,7 +1008,7 @@ async def get_equipment_catalog(
         "armas_sencillas_cc", "armas_sencillas_distancia", "armas_marciales_cc", "armas_marciales_distancia",
         "armaduras_ligeras", "armaduras_medias", "armaduras_pesadas", "escudos",
         "monturas", "accesorios_monturas", "transporte_terrestre", "transporte_maritimo",
-        "construccion"
+        "construccion", "gemas_preciosas", "gemas_semipreciosas"
     ]
     
     result = {key: catalog.get(key, []) for key in all_keys}

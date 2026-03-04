@@ -14,3 +14,4 @@ export { default as CriaturasSinNombreSection } from './CriaturasSinNombreSectio
 export { default as BackgroundsSection } from './BackgroundsSection';
 export { default as CharacterCreationSection } from './CharacterCreationSection';
 export { default as TerrainCorrectionTool } from './TerrainCorrectionTool';
+export { default as TradingSystemSection } from './TradingSystemSection';
