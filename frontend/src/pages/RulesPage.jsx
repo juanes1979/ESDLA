@@ -20,7 +20,7 @@ import BackgroundEditor from '@/components/admin/BackgroundEditor';
 import OccupationEditor from '@/components/admin/OccupationEditor';
 import EquipmentEditor from '@/components/admin/EquipmentEditor';
 // Refactored rule section components
-import { SombraSection, CombateSection, SalariosSection, VariosSection, ViajeSection, ComunidadSection, NPCsSection, CriaturasSinNombreSection, BackgroundsSection, CharacterCreationSection } from '@/components/rules';
+import { SombraSection, CombateSection, SalariosSection, VariosSection, ViajeSection, ComunidadSection, NPCsSection, CriaturasSinNombreSection, BackgroundsSection, CharacterCreationSection, TerrainCorrectionTool } from '@/components/rules';
 
 const RULE_CATEGORIES = [
   { id: 'cultures', name: 'Culturas', icon: Users, color: 'gold', description: 'Las razas y pueblos de la Tierra Media' },
@@ -28,6 +28,7 @@ const RULE_CATEGORIES = [
   { id: 'occupations', name: 'Ocupaciones', icon: Swords, color: 'magic-blue', description: 'Las vocaciones heroicas' },
   { id: 'virtues', name: 'Virtudes', icon: Sparkles, color: 'torch-orange', description: 'Dones especiales por cultura' },
   { id: 'character_creation', name: 'Lógica de Creación', icon: User, color: 'gold', description: 'Dinero y equipo inicial por nivel de vida y ocupación' },
+  { id: 'terrain_correction', name: 'Terrenos', icon: MapPin, color: 'magic-blue', description: 'Corregir datos de terreno de ubicaciones' },
   { id: 'equipment', name: 'Precios de Equipo', icon: Package, color: 'gold', description: 'Lista completa con precios y pesos' },
   { id: 'price_modifiers', name: 'Modificadores de Precio', icon: Coins, color: 'torch-orange', description: 'Ajustes de precio por región, asentamiento y contexto' },
   { id: 'shadow', name: 'Sombra', icon: Moon, color: 'destructive', description: 'La corrupción y sus efectos' },
@@ -2937,6 +2938,9 @@ const RulesPage = () => {
       
       case 'character_creation':
         return <CharacterCreationSection isAdmin={isAdmin} />;
+      
+      case 'terrain_correction':
+        return <TerrainCorrectionTool isAdmin={isAdmin} />;
       
       case 'shadow':
         return <SombraSection data={data} isAdmin={isAdmin} onDeleteSenda={handleDeleteSenda} />;

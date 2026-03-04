@@ -66,6 +66,24 @@ Build a comprehensive web application to play a modified version of the "Lord of
 - Botón "← Mapas" que vuelve a la selección
 - Mantiene todas las funcionalidades existentes
 
+#### Herramienta de Corrección de Terreno ✅ (NEW)
+**Componente:** `TerrainCorrectionTool.jsx` (`/app/frontend/src/components/rules/`)
+**Categoría en Reglas:** "Terrenos"
+
+**Características:**
+- Lista de 216 ubicaciones con terreno y tipo de tierra
+- Detecta 20 ubicaciones con problemas (valores faltantes o inconsistentes)
+- **Filtros:** Búsqueda, región, tipo de terreno, tipo de tierra, solo problemas
+- **Leyenda visual:** Colores para dificultad (Fácil→Infranqueable) y tipo (Tierras Libres→Oscuras)
+- **Selectores editables** para cada ubicación (solo admin)
+- **Botón "Auto-corregir"** que normaliza valores inconsistentes:
+  - `severo` → `desalentador`
+  - `tierras_de_la_sombra` → `tierras_sombra`
+  - `tierras_fronterizas` → `fronterizas`
+  - Valores faltantes → valores por defecto
+- **Indicadores de estado:** ✓ verde (OK), ⚠️ naranja (problemas), 💾 verde (cambios pendientes)
+- **Guardado por lotes** de todos los cambios
+
 ---
 
 ## Previous State (2026-02-24)

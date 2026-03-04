@@ -13,3 +13,4 @@ export { default as NPCEditor } from './NPCEditor';
 export { default as CriaturasSinNombreSection } from './CriaturasSinNombreSection';
 export { default as BackgroundsSection } from './BackgroundsSection';
 export { default as CharacterCreationSection } from './CharacterCreationSection';
+export { default as TerrainCorrectionTool } from './TerrainCorrectionTool';
