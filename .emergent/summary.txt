@@ -7,100 +7,86 @@ PRODUCT REQUIREMENTS:
 - A page to view and manage all created characters.
 - A rich rules reference section for all core game data (Races, Cultures, Backgrounds, Occupations, Virtues, Equipment, etc.).
 - A complete admin-only management system (CRUD) for all core game data.
-- A feature-rich Travel Generator to create travel itineraries based on game rules.
+- A feature-rich Travel Generator with a pathfinding algorithm that plots routes on an interactive map, accounting for roads, rivers, terrain, and barriers.
 - A comprehensive Bestiary for NPCs, monsters, and animals.
 - A database backup/restore mechanism.
 - AI-powered story/NPC generation capabilities.
-- A visual, interactive map of Middle-earth.
+- A visual, interactive map of Middle-earth with layers for terrain, danger, and drawable elements (roads, rivers, barriers).
+- A full UI/UX thematic overhaul to align with a Lord of the Rings aesthetic, including custom fonts, backgrounds, and interactive elements.
+- A new editable section in the Rules page to define and manage the complex logic of character creation (e.g., equipment/bonuses granted by culture, occupation, etc.).
 
 **User's preferred language**: Español
 
 **what currently exists?**
-The application now has a highly advanced equipment management system integrated into the . This includes:
-- **Rewards System**: A fully functional feature to apply permanent enhancements (rewards) to a character's weapons, armor, and shields.
-- **Equipment Management Modal**: A comprehensive modal that allows players to add, remove, and manage their inventory. It supports purchasing items (deducting from the character's wallet, with currency conversion) or adding them as gifts.
-- **Mount Inventory**: Players can manage which items are carried by their character versus their mount, with weight calculations handled separately.
-- **Price Modifier System**: When purchasing items, users can select various modifiers (based on region, settlement, seller relationship, etc.) that dynamically adjust the final price.
-- **Robust Character Sheet**: The character sheet pages (, ) have been repeatedly debugged and patched to handle inconsistent data structures (items as  vs. ), making them more resilient to crashes. Items with rewards are now correctly displayed in a dedicated section of the PDF-style sheet.
+The application has undergone a significant visual and functional transformation. The Home page features a dynamic and thematic layout with an epic background image and custom-made, animated icons that serve as the main navigation. A consistent Lord of the Rings theme, including a dark background, the Cinzel Decorative font, and custom fire buttons, has been applied across major pages like Mis Personajes and Reglas.
+
+Functionally, the  is highly advanced, now supporting the drawing and management of roads, rivers, and insurmountable barriers. This data feeds into a new, robust pathfinding algorithm implemented in the backend. The  and the map itself can now calculate and display optimal travel routes between locations, considering all map features.
+
+The character sheet editor () has been improved with a search function, and bugs related to missing or truncated fields have been resolved by updating database entries and component logic.
 
 **Last working item**:
--   **Last item agent was working:** The agent was implementing a user request to enhance the mount and weight system on the official character sheet (). This involved:
-    1.  Adding a new field to the character sheet to display the total weight carried by the mount.
-    2.  Modifying the character's Peso Transportado (Carried Weight) to exclude the weight of items on the mount.
-    3.  Ensuring the mount itself appears in the equipment list.
-    4.  Updating the equipment management modal to correctly list all items, including weapons from all sources.
+-   **Last item agent was working:** The user requested two large tasks simultaneously. The agent began with the first one: updating the coordinates for the printable character sheet fields using two large JSON objects provided by the user.
 -   **Status:** IN PROGRESS
 -   **Agent Testing Done:** N
--   **Which testing method agent to use?** screenshot tool. Test the  page and its Equipo modal to verify the new weight fields and complete equipment list.
+-   **Which testing method agent to use?** Frontend testing agent. After updating the JSON files, the agent must generate a PDF character sheet to visually verify that all fields are correctly positioned as per the user's new layout.
 -   **User Testing Done:** N
 
 **All Pending/In progress Issue list**:
--   Issue 1: Complete mount weight display and equipment management features. (P0)
--   Issue 2: The  component refactoring was started but never completed. (P1)
--   Issue 3: The  component is excessively large and complex and needs to be refactored into smaller components. (P2)
--   Issue 4: The new price modifiers are functional for purchasing but are not yet displayed on the  for reference, as requested by the user. (P2)
+-   Issue 1: Update character sheet PDF field positions using the user-provided JSON. (P0)
+-   Issue 2: The  field text was truncated and has been fixed by increasing its width in the layout definition. This needs user verification. (P1 - USER VERIFICATION PENDING)
+-   Issue 3: The  component has grown to ~3500 lines and is critically in need of refactoring. (P1)
+-   Issue 4: The  component is now over 4700 lines and needs to be broken down into smaller components. (P1)
+-   Issue 5: The  script made some incorrect terrain assignments. A tool for admins to easily review and correct this data is needed. (P2)
 
 **Issues Detail:**
--   **Issue 1: Complete Mount Weight & Equipment Management Update**
-    -   **Attempted fixes:** The agent has modified  to add new calculation logic and fields, and updated  to fetch a wider range of equipment. The work is mid-way through implementation.
+-   **Issue 1: Update character sheet PDF field positions**
+    -   **Attempted fixes:** None yet, the task has just been started.
     -   **Next debug checklist:**
-        1.  Verify the new functions  and the modified  in  are working correctly.
-        2.  Ensure the new field for mount weight is added to  and renders on the character sheet.
-        3.  Test the  to confirm all character equipment (weapons, armor, inventory, mount) is displayed and manageable.
-        4.  Take a screenshot of the  page to verify the UI changes.
-    -   **Why fix this issue and what will be achieved with the fix?** This will complete the user's latest request for a more detailed and accurate inventory and weight management system.
+        1.  Parse the two JSON objects provided by the user in the last message.
+        2.  Overwrite the contents of  with the first JSON object.
+        3.  Overwrite the contents of  with the second JSON object.
+        4.  Create a test character and generate the PDF to visually confirm the new positions are applied correctly.
+    -   **Why fix this issue and what will be achieved with the fix?** To align the printable character sheet with the user's exact visual specifications.
     -   **Status:** IN PROGRESS
     -   **Is recurring issue?** N
     -   **Should Test frontend/backend/both after fix?** Frontend
     -   **Blocked on other issue:** None
 
--   **Issue 2: Complete  Refactor**
-    -   **Attempted fixes:** Empty component files (, etc.) were created in a previous session, but no logic has been moved.
-    -   **Next debug checklist:**
-        1.  Systematically move the relevant logic and JSX from  into the dedicated child component files.
-        2.  Manage state and props appropriately, lifting state where necessary.
-    -   **Why fix this issue and what will be achieved with the fix?** To improve code maintainability and address critical tech debt.
-    -   **Status:** NOT STARTED
-    -   **Is recurring issue?** Y
-    -   **Should Test frontend/backend/both after fix?** Frontend
-    -   **Blocked on other issue:** None
-
--   **Issue 3: Refactor **
-    -   **Attempted fixes:** None. The file has only grown in previous sessions.
-    -   **Next debug checklist:**
-        1.  Plan the component breakdown (e.g., , , ).
-        2.  Create new component files and extract logic and JSX from .
-    -   **Why fix this issue and what will be achieved with the fix?** To manage the extreme complexity of the page and make future changes feasible.
-    -   **Status:** NOT STARTED
-    -   **Is recurring issue?** Y
-    -   **Should Test frontend/backend/both after fix?** Frontend
-    -   **Blocked on other issue:** None
-
--   **Issue 4: Display Price Modifiers on Rules Page**
-    -   **Attempted fixes:** None. The backend and data exist, but the frontend for this page has not been built.
-    -   **Next debug checklist:**
-        1.  In , fetch data from the  endpoint.
-        2.  Create a new component to render the modifiers in tables, similar to how they are shown in the user's provided image.
-        3.  Add this new component to the .
-    -   **Why fix this issue and what will be achieved with the fix?** This will complete the user's request for the price modifier feature by making the modifiers visible for reference.
-    -   **Status:** NOT STARTED
+-   **Issue 2: Truncated  field**
+    -   **Attempted fixes:** The agent identified the field and increased its defined width in . The user has since provided a complete new JSON for all field positions, which will override this fix.
+    -   **Next debug checklist:** After implementing the new JSON positions (Issue 1), this issue should be considered resolved, but it's important to verify this specific field is no longer truncated.
+    -   **Why fix this issue and what will be achieved with the fix?** To ensure all data on the character sheet is fully visible.
+    -   **Status:** USER VERIFICATION PENDING
     -   **Is recurring issue?** N
+    -   **Should Test frontend/backend/both after fix?** Frontend
+    -   **Blocked on other issue:** Issue 1
+
+-   **Issue 3 & 4: Refactor  and **
+    -   **Attempted fixes:** None. The components have only grown in complexity.
+    -   **Next debug checklist:**
+        1.  Identify logical units within each component (e.g., ,  for the map; ,  for the rules).
+        2.  Create new, smaller components for these units.
+        3.  Systematically migrate state and logic from the monolithic parent components into the new child components, using props and context for communication.
+    -   **Why fix this issue and what will be achieved with the fix?** To manage extreme technical debt, improve maintainability, and prevent future development from becoming prohibitively difficult. The upcoming task to build a character creation logic editor inside  makes its refactoring even more critical.
+    -   **Status:** NOT STARTED
+    -   **Is recurring issue?** Y
     -   **Should Test frontend/backend/both after fix?** Frontend
     -   **Blocked on other issue:** None
 
 **In progress Task List**:
--   **Task 1: Complete Mount Weight & Equipment Management Update**
-    -   **Where to resume:** Resume work in  and . The next step is to test the changes made so far.
-    -   **What will be achieved with this?** A fully functional and accurate weight tracking system that distinguishes between character and mount inventory.
+-   **Task 1: Update Character Sheet Field Positions**
+    -   **Where to resume:** The agent has acknowledged the user's request and needs to execute the file operations to update  and .
+    -   **What will be achieved with this?** The character sheet PDF layout will match the user's new design.
     -   **Status:** IN PROGRESS
     -   **Should Test frontend/backend/both after fix?** Frontend
     -   **Blocked on something:** None
 
 **Upcoming and Future Tasks**
 **Upcoming Tasks:**
--   **P1:** Complete  Refactor.
--   **P2:** Display Price Modifiers on .
--   **P2:** Refactor the monolithic .
+-   **P0:** Create an editable section in the Rules page to define and manage character creation logic (e.g., starting equipment/money for cultures, occupations).
+-   **P1:** Refactor  and .
+-   **P2:** Build a UI for reviewing and correcting the terrain data that was auto-generated by the  script.
+-   **P2:** Continue applying the thematic overhaul (fire buttons, layout) to the remaining pages, such as the Character Creator.
 
 **Future Tasks:**
 -   Implement the full user authentication system with roles (Maestro, Admin, Player).
@@ -110,31 +96,34 @@ The application now has a highly advanced equipment management system integrated
 -   Build the complete, multi-phase character creator.
 
 **Completed work in this session**
--   **Apply Rewards Feature (DONE):** Implemented the backend and frontend for applying permanent enhancements to equipment.
--   **Advanced Equipment Management Modal (DONE):** Created a modal on the character sheet for buying, adding, and deleting equipment, including mount inventory management.
--   **Price Modifier System (DONE):** Implemented a dynamic price calculation system based on user-selectable modifiers for equipment purchases.
--   **Critical Character Sheet Bug Fixes (DONE):** Resolved a series of crashes on  and  caused by inconsistent data types for equipment (string vs. object) after applying rewards.
--   **PDF Character Sheet Update (DONE):** Items with rewards are now moved to a dedicated Recompensas section on the character sheet display.
+-   **River & Barrier Drawing System (DONE):** Implemented backend endpoints and frontend UI/logic in  for drawing, saving, and managing rivers and insurmountable barriers.
+-   **Pathfinding Algorithm (DONE):** Created a backend pathfinding service using Dijkstra's algorithm that finds optimal routes on the map considering roads, rivers, and terrain. Integrated it into the  and  for calculation and visualization.
+-   **Homepage UI/UX Overhaul (DONE):** Completely redesigned the homepage () with a new background, custom animated icons in an arc, and interactive tooltips.
+-   **Application-wide Theming (DONE):** Implemented a global theme with the Cinzel Decorative font, a dark aesthetic, and created a reusable  component. Applied this theme to  and .
+-   **Sheet Editor Link (DONE):** Added a direct link to the Sheet Position Editor from the Character Creator page.
+-   **Sheet Editor Search (DONE):** Added a search bar to the  to easily find fields among the 140+ options.
+-   **Sheet Editor Field Bug (DONE):** Resolved an issue where the  field was not appearing in the editor by adding its default position to the database.
 
 **Earlier issues found/mentioned but not fixed**
--   The user requested that price modifiers be displayed on the  for reference. The agent implemented the backend and the purchasing logic but did not add the display tables to the .
+-   The refactoring of  and  remains a persistent, unaddressed issue that has worsened significantly.
+-   The tool for correcting terrain data from the  script has not been implemented.
 
 **Known issue recurrence from previous fork**
--   The technical debt of large, monolithic React components (, ) persists and is growing.  and the new  are also becoming very complex and are candidates for future refactoring.
+-   The technical debt of monolithic React components (, ) has critically increased. The agent added hundreds of lines of code for new features (drawing systems, pathfinding integration, theming) directly into these files, making them even larger and more unmanageable.
 
 **Code Architecture**
 
 
 **Key Technical Concepts**
--   **Defensive Programming in React:** A key theme was patching frontend functions (, , etc.) to handle multiple possible data shapes for the same logical entity (e.g., a weapon being a  or an ), preventing crashes.
--   **Complex Frontend State Management:** The  is a prime example, handling dynamic price calculations, inventory states, character currency, and UI state simultaneously.
--   **Composite Data Fetching:** The frontend now aggregates equipment data from multiple fields within the character document (, , , ) to present a unified list to the user.
+-   **Pathfinding Algorithm:** Implemented a graph-based pathfinder using Dijkstra's algorithm in Python to calculate weighted shortest paths.
+-   **Advanced CSS Animation:** Created complex animations for the homepage icons, including a flickering fire effect using multi-layered  and .
+-   **Application Theming:** Developed a strategy for applying a consistent visual theme across a React application using a combination of global CSS, custom fonts (), and reusable layout components.
+-   **Monolithic Component Modification:** Extensive work was done inside massive, multi-thousand-line React components, demonstrating techniques for navigating and modifying complex legacy code.
 
 **key DB schema**
--   ****: The  array now supports a  field. Equipment items (, , , and items in ) are frequently converted from  to  () when a reward is applied.
-
-**changes in tech stack**
--   None.
+-   ****: (New Collection) Schema: .
+-   ****: (New Collection) Schema: .
+-   ****: (Modified) Added an entry for .
 
 **All files of reference**
 -   
@@ -142,38 +131,42 @@ The application now has a highly advanced equipment management system integrated
 -   
 -   
 -   
+-   
+-   
 
 **Areas that need refactoring**:
--   ****: Critically needs to be broken down.
--   ****: The planned refactor is still pending.
--   ****: Has become very large and complex due to repeated additions and patches. It should be considered for a future refactor.
--   ****: This new component is already large and could be split into smaller, more focused components for better maintainability.
+-   ** (CRITICAL):** Now over 4700 lines. The next major task involves adding even more complex logic to it, making its refactoring an absolute necessity to avoid future failure.
+-   ** (CRITICAL):** Now around 3500 lines. This component handles map rendering, panning/zooming, location display, and three separate drawing/editing systems. It must be broken down.
 
 **key api endpoints**
--   : Applies a reward enhancement to a piece of equipment.
--   : Handles all equipment transactions: purchasing, adding as gift, deleting, and moving to/from a mount.
--   : Retrieves the list of price modifiers for display and calculation.
+-   
+-   
+-   
+-   
+-   
 
 **Critical Info for New Agent**
--   Your immediate task is to finish the implementation of the mount weight display on the character sheet. This involves verifying calculations in  and testing the UI.
--   Be extremely cautious when working with equipment data on the frontend. It can exist as a simple string or a complex object. Always check the data type before accessing properties or calling string methods like . Many functions in  now contain patterns for this.
--   The user is highly engaged and provides detailed, complex feature requests related to the character sheet. All communication must be in Spanish.
--   After completing the current task, you should propose a plan that includes addressing the pending refactoring tasks (, ) to manage growing technical debt.
+-   Your immediate task is to process the user's last message, which contains two large JSON objects. Use them to overwrite  and . After this, you must test by generating a character sheet PDF to verify the new layout.
+-   The user's *next* request is to build a complex, editable system within the Rules page to manage the logic of character creation. This will require significant backend and frontend work, primarily within the enormous  file. You must plan this carefully.
+-   The technical debt in  and  is severe. Proposing a refactor plan for  before or alongside the character creation logic task is highly recommended.
+-   All communication must be in Spanish.
 
 **documents and test reports created in this job**
--    was updated.
+-    (updated)
+-   
+-   
 
 **Last 10 User Messages and any pending HUMAN messages**
-1.  **User:** Requests adding a field for mount weight to the character sheet, subtracting it from the character's total carried weight, and ensuring the mount and all weapons are manageable in the equipment modal. **(In Progress)**
-2.  **User:** Provided an image of price modifiers and asked to integrate them into equipment purchasing and display them in the rules section. **(Partially Implemented - purchase logic is done, display on rules page is pending)**
-3.  **User:** Reported a crash on page 2 of the character sheet and requested that items with rewards be moved to a separate recompensa section on the PDF sheet, providing JSON coordinates. **(Resolved)**
-4.  **User:** Reported a crash when viewing the character sheet after a reward had been applied. **(Resolved)**
-5.  **User:** Reported an error () when applying a reward. **(Resolved)**
-6.  **User:** Provided a screenshot showing the rewards modal was empty because it wasn't finding the character's weapons. **(Resolved)**
-7.  **User:** Requested a complex equipment management system for the character sheet, including purchasing, currency management, weight, and mount inventory. **(Implemented)**
-8.  **User:** Confirmed a previous fix and asked the agent to start implementing the Apply Rewards feature. **(Completed)**
-9.  **User:** (Older) Asked for a feature to add/modify/delete equipment. **(Superseded by more detailed request)**
-10. **User:** (Older) Confirmed that batch editing of equipment availability was working. **(Completed)**
+1.  **User:** Requested a new section in Rules to view and edit character creation logic (equipment, money, etc.) AND provided two large JSON objects to update the character sheet field positions. **(Pending Implementation)**
+2.  **User:** Asked why he couldn't see the  field in the Sheet Editor to move it. **(Resolved)**
+3.  **User:** Reported that text on the character sheet PDF was truncated. **(Partially Resolved, new JSON will override)**
+4.  **User:** Requested a link to the Sheet Editor from the Character Creator page. **(Implemented)**
+5.  **User:** Requested to theme the entire application like the home page, including a specific font and fire effects on buttons. **(Implemented for major pages)**
+6.  **User:** Liked the fire effect and asked for it to be implemented. **(Implemented)**
+7.  **User:** Provided new icon images without an outer circle. **(Implemented)**
+8.  **User:** Requested changes to the home page icons: use custom images, arrange them in an arc, and add a blinking effect. **(Implemented)**
+9.  **User:** Approved the home page demo and asked to proceed. **(Implemented)**
+10. **User:** Requested a major UI/UX overhaul of the home page and the entire app. **(In Progress/Partially Implemented)**
 
 **Project Health Check:**
 -   **Broken:** None
@@ -183,16 +176,17 @@ The application now has a highly advanced equipment management system integrated
 -   
 -   
 -   
+-    (for Python image processing)
 
 **Testing status**
--   **Testing agent used after significant changes:** NO
+-   **Testing agent used after significant changes:** YES (Used twice, for the map drawing system and the pathfinding feature)
 -   **Troubleshoot agent used after agent stuck in loop:** NO
--   **Test files created:** None
+-   **Test files created:** , 
 -   **Known regressions:** None
 
 **Credentials to test flow:**
 -   No authentication is implemented.
 
 **What agent forgot to execute**
--   The refactoring of  and  remains pending from the previous fork.
--   The user's request to display the new price modifiers in the  for reference has not been implemented.</analysis>
+-   The critical refactoring of  and  was once again deferred. The agent added hundreds of lines of new features to these files, making the technical debt significantly worse.
+-   The tool for correcting terrain data from the  script was not implemented.</analysis>
