@@ -23,11 +23,13 @@ import {
 import { toast } from 'sonner';
 import api from '@/services/api';
 
-// Player map URL for journey visualization - MUST match master map for correct coordinates
-const JOURNEY_MAP_URL = 'https://customer-assets.emergentagent.com/job_c7e3a7c3-5d85-46bd-b91f-9f0c34045f08/artifacts/8bm4010y_Tierra%20Media.jpg';
-// Map coordinate system (matches master map)
-const JOURNEY_MAP_WIDTH = 1000;
-const JOURNEY_MAP_HEIGHT = 900;
+// Map URLs and coordinate system
+// Both maps use the same coordinate system (0-100 percentage)
+// Player map should be scaled to match master map coordinates (1000x900)
+const PLAYER_MAP_URL = 'https://customer-assets.emergentagent.com/job_909fe894-8fcc-49de-857a-11a4a3283302/artifacts/xoxpt6t9_Mapa%20jugadores.png';
+// Master map coordinate system
+const MAP_COORD_WIDTH = 1000;
+const MAP_COORD_HEIGHT = 900;
 
 // Elvish months with seasons
 const MESES_ELFICOS = [
@@ -115,6 +117,82 @@ const MULTI_ROLE_PENALTY = -5;
 const MAX_ROLES_PER_CHARACTER = 2;
 
 // =============== JOURNEY MAP MINI COMPONENT ===============
+
+// Function to add natural variation to a path (makes it look hand-drawn)
+const createNaturalPath = (points, variationAmount = 2) => {
+  if (points.length < 2) return points;
+  
+  const result = [points[0]]; // Keep start point
+  
+  for (let i = 1; i < points.length - 1; i++) {
+    const prev = points[i - 1];
+    const curr = points[i];
+    const next = points[i + 1];
+    
+    // Add slight random variation perpendicular to the path direction
+    const dx = next.x - prev.x;
+    const dy = next.y - prev.y;
+    const len = Math.sqrt(dx * dx + dy * dy);
+    
+    if (len > 0) {
+      // Perpendicular direction
+      const px = -dy / len;
+      const py = dx / len;
+      
+      // Random variation
+      const variation = (Math.random() - 0.5) * variationAmount;
+      
+      result.push({
+        x: curr.x + px * variation,
+        y: curr.y + py * variation
+      });
+    } else {
+      result.push(curr);
+    }
+  }
+  
+  result.push(points[points.length - 1]); // Keep end point
+  return result;
+};
+
+// Create smooth SVG path from points using quadratic curves
+const createSmoothPath = (points) => {
+  if (points.length < 2) return '';
+  
+  let path = `M ${points[0].x} ${points[0].y}`;
+  
+  if (points.length === 2) {
+    path += ` L ${points[1].x} ${points[1].y}`;
+    return path;
+  }
+  
+  // Use quadratic bezier curves for smooth transitions
+  for (let i = 1; i < points.length - 1; i++) {
+    const prev = points[i - 1];
+    const curr = points[i];
+    const next = points[i + 1];
+    
+    // Control point is current point
+    // End point is midpoint between current and next
+    const midX = (curr.x + next.x) / 2;
+    const midY = (curr.y + next.y) / 2;
+    
+    if (i === 1) {
+      // First curve - start from first point
+      path += ` Q ${curr.x} ${curr.y} ${midX} ${midY}`;
+    } else {
+      path += ` Q ${curr.x} ${curr.y} ${midX} ${midY}`;
+    }
+  }
+  
+  // Last segment - curve to final point
+  const last = points[points.length - 1];
+  const secondLast = points[points.length - 2];
+  path += ` Q ${secondLast.x} ${secondLast.y} ${last.x} ${last.y}`;
+  
+  return path;
+};
+
 const JourneyMiniMap = ({ origenCoords, destinoCoords, origenNombre, destinoNombre, pathPoints, isDirectLine, expanded = false, onToggleExpand }) => {
   const [imageLoaded, setImageLoaded] = useState(false);
   const svgRef = useRef(null);
@@ -123,64 +201,67 @@ const JourneyMiniMap = ({ origenCoords, destinoCoords, origenNombre, destinoNomb
   useEffect(() => {
     const img = new Image();
     img.onload = () => setImageLoaded(true);
-    img.src = JOURNEY_MAP_URL;
+    img.src = PLAYER_MAP_URL;
   }, []);
   
   if (!origenCoords || !destinoCoords) return null;
   
-  // Convert percentage coords (0-100) to map coords
-  // Master map uses: x = (percent / 100) * MAP_WIDTH, y = MAP_HEIGHT - (percent / 100) * MAP_HEIGHT
+  // Convert percentage coords (0-100) to map coords (same system as master map)
+  // Y axis is inverted (0 at bottom, 100 at top in master coords)
   const percentToMap = (xPercent, yPercent) => ({
-    x: (xPercent / 100) * JOURNEY_MAP_WIDTH,
-    y: JOURNEY_MAP_HEIGHT - (yPercent / 100) * JOURNEY_MAP_HEIGHT  // Flip Y axis
+    x: (xPercent / 100) * MAP_COORD_WIDTH,
+    y: MAP_COORD_HEIGHT - (yPercent / 100) * MAP_COORD_HEIGHT
   });
   
   const origen = percentToMap(origenCoords.x, origenCoords.y);
   const destino = percentToMap(destinoCoords.x, destinoCoords.y);
   
   // Convert all path points to map coordinates
-  const pathInMapCoords = (pathPoints || []).map(p => {
-    // Path points can be [x, y] arrays or {x, y} objects
+  let pathInMapCoords = (pathPoints || []).map(p => {
     const px = Array.isArray(p) ? p[0] : p.x;
     const py = Array.isArray(p) ? p[1] : p.y;
     return percentToMap(px, py);
   });
   
-  // If no path points, use direct line
-  const pathToRender = pathInMapCoords.length >= 2 ? pathInMapCoords : [origen, destino];
+  // If no path points, create direct path
+  if (pathInMapCoords.length < 2) {
+    pathInMapCoords = [origen, destino];
+  }
+  
+  // Add natural variation to make the path look hand-drawn
+  const naturalPath = createNaturalPath(pathInMapCoords, isDirectLine ? 5 : 3);
   
   // Calculate viewBox to show entire route with padding
-  const allX = pathToRender.map(p => p.x);
-  const allY = pathToRender.map(p => p.y);
+  const allX = naturalPath.map(p => p.x);
+  const allY = naturalPath.map(p => p.y);
   
-  const padding = 50; // Fixed padding in map units
+  const padding = 60;
   const minX = Math.max(0, Math.min(...allX) - padding);
   const minY = Math.max(0, Math.min(...allY) - padding);
-  const maxX = Math.min(JOURNEY_MAP_WIDTH, Math.max(...allX) + padding);
-  const maxY = Math.min(JOURNEY_MAP_HEIGHT, Math.max(...allY) + padding);
+  const maxX = Math.min(MAP_COORD_WIDTH, Math.max(...allX) + padding);
+  const maxY = Math.min(MAP_COORD_HEIGHT, Math.max(...allY) + padding);
   
-  // Ensure minimum viewBox size
-  let width = Math.max(maxX - minX, 150);
-  let height = Math.max(maxY - minY, 150);
+  let width = Math.max(maxX - minX, 180);
+  let height = Math.max(maxY - minY, 180);
   
-  // Keep aspect ratio reasonable
+  // Maintain reasonable aspect ratio
   const aspect = width / height;
-  if (aspect > 2.5) {
-    height = width / 2.5;
-  } else if (aspect < 0.4) {
-    width = height * 0.4;
+  if (aspect > 2.2) {
+    height = width / 2.2;
+  } else if (aspect < 0.45) {
+    width = height * 0.45;
   }
   
   const viewBox = `${minX} ${minY} ${width} ${height}`;
-  const containerHeight = expanded ? 'h-96' : 'h-56';
+  const containerHeight = expanded ? 'h-[400px]' : 'h-64';
   
-  // Create polyline points string
-  const polylinePoints = pathToRender.map(p => `${p.x},${p.y}`).join(' ');
+  // Create smooth SVG path
+  const smoothPathD = createSmoothPath(naturalPath);
   
-  // Marker and line sizes relative to viewBox
-  const markerRadius = Math.min(width, height) * 0.03;
-  const lineWidth = Math.min(width, height) * 0.015;
-  const fontSize = Math.min(width, height) * 0.04;
+  // Sizes relative to viewBox
+  const markerRadius = Math.min(width, height) * 0.025;
+  const lineWidth = Math.min(width, height) * 0.012;
+  const fontSize = Math.min(width, height) * 0.035;
   
   return (
     <Card className="card-parchment overflow-hidden">
@@ -188,9 +269,6 @@ const JourneyMiniMap = ({ origenCoords, destinoCoords, origenNombre, destinoNomb
         <CardTitle className="text-sm text-[hsl(var(--gold))]">
           <Route className="w-4 h-4 inline mr-2" />
           Mapa del Viaje
-          {isDirectLine && (
-            <span className="text-xs text-yellow-400 ml-2">(ruta aproximada)</span>
-          )}
         </CardTitle>
         {onToggleExpand && (
           <Button variant="ghost" size="sm" onClick={onToggleExpand} className="h-6 w-6 p-0">
@@ -211,37 +289,54 @@ const JourneyMiniMap = ({ origenCoords, destinoCoords, origenNombre, destinoNomb
               className="w-full h-full"
               preserveAspectRatio="xMidYMid slice"
             >
-              {/* Map image as background */}
+              {/* Player map as background - scaled to master map coordinates */}
               <image
-                href={JOURNEY_MAP_URL}
+                href={PLAYER_MAP_URL}
                 x="0"
                 y="0"
-                width={JOURNEY_MAP_WIDTH}
-                height={JOURNEY_MAP_HEIGHT}
+                width={MAP_COORD_WIDTH}
+                height={MAP_COORD_HEIGHT}
                 preserveAspectRatio="none"
               />
               
-              {/* Route polyline shadow */}
-              <polyline
-                points={polylinePoints}
+              {/* Route path - shadow for depth */}
+              <path
+                d={smoothPathD}
                 fill="none"
-                stroke="rgba(0,0,0,0.8)"
-                strokeWidth={lineWidth * 1.5}
+                stroke="rgba(0,0,0,0.6)"
+                strokeWidth={lineWidth * 2}
                 strokeLinecap="round"
                 strokeLinejoin="round"
               />
               
-              {/* Route polyline */}
-              <polyline
-                points={polylinePoints}
+              {/* Route path - main line (gray/dark for natural look) */}
+              <path
+                d={smoothPathD}
                 fill="none"
-                stroke={isDirectLine ? "#f59e0b" : "#22c55e"}
-                strokeWidth={lineWidth}
+                stroke="#4a4a4a"
+                strokeWidth={lineWidth * 1.2}
                 strokeLinecap="round"
                 strokeLinejoin="round"
-                strokeDasharray={isDirectLine ? `${lineWidth * 3},${lineWidth * 1.5}` : "none"}
               />
               
+              {/* Route path - highlight line (lighter gray) */}
+              <path
+                d={smoothPathD}
+                fill="none"
+                stroke="#6b6b6b"
+                strokeWidth={lineWidth * 0.6}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeDasharray={isDirectLine ? `${lineWidth * 4},${lineWidth * 2}` : "none"}
+              />
+              
+              {/* Origin marker - outer glow */}
+              <circle
+                cx={origen.x}
+                cy={origen.y}
+                r={markerRadius * 1.5}
+                fill="rgba(34, 197, 94, 0.3)"
+              />
               {/* Origin marker */}
               <circle
                 cx={origen.x}
@@ -249,9 +344,16 @@ const JourneyMiniMap = ({ origenCoords, destinoCoords, origenNombre, destinoNomb
                 r={markerRadius}
                 fill="#22c55e"
                 stroke="white"
-                strokeWidth={markerRadius * 0.3}
+                strokeWidth={markerRadius * 0.25}
               />
               
+              {/* Destination marker - outer glow */}
+              <circle
+                cx={destino.x}
+                cy={destino.y}
+                r={markerRadius * 1.5}
+                fill="rgba(239, 68, 68, 0.3)"
+              />
               {/* Destination marker */}
               <circle
                 cx={destino.x}
@@ -259,18 +361,18 @@ const JourneyMiniMap = ({ origenCoords, destinoCoords, origenNombre, destinoNomb
                 r={markerRadius}
                 fill="#ef4444"
                 stroke="white"
-                strokeWidth={markerRadius * 0.3}
+                strokeWidth={markerRadius * 0.25}
               />
               
               {/* Origin label */}
               <text
                 x={origen.x}
-                y={origen.y + markerRadius * 2.5}
+                y={origen.y - markerRadius * 2}
                 fill="white"
                 fontSize={fontSize}
                 fontWeight="bold"
                 textAnchor="middle"
-                style={{ textShadow: '1px 1px 3px black, -1px -1px 3px black' }}
+                style={{ textShadow: '1px 1px 2px black, -1px -1px 2px black, 1px -1px 2px black, -1px 1px 2px black' }}
               >
                 {origenNombre}
               </text>
@@ -278,12 +380,12 @@ const JourneyMiniMap = ({ origenCoords, destinoCoords, origenNombre, destinoNomb
               {/* Destination label */}
               <text
                 x={destino.x}
-                y={destino.y + markerRadius * 2.5}
+                y={destino.y - markerRadius * 2}
                 fill="white"
                 fontSize={fontSize}
                 fontWeight="bold"
                 textAnchor="middle"
-                style={{ textShadow: '1px 1px 3px black, -1px -1px 3px black' }}
+                style={{ textShadow: '1px 1px 2px black, -1px -1px 2px black, 1px -1px 2px black, -1px 1px 2px black' }}
               >
                 {destinoNombre}
               </text>
@@ -557,7 +659,7 @@ const EnhancedTravelSystem = () => {
         miembros: config.miembros.map(m => ({
           personaje_id: m.id,
           nombre: m.nombre,
-          papel: m.papel,
+          papeles: m.papeles || [],
           tiene_montura: m.tieneMontura,
           montura_con_bonus: m.monturaConBonus || 0
         }))
@@ -1265,11 +1367,87 @@ const EnhancedTravelSystem = () => {
                 </div>
               </div>
               
+              {/* Terrain Breakdown - Detailed */}
+              {journeyCalc.ruta?.terrain_summary && Object.keys(journeyCalc.ruta.terrain_summary).length > 0 && (
+                <div className="mt-3 p-3 bg-black/20 rounded text-sm">
+                  <p className="text-muted-foreground mb-2">
+                    <span className="text-[hsl(var(--gold))]">
+                      <Mountain className="w-4 h-4 inline mr-1" />
+                      Desglose del Terreno:
+                    </span>
+                  </p>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                    {Object.entries(journeyCalc.ruta.terrain_summary)
+                      .sort((a, b) => b[1] - a[1]) // Sort by distance descending
+                      .map(([terrain, distance]) => {
+                        const terrainNames = {
+                          facil: { name: 'Fácil', color: 'bg-green-600', icon: '🌿' },
+                          moderado: { name: 'Moderado', color: 'bg-yellow-600', icon: '🌾' },
+                          dificil: { name: 'Difícil', color: 'bg-orange-600', icon: '🏔️' },
+                          muy_dificil: { name: 'Muy Difícil', color: 'bg-red-600', icon: '⛰️' },
+                          desalentador: { name: 'Desalentador', color: 'bg-purple-600', icon: '💀' }
+                        };
+                        const info = terrainNames[terrain] || { name: terrain, color: 'bg-gray-600', icon: '❓' };
+                        const percentage = ((distance / journeyCalc.ruta.distance_km) * 100).toFixed(0);
+                        
+                        return (
+                          <div key={terrain} className="bg-black/30 p-2 rounded">
+                            <div className="flex items-center gap-1 mb-1">
+                              <span>{info.icon}</span>
+                              <span className="text-xs font-medium">{info.name}</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <div className="flex-1 h-2 bg-black/30 rounded-full overflow-hidden">
+                                <div 
+                                  className={`h-full ${info.color} transition-all`}
+                                  style={{ width: `${percentage}%` }}
+                                />
+                              </div>
+                              <span className="text-xs text-muted-foreground whitespace-nowrap">
+                                {distance.toFixed(1)} km
+                              </span>
+                            </div>
+                          </div>
+                        );
+                      })}
+                  </div>
+                </div>
+              )}
+              
+              {/* Roads Used */}
+              {journeyCalc.ruta?.roads_used?.length > 0 && (
+                <div className="mt-2 p-3 bg-amber-900/20 rounded border border-amber-500/30 text-sm">
+                  <p className="text-amber-400 mb-2">
+                    <Route className="w-4 h-4 inline mr-1" />
+                    Caminos utilizados:
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {journeyCalc.ruta.roads_used.map((road, i) => (
+                      <Badge key={i} variant="outline" className="border-amber-500/50 text-amber-300">
+                        🛤️ {road}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+              )}
+              
+              {/* Rivers Crossed */}
+              {journeyCalc.ruta?.rivers_crossed?.length > 0 && (
+                <div className="mt-2 p-3 bg-blue-900/20 rounded border border-blue-500/30 text-sm">
+                  <p className="text-blue-400 mb-2">
+                    🌊 Ríos a cruzar: {journeyCalc.ruta.rivers_crossed.length}
+                  </p>
+                </div>
+              )}
+              
               {/* PX Breakdown */}
               {journeyCalc.px_desglose && journeyCalc.px_desglose.px_total > 0 && (
                 <div className="mt-3 p-3 bg-black/20 rounded text-sm">
                   <p className="text-muted-foreground mb-2">
-                    <span className="text-[hsl(var(--gold))]">Desglose PX:</span>
+                    <span className="text-[hsl(var(--gold))]">
+                      <Sparkles className="w-4 h-4 inline mr-1" />
+                      Desglose PX:
+                    </span>
                   </p>
                   <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs">
                     <span>
