@@ -7,7 +7,39 @@ Build a comprehensive web application to play a modified version of the "Lord of
 
 ## Current State (2026-03-05)
 
-### ✅ COMPLETED This Session (2026-03-05 - Travel System Complete)
+### ✅ COMPLETED This Session (2026-03-05 - P0/P1/P2 Travel System Completion)
+
+#### P0: Aplicar PX a Personajes al Finalizar Viaje ✅ (NEW)
+**Nuevo endpoint en `/app/backend/routes/travel_routes.py` (línea 1222+):**
+- `POST /api/travel/apply-px` - Actualiza PX de múltiples personajes
+  - Recibe: `character_ids`, `px_amount`, `journey_id` (opcional), `journey_description` (opcional)
+  - Devuelve: Resumen de aplicación con XP anterior/nuevo por personaje
+  - Validaciones: Lista vacía, PX <= 0, personajes no encontrados
+
+**Nuevo botón en EnhancedTravelSystem.jsx:**
+- Botón verde "Finalizar Viaje y Repartir PX" (`data-testid="apply-px-btn"`)
+- Aparece en la pantalla de resultados después de completar un viaje
+- Muestra estado de aplicación y XP total por personaje
+- Estado: `applyingPX`, `pxApplied`, `pxResults`
+
+#### P1: Mejoras al Modo Jornada a Jornada ✅ (NEW)
+**Mejoras en `renderDayByDay()` de EnhancedTravelSystem.jsx:**
+- Header con origen/destino y tipo de tierra/terreno
+- Grid de estadísticas: CD Fatiga, PX Totales, Eventos
+- Selector de ritmo con kilómetros (24/36/48 km)
+- Marcha forzada hasta +3 horas (+18 km)
+- Vista de grupo con iconos de roles y miembros asignados
+- Panel de acontecimiento mejorado con CD, objetivo, consecuencias
+- Registro de jornadas con log de días anteriores
+- Botón "Finalizar Viaje" cuando se completan todas las casillas
+
+#### P2: Corregir Toast de Error en Config. Viajes ✅ (NEW)
+**Cambio en `/app/frontend/src/components/rules/sections/TravelRulesSection.jsx`:**
+- Cambiado `Promise.all` a `Promise.allSettled` (línea 44)
+- El error toast solo aparece si TODAS las peticiones fallan
+- Cada respuesta se maneja individualmente con `status === 'fulfilled'`
+
+### ✅ COMPLETED Previous Session (2026-03-05 - Travel System Complete)
 
 #### P0: Sistema de Viajes Mejorado - Backend ✅
 Se creó un sistema completo de reglas de viaje con datos editables desde la UI.
