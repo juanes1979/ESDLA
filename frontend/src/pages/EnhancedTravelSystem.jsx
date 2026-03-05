@@ -347,6 +347,9 @@ const EnhancedTravelSystem = () => {
   const [currentEvent, setCurrentEvent] = useState(null);
   const [resolvingEvent, setResolvingEvent] = useState(false);
   
+  // Dice roll state for event resolution
+  const [eventDiceRoll, setEventDiceRoll] = useState(null); // { d20: number, modifier: number, total: number }
+  
   // Final results
   const [fatigueResults, setFatigueResults] = useState([]);
   
@@ -560,6 +563,52 @@ const EnhancedTravelSystem = () => {
   
   // =============== EVENT RESOLUTION ===============
   
+  // Roll dice for event resolution
+  const rollEventDice = () => {
+    if (!currentEvent) return;
+    
+    // Find the character with the target role
+    const targetRole = currentEvent.objetivo.papel;
+    const targetMember = config.miembros.find(m => m.papeles?.includes(targetRole));
+    const targetChar = characters.find(c => c.id === targetMember?.id);
+    
+    // Calculate modifier based on role's skill
+    const roleInfo = ROLE_INFO[targetRole];
+    let modifier = 0;
+    
+    if (targetChar && roleInfo) {
+      // Get attribute modifier
+      const atributoVal = targetChar.atributos?.[roleInfo.atributo] || 10;
+      const atributoMod = Math.floor((atributoVal - 10) / 2);
+      
+      // Check proficiency
+      const competencias = targetChar.habilidades || [];
+      const esCompetente = competencias.some(h => 
+        h.toLowerCase().includes(roleInfo.habilidad_key) ||
+        roleInfo.habilidad_key.includes(h.toLowerCase())
+      );
+      const profBonus = esCompetente ? Math.ceil((targetChar.nivel || 1) / 4) + 1 : 0;
+      
+      modifier = atributoMod + profBonus;
+      
+      // Apply penalty if character has multiple roles
+      if (targetMember?.papeles?.length > 1) {
+        modifier += MULTI_ROLE_PENALTY;
+      }
+    }
+    
+    // Roll d20
+    const d20 = Math.floor(Math.random() * 20) + 1;
+    const total = d20 + modifier;
+    
+    setEventDiceRoll({ d20, modifier, total });
+  };
+  
+  // Clear dice roll when event changes
+  useEffect(() => {
+    setEventDiceRoll(null);
+  }, [currentEvent]);
+  
   const resolveCurrentEvent = async (tirada) => {
     if (!currentEvent) return;
     
@@ -567,7 +616,7 @@ const EnhancedTravelSystem = () => {
     
     // Find the character with the target role
     const targetRole = currentEvent.objetivo.papel;
-    const targetChar = config.miembros.find(m => m.papel === targetRole);
+    const targetMember = config.miembros.find(m => m.papeles?.includes(targetRole));
     
     const cd = currentEvent.resolucion.cd;
     const exito = tirada >= cd;
@@ -581,7 +630,7 @@ const EnhancedTravelSystem = () => {
           exito: exito,
           evento_nombre: currentEvent.evento.nombre,
           objetivo_papel: targetRole,
-          personaje_nombre: targetChar?.nombre || 'Desconocido'
+          personaje_nombre: targetMember?.nombre || 'Desconocido'
         }
       });
       
@@ -1625,71 +1674,224 @@ const EnhancedTravelSystem = () => {
             </div>
           </CardHeader>
           <CardContent className="space-y-4">
+            {/* Event Name */}
             <div className="p-4 bg-black/20 rounded">
               <h3 className="text-xl font-bold text-[hsl(var(--torch-orange))] mb-2">
                 {currentEvent.evento.nombre}
               </h3>
-              <p className="text-sm text-muted-foreground mb-2">
-                Tirada d20: <span className="text-[hsl(var(--gold))] font-bold">{currentEvent.tiradas.d20}</span>
+              <p className="text-xs text-muted-foreground">
+                (Tirada d20 del evento: {currentEvent.tiradas.d20}
                 {currentEvent.tiradas.tipo_tirada !== 'normal' && (
                   <span className={currentEvent.tiradas.tipo_tirada === 'ventaja' ? 'text-green-400' : 'text-red-400'}>
-                    {' '}({currentEvent.tiradas.tipo_tirada})
+                    {' '}- {currentEvent.tiradas.tipo_tirada}
                   </span>
-                )}
+                )})
               </p>
             </div>
             
-            <div className="p-4 bg-blue-900/20 rounded border border-blue-500/30">
-              <h4 className="font-bold text-[hsl(var(--magic-blue))] mb-2">
-                Objetivo: {ROLE_INFO[currentEvent.objetivo.papel]?.nombre || currentEvent.objetivo.papel}
-              </h4>
-              <p className="text-sm">
-                Prueba: <span className="text-[hsl(var(--gold))]">{currentEvent.objetivo.prueba}</span>
-              </p>
-              <p className="text-sm">
-                CD: <span className="text-xl font-bold text-red-400">{currentEvent.resolucion.cd}</span>
-              </p>
-              {currentEvent.resolucion.desventaja_salvacion && (
-                <Badge className="bg-blue-600 mt-2">Desventaja (Otoño/Invierno)</Badge>
-              )}
-            </div>
+            {/* Target Character Info */}
+            {(() => {
+              const targetRole = currentEvent.objetivo.papel;
+              const targetMember = config.miembros.find(m => m.papeles?.includes(targetRole));
+              const targetChar = characters.find(c => c.id === targetMember?.id);
+              const roleInfo = ROLE_INFO[targetRole];
+              
+              // Calculate modifier
+              let modifier = 0;
+              let modifierBreakdown = [];
+              
+              if (targetChar && roleInfo) {
+                const atributoVal = targetChar.atributos?.[roleInfo.atributo] || 10;
+                const atributoMod = Math.floor((atributoVal - 10) / 2);
+                const competencias = targetChar.habilidades || [];
+                const esCompetente = competencias.some(h => 
+                  h.toLowerCase().includes(roleInfo.habilidad_key) ||
+                  roleInfo.habilidad_key.includes(h.toLowerCase())
+                );
+                const profBonus = esCompetente ? Math.ceil((targetChar.nivel || 1) / 4) + 1 : 0;
+                const hasMultipleRoles = targetMember?.papeles?.length > 1;
+                
+                modifier = atributoMod + profBonus + (hasMultipleRoles ? MULTI_ROLE_PENALTY : 0);
+                
+                modifierBreakdown.push(`${roleInfo.atributo_nombre}: ${atributoMod >= 0 ? '+' : ''}${atributoMod}`);
+                if (profBonus > 0) modifierBreakdown.push(`${roleInfo.habilidad}: +${profBonus}`);
+                if (hasMultipleRoles) modifierBreakdown.push(`Múltiples papeles: ${MULTI_ROLE_PENALTY}`);
+              }
+              
+              return (
+                <div className="p-4 bg-blue-900/20 rounded border border-blue-500/30">
+                  <h4 className="font-bold text-[hsl(var(--magic-blue))] mb-3">
+                    Objetivo: {roleInfo?.nombre || targetRole}
+                  </h4>
+                  
+                  {/* Character assigned to role */}
+                  <div className="mb-3 p-2 bg-black/30 rounded">
+                    <p className="text-sm">
+                      <span className="text-muted-foreground">Personaje:</span>{' '}
+                      <span className="font-bold text-[hsl(var(--gold))]">
+                        {targetMember?.nombre || 'Sin asignar'}
+                      </span>
+                    </p>
+                    {targetChar && (
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Modificador total: <span className={`font-bold ${modifier >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                          {modifier >= 0 ? '+' : ''}{modifier}
+                        </span>
+                        <span className="ml-2">({modifierBreakdown.join(', ')})</span>
+                      </p>
+                    )}
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <p className="text-sm text-muted-foreground">Prueba:</p>
+                      <p className="text-[hsl(var(--gold))] font-medium">{currentEvent.objetivo.prueba}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Dificultad (CD):</p>
+                      <p className="text-2xl font-bold text-red-400">{currentEvent.resolucion.cd}</p>
+                    </div>
+                  </div>
+                  {currentEvent.resolucion.desventaja_salvacion && (
+                    <Badge className="bg-blue-600 mt-2">Desventaja (Otoño/Invierno)</Badge>
+                  )}
+                </div>
+              );
+            })()}
             
+            {/* Consequences */}
             <div className="grid grid-cols-2 gap-4 text-sm">
               <div className="p-3 bg-green-900/20 rounded border border-green-500/30">
                 <h5 className="font-bold text-green-400 mb-1">✓ Éxito</h5>
-                <p className="text-muted-foreground">{currentEvent.evento.consecuencias_exito}</p>
+                <p className="text-muted-foreground text-xs">{currentEvent.evento.consecuencias_exito}</p>
               </div>
               <div className="p-3 bg-red-900/20 rounded border border-red-500/30">
                 <h5 className="font-bold text-red-400 mb-1">✗ Fracaso</h5>
-                <p className="text-muted-foreground">{currentEvent.evento.consecuencias_fracaso}</p>
+                <p className="text-muted-foreground text-xs">{currentEvent.evento.consecuencias_fracaso}</p>
               </div>
             </div>
             
-            {/* Roll Input */}
-            <div className="flex items-center gap-4 pt-4 border-t border-border/30">
-              <Label>Resultado de la tirada:</Label>
-              <Input
-                type="number"
-                min={1}
-                max={30}
-                className="w-24"
-                placeholder="1-30"
-                id="roll-input"
-              />
-              <Button 
-                onClick={() => {
-                  const input = document.getElementById('roll-input');
-                  const value = parseInt(input?.value);
-                  if (value >= 1) {
-                    resolveCurrentEvent(value);
-                  } else {
-                    toast.error('Introduce un resultado válido');
-                  }
-                }}
-                disabled={resolvingEvent}
-              >
-                {resolvingEvent ? 'Resolviendo...' : 'Resolver'}
-              </Button>
+            {/* Dice Rolling Section */}
+            <div className="pt-4 border-t border-border/30 space-y-4">
+              <div className="text-center">
+                <p className="text-sm text-muted-foreground mb-2">
+                  El personaje debe tirar 1d20 + modificador y superar la CD
+                </p>
+                
+                {/* Roll Dice Button */}
+                <Button 
+                  onClick={rollEventDice}
+                  className="h-14 px-8 text-lg bg-[hsl(var(--gold))] text-black hover:bg-[hsl(var(--gold))]/80"
+                  disabled={resolvingEvent}
+                >
+                  <Dice6 className="w-6 h-6 mr-2" />
+                  🎲 Tirar 1d20
+                </Button>
+              </div>
+              
+              {/* Dice Result Display */}
+              {eventDiceRoll && (
+                <div className="p-4 bg-black/40 rounded-lg border-2 border-[hsl(var(--gold))]/50">
+                  <div className="flex items-center justify-center gap-4 md:gap-6 mb-3">
+                    {/* D20 Result */}
+                    <div className="text-center">
+                      <div className={`w-14 h-14 md:w-16 md:h-16 rounded-lg flex items-center justify-center text-2xl md:text-3xl font-bold ${
+                        eventDiceRoll.d20 === 20 ? 'bg-green-600 text-white animate-pulse' :
+                        eventDiceRoll.d20 === 1 ? 'bg-red-600 text-white animate-pulse' :
+                        'bg-[hsl(var(--gold))] text-black'
+                      }`}>
+                        {eventDiceRoll.d20}
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-1">d20</p>
+                    </div>
+                    
+                    <span className="text-xl md:text-2xl text-muted-foreground">+</span>
+                    
+                    {/* Modifier */}
+                    <div className="text-center">
+                      <div className={`w-14 h-14 md:w-16 md:h-16 rounded-lg flex items-center justify-center text-2xl md:text-3xl font-bold ${
+                        eventDiceRoll.modifier >= 0 ? 'bg-blue-600' : 'bg-red-600'
+                      } text-white`}>
+                        {eventDiceRoll.modifier >= 0 ? '+' : ''}{eventDiceRoll.modifier}
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-1">Mod</p>
+                    </div>
+                    
+                    <span className="text-xl md:text-2xl text-muted-foreground">=</span>
+                    
+                    {/* Total */}
+                    <div className="text-center">
+                      <div className={`w-16 h-14 md:w-20 md:h-16 rounded-lg flex items-center justify-center text-2xl md:text-3xl font-bold ${
+                        eventDiceRoll.total >= currentEvent.resolucion.cd ? 'bg-green-600' : 'bg-red-600'
+                      } text-white`}>
+                        {eventDiceRoll.total}
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-1">Total</p>
+                    </div>
+                  </div>
+                  
+                  {/* Result comparison */}
+                  <div className="text-center">
+                    <p className={`text-lg md:text-xl font-bold ${
+                      eventDiceRoll.total >= currentEvent.resolucion.cd ? 'text-green-400' : 'text-red-400'
+                    }`}>
+                      {eventDiceRoll.total} vs CD {currentEvent.resolucion.cd} → {' '}
+                      {eventDiceRoll.total >= currentEvent.resolucion.cd ? '¡ÉXITO!' : 'FRACASO'}
+                    </p>
+                    {eventDiceRoll.d20 === 20 && <p className="text-green-400 text-sm">🎉 ¡Crítico natural!</p>}
+                    {eventDiceRoll.d20 === 1 && <p className="text-red-400 text-sm">💀 ¡Pifia natural!</p>}
+                  </div>
+                  
+                  {/* Confirm Resolution Button */}
+                  <div className="flex justify-center mt-4">
+                    <Button 
+                      onClick={() => resolveCurrentEvent(eventDiceRoll.total)}
+                      disabled={resolvingEvent}
+                      className={`h-10 px-6 ${
+                        eventDiceRoll.total >= currentEvent.resolucion.cd 
+                          ? 'bg-green-600 hover:bg-green-700' 
+                          : 'bg-red-600 hover:bg-red-700'
+                      }`}
+                    >
+                      {resolvingEvent ? 'Resolviendo...' : 'Confirmar Resultado'}
+                    </Button>
+                  </div>
+                </div>
+              )}
+              
+              {/* Manual input option */}
+              {!eventDiceRoll && (
+                <div className="text-center pt-2">
+                  <p className="text-xs text-muted-foreground mb-2">
+                    ¿Prefieres tirar un dado físico? Introduce el resultado total (d20 + mod):
+                  </p>
+                  <div className="flex items-center justify-center gap-2">
+                    <Input
+                      type="number"
+                      min={1}
+                      max={40}
+                      className="w-20 text-center"
+                      placeholder="Total"
+                      id="roll-input"
+                    />
+                    <Button 
+                      variant="outline"
+                      onClick={() => {
+                        const input = document.getElementById('roll-input');
+                        const value = parseInt(input?.value);
+                        if (value >= 1) {
+                          resolveCurrentEvent(value);
+                        } else {
+                          toast.error('Introduce un resultado válido');
+                        }
+                      }}
+                      disabled={resolvingEvent}
+                    >
+                      {resolvingEvent ? 'Resolviendo...' : 'Resolver'}
+                    </Button>
+                  </div>
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -1917,27 +2119,84 @@ const EnhancedTravelSystem = () => {
             </div>
           </CardHeader>
           <CardContent className="space-y-4">
+            {/* Event Name */}
             <div className="p-4 bg-black/20 rounded">
               <h3 className="text-xl font-bold text-[hsl(var(--torch-orange))] mb-2">
                 {currentEvent.evento.nombre}
               </h3>
-              <p className="text-sm text-muted-foreground">
-                Tirada d20: <span className="text-[hsl(var(--gold))] font-bold">{currentEvent.tiradas.d20}</span>
+              <p className="text-xs text-muted-foreground">
+                (Tirada d20 del evento: {currentEvent.tiradas.d20})
               </p>
             </div>
             
-            <div className="p-4 bg-blue-900/20 rounded border border-blue-500/30">
-              <h4 className="font-bold text-[hsl(var(--magic-blue))] mb-2">
-                Objetivo: {ROLE_INFO[currentEvent.objetivo.papel]?.nombre || currentEvent.objetivo.papel}
-              </h4>
-              <p className="text-sm">
-                Prueba: <span className="text-[hsl(var(--gold))]">{currentEvent.objetivo.prueba}</span>
-              </p>
-              <p className="text-sm">
-                CD: <span className="text-xl font-bold text-red-400">{currentEvent.resolucion.cd}</span>
-              </p>
-            </div>
+            {/* Target Character Info */}
+            {(() => {
+              const targetRole = currentEvent.objetivo.papel;
+              const targetMember = config.miembros.find(m => m.papeles?.includes(targetRole));
+              const targetChar = characters.find(c => c.id === targetMember?.id);
+              const roleInfo = ROLE_INFO[targetRole];
+              
+              // Calculate modifier
+              let modifier = 0;
+              let modifierBreakdown = [];
+              
+              if (targetChar && roleInfo) {
+                const atributoVal = targetChar.atributos?.[roleInfo.atributo] || 10;
+                const atributoMod = Math.floor((atributoVal - 10) / 2);
+                const competencias = targetChar.habilidades || [];
+                const esCompetente = competencias.some(h => 
+                  h.toLowerCase().includes(roleInfo.habilidad_key) ||
+                  roleInfo.habilidad_key.includes(h.toLowerCase())
+                );
+                const profBonus = esCompetente ? Math.ceil((targetChar.nivel || 1) / 4) + 1 : 0;
+                const hasMultipleRoles = targetMember?.papeles?.length > 1;
+                
+                modifier = atributoMod + profBonus + (hasMultipleRoles ? MULTI_ROLE_PENALTY : 0);
+                
+                modifierBreakdown.push(`${roleInfo.atributo_nombre}: ${atributoMod >= 0 ? '+' : ''}${atributoMod}`);
+                if (profBonus > 0) modifierBreakdown.push(`${roleInfo.habilidad}: +${profBonus}`);
+                if (hasMultipleRoles) modifierBreakdown.push(`Múltiples papeles: ${MULTI_ROLE_PENALTY}`);
+              }
+              
+              return (
+                <div className="p-4 bg-blue-900/20 rounded border border-blue-500/30">
+                  <h4 className="font-bold text-[hsl(var(--magic-blue))] mb-3">
+                    Objetivo: {roleInfo?.nombre || targetRole}
+                  </h4>
+                  
+                  {/* Character assigned to role */}
+                  <div className="mb-3 p-2 bg-black/30 rounded">
+                    <p className="text-sm">
+                      <span className="text-muted-foreground">Personaje:</span>{' '}
+                      <span className="font-bold text-[hsl(var(--gold))]">
+                        {targetMember?.nombre || 'Sin asignar'}
+                      </span>
+                    </p>
+                    {targetChar && (
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Modificador total: <span className={`font-bold ${modifier >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                          {modifier >= 0 ? '+' : ''}{modifier}
+                        </span>
+                        <span className="ml-2">({modifierBreakdown.join(', ')})</span>
+                      </p>
+                    )}
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <p className="text-sm text-muted-foreground">Prueba:</p>
+                      <p className="text-[hsl(var(--gold))] font-medium">{currentEvent.objetivo.prueba}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Dificultad (CD):</p>
+                      <p className="text-2xl font-bold text-red-400">{currentEvent.resolucion.cd}</p>
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
             
+            {/* Consequences */}
             <div className="grid grid-cols-2 gap-4 text-sm">
               <div className="p-3 bg-green-900/20 rounded border border-green-500/30">
                 <h5 className="font-bold text-green-400 mb-1">✓ Éxito</h5>
@@ -1949,30 +2208,127 @@ const EnhancedTravelSystem = () => {
               </div>
             </div>
             
-            <div className="flex items-center gap-4 pt-4 border-t border-border/30">
-              <Label>Resultado de la tirada:</Label>
-              <Input
-                type="number"
-                min={1}
-                max={30}
-                className="w-24"
-                placeholder="1-30"
-                id="day-roll-input"
-              />
-              <Button 
-                onClick={() => {
-                  const input = document.getElementById('day-roll-input');
-                  const value = parseInt(input?.value);
-                  if (value >= 1) {
-                    resolveCurrentEvent(value);
-                  } else {
-                    toast.error('Introduce un resultado válido');
-                  }
-                }}
-                disabled={resolvingEvent}
-              >
-                {resolvingEvent ? 'Resolviendo...' : 'Resolver'}
-              </Button>
+            {/* Dice Rolling Section */}
+            <div className="pt-4 border-t border-border/30 space-y-4">
+              <div className="text-center">
+                <p className="text-sm text-muted-foreground mb-2">
+                  El personaje debe tirar 1d20 + modificador y superar la CD
+                </p>
+                
+                {/* Roll Dice Button */}
+                <Button 
+                  onClick={rollEventDice}
+                  className="h-14 px-8 text-lg bg-[hsl(var(--gold))] text-black hover:bg-[hsl(var(--gold))]/80"
+                  disabled={resolvingEvent}
+                >
+                  <Dice6 className="w-6 h-6 mr-2" />
+                  🎲 Tirar 1d20
+                </Button>
+              </div>
+              
+              {/* Dice Result Display */}
+              {eventDiceRoll && (
+                <div className="p-4 bg-black/40 rounded-lg border-2 border-[hsl(var(--gold))]/50">
+                  <div className="flex items-center justify-center gap-6 mb-3">
+                    {/* D20 Result */}
+                    <div className="text-center">
+                      <div className={`w-16 h-16 rounded-lg flex items-center justify-center text-3xl font-bold ${
+                        eventDiceRoll.d20 === 20 ? 'bg-green-600 text-white animate-pulse' :
+                        eventDiceRoll.d20 === 1 ? 'bg-red-600 text-white animate-pulse' :
+                        'bg-[hsl(var(--gold))] text-black'
+                      }`}>
+                        {eventDiceRoll.d20}
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-1">d20</p>
+                    </div>
+                    
+                    <span className="text-2xl text-muted-foreground">+</span>
+                    
+                    {/* Modifier */}
+                    <div className="text-center">
+                      <div className={`w-16 h-16 rounded-lg flex items-center justify-center text-3xl font-bold ${
+                        eventDiceRoll.modifier >= 0 ? 'bg-blue-600' : 'bg-red-600'
+                      } text-white`}>
+                        {eventDiceRoll.modifier >= 0 ? '+' : ''}{eventDiceRoll.modifier}
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-1">Mod</p>
+                    </div>
+                    
+                    <span className="text-2xl text-muted-foreground">=</span>
+                    
+                    {/* Total */}
+                    <div className="text-center">
+                      <div className={`w-20 h-16 rounded-lg flex items-center justify-center text-3xl font-bold ${
+                        eventDiceRoll.total >= currentEvent.resolucion.cd ? 'bg-green-600' : 'bg-red-600'
+                      } text-white`}>
+                        {eventDiceRoll.total}
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-1">Total</p>
+                    </div>
+                  </div>
+                  
+                  {/* Result comparison */}
+                  <div className="text-center">
+                    <p className={`text-xl font-bold ${
+                      eventDiceRoll.total >= currentEvent.resolucion.cd ? 'text-green-400' : 'text-red-400'
+                    }`}>
+                      {eventDiceRoll.total} vs CD {currentEvent.resolucion.cd} → {' '}
+                      {eventDiceRoll.total >= currentEvent.resolucion.cd ? '¡ÉXITO!' : 'FRACASO'}
+                    </p>
+                    {eventDiceRoll.d20 === 20 && <p className="text-green-400 text-sm">🎉 ¡Crítico natural!</p>}
+                    {eventDiceRoll.d20 === 1 && <p className="text-red-400 text-sm">💀 ¡Pifia natural!</p>}
+                  </div>
+                  
+                  {/* Confirm Resolution Button */}
+                  <div className="flex justify-center mt-4">
+                    <Button 
+                      onClick={() => resolveCurrentEvent(eventDiceRoll.total)}
+                      disabled={resolvingEvent}
+                      className={`h-10 px-6 ${
+                        eventDiceRoll.total >= currentEvent.resolucion.cd 
+                          ? 'bg-green-600 hover:bg-green-700' 
+                          : 'bg-red-600 hover:bg-red-700'
+                      }`}
+                    >
+                      {resolvingEvent ? 'Resolviendo...' : 'Confirmar Resultado'}
+                    </Button>
+                  </div>
+                </div>
+              )}
+              
+              {/* Manual input option */}
+              {!eventDiceRoll && (
+                <div className="text-center pt-2">
+                  <p className="text-xs text-muted-foreground mb-2">
+                    ¿Prefieres tirar un dado físico? Introduce el resultado total (d20 + mod):
+                  </p>
+                  <div className="flex items-center justify-center gap-2">
+                    <Input
+                      type="number"
+                      min={1}
+                      max={40}
+                      className="w-20 text-center"
+                      placeholder="Total"
+                      id="day-roll-input"
+                    />
+                    <Button 
+                      variant="outline"
+                      onClick={() => {
+                        const input = document.getElementById('day-roll-input');
+                        const value = parseInt(input?.value);
+                        if (value >= 1) {
+                          resolveCurrentEvent(value);
+                        } else {
+                          toast.error('Introduce un resultado válido');
+                        }
+                      }}
+                      disabled={resolvingEvent}
+                    >
+                      {resolvingEvent ? 'Resolviendo...' : 'Resolver'}
+                    </Button>
+                  </div>
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>
