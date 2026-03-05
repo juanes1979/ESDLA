@@ -7,7 +7,37 @@ Build a comprehensive web application to play a modified version of the "Lord of
 
 ## Current State (2026-03-05)
 
-### ✅ COMPLETED This Session (2026-03-05)
+### ✅ COMPLETED This Session (2026-03-05 - Continuation)
+
+#### P0: Verificación de Lógica de Pathfinding "Pasos de Montaña" ✅
+La lógica de pathfinding que permite que los caminos crucen barreras infranqueables (creando "pasos") **ya estaba implementada**.
+
+**Funciones clave en `/app/backend/utils/pathfinding.py`:**
+- `_check_barrier_crossing()` - Verifica si un segmento cruza una barrera
+- `_road_crosses_barrier_at_segment()` - Detecta si un camino cruza la misma barrera, creando un paso transitable
+- `_get_intersection_point()` - Calcula el punto exacto de intersección
+
+**Pruebas verificadas:**
+- Hobbiton → Erebor: 395.5 km, 10.6 días, usando "Paso Alto"
+- Rivendel → Lothlórien: 110.4 km, 5.2 días, usando "Camino del Este"
+
+#### P1: Refactorización Adicional de MiddleEarthMap.jsx ✅ (NEW)
+Se continuó la modularización del archivo, integrando componentes ya creados:
+
+**Componentes integrados:**
+- **EditLocationPanel.jsx** - Panel de edición de ubicaciones (reemplazó `renderEditPanel()`)
+- **CreateLocationPanel.jsx** - Panel de creación de ubicaciones (reemplazó `renderCreatePanel()`)
+
+**Resultado:**
+- Archivo reducido de **2815 a 2376 líneas** (~439 líneas adicionales, **-16%**)
+- Total reducción desde inicio: de ~3552 a 2376 líneas (**-33%**)
+- 2 funciones render adicionales eliminadas
+- Componentes ahora reutilizables y testables
+
+**Index actualizado (`/app/frontend/src/components/map/index.js`):**
+- Ahora exporta 10 componentes del mapa
+
+### ✅ COMPLETED Previous Session (2026-03-05)
 
 #### P0: Refactorización de RulesPage.jsx ✅
 Se extrajeron múltiples secciones del archivo monolítico `RulesPage.jsx` (~4700 líneas) a componentes independientes:

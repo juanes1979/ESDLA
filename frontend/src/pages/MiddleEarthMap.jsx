@@ -34,7 +34,15 @@ import {
 } from '../components/map/mapConstants';
 
 // Import map panel components
-import { RoadsPanel, RiversPanel, BarriersPanel, LocationInfoPanel, RoutePanel } from '../components/map';
+import { 
+  RoadsPanel, 
+  RiversPanel, 
+  BarriersPanel, 
+  LocationInfoPanel, 
+  RoutePanel,
+  EditLocationPanel,
+  CreateLocationPanel 
+} from '../components/map';
 
 // Type categories for filtering (not in mapConstants - specific to this view)
 const TYPE_CATEGORIES = {
@@ -1352,496 +1360,7 @@ const MiddleEarthMap = () => {
   
   // Render info panel
   
-  // Render edit location panel
-  const renderEditPanel = () => {
-    if (!editingLocation) return null;
-    
-    return (
-      <Card className="absolute top-4 right-4 w-96 card-parchment z-30 max-h-[90vh] overflow-y-auto">
-        <CardHeader className="pb-2">
-          <div className="flex justify-between items-start">
-            <CardTitle className="text-lg text-[hsl(var(--gold))]">
-              ✏️ Editar Ubicación
-            </CardTitle>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => {
-                setEditingLocation(null);
-                setEditFormData({});
-              }}
-            >
-              <X className="w-4 h-4" />
-            </Button>
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          {/* Name */}
-          <div>
-            <label className="text-xs text-muted-foreground">Nombre</label>
-            <Input
-              value={editFormData.nombre}
-              onChange={(e) => setEditFormData({ ...editFormData, nombre: e.target.value })}
-              placeholder="Nombre de la ubicación"
-            />
-          </div>
-          
-          {/* Sindarin name */}
-          <div>
-            <label className="text-xs text-muted-foreground">Nombre Sindarin (opcional)</label>
-            <Input
-              value={editFormData.nombre_sindarin}
-              onChange={(e) => setEditFormData({ ...editFormData, nombre_sindarin: e.target.value })}
-              placeholder="Nombre en Sindarin"
-            />
-          </div>
-          
-          {/* Region - Hierarchical Dropdown */}
-          <div>
-            <label className="text-xs text-muted-foreground">Región</label>
-            <Select value={editFormData.region} onValueChange={(v) => setEditFormData({ ...editFormData, region: v })}>
-              <SelectTrigger>
-                <SelectValue placeholder="Selecciona región" />
-              </SelectTrigger>
-              <SelectContent>
-                {regionsHierarchy.length > 0 ? (
-                  regionsHierarchy.map((region) => (
-                    <React.Fragment key={region.id}>
-                      <SelectItem value={region.nombre} className="font-bold text-[hsl(var(--gold))]">
-                        📍 {region.nombre}
-                      </SelectItem>
-                      {region.subregions?.map(sub => (
-                        <SelectItem key={sub.id} value={sub.nombre} className="pl-6 text-muted-foreground">
-                          ↳ {sub.nombre}
-                        </SelectItem>
-                      ))}
-                    </React.Fragment>
-                  ))
-                ) : (
-                  // Fallback to static REGION_HIERARCHY if no dynamic data
-                  Object.entries(REGION_HIERARCHY).map(([key, data]) => (
-                    <React.Fragment key={key}>
-                      <SelectItem value={key} className="font-bold text-[hsl(var(--gold))]">
-                        📍 {data.label}
-                      </SelectItem>
-                      {data.subregions.map(sub => (
-                        <SelectItem key={sub} value={sub} className="pl-6 text-muted-foreground">
-                          ↳ {sub}
-                        </SelectItem>
-                      ))}
-                    </React.Fragment>
-                  ))
-                )}
-              </SelectContent>
-            </Select>
-          </div>
-          
-          {/* Type */}
-          <div>
-            <label className="text-xs text-muted-foreground">Tipo</label>
-            <Select value={editFormData.tipo} onValueChange={(v) => setEditFormData({ ...editFormData, tipo: v })}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {Object.entries(TYPE_NAMES).map(([key, name]) => (
-                  <SelectItem key={key} value={key}>{LOCATION_ICONS[key]} {name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          
-          {/* Terrain */}
-          <div>
-            <label className="text-xs text-muted-foreground">Terreno</label>
-            <Select value={editFormData.terreno} onValueChange={(v) => setEditFormData({ ...editFormData, terreno: v })}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="facil">Fácil</SelectItem>
-                <SelectItem value="moderado">Moderado</SelectItem>
-                <SelectItem value="dificil">Difícil</SelectItem>
-                <SelectItem value="severo">Severo</SelectItem>
-                <SelectItem value="peligroso">Peligroso</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          
-          {/* Land type */}
-          <div>
-            <label className="text-xs text-muted-foreground">Tipo de Tierra</label>
-            <Select value={editFormData.tipo_tierra} onValueChange={(v) => setEditFormData({ ...editFormData, tipo_tierra: v })}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="tierras_libres">Tierras Libres</SelectItem>
-                <SelectItem value="tierras_fronterizas">Tierras Fronterizas</SelectItem>
-                <SelectItem value="tierras_salvajes">Tierras Salvajes</SelectItem>
-                <SelectItem value="tierras_de_la_sombra">Tierras de la Sombra</SelectItem>
-                <SelectItem value="tierras_oscuras">Tierras Oscuras</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          
-          {/* Danger */}
-          <div>
-            <label className="text-xs text-muted-foreground">Nivel de Peligro</label>
-            <Select value={editFormData.peligro} onValueChange={(v) => setEditFormData({ ...editFormData, peligro: v })}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="bajo">Bajo</SelectItem>
-                <SelectItem value="medio">Medio</SelectItem>
-                <SelectItem value="alto">Alto</SelectItem>
-                <SelectItem value="muy_alto">Muy Alto</SelectItem>
-                <SelectItem value="extremo">Extremo</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          
-          {/* Coordinates */}
-          <div className="flex gap-2">
-            <div className="flex-1">
-              <label className="text-xs text-muted-foreground">X</label>
-              <Input
-                type="number"
-                step="0.1"
-                value={editFormData.x}
-                onChange={(e) => setEditFormData({ ...editFormData, x: parseFloat(e.target.value) || 0 })}
-              />
-            </div>
-            <div className="flex-1">
-              <label className="text-xs text-muted-foreground">Y</label>
-              <Input
-                type="number"
-                step="0.1"
-                value={editFormData.y}
-                onChange={(e) => setEditFormData({ ...editFormData, y: parseFloat(e.target.value) || 0 })}
-              />
-            </div>
-          </div>
-          
-          {/* Refuge checkbox */}
-          <div className="flex items-center gap-2">
-            <input
-              type="checkbox"
-              id="refugio-edit"
-              checked={editFormData.refugio}
-              onChange={(e) => setEditFormData({ ...editFormData, refugio: e.target.checked })}
-              className="w-4 h-4"
-            />
-            <label htmlFor="refugio-edit" className="text-sm">Es un refugio seguro</label>
-          </div>
-          
-          {/* Description */}
-          <div>
-            <label className="text-xs text-muted-foreground">Descripción</label>
-            <textarea
-              value={editFormData.descripcion}
-              onChange={(e) => setEditFormData({ ...editFormData, descripcion: e.target.value })}
-              placeholder="Descripción del lugar..."
-              className="w-full h-24 p-2 text-sm bg-background border border-input rounded resize-none"
-            />
-          </div>
-          
-          {/* Action buttons */}
-          <div className="flex gap-2 pt-2 border-t border-border/30">
-            <Button
-              size="sm"
-              onClick={saveEditedLocation}
-              className="flex-1 bg-green-600 hover:bg-green-700"
-            >
-              💾 Guardar
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => deleteLocation(editingLocation)}
-              disabled={isDeleting}
-              className="flex-1 text-red-400 border-red-400/50 hover:bg-red-400/10"
-            >
-              🗑️ Eliminar
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-    );
-  };
-  
-  // Render create new location panel
-  const renderCreatePanel = () => {
-    if (!isCreatingLocation) return null;
-    
-    return (
-      <Card className="absolute top-4 right-4 w-96 card-parchment z-30 max-h-[90vh] overflow-y-auto">
-        <CardHeader className="pb-2">
-          <div className="flex justify-between items-start">
-            <CardTitle className="text-lg text-[hsl(var(--gold))]">
-              ➕ Crear Nueva Ubicación
-            </CardTitle>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={cancelCreatingLocation}
-            >
-              <X className="w-4 h-4" />
-            </Button>
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          {/* Position indicator */}
-          {newLocationCoords ? (
-            <div className="p-2 bg-green-900/30 border border-green-600/50 rounded text-sm text-green-200 flex items-center justify-between">
-              <span>📍 Posición: ({newLocationCoords.x}, {newLocationCoords.y})</span>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={resetNewLocationCoords}
-                className="text-xs h-6 px-2"
-              >
-                🔄 Cambiar
-              </Button>
-            </div>
-          ) : (
-            <div className="p-2 bg-yellow-900/30 border border-yellow-600/50 rounded text-sm text-yellow-200">
-              ⚠️ Haz clic en el mapa para seleccionar la posición
-            </div>
-          )}
-          
-          {/* Name */}
-          <div>
-            <label className="text-xs text-muted-foreground">Nombre *</label>
-            <Input
-              value={newLocationData.nombre}
-              onChange={(e) => setNewLocationData({ ...newLocationData, nombre: e.target.value })}
-              placeholder="Nombre de la ubicación"
-            />
-          </div>
-          
-          {/* Sindarin name */}
-          <div>
-            <label className="text-xs text-muted-foreground">Nombre Sindarin (opcional)</label>
-            <Input
-              value={newLocationData.nombre_sindarin}
-              onChange={(e) => setNewLocationData({ ...newLocationData, nombre_sindarin: e.target.value })}
-              placeholder="Nombre en Sindarin"
-            />
-          </div>
-          
-          {/* Region - Hierarchical Dropdown */}
-          <div>
-            <label className="text-xs text-muted-foreground">Región *</label>
-            <Select value={newLocationData.region} onValueChange={(v) => setNewLocationData({ ...newLocationData, region: v })}>
-              <SelectTrigger>
-                <SelectValue placeholder="Selecciona una región" />
-              </SelectTrigger>
-              <SelectContent>
-                {regionsHierarchy.length > 0 ? (
-                  regionsHierarchy.map((region) => (
-                    <React.Fragment key={region.id}>
-                      <SelectItem value={region.nombre} className="font-bold text-[hsl(var(--gold))]">
-                        📍 {region.nombre}
-                      </SelectItem>
-                      {region.subregions?.map(sub => (
-                        <SelectItem key={sub.id} value={sub.nombre} className="pl-6 text-muted-foreground">
-                          ↳ {sub.nombre}
-                        </SelectItem>
-                      ))}
-                    </React.Fragment>
-                  ))
-                ) : (
-                  // Fallback to static REGION_HIERARCHY if no dynamic data
-                  Object.entries(REGION_HIERARCHY).map(([key, data]) => (
-                    <React.Fragment key={key}>
-                      <SelectItem value={key} className="font-bold text-[hsl(var(--gold))]">
-                        📍 {data.label}
-                      </SelectItem>
-                      {data.subregions.map(sub => (
-                        <SelectItem key={sub} value={sub} className="pl-6 text-muted-foreground">
-                          ↳ {sub}
-                        </SelectItem>
-                      ))}
-                    </React.Fragment>
-                  ))
-                )}
-              </SelectContent>
-            </Select>
-          </div>
-          
-          {/* Type - with option to create new */}
-          <div>
-            <label className="text-xs text-muted-foreground">Tipo</label>
-            {!isCreatingNewType ? (
-              <div className="flex gap-2">
-                <Select 
-                  value={newLocationData.tipo} 
-                  onValueChange={(v) => {
-                    if (v === '__new__') {
-                      setIsCreatingNewType(true);
-                    } else {
-                      setNewLocationData({ ...newLocationData, tipo: v });
-                    }
-                  }}
-                >
-                  <SelectTrigger className="flex-1">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {Object.entries(TYPE_NAMES).map(([key, name]) => (
-                      <SelectItem key={key} value={key}>{LOCATION_ICONS[key]} {name}</SelectItem>
-                    ))}
-                    {/* Custom types created by user */}
-                    {customTypes.map(ct => (
-                      <SelectItem key={ct} value={ct}>🏷️ {ct}</SelectItem>
-                    ))}
-                    <SelectItem value="__new__" className="text-green-400">
-                      ➕ Crear nuevo tipo...
-                    </SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            ) : (
-              <div className="flex gap-2">
-                <Input
-                  value={newCustomType}
-                  onChange={(e) => setNewCustomType(e.target.value)}
-                  placeholder="Ej: posada, taberna, granja..."
-                  className="flex-1"
-                  autoFocus
-                />
-                <Button
-                  size="sm"
-                  onClick={() => {
-                    if (newCustomType.trim()) {
-                      const typeKey = newCustomType.toLowerCase().replace(/\s+/g, '_');
-                      setCustomTypes(prev => [...prev, typeKey]);
-                      setNewLocationData({ ...newLocationData, tipo: typeKey });
-                      setNewCustomType('');
-                      setIsCreatingNewType(false);
-                      toast.success(`Tipo "${newCustomType}" creado`);
-                    }
-                  }}
-                  className="bg-green-600 hover:bg-green-700"
-                >
-                  ✓
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => {
-                    setIsCreatingNewType(false);
-                    setNewCustomType('');
-                  }}
-                >
-                  ✕
-                </Button>
-              </div>
-            )}
-          </div>
-          
-          {/* Terrain */}
-          <div>
-            <label className="text-xs text-muted-foreground">Terreno</label>
-            <Select value={newLocationData.terreno} onValueChange={(v) => setNewLocationData({ ...newLocationData, terreno: v })}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="facil">Fácil</SelectItem>
-                <SelectItem value="moderado">Moderado</SelectItem>
-                <SelectItem value="dificil">Difícil</SelectItem>
-                <SelectItem value="severo">Severo</SelectItem>
-                <SelectItem value="peligroso">Peligroso</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          
-          {/* Land type */}
-          <div>
-            <label className="text-xs text-muted-foreground">Tipo de Tierra</label>
-            <Select value={newLocationData.tipo_tierra} onValueChange={(v) => setNewLocationData({ ...newLocationData, tipo_tierra: v })}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="tierras_libres">Tierras Libres</SelectItem>
-                <SelectItem value="tierras_fronterizas">Tierras Fronterizas</SelectItem>
-                <SelectItem value="tierras_salvajes">Tierras Salvajes</SelectItem>
-                <SelectItem value="tierras_de_la_sombra">Tierras de la Sombra</SelectItem>
-                <SelectItem value="tierras_oscuras">Tierras Oscuras</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          
-          {/* Danger */}
-          <div>
-            <label className="text-xs text-muted-foreground">Nivel de Peligro</label>
-            <Select value={newLocationData.peligro} onValueChange={(v) => setNewLocationData({ ...newLocationData, peligro: v })}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="bajo">Bajo</SelectItem>
-                <SelectItem value="medio">Medio</SelectItem>
-                <SelectItem value="alto">Alto</SelectItem>
-                <SelectItem value="muy_alto">Muy Alto</SelectItem>
-                <SelectItem value="extremo">Extremo</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          
-          {/* Refuge checkbox */}
-          <div className="flex items-center gap-2">
-            <input
-              type="checkbox"
-              id="refugio-new"
-              checked={newLocationData.refugio}
-              onChange={(e) => setNewLocationData({ ...newLocationData, refugio: e.target.checked })}
-              className="w-4 h-4"
-            />
-            <label htmlFor="refugio-new" className="text-sm">Es un refugio seguro</label>
-          </div>
-          
-          {/* Description */}
-          <div>
-            <label className="text-xs text-muted-foreground">Descripción</label>
-            <textarea
-              value={newLocationData.descripcion}
-              onChange={(e) => setNewLocationData({ ...newLocationData, descripcion: e.target.value })}
-              placeholder="Descripción del lugar..."
-              className="w-full h-20 p-2 text-sm bg-background border border-input rounded resize-none"
-            />
-          </div>
-          
-          {/* Action buttons */}
-          <div className="flex gap-2 pt-2 border-t border-border/30">
-            <Button
-              size="sm"
-              onClick={saveNewLocation}
-              disabled={!newLocationCoords || !newLocationData.nombre.trim()}
-              className="flex-1 bg-green-600 hover:bg-green-700"
-            >
-              💾 Crear Ubicación
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={cancelCreatingLocation}
-              className="flex-1 text-red-400 border-red-400/50 hover:bg-red-400/10"
-            >
-              ❌ Cancelar
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-    );
-  };
-  
-  // Render route info panel
-  
+  // Loading state
   if (loading) {
     return (
       <div className="flex items-center justify-center h-screen">
@@ -2723,8 +2242,51 @@ const MiddleEarthMap = () => {
           showMasterView={showMasterView}
           isDeleting={isDeleting}
         />
-        {renderEditPanel()}
-        {renderCreatePanel()}
+        <EditLocationPanel
+          location={editingLocation}
+          formData={editFormData}
+          setFormData={setEditFormData}
+          onSave={saveEditedLocation}
+          onDelete={() => deleteLocation(editingLocation)}
+          onCancel={() => {
+            setEditingLocation(null);
+            setEditFormData({});
+          }}
+          isSaving={savingChanges}
+          isDeleting={isDeleting}
+          regionsHierarchy={regionsHierarchy}
+          typeNames={TYPE_NAMES}
+          locationIcons={LOCATION_ICONS}
+          staticRegionHierarchy={REGION_HIERARCHY}
+        />
+        <CreateLocationPanel
+          isVisible={isCreatingLocation}
+          newLocationData={newLocationData}
+          setNewLocationData={setNewLocationData}
+          newLocationCoords={newLocationCoords}
+          onCreate={saveNewLocation}
+          onCancel={cancelCreatingLocation}
+          isCreating={false}
+          regionsHierarchy={regionsHierarchy}
+          typeNames={TYPE_NAMES}
+          locationIcons={LOCATION_ICONS}
+          staticRegionHierarchy={REGION_HIERARCHY}
+          customTypes={customTypes}
+          isCreatingNewType={isCreatingNewType}
+          setIsCreatingNewType={setIsCreatingNewType}
+          newCustomType={newCustomType}
+          setNewCustomType={setNewCustomType}
+          onAddCustomType={() => {
+            if (newCustomType.trim()) {
+              const typeKey = newCustomType.toLowerCase().replace(/\s+/g, '_');
+              setCustomTypes(prev => [...prev, typeKey]);
+              setNewLocationData({ ...newLocationData, tipo: typeKey });
+              setNewCustomType('');
+              setIsCreatingNewType(false);
+              toast.success(`Tipo "${newCustomType}" creado`);
+            }
+          }}
+        />
         <RoutePanel
           routeInfo={routeInfo}
           calculatedPath={calculatedPath}

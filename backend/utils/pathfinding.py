@@ -308,11 +308,82 @@ class MiddleEarthPathfinder:
         p1: Tuple[float, float],
         p2: Tuple[float, float]
     ) -> bool:
-        """Check if path segment crosses a barrier (impassable)"""
+        """
+        Check if path segment crosses a barrier (impassable)
+        EXCEPTION: If a road crosses the barrier at the same point, it's considered a "pass"
+        """
         for barrier_seg in self.barrier_segments:
             if self._segments_intersect(p1, p2, barrier_seg['start'], barrier_seg['end']):
+                # Check if there's a road that also crosses this barrier at this point
+                # If so, it's a mountain pass and can be traversed
+                if self._road_crosses_barrier_at_segment(p1, p2, barrier_seg):
+                    continue  # Road creates a pass, barrier is traversable here
                 return True
         return False
+    
+    def _road_crosses_barrier_at_segment(
+        self,
+        path_start: Tuple[float, float],
+        path_end: Tuple[float, float],
+        barrier_seg: Dict
+    ) -> bool:
+        """
+        Check if any road crosses this barrier segment, creating a traversable pass.
+        A road crossing a barrier at a point allows travel through that point.
+        """
+        barrier_start = barrier_seg['start']
+        barrier_end = barrier_seg['end']
+        
+        # Check each road segment
+        for road_seg in self.road_segments:
+            road_start = road_seg['start']
+            road_end = road_seg['end']
+            
+            # Check if road crosses this specific barrier segment
+            if self._segments_intersect(road_start, road_end, barrier_start, barrier_end):
+                # Calculate intersection point of road and barrier
+                road_barrier_intersection = self._get_intersection_point(
+                    road_start, road_end, barrier_start, barrier_end
+                )
+                
+                if road_barrier_intersection:
+                    # Check if our path segment passes near this intersection point
+                    dist_to_intersection = self._point_to_segment_distance(
+                        road_barrier_intersection, path_start, path_end
+                    )
+                    
+                    # If path is close to the road-barrier intersection, it's a valid pass
+                    if dist_to_intersection < 3.0:  # Within 3 units tolerance
+                        return True
+        
+        return False
+    
+    def _get_intersection_point(
+        self,
+        p1: Tuple[float, float],
+        p2: Tuple[float, float],
+        p3: Tuple[float, float],
+        p4: Tuple[float, float]
+    ) -> Optional[Tuple[float, float]]:
+        """Calculate the intersection point of two line segments, if they intersect"""
+        x1, y1 = p1
+        x2, y2 = p2
+        x3, y3 = p3
+        x4, y4 = p4
+        
+        denom = (x1 - x2) * (y3 - y4) - (y1 - y2) * (x3 - x4)
+        if abs(denom) < 1e-10:  # Lines are parallel
+            return None
+        
+        t = ((x1 - x3) * (y3 - y4) - (y1 - y3) * (x3 - x4)) / denom
+        
+        # Check if intersection is within segment bounds
+        if 0 <= t <= 1:
+            ix = x1 + t * (x2 - x1)
+            iy = y1 + t * (y2 - y1)
+            return (ix, iy)
+        
+        return None
     
     def _get_terrain_at_point(self, x: float, y: float) -> str:
         """Get terrain type at point (from nearest location or default)"""

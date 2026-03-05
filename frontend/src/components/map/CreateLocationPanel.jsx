@@ -18,6 +18,7 @@ const CreateLocationPanel = ({
   onCreate,
   onCancel,
   isCreating,
+  isVisible = true,
   regionsHierarchy,
   typeNames,
   locationIcons,
@@ -29,6 +30,9 @@ const CreateLocationPanel = ({
   setNewCustomType,
   onAddCustomType,
 }) => {
+  // Don't render if not visible
+  if (!isVisible) return null;
+  
   const renderRegionOptions = () => {
     if (regionsHierarchy && regionsHierarchy.length > 0) {
       return regionsHierarchy.map((region) => (
