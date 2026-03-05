@@ -15,3 +15,6 @@ export { default as BackgroundsSection } from './BackgroundsSection';
 export { default as CharacterCreationSection } from './CharacterCreationSection';
 export { default as TerrainCorrectionTool } from './TerrainCorrectionTool';
 export { default as TradingSystemSection } from './TradingSystemSection';
+export { default as VirtuesSection } from './VirtuesSection';
+export { default as ArtesSection } from './ArtesSection';
+export { default as RecompensasSection } from './RecompensasSection';

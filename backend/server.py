@@ -14,6 +14,7 @@ from datetime import datetime, timezone
 from routes.data_routes import router as data_router
 from routes.character_routes import router as character_router
 from routes.trading_routes import router as trading_router
+from routes.storage_routes import router as storage_router
 
 
 ROOT_DIR = Path(__file__).parent
@@ -86,6 +87,7 @@ async def get_status_checks():
 api_router.include_router(data_router)
 api_router.include_router(character_router)
 api_router.include_router(trading_router)
+api_router.include_router(storage_router)
 
 # Include the main router in the app
 app.include_router(api_router)

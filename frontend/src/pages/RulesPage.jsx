@@ -20,7 +20,7 @@ import BackgroundEditor from '@/components/admin/BackgroundEditor';
 import OccupationEditor from '@/components/admin/OccupationEditor';
 import EquipmentEditor from '@/components/admin/EquipmentEditor';
 // Refactored rule section components
-import { SombraSection, CombateSection, SalariosSection, VariosSection, ViajeSection, ComunidadSection, NPCsSection, CriaturasSinNombreSection, BackgroundsSection, CharacterCreationSection, TerrainCorrectionTool, TradingSystemSection } from '@/components/rules';
+import { SombraSection, CombateSection, SalariosSection, VariosSection, ViajeSection, ComunidadSection, NPCsSection, CriaturasSinNombreSection, BackgroundsSection, CharacterCreationSection, TerrainCorrectionTool, TradingSystemSection, VirtuesSection, ArtesSection, RecompensasSection } from '@/components/rules';
 
 const RULE_CATEGORIES = [
   { id: 'cultures', name: 'Culturas', icon: Users, color: 'gold', description: 'Las razas y pueblos de la Tierra Media' },
@@ -2944,7 +2944,19 @@ const RulesPage = () => {
           : <p className="text-muted-foreground">No se encontraron ocupaciones</p>;
       
       case 'virtues':
-        return renderVirtues();
+        return <VirtuesSection 
+          data={data} 
+          isAdmin={isAdmin} 
+          searchTerm={searchTerm}
+          onRefresh={async () => {
+            const virtuesRes = await api.get('/data/virtues');
+            setData(virtuesRes.data);
+          }}
+          onEdit={(virtue) => {
+            // TODO: implement virtue editor
+            console.log('Edit virtue:', virtue);
+          }}
+        />;
       
       case 'equipment':
         return renderEquipmentTables();
@@ -2965,10 +2977,10 @@ const RulesPage = () => {
         return <SombraSection data={data} isAdmin={isAdmin} onDeleteSenda={handleDeleteSenda} />;
       
       case 'artes':
-        return renderArtes();
+        return <ArtesSection data={data} searchTerm={searchTerm} />;
       
       case 'recompensas':
-        return renderRecompensas();
+        return <RecompensasSection data={data} />;
       
       case 'salarios':
         return <SalariosSection data={data} />;
