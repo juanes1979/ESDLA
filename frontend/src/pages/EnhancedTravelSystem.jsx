@@ -116,25 +116,61 @@ const MAX_ROLES_PER_CHARACTER = 2;
 // =============== JOURNEY MAP MINI COMPONENT ===============
 const JourneyMiniMap = ({ origenCoords, destinoCoords, origenNombre, destinoNombre, expanded = false, onToggleExpand }) => {
   const [imageLoaded, setImageLoaded] = useState(false);
+  const [imageSize, setImageSize] = useState({ width: 4000, height: 4000 });
+  const svgRef = useRef(null);
+  
+  // Load image to get real dimensions
+  useEffect(() => {
+    const img = new Image();
+    img.onload = () => {
+      setImageSize({ width: img.width, height: img.height });
+      setImageLoaded(true);
+    };
+    img.src = PLAYER_MAP_URL;
+  }, []);
   
   if (!origenCoords || !destinoCoords) return null;
   
-  // Calculate view box to show route with padding
-  const padding = 200;
-  const minX = Math.min(origenCoords.x, destinoCoords.x) - padding;
-  const minY = Math.min(origenCoords.y, destinoCoords.y) - padding;
-  const maxX = Math.max(origenCoords.x, destinoCoords.x) + padding;
-  const maxY = Math.max(origenCoords.y, destinoCoords.y) + padding;
-  const width = maxX - minX;
-  const height = maxY - minY;
+  // The location coordinates are stored as percentages (0-100)
+  // Convert them to image coordinates
+  const scaleX = imageSize.width / 100;
+  const scaleY = imageSize.height / 100;
   
-  // Scale to image coordinates (map is 5000x5000, image has different dimensions)
-  const scaleX = 4000 / MAP_WIDTH; // Approximate image/map ratio
-  const scaleY = 4000 / MAP_HEIGHT;
+  const origen = {
+    x: origenCoords.x * scaleX,
+    y: origenCoords.y * scaleY
+  };
   
-  const viewBox = `${minX * scaleX} ${minY * scaleY} ${width * scaleX} ${height * scaleY}`;
+  const destino = {
+    x: destinoCoords.x * scaleX,
+    y: destinoCoords.y * scaleY
+  };
   
-  const containerHeight = expanded ? 'h-96' : 'h-48';
+  // Calculate viewBox to show route with padding
+  const padding = Math.min(imageSize.width, imageSize.height) * 0.1; // 10% padding
+  const minX = Math.max(0, Math.min(origen.x, destino.x) - padding);
+  const minY = Math.max(0, Math.min(origen.y, destino.y) - padding);
+  const maxX = Math.min(imageSize.width, Math.max(origen.x, destino.x) + padding);
+  const maxY = Math.min(imageSize.height, Math.max(origen.y, destino.y) + padding);
+  
+  // Ensure minimum viewBox size
+  let width = Math.max(maxX - minX, padding * 3);
+  let height = Math.max(maxY - minY, padding * 3);
+  
+  // Make viewBox square-ish for better presentation
+  const aspect = width / height;
+  if (aspect > 1.5) {
+    // Too wide, increase height
+    const extraHeight = (width / 1.5) - height;
+    height += extraHeight;
+  } else if (aspect < 0.67) {
+    // Too tall, increase width
+    const extraWidth = (height * 0.67) - width;
+    width += extraWidth;
+  }
+  
+  const viewBox = `${minX} ${minY} ${width} ${height}`;
+  const containerHeight = expanded ? 'h-96' : 'h-56';
   
   return (
     <Card className="card-parchment overflow-hidden">
@@ -149,92 +185,99 @@ const JourneyMiniMap = ({ origenCoords, destinoCoords, origenNombre, destinoNomb
           </Button>
         )}
       </CardHeader>
-      <CardContent className="p-0">
-        <div className={`relative ${containerHeight} bg-black/20`}>
-          <svg 
-            viewBox={viewBox}
-            className="w-full h-full"
-            style={{ backgroundColor: '#1a1a1a' }}
-          >
-            {/* Map image as background */}
-            <image
-              href={PLAYER_MAP_URL}
-              x="0"
-              y="0"
-              width={MAP_WIDTH * scaleX}
-              height={MAP_HEIGHT * scaleY}
+      <CardContent className="p-2">
+        <div className={`relative ${containerHeight} rounded overflow-hidden border border-border/30`}>
+          {!imageLoaded ? (
+            <div className="w-full h-full flex items-center justify-center bg-black/40">
+              <div className="animate-spin w-6 h-6 border-2 border-[hsl(var(--gold))] border-t-transparent rounded-full"></div>
+            </div>
+          ) : (
+            <svg 
+              ref={svgRef}
+              viewBox={viewBox}
+              className="w-full h-full"
               preserveAspectRatio="xMidYMid slice"
-              onLoad={() => setImageLoaded(true)}
-            />
-            
-            {imageLoaded && (
-              <>
-                {/* Route line shadow */}
-                <line
-                  x1={origenCoords.x * scaleX}
-                  y1={origenCoords.y * scaleY}
-                  x2={destinoCoords.x * scaleX}
-                  y2={destinoCoords.y * scaleY}
-                  stroke="rgba(0,0,0,0.6)"
-                  strokeWidth="8"
-                  strokeLinecap="round"
-                />
-                {/* Route line */}
-                <line
-                  x1={origenCoords.x * scaleX}
-                  y1={origenCoords.y * scaleY}
-                  x2={destinoCoords.x * scaleX}
-                  y2={destinoCoords.y * scaleY}
-                  stroke="#22c55e"
-                  strokeWidth="4"
-                  strokeLinecap="round"
-                  strokeDasharray="15,8"
-                />
-                
-                {/* Origin marker */}
-                <circle
-                  cx={origenCoords.x * scaleX}
-                  cy={origenCoords.y * scaleY}
-                  r="16"
-                  fill="#22c55e"
-                  stroke="white"
-                  strokeWidth="3"
-                />
-                <text
-                  x={origenCoords.x * scaleX}
-                  y={origenCoords.y * scaleY - 25}
-                  fill="white"
-                  fontSize="14"
-                  fontWeight="bold"
-                  textAnchor="middle"
-                  style={{ textShadow: '2px 2px 4px black' }}
-                >
-                  {origenNombre}
-                </text>
-                
-                {/* Destination marker */}
-                <circle
-                  cx={destinoCoords.x * scaleX}
-                  cy={destinoCoords.y * scaleY}
-                  r="16"
-                  fill="#ef4444"
-                  stroke="white"
-                  strokeWidth="3"
-                />
-                <text
-                  x={destinoCoords.x * scaleX}
-                  y={destinoCoords.y * scaleY - 25}
-                  fill="white"
-                  fontSize="14"
-                  fontWeight="bold"
-                  textAnchor="middle"
-                  style={{ textShadow: '2px 2px 4px black' }}
-                >
-                  {destinoNombre}
-                </text>
-              </>
-            )}
-          </svg>
+            >
+              {/* Map image as background */}
+              <image
+                href={PLAYER_MAP_URL}
+                x="0"
+                y="0"
+                width={imageSize.width}
+                height={imageSize.height}
+                preserveAspectRatio="none"
+              />
+              
+              {/* Route line shadow */}
+              <line
+                x1={origen.x}
+                y1={origen.y}
+                x2={destino.x}
+                y2={destino.y}
+                stroke="rgba(0,0,0,0.7)"
+                strokeWidth={width * 0.008}
+                strokeLinecap="round"
+              />
+              
+              {/* Route line */}
+              <line
+                x1={origen.x}
+                y1={origen.y}
+                x2={destino.x}
+                y2={destino.y}
+                stroke="#22c55e"
+                strokeWidth={width * 0.004}
+                strokeLinecap="round"
+                strokeDasharray={`${width * 0.02},${width * 0.01}`}
+              />
+              
+              {/* Origin marker */}
+              <circle
+                cx={origen.x}
+                cy={origen.y}
+                r={width * 0.015}
+                fill="#22c55e"
+                stroke="white"
+                strokeWidth={width * 0.003}
+              />
+              
+              {/* Destination marker */}
+              <circle
+                cx={destino.x}
+                cy={destino.y}
+                r={width * 0.015}
+                fill="#ef4444"
+                stroke="white"
+                strokeWidth={width * 0.003}
+              />
+              
+              {/* Origin label - position below marker if close to top */}
+              <text
+                x={origen.x}
+                y={origen.y + width * 0.035}
+                fill="white"
+                fontSize={width * 0.025}
+                fontWeight="bold"
+                textAnchor="middle"
+                style={{ textShadow: '2px 2px 4px black, -1px -1px 2px black' }}
+              >
+                {origenNombre}
+              </text>
+              
+              {/* Destination label */}
+              <text
+                x={destino.x}
+                y={destino.y + width * 0.035}
+                fill="white"
+                fontSize={width * 0.025}
+                fontWeight="bold"
+                textAnchor="middle"
+                style={{ textShadow: '2px 2px 4px black, -1px -1px 2px black' }}
+              >
+                {destinoNombre}
+              </text>
+            </svg>
+          )}
           
           {/* Legend */}
           <div className="absolute bottom-2 left-2 bg-black/70 rounded px-2 py-1 text-xs flex gap-3">
