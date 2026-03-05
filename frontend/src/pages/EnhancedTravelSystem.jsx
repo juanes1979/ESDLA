@@ -58,10 +58,38 @@ const ROLE_ICONS = {
 };
 
 const ROLE_INFO = {
-  guia: { nombre: 'Guía', desc: 'Ruta, descanso, suministros', habilidad: 'Viajar (Sab)', atributo: 'sabiduria' },
-  cazador: { nombre: 'Cazador', desc: 'Encontrar comida', habilidad: 'Cazar (Sab)', atributo: 'sabiduria' },
-  vigia: { nombre: 'Vigía', desc: 'Vigilancia', habilidad: 'Percepción (Sab)', atributo: 'sabiduria' },
-  explorador: { nombre: 'Explorador', desc: 'Campamento, caminos', habilidad: 'Explorar (Sab)', atributo: 'sabiduria' }
+  guia: { 
+    nombre: 'Guía', 
+    desc: 'A cargo de todas las decisiones relativas a la ruta, el descanso y los suministros.', 
+    habilidad: 'Viajar',
+    habilidad_key: 'viajar',
+    atributo: 'sabiduria',
+    atributo_nombre: 'Sabiduría'
+  },
+  cazador: { 
+    nombre: 'Cazador', 
+    desc: 'Encargado de encontrar comida en la naturaleza.', 
+    habilidad: 'Caza',
+    habilidad_key: 'caza',
+    atributo: 'sabiduria',
+    atributo_nombre: 'Sabiduría'
+  },
+  vigia: { 
+    nombre: 'Vigía', 
+    desc: 'Responsable de la vigilancia.', 
+    habilidad: 'Percepción',
+    habilidad_key: 'percepcion',
+    atributo: 'sabiduria',
+    atributo_nombre: 'Sabiduría'
+  },
+  explorador: { 
+    nombre: 'Explorador', 
+    desc: 'Encargado de montar el campamento y de abrir nuevos caminos.', 
+    habilidad: 'Explorar',
+    habilidad_key: 'explorar',
+    atributo: 'sabiduria',
+    atributo_nombre: 'Sabiduría'
+  }
 };
 
 const EnhancedTravelSystem = () => {
@@ -521,6 +549,44 @@ const EnhancedTravelSystem = () => {
     }));
   };
   
+  const addMemberWithRole = (charId, role) => {
+    const char = characters.find(c => c.id === charId);
+    if (!char) return;
+    
+    // Remove any existing member with this role
+    let newMiembros = config.miembros.map(m => 
+      m.papel === role ? { ...m, papel: null } : m
+    );
+    
+    // Check if character is already in the group
+    const existingMember = newMiembros.find(m => m.id === charId);
+    
+    if (existingMember) {
+      // Just update their role
+      newMiembros = newMiembros.map(m => 
+        m.id === charId ? { ...m, papel: role } : m
+      );
+    } else {
+      // Add new member with role
+      newMiembros = [...newMiembros, {
+        id: char.id,
+        nombre: char.nombre,
+        papel: role,
+        tieneMontura: false,
+        monturaNombre: null,
+        monturaConBonus: 0,
+        modSabiduria: Math.floor(((char.atributos?.sabiduria || 10) - 10) / 2),
+        competencias: char.habilidades || [],
+        nivel: char.nivel || 1
+      }];
+    }
+    
+    setConfig(prev => ({
+      ...prev,
+      miembros: newMiembros
+    }));
+  };
+  
   const removeMember = (charId) => {
     setConfig(prev => ({
       ...prev,
@@ -814,103 +880,196 @@ const EnhancedTravelSystem = () => {
         </CardContent>
       </Card>
       
-      {/* Party Members */}
+      {/* Party Roles - 4 Independent Fields */}
       <Card className="card-parchment">
         <CardHeader className="pb-2">
           <CardTitle className="text-lg text-[hsl(var(--magic-blue))]">
             <Users className="w-5 h-5 inline mr-2" />
-            Miembros del Grupo
+            Papeles de Viaje
           </CardTitle>
+          <p className="text-sm text-muted-foreground">
+            Asigna un personaje a cada papel. Se mostrará su bonificador relevante para el papel.
+          </p>
         </CardHeader>
         <CardContent className="space-y-4">
-          {/* Add member */}
-          <div className="flex gap-2">
-            <Select onValueChange={addMember}>
-              <SelectTrigger className="flex-1">
-                <SelectValue placeholder="Añadir personaje al grupo..." />
-              </SelectTrigger>
-              <SelectContent>
-                {characters.filter(c => !config.miembros.some(m => m.id === c.id)).map(char => (
-                  <SelectItem key={char.id} value={char.id}>
-                    {char.nombre} - Nv.{char.nivel || 1}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          
-          {/* Member list */}
-          {config.miembros.length === 0 ? (
-            <p className="text-center text-muted-foreground py-4">
-              No hay miembros en el grupo. Añade personajes para continuar.
-            </p>
-          ) : (
-            <div className="space-y-3">
-              {config.miembros.map((member) => (
-                <Card key={member.id} className={`p-3 ${member.papel ? 'border-green-500/50' : 'border-yellow-500/50'}`}>
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center gap-2">
-                      <span className="font-bold text-[hsl(var(--gold))]">{member.nombre}</span>
-                      <Badge variant="outline">Nv.{member.nivel}</Badge>
-                      {member.papel && (
-                        <Badge className="bg-green-600">{ROLE_INFO[member.papel]?.nombre}</Badge>
-                      )}
+          {/* Role Assignment Cards */}
+          <div className="grid md:grid-cols-2 gap-4">
+            {Object.entries(ROLE_INFO).map(([roleKey, roleInfo]) => {
+              const assignedMember = config.miembros.find(m => m.papel === roleKey);
+              
+              // Calculate bonus for each character for this role
+              const getCharBonus = (char) => {
+                if (!char) return { total: 0, atributo: 0, habilidad: 0, competente: false };
+                const atributoVal = char.atributos?.[roleInfo.atributo] || 10;
+                const atributoMod = Math.floor((atributoVal - 10) / 2);
+                const competencias = char.habilidades || [];
+                const esCompetente = competencias.some(h => 
+                  h.toLowerCase().includes(roleInfo.habilidad_key) ||
+                  roleInfo.habilidad_key.includes(h.toLowerCase())
+                );
+                const profBonus = esCompetente ? Math.ceil((char.nivel || 1) / 4) + 1 : 0;
+                return {
+                  total: atributoMod + profBonus,
+                  atributo: atributoMod,
+                  habilidad: profBonus,
+                  competente: esCompetente
+                };
+              };
+              
+              return (
+                <Card 
+                  key={roleKey} 
+                  className={`p-4 ${assignedMember ? 'border-green-500/50 bg-green-900/10' : 'border-border/50'}`}
+                >
+                  {/* Role Header */}
+                  <div className="flex items-center gap-2 mb-2">
+                    <div className={`p-2 rounded-full ${
+                      roleKey === 'guia' ? 'bg-blue-600' :
+                      roleKey === 'cazador' ? 'bg-orange-600' :
+                      roleKey === 'vigia' ? 'bg-purple-600' :
+                      'bg-green-600'
+                    }`}>
+                      {ROLE_ICONS[roleKey]}
                     </div>
-                    <Button size="sm" variant="ghost" onClick={() => removeMember(member.id)}>
-                      <X className="w-4 h-4 text-red-400" />
-                    </Button>
+                    <div>
+                      <h4 className="font-bold text-[hsl(var(--gold))]">{roleInfo.nombre}</h4>
+                      <p className="text-xs text-muted-foreground">
+                        {roleInfo.atributo_nombre} ({roleInfo.habilidad})
+                      </p>
+                    </div>
                   </div>
                   
-                  <div className="grid grid-cols-2 gap-2">
-                    <div>
-                      <Label className="text-xs">Papel de Viaje</Label>
-                      <Select value={member.papel || '_none_'} onValueChange={(v) => updateMemberRole(member.id, v === '_none_' ? null : v)}>
-                        <SelectTrigger className="h-8">
-                          <SelectValue placeholder="Sin asignar" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="_none_">Sin asignar</SelectItem>
-                          {Object.entries(ROLE_INFO).map(([key, info]) => (
-                            <SelectItem key={key} value={key}>
-                              <div className="flex items-center gap-2">
-                                {ROLE_ICONS[key]}
-                                {info.nombre}
+                  {/* Role Description */}
+                  <p className="text-xs text-muted-foreground mb-3 italic">
+                    {roleInfo.desc}
+                  </p>
+                  
+                  {/* Character Selection */}
+                  <div className="space-y-2">
+                    <Label className="text-xs">Personaje asignado</Label>
+                    <Select 
+                      value={assignedMember?.id || '_none_'} 
+                      onValueChange={(charId) => {
+                        if (charId === '_none_') {
+                          // Remove from this role
+                          if (assignedMember) {
+                            updateMemberRole(assignedMember.id, null);
+                          }
+                        } else {
+                          // First remove any existing role for this character
+                          const existingMember = config.miembros.find(m => m.id === charId);
+                          if (existingMember) {
+                            updateMemberRole(charId, roleKey);
+                          } else {
+                            // Add new member with this role
+                            addMemberWithRole(charId, roleKey);
+                          }
+                        }
+                      }}
+                    >
+                      <SelectTrigger className="h-10">
+                        <SelectValue placeholder="Seleccionar personaje">
+                          {assignedMember ? (
+                            <div className="flex items-center justify-between w-full">
+                              <span>{assignedMember.nombre}</span>
+                              <Badge className="ml-2 bg-[hsl(var(--gold))] text-black">
+                                +{getCharBonus(characters.find(c => c.id === assignedMember.id)).total}
+                              </Badge>
+                            </div>
+                          ) : (
+                            <span className="text-muted-foreground">Sin asignar</span>
+                          )}
+                        </SelectValue>
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="_none_">
+                          <span className="text-muted-foreground">Sin asignar</span>
+                        </SelectItem>
+                        {characters.map(char => {
+                          const bonus = getCharBonus(char);
+                          const isAssignedElsewhere = config.miembros.some(m => m.id === char.id && m.papel && m.papel !== roleKey);
+                          return (
+                            <SelectItem 
+                              key={char.id} 
+                              value={char.id}
+                              disabled={isAssignedElsewhere}
+                            >
+                              <div className="flex items-center justify-between w-full gap-4">
+                                <span className={isAssignedElsewhere ? 'text-muted-foreground' : ''}>
+                                  {char.nombre}
+                                </span>
+                                <div className="flex items-center gap-2">
+                                  {bonus.competente && (
+                                    <Badge variant="outline" className="text-xs bg-green-900/30 border-green-500/50">
+                                      {roleInfo.habilidad}
+                                    </Badge>
+                                  )}
+                                  <Badge className={`${
+                                    bonus.total >= 5 ? 'bg-green-600' :
+                                    bonus.total >= 2 ? 'bg-yellow-600' :
+                                    'bg-red-600'
+                                  }`}>
+                                    {bonus.total >= 0 ? '+' : ''}{bonus.total}
+                                  </Badge>
+                                </div>
                               </div>
                             </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
+                          );
+                        })}
+                      </SelectContent>
+                    </Select>
                     
-                    <div>
-                      <Label className="text-xs">Montura</Label>
-                      <Select 
-                        value={member.monturaNombre || 'A pie'} 
-                        onValueChange={(v) => updateMemberMount(member.id, v)}
-                      >
-                        <SelectTrigger className="h-8">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="A pie">A pie</SelectItem>
-                          {monturas.map(m => (
-                            <SelectItem key={m.nombre} value={m.nombre}>
-                              {m.nombre} {m.mod_con > 0 && `(+${m.mod_con} CON)`}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
+                    {/* Mount selection for assigned member */}
+                    {assignedMember && (
+                      <div className="mt-2">
+                        <Label className="text-xs">Montura</Label>
+                        <Select 
+                          value={assignedMember.monturaNombre || 'A pie'} 
+                          onValueChange={(v) => updateMemberMount(assignedMember.id, v)}
+                        >
+                          <SelectTrigger className="h-8">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="A pie">A pie</SelectItem>
+                            {monturas.map(m => (
+                              <SelectItem key={m.nombre} value={m.nombre}>
+                                {m.nombre} {m.mod_con > 0 && `(+${m.mod_con} CON)`}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
                   </div>
                 </Card>
-              ))}
-            </div>
-          )}
+              );
+            })}
+          </div>
           
-          {/* Role warnings */}
-          {config.miembros.length > 0 && !config.miembros.some(m => m.papel === 'guia') && (
+          {/* Summary of assigned roles */}
+          <div className="pt-4 border-t border-border/30">
+            <div className="flex flex-wrap gap-2">
+              {Object.entries(ROLE_INFO).map(([roleKey, roleInfo]) => {
+                const assigned = config.miembros.find(m => m.papel === roleKey);
+                return (
+                  <Badge 
+                    key={roleKey}
+                    className={assigned ? 'bg-green-600' : 'bg-red-600/50'}
+                  >
+                    {ROLE_ICONS[roleKey]}
+                    <span className="ml-1">{roleInfo.nombre}:</span>
+                    <span className="ml-1">{assigned ? assigned.nombre : 'Vacante'}</span>
+                  </Badge>
+                );
+              })}
+            </div>
+          </div>
+          
+          {/* Warning if no guide */}
+          {!config.miembros.some(m => m.papel === 'guia') && (
             <div className="p-2 bg-yellow-900/30 rounded border border-yellow-500/50 text-sm text-yellow-400">
-              ⚠️ No hay ningún Guía asignado. Se requiere al menos uno.
+              ⚠️ No hay ningún Guía asignado. Se requiere al menos uno para iniciar el viaje.
             </div>
           )}
         </CardContent>

@@ -253,22 +253,134 @@ DEFAULT_TRAVEL_EVENTS = [
 DEFAULT_EVENT_OBJECTIVES = [
     {"id": "obj_explorador", "d3_value": 1, "papel": "explorador", "prueba": "Sabiduría (Explorar)", "atributo": "sabiduria", "habilidad": "explorar"},
     {"id": "obj_vigia", "d3_value": 2, "papel": "vigia", "prueba": "Sabiduría (Percepción)", "atributo": "sabiduria", "habilidad": "percepcion"},
-    {"id": "obj_cazador", "d3_value": 3, "papel": "cazador", "prueba": "Sabiduría (Cazar)", "atributo": "sabiduria", "habilidad": "cazar"}
+    {"id": "obj_cazador", "d3_value": 3, "papel": "cazador", "prueba": "Sabiduría (Caza)", "atributo": "sabiduria", "habilidad": "caza"}
 ]
 
+# Terrain difficulties (dificultad del terreno - columna izquierda de la imagen)
 DEFAULT_TERRAIN_DIFFICULTIES = [
-    {"id": "terrain_dificil", "tipo": "dificil", "nombre": "Terreno Difícil", "cd_prueba": 20, "modificador_velocidad": 0.5, "permite_montura": False},
-    {"id": "terrain_camino", "tipo": "camino", "nombre": "Camino", "cd_prueba": 10, "modificador_velocidad": 1.25, "permite_montura": True},
-    {"id": "terrain_campo", "tipo": "campo_abierto", "nombre": "Campo Abierto", "cd_prueba": 15, "modificador_velocidad": 1.0, "permite_montura": True}
+    {"id": "terrain_facil", "tipo": "facil", "nombre": "Fácil", "cd_prueba": 10, "modificador_velocidad": 1.25, "permite_montura": True, "color": "#E8DCC4"},
+    {"id": "terrain_moderado", "tipo": "moderado", "nombre": "Moderado", "cd_prueba": 12, "modificador_velocidad": 1.0, "permite_montura": True, "color": "#B5A642"},
+    {"id": "terrain_dificil", "tipo": "dificil", "nombre": "Difícil", "cd_prueba": 15, "modificador_velocidad": 0.75, "permite_montura": True, "color": "#C4A35A"},
+    {"id": "terrain_muy_dificil", "tipo": "muy_dificil", "nombre": "Muy Difícil", "cd_prueba": 18, "modificador_velocidad": 0.5, "permite_montura": False, "color": "#8B6914"},
+    {"id": "terrain_desalentador", "tipo": "desalentador", "nombre": "Desalentador", "cd_prueba": 20, "modificador_velocidad": 0.25, "permite_montura": False, "color": "#CD5C5C"}
 ]
 
-DEFAULT_LAND_TYPES = [
-    {"id": "land_libres", "tipo": "tierras_libres", "nombre": "Tierras Libres", "ventaja_acontecimientos": True, "desventaja_acontecimientos": False, "px_camino": 0, "px_campo_abierto": 5, "px_terreno_dificil": 15, "permite_ritmo_rapido": True},
-    {"id": "land_fronterizas", "tipo": "tierras_fronterizas", "nombre": "Tierras Fronterizas", "ventaja_acontecimientos": True, "desventaja_acontecimientos": False, "px_camino": 0, "px_campo_abierto": 10, "px_terreno_dificil": 25, "permite_ritmo_rapido": True},
-    {"id": "land_salvajes", "tipo": "tierras_salvajes", "nombre": "Tierras Salvajes", "ventaja_acontecimientos": False, "desventaja_acontecimientos": False, "px_camino": 10, "px_campo_abierto": 25, "px_terreno_dificil": 50, "permite_ritmo_rapido": False},
-    {"id": "land_sombra", "tipo": "tierras_sombra", "nombre": "Tierras de la Sombra", "ventaja_acontecimientos": False, "desventaja_acontecimientos": True, "px_camino": 25, "px_campo_abierto": 50, "px_terreno_dificil": 100, "permite_ritmo_rapido": False},
-    {"id": "land_oscuras", "tipo": "tierras_oscuras", "nombre": "Tierras Oscuras", "ventaja_acontecimientos": False, "desventaja_acontecimientos": True, "px_camino": 25, "px_campo_abierto": 50, "px_terreno_dificil": 100, "permite_ritmo_rapido": False}
+# Road types (tipos de camino)
+DEFAULT_ROAD_TYPES = [
+    {"id": "road_real", "tipo": "camino_real", "nombre": "Camino Real", "cd_prueba": 8, "modificador_velocidad": 1.5, "permite_montura": True, "es_camino": True},
+    {"id": "road_senda", "tipo": "senda", "nombre": "Senda", "cd_prueba": 10, "modificador_velocidad": 1.25, "permite_montura": True, "es_camino": True},
+    {"id": "road_sendero", "tipo": "sendero", "nombre": "Sendero", "cd_prueba": 12, "modificador_velocidad": 1.1, "permite_montura": True, "es_camino": True},
+    {"id": "road_campo", "tipo": "campo_abierto", "nombre": "Campo Abierto", "cd_prueba": 15, "modificador_velocidad": 1.0, "permite_montura": True, "es_camino": False}
 ]
+
+# Land types (tipos de tierra - columna derecha de la imagen)
+# PX según la tabla del libro:
+# - Camino: 0/10/25 PX según tipo de tierra
+# - Campo abierto: 10/25/50 PX según tipo de tierra  
+# - Terreno difícil: 25/50/100 PX según tipo de tierra
+DEFAULT_LAND_TYPES = [
+    {
+        "id": "land_libres", 
+        "tipo": "tierras_libres", 
+        "nombre": "Tierras Libres", 
+        "ventaja_acontecimientos": True, 
+        "desventaja_acontecimientos": False, 
+        "px_camino": 0, 
+        "px_campo_abierto": 0, 
+        "px_terreno_dificil": 0, 
+        "permite_ritmo_rapido": True,
+        "color": "#FFFFFF",
+        "runa": "Ω"
+    },
+    {
+        "id": "land_fronterizas", 
+        "tipo": "tierras_fronterizas", 
+        "nombre": "Tierras Fronterizas", 
+        "ventaja_acontecimientos": True, 
+        "desventaja_acontecimientos": False, 
+        "px_camino": 0, 
+        "px_campo_abierto": 10, 
+        "px_terreno_dificil": 25, 
+        "permite_ritmo_rapido": True,
+        "color": "#FFFFFF",
+        "runa": "ᛉ"
+    },
+    {
+        "id": "land_salvajes", 
+        "tipo": "tierras_salvajes", 
+        "nombre": "Tierras Salvajes", 
+        "ventaja_acontecimientos": False, 
+        "desventaja_acontecimientos": False, 
+        "px_camino": 10, 
+        "px_campo_abierto": 25, 
+        "px_terreno_dificil": 50, 
+        "permite_ritmo_rapido": False,
+        "color": "#FFFFFF",
+        "runa": "ψ"
+    },
+    {
+        "id": "land_sombra", 
+        "tipo": "tierras_sombra", 
+        "nombre": "Tierras de la Sombra", 
+        "ventaja_acontecimientos": False, 
+        "desventaja_acontecimientos": True, 
+        "px_camino": 25, 
+        "px_campo_abierto": 50, 
+        "px_terreno_dificil": 100, 
+        "permite_ritmo_rapido": False,
+        "color": "#FFFFFF",
+        "runa": "λ"
+    },
+    {
+        "id": "land_oscuras", 
+        "tipo": "tierras_oscuras", 
+        "nombre": "Tierras Oscuras", 
+        "ventaja_acontecimientos": False, 
+        "desventaja_acontecimientos": True, 
+        "px_camino": 25, 
+        "px_campo_abierto": 50, 
+        "px_terreno_dificil": 100, 
+        "permite_ritmo_rapido": False,
+        "color": "#FFFFFF",
+        "runa": "Ω"
+    }
+]
+
+# Complete PX Table (editable matrix)
+DEFAULT_PX_TABLE = {
+    "id": "px_table_main",
+    "nombre": "Tabla de PX por Viaje",
+    "descripcion": "Al cruzar un área peligrosa, cuenta un número de casillas igual a la puntuación de Peligro del área.",
+    "filas": [
+        {
+            "tipo_terreno": "camino",
+            "nombre": "...un camino",
+            "tierras_libres": 0,
+            "tierras_fronterizas": 0,
+            "tierras_salvajes": 10,
+            "tierras_sombra": 25,
+            "tierras_oscuras": 25
+        },
+        {
+            "tipo_terreno": "campo_abierto", 
+            "nombre": "...campo abierto",
+            "tierras_libres": 0,
+            "tierras_fronterizas": 10,
+            "tierras_salvajes": 25,
+            "tierras_sombra": 50,
+            "tierras_oscuras": 50
+        },
+        {
+            "tipo_terreno": "terreno_dificil",
+            "nombre": "...terreno difícil",
+            "tierras_libres": 0,
+            "tierras_fronterizas": 25,
+            "tierras_salvajes": 50,
+            "tierras_sombra": 100,
+            "tierras_oscuras": 100
+        }
+    ]
+}
 
 # ============== HELPER FUNCTIONS ==============
 
@@ -320,6 +432,23 @@ async def get_land_types() -> List[dict]:
             await db.travel_land_types.insert_one(land)
         return DEFAULT_LAND_TYPES
     return lands
+
+async def get_road_types() -> List[dict]:
+    """Get road types from DB or return defaults"""
+    roads = await db.travel_road_types.find({}, {"_id": 0}).to_list(10)
+    if not roads:
+        for road in DEFAULT_ROAD_TYPES:
+            await db.travel_road_types.insert_one(road)
+        return DEFAULT_ROAD_TYPES
+    return roads
+
+async def get_px_table() -> dict:
+    """Get PX table from DB or return defaults"""
+    px_table = await db.travel_px_table.find_one({"id": "px_table_main"}, {"_id": 0})
+    if not px_table:
+        await db.travel_px_table.insert_one(DEFAULT_PX_TABLE)
+        return DEFAULT_PX_TABLE
+    return px_table
 
 async def get_travel_rules() -> dict:
     """Get travel rules config from DB or return defaults"""
@@ -430,6 +559,39 @@ async def update_rules_config(rules: TravelRulesConfig):
         upsert=True
     )
     return {"success": True, "rules": rules_dict}
+
+@router.get("/config/road-types")
+async def get_road_types_config():
+    """Get road types"""
+    roads = await get_road_types()
+    return {"road_types": roads}
+
+@router.put("/config/road-types/{road_id}")
+async def update_road_type(road_id: str, road: dict):
+    """Update road type"""
+    result = await db.travel_road_types.update_one(
+        {"id": road_id},
+        {"$set": road},
+        upsert=True
+    )
+    return {"success": True, "modified": result.modified_count}
+
+@router.get("/config/px-table")
+async def get_px_table_config():
+    """Get PX table (editable matrix)"""
+    px_table = await get_px_table()
+    return {"px_table": px_table}
+
+@router.put("/config/px-table")
+async def update_px_table_config(px_table: dict):
+    """Update PX table"""
+    px_table['id'] = "px_table_main"
+    result = await db.travel_px_table.update_one(
+        {"id": "px_table_main"},
+        {"$set": px_table},
+        upsert=True
+    )
+    return {"success": True}
 
 # ============== JOURNEY CALCULATION ENDPOINTS ==============
 

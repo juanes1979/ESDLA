@@ -25,6 +25,8 @@ const TravelRulesSection = () => {
   const [objectives, setObjectives] = useState([]);
   const [terrains, setTerrains] = useState([]);
   const [landTypes, setLandTypes] = useState([]);
+  const [roadTypes, setRoadTypes] = useState([]);
+  const [pxTable, setPxTable] = useState(null);
   const [rules, setRules] = useState(null);
   
   const [loading, setLoading] = useState(true);
@@ -32,16 +34,20 @@ const TravelRulesSection = () => {
   const [editingEvent, setEditingEvent] = useState(null);
   const [editingTerrain, setEditingTerrain] = useState(null);
   const [editingLand, setEditingLand] = useState(null);
+  const [editingRoad, setEditingRoad] = useState(null);
+  const [editingPxTable, setEditingPxTable] = useState(false);
   
   // Load all configurations
   useEffect(() => {
     const loadData = async () => {
       try {
-        const [eventsRes, objectivesRes, terrainsRes, landRes, rulesRes] = await Promise.all([
+        const [eventsRes, objectivesRes, terrainsRes, landRes, roadRes, pxRes, rulesRes] = await Promise.all([
           api.get('/travel/config/events'),
           api.get('/travel/config/objectives'),
           api.get('/travel/config/terrains'),
           api.get('/travel/config/land-types'),
+          api.get('/travel/config/road-types'),
+          api.get('/travel/config/px-table'),
           api.get('/travel/config/rules')
         ]);
         
@@ -49,6 +55,8 @@ const TravelRulesSection = () => {
         setObjectives(objectivesRes.data?.objectives || []);
         setTerrains(terrainsRes.data?.terrains || []);
         setLandTypes(landRes.data?.land_types || []);
+        setRoadTypes(roadRes.data?.road_types || []);
+        setPxTable(pxRes.data?.px_table || null);
         setRules(rulesRes.data?.rules || {});
       } catch (err) {
         console.error('Error loading travel config:', err);
@@ -143,18 +151,24 @@ const TravelRulesSection = () => {
         </CardHeader>
         <CardContent>
           <Tabs defaultValue="events" className="w-full">
-            <TabsList className="grid w-full grid-cols-4 mb-4">
+            <TabsList className="grid w-full grid-cols-6 mb-4">
               <TabsTrigger value="events" data-testid="tab-events">
                 <AlertTriangle className="w-4 h-4 mr-1" /> Acontecimientos
               </TabsTrigger>
               <TabsTrigger value="terrains" data-testid="tab-terrains">
                 <Mountain className="w-4 h-4 mr-1" /> Terrenos
               </TabsTrigger>
+              <TabsTrigger value="roads" data-testid="tab-roads">
+                <Footprints className="w-4 h-4 mr-1" /> Caminos
+              </TabsTrigger>
               <TabsTrigger value="lands" data-testid="tab-lands">
-                <Map className="w-4 h-4 mr-1" /> Tipos de Tierra
+                <Map className="w-4 h-4 mr-1" /> Tierras
+              </TabsTrigger>
+              <TabsTrigger value="pxtable" data-testid="tab-pxtable">
+                <Compass className="w-4 h-4 mr-1" /> Tabla PX
               </TabsTrigger>
               <TabsTrigger value="rules" data-testid="tab-rules">
-                <Footprints className="w-4 h-4 mr-1" /> Reglas
+                <Save className="w-4 h-4 mr-1" /> Reglas
               </TabsTrigger>
             </TabsList>
             
@@ -496,6 +510,254 @@ const TravelRulesSection = () => {
                     )}
                   </Card>
                 ))}
+              </div>
+            </TabsContent>
+            
+            {/* ROADS TAB */}
+            <TabsContent value="roads">
+              <div className="space-y-3">
+                <p className="text-sm text-muted-foreground mb-4">
+                  Tipos de camino y sus modificadores de velocidad y CD.
+                </p>
+                {roadTypes.map((road) => (
+                  <Card key={road.id} className="p-4 border-border/50">
+                    {editingRoad?.id === road.id ? (
+                      <div className="space-y-3">
+                        <div className="grid grid-cols-4 gap-2">
+                          <div>
+                            <Label className="text-xs">Nombre</Label>
+                            <Input
+                              value={editingRoad.nombre}
+                              onChange={(e) => setEditingRoad({...editingRoad, nombre: e.target.value})}
+                            />
+                          </div>
+                          <div>
+                            <Label className="text-xs">CD Prueba</Label>
+                            <Input
+                              type="number"
+                              value={editingRoad.cd_prueba}
+                              onChange={(e) => setEditingRoad({...editingRoad, cd_prueba: parseInt(e.target.value)})}
+                            />
+                          </div>
+                          <div>
+                            <Label className="text-xs">Mod. Velocidad</Label>
+                            <Input
+                              type="number"
+                              step="0.1"
+                              value={editingRoad.modificador_velocidad}
+                              onChange={(e) => setEditingRoad({...editingRoad, modificador_velocidad: parseFloat(e.target.value)})}
+                            />
+                          </div>
+                          <div className="flex items-end gap-2">
+                            <div className="flex items-center gap-2">
+                              <Switch
+                                checked={editingRoad.permite_montura}
+                                onCheckedChange={(v) => setEditingRoad({...editingRoad, permite_montura: v})}
+                              />
+                              <Label className="text-xs">Montura</Label>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex gap-2">
+                          <Button size="sm" onClick={async () => {
+                            setSaving(true);
+                            try {
+                              await api.put(`/travel/config/road-types/${editingRoad.id}`, editingRoad);
+                              setRoadTypes(prev => prev.map(r => r.id === editingRoad.id ? editingRoad : r));
+                              setEditingRoad(null);
+                              toast.success('Camino guardado');
+                            } catch (err) {
+                              toast.error('Error al guardar');
+                            } finally {
+                              setSaving(false);
+                            }
+                          }} disabled={saving}>
+                            <Check className="w-4 h-4 mr-1" /> Guardar
+                          </Button>
+                          <Button size="sm" variant="outline" onClick={() => setEditingRoad(null)}>
+                            <X className="w-4 h-4 mr-1" /> Cancelar
+                          </Button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex justify-between items-center">
+                        <div className="flex items-center gap-4">
+                          <span className="font-bold text-[hsl(var(--gold))]">{road.nombre}</span>
+                          <Badge variant="outline">CD {road.cd_prueba}</Badge>
+                          <Badge className={road.modificador_velocidad > 1 ? 'bg-green-600' : road.modificador_velocidad < 1 ? 'bg-red-600' : 'bg-yellow-600'}>
+                            ×{road.modificador_velocidad} vel.
+                          </Badge>
+                          {road.es_camino && <Badge className="bg-blue-600">Camino</Badge>}
+                          {!road.permite_montura && <Badge className="bg-yellow-600">Sin montura</Badge>}
+                        </div>
+                        <Button size="sm" variant="ghost" onClick={() => setEditingRoad({...road})}>
+                          <Edit className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    )}
+                  </Card>
+                ))}
+              </div>
+            </TabsContent>
+            
+            {/* PX TABLE TAB */}
+            <TabsContent value="pxtable">
+              <div className="space-y-4">
+                <p className="text-sm text-muted-foreground mb-4">
+                  Tabla de puntos de experiencia por casilla según tipo de terreno y tipo de tierra.
+                </p>
+                
+                {pxTable && (
+                  <div className="overflow-x-auto">
+                    <table className="w-full border-collapse">
+                      <thead>
+                        <tr className="bg-black/30">
+                          <th className="p-2 border border-border/50 text-left text-[hsl(var(--gold))]">
+                            Por cada casilla cruzada a través de...
+                          </th>
+                          <th className="p-2 border border-border/50 text-center">T. Libres</th>
+                          <th className="p-2 border border-border/50 text-center">T. Fronterizas</th>
+                          <th className="p-2 border border-border/50 text-center">T. Salvajes</th>
+                          <th className="p-2 border border-border/50 text-center">T. Sombra</th>
+                          <th className="p-2 border border-border/50 text-center">T. Oscuras</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {pxTable.filas?.map((fila, idx) => (
+                          <tr key={idx} className={idx % 2 === 0 ? 'bg-black/10' : ''}>
+                            <td className="p-2 border border-border/50 font-medium">
+                              {fila.nombre}
+                            </td>
+                            {editingPxTable ? (
+                              <>
+                                <td className="p-1 border border-border/50">
+                                  <Input
+                                    type="number"
+                                    className="w-16 h-8 text-center mx-auto"
+                                    value={fila.tierras_libres}
+                                    onChange={(e) => {
+                                      const newFilas = [...pxTable.filas];
+                                      newFilas[idx] = {...fila, tierras_libres: parseInt(e.target.value) || 0};
+                                      setPxTable({...pxTable, filas: newFilas});
+                                    }}
+                                  />
+                                </td>
+                                <td className="p-1 border border-border/50">
+                                  <Input
+                                    type="number"
+                                    className="w-16 h-8 text-center mx-auto"
+                                    value={fila.tierras_fronterizas}
+                                    onChange={(e) => {
+                                      const newFilas = [...pxTable.filas];
+                                      newFilas[idx] = {...fila, tierras_fronterizas: parseInt(e.target.value) || 0};
+                                      setPxTable({...pxTable, filas: newFilas});
+                                    }}
+                                  />
+                                </td>
+                                <td className="p-1 border border-border/50">
+                                  <Input
+                                    type="number"
+                                    className="w-16 h-8 text-center mx-auto"
+                                    value={fila.tierras_salvajes}
+                                    onChange={(e) => {
+                                      const newFilas = [...pxTable.filas];
+                                      newFilas[idx] = {...fila, tierras_salvajes: parseInt(e.target.value) || 0};
+                                      setPxTable({...pxTable, filas: newFilas});
+                                    }}
+                                  />
+                                </td>
+                                <td className="p-1 border border-border/50">
+                                  <Input
+                                    type="number"
+                                    className="w-16 h-8 text-center mx-auto"
+                                    value={fila.tierras_sombra}
+                                    onChange={(e) => {
+                                      const newFilas = [...pxTable.filas];
+                                      newFilas[idx] = {...fila, tierras_sombra: parseInt(e.target.value) || 0};
+                                      setPxTable({...pxTable, filas: newFilas});
+                                    }}
+                                  />
+                                </td>
+                                <td className="p-1 border border-border/50">
+                                  <Input
+                                    type="number"
+                                    className="w-16 h-8 text-center mx-auto"
+                                    value={fila.tierras_oscuras}
+                                    onChange={(e) => {
+                                      const newFilas = [...pxTable.filas];
+                                      newFilas[idx] = {...fila, tierras_oscuras: parseInt(e.target.value) || 0};
+                                      setPxTable({...pxTable, filas: newFilas});
+                                    }}
+                                  />
+                                </td>
+                              </>
+                            ) : (
+                              <>
+                                <td className="p-2 border border-border/50 text-center">
+                                  <Badge className={fila.tierras_libres > 0 ? 'bg-green-600' : 'bg-gray-600'}>
+                                    {fila.tierras_libres} PX
+                                  </Badge>
+                                </td>
+                                <td className="p-2 border border-border/50 text-center">
+                                  <Badge className={fila.tierras_fronterizas > 0 ? 'bg-yellow-600' : 'bg-gray-600'}>
+                                    {fila.tierras_fronterizas} PX
+                                  </Badge>
+                                </td>
+                                <td className="p-2 border border-border/50 text-center">
+                                  <Badge className="bg-orange-600">
+                                    {fila.tierras_salvajes} PX
+                                  </Badge>
+                                </td>
+                                <td className="p-2 border border-border/50 text-center">
+                                  <Badge className="bg-red-600">
+                                    {fila.tierras_sombra} PX
+                                  </Badge>
+                                </td>
+                                <td className="p-2 border border-border/50 text-center">
+                                  <Badge className="bg-purple-600">
+                                    {fila.tierras_oscuras} PX
+                                  </Badge>
+                                </td>
+                              </>
+                            )}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                    
+                    <p className="text-xs text-muted-foreground mt-3 italic">
+                      {pxTable.descripcion}
+                    </p>
+                    
+                    <div className="flex gap-2 mt-4">
+                      {editingPxTable ? (
+                        <>
+                          <Button onClick={async () => {
+                            setSaving(true);
+                            try {
+                              await api.put('/travel/config/px-table', pxTable);
+                              setEditingPxTable(false);
+                              toast.success('Tabla de PX guardada');
+                            } catch (err) {
+                              toast.error('Error al guardar');
+                            } finally {
+                              setSaving(false);
+                            }
+                          }} disabled={saving}>
+                            <Save className="w-4 h-4 mr-2" /> Guardar Tabla
+                          </Button>
+                          <Button variant="outline" onClick={() => setEditingPxTable(false)}>
+                            <X className="w-4 h-4 mr-2" /> Cancelar
+                          </Button>
+                        </>
+                      ) : (
+                        <Button onClick={() => setEditingPxTable(true)}>
+                          <Edit className="w-4 h-4 mr-2" /> Editar Tabla
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
             </TabsContent>
             
