@@ -7,7 +7,35 @@ Build a comprehensive web application to play a modified version of the "Lord of
 
 ## Current State (2026-03-05)
 
-### ✅ COMPLETED This Session - Papeles Múltiples y Monturas (NEW)
+### ✅ COMPLETED This Session - Corrección de Bugs y Nuevas Funcionalidades
+
+#### BUG FIX CRÍTICO: Guía no reconocido al iniciar viaje ✅
+**Problema:** Al seleccionar un guía y dar a "Iniciar Viaje" mostraba "no hay ninguno asignado"
+**Causa:** Se usaba `m.papel === 'guia'` en lugar de `m.papeles?.includes('guia')`
+**Corrección en:** `EnhancedTravelSystem.jsx` líneas 429 y 476 (funciones `startGlobalJourney` y `startDayByDayJourney`)
+
+#### Límite de 2 Papeles por Personaje ✅
+**Regla:** Un personaje puede tener MÁXIMO 2 papeles de viaje (con penalización -5)
+**Implementación:**
+- `MAX_ROLES_PER_CHARACTER = 2` (constante)
+- Dropdown muestra "(2/2 papeles)" cuando el personaje está al límite
+- Selección deshabilitada para personajes con 2 papeles
+- Toast error "Máximo 2 papeles por personaje" si se intenta añadir más
+
+#### Mapa del Viaje ✅
+**Nuevo componente:** `JourneyMiniMap` (líneas 117-253)
+- Muestra recorte del mapa del jugador con la ruta
+- Marcador verde para origen
+- Marcador rojo para destino
+- Línea punteada verde indicando la ruta
+- Leyenda con Origen/Destino
+- Botón de expandir/colapsar
+- Coordenadas obtenidas del backend (`origen_coords`, `destino_coords`)
+
+**Backend actualizado:** `travel_routes.py` línea 799-806
+- Endpoint `/api/travel/calculate-journey` ahora devuelve coordenadas
+
+### ✅ COMPLETED Previous Session - Papeles Múltiples y Monturas
 
 #### Sistema de Múltiples Papeles por Personaje ✅
 **Regla implementada:** Un mismo personaje puede tener varios papeles de viaje, pero sufre -5 en todas sus funciones y Percepción pasiva.
