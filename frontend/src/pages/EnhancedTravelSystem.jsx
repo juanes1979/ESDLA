@@ -23,10 +23,11 @@ import {
 import { toast } from 'sonner';
 import api from '@/services/api';
 
-// Player map URL for journey visualization
-const PLAYER_MAP_URL = 'https://customer-assets.emergentagent.com/job_909fe894-8fcc-49de-857a-11a4a3283302/artifacts/xoxpt6t9_Mapa%20jugadores.png';
-const MAP_WIDTH = 5000;
-const MAP_HEIGHT = 5000;
+// Player map URL for journey visualization - MUST match master map for correct coordinates
+const JOURNEY_MAP_URL = 'https://customer-assets.emergentagent.com/job_c7e3a7c3-5d85-46bd-b91f-9f0c34045f08/artifacts/8bm4010y_Tierra%20Media.jpg';
+// Map coordinate system (matches master map)
+const JOURNEY_MAP_WIDTH = 1000;
+const JOURNEY_MAP_HEIGHT = 900;
 
 // Elvish months with seasons
 const MESES_ELFICOS = [
@@ -114,62 +115,72 @@ const MULTI_ROLE_PENALTY = -5;
 const MAX_ROLES_PER_CHARACTER = 2;
 
 // =============== JOURNEY MAP MINI COMPONENT ===============
-const JourneyMiniMap = ({ origenCoords, destinoCoords, origenNombre, destinoNombre, expanded = false, onToggleExpand }) => {
+const JourneyMiniMap = ({ origenCoords, destinoCoords, origenNombre, destinoNombre, pathPoints, isDirectLine, expanded = false, onToggleExpand }) => {
   const [imageLoaded, setImageLoaded] = useState(false);
-  const [imageSize, setImageSize] = useState({ width: 4000, height: 4000 });
   const svgRef = useRef(null);
   
-  // Load image to get real dimensions
+  // Preload image
   useEffect(() => {
     const img = new Image();
-    img.onload = () => {
-      setImageSize({ width: img.width, height: img.height });
-      setImageLoaded(true);
-    };
-    img.src = PLAYER_MAP_URL;
+    img.onload = () => setImageLoaded(true);
+    img.src = JOURNEY_MAP_URL;
   }, []);
   
   if (!origenCoords || !destinoCoords) return null;
   
-  // The master map uses a coordinate system where:
-  // - x is 0-100 (left to right)
-  // - y is 0-100 (bottom to top) - INVERTED!
-  // We need to convert to image coordinates where y goes top to bottom
-  
-  // Convert percentage coords to image coords (with Y axis flip)
-  const percentToImage = (xPercent, yPercent) => ({
-    x: (xPercent / 100) * imageSize.width,
-    y: imageSize.height - (yPercent / 100) * imageSize.height  // Flip Y axis
+  // Convert percentage coords (0-100) to map coords
+  // Master map uses: x = (percent / 100) * MAP_WIDTH, y = MAP_HEIGHT - (percent / 100) * MAP_HEIGHT
+  const percentToMap = (xPercent, yPercent) => ({
+    x: (xPercent / 100) * JOURNEY_MAP_WIDTH,
+    y: JOURNEY_MAP_HEIGHT - (yPercent / 100) * JOURNEY_MAP_HEIGHT  // Flip Y axis
   });
   
-  const origen = percentToImage(origenCoords.x, origenCoords.y);
-  const destino = percentToImage(destinoCoords.x, destinoCoords.y);
+  const origen = percentToMap(origenCoords.x, origenCoords.y);
+  const destino = percentToMap(destinoCoords.x, destinoCoords.y);
   
-  // Calculate viewBox to show route with padding
-  const padding = Math.min(imageSize.width, imageSize.height) * 0.1; // 10% padding
-  const minX = Math.max(0, Math.min(origen.x, destino.x) - padding);
-  const minY = Math.max(0, Math.min(origen.y, destino.y) - padding);
-  const maxX = Math.min(imageSize.width, Math.max(origen.x, destino.x) + padding);
-  const maxY = Math.min(imageSize.height, Math.max(origen.y, destino.y) + padding);
+  // Convert all path points to map coordinates
+  const pathInMapCoords = (pathPoints || []).map(p => {
+    // Path points can be [x, y] arrays or {x, y} objects
+    const px = Array.isArray(p) ? p[0] : p.x;
+    const py = Array.isArray(p) ? p[1] : p.y;
+    return percentToMap(px, py);
+  });
+  
+  // If no path points, use direct line
+  const pathToRender = pathInMapCoords.length >= 2 ? pathInMapCoords : [origen, destino];
+  
+  // Calculate viewBox to show entire route with padding
+  const allX = pathToRender.map(p => p.x);
+  const allY = pathToRender.map(p => p.y);
+  
+  const padding = 50; // Fixed padding in map units
+  const minX = Math.max(0, Math.min(...allX) - padding);
+  const minY = Math.max(0, Math.min(...allY) - padding);
+  const maxX = Math.min(JOURNEY_MAP_WIDTH, Math.max(...allX) + padding);
+  const maxY = Math.min(JOURNEY_MAP_HEIGHT, Math.max(...allY) + padding);
   
   // Ensure minimum viewBox size
-  let width = Math.max(maxX - minX, padding * 3);
-  let height = Math.max(maxY - minY, padding * 3);
+  let width = Math.max(maxX - minX, 150);
+  let height = Math.max(maxY - minY, 150);
   
-  // Make viewBox square-ish for better presentation
+  // Keep aspect ratio reasonable
   const aspect = width / height;
-  if (aspect > 1.5) {
-    // Too wide, increase height
-    const extraHeight = (width / 1.5) - height;
-    height += extraHeight;
-  } else if (aspect < 0.67) {
-    // Too tall, increase width
-    const extraWidth = (height * 0.67) - width;
-    width += extraWidth;
+  if (aspect > 2.5) {
+    height = width / 2.5;
+  } else if (aspect < 0.4) {
+    width = height * 0.4;
   }
   
   const viewBox = `${minX} ${minY} ${width} ${height}`;
   const containerHeight = expanded ? 'h-96' : 'h-56';
+  
+  // Create polyline points string
+  const polylinePoints = pathToRender.map(p => `${p.x},${p.y}`).join(' ');
+  
+  // Marker and line sizes relative to viewBox
+  const markerRadius = Math.min(width, height) * 0.03;
+  const lineWidth = Math.min(width, height) * 0.015;
+  const fontSize = Math.min(width, height) * 0.04;
   
   return (
     <Card className="card-parchment overflow-hidden">
@@ -177,6 +188,9 @@ const JourneyMiniMap = ({ origenCoords, destinoCoords, origenNombre, destinoNomb
         <CardTitle className="text-sm text-[hsl(var(--gold))]">
           <Route className="w-4 h-4 inline mr-2" />
           Mapa del Viaje
+          {isDirectLine && (
+            <span className="text-xs text-yellow-400 ml-2">(ruta aproximada)</span>
+          )}
         </CardTitle>
         {onToggleExpand && (
           <Button variant="ghost" size="sm" onClick={onToggleExpand} className="h-6 w-6 p-0">
@@ -199,66 +213,64 @@ const JourneyMiniMap = ({ origenCoords, destinoCoords, origenNombre, destinoNomb
             >
               {/* Map image as background */}
               <image
-                href={PLAYER_MAP_URL}
+                href={JOURNEY_MAP_URL}
                 x="0"
                 y="0"
-                width={imageSize.width}
-                height={imageSize.height}
+                width={JOURNEY_MAP_WIDTH}
+                height={JOURNEY_MAP_HEIGHT}
                 preserveAspectRatio="none"
               />
               
-              {/* Route line shadow */}
-              <line
-                x1={origen.x}
-                y1={origen.y}
-                x2={destino.x}
-                y2={destino.y}
-                stroke="rgba(0,0,0,0.7)"
-                strokeWidth={width * 0.008}
+              {/* Route polyline shadow */}
+              <polyline
+                points={polylinePoints}
+                fill="none"
+                stroke="rgba(0,0,0,0.8)"
+                strokeWidth={lineWidth * 1.5}
                 strokeLinecap="round"
+                strokeLinejoin="round"
               />
               
-              {/* Route line */}
-              <line
-                x1={origen.x}
-                y1={origen.y}
-                x2={destino.x}
-                y2={destino.y}
-                stroke="#22c55e"
-                strokeWidth={width * 0.004}
+              {/* Route polyline */}
+              <polyline
+                points={polylinePoints}
+                fill="none"
+                stroke={isDirectLine ? "#f59e0b" : "#22c55e"}
+                strokeWidth={lineWidth}
                 strokeLinecap="round"
-                strokeDasharray={`${width * 0.02},${width * 0.01}`}
+                strokeLinejoin="round"
+                strokeDasharray={isDirectLine ? `${lineWidth * 3},${lineWidth * 1.5}` : "none"}
               />
               
               {/* Origin marker */}
               <circle
                 cx={origen.x}
                 cy={origen.y}
-                r={width * 0.015}
+                r={markerRadius}
                 fill="#22c55e"
                 stroke="white"
-                strokeWidth={width * 0.003}
+                strokeWidth={markerRadius * 0.3}
               />
               
               {/* Destination marker */}
               <circle
                 cx={destino.x}
                 cy={destino.y}
-                r={width * 0.015}
+                r={markerRadius}
                 fill="#ef4444"
                 stroke="white"
-                strokeWidth={width * 0.003}
+                strokeWidth={markerRadius * 0.3}
               />
               
-              {/* Origin label - position below marker if close to top */}
+              {/* Origin label */}
               <text
                 x={origen.x}
-                y={origen.y + width * 0.035}
+                y={origen.y + markerRadius * 2.5}
                 fill="white"
-                fontSize={width * 0.025}
+                fontSize={fontSize}
                 fontWeight="bold"
                 textAnchor="middle"
-                style={{ textShadow: '2px 2px 4px black, -1px -1px 2px black' }}
+                style={{ textShadow: '1px 1px 3px black, -1px -1px 3px black' }}
               >
                 {origenNombre}
               </text>
@@ -266,12 +278,12 @@ const JourneyMiniMap = ({ origenCoords, destinoCoords, origenNombre, destinoNomb
               {/* Destination label */}
               <text
                 x={destino.x}
-                y={destino.y + width * 0.035}
+                y={destino.y + markerRadius * 2.5}
                 fill="white"
-                fontSize={width * 0.025}
+                fontSize={fontSize}
                 fontWeight="bold"
                 textAnchor="middle"
-                style={{ textShadow: '2px 2px 4px black, -1px -1px 2px black' }}
+                style={{ textShadow: '1px 1px 3px black, -1px -1px 3px black' }}
               >
                 {destinoNombre}
               </text>
@@ -1300,9 +1312,20 @@ const EnhancedTravelSystem = () => {
                     destinoCoords={journeyCalc.ruta.destino_coords}
                     origenNombre={config.origenNombre}
                     destinoNombre={config.destinoNombre}
+                    pathPoints={journeyCalc.ruta.path}
+                    isDirectLine={journeyCalc.ruta.is_direct_line}
                     expanded={mapExpanded}
                     onToggleExpand={() => setMapExpanded(!mapExpanded)}
                   />
+                </div>
+              )}
+              
+              {/* Route warnings */}
+              {journeyCalc.ruta?.warnings?.length > 0 && (
+                <div className="mt-2 p-2 bg-yellow-900/30 rounded border border-yellow-500/30 text-sm">
+                  {journeyCalc.ruta.warnings.map((w, i) => (
+                    <p key={i} className="text-yellow-400">⚠️ {w}</p>
+                  ))}
                 </div>
               )}
             </div>

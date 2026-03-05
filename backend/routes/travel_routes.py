@@ -644,9 +644,11 @@ async def calculate_journey(config: JourneyConfig):
     
     # Try to get route from pathfinding
     route_data = None
+    path_points = []  # Full path for map display
+    path_segments = []  # Detailed segments
+    
     try:
         # Use our own db connection to get locations
-        # Note: Location IDs are stored in _id field
         start_loc = await db.locations.find_one({"_id": config.origen_id})
         end_loc = await db.locations.find_one({"_id": config.destino_id})
         
@@ -657,30 +659,107 @@ async def calculate_journey(config: JourneyConfig):
             end_loc['id'] = str(end_loc.pop('_id'))
         
         if start_loc and end_loc:
-            # Calculate distance
-            dx = end_loc.get('x', 0) - start_loc.get('x', 0)
-            dy = end_loc.get('y', 0) - start_loc.get('y', 0)
-            distance_units = (dx**2 + dy**2) ** 0.5
+            # Try to use pathfinding if map data exists
+            roads = list(await db.roads.find({}, {"_id": 0}).to_list(length=1000))
+            rivers = list(await db.rivers.find({}, {"_id": 0}).to_list(length=1000))
+            barriers = list(await db.barriers.find({}, {"_id": 0}).to_list(length=1000))
+            all_locations = list(await db.locations.find({}).to_list(length=1000))
             
-            # Convert to game units (1 unit = ~16km = 1 hex)
-            KM_PER_UNIT = 16
-            distance_km = distance_units * KM_PER_UNIT
-            casillas = max(1, round(distance_units))
+            # Clean up locations for pathfinder
+            for loc in all_locations:
+                if '_id' in loc:
+                    loc['id'] = str(loc.pop('_id'))
             
-            # Get terrain info
-            terreno = end_loc.get('terreno', 'moderado')
-            tipo_tierra = end_loc.get('tipo_tierra', 'tierras_salvajes')
+            if roads or barriers:
+                # Use pathfinding
+                from utils.pathfinding import MiddleEarthPathfinder
+                
+                pathfinder = MiddleEarthPathfinder(
+                    roads=roads,
+                    rivers=rivers,
+                    barriers=barriers,
+                    locations=all_locations
+                )
+                
+                start_coords = (start_loc.get('x', 0), start_loc.get('y', 0))
+                end_coords = (end_loc.get('x', 0), end_loc.get('y', 0))
+                
+                path_result = pathfinder.find_path(start_coords, end_coords)
+                
+                if path_result.success:
+                    # Use pathfinding results
+                    path_points = path_result.path
+                    path_segments = [
+                        {
+                            "start": {"x": seg.start[0], "y": seg.start[1]},
+                            "end": {"x": seg.end[0], "y": seg.end[1]},
+                            "distance_km": seg.distance_km,
+                            "terrain": seg.terrain,
+                            "road_type": seg.road_type,
+                            "river_crossing": seg.river_crossing
+                        }
+                        for seg in path_result.segments
+                    ]
+                    
+                    # Get dominant terrain/road from segments
+                    terrain_summary = path_result.terrain_summary
+                    dominant_terrain = max(terrain_summary.items(), key=lambda x: x[1])[0] if terrain_summary else 'moderado'
+                    
+                    # Check road usage
+                    has_road = len(path_result.roads_used) > 0
+                    
+                    route_data = {
+                        "origen": start_loc,
+                        "destino": end_loc,
+                        "distance_km": round(path_result.total_distance_km, 1),
+                        "casillas": max(1, round(path_result.total_distance_km / 16)),  # 1 casilla = 16km
+                        "terreno": dominant_terrain,
+                        "tipo_tierra": end_loc.get('clase_region', 'tierras_salvajes'),
+                        "path": path_points,
+                        "segments": path_segments,
+                        "terrain_summary": terrain_summary,
+                        "roads_used": list(path_result.roads_used),
+                        "rivers_crossed": path_result.rivers_crossed,
+                        "warnings": path_result.warnings
+                    }
             
-            route_data = {
-                "origen": start_loc,
-                "destino": end_loc,
-                "distance_km": round(distance_km, 1),
-                "casillas": casillas,
-                "terreno": terreno,
-                "tipo_tierra": tipo_tierra
-            }
+            # Fallback to direct line if no pathfinding data or pathfinding failed
+            if not route_data:
+                # Calculate distance
+                dx = end_loc.get('x', 0) - start_loc.get('x', 0)
+                dy = end_loc.get('y', 0) - start_loc.get('y', 0)
+                distance_units = (dx**2 + dy**2) ** 0.5
+                
+                # Convert to game units (1 unit = ~16km = 1 hex)
+                KM_PER_UNIT = 16
+                distance_km = distance_units * KM_PER_UNIT
+                casillas = max(1, round(distance_units))
+                
+                # Get terrain info
+                terreno = end_loc.get('terreno', 'moderado')
+                tipo_tierra = end_loc.get('tipo_tierra', 'tierras_salvajes')
+                
+                # Simple direct path
+                path_points = [
+                    (start_loc.get('x', 0), start_loc.get('y', 0)),
+                    (end_loc.get('x', 0), end_loc.get('y', 0))
+                ]
+                
+                route_data = {
+                    "origen": start_loc,
+                    "destino": end_loc,
+                    "distance_km": round(distance_km, 1),
+                    "casillas": casillas,
+                    "terreno": terreno,
+                    "tipo_tierra": tipo_tierra,
+                    "path": path_points,
+                    "is_direct_line": True,
+                    "warnings": ["Ruta directa calculada. El pathfinding detallado no está disponible."]
+                }
     except Exception as e:
         print(f"Error getting route: {e}")
+        import traceback
+        traceback.print_exc()
     
     if not route_data:
         return {"error": True, "message": "No se pudo calcular la ruta. Verifica origen y destino."}
@@ -795,7 +874,14 @@ async def calculate_journey(config: JourneyConfig):
             "tipo_tierra": route_data['tipo_tierra'],
             "tipo_tierra_nombre": land_config['nombre'],
             "tipo_via": tipo_via,
-            # Coordinates for map rendering
+            # Full path for map rendering
+            "path": route_data.get('path', []),
+            "segments": route_data.get('segments', []),
+            "terrain_summary": route_data.get('terrain_summary', {}),
+            "roads_used": route_data.get('roads_used', []),
+            "rivers_crossed": route_data.get('rivers_crossed', []),
+            "is_direct_line": route_data.get('is_direct_line', False),
+            # Coordinates for map rendering (start and end)
             "origen_coords": {
                 "x": route_data['origen'].get('x', 0),
                 "y": route_data['origen'].get('y', 0)
