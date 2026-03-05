@@ -15,6 +15,7 @@ import MiddleEarthMap from "@/pages/MiddleEarthMap";
 import MapSelectionPage from "@/pages/MapSelectionPage";
 import PlayerMap from "@/pages/PlayerMap";
 import FontDemo from "@/pages/FontDemo";
+import StoragePage from "@/pages/StoragePage";
 import { CharacterCreatorWizard } from "@/components/character-creator";
 
 function App() {
@@ -35,6 +36,7 @@ function App() {
             <Route path="/map/master" element={<MiddleEarthMap />} />
             <Route path="/map/player" element={<PlayerMap />} />
             <Route path="/font-demo" element={<FontDemo />} />
+            <Route path="/storage" element={<StoragePage />} />
           </Routes>
         </BrowserRouter>
         <Toaster />

@@ -20,7 +20,7 @@ import BackgroundEditor from '@/components/admin/BackgroundEditor';
 import OccupationEditor from '@/components/admin/OccupationEditor';
 import EquipmentEditor from '@/components/admin/EquipmentEditor';
 // Refactored rule section components
-import { SombraSection, CombateSection, SalariosSection, VariosSection, ViajeSection, ComunidadSection, NPCsSection, CriaturasSinNombreSection, BackgroundsSection, CharacterCreationSection, TerrainCorrectionTool, TradingSystemSection, VirtuesSection, ArtesSection, RecompensasSection } from '@/components/rules';
+import { SombraSection, CombateSection, SalariosSection, VariosSection, ViajeSection, ComunidadSection, NPCsSection, CriaturasSinNombreSection, BackgroundsSection, CharacterCreationSection, TerrainCorrectionTool, TradingSystemSection, VirtuesSection, ArtesSection, RecompensasSection, EquipmentSection, PriceModifiersSection, RegionsSection, CulturesSection, OccupationsSection } from '@/components/rules';
 
 const RULE_CATEGORIES = [
   { id: 'cultures', name: 'Culturas', icon: Users, color: 'gold', description: 'Las razas y pueblos de la Tierra Media' },
@@ -2923,10 +2923,16 @@ const RulesPage = () => {
 
     switch (selectedCategory) {
       case 'cultures':
-        const filteredCultures = filterData(data, searchTerm);
-        return filteredCultures?.length > 0 
-          ? filteredCultures.map(renderCultureDetail)
-          : <p className="text-muted-foreground">No se encontraron culturas</p>;
+        return (
+          <CulturesSection 
+            data={data}
+            isAdmin={isAdmin}
+            searchTerm={searchTerm}
+            onEdit={(culture) => openEditor('culture', culture)}
+            onDelete={(id, name) => handleDelete('cultures', id, name)}
+            onRefresh={reloadData}
+          />
+        );
       
       case 'backgrounds':
         return (
@@ -2938,10 +2944,15 @@ const RulesPage = () => {
         );
       
       case 'occupations':
-        const filteredOccs = filterData(data, searchTerm);
-        return filteredOccs?.length > 0 
-          ? filteredOccs.map(renderOccupationDetail)
-          : <p className="text-muted-foreground">No se encontraron ocupaciones</p>;
+        return (
+          <OccupationsSection 
+            data={data}
+            isAdmin={isAdmin}
+            searchTerm={searchTerm}
+            onEdit={(occ) => openEditor('occupation', occ)}
+            onDelete={(id, name) => handleDelete('occupations', id, name)}
+          />
+        );
       
       case 'virtues':
         return <VirtuesSection 
@@ -2959,10 +2970,17 @@ const RulesPage = () => {
         />;
       
       case 'equipment':
-        return renderEquipmentTables();
+        return <EquipmentSection 
+          data={data}
+          isAdmin={isAdmin}
+          searchTerm={searchTerm}
+          onRefresh={reloadData}
+          onOpenEquipmentEditor={() => setShowEquipmentEditor(true)}
+          availableRegions={availableRegions}
+        />;
       
       case 'price_modifiers':
-        return renderPriceModifiers();
+        return <PriceModifiersSection data={data} />;
       
       case 'trading_system':
         return <TradingSystemSection isAdmin={isAdmin} />;
@@ -3007,7 +3025,11 @@ const RulesPage = () => {
         return <CriaturasSinNombreSection />;
       
       case 'regions':
-        return renderRegions();
+        return <RegionsSection 
+          data={data}
+          isAdmin={isAdmin}
+          onRefresh={reloadData}
+        />;
       
       default:
         return null;

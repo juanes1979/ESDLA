@@ -18,3 +18,8 @@ export { default as TradingSystemSection } from './TradingSystemSection';
 export { default as VirtuesSection } from './VirtuesSection';
 export { default as ArtesSection } from './ArtesSection';
 export { default as RecompensasSection } from './RecompensasSection';
+export { default as EquipmentSection } from './EquipmentSection';
+export { default as PriceModifiersSection } from './PriceModifiersSection';
+export { default as RegionsSection } from './RegionsSection';
+export { default as CulturesSection } from './CulturesSection';
+export { default as OccupationsSection } from './OccupationsSection';

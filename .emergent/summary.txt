@@ -15,162 +15,181 @@ The user wants to build a comprehensive web application for playing a modified v
 - A full UI/UX thematic overhaul to align with a Lord of the Rings aesthetic.
 
 **PRODUCT REQUIREMENTS (New - Compra-Venta Dinámica):**
-The user has requested a new, complex, and fully editable rule system for dynamic trading.
-- **Objective:** Create a non-deterministic trading rule that calculates a dynamic fair price for an item and simulates an NPC's reaction to a player's offer.
+- **Objective:** Create a non-deterministic trading rule that calculates a dynamic fair price for an item and simulates an NPC's reaction to a player's offer. This system must be fully editable through the UI.
 - **Inputs:** Item, Region, Settlement Type, Relationship with NPC, Historical Context, Player's Offer, and Mode (Buy/Sell).
-- **Price Calculation:**
-    1.  Start with a base price from the Precios de Equipo rule.
-    2.  Apply modifiers for item blessings/rewards (+15% to +50%).
-    3.  Apply cumulative environmental modifiers for Region, Settlement Type, and Historical Context (e.g., war, famine).
-    4.  Adjust based on the player's relationship with the NPC (Hostile to Brotherhood) to determine the final  (fair price).
-- **NPC Reaction System:**
-    1.  Evaluate the percentage difference between the player's offer and the .
-    2.  Use a probabilistic system (random d100 roll modified by relationship and context) to determine the outcome.
-    3.  Outcomes: Accept, Reject, Counter-offer, or Get Angry (negatively impacting the relationship).
-    4.  Different outcome tables for Buying vs. Selling.
-- **NPC Profiles:** The system should eventually support different NPC trader profiles (Greedy, Honorable, Desperate) that alter negotiation behavior.
-- **Relationship & Memory:** The system needs to track the relationship between a specific player character and a specific NPC, with transactions affecting future interactions. The user suggested generating NPCs on the fly for locations and storing relationship data linked to them.
-- **LLM Integration:** The user expressed a strong desire to integrate an LLM to generate narrative and dynamic dialogue for the NPC's reactions.
-- **EDITABILITY:** All modifiers, percentages, thresholds, and NPC generation tables must be editable through a UI for the user to tweak and balance the system.
+- **Price Calculation:** A multi-step process involving base price, modifiers for item quality, environment, and NPC relationship to determine a final .
+- **NPC Reaction System:** A probabilistic system based on the difference between the offer and the  to determine outcomes like Accept, Reject, Counter-offer, or Get Angry.
+- **LLM Integration:** Use an LLM to generate narrative and dynamic dialogue for the NPC's reactions.
+- **EDITABILITY:** All modifiers, percentages, thresholds, and NPC generation tables must be editable through a UI.
+
+**PRODUCT REQUIREMENTS (New - File Storage & Refactoring):**
+- **GridFS Storage:** Implement a persistent file storage system using GridFS to ensure game data (like character sheets) is not lost during deployments.
+- **Hierarchical Structure:** The file storage should follow a logical hierarchy (e.g., Maestro > Campaña > Jugadores > Personajes).
+- **Major Refactoring:** Begin refactoring the monolithic frontend components, specifically  and , to improve maintainability.
 
 **User's preferred language**: Español
 
 **what currently exists?**
-The application is a feature-rich tool for a Lord of the Rings TTRPG. Key functionalities include:
-- A consistent, thematic UI with custom fonts and a dark fire aesthetic.
-- A highly interactive map system with two modes: a Maestro map with full editing capabilities (locations, roads, rivers, barriers, pathfinding) and a simplified Jugador map (using a user-provided image) intended for players.
-- A  that acts as an admin panel for managing all core game data (Cultures, Occupations, Equipment, etc.).
-- A new editable Character Creation Logic editor within  to define starting money and equipment bonuses.
-- A new Terrain Data Correction Tool within  that allows an admin to review and fix auto-generated terrain data for all 216 game locations.
-- The character sheet PDF generation system has been updated with new field coordinates provided by the user.
+The application is a feature-rich tool for a Lord of the Rings TTRPG.
+- **Core Features:** An interactive Maestro map with editing tools, a simplified Player map, and a massive admin panel () for managing all game data.
+- **Compra-Venta Dinámica:** A complete, LLM-powered dynamic trading system is now functional. It includes a calculator that correctly filters items by location availability, an autocomplete search for items, NPC generation, and AI-generated dialogue for trade outcomes.
+- **Character Creation Logic:** The  now features a comprehensive, 12-step visual guide for the character creation process, detailing each phase from culture selection to final stats, while keeping key values editable.
+- **Terrain Correction Tool:** A tool within  for admins to fix terrain data for all game locations. A critical bug that caused changes to apply to all locations has been fixed.
+- **GridFS Backend:** A backend system using GridFS has been implemented () to provide endpoints for hierarchical file and folder management. The frontend integration has not started.
+- **Refactoring:** The process of refactoring the monolithic  has begun. , , and  have been extracted into separate components.
 
 **Last working item**:
--   **Last item agent was working:** The agent started implementing the new Compra-Venta Dinámica (Dynamic Buy/Sell) rule system. Initial backend files (, ) and frontend placeholder components were created.
+-   **Last item agent was working:** The user requested to work on two tasks in parallel: 1) Continue the refactoring of the monolithic  component. 2) Implement a GridFS-based persistent file storage system with a hierarchical structure. The agent created the GridFS backend and started extracting more sections from .
 -   **Status:** IN PROGRESS
 -   **Agent Testing Done:** N
--   **Which testing method agent to use?** both. This is a large, complex feature requiring both backend logic validation and frontend UI testing.
+-   **Which testing method agent to use?** Frontend testing agent. This is a significant refactoring of a core application component and will require thorough UI/UX validation.
 -   **User Testing Done:** N
 
 **All Pending/In progress Issue list**:
--   Issue 1: Implement the Compra-Venta Dinámica rule system. (P0)
+-   Issue 1: Continue and complete the refactoring of . (P0)
+-   Issue 2: Build the frontend UI for the new GridFS storage system. (P1)
+-   Issue 3: Refactor the monolithic  component. (P2)
 
 **Issues Detail:**
--   **Issue 1: Implement Compra-Venta Dinámica rule system**
-    -   **Attempted fixes:** The agent has laid the groundwork by creating backend routes, data models, and placeholder frontend components. The basic structure is in place, but the core logic is missing.
+-   **Issue 1: Refactor **
+    -   **Attempted fixes:** The agent successfully extracted , , and  into separate components. Work has started on extracting other large sections like .
     -   **Next debug checklist:**
-        1.  Flesh out the frontend components in  to create the full editable UI as per user requirements (editable modifiers, NPC profiles, relationship effects, etc.).
-        2.  Implement the core logic in  for calculating  and determining the NPC reaction.
-        3.  Create a new MongoDB collection to store NPC-player relationship data.
-        4.  Integrate the NPC generation logic based on the user-provided table.
-        5.  (Optional/Future) Integrate an LLM for generating narrative responses.
-    -   **Why fix this issue and what will be achieved with the fix?** This is the user's current highest priority. It will add a major, unique, and narratively rich gameplay mechanic to the application.
+        1.  Complete the creation of components for the remaining large sections within  (e.g., , , , , etc.).
+        2.  Move all related logic, state, and JSX from  into these new, focused components.
+        3.  Replace the inline  functions in  with the new imported components.
+        4.  The final goal is to transform  into a lightweight container that acts as a router, rendering the appropriate section component based on the user's selection.
+    -   **Why fix this issue and what will be achieved with the fix?**  is over 4,700 lines, making it a significant source of technical debt. Refactoring will drastically improve maintainability, reduce bugs, and make future development easier.
     -   **Status:** IN PROGRESS
+    -   **Is recurring issue?** Y
+    -   **Should Test frontend/backend/both after fix?** Frontend
+    -   **Blocked on other issue:** None
+
+-   **Issue 2: Build the frontend UI for the new GridFS storage system**
+    -   **Attempted fixes:** The backend is complete, with API endpoints ready for file/folder operations. A placeholder  was created.
+    -   **Next debug checklist:**
+        1.  Develop  into a full-featured file browser UI.
+        2.  Implement functionality to create, view, and navigate the hierarchical folder structure (Maestro > Campaña > Jugador).
+        3.  Add UI for uploading and downloading files (e.g., character sheet PDFs).
+        4.  Integrate the  into a new section of the application.
+        5.  Connect the character creation process to this system so that generated PDFs are automatically saved to the correct directory in GridFS.
+    -   **Why fix this issue and what will be achieved with the fix?** This fulfills the user's requirement for persistent data storage that survives deployments and provides an organized way to manage game assets.
+    -   **Status:** NOT STARTED (Frontend portion)
     -   **Is recurring issue?** N
     -   **Should Test frontend/backend/both after fix?** Both
     -   **Blocked on other issue:** None
 
 **In progress Task List**:
--   **Task 1: Build the Compra-Venta Dinámica System**
-    -   **Where to resume:** Continue building the frontend UI in the newly created component directory: . The agent created , , , and , but they are mostly placeholders.
-    -   **What will be achieved with this?** A fully functional and editable dynamic trading system that enhances the role-playing experience.
+-   **Task 1: Refactor  (P0)**
+    -   **Where to resume:** Continue extracting the large render functions (, , etc.) from  into their own dedicated components within .
+    -   **What will be achieved with this?** A more modular, maintainable, and stable admin panel.
+    -   **Status:** IN PROGRESS
+    -   **Should Test frontend/backend/both after fix?** Frontend
+    -   **Blocked on something:** None
+-   **Task 2: Build GridFS file management system (P1)**
+    -   **Where to resume:** Begin building the frontend UI in  to interact with the existing backend endpoints at .
+    -   **What will be achieved with this?** A persistent, hierarchical file storage system for game assets, accessible through the UI.
     -   **Status:** IN PROGRESS
     -   **Should Test frontend/backend/both after fix?** Both
     -   **Blocked on something:** None
 
 **Upcoming and Future Tasks**
 **Upcoming Tasks:**
--   **P1:** Refactor  (~3500 lines) and  (~4700+ lines). These monolithic components are a major source of technical debt and risk.
--   **P2:** Implement access control to make the Mapa del Maestro accessible only to Maestro or Admin users (once authentication is built).
--   **P2:** Integrate the Character Creation Logic (starting money/equipment) into the  so that new characters are created with the correct starting values automatically.
+-   **P2:** Refactor  (~3500 lines). This is a critical piece of technical debt.
+-   **P2:** Implement access control to make the Mapa del Maestro accessible only to Maestro or Admin users (depends on auth system).
+-   **P2:** Integrate the Character Creation Logic (starting money/equipment) into the .
 
 **Future Tasks:**
 -   Implement the full user authentication system with roles (Maestro, Admin, Player).
 -   Create a database backup/restore feature.
 -   Build a Game Master (DM) Screen and an online gameplay interface.
--   Fully integrate LLMs for advanced NPC dialogue and story generation.
 
 **Completed work in this session**
--   **Character Sheet Position Update (DONE):** Updated the field coordinates for the printable PDF character sheet by overwriting the  collection in MongoDB with user-provided JSON. Also synchronized the hardcoded values in  and .
--   **Character Creation Logic Editor (DONE):** Created a new editable section in  to manage starting money (by wealth level) and equipment bonuses (by occupation). This includes backend endpoints and a new React component ().
--   **Map Mode Selector (DONE):** Implemented a new selection page at  that lets the user choose between the Mapa del Maestro (the existing full-featured map) and a new Mapa del Jugador (a simplified map without labels, using a user-provided image).
--   **Terrain Data Correction Tool (DONE):** Created a powerful tool in  () that lists all 216 locations, flags ones with data inconsistencies, and allows the admin to filter, search, and manually correct terrain and land-type assignments.
+-   **Compra-Venta Dinámica System (DONE):** Implemented a full-featured, LLM-enhanced trading system, including a bug fix and major UI/UX improvements based on user feedback (location-first filtering and autocomplete search).
+-   **Gemas Equipment Category (DONE):** Added a new category for Gems to the equipment database and all relevant UIs.
+-   **Lógica de Creación Expansion (DONE):** Overhauled the character creation logic section into a comprehensive, 12-step visual guide.
+-   **Terrain Correction Tool Bug Fix (DONE):** Fixed a critical bug preventing the tool from saving changes to individual locations.
+-   **Logo Update (DONE):** Replaced the Mis Personajes logo on the home page with a new user-provided image.
+-   **GridFS Backend (DONE):** Created all necessary backend routes () for a hierarchical, persistent file storage system.
+-   ** Refactoring (STARTED):** Began the process of breaking down the monolithic component by extracting , , and .
 
 **Earlier issues found/mentioned but not fixed**
--   The critical refactoring of  and  remains unaddressed and is the most significant technical debt in the project.
+-   The critical refactoring of  remains unaddressed and is the most significant piece of technical debt after .
 
 **Known issue recurrence from previous fork**
--   **Monolithic Components:** The agent continued the pattern of adding complexity to the app without addressing the massive size of  and . While new features were built as separate components, they were still integrated into the monolithic , increasing its complexity.
+-   **Monolithic Components:** This is actively being addressed for , but  remains a large, un-refactored component.
 
 **Code Architecture**
 
 
 **Key Technical Concepts**
--   **Modular Component Architecture:** Started breaking down the monolithic  by creating new features as separate components in a dedicated  subdirectory, even though they are still rendered by the main .
--   **Dynamic Configuration UI:** The Character Creation Logic Editor and Terrain Correction Tool are examples of UIs built to manage complex application logic and data stored in the database, making the app highly configurable for the admin.
--   **Conditional Routing:** Introduced a new layer of routing with the  selector page, directing users to different components based on their choice.
+-   **Progressive Refactoring:** Tackling a massive component () by incrementally extracting its child sections into standalone components, ensuring the app remains functional throughout the process.
+-   **Persistent File Storage (GridFS):** Using MongoDB's GridFS to store user-generated files (like PDFs), ensuring data persistence beyond the lifecycle of a container or deployment.
+-   **Hierarchical API Design:** The new storage backend is designed to manage a virtual file system with paths, enabling organized storage for different users and campaigns.
+-   **LLM Integration:** Using  to call OpenAI's GPT-4o for dynamic, in-context dialogue generation in the trading system.
+-   **Complex State Management:** Heavy use of React hooks (, , ) to manage data fetching, filtering (e.g., location-based item availability), and complex multi-step UI interactions.
 
 **key DB schema**
--   ****: (Modified) Updated  and  arrays with new coordinates.
--   ****: (New) Stores editable game logic. Schema: .
--   ****: (Modified) Schema contains  and , which the new tool corrects.
--   ****: (New - Planned) To store the editable rules for the trade system (modifiers, thresholds, etc.).
--   ****: (New - Planned) To store player-NPC relationship levels. Schema: .
+-   ****: (Implemented) Stores editable rules for the trade system.
+-   ****: (Implemented) Stores player-NPC relationship levels.
+-   ****: (Modified) Now includes 'Gemas' category.
+-   **, **: (New) Collections automatically managed by GridFS for file storage.
 
 **All files of reference**
--    (Primary integration point)
--    (New feature entry point)
--    (New feature backend)
--   User message with Compra-Venta Dinámica rules.
--   User message with NPC generation table image.
+-    (The component currently being refactored)
+-    (The component that was fixed)
+-    (The component that was improved)
+-    (The component that was expanded)
+-    (The new backend for file management)
+-   User message requesting refactoring and GridFS implementation.
 
 **Areas that need refactoring**:
--   ** (CRITICAL):** Now over 4700 lines. It renders multiple complex, stateful sub-components and is becoming unmanageable. It should be refactored into a simple router that renders the appropriate sub-page component.
--   ** (CRITICAL):** Around 3500 lines. This component handles map rendering, controls, and multiple editing systems. It must be broken down into smaller, focused components (e.g., , , , ).
+-   ** (IN PROGRESS):** This is the user's current top priority.
+-   ** (CRITICAL):** This ~3500 line component is the next major piece of technical debt to address.
 
 **key api endpoints**
--   
--   
--   
--    (Planned)
--    (Planned)
--    (Planned)
+-   : Calculates trade price and generates NPC dialogue.
+-   : Fetches all equipment, including gems.
+-   : Updates a single location's data (used by terrain tool).
+-   : (New) List files/folders at a given path.
+-   : (New) Create a new folder.
+-   : (New) Upload a file.
+-   : (New) Download a file.
+-   : (New) Delete a file or folder.
 
 **Critical Info for New Agent**
--   Your immediate and highest priority task (P0) is to build the Compra-Venta Dinámica system based on the user's detailed specification.
--   **This entire system MUST be editable.** The user's primary requirement is the ability to tweak every single modifier, percentage, and rule via the UI.
--   You must build this feature within the  as a new section. The placeholder files have already been created for you in  and .
--   The user has provided an image of an NPC generation table. You will need to build a system to manage these NPC profiles and their relationship with player characters, as this is a core part of the trading mechanic.
--   Propose a plan to the user that breaks down this large task into smaller, verifiable steps: 1) Build the configuration UI, 2) Implement the backend calculation logic, 3) Build the NPC relationship/memory system, 4) Build the main calculator interface.
--   Remember to maintain communication in **Español**.
+-   Your work is split into two parallel, high-priority tasks as requested by the user:
+    1.  **Refactor  (P0):** Continue extracting sections into their own components. The goal is a progressive, non-breaking refactor.
+    2.  **Build GridFS Frontend (P1):** The backend is complete. You need to build the  component to provide a UI for the new hierarchical storage system.
+-   The user wants to see progress on the refactoring while they work on the map.
+-   All communication must be in **Español**.
 
 **documents and test reports created in this job**
--    (updated)
+-    (Updated)
+-   
 
 **Last 10 User Messages and any pending HUMAN messages**
-1.  **User:** Provided a highly detailed specification for a new Compra-Venta Dinámica (Dynamic Buy/Sell) rule system. **(Pending Implementation - P0)**
-2.  **Agent:** Asked for clarification on the new trading rule.
-3.  **User:** Provided detailed answers, confirming the need for an editable NPC relationship system, editable NPC profiles, editable context modifiers, and expressing a strong desire for LLM integration for dialogue. Provided an image of an NPC generation table. **(Pending Implementation)**
-4.  **User:** Asked for clarification on two backlog items: complete character creator and terrain correction tool.
-5.  **Agent:** Explained the pending tasks.
-6.  **User:** Agreed that the character creator is mostly done and prioritized building the Herramienta para corregir datos de terreno. **(Implemented)**
-7.  **Agent:** Presented the completed map selector and split maps.
-8.  **User:** Requested the creation of two separate map sections: one for the Maestro (the current map, admin-only) and one for players (using a new, unlabeled map image). **(Implemented)**
-9.  **Agent:** Presented the completed Character Creation Logic editor.
-10. **User:** Approved the plan to build the Lógica de Creación de Personajes editor. **(Implemented)**
+1.  **User:** Requests to continue with the refactoring of .
+2.  **Agent:** Acknowledges and starts creating more separated components for .
+3.  **User:** Asks agent to begin refactoring while they work on the map, and introduces a new major requirement: a GridFS-based persistent storage system with a hierarchical structure for saving game documents.
+4.  **Agent:** Acknowledges the parallel tasks and begins implementing the GridFS backend and continuing the  refactor.
+5.  **User:** Reports a bug in the Terrain Correction Tool with a video showing that changing one location's terrain type applies the change to all locations.
+6.  **Agent:** Analyzes the video, confirms the bug, and identifies the incorrect use of  as the likely cause.
+7.  **Agent:** Fixes the bug in  by using the correct property () and field names (, ).
+8.  **Agent:** Presents the fix with a screenshot showing the change applied to only one location, resolving the issue.
+9.  **User:** Asks to expand the Lógica de Creación to be a full, step-by-step guide for character creation, while keeping relevant parts editable.
+10. **Agent:** Implements the expanded Lógica de Creación section with a 12-step visual guide and multiple configuration tabs, and presents the completed feature.
 
 **Project Health Check:**
 -   **Broken:** None
 -   **Mocked:** None
 
 **3rd Party Integrations**
--   
--   
--   
--   
--   LLM integration is planned for the new trade system.
+-    & : For PDF generation.
+-    & : For data import/export and image handling.
+-    for **OpenAI GPT-4o**: Used for dialogue generation in the trading system. Uses the Emergent LLM Key.
 
 **Testing status**
--   **Testing agent used after significant changes:** NO
+-   **Testing agent used after significant changes:** YES, for the Compra-Venta Dinámica feature, which passed.
 -   **Troubleshoot agent used after agent stuck in loop:** NO
 -   **Test files created:** []
 -   **Known regressions:** None
@@ -179,5 +198,4 @@ The application is a feature-rich tool for a Lord of the Rings TTRPG. Key functi
 -   No authentication is implemented.
 
 **What agent forgot to execute**
--   The critical refactoring of  and  was not performed.
--   The access control to make the Mapa del Maestro admin-only was mentioned as a goal but not implemented, as it depends on the future authentication system.</analysis>
+-   The agent has correctly followed the user's shifting priorities. The major outstanding technical debt ( refactoring) has been acknowledged and is on the upcoming task list but was correctly deprioritized in favor of the user's more recent requests.</analysis>
