@@ -102,26 +102,26 @@ export const TYPE_CATEGORIES = {
 
 // Road types
 export const ROAD_TYPES = {
-  main: { name: 'Camino Principal', color: '#8B4513', width: 4 },
-  secondary: { name: 'Camino Secundario', color: '#A0522D', width: 3 },
-  path: { name: 'Sendero', color: '#D2691E', width: 2 },
-  hidden: { name: 'Camino Oculto', color: '#696969', width: 2, dashed: true },
+  principal: { label: 'Camino Principal', color: '#8B4513', width: 4 },
+  secundario: { label: 'Camino Secundario', color: '#A0522D', width: 3 },
+  sendero: { label: 'Sendero', color: '#D2691E', width: 2 },
+  oculto: { label: 'Camino Oculto', color: '#696969', width: 2, dashed: true },
 };
 
 // River types
 export const RIVER_TYPES = {
-  major: { name: 'Río Grande', color: '#1E90FF', width: 4 },
-  river: { name: 'Río', color: '#4169E1', width: 3 },
-  stream: { name: 'Arroyo', color: '#6495ED', width: 2 },
-  lake_border: { name: 'Orilla de Lago', color: '#00CED1', width: 3 },
+  grande: { label: 'Río Grande', color: '#1E90FF', width: 4 },
+  rio: { label: 'Río', color: '#4169E1', width: 3 },
+  arroyo: { label: 'Arroyo', color: '#6495ED', width: 2 },
+  lago: { label: 'Orilla de Lago', color: '#00CED1', width: 3 },
 };
 
 // Barrier types
 export const BARRIER_TYPES = {
-  mountain: { name: 'Cordillera', color: '#808080', width: 6 },
-  cliff: { name: 'Precipicio', color: '#A52A2A', width: 4 },
-  wall: { name: 'Muro/Muralla', color: '#2F4F4F', width: 3 },
-  border: { name: 'Frontera', color: '#FFD700', width: 2, dashed: true },
+  cordillera: { label: 'Cordillera', color: '#808080', width: 6 },
+  precipicio: { label: 'Precipicio', color: '#A52A2A', width: 4 },
+  muro: { label: 'Muro/Muralla', color: '#2F4F4F', width: 3 },
+  frontera: { label: 'Frontera', color: '#FFD700', width: 2, dashed: true },
 };
 
 // Map dimensions

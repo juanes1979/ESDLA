@@ -92,7 +92,7 @@ const BarriersPanel = ({
                       className="w-full h-8 text-sm bg-black/30 border border-border/30 rounded px-2"
                     >
                       {Object.entries(BARRIER_TYPES).map(([key, val]) => (
-                        <option key={key} value={key}>{val.name}</option>
+                        <option key={key} value={key}>{val.label}</option>
                       ))}
                     </select>
                     <div className="flex gap-2">
@@ -128,7 +128,7 @@ const BarriersPanel = ({
                         className="text-xs px-1.5 py-0.5 rounded"
                         style={{ backgroundColor: barrierStyle.color + '40', color: barrierStyle.color }}
                       >
-                        {barrierStyle.name}
+                        {barrierStyle.label}
                       </span>
                     </div>
                     <p className="text-xs text-muted-foreground mb-2">

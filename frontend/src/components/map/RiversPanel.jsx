@@ -92,7 +92,7 @@ const RiversPanel = ({
                       className="w-full h-8 text-sm bg-black/30 border border-border/30 rounded px-2"
                     >
                       {Object.entries(RIVER_TYPES).map(([key, val]) => (
-                        <option key={key} value={key}>{val.name}</option>
+                        <option key={key} value={key}>{val.label}</option>
                       ))}
                     </select>
                     <div className="flex gap-2">
@@ -125,7 +125,7 @@ const RiversPanel = ({
                         className="text-xs px-1.5 py-0.5 rounded"
                         style={{ backgroundColor: riverStyle.color + '40', color: riverStyle.color }}
                       >
-                        {riverStyle.name}
+                        {riverStyle.label}
                       </span>
                     </div>
                     <p className="text-xs text-muted-foreground mb-2">

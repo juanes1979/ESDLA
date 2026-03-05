@@ -92,7 +92,7 @@ const RoadsPanel = ({
                       className="w-full h-8 text-sm bg-black/30 border border-border/30 rounded px-2"
                     >
                       {Object.entries(ROAD_TYPES).map(([key, val]) => (
-                        <option key={key} value={key}>{val.name}</option>
+                        <option key={key} value={key}>{val.label}</option>
                       ))}
                     </select>
                     <div className="flex gap-2">
@@ -128,7 +128,7 @@ const RoadsPanel = ({
                         className="text-xs px-1.5 py-0.5 rounded"
                         style={{ backgroundColor: roadStyle.color + '40', color: roadStyle.color }}
                       >
-                        {roadStyle.name}
+                        {roadStyle.label}
                       </span>
                     </div>
                     <p className="text-xs text-muted-foreground mb-2">

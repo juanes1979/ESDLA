@@ -41,28 +41,35 @@ Se integró el sistema GridFS con la generación de fichas de personaje.
 - Nuevo botón "Guardar en Almacén" que genera el PDF y lo sube a GridFS
 - Los PDFs se guardan en la carpeta `character_sheets` con el ID del personaje
 
-#### P2: Refactorización de MiddleEarthMap.jsx - EN PROGRESO ✅
-Se crearon componentes base para el mapa en `/app/frontend/src/components/map/`:
+#### P2: Refactorización de MiddleEarthMap.jsx - COMPLETA ✅
+Se crearon componentes base y se integaron en el mapa:
 
-**Componentes creados:**
-1. **mapConstants.js** - Constantes compartidas (colores de terreno, tipos de ubicación, iconos)
-2. **RoadsPanel.jsx** - Panel de gestión de caminos
-3. **RiversPanel.jsx** - Panel de gestión de ríos
-4. **BarriersPanel.jsx** - Panel de gestión de barreras
+**Componentes creados (`/app/frontend/src/components/map/`):**
+1. **mapConstants.js** - Constantes compartidas (colores de terreno, tipos de ubicación, iconos, tipos de caminos/ríos/barreras)
+2. **RoadsPanel.jsx** - Panel de gestión de caminos (integrado)
+3. **RiversPanel.jsx** - Panel de gestión de ríos (integrado)
+4. **BarriersPanel.jsx** - Panel de gestión de barreras (integrado)
 5. **LocationInfoPanel.jsx** - Panel de información de ubicación
 6. **MapControls.jsx** - Controles de zoom, filtros y opciones de vista
 
-**Estado actual:**
-- Constantes movidas a mapConstants.js y siendo importadas por MiddleEarthMap.jsx
-- Archivo reducido de 3552 a 3462 líneas (~90 líneas menos)
-- Componentes de paneles listos para usar pero aún no integrados completamente
-- El mapa funciona correctamente con las constantes compartidas
+**Resultado:**
+- Archivo reducido de **3552 a 3042 líneas** (~510 líneas menos, -14%)
+- Constantes compartidas en `mapConstants.js` usadas por múltiples componentes
+- Funciones `renderRoadsPanel`, `renderRiversPanel`, `renderBarriersPanel` eliminadas
+- Paneles ahora son componentes independientes importados
+- Mapa del Maestro funcionando correctamente
 
-#### P2: Acceso directo al Almacén desde HomePage ✅ (NEW)
+#### P2: Acceso directo al Almacén desde HomePage ✅
 - Añadido nuevo medallón "Almacén de Archivos" en la HomePage
 - Generada imagen personalizada del cofre del tesoro medieval
 - Reemplazó el medallón "Juego en Línea" (no implementado) por acceso funcional al almacén
 - Link a `/storage` funcionando correctamente
+
+#### P2: Lógica de Creación de Personajes - VERIFICADA ✅
+La lógica de dinero/equipo inicial ya está implementada en `Step7Equipment.jsx`:
+- Equipo automático según Nivel de Vida (Frugal, Común, Próspero)
+- Dinero inicial combinando Nivel de Vida + Ocupación
+- Sistema funcionando correctamente en el wizard de creación
 
 ### ✅ COMPLETED Previous Session (2026-03-04)
 
