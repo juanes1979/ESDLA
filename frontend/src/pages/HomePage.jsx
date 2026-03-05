@@ -55,14 +55,13 @@ const NAV_ITEMS = [
     side: 'right'
   },
   {
-    id: 'online',
-    image: 'https://customer-assets.emergentagent.com/job_fab028bf-4de6-413f-8616-34827bc574a6/artifacts/rl16pe57_Juego%20online.png',
-    title: 'Juego en Línea',
-    description: 'Mapas, chat y herramientas para el Director.',
-    path: null,
+    id: 'storage',
+    image: 'https://static.prod-images.emergentagent.com/jobs/303cda52-759b-4671-9089-2a2509ec220b/images/30f9e524439f848dad502dde45b2fedb93b1633570a068c9221bbf6e285a20d5.png',
+    title: 'Almacén de Archivos',
+    description: 'Gestiona tus campañas, fichas y documentos.',
+    path: '/storage',
     position: { top: '54%', right: '6%' },
-    side: 'right',
-    comingSoon: true
+    side: 'right'
   }
 ];
 

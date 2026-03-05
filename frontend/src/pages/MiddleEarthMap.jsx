@@ -21,96 +21,22 @@ import {
 import { toast } from 'sonner';
 import api from '../services/api';
 
-// Terrain colors matching the map legend
-const TERRAIN_COLORS = {
-  facil: '#c4b998',          // Cream/tan
-  moderado: '#8b9a6b',       // Olive green
-  dificil: '#a08060',        // Light brown
-  muy_dificil: '#8b6914',    // Medium brown
-  desalentador: '#c45c30',   // Orange/rust
-  infranqueable: '#4a3728',  // Dark brown
-};
+// Import shared constants from map components
+import {
+  TERRAIN_COLORS,
+  LAND_COLORS,
+  LOCATION_ICONS,
+  TYPE_NAMES,
+  ROAD_TYPES,
+  RIVER_TYPES,
+  BARRIER_TYPES,
+  REGIONS,
+} from '../components/map/mapConstants';
 
-// Land type colors
-const LAND_COLORS = {
-  tierras_libres: '#22c55e',    // Green
-  fronterizas: '#eab308',       // Yellow
-  tierras_salvajes: '#f97316',  // Orange
-  tierras_sombra: '#ef4444',    // Red
-  tierras_oscuras: '#7c3aed',   // Purple
-};
+// Import map panel components
+import { RoadsPanel, RiversPanel, BarriersPanel } from '../components/map';
 
-// Location type icons
-const LOCATION_ICONS = {
-  ciudad_capital: '🏰',
-  ciudad: '🏘️',
-  ciudad_puerto: '⚓',
-  ciudad_elfica: '✨',
-  pueblo: '🏠',
-  fortaleza: '🏯',
-  fortaleza_enemiga: '💀',
-  fortaleza_abandonada: '🏚️',
-  reino_enano: '⛏️',
-  reino_elfico: '🌟',
-  refugio_elfico: '🌿',
-  refugio: '🛖',
-  ruinas: '🏛️',
-  bosque: '🌲',
-  bosque_antiguo: '🌳',
-  bosque_elfico: '🌸',
-  bosque_oscuro: '🌑',
-  cordillera: '⛰️',
-  volcan: '🌋',
-  paso_montaña: '🚶',
-  colinas: '🏔️',
-  lago: '💧',
-  rio: '🌊',
-  pantano: '🐸',
-  region: '📍',
-  vado: '🌉',
-  camino: '🛤️',
-  puerto: '⛵',
-  almenaras: '🔥',
-  monumento: '🗿',
-  lugar_especial: '⭐',
-};
-
-// Human-readable type names
-const TYPE_NAMES = {
-  ciudad_capital: 'Capital',
-  ciudad: 'Ciudad',
-  ciudad_puerto: 'Puerto',
-  ciudad_elfica: 'Ciudad Élfica',
-  pueblo: 'Pueblo',
-  fortaleza: 'Fortaleza',
-  fortaleza_enemiga: 'Fortaleza Enemiga',
-  fortaleza_abandonada: 'Ruinas Fortaleza',
-  reino_enano: 'Reino Enano',
-  reino_elfico: 'Reino Élfico',
-  refugio_elfico: 'Refugio Élfico',
-  refugio: 'Refugio',
-  ruinas: 'Ruinas',
-  bosque: 'Bosque',
-  bosque_antiguo: 'Bosque Antiguo',
-  bosque_elfico: 'Bosque Élfico',
-  bosque_oscuro: 'Bosque Oscuro',
-  cordillera: 'Montañas',
-  volcan: 'Volcán',
-  paso_montaña: 'Paso de Montaña',
-  colinas: 'Colinas',
-  lago: 'Lago',
-  rio: 'Río',
-  pantano: 'Pantano',
-  region: 'Región',
-  vado: 'Vado',
-  camino: 'Camino',
-  puerto: 'Puerto',
-  almenaras: 'Almenaras',
-  monumento: 'Monumento',
-  lugar_especial: 'Lugar Especial',
-};
-
-// Type categories for filtering
+// Type categories for filtering (not in mapConstants - specific to this view)
 const TYPE_CATEGORIES = {
   'Asentamientos': ['ciudad_capital', 'ciudad', 'ciudad_puerto', 'ciudad_elfica', 'pueblo', 'refugio', 'refugio_elfico'],
   'Fortalezas': ['fortaleza', 'fortaleza_enemiga', 'fortaleza_abandonada', 'ruinas'],
@@ -172,22 +98,6 @@ const REGION_HIERARCHY = {
     subregions: []
   },
 };
-
-// Flat list of all regions for simple dropdowns (backwards compatible)
-const REGIONS = [
-  // Main regions
-  'Eriador', 'Angmar', 'Montañas Nubladas', 'Rhovanion', 'Fangorn', 
-  'Rohan', 'Gondor', 'Mordor', 'Rhûn', 'Harad', 'Norte', 'Sur',
-  // Sub-regions
-  'La Comarca', 'Tierras de Bree', 'Arthedain', 'Cardolan', 'Rhudaur', 'Lindon', 'Eregion',
-  'Paso Alto', 'Moria', 'Este de las Montañas',
-  'Bosque Negro', 'Valle del Anduin', 'Valle', 'Erebor', 'Esgaroth', 'Lothlórien', 'Tierras Pardas',
-  'Folde Este', 'Folde Oeste', 'Cuernavilla', 'Nan Curunír',
-  'Anórien', 'Ithilien', 'Lebennin', 'Belfalas', 'Lamedon', 'Anfalas', 'Dor-en-Ernil',
-  'Gorgoroth', 'Nurn', 'Udûn', 'Lithlad',
-  'Dorwinion',
-  'Harad Cercano', 'Harad Lejano', 'Umbar',
-];
 
 const MiddleEarthMap = () => {
   const navigate = useNavigate();

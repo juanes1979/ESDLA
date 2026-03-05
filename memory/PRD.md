@@ -41,18 +41,28 @@ Se integró el sistema GridFS con la generación de fichas de personaje.
 - Nuevo botón "Guardar en Almacén" que genera el PDF y lo sube a GridFS
 - Los PDFs se guardan en la carpeta `character_sheets` con el ID del personaje
 
-#### P2: Refactorización de MiddleEarthMap.jsx - INICIADA (NEW)
+#### P2: Refactorización de MiddleEarthMap.jsx - EN PROGRESO ✅
 Se crearon componentes base para el mapa en `/app/frontend/src/components/map/`:
 
 **Componentes creados:**
-1. **mapConstants.js** - Constantes compartidas (colores, tipos, iconos)
+1. **mapConstants.js** - Constantes compartidas (colores de terreno, tipos de ubicación, iconos)
 2. **RoadsPanel.jsx** - Panel de gestión de caminos
 3. **RiversPanel.jsx** - Panel de gestión de ríos
 4. **BarriersPanel.jsx** - Panel de gestión de barreras
 5. **LocationInfoPanel.jsx** - Panel de información de ubicación
 6. **MapControls.jsx** - Controles de zoom, filtros y opciones de vista
 
-**Estado:** Componentes creados pero aún no integrados en MiddleEarthMap.jsx. Requiere integración y limpieza del código original.
+**Estado actual:**
+- Constantes movidas a mapConstants.js y siendo importadas por MiddleEarthMap.jsx
+- Archivo reducido de 3552 a 3462 líneas (~90 líneas menos)
+- Componentes de paneles listos para usar pero aún no integrados completamente
+- El mapa funciona correctamente con las constantes compartidas
+
+#### P2: Acceso directo al Almacén desde HomePage ✅ (NEW)
+- Añadido nuevo medallón "Almacén de Archivos" en la HomePage
+- Generada imagen personalizada del cofre del tesoro medieval
+- Reemplazó el medallón "Juego en Línea" (no implementado) por acceso funcional al almacén
+- Link a `/storage` funcionando correctamente
 
 ### ✅ COMPLETED Previous Session (2026-03-04)
 
