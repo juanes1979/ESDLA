@@ -131,20 +131,19 @@ const JourneyMiniMap = ({ origenCoords, destinoCoords, origenNombre, destinoNomb
   
   if (!origenCoords || !destinoCoords) return null;
   
-  // The location coordinates are stored as percentages (0-100)
-  // Convert them to image coordinates
-  const scaleX = imageSize.width / 100;
-  const scaleY = imageSize.height / 100;
+  // The master map uses a coordinate system where:
+  // - x is 0-100 (left to right)
+  // - y is 0-100 (bottom to top) - INVERTED!
+  // We need to convert to image coordinates where y goes top to bottom
   
-  const origen = {
-    x: origenCoords.x * scaleX,
-    y: origenCoords.y * scaleY
-  };
+  // Convert percentage coords to image coords (with Y axis flip)
+  const percentToImage = (xPercent, yPercent) => ({
+    x: (xPercent / 100) * imageSize.width,
+    y: imageSize.height - (yPercent / 100) * imageSize.height  // Flip Y axis
+  });
   
-  const destino = {
-    x: destinoCoords.x * scaleX,
-    y: destinoCoords.y * scaleY
-  };
+  const origen = percentToImage(origenCoords.x, origenCoords.y);
+  const destino = percentToImage(destinoCoords.x, destinoCoords.y);
   
   // Calculate viewBox to show route with padding
   const padding = Math.min(imageSize.width, imageSize.height) * 0.1; // 10% padding
