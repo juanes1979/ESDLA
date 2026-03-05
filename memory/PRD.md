@@ -5,9 +5,35 @@ Build a comprehensive web application to play a modified version of the "Lord of
 
 **User's preferred language**: Español
 
-## Current State (2026-03-04)
+## Current State (2026-03-05)
 
-### ✅ COMPLETED This Session (2026-03-04)
+### ✅ COMPLETED This Session (2026-03-05)
+
+#### P0: Refactorización de RulesPage.jsx ✅ (NEW)
+Se extrajeron múltiples secciones del archivo monolítico `RulesPage.jsx` (~4700 líneas) a componentes independientes:
+
+**Nuevos componentes creados (`/app/frontend/src/components/rules/`):**
+1. **EquipmentSection.jsx** - Tablas de equipamiento con todas las categorías, modal PDF, y editores
+2. **PriceModifiersSection.jsx** - Visualización de modificadores de precio
+3. **RegionsSection.jsx** - Gestión CRUD de regiones con terreno y peligro
+4. **CulturesSection.jsx** - Cards expandibles de culturas con detalles completos
+5. **OccupationsSection.jsx** - Cards expandibles de ocupaciones/clases
+
+**Impacto:** RulesPage.jsx ahora usa 20+ componentes refactorizados, mejorando mantenibilidad.
+
+#### P1: Sistema de Archivos GridFS ✅ (NEW)
+Sistema completo de almacenamiento persistente usando MongoDB GridFS.
+
+**Backend (`/app/backend/routes/storage_routes.py`):**
+- Endpoints para listar, subir, descargar, eliminar archivos
+- Gestión de campañas, jugadores, personajes
+- Estadísticas de almacenamiento
+
+**Frontend:**
+- **FileManager.jsx** - Explorador jerárquico con búsqueda, upload y creación de campañas
+- **StoragePage.jsx** - Nueva ruta `/storage` para acceso al sistema de archivos
+
+### ✅ COMPLETED Previous Session (2026-03-04)
 
 #### P0: Sistema "Compra-Venta Dinámica" ✅ (NEW)
 Sistema completo de comercio dinámico con generación de diálogos de NPC usando IA.
