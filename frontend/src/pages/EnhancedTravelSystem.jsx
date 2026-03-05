@@ -92,6 +92,19 @@ const ROLE_INFO = {
   }
 };
 
+// Helper to check if a character has multiple roles
+const hasMultipleRoles = (member) => {
+  return member.papeles && member.papeles.length > 1;
+};
+
+// Helper to check if character has penalty (multiple roles or forced march)
+const hasPenalty = (member, marchaForzada = 0) => {
+  return hasMultipleRoles(member) || marchaForzada > 0;
+};
+
+// Penalty amount for multiple roles or forced march
+const MULTI_ROLE_PENALTY = -5;
+
 const EnhancedTravelSystem = () => {
   // =============== STATE ===============
   
@@ -538,16 +551,26 @@ const EnhancedTravelSystem = () => {
       return;
     }
     
+    // Get character's owned mount (if any)
+    const monturaPropia = char.montura ? {
+      nombre: char.montura.nombre,
+      capacidad: char.montura.capacidad_carga,
+      velocidad: char.montura.velocidad,
+      constitucion: char.montura.constitucion
+    } : null;
+    
     setConfig(prev => ({
       ...prev,
       miembros: [...prev.miembros, {
         id: char.id,
         nombre: char.nombre,
-        papel: null,
+        papeles: [], // Array of roles now
         tieneMontura: false,
         monturaNombre: null,
         monturaConBonus: 0,
+        monturaPropia: monturaPropia, // Store owned mount
         modSabiduria: Math.floor(((char.atributos?.sabiduria || 10) - 10) / 2),
+        percepcionPasiva: 10 + Math.floor(((char.atributos?.sabiduria || 10) - 10) / 2),
         competencias: char.habilidades || [],
         nivel: char.nivel || 1
       }]
@@ -558,38 +581,50 @@ const EnhancedTravelSystem = () => {
     const char = characters.find(c => c.id === charId);
     if (!char) return;
     
-    // Remove any existing member with this role
-    let newMiembros = config.miembros.map(m => 
-      m.papel === role ? { ...m, papel: null } : m
-    );
-    
     // Check if character is already in the group
-    const existingMember = newMiembros.find(m => m.id === charId);
+    const existingMember = config.miembros.find(m => m.id === charId);
+    
+    // Get character's owned mount (if any)
+    const monturaPropia = char.montura ? {
+      nombre: char.montura.nombre,
+      capacidad: char.montura.capacidad_carga,
+      velocidad: char.montura.velocidad,
+      constitucion: char.montura.constitucion
+    } : null;
     
     if (existingMember) {
-      // Just update their role
-      newMiembros = newMiembros.map(m => 
-        m.id === charId ? { ...m, papel: role } : m
-      );
+      // Add role to existing member (allow multiple roles)
+      setConfig(prev => ({
+        ...prev,
+        miembros: prev.miembros.map(m => {
+          if (m.id === charId) {
+            const newPapeles = m.papeles.includes(role) 
+              ? m.papeles 
+              : [...m.papeles, role];
+            return { ...m, papeles: newPapeles };
+          }
+          return m;
+        })
+      }));
     } else {
       // Add new member with role
-      newMiembros = [...newMiembros, {
-        id: char.id,
-        nombre: char.nombre,
-        papel: role,
-        tieneMontura: false,
-        monturaNombre: null,
-        monturaConBonus: 0,
-        modSabiduria: Math.floor(((char.atributos?.sabiduria || 10) - 10) / 2),
-        competencias: char.habilidades || [],
-        nivel: char.nivel || 1
-      }];
+      setConfig(prev => ({
+        ...prev,
+        miembros: [...prev.miembros, {
+          id: char.id,
+          nombre: char.nombre,
+          papeles: [role],
+          tieneMontura: false,
+          monturaNombre: null,
+          monturaConBonus: 0,
+          monturaPropia: monturaPropia,
+          modSabiduria: Math.floor(((char.atributos?.sabiduria || 10) - 10) / 2),
+          percepcionPasiva: 10 + Math.floor(((char.atributos?.sabiduria || 10) - 10) / 2),
+          competencias: char.habilidades || [],
+          nivel: char.nivel || 1
+        }]
+      }));
     }
-    
-    setConfig(prev => ({
-      ...prev,
-      miembros: newMiembros
-    }));
   };
   
   const removeMember = (charId) => {
@@ -599,27 +634,73 @@ const EnhancedTravelSystem = () => {
     }));
   };
   
-  const updateMemberRole = (charId, role) => {
+  // Remove a specific role from a member
+  const removeRoleFromMember = (charId, role) => {
     setConfig(prev => ({
       ...prev,
       miembros: prev.miembros.map(m => 
-        m.id === charId ? { ...m, papel: role } : m
+        m.id === charId 
+          ? { ...m, papeles: m.papeles.filter(p => p !== role) }
+          : m
       )
     }));
   };
   
-  const updateMemberMount = (charId, montura) => {
-    const mountData = monturas.find(m => m.nombre === montura);
+  // Toggle a role on/off for a member
+  const toggleMemberRole = (charId, role) => {
     setConfig(prev => ({
       ...prev,
-      miembros: prev.miembros.map(m => 
-        m.id === charId ? {
+      miembros: prev.miembros.map(m => {
+        if (m.id !== charId) return m;
+        const hasPapel = m.papeles.includes(role);
+        return {
           ...m,
-          tieneMontura: montura !== 'A pie',
-          monturaNombre: montura,
-          monturaConBonus: mountData?.mod_con || 0
-        } : m
-      )
+          papeles: hasPapel 
+            ? m.papeles.filter(p => p !== role)
+            : [...m.papeles, role]
+        };
+      })
+    }));
+  };
+  
+  const updateMemberRole = (charId, role) => {
+    // Legacy - just adds a role now
+    if (!role) return;
+    setConfig(prev => ({
+      ...prev,
+      miembros: prev.miembros.map(m => {
+        if (m.id !== charId) return m;
+        if (m.papeles.includes(role)) return m;
+        return { ...m, papeles: [...m.papeles, role] };
+      })
+    }));
+  };
+  
+  const updateMemberMount = (charId, useMount) => {
+    setConfig(prev => ({
+      ...prev,
+      miembros: prev.miembros.map(m => {
+        if (m.id !== charId) return m;
+        
+        if (useMount && m.monturaPropia) {
+          // Use owned mount
+          const modCon = parseInt(m.monturaPropia.constitucion?.match(/[+-]?\d+/)?.[1] || '0');
+          return {
+            ...m,
+            tieneMontura: true,
+            monturaNombre: m.monturaPropia.nombre,
+            monturaConBonus: modCon
+          };
+        } else {
+          // Walking
+          return {
+            ...m,
+            tieneMontura: false,
+            monturaNombre: null,
+            monturaConBonus: 0
+          };
+        }
+      })
     }));
   };
   
@@ -644,7 +725,7 @@ const EnhancedTravelSystem = () => {
       return;
     }
     
-    const membersWithRoles = config.miembros.filter(m => m.papel);
+    const membersWithRoles = config.miembros.filter(m => m.papeles?.length > 0);
     if (membersWithRoles.length === 0) {
       toast.error('No hay personajes con roles asignados');
       return;
@@ -964,18 +1045,19 @@ const EnhancedTravelSystem = () => {
             Papeles de Viaje
           </CardTitle>
           <p className="text-sm text-muted-foreground">
-            Asigna un personaje a cada papel. Se mostrará su bonificador relevante para el papel.
+            Asigna personajes a cada papel. Un mismo personaje puede tener varios papeles (con penalización de -5 en cada función).
           </p>
         </CardHeader>
         <CardContent className="space-y-4">
           {/* Role Assignment Cards */}
           <div className="grid md:grid-cols-2 gap-4">
             {Object.entries(ROLE_INFO).map(([roleKey, roleInfo]) => {
-              const assignedMember = config.miembros.find(m => m.papel === roleKey);
+              // Get all members assigned to this role
+              const assignedMembers = config.miembros.filter(m => m.papeles?.includes(roleKey));
               
               // Calculate bonus for each character for this role
-              const getCharBonus = (char) => {
-                if (!char) return { total: 0, atributo: 0, habilidad: 0, competente: false };
+              const getCharBonus = (char, member = null) => {
+                if (!char) return { total: 0, atributo: 0, habilidad: 0, competente: false, penalizado: false };
                 const atributoVal = char.atributos?.[roleInfo.atributo] || 10;
                 const atributoMod = Math.floor((atributoVal - 10) / 2);
                 const competencias = char.habilidades || [];
@@ -984,18 +1066,26 @@ const EnhancedTravelSystem = () => {
                   roleInfo.habilidad_key.includes(h.toLowerCase())
                 );
                 const profBonus = esCompetente ? Math.ceil((char.nivel || 1) / 4) + 1 : 0;
+                
+                // Check if this character has multiple roles (apply penalty)
+                const tienePenalizacion = member?.papeles?.length > 1 || false;
+                const penalizacion = tienePenalizacion ? MULTI_ROLE_PENALTY : 0;
+                
                 return {
-                  total: atributoMod + profBonus,
+                  total: atributoMod + profBonus + penalizacion,
+                  totalSinPenalizacion: atributoMod + profBonus,
                   atributo: atributoMod,
                   habilidad: profBonus,
-                  competente: esCompetente
+                  competente: esCompetente,
+                  penalizado: tienePenalizacion,
+                  penalizacion: penalizacion
                 };
               };
               
               return (
                 <Card 
                   key={roleKey} 
-                  className={`p-4 ${assignedMember ? 'border-green-500/50 bg-green-900/10' : 'border-border/50'}`}
+                  className={`p-4 ${assignedMembers.length > 0 ? 'border-green-500/50 bg-green-900/10' : 'border-border/50'}`}
                 >
                   {/* Role Header */}
                   <div className="flex items-center gap-2 mb-2">
@@ -1024,55 +1114,43 @@ const EnhancedTravelSystem = () => {
                   <div className="space-y-2">
                     <Label className="text-xs">Personaje asignado</Label>
                     <Select 
-                      value={assignedMember?.id || '_none_'} 
+                      value="_select_"
                       onValueChange={(charId) => {
-                        if (charId === '_none_') {
-                          // Remove from this role
-                          if (assignedMember) {
-                            updateMemberRole(assignedMember.id, null);
-                          }
-                        } else {
-                          // First remove any existing role for this character
-                          const existingMember = config.miembros.find(m => m.id === charId);
-                          if (existingMember) {
-                            updateMemberRole(charId, roleKey);
-                          } else {
-                            // Add new member with this role
-                            addMemberWithRole(charId, roleKey);
-                          }
+                        if (charId !== '_select_') {
+                          addMemberWithRole(charId, roleKey);
                         }
                       }}
                     >
                       <SelectTrigger className="h-10">
-                        <SelectValue placeholder="Seleccionar personaje">
-                          {assignedMember ? (
-                            <div className="flex items-center justify-between w-full">
-                              <span>{assignedMember.nombre}</span>
-                              <Badge className="ml-2 bg-[hsl(var(--gold))] text-black">
-                                +{getCharBonus(characters.find(c => c.id === assignedMember.id)).total}
-                              </Badge>
-                            </div>
-                          ) : (
-                            <span className="text-muted-foreground">Sin asignar</span>
-                          )}
+                        <SelectValue>
+                          {assignedMembers.length > 0 
+                            ? `${assignedMembers.length} asignado(s)`
+                            : <span className="text-muted-foreground">Seleccionar personaje</span>
+                          }
                         </SelectValue>
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="_none_">
-                          <span className="text-muted-foreground">Sin asignar</span>
+                        <SelectItem value="_select_" disabled>
+                          <span className="text-muted-foreground">Seleccionar personaje</span>
                         </SelectItem>
                         {characters.map(char => {
-                          const bonus = getCharBonus(char);
-                          const isAssignedElsewhere = config.miembros.some(m => m.id === char.id && m.papel && m.papel !== roleKey);
+                          const member = config.miembros.find(m => m.id === char.id);
+                          const bonus = getCharBonus(char, member);
+                          const alreadyHasRole = member?.papeles?.includes(roleKey);
                           return (
                             <SelectItem 
                               key={char.id} 
                               value={char.id}
-                              disabled={isAssignedElsewhere}
+                              disabled={alreadyHasRole}
                             >
                               <div className="flex items-center justify-between w-full gap-4">
-                                <span className={isAssignedElsewhere ? 'text-muted-foreground' : ''}>
+                                <span className={alreadyHasRole ? 'text-muted-foreground' : ''}>
                                   {char.nombre}
+                                  {member?.papeles?.length > 0 && !alreadyHasRole && (
+                                    <span className="text-yellow-400 text-xs ml-1">
+                                      ({member.papeles.length} papel{member.papeles.length > 1 ? 'es' : ''})
+                                    </span>
+                                  )}
                                 </span>
                                 <div className="flex items-center gap-2">
                                   {bonus.competente && (
@@ -1081,11 +1159,11 @@ const EnhancedTravelSystem = () => {
                                     </Badge>
                                   )}
                                   <Badge className={`${
-                                    bonus.total >= 5 ? 'bg-green-600' :
-                                    bonus.total >= 2 ? 'bg-yellow-600' :
+                                    bonus.totalSinPenalizacion >= 5 ? 'bg-green-600' :
+                                    bonus.totalSinPenalizacion >= 2 ? 'bg-yellow-600' :
                                     'bg-red-600'
                                   }`}>
-                                    {bonus.total >= 0 ? '+' : ''}{bonus.total}
+                                    {bonus.totalSinPenalizacion >= 0 ? '+' : ''}{bonus.totalSinPenalizacion}
                                   </Badge>
                                 </div>
                               </div>
@@ -1095,26 +1173,69 @@ const EnhancedTravelSystem = () => {
                       </SelectContent>
                     </Select>
                     
-                    {/* Mount selection for assigned member */}
-                    {assignedMember && (
-                      <div className="mt-2">
-                        <Label className="text-xs">Montura</Label>
-                        <Select 
-                          value={assignedMember.monturaNombre || 'A pie'} 
-                          onValueChange={(v) => updateMemberMount(assignedMember.id, v)}
-                        >
-                          <SelectTrigger className="h-8">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="A pie">A pie</SelectItem>
-                            {monturas.map(m => (
-                              <SelectItem key={m.nombre} value={m.nombre}>
-                                {m.nombre} {m.mod_con > 0 && `(+${m.mod_con} CON)`}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                    {/* List of assigned members for this role */}
+                    {assignedMembers.length > 0 && (
+                      <div className="space-y-2 mt-2">
+                        {assignedMembers.map(member => {
+                          const char = characters.find(c => c.id === member.id);
+                          const bonus = getCharBonus(char, member);
+                          const hasOtherRoles = member.papeles.length > 1;
+                          
+                          return (
+                            <div 
+                              key={member.id}
+                              className={`p-2 rounded border flex items-center justify-between ${
+                                hasOtherRoles ? 'border-yellow-500/50 bg-yellow-900/20' : 'border-green-500/30 bg-green-900/10'
+                              }`}
+                            >
+                              <div className="flex items-center gap-2">
+                                <span className="font-medium text-sm">{member.nombre}</span>
+                                {hasOtherRoles && (
+                                  <Badge className="bg-yellow-600 text-xs">
+                                    ⚠️ {member.papeles.length} papeles: -5
+                                  </Badge>
+                                )}
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <Badge className={bonus.total >= 2 ? 'bg-green-600' : bonus.total >= 0 ? 'bg-yellow-600' : 'bg-red-600'}>
+                                  {bonus.total >= 0 ? '+' : ''}{bonus.total}
+                                </Badge>
+                                <Button 
+                                  variant="ghost" 
+                                  size="sm"
+                                  className="h-6 w-6 p-0 text-red-400 hover:text-red-300"
+                                  onClick={() => removeRoleFromMember(member.id, roleKey)}
+                                >
+                                  <X className="w-4 h-4" />
+                                </Button>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                    
+                    {/* Mount selection for first assigned member */}
+                    {assignedMembers.length > 0 && (
+                      <div className="mt-2 space-y-2">
+                        {assignedMembers.map(member => (
+                          <div key={member.id} className="flex items-center gap-2">
+                            <Label className="text-xs whitespace-nowrap">{member.nombre}:</Label>
+                            {member.monturaPropia ? (
+                              <div className="flex items-center gap-2 flex-1">
+                                <Switch
+                                  checked={member.tieneMontura}
+                                  onCheckedChange={(v) => updateMemberMount(member.id, v)}
+                                />
+                                <span className="text-xs text-muted-foreground">
+                                  {member.tieneMontura ? member.monturaPropia.nombre : 'A pie'}
+                                </span>
+                              </div>
+                            ) : (
+                              <span className="text-xs text-muted-foreground italic">Sin montura propia</span>
+                            )}
+                          </div>
+                        ))}
                       </div>
                     )}
                   </div>
@@ -1123,19 +1244,47 @@ const EnhancedTravelSystem = () => {
             })}
           </div>
           
+          {/* Penalty Warning */}
+          {config.miembros.some(m => m.papeles?.length > 1) && (
+            <div className="p-3 bg-yellow-900/30 rounded border border-yellow-500/50 text-sm">
+              <p className="text-yellow-400 font-bold flex items-center gap-2">
+                <AlertTriangle className="w-4 h-4" />
+                Personajes con múltiples papeles:
+              </p>
+              <ul className="mt-2 space-y-1 text-muted-foreground">
+                {config.miembros.filter(m => m.papeles?.length > 1).map(m => (
+                  <li key={m.id}>
+                    • <span className="text-white">{m.nombre}</span>: {m.papeles.map(p => ROLE_INFO[p]?.nombre).join(', ')} 
+                    <span className="text-red-400"> → -5 en todas sus funciones y Percepción pasiva</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+          
+          {/* Forced march warning */}
+          {config.horasMarchaForzada > 0 && (
+            <div className="p-3 bg-orange-900/30 rounded border border-orange-500/50 text-sm">
+              <p className="text-orange-400">
+                <AlertTriangle className="w-4 h-4 inline mr-2" />
+                <strong>Marcha Forzada activa:</strong> Todos los personajes sufren -5 a su Percepción pasiva.
+              </p>
+            </div>
+          )}
+          
           {/* Summary of assigned roles */}
           <div className="pt-4 border-t border-border/30">
             <div className="flex flex-wrap gap-2">
               {Object.entries(ROLE_INFO).map(([roleKey, roleInfo]) => {
-                const assigned = config.miembros.find(m => m.papel === roleKey);
+                const assigned = config.miembros.filter(m => m.papeles?.includes(roleKey));
                 return (
                   <Badge 
                     key={roleKey}
-                    className={assigned ? 'bg-green-600' : 'bg-red-600/50'}
+                    className={assigned.length > 0 ? 'bg-green-600' : 'bg-red-600/50'}
                   >
                     {ROLE_ICONS[roleKey]}
                     <span className="ml-1">{roleInfo.nombre}:</span>
-                    <span className="ml-1">{assigned ? assigned.nombre : 'Vacante'}</span>
+                    <span className="ml-1">{assigned.length > 0 ? assigned.map(a => a.nombre).join(', ') : 'Vacante'}</span>
                   </Badge>
                 );
               })}
@@ -1143,7 +1292,7 @@ const EnhancedTravelSystem = () => {
           </div>
           
           {/* Warning if no guide */}
-          {!config.miembros.some(m => m.papel === 'guia') && (
+          {!config.miembros.some(m => m.papeles?.includes('guia')) && (
             <div className="p-2 bg-yellow-900/30 rounded border border-yellow-500/50 text-sm text-yellow-400">
               ⚠️ No hay ningún Guía asignado. Se requiere al menos uno para iniciar el viaje.
             </div>
@@ -1181,7 +1330,7 @@ const EnhancedTravelSystem = () => {
           
           <Button 
             onClick={travelMode === 'global' ? startGlobalJourney : startDayByDayJourney}
-            disabled={!journeyCalc?.success || config.miembros.length === 0 || !config.miembros.some(m => m.papel === 'guia')}
+            disabled={!journeyCalc?.success || config.miembros.length === 0 || !config.miembros.some(m => m.papeles?.includes('guia'))}
             className="w-full h-12 text-lg mt-4"
             data-testid="start-journey-btn"
           >
@@ -1484,25 +1633,43 @@ const EnhancedTravelSystem = () => {
         <CardContent>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
             {Object.entries(ROLE_INFO).map(([roleKey, roleInfo]) => {
-              const member = config.miembros.find(m => m.papel === roleKey);
+              const members = config.miembros.filter(m => m.papeles?.includes(roleKey));
               return (
                 <div 
                   key={roleKey}
                   className={`p-2 rounded text-center text-sm ${
-                    member ? 'bg-green-900/20 border border-green-500/30' : 'bg-black/20 opacity-50'
+                    members.length > 0 ? 'bg-green-900/20 border border-green-500/30' : 'bg-black/20 opacity-50'
                   }`}
                 >
                   <div className="flex items-center justify-center gap-1 mb-1">
                     {ROLE_ICONS[roleKey]}
                     <span className="font-bold text-[hsl(var(--gold))]">{roleInfo.nombre}</span>
                   </div>
-                  <p className="text-xs text-muted-foreground truncate">
-                    {member?.nombre || 'Vacante'}
-                  </p>
+                  {members.length > 0 ? (
+                    <div className="space-y-1">
+                      {members.map(m => (
+                        <p key={m.id} className="text-xs text-muted-foreground truncate">
+                          {m.nombre}
+                          {m.papeles.length > 1 && <span className="text-yellow-400"> (-5)</span>}
+                        </p>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-xs text-muted-foreground truncate">Vacante</p>
+                  )}
                 </div>
               );
             })}
           </div>
+          
+          {/* Penalties info */}
+          {(config.miembros.some(m => m.papeles?.length > 1) || config.horasMarchaForzada > 0) && (
+            <div className="mt-3 p-2 bg-yellow-900/30 rounded border border-yellow-500/30 text-xs text-yellow-400">
+              ⚠️ Percepción pasiva reducida (-5): 
+              {config.miembros.filter(m => m.papeles?.length > 1).map(m => m.nombre).join(', ')}
+              {config.horasMarchaForzada > 0 && ' | Todos (marcha forzada)'}
+            </div>
+          )}
         </CardContent>
       </Card>
       
@@ -1715,16 +1882,20 @@ const EnhancedTravelSystem = () => {
               }
             </p>
             <div className="grid md:grid-cols-2 gap-3">
-              {config.miembros.filter(m => m.papel).map((member) => {
+              {config.miembros.filter(m => m.papeles?.length > 0).map((member) => {
                 const memberResult = pxResults?.results?.find(r => r.character_id === member.id);
+                const hasMultiple = member.papeles.length > 1;
                 return (
                   <Card key={member.id} className={`p-4 ${pxApplied ? 'bg-green-600/20 border-green-400' : 'bg-green-900/20 border-green-500/30'}`}>
                     <div className="flex justify-between items-center">
                       <div>
                         <p className="font-bold text-[hsl(var(--gold))]">{member.nombre}</p>
                         <p className="text-xs text-muted-foreground">
-                          {ROLE_INFO[member.papel]?.nombre}
+                          {member.papeles.map(p => ROLE_INFO[p]?.nombre).join(', ')}
                         </p>
+                        {hasMultiple && (
+                          <p className="text-xs text-yellow-400">⚠️ Múltiples papeles: -5</p>
+                        )}
                         {memberResult && pxApplied && (
                           <p className="text-xs text-green-400 mt-1">
                             XP Total: {memberResult.xp_nuevo}

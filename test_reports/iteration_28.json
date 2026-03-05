@@ -1,0 +1,92 @@
+{
+  "summary": "Frontend testing completed for TTRPG LOTR 5e Travel System multi-role and mount features. All 6 features verified working correctly.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/test_reports/iteration_28.json"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Multi-role system correctly implemented with papeles[] array instead of single papel string (lines 567, 616)",
+    "MULTI_ROLE_PENALTY constant = -5 properly applied in getCharBonus() function (lines 1071-1072)",
+    "hasMultipleRoles() helper correctly checks member.papeles.length > 1 (lines 96-98)",
+    "Mount system shows only character's owned mount via monturaPropia field (lines 555-560, 588-593)",
+    "Sin montura propia text correctly displayed when character has no mount (line 1235)"
+  ],
+  "updated_files": [],
+  "success_rate": {
+    "backend": "N/A (frontend-only testing)",
+    "frontend": "100% (6/6 features verified)"
+  },
+  "test_credentials": "No login required",
+  "seed_data_creation": "",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Multi-role travel system verified: characters can have multiple roles with -5 penalty badge, mounts only show owned mount with toggle switch, forced march warning displays -5 Percepción pasiva penalty",
+  "features_verified": {
+    "F1_multi_role_assignment": {
+      "status": "PASS",
+      "description": "Character (Regred Maggot) successfully assigned to multiple roles (Guía + Cazador)",
+      "evidence": "Screenshot shows character in both role cards with role badges at bottom"
+    },
+    "F2_multi_role_badge_warning": {
+      "status": "PASS", 
+      "description": "Badge '⚠️ 2 papeles: -5' appears in yellow when character has multiple roles",
+      "evidence": "Screenshot travel_multi_role_warning.png shows badge next to character name"
+    },
+    "F3_bonus_reduction_penalty": {
+      "status": "PASS",
+      "description": "Modifier reduced from +1 to -4 when character has 2 roles (-5 penalty applied)",
+      "evidence": "Badge shows -4 instead of +1 in screenshots"
+    },
+    "F4_multi_role_warning_message": {
+      "status": "PASS",
+      "description": "Warning 'Personajes con múltiples papeles:' with penalty explanation appears",
+      "evidence": "Warning shows 'Regred Maggot: Guía, Cazador → -5 en todas sus funciones y Percepción pasiva'"
+    },
+    "F5_owned_mount_only": {
+      "status": "PASS",
+      "description": "Mount toggle only shows character's owned mount (Caballo de caminos), not catalog",
+      "evidence": "Toggle switches between 'A pie' and 'Caballo de caminos' only"
+    },
+    "F6_no_mount_message": {
+      "status": "PASS",
+      "description": "'Sin montura propia' message displayed for Mithion Gildorion who has no mount",
+      "evidence": "Screenshot travel_mithion_mount_check.png shows italic 'Sin montura propia' text"
+    },
+    "F7_forced_march_warning": {
+      "status": "PASS",
+      "description": "'Marcha Forzada activa' warning shows -5 Percepción pasiva penalty",
+      "evidence": "Orange warning box displays penalty message when forced march selected"
+    }
+  },
+  "playwright_tests_executed": [
+    "Navigate to /travel - PASS",
+    "Select origin (Hobbiton) and destination (Bree) - PASS",
+    "Assign Regred Maggot to GUÍA role - PASS",
+    "Verify mount toggle shows 'A pie' (default) - PASS",
+    "Toggle mount to show 'Caballo de caminos' - PASS",
+    "Assign Regred Maggot to CAZADOR role (multi-role) - PASS",
+    "Verify '⚠️ 2 papeles: -5' badge appears - PASS",
+    "Verify bonus reduced to -4 (from +1) - PASS",
+    "Verify 'Personajes con múltiples papeles' warning - PASS",
+    "Assign Mithion Gildorion to different role - PASS",
+    "Verify 'Sin montura propia' message for Mithion - PASS",
+    "Select forced march +2 hours - PASS",
+    "Verify 'Marcha Forzada activa' warning - PASS"
+  ],
+  "code_review_summary": {
+    "data_structure_change": "member.papel: string → member.papeles: string[] - correctly implemented",
+    "penalty_constant": "MULTI_ROLE_PENALTY = -5 at line 106",
+    "helper_functions": "hasMultipleRoles() and hasPenalty() helpers work correctly",
+    "mount_field": "monturaPropia stores character's own mount from char.montura",
+    "ui_warnings": "Both multi-role and forced march warnings display correctly with -5 penalty"
+  }
+}
