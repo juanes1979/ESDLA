@@ -328,6 +328,12 @@ const EnhancedTravelSystem = () => {
     miembros: []
   });
   
+  // Search filters for origin/destination
+  const [origenSearch, setOrigenSearch] = useState('');
+  const [destinoSearch, setDestinoSearch] = useState('');
+  const [origenOpen, setOrigenOpen] = useState(false);
+  const [destinoOpen, setDestinoOpen] = useState(false);
+  
   // Journey calculation result
   const [journeyCalc, setJourneyCalc] = useState(null);
   const [loadingCalc, setLoadingCalc] = useState(false);
@@ -1012,6 +1018,27 @@ const EnhancedTravelSystem = () => {
   
   // =============== RENDER SECTIONS ===============
   
+  // Filter locations by search term
+  const filterLocations = (searchTerm) => {
+    if (!searchTerm) return locationsByRegion;
+    
+    const filtered = {};
+    const term = searchTerm.toLowerCase();
+    
+    Object.entries(locationsByRegion).forEach(([region, locs]) => {
+      const matchingLocs = locs.filter(loc => 
+        loc.nombre.toLowerCase().includes(term) ||
+        loc.nombre_sindarin?.toLowerCase().includes(term) ||
+        region.toLowerCase().includes(term)
+      );
+      if (matchingLocs.length > 0) {
+        filtered[region] = matchingLocs;
+      }
+    });
+    
+    return filtered;
+  };
+  
   // Configuration Panel
   const renderConfig = () => (
     <div className="space-y-6">
@@ -1025,94 +1052,144 @@ const EnhancedTravelSystem = () => {
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid md:grid-cols-2 gap-4">
-            {/* Origin */}
+            {/* Origin with Search */}
             <div>
-              <Label className="flex items-center gap-2">
+              <Label className="flex items-center gap-2 mb-2">
                 <MapPin className="w-4 h-4 text-green-400" /> Origen
               </Label>
-              <Select
-                value={config.origenId}
-                onValueChange={(v) => {
-                  const loc = locations.find(l => l.id === v);
-                  setConfig(prev => ({
-                    ...prev,
-                    origenId: v,
-                    origenNombre: loc?.nombre || ''
-                  }));
-                }}
-              >
-                <SelectTrigger data-testid="travel-select-origen">
-                  <SelectValue placeholder="Seleccionar origen">
-                    {config.origenNombre && (
-                      <span className="flex items-center gap-2">
-                        <MapPin className="w-3 h-3" /> {config.origenNombre}
-                      </span>
-                    )}
-                  </SelectValue>
-                </SelectTrigger>
-                <SelectContent className="max-h-80">
-                  <ScrollArea className="h-72">
-                    {Object.entries(locationsByRegion).map(([region, locs]) => (
-                      <SelectGroup key={region}>
-                        <SelectLabel className="text-[hsl(var(--gold))] font-bold">{region}</SelectLabel>
-                        {locs.map(loc => (
-                          <SelectItem key={loc.id} value={loc.id} disabled={loc.id === config.destinoId}>
-                            <div className="flex items-center gap-2">
-                              {loc.refugio && <Shield className="w-3 h-3 text-green-400" />}
+              <div className="relative">
+                <Input
+                  placeholder="Buscar origen..."
+                  value={origenSearch}
+                  onChange={(e) => setOrigenSearch(e.target.value)}
+                  onFocus={() => setOrigenOpen(true)}
+                  className="mb-1"
+                />
+                {config.origenNombre && !origenOpen && (
+                  <div className="p-2 bg-green-900/20 rounded border border-green-500/30 flex items-center justify-between">
+                    <span className="flex items-center gap-2">
+                      <MapPin className="w-4 h-4 text-green-400" />
+                      <span className="font-medium">{config.origenNombre}</span>
+                    </span>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-6 w-6 p-0"
+                      onClick={() => {
+                        setConfig(prev => ({ ...prev, origenId: '', origenNombre: '' }));
+                        setOrigenSearch('');
+                      }}
+                    >
+                      <X className="w-4 h-4" />
+                    </Button>
+                  </div>
+                )}
+                {origenOpen && (
+                  <Card className="absolute z-50 w-full mt-1 max-h-64 overflow-auto border shadow-lg">
+                    <ScrollArea className="h-60">
+                      {Object.entries(filterLocations(origenSearch)).map(([region, locs]) => (
+                        <div key={region} className="p-1">
+                          <p className="text-xs font-bold text-[hsl(var(--gold))] px-2 py-1 sticky top-0 bg-card">{region}</p>
+                          {locs.map(loc => (
+                            <Button
+                              key={loc.id}
+                              variant="ghost"
+                              className="w-full justify-start h-8 text-sm"
+                              disabled={loc.id === config.destinoId}
+                              onClick={() => {
+                                setConfig(prev => ({ ...prev, origenId: loc.id, origenNombre: loc.nombre }));
+                                setOrigenSearch('');
+                                setOrigenOpen(false);
+                              }}
+                            >
+                              {loc.refugio && <Shield className="w-3 h-3 text-green-400 mr-1" />}
                               {loc.nombre}
-                            </div>
-                          </SelectItem>
-                        ))}
-                      </SelectGroup>
-                    ))}
-                  </ScrollArea>
-                </SelectContent>
-              </Select>
+                            </Button>
+                          ))}
+                        </div>
+                      ))}
+                      {Object.keys(filterLocations(origenSearch)).length === 0 && (
+                        <p className="text-sm text-muted-foreground text-center py-4">No se encontraron ubicaciones</p>
+                      )}
+                    </ScrollArea>
+                    <div className="border-t p-1">
+                      <Button variant="ghost" size="sm" className="w-full" onClick={() => setOrigenOpen(false)}>
+                        Cerrar
+                      </Button>
+                    </div>
+                  </Card>
+                )}
+              </div>
             </div>
             
-            {/* Destination */}
+            {/* Destination with Search */}
             <div>
-              <Label className="flex items-center gap-2">
+              <Label className="flex items-center gap-2 mb-2">
                 <MapPin className="w-4 h-4 text-red-400" /> Destino
               </Label>
-              <Select
-                value={config.destinoId}
-                onValueChange={(v) => {
-                  const loc = locations.find(l => l.id === v);
-                  setConfig(prev => ({
-                    ...prev,
-                    destinoId: v,
-                    destinoNombre: loc?.nombre || ''
-                  }));
-                }}
-              >
-                <SelectTrigger data-testid="travel-select-destino">
-                  <SelectValue placeholder="Seleccionar destino">
-                    {config.destinoNombre && (
-                      <span className="flex items-center gap-2">
-                        <Flag className="w-3 h-3" /> {config.destinoNombre}
-                      </span>
-                    )}
-                  </SelectValue>
-                </SelectTrigger>
-                <SelectContent className="max-h-80">
-                  <ScrollArea className="h-72">
-                    {Object.entries(locationsByRegion).map(([region, locs]) => (
-                      <SelectGroup key={region}>
-                        <SelectLabel className="text-[hsl(var(--gold))] font-bold">{region}</SelectLabel>
-                        {locs.map(loc => (
-                          <SelectItem key={loc.id} value={loc.id} disabled={loc.id === config.origenId}>
-                            <div className="flex items-center gap-2">
-                              {loc.refugio && <Shield className="w-3 h-3 text-green-400" />}
+              <div className="relative">
+                <Input
+                  placeholder="Buscar destino..."
+                  value={destinoSearch}
+                  onChange={(e) => setDestinoSearch(e.target.value)}
+                  onFocus={() => setDestinoOpen(true)}
+                  className="mb-1"
+                />
+                {config.destinoNombre && !destinoOpen && (
+                  <div className="p-2 bg-red-900/20 rounded border border-red-500/30 flex items-center justify-between">
+                    <span className="flex items-center gap-2">
+                      <MapPin className="w-4 h-4 text-red-400" />
+                      <span className="font-medium">{config.destinoNombre}</span>
+                    </span>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-6 w-6 p-0"
+                      onClick={() => {
+                        setConfig(prev => ({ ...prev, destinoId: '', destinoNombre: '' }));
+                        setDestinoSearch('');
+                      }}
+                    >
+                      <X className="w-4 h-4" />
+                    </Button>
+                  </div>
+                )}
+                {destinoOpen && (
+                  <Card className="absolute z-50 w-full mt-1 max-h-64 overflow-auto border shadow-lg">
+                    <ScrollArea className="h-60">
+                      {Object.entries(filterLocations(destinoSearch)).map(([region, locs]) => (
+                        <div key={region} className="p-1">
+                          <p className="text-xs font-bold text-[hsl(var(--gold))] px-2 py-1 sticky top-0 bg-card">{region}</p>
+                          {locs.map(loc => (
+                            <Button
+                              key={loc.id}
+                              variant="ghost"
+                              className="w-full justify-start h-8 text-sm"
+                              disabled={loc.id === config.origenId}
+                              onClick={() => {
+                                setConfig(prev => ({ ...prev, destinoId: loc.id, destinoNombre: loc.nombre }));
+                                setDestinoSearch('');
+                                setDestinoOpen(false);
+                              }}
+                            >
+                              {loc.refugio && <Shield className="w-3 h-3 text-green-400 mr-1" />}
                               {loc.nombre}
-                            </div>
-                          </SelectItem>
-                        ))}
-                      </SelectGroup>
-                    ))}
-                  </ScrollArea>
-                </SelectContent>
-              </Select>
+                            </Button>
+                          ))}
+                        </div>
+                      ))}
+                      {Object.keys(filterLocations(destinoSearch)).length === 0 && (
+                        <p className="text-sm text-muted-foreground text-center py-4">No se encontraron ubicaciones</p>
+                      )}
+                    </ScrollArea>
+                    <div className="border-t p-1">
+                      <Button variant="ghost" size="sm" className="w-full" onClick={() => setDestinoOpen(false)}>
+                        Cerrar
+                      </Button>
+                    </div>
+                  </Card>
+                )}
+              </div>
             </div>
           </div>
           
@@ -1925,8 +2002,8 @@ const EnhancedTravelSystem = () => {
         </Card>
       )}
       
-      <Button variant="outline" onClick={resetJourney}>
-        <ArrowLeft className="w-4 h-4 mr-2" /> Cancelar Viaje
+      <Button variant="outline" onClick={() => setMode('config')}>
+        <ArrowLeft className="w-4 h-4 mr-2" /> Volver a Configuración
       </Button>
     </div>
   );
@@ -2627,9 +2704,14 @@ const EnhancedTravelSystem = () => {
           </CardContent>
         </Card>
         
-        <Button onClick={resetJourney} className="w-full">
-          <Plus className="w-4 h-4 mr-2" /> Nuevo Viaje
-        </Button>
+        <div className="flex gap-4">
+          <Button variant="outline" onClick={() => setMode('config')} className="flex-1">
+            <ArrowLeft className="w-4 h-4 mr-2" /> Volver a Configuración
+          </Button>
+          <Button onClick={resetJourney} className="flex-1">
+            <Plus className="w-4 h-4 mr-2" /> Nuevo Viaje
+          </Button>
+        </div>
       </div>
     );
   };
