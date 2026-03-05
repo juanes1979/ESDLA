@@ -66,18 +66,18 @@ const TerrainCorrectionTool = ({ isAdmin }) => {
   // Detect problematic entries
   const hasProblems = (loc) => {
     // Check for missing data
-    if (!loc.terreno || !loc.tipo_tierra) return true;
+    if (!loc.tipo_terreno || !loc.clase_region) return true;
     
     // Check for invalid terrain values
-    if (!TERRAIN_OPTIONS.find(t => t.value === loc.terreno)) return true;
+    if (!TERRAIN_OPTIONS.find(t => t.value === loc.tipo_terreno)) return true;
     
     // Check for invalid/inconsistent land type values
     const validLandTypes = LAND_TYPE_OPTIONS.map(l => l.value);
-    if (!validLandTypes.includes(loc.tipo_tierra)) {
+    if (!validLandTypes.includes(loc.clase_region)) {
       // Check for common variations that need normalization
-      if (loc.tipo_tierra === 'tierras_de_la_sombra' || 
-          loc.tipo_tierra === 'tierras_fronterizas' ||
-          loc.tipo_tierra === 'severo') {
+      if (loc.clase_region === 'tierras_de_la_sombra' || 
+          loc.clase_region === 'tierras_fronterizas' ||
+          loc.clase_region === 'severo') {
         return true;
       }
     }
@@ -94,12 +94,12 @@ const TerrainCorrectionTool = ({ isAdmin }) => {
       }
       
       // Terrain filter
-      if (filterTerrain !== 'all' && loc.terreno !== filterTerrain) {
+      if (filterTerrain !== 'all' && loc.tipo_terreno !== filterTerrain) {
         return false;
       }
       
       // Land type filter
-      if (filterLandType !== 'all' && loc.tipo_tierra !== filterLandType) {
+      if (filterLandType !== 'all' && loc.clase_region !== filterLandType) {
         return false;
       }
       
@@ -135,8 +135,10 @@ const TerrainCorrectionTool = ({ isAdmin }) => {
 
   // Get current value (pending change or original)
   const getCurrentValue = (loc, field) => {
-    if (pendingChanges[loc._id] && pendingChanges[loc._id][field] !== undefined) {
-      return pendingChanges[loc._id][field];
+    // Use 'id' not '_id' for location identifier
+    const locId = loc.id;
+    if (pendingChanges[locId] && pendingChanges[locId][field] !== undefined) {
+      return pendingChanges[locId][field];
     }
     return loc[field];
   };
@@ -179,32 +181,33 @@ const TerrainCorrectionTool = ({ isAdmin }) => {
     
     locations.forEach(loc => {
       const locFixes = {};
+      const locId = loc.id;
       
       // Fix missing terrain
-      if (!loc.terreno) {
-        locFixes.terreno = 'moderado'; // Default
+      if (!loc.tipo_terreno) {
+        locFixes.tipo_terreno = 'moderado'; // Default
       }
       
       // Fix invalid terrain value
-      if (loc.terreno === 'severo') {
-        locFixes.terreno = 'desalentador';
+      if (loc.tipo_terreno === 'severo') {
+        locFixes.tipo_terreno = 'desalentador';
       }
       
       // Fix missing land type
-      if (!loc.tipo_tierra) {
-        locFixes.tipo_tierra = 'tierras_salvajes'; // Default
+      if (!loc.clase_region) {
+        locFixes.clase_region = 'tierras_salvajes'; // Default
       }
       
       // Normalize land type variations
-      if (loc.tipo_tierra === 'tierras_de_la_sombra') {
-        locFixes.tipo_tierra = 'tierras_sombra';
+      if (loc.clase_region === 'tierras_de_la_sombra') {
+        locFixes.clase_region = 'tierras_sombra';
       }
-      if (loc.tipo_tierra === 'tierras_fronterizas') {
-        locFixes.tipo_tierra = 'fronterizas';
+      if (loc.clase_region === 'tierras_fronterizas') {
+        locFixes.clase_region = 'fronterizas';
       }
       
       if (Object.keys(locFixes).length > 0) {
-        fixes[loc._id] = locFixes;
+        fixes[locId] = locFixes;
       }
     });
     
@@ -391,14 +394,15 @@ const TerrainCorrectionTool = ({ isAdmin }) => {
             </thead>
             <tbody className="divide-y divide-gray-800">
               {filteredLocations.map(loc => {
+                const locId = loc.id;
                 const hasProblem = hasProblems(loc);
-                const hasChanges = pendingChanges[loc._id];
-                const currentTerrain = getCurrentValue(loc, 'terreno');
-                const currentLandType = getCurrentValue(loc, 'tipo_tierra');
+                const hasChanges = pendingChanges[locId];
+                const currentTerrain = getCurrentValue(loc, 'tipo_terreno');
+                const currentLandType = getCurrentValue(loc, 'clase_region');
                 
                 return (
                   <tr 
-                    key={loc._id} 
+                    key={locId} 
                     className={`
                       hover:bg-white/5 transition-colors
                       ${hasProblem ? 'bg-orange-900/10' : ''}
@@ -416,7 +420,7 @@ const TerrainCorrectionTool = ({ isAdmin }) => {
                       {isAdmin ? (
                         <select
                           value={currentTerrain || ''}
-                          onChange={(e) => handleTerrainChange(loc._id, 'terreno', e.target.value)}
+                          onChange={(e) => handleTerrainChange(locId, 'tipo_terreno', e.target.value)}
                           className="bg-black/50 border border-gray-600 rounded px-2 py-1 text-sm w-full"
                           style={{
                             borderColor: TERRAIN_OPTIONS.find(t => t.value === currentTerrain)?.color || '#666'
@@ -443,7 +447,7 @@ const TerrainCorrectionTool = ({ isAdmin }) => {
                       {isAdmin ? (
                         <select
                           value={currentLandType || ''}
-                          onChange={(e) => handleTerrainChange(loc._id, 'tipo_tierra', e.target.value)}
+                          onChange={(e) => handleTerrainChange(locId, 'clase_region', e.target.value)}
                           className="bg-black/50 border border-gray-600 rounded px-2 py-1 text-sm w-full"
                           style={{
                             borderColor: LAND_TYPE_OPTIONS.find(l => l.value === currentLandType)?.color || '#666'
