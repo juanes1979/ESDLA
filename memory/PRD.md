@@ -7,7 +7,30 @@ Build a comprehensive web application to play a modified version of the "Lord of
 
 ## Current State (2026-03-05)
 
-### ✅ COMPLETED This Session (2026-03-05 - P0/P1/P2 Travel System Completion)
+### ✅ COMPLETED This Session - Papeles Múltiples y Monturas (NEW)
+
+#### Sistema de Múltiples Papeles por Personaje ✅
+**Regla implementada:** Un mismo personaje puede tener varios papeles de viaje, pero sufre -5 en todas sus funciones y Percepción pasiva.
+
+**Cambios en `/app/frontend/src/pages/EnhancedTravelSystem.jsx`:**
+- Cambiado `member.papel: string` → `member.papeles: string[]`
+- Constante `MULTI_ROLE_PENALTY = -5`
+- Helpers `hasMultipleRoles()` y `hasPenalty()`
+- UI muestra badge "⚠️ X papeles: -5" cuando un personaje tiene múltiples roles
+- Bonificador se reduce automáticamente en 5
+- Aviso amarillo "Personajes con múltiples papeles" lista todos los afectados
+- Aviso naranja para "Marcha Forzada activa" (también -5 Percepción)
+
+#### Sistema de Monturas Propias ✅
+**Regla implementada:** Solo se pueden seleccionar las monturas que el personaje posee en propiedad.
+
+**Cambios:**
+- Campo `monturaPropia` almacena la montura del personaje (de `char.montura`)
+- Switch toggle entre "A pie" y la montura propia
+- Muestra "Sin montura propia" si el personaje no tiene montura
+- Eliminado el catálogo de monturas general
+
+### ✅ COMPLETED Previous Session (2026-03-05 - P0/P1/P2 Travel System)
 
 #### P0: Aplicar PX a Personajes al Finalizar Viaje ✅ (NEW)
 **Nuevo endpoint en `/app/backend/routes/travel_routes.py` (línea 1222+):**
