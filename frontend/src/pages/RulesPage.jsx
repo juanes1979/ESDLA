@@ -4,7 +4,7 @@
  */
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Users, Swords, Shield, BookOpen, Sparkles, Moon, Map, Loader2, Package, Search, ChevronDown, ChevronUp, Plus, Copy, Edit, User, Scroll, Trash2, Crown, Skull, MapPin, FileText, Printer, Check, AlertTriangle, Coins } from 'lucide-react';
+import { ArrowLeft, Users, Swords, Shield, BookOpen, Sparkles, Moon, Map, Loader2, Package, Search, ChevronDown, ChevronUp, Plus, Copy, Edit, User, Scroll, Trash2, Crown, Skull, MapPin, FileText, Printer, Check, AlertTriangle, Coins, Settings } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -20,7 +20,7 @@ import BackgroundEditor from '@/components/admin/BackgroundEditor';
 import OccupationEditor from '@/components/admin/OccupationEditor';
 import EquipmentEditor from '@/components/admin/EquipmentEditor';
 // Refactored rule section components
-import { SombraSection, CombateSection, SalariosSection, VariosSection, ViajeSection, ComunidadSection, NPCsSection, CriaturasSinNombreSection, BackgroundsSection, CharacterCreationSection, TerrainCorrectionTool, TradingSystemSection, VirtuesSection, ArtesSection, RecompensasSection, EquipmentSection, PriceModifiersSection, RegionsSection, CulturesSection, OccupationsSection } from '@/components/rules';
+import { SombraSection, CombateSection, SalariosSection, VariosSection, ViajeSection, ComunidadSection, NPCsSection, CriaturasSinNombreSection, BackgroundsSection, CharacterCreationSection, TerrainCorrectionTool, TradingSystemSection, VirtuesSection, ArtesSection, RecompensasSection, EquipmentSection, PriceModifiersSection, RegionsSection, CulturesSection, OccupationsSection, TravelRulesSection } from '@/components/rules';
 
 const RULE_CATEGORIES = [
   { id: 'cultures', name: 'Culturas', icon: Users, color: 'gold', description: 'Las razas y pueblos de la Tierra Media' },
@@ -39,6 +39,7 @@ const RULE_CATEGORIES = [
   { id: 'salarios', name: 'Salarios', icon: Crown, color: 'gold', description: 'Tabla de salarios por ocupación' },
   { id: 'varios', name: 'Reglas Varias', icon: BookOpen, color: 'magic-blue', description: 'Pruebas, Cansancio, Inspiración, Ojo de Mordor' },
   { id: 'travel', name: 'Viajes', icon: Map, color: 'gold', description: 'Reglas de exploración' },
+  { id: 'travel-rules', name: 'Config. Viajes', icon: Settings, color: 'torch-orange', description: 'Tablas editables de acontecimientos y reglas' },
   { id: 'community', name: 'Comunidad', icon: Users, color: 'magic-blue', description: 'Fase de comunidad, Yule y empresas' },
   { id: 'npcs', name: 'Bestiario', icon: Moon, color: 'destructive', description: 'Enemigos, PNJ, Animales y Especiales' },
   { id: 'nameless', name: 'Criaturas sin Nombre', icon: Skull, color: 'destructive', description: 'Reglas y generador de criaturas ancestrales' },
@@ -204,6 +205,10 @@ const RulesPage = () => {
           case 'travel':
             const viajeRes = await api.get('/data/viaje');
             setData(viajeRes.data);
+            break;
+          case 'travel-rules':
+            // Travel rules section loads its own data
+            setData(null);
             break;
           case 'community':
             const comunidadRes = await api.get('/data/comunidad');
@@ -3011,6 +3016,9 @@ const RulesPage = () => {
       
       case 'travel':
         return <ViajeSection data={data} />;
+      
+      case 'travel-rules':
+        return <TravelRulesSection />;
       
       case 'community':
         return <ComunidadSection data={data} />;

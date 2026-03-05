@@ -23,3 +23,4 @@ export { default as PriceModifiersSection } from './PriceModifiersSection';
 export { default as RegionsSection } from './RegionsSection';
 export { default as CulturesSection } from './CulturesSection';
 export { default as OccupationsSection } from './OccupationsSection';
+export { default as TravelRulesSection } from './sections/TravelRulesSection';

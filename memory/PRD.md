@@ -7,7 +7,53 @@ Build a comprehensive web application to play a modified version of the "Lord of
 
 ## Current State (2026-03-05)
 
-### ✅ COMPLETED This Session (2026-03-05 - Continuation)
+### ✅ COMPLETED This Session (2026-03-05 - Travel System)
+
+#### P0: Sistema de Viajes Mejorado - Backend ✅ (NEW)
+Se creó un sistema completo de reglas de viaje con datos editables desde la UI.
+
+**Nuevo archivo: `/app/backend/routes/travel_routes.py`**
+- **Endpoints de Configuración (CRUD):**
+  - `GET/PUT /api/travel/config/events` - Tabla de acontecimientos de viaje (d20)
+  - `GET/PUT /api/travel/config/objectives` - Objetivos de acontecimientos (d3)
+  - `GET/PUT /api/travel/config/terrains` - Configuración de terrenos
+  - `GET/PUT /api/travel/config/land-types` - Tipos de tierra con PX
+  - `GET/PUT /api/travel/config/rules` - Reglas generales de fatiga, orientación, velocidad
+
+- **Endpoints de Viaje:**
+  - `POST /api/travel/calculate-journey` - Calcula viaje completo
+  - `POST /api/travel/generate-event` - Genera acontecimiento con tiradas
+  - `POST /api/travel/resolve-event` - Resuelve acontecimiento
+  - `POST /api/travel/fatigue-save` - Tirada de fatiga final
+
+- **Endpoints de Modo Jornada a Jornada:**
+  - `POST /api/travel/journey/start` - Inicia viaje día a día
+  - `GET /api/travel/journey/{id}` - Estado del viaje activo
+  - `POST /api/travel/journey/{id}/advance-day` - Avanza un día
+  - `POST /api/travel/journey/{id}/add-event` - Añade evento al día
+  - `POST /api/travel/journey/{id}/complete` - Completa viaje
+
+**Datos por defecto incluidos:**
+- 7 tipos de acontecimientos (Terrible desgracia → Vista agradable)
+- 3 objetivos de acontecimientos (Explorador, Vigía, Cazador)
+- 3 tipos de terreno (Difícil, Camino, Campo abierto)
+- 5 tipos de tierra (Libres, Fronterizas, Salvajes, Sombra, Oscuras)
+
+#### P1: Sección de Configuración de Viajes en RulesPage ✅ (NEW)
+**Nuevo componente: `/app/frontend/src/components/rules/sections/TravelRulesSection.jsx`**
+
+Interfaz con 4 pestañas editables:
+1. **Acontecimientos** - Tabla d20 con rangos, CD fatiga, consecuencias
+2. **Terrenos** - CD prueba, modificador velocidad, permite montura
+3. **Tipos de Tierra** - PX por tipo de terreno, ventaja/desventaja, ritmo rápido
+4. **Reglas** - CD base fatiga, orientación, velocidad, modificadores estacionales
+
+**Integración en RulesPage:**
+- Nueva categoría "Config. Viajes" añadida al menú de reglas
+- Icono de engranaje (Settings)
+- Todas las tablas son editables y se guardan en MongoDB
+
+### ✅ COMPLETED Previous Session (2026-03-05)
 
 #### P0: Verificación de Lógica de Pathfinding "Pasos de Montaña" ✅
 La lógica de pathfinding que permite que los caminos crucen barreras infranqueables (creando "pasos") **ya estaba implementada**.
