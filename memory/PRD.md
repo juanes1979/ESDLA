@@ -7,6 +7,52 @@ Build a comprehensive web application to play a modified version of the "Lord of
 
 ## Current State (2026-03-05)
 
+### ✅ COMPLETED This Session - P0, P1, P2 Travel System Improvements
+
+#### P0: Mapa de Viaje con Pathfinding A* ✅
+**El backend ya usa A* pathfinding** para calcular rutas óptimas evitando obstáculos.
+- El endpoint `calculate-journey` ahora devuelve el array completo de `path` con coordenadas
+- `JourneyMiniMap` renderiza la ruta en el mapa del jugador correctamente escalado
+- Marcadores: Verde = Origen, Rojo = Destino
+- La ruta se muestra como línea gris con curvas naturales
+
+#### P1: Desglose Detallado de Terrenos y Caminos ✅
+**Nuevas secciones en la UI de resultados de ruta:**
+1. **Desglose del Terreno** - Muestra cada tipo de terreno con:
+   - Barras de progreso coloreadas (Verde=Fácil, Amarillo=Moderado, Naranja=Difícil, Rojo=Muy Difícil, Púrpura=Desalentador)
+   - Distancia en km por cada tipo
+   - Porcentaje del viaje total
+
+2. **Caminos Utilizados** - Badges con los nombres de caminos usados (ej: "Camino del Este")
+
+3. **Desglose PX** - Información detallada:
+   - Tipo de vía (camino real, sendero, etc.)
+   - PX base por casilla
+   - Bonus de terreno
+   - Multiplicador aplicado
+
+#### P2: Modo "Jornada a Jornada" Completo ✅
+**Sistema de viaje día a día completamente funcional:**
+- **Tabs de modo**: "Viaje Global" y "Jornada a Jornada"
+- **Botón dinámico**: Cambia a "Iniciar Viaje (Jornada a Jornada)" cuando está seleccionado
+- **Backend endpoints**:
+  - `POST /journey/start` - Inicia viaje guardando estado
+  - `POST /journey/{id}/advance-day` - Avanza un día con ritmo/marcha forzada
+  - `POST /journey/{id}/add-event` - Añade eventos a la jornada actual
+  - `POST /journey/{id}/complete` - Completa el viaje
+- **UI Day-by-Day**:
+  - Barra de progreso de casillas
+  - Estadísticas: CD Fatiga, PX Totales, Eventos
+  - Configuración diaria de ritmo y marcha forzada
+  - Panel de eventos con resolución de dados integrada
+  - Registro de jornadas pasadas
+
+**Fix aplicado:** `startDayByDayJourney()` ahora envía `papeles: []` en lugar de `papel: string`
+
+---
+
+## Previous Sessions
+
 ### ✅ COMPLETED This Session - Corrección de Bugs y Nuevas Funcionalidades
 
 #### BUG FIX CRÍTICO: Guía no reconocido al iniciar viaje ✅
