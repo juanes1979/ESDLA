@@ -3,7 +3,7 @@
  * Implements both Global and Day-by-Day journey modes
  * Uses the new travel rules API with editable configurations
  */
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, SelectGroup, SelectLabel } from '@/components/ui/select';
@@ -18,10 +18,15 @@ import {
   Map, Users, Compass, Play, Save, Clock, Mountain,
   Sun, Moon, Snowflake, Leaf, ArrowLeft, ArrowRight, Plus, MapPin, 
   Route, AlertTriangle, Shield, Footprints, Dice6, Check, X,
-  ChevronRight, SkipForward, Flag, Zap, Heart, Eye, Sparkles
+  ChevronRight, SkipForward, Flag, Zap, Heart, Eye, Sparkles, Maximize2
 } from 'lucide-react';
 import { toast } from 'sonner';
 import api from '@/services/api';
+
+// Player map URL for journey visualization
+const PLAYER_MAP_URL = 'https://customer-assets.emergentagent.com/job_909fe894-8fcc-49de-857a-11a4a3283302/artifacts/xoxpt6t9_Mapa%20jugadores.png';
+const MAP_WIDTH = 5000;
+const MAP_HEIGHT = 5000;
 
 // Elvish months with seasons
 const MESES_ELFICOS = [
@@ -105,6 +110,149 @@ const hasPenalty = (member, marchaForzada = 0) => {
 // Penalty amount for multiple roles or forced march
 const MULTI_ROLE_PENALTY = -5;
 
+// Maximum roles per character
+const MAX_ROLES_PER_CHARACTER = 2;
+
+// =============== JOURNEY MAP MINI COMPONENT ===============
+const JourneyMiniMap = ({ origenCoords, destinoCoords, origenNombre, destinoNombre, expanded = false, onToggleExpand }) => {
+  const [imageLoaded, setImageLoaded] = useState(false);
+  
+  if (!origenCoords || !destinoCoords) return null;
+  
+  // Calculate view box to show route with padding
+  const padding = 200;
+  const minX = Math.min(origenCoords.x, destinoCoords.x) - padding;
+  const minY = Math.min(origenCoords.y, destinoCoords.y) - padding;
+  const maxX = Math.max(origenCoords.x, destinoCoords.x) + padding;
+  const maxY = Math.max(origenCoords.y, destinoCoords.y) + padding;
+  const width = maxX - minX;
+  const height = maxY - minY;
+  
+  // Scale to image coordinates (map is 5000x5000, image has different dimensions)
+  const scaleX = 4000 / MAP_WIDTH; // Approximate image/map ratio
+  const scaleY = 4000 / MAP_HEIGHT;
+  
+  const viewBox = `${minX * scaleX} ${minY * scaleY} ${width * scaleX} ${height * scaleY}`;
+  
+  const containerHeight = expanded ? 'h-96' : 'h-48';
+  
+  return (
+    <Card className="card-parchment overflow-hidden">
+      <CardHeader className="pb-2 flex flex-row items-center justify-between">
+        <CardTitle className="text-sm text-[hsl(var(--gold))]">
+          <Route className="w-4 h-4 inline mr-2" />
+          Mapa del Viaje
+        </CardTitle>
+        {onToggleExpand && (
+          <Button variant="ghost" size="sm" onClick={onToggleExpand} className="h-6 w-6 p-0">
+            <Maximize2 className="w-4 h-4" />
+          </Button>
+        )}
+      </CardHeader>
+      <CardContent className="p-0">
+        <div className={`relative ${containerHeight} bg-black/20`}>
+          <svg 
+            viewBox={viewBox}
+            className="w-full h-full"
+            style={{ backgroundColor: '#1a1a1a' }}
+          >
+            {/* Map image as background */}
+            <image
+              href={PLAYER_MAP_URL}
+              x="0"
+              y="0"
+              width={MAP_WIDTH * scaleX}
+              height={MAP_HEIGHT * scaleY}
+              preserveAspectRatio="xMidYMid slice"
+              onLoad={() => setImageLoaded(true)}
+            />
+            
+            {imageLoaded && (
+              <>
+                {/* Route line shadow */}
+                <line
+                  x1={origenCoords.x * scaleX}
+                  y1={origenCoords.y * scaleY}
+                  x2={destinoCoords.x * scaleX}
+                  y2={destinoCoords.y * scaleY}
+                  stroke="rgba(0,0,0,0.6)"
+                  strokeWidth="8"
+                  strokeLinecap="round"
+                />
+                {/* Route line */}
+                <line
+                  x1={origenCoords.x * scaleX}
+                  y1={origenCoords.y * scaleY}
+                  x2={destinoCoords.x * scaleX}
+                  y2={destinoCoords.y * scaleY}
+                  stroke="#22c55e"
+                  strokeWidth="4"
+                  strokeLinecap="round"
+                  strokeDasharray="15,8"
+                />
+                
+                {/* Origin marker */}
+                <circle
+                  cx={origenCoords.x * scaleX}
+                  cy={origenCoords.y * scaleY}
+                  r="16"
+                  fill="#22c55e"
+                  stroke="white"
+                  strokeWidth="3"
+                />
+                <text
+                  x={origenCoords.x * scaleX}
+                  y={origenCoords.y * scaleY - 25}
+                  fill="white"
+                  fontSize="14"
+                  fontWeight="bold"
+                  textAnchor="middle"
+                  style={{ textShadow: '2px 2px 4px black' }}
+                >
+                  {origenNombre}
+                </text>
+                
+                {/* Destination marker */}
+                <circle
+                  cx={destinoCoords.x * scaleX}
+                  cy={destinoCoords.y * scaleY}
+                  r="16"
+                  fill="#ef4444"
+                  stroke="white"
+                  strokeWidth="3"
+                />
+                <text
+                  x={destinoCoords.x * scaleX}
+                  y={destinoCoords.y * scaleY - 25}
+                  fill="white"
+                  fontSize="14"
+                  fontWeight="bold"
+                  textAnchor="middle"
+                  style={{ textShadow: '2px 2px 4px black' }}
+                >
+                  {destinoNombre}
+                </text>
+              </>
+            )}
+          </svg>
+          
+          {/* Legend */}
+          <div className="absolute bottom-2 left-2 bg-black/70 rounded px-2 py-1 text-xs flex gap-3">
+            <span className="flex items-center gap-1">
+              <span className="w-3 h-3 rounded-full bg-green-500"></span>
+              Origen
+            </span>
+            <span className="flex items-center gap-1">
+              <span className="w-3 h-3 rounded-full bg-red-500"></span>
+              Destino
+            </span>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+};
+
 const EnhancedTravelSystem = () => {
   // =============== STATE ===============
   
@@ -140,6 +288,9 @@ const EnhancedTravelSystem = () => {
   // Journey calculation result
   const [journeyCalc, setJourneyCalc] = useState(null);
   const [loadingCalc, setLoadingCalc] = useState(false);
+  
+  // Map expansion state
+  const [mapExpanded, setMapExpanded] = useState(false);
   
   // Active journey (day-by-day mode)
   const [activeJourney, setActiveJourney] = useState(null);
@@ -275,7 +426,7 @@ const EnhancedTravelSystem = () => {
       return;
     }
     
-    if (!config.miembros.some(m => m.papel === 'guia')) {
+    if (!config.miembros.some(m => m.papeles?.includes('guia'))) {
       toast.error('Debe haber al menos un Guía asignado');
       return;
     }
@@ -322,7 +473,7 @@ const EnhancedTravelSystem = () => {
       return;
     }
     
-    if (!config.miembros.some(m => m.papel === 'guia')) {
+    if (!config.miembros.some(m => m.papeles?.includes('guia'))) {
       toast.error('Debe haber al menos un Guía asignado');
       return;
     }
@@ -598,6 +749,11 @@ const EnhancedTravelSystem = () => {
         ...prev,
         miembros: prev.miembros.map(m => {
           if (m.id === charId) {
+            // Check if already has max roles
+            if (m.papeles.length >= MAX_ROLES_PER_CHARACTER && !m.papeles.includes(role)) {
+              toast.error(`Máximo ${MAX_ROLES_PER_CHARACTER} papeles por personaje`);
+              return m;
+            }
             const newPapeles = m.papeles.includes(role) 
               ? m.papeles 
               : [...m.papeles, role];
@@ -648,6 +804,12 @@ const EnhancedTravelSystem = () => {
   
   // Toggle a role on/off for a member
   const toggleMemberRole = (charId, role) => {
+    const member = config.miembros.find(m => m.id === charId);
+    if (member && member.papeles.length >= MAX_ROLES_PER_CHARACTER && !member.papeles.includes(role)) {
+      toast.error(`Máximo ${MAX_ROLES_PER_CHARACTER} papeles por personaje`);
+      return;
+    }
+    
     setConfig(prev => ({
       ...prev,
       miembros: prev.miembros.map(m => {
@@ -961,6 +1123,20 @@ const EnhancedTravelSystem = () => {
                   <Badge className="bg-blue-600">Desventaja estacional</Badge>
                 )}
               </div>
+              
+              {/* Journey Map */}
+              {journeyCalc.ruta?.origen_coords && journeyCalc.ruta?.destino_coords && (
+                <div className="mt-4">
+                  <JourneyMiniMap
+                    origenCoords={journeyCalc.ruta.origen_coords}
+                    destinoCoords={journeyCalc.ruta.destino_coords}
+                    origenNombre={config.origenNombre}
+                    destinoNombre={config.destinoNombre}
+                    expanded={mapExpanded}
+                    onToggleExpand={() => setMapExpanded(!mapExpanded)}
+                  />
+                </div>
+              )}
             </div>
           )}
           
@@ -1137,18 +1313,20 @@ const EnhancedTravelSystem = () => {
                           const member = config.miembros.find(m => m.id === char.id);
                           const bonus = getCharBonus(char, member);
                           const alreadyHasRole = member?.papeles?.includes(roleKey);
+                          const hasMaxRoles = member?.papeles?.length >= MAX_ROLES_PER_CHARACTER;
+                          const isDisabled = alreadyHasRole || (hasMaxRoles && !alreadyHasRole);
                           return (
                             <SelectItem 
                               key={char.id} 
                               value={char.id}
-                              disabled={alreadyHasRole}
+                              disabled={isDisabled}
                             >
                               <div className="flex items-center justify-between w-full gap-4">
-                                <span className={alreadyHasRole ? 'text-muted-foreground' : ''}>
+                                <span className={isDisabled ? 'text-muted-foreground' : ''}>
                                   {char.nombre}
                                   {member?.papeles?.length > 0 && !alreadyHasRole && (
-                                    <span className="text-yellow-400 text-xs ml-1">
-                                      ({member.papeles.length} papel{member.papeles.length > 1 ? 'es' : ''})
+                                    <span className={`text-xs ml-1 ${hasMaxRoles ? 'text-red-400' : 'text-yellow-400'}`}>
+                                      ({member.papeles.length}/{MAX_ROLES_PER_CHARACTER} papeles)
                                     </span>
                                   )}
                                 </span>

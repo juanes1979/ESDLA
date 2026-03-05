@@ -1,0 +1,88 @@
+{
+  "summary": "Bug fix verification completed for LOTR 5e Travel System. All 5 features/bugs tested and verified working correctly.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_travel_bug_fixes.py"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "BUG FIX VERIFIED: startGlobalJourney() and startDayByDayJourney() now correctly use m.papeles?.includes('guia') instead of m.papel === 'guia' (lines 429, 476)",
+    "MAX_ROLES_PER_CHARACTER = 2 correctly enforced - dropdown shows '(2/2 papeles)' and disables selection",
+    "JourneyMiniMap component correctly renders map with origin (green) and destination (red) markers",
+    "Backend /api/travel/calculate-journey correctly returns origen_coords and destino_coords (lines 799-806)"
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_travel_bug_fixes.py"
+  ],
+  "success_rate": {
+    "backend": "100% (5/5 tests passed)",
+    "frontend": "100% (5/5 features verified)"
+  },
+  "test_credentials": "No login required",
+  "seed_data_creation": "",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "All travel system bugs verified fixed: (1) Guide assignment bug fixed, (2) Max 2 roles per character working, (3) Mini-map displays with coordinates",
+  "bugs_verified": {
+    "BUG_1_GUIDE_ASSIGNMENT": {
+      "status": "FIXED",
+      "description": "BUG CRÍTICO: Al seleccionar guía y dar a iniciar viaje ya NO dice 'no hay ninguno asignado'",
+      "fix_location": "EnhancedTravelSystem.jsx lines 429, 476",
+      "fix_detail": "Changed m.papel === 'guia' to m.papeles?.includes('guia')",
+      "evidence": "Journey successfully started with Regred Maggot as Guía - Events view displayed"
+    },
+    "BUG_2_MAX_ROLES_LIMIT": {
+      "status": "WORKING",
+      "description": "Un personaje NO puede ser asignado a más de 2 papeles",
+      "fix_location": "EnhancedTravelSystem.jsx line 114, 751-755, 807-810",
+      "evidence": "Dropdown shows 'Regred Maggot (2/2 papeles)' with disabled state when trying 3rd role"
+    },
+    "FEATURE_3_MAX_ROLES_MESSAGE": {
+      "status": "WORKING",
+      "description": "Aparece mensaje cuando un personaje tiene máximo papeles",
+      "evidence": "Badge shows '⚠️ 2 papeles: -5' in yellow with warning message at bottom"
+    },
+    "FEATURE_4_MINI_MAP": {
+      "status": "WORKING",
+      "description": "Mini-mapa del viaje muestra recorte del mapa con la ruta",
+      "fix_location": "EnhancedTravelSystem.jsx lines 117-253 (JourneyMiniMap component)",
+      "evidence": "Map shows with green origin marker, red destination marker, and dashed route line"
+    },
+    "FEATURE_5_BACKEND_COORDS": {
+      "status": "WORKING", 
+      "description": "Endpoint /api/travel/calculate-journey devuelve origen_coords y destino_coords",
+      "fix_location": "travel_routes.py lines 799-806",
+      "evidence": "Backend test verified: returns {x, y} coordinates for both origen and destino"
+    }
+  },
+  "playwright_tests_executed": [
+    "Navigate to /travel page - PASS",
+    "Select origin (Hobbiton) - PASS",
+    "Select destination (Bree) - PASS",
+    "Verify mini-map appears with 'Mapa del Viaje' header - PASS",
+    "Verify map shows origin (green) and destination (red) markers - PASS",
+    "Assign Regred Maggot to GUÍA role - PASS",
+    "Assign Regred Maggot to CAZADOR role (2nd role) - PASS",
+    "Verify '⚠️ 2 papeles: -5' badge appears - PASS",
+    "Verify modifier reduced from +1 to -4 (-5 penalty) - PASS",
+    "Try to assign 3rd role (VIGÍA) - BLOCKED as expected - PASS",
+    "Verify dropdown shows '(2/2 papeles)' and is disabled - PASS",
+    "Click 'Iniciar Viaje (Global)' button - PASS",
+    "Verify journey starts without error - PASS (Events view displayed)"
+  ],
+  "backend_tests": {
+    "test_calculate_journey_returns_coordinates": "PASS - Verified origen_coords and destino_coords returned",
+    "test_calculate_journey_hobbiton_bree": "PASS - Route calculation working",
+    "test_generate_event": "PASS - Event generation working",
+    "test_get_land_types": "PASS - Configuration endpoints working",
+    "test_get_travel_rules": "PASS - Rules configuration working"
+  }
+}

@@ -794,7 +794,16 @@ async def calculate_journey(config: JourneyConfig):
             "terreno_nombre": terrain_config.get('nombre', terreno_tipo),
             "tipo_tierra": route_data['tipo_tierra'],
             "tipo_tierra_nombre": land_config['nombre'],
-            "tipo_via": tipo_via
+            "tipo_via": tipo_via,
+            # Coordinates for map rendering
+            "origen_coords": {
+                "x": route_data['origen'].get('x', 0),
+                "y": route_data['origen'].get('y', 0)
+            },
+            "destino_coords": {
+                "x": route_data['destino'].get('x', 0),
+                "y": route_data['destino'].get('y', 0)
+            }
         },
         "estimaciones": {
             "dias_base": round(dias_base, 1),
