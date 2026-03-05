@@ -11,4 +11,5 @@ export { default as RoadsPanel } from './RoadsPanel';
 export { default as RiversPanel } from './RiversPanel';
 export { default as BarriersPanel } from './BarriersPanel';
 export { default as LocationInfoPanel } from './LocationInfoPanel';
+export { default as RoutePanel } from './RoutePanel';
 export { default as MapControls } from './MapControls';

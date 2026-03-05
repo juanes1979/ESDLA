@@ -42,22 +42,22 @@ Se integró el sistema GridFS con la generación de fichas de personaje.
 - Los PDFs se guardan en la carpeta `character_sheets` con el ID del personaje
 
 #### P2: Refactorización de MiddleEarthMap.jsx - COMPLETA ✅
-Se crearon componentes base y se integaron en el mapa:
+Se crearon componentes base y se integaron completamente en el mapa:
 
 **Componentes creados (`/app/frontend/src/components/map/`):**
-1. **mapConstants.js** - Constantes compartidas (colores de terreno, tipos de ubicación, iconos, tipos de caminos/ríos/barreras)
+1. **mapConstants.js** - Constantes compartidas (colores, tipos de ubicación, iconos, tipos de caminos/ríos/barreras)
 2. **RoadsPanel.jsx** - Panel de gestión de caminos (integrado)
 3. **RiversPanel.jsx** - Panel de gestión de ríos (integrado)
 4. **BarriersPanel.jsx** - Panel de gestión de barreras (integrado)
-5. **LocationInfoPanel.jsx** - Panel de información de ubicación
-6. **MapControls.jsx** - Controles de zoom, filtros y opciones de vista
+5. **LocationInfoPanel.jsx** - Panel de información de ubicación (integrado)
+6. **RoutePanel.jsx** - Panel de ruta calculada (integrado) (NEW)
+7. **MapControls.jsx** - Controles de zoom, filtros y opciones de vista
 
-**Resultado:**
-- Archivo reducido de **3552 a 3042 líneas** (~510 líneas menos, -14%)
-- Constantes compartidas en `mapConstants.js` usadas por múltiples componentes
-- Funciones `renderRoadsPanel`, `renderRiversPanel`, `renderBarriersPanel` eliminadas
-- Paneles ahora son componentes independientes importados
-- Mapa del Maestro funcionando correctamente
+**Resultado Final:**
+- Archivo reducido de **3552 a 2814 líneas** (~738 líneas menos, **-21%**)
+- 5 funciones render eliminadas y convertidas a componentes
+- Constantes compartidas en `mapConstants.js`
+- Mapa del Maestro funcionando correctamente con todos los paneles
 
 #### P2: Acceso directo al Almacén desde HomePage ✅
 - Añadido nuevo medallón "Almacén de Archivos" en la HomePage

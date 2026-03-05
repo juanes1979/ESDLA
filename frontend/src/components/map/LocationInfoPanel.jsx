@@ -1,6 +1,6 @@
 /**
  * Location Info Panel Component
- * Displays information about a selected location
+ * Displays information about a selected location with route and edit options
  */
 import { X, MapPin, Shield, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';

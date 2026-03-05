@@ -34,7 +34,7 @@ import {
 } from '../components/map/mapConstants';
 
 // Import map panel components
-import { RoadsPanel, RiversPanel, BarriersPanel } from '../components/map';
+import { RoadsPanel, RiversPanel, BarriersPanel, LocationInfoPanel, RoutePanel } from '../components/map';
 
 // Type categories for filtering (not in mapConstants - specific to this view)
 const TYPE_CATEGORIES = {
@@ -1351,125 +1351,6 @@ const MiddleEarthMap = () => {
   };
   
   // Render info panel
-  const renderInfoPanel = () => {
-    if (!selectedLocation) return null;
-    
-    const loc = selectedLocation;
-    
-    return (
-      <Card className="absolute top-4 right-4 w-80 card-parchment z-20">
-        <CardHeader className="pb-2">
-          <div className="flex justify-between items-start">
-            <div>
-              <CardTitle className="text-lg text-[hsl(var(--gold))]">
-                {LOCATION_ICONS[loc.tipo]} {loc.nombre}
-              </CardTitle>
-              {loc.nombre_sindarin && (
-                <p className="text-sm text-muted-foreground italic">{loc.nombre_sindarin}</p>
-              )}
-            </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setSelectedLocation(null)}
-            >
-              <X className="w-4 h-4" />
-            </Button>
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <p className="text-sm">{loc.descripcion}</p>
-          
-          <div className="flex flex-wrap gap-2">
-            <Badge variant="outline">{loc.region}</Badge>
-            <Badge style={{ backgroundColor: TERRAIN_COLORS[loc.terreno] + '40', color: '#fff' }}>
-              {loc.terreno}
-            </Badge>
-            <Badge style={{ backgroundColor: LAND_COLORS[loc.tipo_tierra] + '40', color: '#fff' }}>
-              {loc.tipo_tierra?.replace('_', ' ')}
-            </Badge>
-          </div>
-          
-          <div className="flex gap-2">
-            {loc.refugio && (
-              <Badge className="bg-green-500/20 text-green-400">
-                <Shield className="w-3 h-3 mr-1" />
-                Refugio
-              </Badge>
-            )}
-            <Badge className={`${
-              loc.peligro === 'bajo' ? 'bg-green-500/20 text-green-400' :
-              loc.peligro === 'medio' ? 'bg-yellow-500/20 text-yellow-400' :
-              loc.peligro === 'alto' ? 'bg-orange-500/20 text-orange-400' :
-              loc.peligro === 'muy_alto' ? 'bg-red-500/20 text-red-400' :
-              'bg-purple-500/20 text-purple-400'
-            }`}>
-              <AlertTriangle className="w-3 h-3 mr-1" />
-              Peligro: {loc.peligro}
-            </Badge>
-          </div>
-          
-          {/* Coordinates display */}
-          <div className="text-xs text-muted-foreground">
-            Coordenadas: ({loc.x}, {loc.y})
-          </div>
-          
-          {/* Route buttons */}
-          <div className="flex gap-2 pt-2 border-t border-border/30">
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => {
-                setRouteOrigin(loc);
-                setSelectedLocation(null);
-                toast.success(`Origen: ${loc.nombre}`);
-              }}
-              className="flex-1"
-            >
-              <MapPin className="w-3 h-3 mr-1 text-green-400" />
-              Origen
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => {
-                setRouteDestination(loc);
-                setSelectedLocation(null);
-                toast.success(`Destino: ${loc.nombre}`);
-              }}
-              className="flex-1"
-            >
-              <MapPin className="w-3 h-3 mr-1 text-red-400" />
-              Destino
-            </Button>
-          </div>
-          
-          {/* Edit/Delete buttons - Only for Maestro */}
-          {showMasterView && (
-            <div className="flex gap-2 pt-2 border-t border-border/30">
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => startEditingLocation(loc)}
-                className="flex-1"
-              >
-                ✏️ Editar
-              </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => deleteLocation(loc)}
-                disabled={isDeleting}
-                className="flex-1 text-red-400 border-red-400/50 hover:bg-red-400/10"
-              >
-                🗑️ Eliminar
-              </Button>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-    );
-  };
   
   // Render edit location panel
   const renderEditPanel = () => {
@@ -1960,144 +1841,6 @@ const MiddleEarthMap = () => {
   };
   
   // Render route info panel
-  const renderRoutePanel = () => {
-    if (!routeInfo) return null;
-    
-    const route = routeInfo.route;
-    
-    return (
-      <Card className="absolute bottom-4 left-4 right-4 md:left-auto md:right-4 md:w-96 card-parchment z-20">
-        <CardHeader className="pb-2">
-          <div className="flex justify-between items-center">
-            <CardTitle className="text-lg text-[hsl(var(--gold))]">
-              <Route className="w-5 h-5 inline mr-2" />
-              Ruta Calculada
-            </CardTitle>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => {
-                setRouteOrigin(null);
-                setRouteDestination(null);
-                setRouteInfo(null);
-                setCalculatedPath(null);
-              }}
-            >
-              <X className="w-4 h-4" />
-            </Button>
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <div className="flex items-center gap-2 text-sm">
-            <MapPin className="w-4 h-4 text-green-400" />
-            <span className="font-bold">{routeInfo.origin.nombre}</span>
-            <span className="text-muted-foreground">→</span>
-            <MapPin className="w-4 h-4 text-red-400" />
-            <span className="font-bold">{routeInfo.destination.nombre}</span>
-          </div>
-          
-          <div className="grid grid-cols-4 gap-2 text-center">
-            <div className="bg-black/20 p-2 rounded">
-              <p className="text-xl font-bold text-[hsl(var(--torch-orange))]">{route.distance_km}</p>
-              <p className="text-xs text-muted-foreground">km</p>
-            </div>
-            <div className="bg-black/20 p-2 rounded">
-              <p className="text-xl font-bold text-[hsl(var(--magic-blue))]">{route.distance_hexes}</p>
-              <p className="text-xs text-muted-foreground">hexágonos</p>
-            </div>
-            <div className="bg-black/20 p-2 rounded">
-              <p className="text-xl font-bold text-[hsl(var(--gold))]">{route.estimated_days}</p>
-              <p className="text-xs text-muted-foreground">días</p>
-            </div>
-            <div className="bg-black/20 p-2 rounded">
-              <p className="text-lg font-bold" style={{ color: LAND_COLORS[route.land_type] }}>
-                {route.direction.cardinal}
-              </p>
-              <p className="text-xs text-muted-foreground">dirección</p>
-            </div>
-          </div>
-          
-          <div className="flex flex-wrap gap-2">
-            <Badge style={{ backgroundColor: TERRAIN_COLORS[route.terrain_difficulty] + '40' }}>
-              Terreno: {route.terrain_difficulty}
-            </Badge>
-            <Badge style={{ backgroundColor: LAND_COLORS[route.land_type] + '40' }}>
-              {route.land_type?.replace('_', ' ')}
-            </Badge>
-            <Badge className={`${
-              route.danger_level === 'bajo' ? 'bg-green-500/20 text-green-400' :
-              route.danger_level === 'medio' ? 'bg-yellow-500/20 text-yellow-400' :
-              route.danger_level === 'alto' ? 'bg-orange-500/20 text-orange-400' :
-              'bg-red-500/20 text-red-400'
-            }`}>
-              Peligro: {route.danger_level}
-            </Badge>
-          </div>
-          
-          {/* Pathfinding Result */}
-          {calculatedPath && calculatedPath.success && (
-            <div className="mt-3 pt-3 border-t border-border/30">
-              <div className="flex items-center justify-between mb-2">
-                <p className="text-xs font-bold text-cyan-400 flex items-center gap-1">
-                  <Route className="w-3 h-3" />
-                  Ruta Óptima (A*)
-                </p>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-5 text-xs"
-                  onClick={() => setShowCalculatedPath(!showCalculatedPath)}
-                >
-                  {showCalculatedPath ? '👁️' : '👁️‍🗨️'}
-                </Button>
-              </div>
-              
-              <div className="grid grid-cols-3 gap-2 text-center text-xs">
-                <div className="bg-cyan-500/10 p-1 rounded">
-                  <p className="font-bold text-cyan-400">{calculatedPath.total_distance_km}</p>
-                  <p className="text-muted-foreground">km total</p>
-                </div>
-                <div className="bg-cyan-500/10 p-1 rounded">
-                  <p className="font-bold text-cyan-400">{calculatedPath.estimated_days}</p>
-                  <p className="text-muted-foreground">días</p>
-                </div>
-                <div className="bg-cyan-500/10 p-1 rounded">
-                  <p className="font-bold text-green-400">{calculatedPath.roads_used?.length || 0}</p>
-                  <p className="text-muted-foreground">caminos</p>
-                </div>
-              </div>
-              
-              {calculatedPath.roads_used?.length > 0 && (
-                <div className="mt-2 flex flex-wrap gap-1">
-                  {calculatedPath.roads_used.map((road, idx) => (
-                    <Badge key={idx} className="bg-yellow-500/20 text-yellow-400 text-xs py-0">
-                      🛤️ {road}
-                    </Badge>
-                  ))}
-                </div>
-              )}
-              
-              {calculatedPath.rivers_crossed?.length > 0 && (
-                <div className="mt-2 flex flex-wrap gap-1">
-                  {calculatedPath.rivers_crossed.map((river, idx) => (
-                    <Badge key={idx} className="bg-blue-500/20 text-blue-400 text-xs py-0">
-                      🌊 {river.type}
-                    </Badge>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-          
-          {isCalculatingPath && (
-            <div className="mt-2 text-center">
-              <p className="text-xs text-cyan-400 animate-pulse">Calculando ruta óptima...</p>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-    );
-  };
   
   if (loading) {
     return (
@@ -2962,10 +2705,39 @@ const MiddleEarthMap = () => {
         </svg>
         
         {/* Info panels */}
-        {renderInfoPanel()}
+        <LocationInfoPanel
+          location={selectedLocation}
+          onClose={() => setSelectedLocation(null)}
+          onSetOrigin={(loc) => {
+            setRouteOrigin(loc);
+            setSelectedLocation(null);
+            toast.success(`Origen: ${loc.nombre}`);
+          }}
+          onSetDestination={(loc) => {
+            setRouteDestination(loc);
+            setSelectedLocation(null);
+            toast.success(`Destino: ${loc.nombre}`);
+          }}
+          onEdit={startEditingLocation}
+          onDelete={deleteLocation}
+          showMasterView={showMasterView}
+          isDeleting={isDeleting}
+        />
         {renderEditPanel()}
         {renderCreatePanel()}
-        {renderRoutePanel()}
+        <RoutePanel
+          routeInfo={routeInfo}
+          calculatedPath={calculatedPath}
+          isCalculatingPath={isCalculatingPath}
+          showCalculatedPath={showCalculatedPath}
+          setShowCalculatedPath={setShowCalculatedPath}
+          onClose={() => {
+            setRouteOrigin(null);
+            setRouteDestination(null);
+            setRouteInfo(null);
+            setCalculatedPath(null);
+          }}
+        />
         
         {/* Road/River/Barrier Management Panels */}
         <RoadsPanel
