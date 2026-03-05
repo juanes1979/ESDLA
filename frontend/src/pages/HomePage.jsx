@@ -19,7 +19,7 @@ const NAV_ITEMS = [
   },
   {
     id: 'characters',
-    image: 'https://customer-assets.emergentagent.com/job_fab028bf-4de6-413f-8616-34827bc574a6/artifacts/7124wyv2_Mis%20Personajes.png',
+    image: 'https://customer-assets.emergentagent.com/job_43646a93-aa78-4a0d-8146-f59889732d98/artifacts/69qs0ncp_Mis%20Personajes.png',
     title: 'Mis Personajes',
     description: 'Accede a tus fichas de personajes creados.',
     path: '/characters',
