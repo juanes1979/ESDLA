@@ -9,7 +9,7 @@ Build a comprehensive web application to play a modified version of the "Lord of
 
 ### ✅ COMPLETED This Session (2026-03-05)
 
-#### P0: Refactorización de RulesPage.jsx ✅ (NEW)
+#### P0: Refactorización de RulesPage.jsx ✅
 Se extrajeron múltiples secciones del archivo monolítico `RulesPage.jsx` (~4700 líneas) a componentes independientes:
 
 **Nuevos componentes creados (`/app/frontend/src/components/rules/`):**
@@ -21,7 +21,7 @@ Se extrajeron múltiples secciones del archivo monolítico `RulesPage.jsx` (~470
 
 **Impacto:** RulesPage.jsx ahora usa 20+ componentes refactorizados, mejorando mantenibilidad.
 
-#### P1: Sistema de Archivos GridFS ✅ (NEW)
+#### P1: Sistema de Archivos GridFS ✅
 Sistema completo de almacenamiento persistente usando MongoDB GridFS.
 
 **Backend (`/app/backend/routes/storage_routes.py`):**
@@ -32,6 +32,27 @@ Sistema completo de almacenamiento persistente usando MongoDB GridFS.
 **Frontend:**
 - **FileManager.jsx** - Explorador jerárquico con búsqueda, upload y creación de campañas
 - **StoragePage.jsx** - Nueva ruta `/storage` para acceso al sistema de archivos
+
+#### P2: Integración GridFS con Character Sheets ✅ (NEW)
+Se integró el sistema GridFS con la generación de fichas de personaje.
+
+**Cambios en `InteractiveCharacterSheet.jsx`:**
+- Función `generatePDF` ahora acepta parámetro `saveToStorage`
+- Nuevo botón "Guardar en Almacén" que genera el PDF y lo sube a GridFS
+- Los PDFs se guardan en la carpeta `character_sheets` con el ID del personaje
+
+#### P2: Refactorización de MiddleEarthMap.jsx - INICIADA (NEW)
+Se crearon componentes base para el mapa en `/app/frontend/src/components/map/`:
+
+**Componentes creados:**
+1. **mapConstants.js** - Constantes compartidas (colores, tipos, iconos)
+2. **RoadsPanel.jsx** - Panel de gestión de caminos
+3. **RiversPanel.jsx** - Panel de gestión de ríos
+4. **BarriersPanel.jsx** - Panel de gestión de barreras
+5. **LocationInfoPanel.jsx** - Panel de información de ubicación
+6. **MapControls.jsx** - Controles de zoom, filtros y opciones de vista
+
+**Estado:** Componentes creados pero aún no integrados en MiddleEarthMap.jsx. Requiere integración y limpieza del código original.
 
 ### ✅ COMPLETED Previous Session (2026-03-04)
 

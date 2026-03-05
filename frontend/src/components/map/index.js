@@ -1,10 +1,14 @@
 /**
  * Map Components Index
- * Export all map components for easy importing
+ * Re-exports all map-related components
  */
-export { default as MapControls } from './MapControls';
-export { default as MapFilters } from './MapFilters';
+
+// Constants
+export * from './mapConstants';
+
+// Panels
+export { default as RoadsPanel } from './RoadsPanel';
+export { default as RiversPanel } from './RiversPanel';
+export { default as BarriersPanel } from './BarriersPanel';
 export { default as LocationInfoPanel } from './LocationInfoPanel';
-export { default as EditLocationPanel } from './EditLocationPanel';
-export { default as CreateLocationPanel } from './CreateLocationPanel';
-export { default as RouteInfoPanel } from './RouteInfoPanel';
+export { default as MapControls } from './MapControls';

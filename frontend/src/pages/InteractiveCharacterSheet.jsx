@@ -78,7 +78,7 @@ const InteractiveCharacterSheet = () => {
   };
 
   // Generate PDF with all 3 pages
-  const generatePDF = async () => {
+  const generatePDF = async (saveToStorage = false) => {
     if (!sheetRef.current) return;
     
     setGeneratingPdf(true);
@@ -139,7 +139,28 @@ const InteractiveCharacterSheet = () => {
       // Download PDF
       pdf.save(filename);
       
-      toast.success('PDF generado correctamente');
+      // Also save to GridFS storage if requested
+      if (saveToStorage) {
+        try {
+          const pdfBlob = pdf.output('blob');
+          const formData = new FormData();
+          formData.append('file', pdfBlob, filename);
+          formData.append('maestro_id', 'default_maestro');
+          formData.append('character_id', characterId);
+          formData.append('folder', 'character_sheets');
+          
+          await api.post('/storage/upload', formData, {
+            headers: { 'Content-Type': 'multipart/form-data' }
+          });
+          
+          toast.success('PDF guardado en el almacén');
+        } catch (storageErr) {
+          console.error('Error saving to storage:', storageErr);
+          toast.warning('PDF descargado pero no se pudo guardar en el almacén');
+        }
+      } else {
+        toast.success('PDF generado correctamente');
+      }
     } catch (err) {
       console.error('Error generating PDF:', err);
       toast.error('Error al generar el PDF');
@@ -271,7 +292,7 @@ const InteractiveCharacterSheet = () => {
             
             <Button
               size="sm"
-              onClick={generatePDF}
+              onClick={() => generatePDF(false)}
               disabled={generatingPdf}
               className="bg-[hsl(var(--gold))] text-black hover:bg-[hsl(var(--gold))/80]"
               data-testid="pdf-btn"
@@ -282,6 +303,22 @@ const InteractiveCharacterSheet = () => {
                 <FileText className="w-4 h-4 mr-2" />
               )}
               {generatingPdf ? 'Generando...' : 'Descargar PDF'}
+            </Button>
+            
+            <Button
+              size="sm"
+              onClick={() => generatePDF(true)}
+              disabled={generatingPdf}
+              variant="outline"
+              className="border-green-500/50 hover:bg-green-500/10"
+              data-testid="save-pdf-storage-btn"
+            >
+              {generatingPdf ? (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              ) : (
+                <Download className="w-4 h-4 mr-2 text-green-400" />
+              )}
+              Guardar en Almacén
             </Button>
             
             <Button
