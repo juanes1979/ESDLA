@@ -7,9 +7,9 @@ Build a comprehensive web application to play a modified version of the "Lord of
 
 ## Current State (2026-03-05)
 
-### ✅ COMPLETED This Session (2026-03-05 - Travel System)
+### ✅ COMPLETED This Session (2026-03-05 - Travel System Complete)
 
-#### P0: Sistema de Viajes Mejorado - Backend ✅ (NEW)
+#### P0: Sistema de Viajes Mejorado - Backend ✅
 Se creó un sistema completo de reglas de viaje con datos editables desde la UI.
 
 **Nuevo archivo: `/app/backend/routes/travel_routes.py`**
@@ -21,8 +21,8 @@ Se creó un sistema completo de reglas de viaje con datos editables desde la UI.
   - `GET/PUT /api/travel/config/rules` - Reglas generales de fatiga, orientación, velocidad
 
 - **Endpoints de Viaje:**
-  - `POST /api/travel/calculate-journey` - Calcula viaje completo
-  - `POST /api/travel/generate-event` - Genera acontecimiento con tiradas
+  - `POST /api/travel/calculate-journey` - Calcula viaje completo ✅ PROBADO
+  - `POST /api/travel/generate-event` - Genera acontecimiento con tiradas ✅ PROBADO
   - `POST /api/travel/resolve-event` - Resuelve acontecimiento
   - `POST /api/travel/fatigue-save` - Tirada de fatiga final
 
@@ -39,7 +39,7 @@ Se creó un sistema completo de reglas de viaje con datos editables desde la UI.
 - 3 tipos de terreno (Difícil, Camino, Campo abierto)
 - 5 tipos de tierra (Libres, Fronterizas, Salvajes, Sombra, Oscuras)
 
-#### P1: Sección de Configuración de Viajes en RulesPage ✅ (NEW)
+#### P1: Sección de Configuración de Viajes en RulesPage ✅
 **Nuevo componente: `/app/frontend/src/components/rules/sections/TravelRulesSection.jsx`**
 
 Interfaz con 4 pestañas editables:
@@ -47,6 +47,22 @@ Interfaz con 4 pestañas editables:
 2. **Terrenos** - CD prueba, modificador velocidad, permite montura
 3. **Tipos de Tierra** - PX por tipo de terreno, ventaja/desventaja, ritmo rápido
 4. **Reglas** - CD base fatiga, orientación, velocidad, modificadores estacionales
+
+#### P2: Frontend del Generador de Viajes Mejorado ✅ (NEW)
+**Nuevo archivo: `/app/frontend/src/pages/EnhancedTravelSystem.jsx`**
+
+Sistema completo de generación de viajes con:
+- **Selector de Origen/Destino** con 216 ubicaciones agrupadas por región
+- **Opciones de ruta:** Evitar Tierras de Sombra/Oscuras, Preferir Caminos
+- **Cálculo automático** de distancia, casillas, días, PX y eventos esperados
+- **Configuración del viaje:** Ritmo (lento/normal/rápido), mes élfico, marcha forzada
+- **Gestión de miembros:** Añadir personajes, asignar papeles de viaje, monturas
+- **Dos modos de viaje:**
+  - **Viaje Global** - Ejecuta todo de una vez
+  - **Jornada a Jornada** - Avanza día a día con opciones de cambio
+
+**Ruta:** `/travel` (reemplaza el antiguo TravelGenerator)
+**Ruta legacy:** `/travel/legacy` (mantiene el anterior por compatibilidad)
 
 **Integración en RulesPage:**
 - Nueva categoría "Config. Viajes" añadida al menú de reglas

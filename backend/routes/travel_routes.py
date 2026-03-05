@@ -16,7 +16,7 @@ router = APIRouter(prefix="/travel", tags=["Travel System"])
 # MongoDB connection
 mongo_url = os.environ.get('MONGO_URL')
 client = AsyncIOMotorClient(mongo_url)
-db = client[os.environ.get('DB_NAME', 'lotr_5e')]
+db = client[os.environ.get('DB_NAME', 'test_database')]
 
 # ============== MODELS ==============
 
@@ -448,10 +448,16 @@ async def calculate_journey(config: JourneyConfig):
     # Try to get route from pathfinding
     route_data = None
     try:
-        # Use existing pathfinding endpoint logic
-        from routes.data_routes import db as data_db
-        start_loc = await data_db.locations.find_one({"id": config.origen_id}, {"_id": 0})
-        end_loc = await data_db.locations.find_one({"id": config.destino_id}, {"_id": 0})
+        # Use our own db connection to get locations
+        # Note: Location IDs are stored in _id field
+        start_loc = await db.locations.find_one({"_id": config.origen_id})
+        end_loc = await db.locations.find_one({"_id": config.destino_id})
+        
+        # Remove MongoDB _id for serialization
+        if start_loc:
+            start_loc['id'] = str(start_loc.pop('_id'))
+        if end_loc:
+            end_loc['id'] = str(end_loc.pop('_id'))
         
         if start_loc and end_loc:
             # Calculate distance
