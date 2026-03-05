@@ -864,12 +864,12 @@ const EnhancedTravelSystem = () => {
                   <div className="grid grid-cols-2 gap-2">
                     <div>
                       <Label className="text-xs">Papel de Viaje</Label>
-                      <Select value={member.papel || ''} onValueChange={(v) => updateMemberRole(member.id, v || null)}>
+                      <Select value={member.papel || '_none_'} onValueChange={(v) => updateMemberRole(member.id, v === '_none_' ? null : v)}>
                         <SelectTrigger className="h-8">
                           <SelectValue placeholder="Sin asignar" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="">Sin asignar</SelectItem>
+                          <SelectItem value="_none_">Sin asignar</SelectItem>
                           {Object.entries(ROLE_INFO).map(([key, info]) => (
                             <SelectItem key={key} value={key}>
                               <div className="flex items-center gap-2">
