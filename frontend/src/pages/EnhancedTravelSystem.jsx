@@ -18,7 +18,7 @@ import {
   Map, Users, Compass, Play, Save, Clock, Mountain,
   Sun, Moon, Snowflake, Leaf, ArrowLeft, ArrowRight, Plus, MapPin, 
   Route, AlertTriangle, Shield, Footprints, Dice6, Check, X,
-  ChevronRight, SkipForward, Flag, Zap, Heart, Eye
+  ChevronRight, SkipForward, Flag, Zap, Heart, Eye, Sparkles
 } from 'lucide-react';
 import { toast } from 'sonner';
 import api from '@/services/api';
@@ -142,6 +142,11 @@ const EnhancedTravelSystem = () => {
   
   // Final results
   const [fatigueResults, setFatigueResults] = useState([]);
+  
+  // PX Application state
+  const [applyingPX, setApplyingPX] = useState(false);
+  const [pxApplied, setPxApplied] = useState(false);
+  const [pxResults, setPxResults] = useState(null);
   
   // =============== LOAD DATA ===============
   
@@ -627,6 +632,47 @@ const EnhancedTravelSystem = () => {
     setActiveJourney(null);
     setFatigueResults([]);
     setJourneyCalc(null);
+    setPxApplied(false);
+    setPxResults(null);
+  };
+  
+  // =============== APPLY PX TO CHARACTERS ===============
+  
+  const applyPXToCharacters = async () => {
+    if (!journeyCalc?.estimaciones?.px_por_personaje) {
+      toast.error('No hay PX para aplicar');
+      return;
+    }
+    
+    const membersWithRoles = config.miembros.filter(m => m.papel);
+    if (membersWithRoles.length === 0) {
+      toast.error('No hay personajes con roles asignados');
+      return;
+    }
+    
+    setApplyingPX(true);
+    
+    try {
+      const response = await api.post('/travel/apply-px', {
+        character_ids: membersWithRoles.map(m => m.id),
+        px_amount: journeyCalc.estimaciones.px_por_personaje,
+        journey_id: activeJourney?.id || null,
+        journey_description: `Viaje de ${config.origenNombre} a ${config.destinoNombre}`
+      });
+      
+      if (response.data.success) {
+        setPxApplied(true);
+        setPxResults(response.data);
+        toast.success(`¡${response.data.px_por_personaje} PX aplicados a ${response.data.exitosos} personajes!`);
+      } else {
+        toast.error(response.data.message || 'Error al aplicar PX');
+      }
+    } catch (err) {
+      console.error('Error applying PX:', err);
+      toast.error('Error al aplicar PX a los personajes');
+    } finally {
+      setApplyingPX(false);
+    }
   };
   
   // =============== RENDER SECTIONS ===============
@@ -771,7 +817,10 @@ const EnhancedTravelSystem = () => {
             <div className="p-4 bg-gradient-to-r from-[hsl(var(--gold))/10] to-transparent rounded-lg border border-[hsl(var(--gold))/30]">
               <div className="flex items-center justify-between mb-3">
                 <h4 className="font-bold text-[hsl(var(--gold))]">Ruta Calculada</h4>
-                <Badge>{journeyCalc.ruta.tipo_tierra_nombre}</Badge>
+                <div className="flex gap-2">
+                  <Badge>{journeyCalc.ruta.tipo_tierra_nombre}</Badge>
+                  <Badge variant="outline">{journeyCalc.ruta.terreno_nombre || journeyCalc.ruta.terreno}</Badge>
+                </div>
               </div>
               
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
@@ -792,6 +841,33 @@ const EnhancedTravelSystem = () => {
                   <p className="text-xs text-muted-foreground">PX totales</p>
                 </div>
               </div>
+              
+              {/* PX Breakdown */}
+              {journeyCalc.px_desglose && journeyCalc.px_desglose.px_total > 0 && (
+                <div className="mt-3 p-3 bg-black/20 rounded text-sm">
+                  <p className="text-muted-foreground mb-2">
+                    <span className="text-[hsl(var(--gold))]">Desglose PX:</span>
+                  </p>
+                  <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs">
+                    <span>
+                      Vía: <span className="text-white">{journeyCalc.ruta.tipo_via?.replace('_', ' ')}</span>
+                    </span>
+                    <span>
+                      Base: <span className="text-white">{journeyCalc.px_desglose.px_base_por_casilla} PX/casilla</span>
+                    </span>
+                    {journeyCalc.px_desglose.px_bonus_terreno_por_casilla > 0 && (
+                      <span>
+                        Bonus terreno: <span className="text-yellow-400">+{journeyCalc.px_desglose.px_bonus_terreno_por_casilla} PX/casilla</span>
+                      </span>
+                    )}
+                    {journeyCalc.px_desglose.terreno_multiplicador > 1 && (
+                      <span>
+                        Multiplicador: <span className="text-orange-400">×{journeyCalc.px_desglose.terreno_multiplicador}</span>
+                      </span>
+                    )}
+                  </div>
+                </div>
+              )}
               
               <div className="flex flex-wrap gap-2 mt-3">
                 {journeyCalc.modificadores.tiene_ventaja_eventos && (
@@ -1286,28 +1362,68 @@ const EnhancedTravelSystem = () => {
   // Day by Day Journey
   const renderDayByDay = () => (
     <div className="space-y-6">
+      {/* Journey Header */}
+      <Card className="card-parchment bg-gradient-to-r from-[hsl(var(--gold))/10] to-transparent">
+        <CardContent className="pt-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-xl font-bold text-[hsl(var(--gold))]">
+                {config.origenNombre} → {config.destinoNombre}
+              </h2>
+              <p className="text-sm text-muted-foreground">
+                {journeyCalc?.ruta?.tipo_tierra_nombre} • {journeyCalc?.ruta?.terreno_nombre || journeyCalc?.ruta?.terreno}
+              </p>
+            </div>
+            <div className="text-right">
+              <Badge variant="outline" className="text-lg px-3 py-1">
+                <Clock className="w-4 h-4 mr-1 inline" />
+                Día {activeJourney?.dia_actual || 1}
+              </Badge>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+      
       {/* Journey Status */}
       <Card className="card-parchment">
         <CardHeader className="pb-2">
           <CardTitle className="text-lg text-[hsl(var(--gold))]">
-            <Clock className="w-5 h-5 inline mr-2" />
-            Día {activeJourney?.dia_actual || 1}
+            <Route className="w-5 h-5 inline mr-2" />
+            Progreso del Viaje
           </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="mb-4">
             <Progress 
               value={((activeJourney?.casillas_recorridas || 0) / (activeJourney?.casillas_totales || 1)) * 100} 
-              className="h-3"
+              className="h-4"
             />
-            <p className="text-sm text-muted-foreground mt-1">
-              Progreso: {activeJourney?.casillas_recorridas?.toFixed(1) || 0} / {activeJourney?.casillas_totales || 0} casillas
-            </p>
+            <div className="flex justify-between text-sm text-muted-foreground mt-2">
+              <span>Casillas: {activeJourney?.casillas_recorridas?.toFixed(1) || 0} / {activeJourney?.casillas_totales || 0}</span>
+              <span>{Math.round(((activeJourney?.casillas_recorridas || 0) / (activeJourney?.casillas_totales || 1)) * 100)}%</span>
+            </div>
           </div>
           
+          {/* Stats Grid */}
+          <div className="grid grid-cols-3 gap-3 mb-4">
+            <div className="bg-black/20 p-3 rounded text-center">
+              <p className="text-2xl font-bold text-red-400">{activeJourney?.fatiga_cd_total || 10}</p>
+              <p className="text-xs text-muted-foreground">CD Fatiga</p>
+            </div>
+            <div className="bg-black/20 p-3 rounded text-center">
+              <p className="text-2xl font-bold text-green-400">{journeyCalc?.estimaciones?.px_total || 0}</p>
+              <p className="text-xs text-muted-foreground">PX Totales</p>
+            </div>
+            <div className="bg-black/20 p-3 rounded text-center">
+              <p className="text-2xl font-bold text-blue-400">{events.length}</p>
+              <p className="text-xs text-muted-foreground">Eventos</p>
+            </div>
+          </div>
+          
+          {/* Day Configuration */}
           <div className="grid grid-cols-2 gap-4 mb-4">
             <div>
-              <Label>Ritmo de hoy</Label>
+              <Label className="text-sm">Ritmo de hoy</Label>
               <Select 
                 value={currentDayConfig.ritmo} 
                 onValueChange={(v) => setCurrentDayConfig(prev => ({ ...prev, ritmo: v }))}
@@ -1316,15 +1432,15 @@ const EnhancedTravelSystem = () => {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="lento">🐢 Lento</SelectItem>
-                  <SelectItem value="normal">🚶 Normal</SelectItem>
-                  <SelectItem value="rapido">🏃 Rápido</SelectItem>
+                  <SelectItem value="lento">🐢 Lento (24 km)</SelectItem>
+                  <SelectItem value="normal">🚶 Normal (36 km)</SelectItem>
+                  <SelectItem value="rapido">🏃 Rápido (48 km)</SelectItem>
                 </SelectContent>
               </Select>
             </div>
             
             <div>
-              <Label>Marcha Forzada</Label>
+              <Label className="text-sm">Marcha Forzada</Label>
               <Select 
                 value={currentDayConfig.marchaForzada.toString()} 
                 onValueChange={(v) => setCurrentDayConfig(prev => ({ ...prev, marchaForzada: parseInt(v) }))}
@@ -1334,70 +1450,185 @@ const EnhancedTravelSystem = () => {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="0">Sin marcha forzada</SelectItem>
-                  <SelectItem value="1">+1 hora</SelectItem>
-                  <SelectItem value="2">+2 horas</SelectItem>
+                  <SelectItem value="1">+1 hora (+6 km)</SelectItem>
+                  <SelectItem value="2">+2 horas (+12 km)</SelectItem>
+                  <SelectItem value="3">+3 horas (+18 km)</SelectItem>
                 </SelectContent>
               </Select>
             </div>
           </div>
           
-          <div className="p-3 bg-black/20 rounded mb-4">
-            <p className="text-sm">
-              <span className="text-muted-foreground">CD Fatiga acumulada:</span>{' '}
-              <span className="text-xl font-bold text-red-400">{activeJourney?.fatiga_cd_total || 10}</span>
-            </p>
-          </div>
-          
-          <Button onClick={advanceDay} className="w-full" disabled={currentEvent}>
+          <Button 
+            onClick={advanceDay} 
+            className="w-full h-11" 
+            disabled={currentEvent}
+            data-testid="advance-day-btn"
+          >
             <ChevronRight className="w-4 h-4 mr-2" />
-            Avanzar al Día {(activeJourney?.dia_actual || 1) + 1}
+            {currentEvent 
+              ? 'Resuelve el acontecimiento primero' 
+              : `Avanzar al Día ${(activeJourney?.dia_actual || 1) + 1}`
+            }
           </Button>
+        </CardContent>
+      </Card>
+      
+      {/* Party Roles - Quick View */}
+      <Card className="card-parchment">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-lg text-[hsl(var(--magic-blue))]">
+            <Users className="w-5 h-5 inline mr-2" />
+            Grupo de Viaje
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+            {Object.entries(ROLE_INFO).map(([roleKey, roleInfo]) => {
+              const member = config.miembros.find(m => m.papel === roleKey);
+              return (
+                <div 
+                  key={roleKey}
+                  className={`p-2 rounded text-center text-sm ${
+                    member ? 'bg-green-900/20 border border-green-500/30' : 'bg-black/20 opacity-50'
+                  }`}
+                >
+                  <div className="flex items-center justify-center gap-1 mb-1">
+                    {ROLE_ICONS[roleKey]}
+                    <span className="font-bold text-[hsl(var(--gold))]">{roleInfo.nombre}</span>
+                  </div>
+                  <p className="text-xs text-muted-foreground truncate">
+                    {member?.nombre || 'Vacante'}
+                  </p>
+                </div>
+              );
+            })}
+          </div>
         </CardContent>
       </Card>
       
       {/* Current Event (if any) */}
       {currentEvent && (
-        <Card className="card-parchment border-2 border-yellow-500">
-          <CardHeader>
-            <CardTitle>Acontecimiento del Día</CardTitle>
+        <Card className={`card-parchment border-2 ${
+          currentEvent.evento.fatigue_cd_increase >= 3 ? 'border-red-500' :
+          currentEvent.evento.fatigue_cd_increase >= 2 ? 'border-orange-500' :
+          'border-yellow-500'
+        }`}>
+          <CardHeader className="pb-2">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-lg text-[hsl(var(--torch-orange))]">
+                <AlertTriangle className="w-5 h-5 inline mr-2" />
+                ¡Acontecimiento!
+              </CardTitle>
+              <Badge className={
+                currentEvent.evento.fatigue_cd_increase >= 3 ? 'bg-red-600' :
+                currentEvent.evento.fatigue_cd_increase >= 2 ? 'bg-orange-600' :
+                'bg-yellow-600'
+              }>
+                +{currentEvent.evento.fatigue_cd_increase} CD Fatiga
+              </Badge>
+            </div>
           </CardHeader>
-          <CardContent>
-            <h3 className="text-lg font-bold text-[hsl(var(--torch-orange))] mb-2">
-              {currentEvent.evento.nombre}
-            </h3>
-            <p className="text-sm mb-4">{currentEvent.evento.consecuencias_exito}</p>
+          <CardContent className="space-y-4">
+            <div className="p-4 bg-black/20 rounded">
+              <h3 className="text-xl font-bold text-[hsl(var(--torch-orange))] mb-2">
+                {currentEvent.evento.nombre}
+              </h3>
+              <p className="text-sm text-muted-foreground">
+                Tirada d20: <span className="text-[hsl(var(--gold))] font-bold">{currentEvent.tiradas.d20}</span>
+              </p>
+            </div>
             
-            <div className="flex items-center gap-4">
+            <div className="p-4 bg-blue-900/20 rounded border border-blue-500/30">
+              <h4 className="font-bold text-[hsl(var(--magic-blue))] mb-2">
+                Objetivo: {ROLE_INFO[currentEvent.objetivo.papel]?.nombre || currentEvent.objetivo.papel}
+              </h4>
+              <p className="text-sm">
+                Prueba: <span className="text-[hsl(var(--gold))]">{currentEvent.objetivo.prueba}</span>
+              </p>
+              <p className="text-sm">
+                CD: <span className="text-xl font-bold text-red-400">{currentEvent.resolucion.cd}</span>
+              </p>
+            </div>
+            
+            <div className="grid grid-cols-2 gap-4 text-sm">
+              <div className="p-3 bg-green-900/20 rounded border border-green-500/30">
+                <h5 className="font-bold text-green-400 mb-1">✓ Éxito</h5>
+                <p className="text-muted-foreground text-xs">{currentEvent.evento.consecuencias_exito}</p>
+              </div>
+              <div className="p-3 bg-red-900/20 rounded border border-red-500/30">
+                <h5 className="font-bold text-red-400 mb-1">✗ Fracaso</h5>
+                <p className="text-muted-foreground text-xs">{currentEvent.evento.consecuencias_fracaso}</p>
+              </div>
+            </div>
+            
+            <div className="flex items-center gap-4 pt-4 border-t border-border/30">
+              <Label>Resultado de la tirada:</Label>
               <Input
                 type="number"
                 min={1}
                 max={30}
                 className="w-24"
-                placeholder="Tirada"
+                placeholder="1-30"
                 id="day-roll-input"
               />
-              <Button onClick={() => {
-                const input = document.getElementById('day-roll-input');
-                const value = parseInt(input?.value);
-                if (value >= 1) {
-                  resolveCurrentEvent(value);
-                }
-              }}>
-                Resolver
+              <Button 
+                onClick={() => {
+                  const input = document.getElementById('day-roll-input');
+                  const value = parseInt(input?.value);
+                  if (value >= 1) {
+                    resolveCurrentEvent(value);
+                  } else {
+                    toast.error('Introduce un resultado válido');
+                  }
+                }}
+                disabled={resolvingEvent}
+              >
+                {resolvingEvent ? 'Resolviendo...' : 'Resolver'}
               </Button>
             </div>
           </CardContent>
         </Card>
       )}
       
+      {/* Days Log */}
+      {activeJourney?.dias && activeJourney.dias.length > 0 && (
+        <Card className="card-parchment">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-lg">Registro de Jornadas</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ScrollArea className="h-40">
+              <div className="space-y-2">
+                {activeJourney.dias.map((dia, idx) => (
+                  <div key={idx} className="p-2 bg-black/20 rounded text-sm flex justify-between items-center">
+                    <div>
+                      <span className="font-bold text-[hsl(var(--gold))]">Día {dia.dia}</span>
+                      <span className="text-muted-foreground ml-2">{dia.notas}</span>
+                    </div>
+                    <div className="flex gap-2">
+                      <Badge variant="outline">{dia.distancia_recorrida_km} km</Badge>
+                      {dia.eventos?.length > 0 && (
+                        <Badge className="bg-yellow-600">{dia.eventos.length} evento(s)</Badge>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </ScrollArea>
+          </CardContent>
+        </Card>
+      )}
+      
+      {/* Action Buttons */}
       <div className="flex gap-2">
         <Button variant="outline" onClick={resetJourney} className="flex-1">
           <ArrowLeft className="w-4 h-4 mr-2" /> Cancelar
         </Button>
         <Button 
           onClick={finishDayByDayJourney} 
-          className="flex-1"
+          className="flex-1 bg-green-600 hover:bg-green-700"
           disabled={!activeJourney || activeJourney.casillas_recorridas < activeJourney.casillas_totales}
+          data-testid="finish-journey-btn"
         >
           <Flag className="w-4 h-4 mr-2" /> Finalizar Viaje
         </Button>
@@ -1453,9 +1684,9 @@ const EnhancedTravelSystem = () => {
               </div>
               <div className="bg-black/20 p-4 rounded text-center">
                 <p className="text-3xl font-bold text-[hsl(var(--torch-orange))]">
-                  {journeyCalc?.estimaciones?.px_por_personaje || 0}
+                  {journeyCalc?.estimaciones?.px_total || 0}
                 </p>
-                <p className="text-sm text-muted-foreground">PX/personaje</p>
+                <p className="text-sm text-muted-foreground">PX totales</p>
               </div>
             </div>
             
@@ -1464,6 +1695,102 @@ const EnhancedTravelSystem = () => {
             )}
             {diasReducidos > 0 && (
               <Badge className="bg-green-600">-{diasReducidos} días por atajos</Badge>
+            )}
+          </CardContent>
+        </Card>
+        
+        {/* XP Distribution per Character */}
+        <Card className="card-parchment border-2 border-green-500/50">
+          <CardHeader>
+            <CardTitle className="text-lg text-green-400">
+              <Sparkles className="w-5 h-5 inline mr-2" />
+              Puntos de Experiencia Ganados
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-muted-foreground mb-4">
+              {pxApplied 
+                ? '¡Los PX han sido aplicados a las fichas de los personajes!'
+                : 'Cada personaje recibirá los siguientes PX al finalizar el viaje.'
+              }
+            </p>
+            <div className="grid md:grid-cols-2 gap-3">
+              {config.miembros.filter(m => m.papel).map((member) => {
+                const memberResult = pxResults?.results?.find(r => r.character_id === member.id);
+                return (
+                  <Card key={member.id} className={`p-4 ${pxApplied ? 'bg-green-600/20 border-green-400' : 'bg-green-900/20 border-green-500/30'}`}>
+                    <div className="flex justify-between items-center">
+                      <div>
+                        <p className="font-bold text-[hsl(var(--gold))]">{member.nombre}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {ROLE_INFO[member.papel]?.nombre}
+                        </p>
+                        {memberResult && pxApplied && (
+                          <p className="text-xs text-green-400 mt-1">
+                            XP Total: {memberResult.xp_nuevo}
+                          </p>
+                        )}
+                      </div>
+                      <div className="text-right">
+                        <p className={`text-3xl font-bold ${pxApplied ? 'text-green-300' : 'text-green-400'}`}>
+                          {pxApplied ? '✓' : '+'}{journeyCalc?.estimaciones?.px_por_personaje || 0}
+                        </p>
+                        <p className="text-xs text-muted-foreground">PX</p>
+                      </div>
+                    </div>
+                  </Card>
+                );
+              })}
+            </div>
+            
+            {journeyCalc?.px_desglose && (
+              <div className="mt-4 p-3 bg-black/30 rounded text-xs">
+                <p className="font-bold mb-2 text-[hsl(var(--gold))]">Desglose del cálculo:</p>
+                <div className="space-y-1 text-muted-foreground">
+                  <p>Terreno: {journeyCalc.ruta.terreno_nombre || journeyCalc.ruta.terreno}</p>
+                  <p>Tipo de Tierra: {journeyCalc.ruta.tipo_tierra_nombre}</p>
+                  <p>Vía: {journeyCalc.ruta.tipo_via?.replace('_', ' ')}</p>
+                  <p>Casillas: {journeyCalc.ruta.casillas}</p>
+                  <p>PX base por casilla: {journeyCalc.px_desglose.px_base_por_casilla}</p>
+                  {journeyCalc.px_desglose.px_bonus_terreno_por_casilla > 0 && (
+                    <p>Bonus terreno: +{journeyCalc.px_desglose.px_bonus_terreno_por_casilla}/casilla</p>
+                  )}
+                  <p className="font-bold text-white mt-2">
+                    Total: {journeyCalc.px_desglose.px_base} + {journeyCalc.px_desglose.px_terreno_bonus} = {journeyCalc.px_desglose.px_total} PX
+                  </p>
+                </div>
+              </div>
+            )}
+            
+            {/* Apply PX Button */}
+            {!pxApplied && (
+              <Button 
+                onClick={applyPXToCharacters}
+                disabled={applyingPX}
+                className="w-full mt-4 h-12 text-lg bg-green-600 hover:bg-green-700"
+                data-testid="apply-px-btn"
+              >
+                {applyingPX ? (
+                  <>
+                    <div className="animate-spin w-5 h-5 border-2 border-white border-t-transparent rounded-full mr-2"></div>
+                    Aplicando PX...
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="w-5 h-5 mr-2" />
+                    Finalizar Viaje y Repartir PX
+                  </>
+                )}
+              </Button>
+            )}
+            
+            {pxApplied && pxResults && (
+              <div className="mt-4 p-3 bg-green-900/30 rounded border border-green-500/50">
+                <p className="text-green-400 font-bold flex items-center gap-2">
+                  <Check className="w-5 h-5" />
+                  {pxResults.message}
+                </p>
+              </div>
             )}
           </CardContent>
         </Card>

@@ -41,7 +41,7 @@ const TravelRulesSection = () => {
   useEffect(() => {
     const loadData = async () => {
       try {
-        const [eventsRes, objectivesRes, terrainsRes, landRes, roadRes, pxRes, rulesRes] = await Promise.all([
+        const [eventsRes, objectivesRes, terrainsRes, landRes, roadRes, pxRes, rulesRes] = await Promise.allSettled([
           api.get('/travel/config/events'),
           api.get('/travel/config/objectives'),
           api.get('/travel/config/terrains'),
@@ -51,13 +51,22 @@ const TravelRulesSection = () => {
           api.get('/travel/config/rules')
         ]);
         
-        setEvents(eventsRes.data?.events || []);
-        setObjectives(objectivesRes.data?.objectives || []);
-        setTerrains(terrainsRes.data?.terrains || []);
-        setLandTypes(landRes.data?.land_types || []);
-        setRoadTypes(roadRes.data?.road_types || []);
-        setPxTable(pxRes.data?.px_table || null);
-        setRules(rulesRes.data?.rules || {});
+        // Extract data from fulfilled promises, use empty arrays for rejected
+        setEvents(eventsRes.status === 'fulfilled' ? (eventsRes.value.data?.events || []) : []);
+        setObjectives(objectivesRes.status === 'fulfilled' ? (objectivesRes.value.data?.objectives || []) : []);
+        setTerrains(terrainsRes.status === 'fulfilled' ? (terrainsRes.value.data?.terrains || []) : []);
+        setLandTypes(landRes.status === 'fulfilled' ? (landRes.value.data?.land_types || []) : []);
+        setRoadTypes(roadRes.status === 'fulfilled' ? (roadRes.value.data?.road_types || []) : []);
+        setPxTable(pxRes.status === 'fulfilled' ? (pxRes.value.data?.px_table || null) : null);
+        setRules(rulesRes.status === 'fulfilled' ? (rulesRes.value.data?.rules || {}) : {});
+        
+        // Only show error if ALL requests failed
+        const allFailed = [eventsRes, objectivesRes, terrainsRes, landRes, roadRes, pxRes, rulesRes]
+          .every(r => r.status === 'rejected');
+        
+        if (allFailed) {
+          toast.error('Error al cargar configuración de viajes');
+        }
       } catch (err) {
         console.error('Error loading travel config:', err);
         toast.error('Error al cargar configuración de viajes');
@@ -728,6 +737,42 @@ const TravelRulesSection = () => {
                     <p className="text-xs text-muted-foreground mt-3 italic">
                       {pxTable.descripcion}
                     </p>
+                    
+                    {/* Terrain Difficulty Modifiers */}
+                    {pxTable.modificadores_terreno && (
+                      <div className="mt-6">
+                        <h4 className="font-bold text-[hsl(var(--gold))] mb-3">
+                          Modificadores por Dificultad del Terreno
+                        </h4>
+                        <div className="grid grid-cols-5 gap-2">
+                          {Object.entries(pxTable.modificadores_terreno).map(([key, mod]) => (
+                            <div key={key} className={`p-3 rounded text-center border ${
+                              mod.multiplicador > 1.5 ? 'border-red-500/50 bg-red-900/10' :
+                              mod.multiplicador > 1 ? 'border-orange-500/50 bg-orange-900/10' :
+                              'border-green-500/50 bg-green-900/10'
+                            }`}>
+                              <p className="font-bold text-sm">{mod.nombre}</p>
+                              <p className="text-xs text-muted-foreground">×{mod.multiplicador}</p>
+                              {mod.bonus_px > 0 && (
+                                <Badge className="mt-1 bg-yellow-600 text-xs">+{mod.bonus_px} PX</Badge>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    
+                    {/* Notes */}
+                    {pxTable.notas && pxTable.notas.length > 0 && (
+                      <div className="mt-4 p-3 bg-black/20 rounded">
+                        <p className="text-xs font-bold text-muted-foreground mb-2">Notas:</p>
+                        <ul className="text-xs text-muted-foreground space-y-1">
+                          {pxTable.notas.map((nota, i) => (
+                            <li key={i}>• {nota}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
                     
                     <div className="flex gap-2 mt-4">
                       {editingPxTable ? (

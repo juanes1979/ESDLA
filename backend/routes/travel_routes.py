@@ -347,14 +347,23 @@ DEFAULT_LAND_TYPES = [
 ]
 
 # Complete PX Table (editable matrix)
+# Combina: Tipo de Camino + Tipo de Tierra + Dificultad de Terreno
+# Nota: Los caminos principales (Camino Real) en tierras peligrosas son más rápidos
+# pero más peligrosos (pueden estar vigilados). Las sendas suman PX extra.
 DEFAULT_PX_TABLE = {
     "id": "px_table_main",
     "nombre": "Tabla de PX por Viaje",
-    "descripcion": "Al cruzar un área peligrosa, cuenta un número de casillas igual a la puntuación de Peligro del área.",
+    "descripcion": "Al cruzar un área peligrosa, cuenta un número de casillas igual a la puntuación de Peligro del área. Los caminos en tierras hostiles pueden estar vigilados.",
+    "notas": [
+        "Camino Real: Rápido pero puede estar vigilado en tierras hostiles",
+        "Senda/Sendero: Más seguro pero añade PX extra por dificultad",
+        "Los PX se calculan por casilla atravesada"
+    ],
+    # Tabla base por tipo de vía y tipo de tierra
     "filas": [
         {
-            "tipo_terreno": "camino",
-            "nombre": "...un camino",
+            "tipo_via": "camino_real",
+            "nombre": "...Camino Real",
             "tierras_libres": 0,
             "tierras_fronterizas": 0,
             "tierras_salvajes": 10,
@@ -362,8 +371,26 @@ DEFAULT_PX_TABLE = {
             "tierras_oscuras": 25
         },
         {
-            "tipo_terreno": "campo_abierto", 
-            "nombre": "...campo abierto",
+            "tipo_via": "senda",
+            "nombre": "...Senda",
+            "tierras_libres": 0,
+            "tierras_fronterizas": 5,
+            "tierras_salvajes": 15,
+            "tierras_sombra": 30,
+            "tierras_oscuras": 30
+        },
+        {
+            "tipo_via": "sendero",
+            "nombre": "...Sendero",
+            "tierras_libres": 0,
+            "tierras_fronterizas": 5,
+            "tierras_salvajes": 20,
+            "tierras_sombra": 35,
+            "tierras_oscuras": 35
+        },
+        {
+            "tipo_via": "campo_abierto", 
+            "nombre": "...Campo Abierto",
             "tierras_libres": 0,
             "tierras_fronterizas": 10,
             "tierras_salvajes": 25,
@@ -371,15 +398,23 @@ DEFAULT_PX_TABLE = {
             "tierras_oscuras": 50
         },
         {
-            "tipo_terreno": "terreno_dificil",
-            "nombre": "...terreno difícil",
+            "tipo_via": "terreno_dificil",
+            "nombre": "...Terreno Difícil",
             "tierras_libres": 0,
             "tierras_fronterizas": 25,
             "tierras_salvajes": 50,
             "tierras_sombra": 100,
             "tierras_oscuras": 100
         }
-    ]
+    ],
+    # Modificadores adicionales por dificultad del terreno
+    "modificadores_terreno": {
+        "facil": {"multiplicador": 1.0, "nombre": "Fácil", "bonus_px": 0},
+        "moderado": {"multiplicador": 1.0, "nombre": "Moderado", "bonus_px": 0},
+        "dificil": {"multiplicador": 1.25, "nombre": "Difícil", "bonus_px": 5},
+        "muy_dificil": {"multiplicador": 1.5, "nombre": "Muy Difícil", "bonus_px": 10},
+        "desalentador": {"multiplicador": 2.0, "nombre": "Desalentador", "bonus_px": 25}
+    }
 }
 
 # ============== HELPER FUNCTIONS ==============
@@ -691,18 +726,51 @@ async def calculate_journey(config: JourneyConfig):
     
     dias_estimados = max(1, round(dias_base))
     
-    # Calculate PX for the journey
-    px_total = 0
+    # Calculate PX for the journey using the complete PX table
+    px_table = await get_px_table()
     terreno_tipo = route_data['terreno']
+    tipo_tierra = route_data['tipo_tierra']
     
-    if terreno_tipo in ['dificil', 'muy_dificil', 'desalentador']:
-        px_per_casilla = land_config.get('px_terreno_dificil', 25)
-    elif terreno_tipo == 'camino' or config.preferir_caminos:
-        px_per_casilla = land_config.get('px_camino', 0)
-    else:
-        px_per_casilla = land_config.get('px_campo_abierto', 10)
+    # Map tipo_tierra to column name
+    tierra_col_map = {
+        'tierras_libres': 'tierras_libres',
+        'tierras_fronterizas': 'tierras_fronterizas',
+        'tierras_salvajes': 'tierras_salvajes',
+        'tierras_sombra': 'tierras_sombra',
+        'tierras_de_la_sombra': 'tierras_sombra',
+        'tierras_oscuras': 'tierras_oscuras'
+    }
+    tierra_col = tierra_col_map.get(tipo_tierra, 'tierras_salvajes')
     
-    px_total = px_per_casilla * casillas
+    # Determine which row of the PX table to use based on road type
+    tipo_via = 'campo_abierto'  # Default
+    if config.preferir_caminos:
+        tipo_via = 'camino_real'  # Use main road if preferring roads
+    
+    # Find the matching row in PX table
+    px_base_per_casilla = 0
+    if px_table and px_table.get('filas'):
+        for fila in px_table['filas']:
+            if fila.get('tipo_via') == tipo_via:
+                px_base_per_casilla = fila.get(tierra_col, 0)
+                break
+        # Fallback to campo_abierto if not found
+        if px_base_per_casilla == 0 and tipo_via != 'campo_abierto':
+            for fila in px_table['filas']:
+                if fila.get('tipo_via') == 'campo_abierto':
+                    px_base_per_casilla = fila.get(tierra_col, 0)
+                    break
+    
+    # Apply terrain difficulty modifier
+    terreno_mods = px_table.get('modificadores_terreno', {})
+    terreno_mod = terreno_mods.get(terreno_tipo, {'multiplicador': 1.0, 'bonus_px': 0})
+    
+    px_per_casilla = int(px_base_per_casilla * terreno_mod.get('multiplicador', 1.0))
+    px_bonus = terreno_mod.get('bonus_px', 0)
+    
+    px_base = px_per_casilla * casillas
+    px_terreno_bonus = px_bonus * casillas
+    px_total = px_base + px_terreno_bonus
     
     # Calculate number of expected events
     num_eventos_esperados = max(1, casillas // rules.get('orientation_success_distance', 3))
@@ -723,8 +791,10 @@ async def calculate_journey(config: JourneyConfig):
             "distance_km": route_data['distance_km'],
             "casillas": casillas,
             "terreno": route_data['terreno'],
+            "terreno_nombre": terrain_config.get('nombre', terreno_tipo),
             "tipo_tierra": route_data['tipo_tierra'],
-            "tipo_tierra_nombre": land_config['nombre']
+            "tipo_tierra_nombre": land_config['nombre'],
+            "tipo_via": tipo_via
         },
         "estimaciones": {
             "dias_base": round(dias_base, 1),
@@ -732,6 +802,17 @@ async def calculate_journey(config: JourneyConfig):
             "eventos_esperados": num_eventos_esperados,
             "px_total": px_total,
             "px_por_personaje": px_total // total_miembros if total_miembros > 0 else px_total
+        },
+        "px_desglose": {
+            "px_base_por_casilla": px_base_per_casilla,
+            "px_bonus_terreno_por_casilla": px_bonus,
+            "px_total_por_casilla": px_per_casilla + px_bonus,
+            "casillas": casillas,
+            "px_base": px_base,
+            "px_terreno_bonus": px_terreno_bonus,
+            "px_total": px_total,
+            "terreno_multiplicador": terreno_mod.get('multiplicador', 1.0),
+            "terreno_nombre": terreno_mod.get('nombre', terreno_tipo)
         },
         "modificadores": {
             "tiene_ventaja_eventos": tiene_ventaja,
@@ -1137,3 +1218,97 @@ async def delete_journey(journey_id: str):
     """Delete a journey"""
     result = await db.active_journeys.delete_one({"id": journey_id})
     return {"success": True, "deleted": result.deleted_count}
+
+
+# ============== P0: BULK PX UPDATE FOR JOURNEY COMPLETION ==============
+
+class BulkPXUpdate(BaseModel):
+    """Request to apply PX to multiple characters"""
+    character_ids: List[str]
+    px_amount: int
+    journey_id: Optional[str] = None
+    journey_description: Optional[str] = None
+
+@router.post("/apply-px")
+async def apply_px_to_characters(data: BulkPXUpdate):
+    """
+    Apply PX to multiple characters at once (for journey completion).
+    Returns updated XP for each character.
+    """
+    if not data.character_ids:
+        return {"error": True, "message": "No se proporcionaron personajes"}
+    
+    if data.px_amount <= 0:
+        return {"error": True, "message": "La cantidad de PX debe ser mayor a 0"}
+    
+    results = []
+    success_count = 0
+    
+    for char_id in data.character_ids:
+        try:
+            # Get current character
+            character = await db.characters.find_one({"_id": char_id})
+            if not character:
+                results.append({
+                    "character_id": char_id,
+                    "success": False,
+                    "error": "Personaje no encontrado"
+                })
+                continue
+            
+            # Calculate new XP
+            current_xp = character.get('experiencia', 0)
+            new_xp = current_xp + data.px_amount
+            
+            # Update character
+            await db.characters.update_one(
+                {"_id": char_id},
+                {
+                    "$set": {
+                        "experiencia": new_xp,
+                        "updated_at": datetime.now(timezone.utc).isoformat()
+                    }
+                }
+            )
+            
+            results.append({
+                "character_id": char_id,
+                "nombre": character.get('nombre', 'Desconocido'),
+                "success": True,
+                "xp_anterior": current_xp,
+                "xp_nuevo": new_xp,
+                "px_ganados": data.px_amount
+            })
+            success_count += 1
+            
+        except Exception as e:
+            results.append({
+                "character_id": char_id,
+                "success": False,
+                "error": str(e)
+            })
+    
+    # Log the journey completion if journey_id provided
+    if data.journey_id:
+        try:
+            await db.active_journeys.update_one(
+                {"id": data.journey_id},
+                {
+                    "$set": {
+                        "px_aplicados": True,
+                        "px_aplicados_fecha": datetime.now(timezone.utc).isoformat(),
+                        "px_cantidad": data.px_amount
+                    }
+                }
+            )
+        except:
+            pass  # Non-critical
+    
+    return {
+        "success": success_count > 0,
+        "message": f"PX aplicados a {success_count}/{len(data.character_ids)} personajes",
+        "total_personajes": len(data.character_ids),
+        "exitosos": success_count,
+        "px_por_personaje": data.px_amount,
+        "results": results
+    }
