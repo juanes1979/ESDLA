@@ -25,13 +25,12 @@ import { toast } from 'sonner';
 import api from '@/services/api';
 
 // Map URLs and coordinate system
-// Both maps now have the same pixel dimensions (19791x15133)
-// Player map loaded from local public folder for better performance
+// Both maps have the same pixel dimensions (19791x15133)
+// Player map loaded from local public folder
 const PLAYER_MAP_URL = '/mapa_jugadores.jpg';
-// Map coordinate system - SAME as master map (MiddleEarthMap.jsx)
-// viewBox uses 1000x900, coordinates are percentage (0-100) converted to this space
-const MAP_WIDTH = 1000;
-const MAP_HEIGHT = 900;
+// Use actual pixel dimensions for coordinate system
+const MAP_PIXEL_WIDTH = 19791;
+const MAP_PIXEL_HEIGHT = 15133;
 
 // Elvish months with seasons
 const MESES_ELFICOS = [
@@ -213,57 +212,57 @@ const JourneyMiniMap = ({ origenCoords, destinoCoords, origenNombre, destinoNomb
     return null;
   }
   
-  // Convert percentage coords (0-100) to map coords - SAME as MiddleEarthMap.jsx
-  // x: (x / 100) * MAP_WIDTH
-  // y: MAP_HEIGHT - (y / 100) * MAP_HEIGHT (flip Y axis)
-  const percentToMap = (xPercent, yPercent) => {
-    // Validate inputs
+  // Convert percentage coords (0-100) to actual pixel coordinates
+  // The coordinates in the database are percentages
+  // X: 0% = left, 100% = right
+  // Y: 0% = bottom, 100% = top (so we need to flip for SVG where 0 = top)
+  const percentToPixels = (xPercent, yPercent) => {
     if (typeof xPercent !== 'number' || typeof yPercent !== 'number' || 
         isNaN(xPercent) || isNaN(yPercent)) {
       return null;
     }
     return {
-      x: (xPercent / 100) * MAP_WIDTH,
-      y: MAP_HEIGHT - (yPercent / 100) * MAP_HEIGHT  // Flip Y axis
+      x: (xPercent / 100) * MAP_PIXEL_WIDTH,
+      y: MAP_PIXEL_HEIGHT - (yPercent / 100) * MAP_PIXEL_HEIGHT  // Flip Y
     };
   };
   
-  const origen = percentToMap(origenCoords.x, origenCoords.y);
-  const destino = percentToMap(destinoCoords.x, destinoCoords.y);
+  const origen = percentToPixels(origenCoords.x, origenCoords.y);
+  const destino = percentToPixels(destinoCoords.x, destinoCoords.y);
   
   if (!origen || !destino) return null;
   
-  // Convert all path points to map coordinates, filtering invalid points
-  let pathInMapCoords = (pathPoints || [])
+  // Convert all path points to pixel coordinates, filtering invalid points
+  let pathInPixelCoords = (pathPoints || [])
     .map(p => {
       const px = Array.isArray(p) ? p[0] : (p?.x ?? null);
       const py = Array.isArray(p) ? p[1] : (p?.y ?? null);
-      return percentToMap(px, py);
+      return percentToPixels(px, py);
     })
     .filter(p => p !== null);
   
   // ALWAYS ensure we have at least the origin and destination as path endpoints
   // This guarantees a visible route line even if pathfinding returns empty
-  if (pathInMapCoords.length === 0) {
-    pathInMapCoords = [origen, destino];
+  if (pathInPixelCoords.length === 0) {
+    pathInPixelCoords = [origen, destino];
   } else {
     // Ensure path starts at origin and ends at destination
-    if (pathInMapCoords[0].x !== origen.x || pathInMapCoords[0].y !== origen.y) {
-      pathInMapCoords.unshift(origen);
+    if (pathInPixelCoords[0].x !== origen.x || pathInPixelCoords[0].y !== origen.y) {
+      pathInPixelCoords.unshift(origen);
     }
-    const lastPoint = pathInMapCoords[pathInMapCoords.length - 1];
+    const lastPoint = pathInPixelCoords[pathInPixelCoords.length - 1];
     if (lastPoint.x !== destino.x || lastPoint.y !== destino.y) {
-      pathInMapCoords.push(destino);
+      pathInPixelCoords.push(destino);
     }
   }
   
   // If no path points, create direct path
-  if (pathInMapCoords.length < 2) {
-    pathInMapCoords = [origen, destino];
+  if (pathInPixelCoords.length < 2) {
+    pathInPixelCoords = [origen, destino];
   }
   
   // Add natural variation to make the path look hand-drawn
-  const naturalPath = createNaturalPath(pathInMapCoords, isDirectLine ? 5 : 3);
+  const naturalPath = createNaturalPath(pathInPixelCoords, isDirectLine ? 5 : 3);
   
   // Calculate viewBox to show entire route with padding
   // IMPORTANT: Always include both origin and destination markers
@@ -281,25 +280,23 @@ const JourneyMiniMap = ({ origenCoords, destinoCoords, origenNombre, destinoNomb
     );
   }
   
-  // Padding and viewBox calculation using MAP_WIDTH/MAP_HEIGHT system
-  const padding = 80;  // pixels in 1000x900 space
+  // Padding in pixels (about 5% of visible area)
+  const padding = Math.max(MAP_PIXEL_WIDTH, MAP_PIXEL_HEIGHT) * 0.05;
   const minX = Math.max(0, Math.min(...allX) - padding);
   const minY = Math.max(0, Math.min(...allY) - padding);
-  const maxX = Math.min(MAP_WIDTH, Math.max(...allX) + padding);
-  const maxY = Math.min(MAP_HEIGHT, Math.max(...allY) + padding);
+  const maxX = Math.min(MAP_PIXEL_WIDTH, Math.max(...allX) + padding);
+  const maxY = Math.min(MAP_PIXEL_HEIGHT, Math.max(...allY) + padding);
   
-  let width = Math.max(maxX - minX, 180);
-  let height = Math.max(maxY - minY, 180);
+  let width = Math.max(maxX - minX, MAP_PIXEL_WIDTH * 0.1);
+  let height = Math.max(maxY - minY, MAP_PIXEL_HEIGHT * 0.1);
   
-  // Maintain reasonable aspect ratio for map display
-  const mapAspect = MAP_WIDTH / MAP_HEIGHT;  // 1000/900 = 1.11
+  // Maintain map aspect ratio (19791/15133 = 1.308)
+  const mapAspect = MAP_PIXEL_WIDTH / MAP_PIXEL_HEIGHT;
   const currentAspect = width / height;
   
-  if (currentAspect > mapAspect * 2) {
-    // Too wide - increase height
+  if (currentAspect > mapAspect * 1.5) {
     height = width / mapAspect;
   } else if (currentAspect < mapAspect * 0.5) {
-    // Too tall - increase width
     width = height * mapAspect;
   }
   
@@ -309,15 +306,15 @@ const JourneyMiniMap = ({ origenCoords, destinoCoords, origenNombre, destinoNomb
   // Create smooth SVG path
   const smoothPathD = createSmoothPath(naturalPath);
   
-  // Line and marker sizes - proportional to viewBox
+  // Line and marker sizes - proportional to viewBox (in pixels)
   const mapScale = Math.max(width, height);
   
-  // Line thickness
-  const lineWidth = Math.max(2, mapScale * 0.003);
-  // Markers
-  const markerRadius = Math.max(6, mapScale * 0.01);
-  // Text
-  const fontSize = Math.max(12, mapScale * 0.018);
+  // Line thickness - subtle but visible
+  const lineWidth = Math.max(20, mapScale * 0.0015);
+  // Markers - small but clear
+  const markerRadius = Math.max(50, mapScale * 0.004);
+  // Text - readable
+  const fontSize = Math.max(100, mapScale * 0.008);
   
   return (
     <Card className="card-parchment overflow-hidden">
@@ -345,13 +342,13 @@ const JourneyMiniMap = ({ origenCoords, destinoCoords, origenNombre, destinoNomb
               className="w-full h-full"
               preserveAspectRatio="xMidYMid slice"
             >
-              {/* Player map as background - uses same 1000x900 coordinate system as master */}
+              {/* Player map as background - uses actual pixel dimensions */}
               <image
                 href={PLAYER_MAP_URL}
                 x="0"
                 y="0"
-                width={MAP_WIDTH}
-                height={MAP_HEIGHT}
+                width={MAP_PIXEL_WIDTH}
+                height={MAP_PIXEL_HEIGHT}
                 preserveAspectRatio="none"
               />
               
