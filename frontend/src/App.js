@@ -17,6 +17,7 @@ import MapSelectionPage from "@/pages/MapSelectionPage";
 import PlayerMap from "@/pages/PlayerMap";
 import FontDemo from "@/pages/FontDemo";
 import StoragePage from "@/pages/StoragePage";
+import LocationEditor from "@/pages/LocationEditor";
 import { CharacterCreatorWizard } from "@/components/character-creator";
 
 function App() {
@@ -39,6 +40,7 @@ function App() {
             <Route path="/map/player" element={<PlayerMap />} />
             <Route path="/font-demo" element={<FontDemo />} />
             <Route path="/storage" element={<StoragePage />} />
+            <Route path="/location-editor" element={<LocationEditor />} />
           </Routes>
         </BrowserRouter>
         <Toaster />
