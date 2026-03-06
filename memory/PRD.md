@@ -5,49 +5,62 @@ Build a comprehensive web application to play a modified version of the "Lord of
 
 **User's preferred language**: Español
 
-## Current State (2026-03-05)
+## Current State (2026-03-06)
 
-### ✅ COMPLETED This Session - P0, P1, P2 Travel System Improvements
+### ✅ COMPLETED This Session - Major Travel System Overhaul
 
-#### P0: Mapa de Viaje con Pathfinding A* ✅
-**El backend ya usa A* pathfinding** para calcular rutas óptimas evitando obstáculos.
-- El endpoint `calculate-journey` ahora devuelve el array completo de `path` con coordenadas
-- `JourneyMiniMap` renderiza la ruta en el mapa del jugador correctamente escalado
-- Marcadores: Verde = Origen, Rojo = Destino
-- La ruta se muestra como línea gris con curvas naturales
+#### Mejoras del Mapa de Viaje ✅
+**Problemas reportados por el usuario y sus correcciones:**
 
-#### P1: Desglose Detallado de Terrenos y Caminos ✅
-**Nuevas secciones en la UI de resultados de ruta:**
-1. **Desglose del Terreno** - Muestra cada tipo de terreno con:
-   - Barras de progreso coloreadas (Verde=Fácil, Amarillo=Moderado, Naranja=Difícil, Rojo=Muy Difícil, Púrpura=Desalentador)
-   - Distancia en km por cada tipo
-   - Porcentaje del viaje total
+1. **Línea de ruta muy gruesa/invisible** → CORREGIDO
+   - Línea más sutil con color marrón/sepia (#5c4033) para look de pergamino
+   - Grosor adaptativo: más grueso en mapas grandes, más fino en mapas pequeños
+   - Triple capa (sombra + línea principal + highlight) para mejor visibilidad
 
-2. **Caminos Utilizados** - Badges con los nombres de caminos usados (ej: "Camino del Este")
+2. **Marcadores de origen/destino no visibles** → CORREGIDO
+   - Marcadores más grandes con efecto glow
+   - Siempre incluidos en el cálculo del viewBox
+   - Validación de coordenadas para evitar NaN
 
-3. **Desglose PX** - Información detallada:
-   - Tipo de vía (camino real, sendero, etc.)
-   - PX base por casilla
-   - Bonus de terreno
-   - Multiplicador aplicado
+3. **Ruta atravesando montañas** → VERIFICADO FUNCIONANDO
+   - Backend usa A* pathfinding correctamente
+   - 61 puntos de path para Hobbiton → Minas Tirith (no línea recta)
 
-#### P2: Modo "Jornada a Jornada" Completo ✅
-**Sistema de viaje día a día completamente funcional:**
-- **Tabs de modo**: "Viaje Global" y "Jornada a Jornada"
-- **Botón dinámico**: Cambia a "Iniciar Viaje (Jornada a Jornada)" cuando está seleccionado
-- **Backend endpoints**:
-  - `POST /journey/start` - Inicia viaje guardando estado
-  - `POST /journey/{id}/advance-day` - Avanza un día con ritmo/marcha forzada
-  - `POST /journey/{id}/add-event` - Añade eventos a la jornada actual
-  - `POST /journey/{id}/complete` - Completa el viaje
-- **UI Day-by-Day**:
-  - Barra de progreso de casillas
-  - Estadísticas: CD Fatiga, PX Totales, Eventos
-  - Configuración diaria de ritmo y marcha forzada
-  - Panel de eventos con resolución de dados integrada
-  - Registro de jornadas pasadas
+#### Narrativa de Eventos con IA ✅ (NUEVO)
+**Endpoints añadidos:**
+- `POST /api/travel/generate-narrative` - Genera narrativa tolkienesca para eventos
+- `POST /api/travel/generate-journey-summary` - Genera resumen completo del viaje
 
-**Fix aplicado:** `startDayByDayJourney()` ahora envía `papeles: []` en lugar de `papel: string`
+**Características:**
+- Usa GPT-4o vía Emergent LLM Key
+- Estilo épico y arcaico en español
+- Integrado en la UI de resolución de eventos
+
+#### Impresión de Crónica del Viaje ✅ (NUEVO)
+**Nuevo componente en la sección de resultados:**
+- Botón "Generar Narrativa" - Crea resumen del viaje con IA
+- Botón "Imprimir Crónica" - Abre ventana de impresión con:
+  - Fuente Cinzel (estilo élfico)
+  - Diseño tipo pergamino
+  - Estadísticas del viaje
+  - Lista de la compañía con roles
+  - Registro de acontecimientos (éxitos/fracasos)
+  - Resultados de fatiga
+  - Narrativa generada por IA
+
+#### Tabla de PX Restaurada ✅
+**Se restauraron los valores por defecto de la tabla de PX:**
+- Camino Real: TL=0, TF=0, TS=10, TSombra=25, TOscuras=25
+- Senda: TL=0, TF=5, TS=15, TSombra=30, TOscuras=30
+- Sendero: TL=0, TF=5, TS=20, TSombra=35, TOscuras=35
+- Campo Abierto: TL=0, TF=10, TS=25, TSombra=50, TOscuras=50
+- Terreno Difícil: TL=0, TF=25, TS=50, TSombra=100, TOscuras=100
+
+**Nota:** PX=0 para viajes por "Tierras Libres" es correcto según las reglas.
+
+### Testing Results (iteration_31.json)
+- **Frontend:** 100% (9/9 features verified)
+- All playwright tests PASS
 
 ---
 
