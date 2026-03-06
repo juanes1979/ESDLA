@@ -25,10 +25,10 @@ import { toast } from 'sonner';
 import api from '@/services/api';
 
 // Map URLs and coordinate system
-// Both maps use the same coordinate system (0-100 percentage)
-// Player map should be scaled to match master map coordinates (1000x900)
-const PLAYER_MAP_URL = 'https://customer-assets.emergentagent.com/job_909fe894-8fcc-49de-857a-11a4a3283302/artifacts/xoxpt6t9_Mapa%20jugadores.png';
-// Master map coordinate system
+// Both maps now have the same pixel dimensions (19791x15133)
+// Player map loaded from local public folder for better performance
+const PLAYER_MAP_URL = '/mapa_jugadores.jpg';
+// Master map coordinate system - percentage based (0-100)
 const MAP_COORD_WIDTH = 1000;
 const MAP_COORD_HEIGHT = 900;
 
