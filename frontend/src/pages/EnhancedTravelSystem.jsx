@@ -18,7 +18,8 @@ import {
   Map, Users, Compass, Play, Save, Clock, Mountain,
   Sun, Moon, Snowflake, Leaf, ArrowLeft, ArrowRight, Plus, MapPin, 
   Route, AlertTriangle, Shield, Footprints, Dice6, Check, X,
-  ChevronRight, SkipForward, Flag, Zap, Heart, Eye, Sparkles, Maximize2
+  ChevronRight, SkipForward, Flag, Zap, Heart, Eye, Sparkles, Maximize2,
+  Printer, FileText, BookOpen
 } from 'lucide-react';
 import { toast } from 'sonner';
 import api from '@/services/api';
@@ -204,24 +205,55 @@ const JourneyMiniMap = ({ origenCoords, destinoCoords, origenNombre, destinoNomb
     img.src = PLAYER_MAP_URL;
   }, []);
   
-  if (!origenCoords || !destinoCoords) return null;
+  // Validate required coordinates
+  if (!origenCoords || !destinoCoords || 
+      typeof origenCoords.x !== 'number' || typeof origenCoords.y !== 'number' ||
+      typeof destinoCoords.x !== 'number' || typeof destinoCoords.y !== 'number') {
+    return null;
+  }
   
   // Convert percentage coords (0-100) to map coords (same system as master map)
   // Y axis is inverted (0 at bottom, 100 at top in master coords)
-  const percentToMap = (xPercent, yPercent) => ({
-    x: (xPercent / 100) * MAP_COORD_WIDTH,
-    y: MAP_COORD_HEIGHT - (yPercent / 100) * MAP_COORD_HEIGHT
-  });
+  const percentToMap = (xPercent, yPercent) => {
+    // Validate inputs
+    if (typeof xPercent !== 'number' || typeof yPercent !== 'number' || 
+        isNaN(xPercent) || isNaN(yPercent)) {
+      return null;
+    }
+    return {
+      x: (xPercent / 100) * MAP_COORD_WIDTH,
+      y: MAP_COORD_HEIGHT - (yPercent / 100) * MAP_COORD_HEIGHT
+    };
+  };
   
   const origen = percentToMap(origenCoords.x, origenCoords.y);
   const destino = percentToMap(destinoCoords.x, destinoCoords.y);
   
-  // Convert all path points to map coordinates
-  let pathInMapCoords = (pathPoints || []).map(p => {
-    const px = Array.isArray(p) ? p[0] : p.x;
-    const py = Array.isArray(p) ? p[1] : p.y;
-    return percentToMap(px, py);
-  });
+  if (!origen || !destino) return null;
+  
+  // Convert all path points to map coordinates, filtering invalid points
+  let pathInMapCoords = (pathPoints || [])
+    .map(p => {
+      const px = Array.isArray(p) ? p[0] : (p?.x ?? null);
+      const py = Array.isArray(p) ? p[1] : (p?.y ?? null);
+      return percentToMap(px, py);
+    })
+    .filter(p => p !== null);
+  
+  // ALWAYS ensure we have at least the origin and destination as path endpoints
+  // This guarantees a visible route line even if pathfinding returns empty
+  if (pathInMapCoords.length === 0) {
+    pathInMapCoords = [origen, destino];
+  } else {
+    // Ensure path starts at origin and ends at destination
+    if (pathInMapCoords[0].x !== origen.x || pathInMapCoords[0].y !== origen.y) {
+      pathInMapCoords.unshift(origen);
+    }
+    const lastPoint = pathInMapCoords[pathInMapCoords.length - 1];
+    if (lastPoint.x !== destino.x || lastPoint.y !== destino.y) {
+      pathInMapCoords.push(destino);
+    }
+  }
   
   // If no path points, create direct path
   if (pathInMapCoords.length < 2) {
@@ -232,36 +264,59 @@ const JourneyMiniMap = ({ origenCoords, destinoCoords, origenNombre, destinoNomb
   const naturalPath = createNaturalPath(pathInMapCoords, isDirectLine ? 5 : 3);
   
   // Calculate viewBox to show entire route with padding
-  const allX = naturalPath.map(p => p.x);
-  const allY = naturalPath.map(p => p.y);
+  // IMPORTANT: Always include both origin and destination markers
+  const allX = [origen.x, destino.x, ...naturalPath.map(p => p.x)].filter(v => !isNaN(v));
+  const allY = [origen.y, destino.y, ...naturalPath.map(p => p.y)].filter(v => !isNaN(v));
   
-  const padding = 60;
+  // Validate we have coordinates
+  if (allX.length === 0 || allY.length === 0) {
+    return (
+      <Card className="card-parchment overflow-hidden">
+        <CardContent className="p-4 text-center text-muted-foreground">
+          Coordenadas no disponibles para mostrar el mapa
+        </CardContent>
+      </Card>
+    );
+  }
+  
+  // Larger padding to ensure markers and labels are visible
+  const padding = Math.max(80, Math.min(...allX) * 0.15); 
   const minX = Math.max(0, Math.min(...allX) - padding);
   const minY = Math.max(0, Math.min(...allY) - padding);
   const maxX = Math.min(MAP_COORD_WIDTH, Math.max(...allX) + padding);
   const maxY = Math.min(MAP_COORD_HEIGHT, Math.max(...allY) + padding);
   
-  let width = Math.max(maxX - minX, 180);
-  let height = Math.max(maxY - minY, 180);
+  let width = Math.max(maxX - minX, 200);
+  let height = Math.max(maxY - minY, 200);
   
-  // Maintain reasonable aspect ratio
+  // Maintain reasonable aspect ratio for map display
   const aspect = width / height;
-  if (aspect > 2.2) {
-    height = width / 2.2;
-  } else if (aspect < 0.45) {
-    width = height * 0.45;
+  if (aspect > 2.5) {
+    // Too wide - increase height
+    const extraHeight = (width / 2.5) - height;
+    height = width / 2.5;
+    // Center vertically
+  } else if (aspect < 0.4) {
+    // Too tall - increase width
+    width = height * 0.4;
   }
   
   const viewBox = `${minX} ${minY} ${width} ${height}`;
-  const containerHeight = expanded ? 'h-[400px]' : 'h-64';
+  const containerHeight = expanded ? 'h-[500px]' : 'h-72';
   
   // Create smooth SVG path
   const smoothPathD = createSmoothPath(naturalPath);
   
-  // Sizes relative to viewBox
-  const markerRadius = Math.min(width, height) * 0.025;
-  const lineWidth = Math.min(width, height) * 0.012;
-  const fontSize = Math.min(width, height) * 0.035;
+  // Sizes relative to viewBox - with minimum values for visibility
+  // For large maps (full Middle-earth), we need thicker lines
+  const mapScale = Math.max(width, height);
+  // For large scale maps (>500), increase all sizes proportionally
+  const isLargeScale = mapScale > 400;
+  const scaleFactor = isLargeScale ? mapScale / 250 : 1;
+  
+  const lineWidth = isLargeScale ? Math.max(6, mapScale * 0.008) : Math.max(4, mapScale * 0.005);
+  const markerRadius = isLargeScale ? Math.max(18, mapScale * 0.025) : Math.max(12, mapScale * 0.02);
+  const fontSize = isLargeScale ? Math.max(20, mapScale * 0.03) : Math.max(16, mapScale * 0.025);
   
   return (
     <Card className="card-parchment overflow-hidden">
@@ -299,35 +354,35 @@ const JourneyMiniMap = ({ origenCoords, destinoCoords, origenNombre, destinoNomb
                 preserveAspectRatio="none"
               />
               
-              {/* Route path - shadow for depth */}
+              {/* Route path - subtle shadow */}
               <path
                 d={smoothPathD}
                 fill="none"
-                stroke="rgba(0,0,0,0.6)"
-                strokeWidth={lineWidth * 2}
+                stroke="rgba(0,0,0,0.4)"
+                strokeWidth={lineWidth * 2.5}
                 strokeLinecap="round"
                 strokeLinejoin="round"
               />
               
-              {/* Route path - main line (gray/dark for natural look) */}
+              {/* Route path - main line (dark brown/sepia for parchment look) */}
               <path
                 d={smoothPathD}
                 fill="none"
-                stroke="#4a4a4a"
-                strokeWidth={lineWidth * 1.2}
+                stroke="#5c4033"
+                strokeWidth={lineWidth * 1.5}
                 strokeLinecap="round"
                 strokeLinejoin="round"
               />
               
-              {/* Route path - highlight line (lighter gray) */}
+              {/* Route path - highlight center (lighter brown) */}
               <path
                 d={smoothPathD}
                 fill="none"
-                stroke="#6b6b6b"
-                strokeWidth={lineWidth * 0.6}
+                stroke="#8B4513"
+                strokeWidth={lineWidth * 0.8}
                 strokeLinecap="round"
                 strokeLinejoin="round"
-                strokeDasharray={isDirectLine ? `${lineWidth * 4},${lineWidth * 2}` : "none"}
+                strokeDasharray={isDirectLine ? `${lineWidth * 6},${lineWidth * 3}` : "none"}
               />
               
               {/* Origin marker - outer glow */}
@@ -476,6 +531,10 @@ const EnhancedTravelSystem = () => {
   const [applyingPX, setApplyingPX] = useState(false);
   const [pxApplied, setPxApplied] = useState(false);
   const [pxResults, setPxResults] = useState(null);
+  
+  // Journey narrative state
+  const [journeyNarrative, setJourneyNarrative] = useState(null);
+  const [generatingNarrative, setGeneratingNarrative] = useState(false);
   
   // =============== LOAD DATA ===============
   
@@ -753,6 +812,30 @@ const EnhancedTravelSystem = () => {
         }
       });
       
+      // Generate AI narrative for the event (non-blocking)
+      let narrativa = null;
+      try {
+        const narrativeRes = await api.post('/travel/generate-narrative', null, {
+          params: {
+            evento_nombre: currentEvent.evento.nombre,
+            exito: exito,
+            consecuencia: exito ? currentEvent.evento.consecuencias_exito : currentEvent.evento.consecuencias_fracaso,
+            personaje_nombre: targetMember?.nombre || 'El grupo',
+            papel: targetRole,
+            tirada: tirada,
+            cd: cd,
+            origen: config.origenNombre,
+            destino: config.destinoNombre,
+            terreno: journeyCalc?.ruta?.terreno || 'campo_abierto'
+          }
+        });
+        if (narrativeRes.data.success) {
+          narrativa = narrativeRes.data.narrative;
+        }
+      } catch (err) {
+        console.log('Narrative generation skipped:', err);
+      }
+      
       // Update event with result
       const updatedEvents = events.map(e => {
         if (e === currentEvent) {
@@ -761,7 +844,8 @@ const EnhancedTravelSystem = () => {
             resuelto: true,
             resultado: res.data,
             tirada: tirada,
-            exito: exito
+            exito: exito,
+            narrativa: narrativa
           };
         }
         return e;
@@ -1088,6 +1172,208 @@ const EnhancedTravelSystem = () => {
     setJourneyCalc(null);
     setPxApplied(false);
     setPxResults(null);
+    setJourneyNarrative(null);
+  };
+  
+  // =============== JOURNEY NARRATIVE & PDF ===============
+  
+  const generateJourneyNarrative = async () => {
+    setGeneratingNarrative(true);
+    try {
+      const res = await api.post('/travel/generate-journey-summary', {
+        origen: config.origenNombre,
+        destino: config.destinoNombre,
+        dias: journeyCalc?.estimaciones?.dias_estimados || 1,
+        eventos: events.map(e => ({
+          dia: e.casilla,
+          nombre: e.evento?.nombre,
+          exito: e.exito
+        })),
+        personajes: config.miembros.map(m => ({
+          nombre: m.nombre,
+          papel: m.papeles?.[0] || 'viajero'
+        })),
+        px_total: journeyCalc?.estimaciones?.px_total || 0,
+        terrenos: journeyCalc?.ruta?.terrain_summary
+      });
+      
+      if (res.data.success) {
+        setJourneyNarrative(res.data.narrative);
+      }
+    } catch (err) {
+      console.error('Error generating narrative:', err);
+      toast.error('Error al generar narrativa');
+    } finally {
+      setGeneratingNarrative(false);
+    }
+  };
+  
+  const printJourneyDocument = () => {
+    // Create a print-ready document with Tolkien styling
+    const printContent = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Crónica del Viaje - ${config.origenNombre} a ${config.destinoNombre}</title>
+        <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Spectral:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+        <style>
+          @page { margin: 2cm; size: A4; }
+          body {
+            font-family: 'Spectral', Georgia, serif;
+            font-size: 12pt;
+            line-height: 1.8;
+            color: #2c1810;
+            background: #f4efe6;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 40px;
+          }
+          h1 {
+            font-family: 'Cinzel', serif;
+            font-size: 24pt;
+            text-align: center;
+            color: #8B4513;
+            border-bottom: 2px solid #8B4513;
+            padding-bottom: 15px;
+            margin-bottom: 30px;
+          }
+          h2 {
+            font-family: 'Cinzel', serif;
+            font-size: 16pt;
+            color: #5c4033;
+            margin-top: 25px;
+            border-bottom: 1px solid #d4c4a8;
+          }
+          .narrative {
+            font-style: italic;
+            text-align: justify;
+            margin: 25px 0;
+            padding: 20px;
+            background: rgba(139, 69, 19, 0.05);
+            border-left: 4px solid #8B4513;
+          }
+          .stats {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 15px;
+            margin: 20px 0;
+          }
+          .stat {
+            text-align: center;
+            padding: 15px;
+            background: rgba(139, 69, 19, 0.08);
+            border: 1px solid #d4c4a8;
+          }
+          .stat-value {
+            font-family: 'Cinzel', serif;
+            font-size: 24pt;
+            color: #8B4513;
+          }
+          .stat-label { font-size: 10pt; color: #666; }
+          .event {
+            padding: 12px;
+            margin: 10px 0;
+            border-left: 3px solid;
+          }
+          .event-success { border-color: #228B22; background: rgba(34, 139, 34, 0.08); }
+          .event-failure { border-color: #8B0000; background: rgba(139, 0, 0, 0.08); }
+          .party-member {
+            display: inline-block;
+            padding: 5px 15px;
+            margin: 5px;
+            background: #f0e6d3;
+            border: 1px solid #d4c4a8;
+          }
+          .footer {
+            margin-top: 40px;
+            text-align: center;
+            font-size: 10pt;
+            color: #888;
+            border-top: 1px solid #d4c4a8;
+            padding-top: 15px;
+          }
+          @media print {
+            body { background: white; }
+          }
+        </style>
+      </head>
+      <body>
+        <h1>Crónica del Viaje</h1>
+        <p style="text-align: center; font-size: 14pt;">
+          De <strong>${config.origenNombre}</strong> a <strong>${config.destinoNombre}</strong>
+        </p>
+        
+        <div class="stats">
+          <div class="stat">
+            <div class="stat-value">${journeyCalc?.estimaciones?.dias_estimados || 0}</div>
+            <div class="stat-label">Días de Marcha</div>
+          </div>
+          <div class="stat">
+            <div class="stat-value">${journeyCalc?.ruta?.casillas || 0}</div>
+            <div class="stat-label">Casillas</div>
+          </div>
+          <div class="stat">
+            <div class="stat-value">${Math.round(journeyCalc?.ruta?.distance_km || 0)}</div>
+            <div class="stat-label">Kilómetros</div>
+          </div>
+          <div class="stat">
+            <div class="stat-value">${journeyCalc?.estimaciones?.px_total || 0}</div>
+            <div class="stat-label">PX Ganados</div>
+          </div>
+        </div>
+        
+        ${journeyNarrative ? `
+          <h2>Relato del Viaje</h2>
+          <div class="narrative">${journeyNarrative}</div>
+        ` : ''}
+        
+        <h2>La Compañía</h2>
+        <div>
+          ${config.miembros.filter(m => m.papeles?.length).map(m => `
+            <div class="party-member">
+              <strong>${m.nombre}</strong><br>
+              <small>${m.papeles.map(p => ROLE_INFO[p]?.nombre || p).join(', ')}</small>
+            </div>
+          `).join('')}
+        </div>
+        
+        ${events.length > 0 ? `
+          <h2>Acontecimientos del Viaje</h2>
+          ${events.map((e, i) => `
+            <div class="event ${e.exito ? 'event-success' : 'event-failure'}">
+              <strong>Casilla ${e.casilla}: ${e.evento?.nombre || 'Acontecimiento'}</strong>
+              <span style="float: right;">${e.exito ? '✓ Éxito' : '✗ Fracaso'} (${e.tirada} vs CD ${e.resolucion?.cd || '?'})</span>
+              <p style="margin: 8px 0 0 0; font-style: italic;">
+                ${e.narrativa || (e.exito ? e.evento?.consecuencias_exito : e.evento?.consecuencias_fracaso) || ''}
+              </p>
+            </div>
+          `).join('')}
+        ` : '<p><em>El viaje transcurrió sin mayores contratiempos.</em></p>'}
+        
+        ${fatigueResults.length > 0 ? `
+          <h2>Fatiga del Viaje</h2>
+          ${fatigueResults.map(r => `
+            <p>
+              <strong>${r.personaje}:</strong> 
+              Tirada ${r.tirada?.d20} + ${r.tirada?.modificador_con} CON = ${r.tirada?.total} vs CD ${r.cd}
+              → <strong>${r.niveles_cansancio} nivel(es) de cansancio</strong>
+            </p>
+          `).join('')}
+        ` : ''}
+        
+        <div class="footer">
+          <p>Generado por el Sistema de Viajes de Rutas por la Tierra Media</p>
+          <p>${new Date().toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
+        </div>
+      </body>
+      </html>
+    `;
+    
+    const printWindow = window.open('', '_blank');
+    printWindow.document.write(printContent);
+    printWindow.document.close();
+    printWindow.focus();
+    setTimeout(() => printWindow.print(), 500);
   };
   
   // =============== APPLY PX TO CHARACTERS ===============
@@ -2178,22 +2464,35 @@ const EnhancedTravelSystem = () => {
       {events.filter(e => e.resuelto).length > 0 && (
         <Card className="card-parchment">
           <CardHeader className="pb-2">
-            <CardTitle className="text-lg">Eventos Resueltos</CardTitle>
+            <CardTitle className="text-lg">Crónica del Viaje</CardTitle>
           </CardHeader>
           <CardContent>
-            <ScrollArea className="h-48">
-              <div className="space-y-2">
+            <ScrollArea className="h-64">
+              <div className="space-y-3">
                 {events.filter(e => e.resuelto).map((e, i) => (
                   <div 
                     key={i} 
-                    className={`p-2 rounded text-sm ${e.exito ? 'bg-green-900/20' : 'bg-red-900/20'}`}
+                    className={`p-3 rounded border ${e.exito ? 'bg-green-900/20 border-green-500/30' : 'bg-red-900/20 border-red-500/30'}`}
                   >
-                    <div className="flex justify-between items-center">
-                      <span>Casilla {e.casilla}: {e.evento.nombre}</span>
+                    <div className="flex justify-between items-center mb-2">
+                      <span className="font-bold text-[hsl(var(--gold))]">
+                        Casilla {e.casilla}: {e.evento?.nombre || 'Acontecimiento'}
+                      </span>
                       <Badge className={e.exito ? 'bg-green-600' : 'bg-red-600'}>
-                        {e.exito ? 'Éxito' : 'Fracaso'} ({e.tirada})
+                        {e.exito ? 'Éxito' : 'Fracaso'} ({e.tirada} vs CD {e.resolucion?.cd || '?'})
                       </Badge>
                     </div>
+                    {/* Event narrative/consequence */}
+                    <div className="text-sm text-muted-foreground italic border-l-2 border-[hsl(var(--gold))/30] pl-3 mt-2">
+                      {e.narrativa || (e.exito 
+                        ? e.evento?.consecuencias_exito || 'El grupo superó el obstáculo.'
+                        : e.evento?.consecuencias_fracaso || 'El grupo enfrentó dificultades.'
+                      )}
+                    </div>
+                    {/* Show who resolved it */}
+                    <p className="text-xs text-muted-foreground mt-2">
+                      Resuelto por: <span className="text-[hsl(var(--magic-blue))]">{e.objetivo?.prueba || 'El grupo'}</span>
+                    </p>
                   </div>
                 ))}
               </div>
@@ -2897,10 +3196,68 @@ const EnhancedTravelSystem = () => {
                     {e.resultado?.consecuencias?.map((c, ci) => (
                       <p key={ci} className="text-xs text-muted-foreground mt-1">• {c}</p>
                     ))}
+                    {/* Show narrative if available */}
+                    {e.narrativa && (
+                      <p className="text-sm text-muted-foreground mt-2 italic border-l-2 border-[hsl(var(--gold))/30] pl-2">
+                        {e.narrativa}
+                      </p>
+                    )}
                   </div>
                 ))}
               </div>
             </ScrollArea>
+          </CardContent>
+        </Card>
+        
+        {/* Journey Narrative Section */}
+        <Card className="card-parchment border-2 border-[hsl(var(--gold))]/30">
+          <CardHeader>
+            <CardTitle className="text-lg text-[hsl(var(--gold))]">
+              <BookOpen className="w-5 h-5 inline mr-2" />
+              Crónica del Viaje
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {journeyNarrative ? (
+              <div className="prose prose-sm max-w-none">
+                <p className="italic text-muted-foreground leading-relaxed text-justify border-l-4 border-[hsl(var(--gold))]/30 pl-4">
+                  {journeyNarrative}
+                </p>
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                Genera una narrativa épica en estilo Tolkien para este viaje.
+              </p>
+            )}
+            
+            <div className="flex gap-3 mt-4">
+              <Button 
+                onClick={generateJourneyNarrative}
+                disabled={generatingNarrative}
+                variant="outline"
+                className="flex-1"
+              >
+                {generatingNarrative ? (
+                  <>
+                    <div className="animate-spin w-4 h-4 border-2 border-current border-t-transparent rounded-full mr-2"></div>
+                    Generando...
+                  </>
+                ) : (
+                  <>
+                    <FileText className="w-4 h-4 mr-2" />
+                    {journeyNarrative ? 'Regenerar Narrativa' : 'Generar Narrativa'}
+                  </>
+                )}
+              </Button>
+              
+              <Button 
+                onClick={printJourneyDocument}
+                className="flex-1 bg-[hsl(var(--gold))] text-black hover:bg-[hsl(var(--gold))]/80"
+              >
+                <Printer className="w-4 h-4 mr-2" />
+                Imprimir Crónica
+              </Button>
+            </div>
           </CardContent>
         </Card>
         

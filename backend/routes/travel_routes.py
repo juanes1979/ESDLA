@@ -1407,3 +1407,176 @@ async def apply_px_to_characters(data: BulkPXUpdate):
         "px_por_personaje": data.px_amount,
         "results": results
     }
+
+
+# ============== AI NARRATIVE GENERATION ==============
+
+@router.post("/generate-narrative")
+async def generate_event_narrative(
+    evento_nombre: str,
+    exito: bool,
+    consecuencia: str,
+    personaje_nombre: str,
+    papel: str,
+    tirada: int,
+    cd: int,
+    origen: str,
+    destino: str,
+    terreno: str = "campo_abierto"
+):
+    """
+    Generate a Tolkien-style narrative for a travel event outcome.
+    Uses AI to create immersive descriptions.
+    """
+    try:
+        from emergentintegrations.llm.chat import LlmChat, UserMessage
+        from dotenv import load_dotenv
+        load_dotenv()
+        
+        api_key = os.environ.get('EMERGENT_LLM_KEY')
+        if not api_key:
+            return {
+                "success": False,
+                "narrative": consecuencia,
+                "error": "No API key configured"
+            }
+        
+        # Map terrain to Spanish description
+        terreno_names = {
+            "campo_abierto": "las vastas llanuras",
+            "colinas": "las ondulantes colinas",
+            "bosque": "el oscuro bosque",
+            "bosque_denso": "la espesura del bosque antiguo",
+            "montanas": "las montañas escarpadas",
+            "pantano": "los traicioneros pantanos",
+            "desierto": "las tierras áridas",
+            "costa": "la costa rocosa",
+            "rio": "las orillas del río"
+        }
+        terreno_desc = terreno_names.get(terreno, "el camino")
+        
+        # Map roles to Spanish
+        papeles_names = {
+            "guia": "Guía",
+            "cazador": "Cazador",
+            "vigia": "Vigía",
+            "explorador": "Explorador"
+        }
+        papel_name = papeles_names.get(papel, papel)
+        
+        resultado = "ÉXITO" if exito else "FRACASO"
+        
+        chat = LlmChat(
+            api_key=api_key,
+            session_id=f"narrative_{uuid.uuid4().hex[:8]}",
+            system_message="""Eres un narrador de estilo Tolkien para un juego de rol de El Señor de los Anillos. 
+            Genera narrativas cortas (2-3 frases), evocadoras y épicas en español.
+            Usa un lenguaje arcaico pero comprensible. 
+            Menciona el resultado (éxito/fracaso) de forma natural en la narrativa.
+            No uses emojis. Mantén un tono serio y épico."""
+        ).with_model("openai", "gpt-4o")
+        
+        prompt = f"""Genera una breve narrativa (2-3 frases) para este evento de viaje:
+
+VIAJE: De {origen} a {destino}
+TERRENO: {terreno_desc}
+EVENTO: {evento_nombre}
+RESULTADO: {resultado}
+PERSONAJE: {personaje_nombre} ({papel_name})
+TIRADA: {tirada} vs CD {cd}
+CONSECUENCIA MECÁNICA: {consecuencia}
+
+Describe qué sucedió en el viaje de forma épica y tolkienesca."""
+        
+        user_message = UserMessage(text=prompt)
+        response = await chat.send_message(user_message)
+        
+        return {
+            "success": True,
+            "narrative": response,
+            "evento": evento_nombre,
+            "resultado": resultado
+        }
+        
+    except Exception as e:
+        # Fallback to simple description
+        return {
+            "success": False,
+            "narrative": consecuencia,
+            "error": str(e)
+        }
+
+
+@router.post("/generate-journey-summary")
+async def generate_journey_summary(
+    origen: str,
+    destino: str,
+    dias: int,
+    eventos: List[Dict[str, Any]],
+    personajes: List[Dict[str, Any]],
+    px_total: int,
+    terrenos: Dict[str, float] = None
+):
+    """
+    Generate a complete Tolkien-style journey summary for PDF export.
+    """
+    try:
+        from emergentintegrations.llm.chat import LlmChat, UserMessage
+        from dotenv import load_dotenv
+        load_dotenv()
+        
+        api_key = os.environ.get('EMERGENT_LLM_KEY')
+        if not api_key:
+            return {"success": False, "error": "No API key configured"}
+        
+        # Build event summary
+        eventos_text = ""
+        for i, e in enumerate(eventos, 1):
+            resultado = "ÉXITO" if e.get('exito') else "FRACASO"
+            eventos_text += f"\n  - Día {e.get('dia', i)}: {e.get('nombre', 'Evento')} - {resultado}"
+        
+        # Build party summary
+        grupo_text = ", ".join([f"{p.get('nombre')} ({p.get('papel', 'viajero')})" for p in personajes])
+        
+        # Build terrain summary
+        terreno_text = ""
+        if terrenos:
+            for terrain, km in terrenos.items():
+                terreno_text += f"\n  - {terrain}: {km:.1f} km"
+        
+        chat = LlmChat(
+            api_key=api_key,
+            session_id=f"summary_{uuid.uuid4().hex[:8]}",
+            system_message="""Eres un cronista de la Tierra Media escribiendo el relato de un viaje épico.
+            Escribe en español con estilo tolkienesco: prosa elevada, descripciones evocadoras, 
+            referencias a la naturaleza y los peligros del camino.
+            Estructura tu relato con un párrafo de introducción, desarrollo del viaje, y conclusión.
+            Máximo 300 palabras. No uses emojis."""
+        ).with_model("openai", "gpt-4o")
+        
+        prompt = f"""Escribe el relato completo de este viaje:
+
+VIAJE: De {origen} a {destino}
+DURACIÓN: {dias} días de marcha
+COMPAÑÍA: {grupo_text}
+TERRENOS ATRAVESADOS: {terreno_text if terreno_text else "Diversos caminos y sendas"}
+ACONTECIMIENTOS: {eventos_text if eventos_text else "El viaje transcurrió sin mayores contratiempos"}
+EXPERIENCIA GANADA: {px_total} puntos
+
+Narra el viaje como si fuera una página del Libro Rojo de la Frontera del Oeste."""
+        
+        user_message = UserMessage(text=prompt)
+        response = await chat.send_message(user_message)
+        
+        return {
+            "success": True,
+            "narrative": response,
+            "tipo": "journey_summary"
+        }
+        
+    except Exception as e:
+        return {
+            "success": False,
+            "error": str(e),
+            "narrative": f"El viaje de {origen} a {destino} duró {dias} días."
+        }
