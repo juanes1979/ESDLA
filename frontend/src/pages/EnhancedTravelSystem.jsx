@@ -28,9 +28,10 @@ import api from '@/services/api';
 // Both maps now have the same pixel dimensions (19791x15133)
 // Player map loaded from local public folder for better performance
 const PLAYER_MAP_URL = '/mapa_jugadores.jpg';
-// Master map coordinate system - percentage based (0-100)
-const MAP_COORD_WIDTH = 1000;
-const MAP_COORD_HEIGHT = 900;
+// Map aspect ratio: 19791/15133 = 1.3078
+// Coordinate system: percentage based (0-100) for both X and Y
+// The image will be stretched to fit 0-100 x 0-100 viewBox
+const MAP_ASPECT_RATIO = 19791 / 15133;  // ≈ 1.308
 
 // Elvish months with seasons
 const MESES_ELFICOS = [
@@ -212,8 +213,10 @@ const JourneyMiniMap = ({ origenCoords, destinoCoords, origenNombre, destinoNomb
     return null;
   }
   
-  // Convert percentage coords (0-100) to map coords (same system as master map)
-  // Y axis is inverted (0 at bottom, 100 at top in master coords)
+  // Convert percentage coords (0-100) to SVG viewBox coords
+  // Master map: Y=100 is top (north), Y=0 is bottom (south)
+  // SVG: Y=0 is top, Y=100 is bottom
+  // So we need to invert: SVG_Y = 100 - MASTER_Y
   const percentToMap = (xPercent, yPercent) => {
     // Validate inputs
     if (typeof xPercent !== 'number' || typeof yPercent !== 'number' || 
@@ -221,8 +224,8 @@ const JourneyMiniMap = ({ origenCoords, destinoCoords, origenNombre, destinoNomb
       return null;
     }
     return {
-      x: (xPercent / 100) * MAP_COORD_WIDTH,
-      y: MAP_COORD_HEIGHT - (yPercent / 100) * MAP_COORD_HEIGHT
+      x: xPercent,
+      y: 100 - yPercent  // Invert Y axis
     };
   };
   
@@ -279,26 +282,27 @@ const JourneyMiniMap = ({ origenCoords, destinoCoords, origenNombre, destinoNomb
     );
   }
   
-  // Larger padding to ensure markers and labels are visible
-  const padding = Math.max(80, Math.min(...allX) * 0.15); 
+  // Larger padding to ensure markers and labels are visible (in percentage units)
+  const padding = 8;  // 8% padding
   const minX = Math.max(0, Math.min(...allX) - padding);
   const minY = Math.max(0, Math.min(...allY) - padding);
-  const maxX = Math.min(MAP_COORD_WIDTH, Math.max(...allX) + padding);
-  const maxY = Math.min(MAP_COORD_HEIGHT, Math.max(...allY) + padding);
+  const maxX = Math.min(100, Math.max(...allX) + padding);
+  const maxY = Math.min(100, Math.max(...allY) + padding);
   
-  let width = Math.max(maxX - minX, 200);
-  let height = Math.max(maxY - minY, 200);
+  let width = Math.max(maxX - minX, 20);
+  let height = Math.max(maxY - minY, 20);
   
   // Maintain reasonable aspect ratio for map display
-  const aspect = width / height;
-  if (aspect > 2.5) {
+  // Real map aspect ratio is 19791/15133 = 1.308
+  const mapAspect = 1.308;
+  const currentAspect = width / height;
+  
+  if (currentAspect > mapAspect * 1.5) {
     // Too wide - increase height
-    const extraHeight = (width / 2.5) - height;
-    height = width / 2.5;
-    // Center vertically
-  } else if (aspect < 0.4) {
+    height = width / mapAspect;
+  } else if (currentAspect < mapAspect * 0.5) {
     // Too tall - increase width
-    width = height * 0.4;
+    width = height * mapAspect;
   }
   
   const viewBox = `${minX} ${minY} ${width} ${height}`;
@@ -307,15 +311,15 @@ const JourneyMiniMap = ({ origenCoords, destinoCoords, origenNombre, destinoNomb
   // Create smooth SVG path
   const smoothPathD = createSmoothPath(naturalPath);
   
-  // HAND-DRAWN STYLE: Very subtle sizes - like ink on parchment
+  // HAND-DRAWN STYLE: Visible but subtle
   const mapScale = Math.max(width, height);
   
-  // Much thinner line - like a pen stroke on a map
-  const lineWidth = Math.max(1.5, mapScale * 0.002);
-  // Small markers - just dots to mark locations
-  const markerRadius = Math.max(3, mapScale * 0.005);
-  // Readable but not overwhelming text
-  const fontSize = Math.max(10, mapScale * 0.012);
+  // Line thickness - visible but not overwhelming
+  const lineWidth = Math.max(0.3, mapScale * 0.005);
+  // Markers - clearly visible dots
+  const markerRadius = Math.max(1, mapScale * 0.015);
+  // Text - readable
+  const fontSize = Math.max(2, mapScale * 0.025);
   
   return (
     <Card className="card-parchment overflow-hidden">
@@ -343,31 +347,29 @@ const JourneyMiniMap = ({ origenCoords, destinoCoords, origenNombre, destinoNomb
               className="w-full h-full"
               preserveAspectRatio="xMidYMid slice"
             >
-              {/* Player map as background - scaled to master map coordinates */}
+              {/* Player map as background - use 0-100 coordinate system */}
               <image
                 href={PLAYER_MAP_URL}
                 x="0"
                 y="0"
-                width={MAP_COORD_WIDTH}
-                height={MAP_COORD_HEIGHT}
+                width="100"
+                height="100"
                 preserveAspectRatio="none"
               />
               
-              {/* Route path - hand-drawn ink style */}
-              {/* Single thin line like pen on parchment */}
+              {/* Route path - brown ink style */}
               <path
                 d={smoothPathD}
                 fill="none"
-                stroke="#3d2914"
+                stroke="#5c3d2e"
                 strokeWidth={lineWidth}
                 strokeLinecap="round"
                 strokeLinejoin="round"
-                opacity="0.85"
+                opacity="0.9"
               />
               
-              {/* Origin marker - small ink dot with X mark */}
+              {/* Origin marker - green circle */}
               <g>
-                {/* Small circle */}
                 <circle
                   cx={origen.x}
                   cy={origen.y}
@@ -376,18 +378,16 @@ const JourneyMiniMap = ({ origenCoords, destinoCoords, origenNombre, destinoNomb
                   stroke="#2d5016"
                   strokeWidth={lineWidth * 0.8}
                 />
-                {/* Center dot */}
                 <circle
                   cx={origen.x}
                   cy={origen.y}
-                  r={markerRadius * 0.3}
+                  r={markerRadius * 0.4}
                   fill="#2d5016"
                 />
               </g>
               
-              {/* Destination marker - small X mark */}
+              {/* Destination marker - red circle with X */}
               <g>
-                {/* Small circle */}
                 <circle
                   cx={destino.x}
                   cy={destino.y}
@@ -396,7 +396,6 @@ const JourneyMiniMap = ({ origenCoords, destinoCoords, origenNombre, destinoNomb
                   stroke="#8b1a1a"
                   strokeWidth={lineWidth * 0.8}
                 />
-                {/* X mark inside */}
                 <line
                   x1={destino.x - markerRadius * 0.5}
                   y1={destino.y - markerRadius * 0.5}
