@@ -7,7 +7,31 @@ Build a comprehensive web application to play a modified version of the "Lord of
 
 ## Current State (2026-03-06)
 
-### ✅ COMPLETED This Session - Major Travel System Overhaul
+### ✅ COMPLETED This Session - Map Style Refinement
+
+#### Estilo "Dibujado a Mano" para el Mapa ✅
+**Cambios realizados:**
+1. **Línea de ruta muy fina** - Grosor reducido a `mapScale * 0.002` (mínimo 1.5px)
+   - Color marrón tinta (#3d2914)
+   - Sin sombras ni efectos
+   - Una sola capa, estilo pluma sobre pergamino
+
+2. **Marcadores pequeños** - Radio reducido a `mapScale * 0.005` (mínimo 3px)
+   - Origen: Círculo verde vacío con punto central
+   - Destino: Círculo rojo vacío con X interior
+   - Sin glows ni efectos brillantes
+
+3. **Etiquetas en cursiva** - Fuente Georgia serif, estilo itálico
+   - Colores oscuros (#2d3a1d para origen, #4a1c1c para destino)
+
+4. **Leyenda estilo pergamino** - Fondo ámbar claro, bordes sutiles
+   - "○ Origen" y "✕ Destino"
+
+#### Botón de Volver ✅
+- Añadido botón "← Inicio" en el header de la página
+- Lleva a la página principal de la aplicación
+
+### Previous Session - Major Travel System Overhaul
 
 #### Mejoras del Mapa de Viaje ✅
 **Problemas reportados por el usuario y sus correcciones:**

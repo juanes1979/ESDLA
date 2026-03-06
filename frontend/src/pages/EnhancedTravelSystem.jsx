@@ -307,16 +307,15 @@ const JourneyMiniMap = ({ origenCoords, destinoCoords, origenNombre, destinoNomb
   // Create smooth SVG path
   const smoothPathD = createSmoothPath(naturalPath);
   
-  // Sizes relative to viewBox - with minimum values for visibility
-  // For large maps (full Middle-earth), we need thicker lines
+  // HAND-DRAWN STYLE: Very subtle sizes - like ink on parchment
   const mapScale = Math.max(width, height);
-  // For large scale maps (>500), increase all sizes proportionally
-  const isLargeScale = mapScale > 400;
-  const scaleFactor = isLargeScale ? mapScale / 250 : 1;
   
-  const lineWidth = isLargeScale ? Math.max(6, mapScale * 0.008) : Math.max(4, mapScale * 0.005);
-  const markerRadius = isLargeScale ? Math.max(18, mapScale * 0.025) : Math.max(12, mapScale * 0.02);
-  const fontSize = isLargeScale ? Math.max(20, mapScale * 0.03) : Math.max(16, mapScale * 0.025);
+  // Much thinner line - like a pen stroke on a map
+  const lineWidth = Math.max(1.5, mapScale * 0.002);
+  // Small markers - just dots to mark locations
+  const markerRadius = Math.max(3, mapScale * 0.005);
+  // Readable but not overwhelming text
+  const fontSize = Math.max(10, mapScale * 0.012);
   
   return (
     <Card className="card-parchment overflow-hidden">
@@ -354,107 +353,106 @@ const JourneyMiniMap = ({ origenCoords, destinoCoords, origenNombre, destinoNomb
                 preserveAspectRatio="none"
               />
               
-              {/* Route path - subtle shadow */}
+              {/* Route path - hand-drawn ink style */}
+              {/* Single thin line like pen on parchment */}
               <path
                 d={smoothPathD}
                 fill="none"
-                stroke="rgba(0,0,0,0.4)"
-                strokeWidth={lineWidth * 2.5}
+                stroke="#3d2914"
+                strokeWidth={lineWidth}
                 strokeLinecap="round"
                 strokeLinejoin="round"
+                opacity="0.85"
               />
               
-              {/* Route path - main line (dark brown/sepia for parchment look) */}
-              <path
-                d={smoothPathD}
-                fill="none"
-                stroke="#5c4033"
-                strokeWidth={lineWidth * 1.5}
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
+              {/* Origin marker - small ink dot with X mark */}
+              <g>
+                {/* Small circle */}
+                <circle
+                  cx={origen.x}
+                  cy={origen.y}
+                  r={markerRadius}
+                  fill="none"
+                  stroke="#2d5016"
+                  strokeWidth={lineWidth * 0.8}
+                />
+                {/* Center dot */}
+                <circle
+                  cx={origen.x}
+                  cy={origen.y}
+                  r={markerRadius * 0.3}
+                  fill="#2d5016"
+                />
+              </g>
               
-              {/* Route path - highlight center (lighter brown) */}
-              <path
-                d={smoothPathD}
-                fill="none"
-                stroke="#8B4513"
-                strokeWidth={lineWidth * 0.8}
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeDasharray={isDirectLine ? `${lineWidth * 6},${lineWidth * 3}` : "none"}
-              />
+              {/* Destination marker - small X mark */}
+              <g>
+                {/* Small circle */}
+                <circle
+                  cx={destino.x}
+                  cy={destino.y}
+                  r={markerRadius}
+                  fill="none"
+                  stroke="#8b1a1a"
+                  strokeWidth={lineWidth * 0.8}
+                />
+                {/* X mark inside */}
+                <line
+                  x1={destino.x - markerRadius * 0.5}
+                  y1={destino.y - markerRadius * 0.5}
+                  x2={destino.x + markerRadius * 0.5}
+                  y2={destino.y + markerRadius * 0.5}
+                  stroke="#8b1a1a"
+                  strokeWidth={lineWidth * 0.6}
+                />
+                <line
+                  x1={destino.x + markerRadius * 0.5}
+                  y1={destino.y - markerRadius * 0.5}
+                  x2={destino.x - markerRadius * 0.5}
+                  y2={destino.y + markerRadius * 0.5}
+                  stroke="#8b1a1a"
+                  strokeWidth={lineWidth * 0.6}
+                />
+              </g>
               
-              {/* Origin marker - outer glow */}
-              <circle
-                cx={origen.x}
-                cy={origen.y}
-                r={markerRadius * 1.5}
-                fill="rgba(34, 197, 94, 0.3)"
-              />
-              {/* Origin marker */}
-              <circle
-                cx={origen.x}
-                cy={origen.y}
-                r={markerRadius}
-                fill="#22c55e"
-                stroke="white"
-                strokeWidth={markerRadius * 0.25}
-              />
-              
-              {/* Destination marker - outer glow */}
-              <circle
-                cx={destino.x}
-                cy={destino.y}
-                r={markerRadius * 1.5}
-                fill="rgba(239, 68, 68, 0.3)"
-              />
-              {/* Destination marker */}
-              <circle
-                cx={destino.x}
-                cy={destino.y}
-                r={markerRadius}
-                fill="#ef4444"
-                stroke="white"
-                strokeWidth={markerRadius * 0.25}
-              />
-              
-              {/* Origin label */}
+              {/* Origin label - italic calligraphy style */}
               <text
                 x={origen.x}
-                y={origen.y - markerRadius * 2}
-                fill="white"
+                y={origen.y - markerRadius * 2.5}
+                fill="#2d3a1d"
                 fontSize={fontSize}
-                fontWeight="bold"
+                fontStyle="italic"
+                fontFamily="Georgia, serif"
                 textAnchor="middle"
-                style={{ textShadow: '1px 1px 2px black, -1px -1px 2px black, 1px -1px 2px black, -1px 1px 2px black' }}
               >
                 {origenNombre}
               </text>
               
-              {/* Destination label */}
+              {/* Destination label - italic calligraphy style */}
               <text
                 x={destino.x}
-                y={destino.y - markerRadius * 2}
-                fill="white"
+                y={destino.y - markerRadius * 2.5}
+                fill="#4a1c1c"
                 fontSize={fontSize}
-                fontWeight="bold"
+                fontStyle="italic"
+                fontFamily="Georgia, serif"
                 textAnchor="middle"
-                style={{ textShadow: '1px 1px 2px black, -1px -1px 2px black, 1px -1px 2px black, -1px 1px 2px black' }}
               >
                 {destinoNombre}
               </text>
             </svg>
           )}
           
-          {/* Legend */}
-          <div className="absolute bottom-2 left-2 bg-black/70 rounded px-2 py-1 text-xs flex gap-3">
-            <span className="flex items-center gap-1">
-              <span className="w-3 h-3 rounded-full bg-green-500"></span>
+          {/* Legend - parchment style */}
+          <div className="absolute bottom-2 left-2 bg-amber-50/90 border border-amber-900/30 rounded px-2 py-1 text-xs flex gap-3">
+            <span className="flex items-center gap-1 text-green-900">
+              <span className="w-2 h-2 rounded-full border border-green-800 bg-transparent"></span>
               Origen
             </span>
-            <span className="flex items-center gap-1">
-              <span className="w-3 h-3 rounded-full bg-red-500"></span>
+            <span className="flex items-center gap-1 text-red-900">
+              <span className="relative w-2 h-2">
+                <span className="absolute inset-0 flex items-center justify-center text-[8px] text-red-800">✕</span>
+              </span>
               Destino
             </span>
           </div>
@@ -3278,10 +3276,18 @@ const EnhancedTravelSystem = () => {
   return (
     <div className="container mx-auto p-4 max-w-4xl">
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-3xl font-heading text-[hsl(var(--gold))]">
-          <Compass className="w-8 h-8 inline mr-3" />
-          Generador de Viajes
-        </h1>
+        <div className="flex items-center gap-4">
+          <Button variant="ghost" size="sm" asChild className="text-muted-foreground hover:text-white">
+            <a href="/">
+              <ArrowLeft className="w-4 h-4 mr-1" />
+              Inicio
+            </a>
+          </Button>
+          <h1 className="text-3xl font-heading text-[hsl(var(--gold))]">
+            <Compass className="w-8 h-8 inline mr-3" />
+            Generador de Viajes
+          </h1>
+        </div>
         {mode !== 'config' && (
           <Badge variant="outline" className="text-lg">
             {mode === 'global' ? 'Modo Global' : mode === 'dayByDay' ? 'Jornada a Jornada' : 'Resultados'}
