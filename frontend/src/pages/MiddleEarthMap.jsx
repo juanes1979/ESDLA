@@ -120,7 +120,7 @@ const MiddleEarthMap = () => {
   const [loading, setLoading] = useState(true);
   
   // View state
-  const [zoom, setZoom] = useState(1);
+  const [zoom, setZoom] = useState(0.05); // Initial zoom to fit large map
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
@@ -263,9 +263,9 @@ const MiddleEarthMap = () => {
   const mapRef = useRef(null);
   const containerRef = useRef(null);
   
-  // Map dimensions (based on coordinate system 0-100)
-  const MAP_WIDTH = 1000;
-  const MAP_HEIGHT = 900;
+  // Map dimensions - absolute pixel coordinates (same as EnhancedTravelSystem)
+  const MAP_PIXEL_WIDTH = 19791;
+  const MAP_PIXEL_HEIGHT = 15133;
   
   // Load locations and regions
   useEffect(() => {
@@ -372,16 +372,16 @@ const MiddleEarthMap = () => {
     });
   }, [locations, filterRegion, filterType, searchTerm]);
   
-  // Convert coordinates to map position
+  // Convert coordinates (percentage 0-100) to absolute pixel position
   const coordToPos = (x, y) => ({
-    x: (x / 100) * MAP_WIDTH,
-    y: MAP_HEIGHT - (y / 100) * MAP_HEIGHT, // Flip Y axis
+    x: (x / 100) * MAP_PIXEL_WIDTH,
+    y: MAP_PIXEL_HEIGHT - (y / 100) * MAP_PIXEL_HEIGHT, // Flip Y axis
   });
   
-  // Convert map position back to coordinates
+  // Convert absolute pixel position back to percentage coordinates
   const posToCoord = (mapX, mapY) => ({
-    x: Math.round((mapX / MAP_WIDTH) * 100 * 10) / 10,
-    y: Math.round(((MAP_HEIGHT - mapY) / MAP_HEIGHT) * 100 * 10) / 10,
+    x: Math.round((mapX / MAP_PIXEL_WIDTH) * 100 * 10) / 10,
+    y: Math.round(((MAP_PIXEL_HEIGHT - mapY) / MAP_PIXEL_HEIGHT) * 100 * 10) / 10,
   });
   
   // Get SVG coordinates from mouse event using native SVG method
@@ -832,27 +832,28 @@ const MiddleEarthMap = () => {
   const handleWheel = (e) => {
     e.preventDefault();
     
-    // Get the mouse position relative to the container
+    // Calculate zoom direction and new zoom level
+    const zoomFactor = e.deltaY > 0 ? 0.9 : 1.1; // 10% zoom in/out
+    const newZoom = Math.min(10, Math.max(0.05, zoom * zoomFactor));
+    
+    // Get mouse position relative to container
     const container = containerRef.current;
-    if (!container) return;
+    if (!container) {
+      setZoom(newZoom);
+      return;
+    }
     
     const rect = container.getBoundingClientRect();
     const mouseX = e.clientX - rect.left;
     const mouseY = e.clientY - rect.top;
     
-    // Calculate zoom direction and new zoom level
-    const zoomFactor = 0.1;
-    const delta = e.deltaY > 0 ? -zoomFactor : zoomFactor;
-    const newZoom = Math.min(15, Math.max(0.1, zoom + delta));
+    // Calculate the point on the map under the mouse
+    const mapX = (mouseX - pan.x) / zoom;
+    const mapY = (mouseY - pan.y) / zoom;
     
-    // Calculate the point on the map under the mouse before zoom
-    const centerX = rect.width / 2;
-    const centerY = rect.height / 2;
-    
-    // Adjust pan to keep the mouse position as the zoom center
-    const zoomRatio = newZoom / zoom;
-    const newPanX = mouseX - (mouseX - pan.x) * zoomRatio + (centerX - mouseX) * (1 - zoomRatio);
-    const newPanY = mouseY - (mouseY - pan.y) * zoomRatio + (centerY - mouseY) * (1 - zoomRatio);
+    // Calculate new pan to keep mouse position fixed
+    const newPanX = mouseX - mapX * newZoom;
+    const newPanY = mouseY - mapY * newZoom;
     
     setZoom(newZoom);
     setPan({ x: newPanX, y: newPanY });
@@ -1161,10 +1162,10 @@ const MiddleEarthMap = () => {
     
     // Calculate inverse scale to keep markers same size regardless of zoom
     const inverseZoom = 1 / zoom;
-    // Base marker size (will stay constant on screen)
-    const baseSize = editMode ? 4 : 6;
+    // Base marker size in screen pixels (will stay constant on screen)
+    const baseSize = editMode ? 80 : 120;
     const markerSize = baseSize * inverseZoom;
-    const hitAreaSize = 15 * inverseZoom;
+    const hitAreaSize = 300 * inverseZoom;
     
     return (
       <g
@@ -1191,8 +1192,8 @@ const MiddleEarthMap = () => {
             r={hitAreaSize * 0.8}
             fill="transparent"
             stroke={isModified ? '#f59e0b' : '#3b82f6'}
-            strokeWidth={1 * inverseZoom}
-            strokeDasharray={isDraggingThis ? 'none' : `${3 * inverseZoom} ${2 * inverseZoom}`}
+            strokeWidth={20 * inverseZoom}
+            strokeDasharray={isDraggingThis ? 'none' : `${60 * inverseZoom} ${40 * inverseZoom}`}
             opacity={0.6}
           />
         )}
@@ -1203,7 +1204,7 @@ const MiddleEarthMap = () => {
             r={markerSize * 2}
             fill="none"
             stroke={isOrigin ? '#22c55e' : isDestination ? '#ef4444' : '#c9a227'}
-            strokeWidth={2 * inverseZoom}
+            strokeWidth={40 * inverseZoom}
             opacity={0.8}
             className="animate-pulse"
           />
@@ -1214,32 +1215,32 @@ const MiddleEarthMap = () => {
           r={markerSize}
           fill={color}
           stroke={editMode && isModified ? '#f59e0b' : loc.refugio ? '#22c55e' : '#333'}
-          strokeWidth={(editMode && isModified ? 2 : 1) * inverseZoom}
+          strokeWidth={(editMode && isModified ? 40 : 20) * inverseZoom}
           opacity={0.9}
         />
         
         {/* Icon (only when NOT in edit mode and zoom is reasonable) */}
-        {!editMode && showMasterView && zoom > 0.8 && zoom < 2.5 && (
+        {!editMode && showMasterView && zoom > 0.04 && zoom < 0.2 && (
           <text
             textAnchor="middle"
             dominantBaseline="central"
-            fontSize={10 * inverseZoom}
+            fontSize={200 * inverseZoom}
             style={{ pointerEvents: 'none' }}
           >
             {icon}
           </text>
         )}
         
-        {/* Label - only visible when zoomed in (>100%), fixed size on screen */}
-        {showLabels && !editMode && zoom > 1 && (
+        {/* Label - only visible when zoomed in enough, fixed size on screen */}
+        {showLabels && !editMode && zoom > 0.06 && (
           <text
-            y={12 * inverseZoom}
+            y={250 * inverseZoom}
             textAnchor="middle"
             fill="#fff"
-            fontSize={9 * inverseZoom}
+            fontSize={180 * inverseZoom}
             fontWeight="bold"
             stroke="#000"
-            strokeWidth={2.5 * inverseZoom}
+            strokeWidth={50 * inverseZoom}
             paintOrder="stroke"
             style={{ pointerEvents: 'none' }}
           >
@@ -1248,15 +1249,15 @@ const MiddleEarthMap = () => {
         )}
         
         {/* Label in edit mode - visible when zoomed in, fixed size */}
-        {editMode && showLabels && zoom > 1 && (
+        {editMode && showLabels && zoom > 0.06 && (
           <text
-            y={10 * inverseZoom}
+            y={200 * inverseZoom}
             textAnchor="middle"
             fill="#fff"
-            fontSize={8 * inverseZoom}
+            fontSize={160 * inverseZoom}
             fontWeight="bold"
             stroke="#000"
-            strokeWidth={2 * inverseZoom}
+            strokeWidth={40 * inverseZoom}
             paintOrder="stroke"
             style={{ pointerEvents: 'none' }}
           >
@@ -1877,7 +1878,7 @@ const MiddleEarthMap = () => {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => setZoom(z => Math.max(0.1, z - 0.2))}
+              onClick={() => setZoom(z => Math.max(0.01, z * 0.8))}
             >
               <ZoomOut className="w-4 h-4" />
             </Button>
@@ -1887,17 +1888,17 @@ const MiddleEarthMap = () => {
               onChange={(e) => {
                 const val = e.target.value.replace('%', '').trim();
                 const num = parseInt(val, 10);
-                if (!isNaN(num) && num >= 10 && num <= 1500) {
+                if (!isNaN(num) && num >= 1 && num <= 1000) {
                   setZoom(num / 100);
                 }
               }}
               onBlur={(e) => {
                 const val = e.target.value.replace('%', '').trim();
                 const num = parseInt(val, 10);
-                if (isNaN(num) || num < 10) {
-                  setZoom(0.1);
-                } else if (num > 1500) {
-                  setZoom(15);
+                if (isNaN(num) || num < 1) {
+                  setZoom(0.01);
+                } else if (num > 1000) {
+                  setZoom(10);
                 }
               }}
               className="w-16 text-center text-sm bg-background border border-input rounded px-1 py-1"
@@ -1905,15 +1906,15 @@ const MiddleEarthMap = () => {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => setZoom(z => Math.min(15, z + 0.2))}
+              onClick={() => setZoom(z => Math.min(10, z * 1.25))}
             >
               <ZoomIn className="w-4 h-4" />
             </Button>
             <Button
               variant="outline"
               size="sm"
-              onClick={() => setPan({ x: 0, y: 0 })}
-              title="Centrar mapa (mantiene zoom)"
+              onClick={() => { setZoom(0.05); setPan({ x: 0, y: 0 }); }}
+              title="Restablecer vista"
             >
               <Move className="w-4 h-4" />
             </Button>
@@ -1942,7 +1943,7 @@ const MiddleEarthMap = () => {
           ref={mapRef}
           width="100%"
           height="100%"
-          viewBox={`0 0 ${MAP_WIDTH} ${MAP_HEIGHT}`}
+          viewBox={`0 0 ${MAP_PIXEL_WIDTH} ${MAP_PIXEL_HEIGHT}`}
           style={{
             transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
             transformOrigin: 'center center',
@@ -1957,22 +1958,22 @@ const MiddleEarthMap = () => {
           </defs>
           
           {/* Background */}
-          <rect width={MAP_WIDTH} height={MAP_HEIGHT} fill="#1a1510" />
+          <rect width={MAP_PIXEL_WIDTH} height={MAP_PIXEL_HEIGHT} fill="#1a1510" />
           
           {/* Map images as background - Unified Middle-earth map */}
           {showMapBackground && (
             <g opacity={mapOpacity}>
               {/* 
-                Single unified map - positioned to align with location markers
-                Shifted left to align western coast with location coordinates
+                Single unified map - positioned at full size to match coordinates
+                Same positioning as EnhancedTravelSystem
               */}
               <image
                 href={MAP_IMAGES.unified.url}
-                x={-220}
-                y={-100}
-                width={1350}
-                height={1100}
-                preserveAspectRatio="xMinYMin slice"
+                x={0}
+                y={0}
+                width={MAP_PIXEL_WIDTH}
+                height={MAP_PIXEL_HEIGHT}
+                preserveAspectRatio="xMidYMid slice"
               />
             </g>
           )}
@@ -1983,18 +1984,20 @@ const MiddleEarthMap = () => {
               {Array.from({ length: 11 }, (_, i) => (
                 <React.Fragment key={i}>
                   <line
-                    x1={i * (MAP_WIDTH / 10)}
+                    x1={i * (MAP_PIXEL_WIDTH / 10)}
                     y1={0}
-                    x2={i * (MAP_WIDTH / 10)}
-                    y2={MAP_HEIGHT}
+                    x2={i * (MAP_PIXEL_WIDTH / 10)}
+                    y2={MAP_PIXEL_HEIGHT}
                     stroke="#c9a227"
+                    strokeWidth={20}
                   />
                   <line
                     x1={0}
-                    y1={i * (MAP_HEIGHT / 10)}
-                    x2={MAP_WIDTH}
-                    y2={i * (MAP_HEIGHT / 10)}
+                    y1={i * (MAP_PIXEL_HEIGHT / 10)}
+                    x2={MAP_PIXEL_WIDTH}
+                    y2={i * (MAP_PIXEL_HEIGHT / 10)}
                     stroke="#c9a227"
+                    strokeWidth={20}
                   />
                 </React.Fragment>
               ))}
@@ -2004,10 +2007,10 @@ const MiddleEarthMap = () => {
           {/* Region labels (only when no map background) */}
           {showMasterView && !showMapBackground && zoom > 0.5 && (
             <g opacity={0.3}>
-              <text x={150} y={400} fill="#c9a227" fontSize={40} fontWeight="bold">ERIADOR</text>
-              <text x={400} y={650} fill="#c9a227" fontSize={35} fontWeight="bold">ROHAN</text>
-              <text x={500} y={750} fill="#c9a227" fontSize={35} fontWeight="bold">GONDOR</text>
-              <text x={650} y={650} fill="#8b0000" fontSize={30} fontWeight="bold">MORDOR</text>
+              <text x={3000} y={6000} fill="#c9a227" fontSize={800} fontWeight="bold">ERIADOR</text>
+              <text x={8000} y={10000} fill="#c9a227" fontSize={700} fontWeight="bold">ROHAN</text>
+              <text x={10000} y={12000} fill="#c9a227" fontSize={700} fontWeight="bold">GONDOR</text>
+              <text x={13000} y={10000} fill="#8b0000" fontSize={600} fontWeight="bold">MORDOR</text>
               <text x={600} y={350} fill="#c9a227" fontSize={30} fontWeight="bold">RHOVANION</text>
             </g>
           )}

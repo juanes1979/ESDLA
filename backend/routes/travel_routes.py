@@ -1501,7 +1501,11 @@ async def generate_event_narrative(
     cd: int,
     origen: str,
     destino: str,
-    terreno: str = "campo_abierto"
+    terreno: str = "campo_abierto",
+    evento_numero: int = 1,
+    total_eventos: int = 1,
+    dia_actual: int = 1,
+    dias_totales: int = 1
 ):
     """
     Generate a Tolkien-style narrative for a travel event outcome.
@@ -1522,6 +1526,11 @@ async def generate_event_narrative(
         
         # Map terrain to Spanish description
         terreno_names = {
+            "facil": "el camino despejado",
+            "moderado": "las sendas serpenteantes",
+            "dificil": "el terreno agreste",
+            "muy_dificil": "las tierras inhóspitas",
+            "desalentador": "los parajes desolados",
             "campo_abierto": "las vastas llanuras",
             "colinas": "las ondulantes colinas",
             "bosque": "el oscuro bosque",
@@ -1545,27 +1554,39 @@ async def generate_event_narrative(
         
         resultado = "ÉXITO" if exito else "FRACASO"
         
+        # Calculate journey progress
+        progreso = round((evento_numero / total_eventos) * 100) if total_eventos > 0 else 50
+        if progreso <= 25:
+            fase_viaje = "Al comienzo del viaje"
+        elif progreso <= 50:
+            fase_viaje = "A mitad de camino"
+        elif progreso <= 75:
+            fase_viaje = "Avanzado el viaje"
+        else:
+            fase_viaje = "Cerca del final del viaje"
+        
         chat = LlmChat(
             api_key=api_key,
             session_id=f"narrative_{uuid.uuid4().hex[:8]}",
             system_message="""Eres un narrador de estilo Tolkien para un juego de rol de El Señor de los Anillos. 
             Genera narrativas cortas (2-3 frases), evocadoras y épicas en español.
-            Usa un lenguaje arcaico pero comprensible. 
+            Usa un lenguaje arcaico pero comprensible.
+            IMPORTANTE: NO menciones el origen ni el destino del viaje. Céntrate SOLO en el evento y el terreno actual.
             Menciona el resultado (éxito/fracaso) de forma natural en la narrativa.
             No uses emojis. Mantén un tono serio y épico."""
         ).with_model("openai", "gpt-4o")
         
         prompt = f"""Genera una breve narrativa (2-3 frases) para este evento de viaje:
 
-VIAJE: De {origen} a {destino}
-TERRENO: {terreno_desc}
+FASE DEL VIAJE: {fase_viaje} (día {dia_actual} de {dias_totales})
+TERRENO ACTUAL: {terreno_desc}
 EVENTO: {evento_nombre}
 RESULTADO: {resultado}
-PERSONAJE: {personaje_nombre} ({papel_name})
+PERSONAJE RESPONSABLE: {personaje_nombre} ({papel_name})
 TIRADA: {tirada} vs CD {cd}
 CONSECUENCIA MECÁNICA: {consecuencia}
 
-Describe qué sucedió en el viaje de forma épica y tolkienesca."""
+INSTRUCCIONES: Describe qué sucedió en este momento del viaje. NO menciones "{origen}" ni "{destino}". Céntrate en la escena actual."""
         
         user_message = UserMessage(text=prompt)
         response = await chat.send_message(user_message)
