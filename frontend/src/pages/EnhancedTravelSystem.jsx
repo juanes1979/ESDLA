@@ -28,10 +28,10 @@ import api from '@/services/api';
 // Both maps now have the same pixel dimensions (19791x15133)
 // Player map loaded from local public folder for better performance
 const PLAYER_MAP_URL = '/mapa_jugadores.jpg';
-// Map aspect ratio: 19791/15133 = 1.3078
-// Coordinate system: percentage based (0-100) for both X and Y
-// The image will be stretched to fit 0-100 x 0-100 viewBox
-const MAP_ASPECT_RATIO = 19791 / 15133;  // ≈ 1.308
+// Map coordinate system - SAME as master map (MiddleEarthMap.jsx)
+// viewBox uses 1000x900, coordinates are percentage (0-100) converted to this space
+const MAP_WIDTH = 1000;
+const MAP_HEIGHT = 900;
 
 // Elvish months with seasons
 const MESES_ELFICOS = [
@@ -213,10 +213,9 @@ const JourneyMiniMap = ({ origenCoords, destinoCoords, origenNombre, destinoNomb
     return null;
   }
   
-  // Convert percentage coords (0-100) to SVG viewBox coords
-  // Master map: Y=100 is top (north), Y=0 is bottom (south)
-  // SVG: Y=0 is top, Y=100 is bottom
-  // So we need to invert: SVG_Y = 100 - MASTER_Y
+  // Convert percentage coords (0-100) to map coords - SAME as MiddleEarthMap.jsx
+  // x: (x / 100) * MAP_WIDTH
+  // y: MAP_HEIGHT - (y / 100) * MAP_HEIGHT (flip Y axis)
   const percentToMap = (xPercent, yPercent) => {
     // Validate inputs
     if (typeof xPercent !== 'number' || typeof yPercent !== 'number' || 
@@ -224,8 +223,8 @@ const JourneyMiniMap = ({ origenCoords, destinoCoords, origenNombre, destinoNomb
       return null;
     }
     return {
-      x: xPercent,
-      y: 100 - yPercent  // Invert Y axis
+      x: (xPercent / 100) * MAP_WIDTH,
+      y: MAP_HEIGHT - (yPercent / 100) * MAP_HEIGHT  // Flip Y axis
     };
   };
   
@@ -282,22 +281,21 @@ const JourneyMiniMap = ({ origenCoords, destinoCoords, origenNombre, destinoNomb
     );
   }
   
-  // Larger padding to ensure markers and labels are visible (in percentage units)
-  const padding = 8;  // 8% padding
+  // Padding and viewBox calculation using MAP_WIDTH/MAP_HEIGHT system
+  const padding = 80;  // pixels in 1000x900 space
   const minX = Math.max(0, Math.min(...allX) - padding);
   const minY = Math.max(0, Math.min(...allY) - padding);
-  const maxX = Math.min(100, Math.max(...allX) + padding);
-  const maxY = Math.min(100, Math.max(...allY) + padding);
+  const maxX = Math.min(MAP_WIDTH, Math.max(...allX) + padding);
+  const maxY = Math.min(MAP_HEIGHT, Math.max(...allY) + padding);
   
-  let width = Math.max(maxX - minX, 20);
-  let height = Math.max(maxY - minY, 20);
+  let width = Math.max(maxX - minX, 180);
+  let height = Math.max(maxY - minY, 180);
   
   // Maintain reasonable aspect ratio for map display
-  // Real map aspect ratio is 19791/15133 = 1.308
-  const mapAspect = 1.308;
+  const mapAspect = MAP_WIDTH / MAP_HEIGHT;  // 1000/900 = 1.11
   const currentAspect = width / height;
   
-  if (currentAspect > mapAspect * 1.5) {
+  if (currentAspect > mapAspect * 2) {
     // Too wide - increase height
     height = width / mapAspect;
   } else if (currentAspect < mapAspect * 0.5) {
@@ -311,15 +309,15 @@ const JourneyMiniMap = ({ origenCoords, destinoCoords, origenNombre, destinoNomb
   // Create smooth SVG path
   const smoothPathD = createSmoothPath(naturalPath);
   
-  // HAND-DRAWN STYLE: Visible but subtle
+  // Line and marker sizes - proportional to viewBox
   const mapScale = Math.max(width, height);
   
-  // Line thickness - visible but not overwhelming
-  const lineWidth = Math.max(0.3, mapScale * 0.005);
-  // Markers - clearly visible dots
-  const markerRadius = Math.max(1, mapScale * 0.015);
-  // Text - readable
-  const fontSize = Math.max(2, mapScale * 0.025);
+  // Line thickness
+  const lineWidth = Math.max(2, mapScale * 0.003);
+  // Markers
+  const markerRadius = Math.max(6, mapScale * 0.01);
+  // Text
+  const fontSize = Math.max(12, mapScale * 0.018);
   
   return (
     <Card className="card-parchment overflow-hidden">
@@ -347,13 +345,13 @@ const JourneyMiniMap = ({ origenCoords, destinoCoords, origenNombre, destinoNomb
               className="w-full h-full"
               preserveAspectRatio="xMidYMid slice"
             >
-              {/* Player map as background - use 0-100 coordinate system */}
+              {/* Player map as background - uses same 1000x900 coordinate system as master */}
               <image
                 href={PLAYER_MAP_URL}
                 x="0"
                 y="0"
-                width="100"
-                height="100"
+                width={MAP_WIDTH}
+                height={MAP_HEIGHT}
                 preserveAspectRatio="none"
               />
               
