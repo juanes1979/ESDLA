@@ -18,6 +18,11 @@ const LocationEditor = () => {
   const [saving, setSaving] = useState(false);
   const svgRef = useRef(null);
   
+  // Zoom and pan state
+  const [viewBox, setViewBox] = useState({ x: 0, y: 0, width: MAP_PIXEL_WIDTH, height: MAP_PIXEL_HEIGHT });
+  const [isPanning, setIsPanning] = useState(false);
+  const [panStart, setPanStart] = useState({ x: 0, y: 0 });
+  
   // Reference locations to show
   const referenceIds = ['loc_002', 'loc_038']; // Hobbiton, Minas Tirith
   const [referenceLocations, setReferenceLocations] = useState([]);
@@ -51,10 +56,87 @@ const LocationEditor = () => {
       setSelectedLocation(loc);
       setEditX(loc.x?.toString() || '0');
       setEditY(loc.y?.toString() || '0');
+      
+      // Center view on selected location
+      const pos = toPixels(loc.x, loc.y);
+      const zoomWidth = MAP_PIXEL_WIDTH * 0.3;
+      const zoomHeight = MAP_PIXEL_HEIGHT * 0.3;
+      setViewBox({
+        x: pos.x - zoomWidth / 2,
+        y: pos.y - zoomHeight / 2,
+        width: zoomWidth,
+        height: zoomHeight
+      });
     }
   };
 
+  // Zoom with mouse wheel
+  const handleWheel = (e) => {
+    e.preventDefault();
+    const svg = svgRef.current;
+    if (!svg) return;
+
+    const rect = svg.getBoundingClientRect();
+    const mouseX = ((e.clientX - rect.left) / rect.width) * viewBox.width + viewBox.x;
+    const mouseY = ((e.clientY - rect.top) / rect.height) * viewBox.height + viewBox.y;
+
+    const zoomFactor = e.deltaY > 0 ? 1.2 : 0.8;
+    
+    const newWidth = Math.min(Math.max(viewBox.width * zoomFactor, MAP_PIXEL_WIDTH * 0.05), MAP_PIXEL_WIDTH);
+    const newHeight = Math.min(Math.max(viewBox.height * zoomFactor, MAP_PIXEL_HEIGHT * 0.05), MAP_PIXEL_HEIGHT);
+
+    // Zoom towards mouse position
+    const newX = mouseX - (mouseX - viewBox.x) * (newWidth / viewBox.width);
+    const newY = mouseY - (mouseY - viewBox.y) * (newHeight / viewBox.height);
+
+    setViewBox({
+      x: Math.max(0, Math.min(newX, MAP_PIXEL_WIDTH - newWidth)),
+      y: Math.max(0, Math.min(newY, MAP_PIXEL_HEIGHT - newHeight)),
+      width: newWidth,
+      height: newHeight
+    });
+  };
+
+  // Pan with middle mouse button or shift+drag
+  const handleMouseDown = (e) => {
+    if (e.button === 1 || e.shiftKey) {
+      e.preventDefault();
+      setIsPanning(true);
+      setPanStart({ x: e.clientX, y: e.clientY });
+    }
+  };
+
+  const handleMouseMove = (e) => {
+    if (!isPanning) return;
+    
+    const svg = svgRef.current;
+    if (!svg) return;
+
+    const rect = svg.getBoundingClientRect();
+    const dx = (e.clientX - panStart.x) / rect.width * viewBox.width;
+    const dy = (e.clientY - panStart.y) / rect.height * viewBox.height;
+
+    setViewBox(prev => ({
+      ...prev,
+      x: Math.max(0, Math.min(prev.x - dx, MAP_PIXEL_WIDTH - prev.width)),
+      y: Math.max(0, Math.min(prev.y - dy, MAP_PIXEL_HEIGHT - prev.height))
+    }));
+
+    setPanStart({ x: e.clientX, y: e.clientY });
+  };
+
+  const handleMouseUp = () => {
+    setIsPanning(false);
+  };
+
+  // Reset zoom
+  const resetZoom = () => {
+    setViewBox({ x: 0, y: 0, width: MAP_PIXEL_WIDTH, height: MAP_PIXEL_HEIGHT });
+  };
+
   const handleMapClick = (e) => {
+    if (isPanning) return;
+    
     if (!selectedLocation) {
       toast.error('Selecciona primero una ubicación');
       return;
@@ -64,9 +146,8 @@ const LocationEditor = () => {
     if (!svg) return;
 
     const rect = svg.getBoundingClientRect();
-    const viewBox = svg.viewBox.baseVal;
     
-    // Calculate click position in SVG coordinates
+    // Calculate click position in SVG coordinates using current viewBox
     const clickX = ((e.clientX - rect.left) / rect.width) * viewBox.width + viewBox.x;
     const clickY = ((e.clientY - rect.top) / rect.height) * viewBox.height + viewBox.y;
     
@@ -202,12 +283,19 @@ const LocationEditor = () => {
             >
               {saving ? 'Guardando...' : 'Guardar Posición'}
             </Button>
+            <Button variant="outline" onClick={resetZoom}>
+              Ver Todo
+            </Button>
             <Button variant="outline" onClick={loadLocations}>
               Recargar
             </Button>
             <Button variant="outline" asChild>
               <a href="/travel">Volver a Viajes</a>
             </Button>
+          </div>
+          
+          <div className="text-xs text-muted-foreground mb-2">
+            <strong>Controles:</strong> Rueda del ratón = Zoom | Shift+Arrastrar = Mover | Clic = Posicionar
           </div>
           
           {selectedLocation && (
@@ -226,13 +314,22 @@ const LocationEditor = () => {
           <CardTitle className="text-lg">Mapa de Jugadores - Haz clic para posicionar</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="relative w-full" style={{ height: '70vh' }}>
+          <div 
+            className="relative w-full border border-amber-500/30 rounded overflow-hidden" 
+            style={{ height: '70vh' }}
+            onMouseUp={handleMouseUp}
+            onMouseLeave={handleMouseUp}
+          >
             <svg
               ref={svgRef}
-              viewBox={`0 0 ${MAP_PIXEL_WIDTH} ${MAP_PIXEL_HEIGHT}`}
-              className="w-full h-full cursor-crosshair"
+              viewBox={`${viewBox.x} ${viewBox.y} ${viewBox.width} ${viewBox.height}`}
+              className="w-full h-full"
+              style={{ cursor: isPanning ? 'grabbing' : 'crosshair' }}
               preserveAspectRatio="xMidYMid meet"
               onClick={handleMapClick}
+              onWheel={handleWheel}
+              onMouseDown={handleMouseDown}
+              onMouseMove={handleMouseMove}
             >
               {/* Player map background */}
               <image
