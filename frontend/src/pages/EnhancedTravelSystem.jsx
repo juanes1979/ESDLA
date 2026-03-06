@@ -528,6 +528,13 @@ const EnhancedTravelSystem = () => {
   const [journeyNarrative, setJourneyNarrative] = useState(null);
   const [generatingNarrative, setGeneratingNarrative] = useState(false);
   
+  // Orientation check state (new system)
+  const [orientationChecks, setOrientationChecks] = useState([]); // All orientation checks
+  const [currentPosition, setCurrentPosition] = useState(0); // Current position in tiles
+  const [nextEventPosition, setNextEventPosition] = useState(0); // Position of next event
+  const [awaitingOrientationCheck, setAwaitingOrientationCheck] = useState(false);
+  const [lastOrientationResult, setLastOrientationResult] = useState(null);
+  
   // =============== LOAD DATA ===============
   
   useEffect(() => {
@@ -642,44 +649,131 @@ const EnhancedTravelSystem = () => {
       return;
     }
     
-    if (!config.miembros.some(m => m.papeles?.includes('guia'))) {
+    const guia = config.miembros.find(m => m.papeles?.includes('guia'));
+    if (!guia) {
       toast.error('Debe haber al menos un Guía asignado');
       return;
     }
     
     setMode('global');
     setEvents([]);
+    setOrientationChecks([]);
+    setCurrentPosition(0);
+    setNextEventPosition(0);
+    setLastOrientationResult(null);
     
-    // Generate all events for the journey
-    const numEvents = journeyCalc.estimaciones.eventos_esperados;
-    const generatedEvents = [];
+    // Check if guide has multiple roles (penalty -5)
+    const guiaTieneMultiplesRoles = guia.papeles && guia.papeles.length > 1;
     
-    for (let i = 0; i < numEvents; i++) {
-      try {
-        const eventRes = await api.post('/travel/generate-event', null, {
-          params: {
-            tipo_tierra: journeyCalc.ruta.tipo_tierra,
-            terreno: journeyCalc.ruta.terreno,
-            estacion: config.estacion
-          }
-        });
+    // Start with first orientation check
+    setAwaitingOrientationCheck(true);
+    toast.info(`El Guía (${guia.nombre}) debe realizar la primera tirada de Orientación`);
+  };
+  
+  // Perform orientation check
+  const performOrientationCheck = async () => {
+    const guia = config.miembros.find(m => m.papeles?.includes('guia'));
+    if (!guia) return;
+    
+    const casillasRestantes = journeyCalc.ruta.casillas - currentPosition;
+    const guiaTieneMultiplesRoles = guia.papeles && guia.papeles.length > 1;
+    
+    try {
+      const res = await api.post('/travel/orientation-check', {
+        modificador_sabiduria: guia.modificadorSabiduria || 0,
+        competencia_viajar: guia.competenciaViajar || false,
+        competencia_cartografia: guia.competenciaCartografia || false,
+        competencia_navegacion: false,
+        tiene_mapa: true, // Assume they have a map
+        viaje_maritimo: false,
+        penalizacion_multiples_papeles: guiaTieneMultiplesRoles,
+        bonus_competencia: guia.bonusCompetencia || 2
+      }, {
+        params: { casillas_restantes: casillasRestantes }
+      });
+      
+      if (res.data.success) {
+        const result = res.data;
+        setLastOrientationResult(result);
+        setOrientationChecks(prev => [...prev, {
+          ...result,
+          casilla_actual: currentPosition,
+          casillas_restantes: casillasRestantes
+        }]);
         
-        if (eventRes.data.success) {
-          generatedEvents.push({
-            ...eventRes.data,
-            casilla: Math.ceil((i + 1) * (journeyCalc.ruta.casillas / numEvents)),
-            resuelto: false,
-            resultado: null
-          });
+        if (result.viaje_completado) {
+          // Journey is complete!
+          toast.success(result.detalle);
+          setAwaitingOrientationCheck(false);
+          // Move to results
+          if (events.length === 0) {
+            // No events occurred, journey was peaceful
+            setMode('results');
+          }
+        } else {
+          // Calculate next event position
+          const nuevaPosicionEvento = currentPosition + result.casillas_hasta_evento;
+          setNextEventPosition(nuevaPosicionEvento);
+          
+          // Generate the event at that position
+          await generateEventAtPosition(nuevaPosicionEvento, result);
         }
-      } catch (err) {
-        console.error('Error generating event:', err);
       }
+    } catch (err) {
+      console.error('Error in orientation check:', err);
+      toast.error('Error al realizar la tirada de orientación');
     }
+  };
+  
+  // Generate event at a specific position
+  const generateEventAtPosition = async (posicion, orientationResult) => {
+    try {
+      const eventRes = await api.post('/travel/generate-event', null, {
+        params: {
+          tipo_tierra: journeyCalc.ruta.tipo_tierra,
+          terreno: journeyCalc.ruta.terreno,
+          estacion: config.estacion
+        }
+      });
+      
+      if (eventRes.data.success) {
+        const newEvent = {
+          ...eventRes.data,
+          casilla: posicion,
+          resuelto: false,
+          resultado: null,
+          orientacion: orientationResult // Link to the orientation check
+        };
+        
+        setEvents(prev => [...prev, newEvent]);
+        setCurrentEvent(newEvent);
+        setAwaitingOrientationCheck(false);
+        
+        toast.info(`¡Acontecimiento en la casilla ${posicion}! (${orientationResult.detalle})`);
+      }
+    } catch (err) {
+      console.error('Error generating event:', err);
+      toast.error('Error al generar acontecimiento');
+    }
+  };
+  
+  // After resolving an event, continue with next orientation check
+  const continueAfterEvent = async () => {
+    // Update current position to event position
+    setCurrentPosition(nextEventPosition);
     
-    setEvents(generatedEvents);
-    if (generatedEvents.length > 0) {
-      setCurrentEvent(generatedEvents[0]);
+    const casillasRestantes = journeyCalc.ruta.casillas - nextEventPosition;
+    
+    if (casillasRestantes <= 0) {
+      // Journey complete
+      toast.success('¡La compañía ha llegado a su destino!');
+      await calculateFatigueResults(events);
+      setMode('results');
+    } else {
+      // Need another orientation check
+      setAwaitingOrientationCheck(true);
+      setCurrentEvent(null);
+      toast.info(`Quedan ${casillasRestantes} casillas. El Guía debe realizar otra tirada de Orientación.`);
     }
   };
   
@@ -853,15 +947,13 @@ const EnhancedTravelSystem = () => {
       
       setEvents(updatedEvents);
       
-      // Move to next event
-      const nextUnresolved = updatedEvents.find(e => !e.resuelto);
-      setCurrentEvent(nextUnresolved || null);
+      // In the new orientation system, after resolving an event we continue journey
+      // No longer looking for "next unresolved" since events are generated one by one
+      setCurrentEvent(null);
       
-      if (!nextUnresolved) {
-        // All events resolved - show results
-        await calculateFatigueResults(updatedEvents);
-        setMode('results');
-      }
+      // Continue with next orientation check
+      continueAfterEvent();
+      
     } catch (err) {
       console.error('Error resolving event:', err);
       toast.error('Error al resolver acontecimiento');
@@ -2350,7 +2442,7 @@ const EnhancedTravelSystem = () => {
   // Global Journey - Event Resolution
   const renderGlobalJourney = () => (
     <div className="space-y-6">
-      {/* Journey Progress */}
+      {/* Journey Progress with Orientation Info */}
       <Card className="card-parchment">
         <CardHeader className="pb-2">
           <CardTitle className="text-lg text-[hsl(var(--gold))]">
@@ -2361,22 +2453,27 @@ const EnhancedTravelSystem = () => {
         <CardContent>
           <div className="mb-4">
             <Progress 
-              value={(events.filter(e => e.resuelto).length / events.length) * 100} 
+              value={(currentPosition / journeyCalc?.ruta?.casillas) * 100} 
               className="h-3"
             />
             <p className="text-sm text-muted-foreground mt-1">
-              Eventos resueltos: {events.filter(e => e.resuelto).length} / {events.length}
+              Progreso: {currentPosition} / {journeyCalc?.ruta?.casillas} casillas | 
+              Eventos: {events.filter(e => e.resuelto).length} resueltos
             </p>
           </div>
           
-          <div className="grid grid-cols-3 gap-3 text-center">
+          <div className="grid grid-cols-4 gap-3 text-center">
             <div className="bg-black/20 p-2 rounded">
               <p className="text-xl font-bold">{journeyCalc?.ruta?.casillas || 0}</p>
-              <p className="text-xs text-muted-foreground">casillas</p>
+              <p className="text-xs text-muted-foreground">total casillas</p>
             </div>
             <div className="bg-black/20 p-2 rounded">
-              <p className="text-xl font-bold">{journeyCalc?.estimaciones?.dias_estimados || 0}</p>
-              <p className="text-xs text-muted-foreground">días</p>
+              <p className="text-xl font-bold text-blue-400">{currentPosition}</p>
+              <p className="text-xs text-muted-foreground">posición actual</p>
+            </div>
+            <div className="bg-black/20 p-2 rounded">
+              <p className="text-xl font-bold">{journeyCalc?.ruta?.casillas - currentPosition}</p>
+              <p className="text-xs text-muted-foreground">casillas restantes</p>
             </div>
             <div className="bg-black/20 p-2 rounded">
               <p className="text-xl font-bold text-green-400">{journeyCalc?.estimaciones?.px_total || 0}</p>
@@ -2385,6 +2482,78 @@ const EnhancedTravelSystem = () => {
           </div>
         </CardContent>
       </Card>
+      
+      {/* Orientation Check UI */}
+      {awaitingOrientationCheck && (
+        <Card className="card-parchment border-2 border-blue-500">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-lg text-[hsl(var(--magic-blue))]">
+              <Compass className="w-5 h-5 inline mr-2" />
+              Tirada de Orientación
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {(() => {
+              const guia = config.miembros.find(m => m.papeles?.includes('guia'));
+              const guiaChar = characters.find(c => c.id === guia?.id);
+              const casillasRestantes = journeyCalc.ruta.casillas - currentPosition;
+              const tieneMultiplesRoles = guia?.papeles?.length > 1;
+              
+              return (
+                <>
+                  <div className="p-4 bg-blue-900/20 rounded border border-blue-500/30">
+                    <p className="text-sm mb-2">
+                      El <strong>Guía ({guia?.nombre || 'Sin asignar'})</strong> debe realizar una prueba de 
+                      <strong> Sabiduría (Viajar) CD 15</strong>.
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      • Si tiene un mapa, puede usar competencia con herramientas de cartografía.<br/>
+                      • Si el Guía tiene múltiples papeles: <span className="text-red-400">-5 penalización</span>
+                    </p>
+                    {tieneMultiplesRoles && (
+                      <p className="text-xs text-red-400 mt-2">
+                        ⚠️ {guia?.nombre} tiene {guia?.papeles?.length} papeles asignados (-5 penalización)
+                      </p>
+                    )}
+                  </div>
+                  
+                  <div className="text-center p-4 bg-black/20 rounded">
+                    <p className="text-sm text-muted-foreground mb-2">Casillas restantes hasta el destino:</p>
+                    <p className="text-3xl font-bold text-[hsl(var(--gold))]">{casillasRestantes}</p>
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-2 text-xs text-muted-foreground bg-black/10 p-3 rounded">
+                    <div><strong>Fallo por 5+:</strong> Evento a 1 casilla</div>
+                    <div><strong>Fallo:</strong> Evento a 2 casillas</div>
+                    <div><strong>Éxito:</strong> Evento a 3 casillas</div>
+                    <div><strong>Éxito por 5+:</strong> Evento a 4 casillas</div>
+                    <div className="col-span-2 mt-2 text-green-400">
+                      Si la tirada ≥ {casillasRestantes} casillas restantes: ¡Viaje completado sin más eventos!
+                    </div>
+                  </div>
+                  
+                  <Button 
+                    className="w-full btn-gold"
+                    onClick={performOrientationCheck}
+                  >
+                    <Dice6 className="w-4 h-4 mr-2" />
+                    Realizar Tirada de Orientación
+                  </Button>
+                  
+                  {lastOrientationResult && (
+                    <div className={`p-3 rounded ${lastOrientationResult.exito ? 'bg-green-900/30 border border-green-500/50' : 'bg-red-900/30 border border-red-500/50'}`}>
+                      <p className="text-sm">
+                        <strong>Última tirada:</strong> {lastOrientationResult.d20} + {lastOrientationResult.modificador} = {lastOrientationResult.total} vs CD 15
+                      </p>
+                      <p className="text-xs mt-1">{lastOrientationResult.detalle}</p>
+                    </div>
+                  )}
+                </>
+              );
+            })()}
+          </CardContent>
+        </Card>
+      )}
       
       {/* Current Event */}
       {currentEvent && (

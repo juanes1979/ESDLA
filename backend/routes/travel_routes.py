@@ -138,6 +138,29 @@ class JourneyDay(BaseModel):
     fatiga_cd_acumulada: int = 0
     notas: str = ""
 
+class OrientationCheckRequest(BaseModel):
+    """Request for orientation check"""
+    modificador_sabiduria: int = 0  # Guide's Wisdom modifier
+    competencia_viajar: bool = False  # Proficiency in Survival/Travel
+    competencia_cartografia: bool = False  # Proficiency in Cartographer's tools
+    competencia_navegacion: bool = False  # Proficiency for sea travel
+    tiene_mapa: bool = False  # Has a map of the route
+    viaje_maritimo: bool = False  # Sea travel
+    penalizacion_multiples_papeles: bool = False  # Guide has multiple roles (-5)
+    bonus_competencia: int = 2  # Proficiency bonus
+
+class OrientationCheckResult(BaseModel):
+    """Result of an orientation check"""
+    d20: int
+    modificador: int
+    total: int
+    cd: int = 15  # DC is always 15
+    exito: bool
+    margen: int  # How much above/below DC
+    casillas_hasta_evento: int  # 1, 2, 3, or 4 tiles until next event
+    viaje_completado: bool = False  # True if check result >= remaining tiles
+    detalle: str
+
 class ActiveJourney(BaseModel):
     """Active journey state (for day-by-day mode)"""
     id: str = Field(default_factory=lambda: f"journey_{uuid.uuid4().hex[:8]}")
@@ -1004,6 +1027,88 @@ async def calculate_journey(config: JourneyConfig):
         "reglas": {
             "fatigue_base_cd": rules.get('fatigue_base_cd', 10),
             "cd_terreno": terrain_config.get('cd_prueba', 15)
+        }
+    }
+
+@router.post("/orientation-check")
+async def orientation_check(request: OrientationCheckRequest, casillas_restantes: int = 100):
+    """
+    Perform an orientation check to determine distance to next event.
+    
+    Rules:
+    - DC is always 15 (Wisdom/Travel check)
+    - Guide can use Cartographer's tools if they have a map
+    - Guide can use Navigator's tools for sea travel
+    - -5 penalty if Guide has multiple roles
+    
+    Results:
+    - Fail by 5+: Event at 1 tile
+    - Fail: Event at 2 tiles
+    - Success: Event at 3 tiles
+    - Success by 5+: Event at 4 tiles
+    
+    Journey ends when check result >= remaining tiles
+    """
+    # Roll d20
+    d20 = roll_d20()
+    
+    # Calculate modifier
+    modificador = request.modificador_sabiduria
+    
+    # Add proficiency if applicable
+    if request.viaje_maritimo and request.competencia_navegacion:
+        modificador += request.bonus_competencia
+    elif request.tiene_mapa and request.competencia_cartografia:
+        modificador += request.bonus_competencia
+    elif request.competencia_viajar:
+        modificador += request.bonus_competencia
+    
+    # Apply penalty for multiple roles
+    if request.penalizacion_multiples_papeles:
+        modificador -= 5
+    
+    total = d20 + modificador
+    cd = 15
+    exito = total >= cd
+    margen = total - cd
+    
+    # Determine tiles until next event
+    if exito:
+        if margen >= 5:
+            casillas_hasta_evento = 4
+            detalle = f"¡Éxito por 5 o más! Próximo acontecimiento a 4 casillas."
+        else:
+            casillas_hasta_evento = 3
+            detalle = f"Éxito. Próximo acontecimiento a 3 casillas."
+    else:
+        if margen <= -5:
+            casillas_hasta_evento = 1
+            detalle = f"¡Fallo por 5 o más! Próximo acontecimiento a solo 1 casilla."
+        else:
+            casillas_hasta_evento = 2
+            detalle = f"Fallo. Próximo acontecimiento a 2 casillas."
+    
+    # Check if journey is complete
+    viaje_completado = casillas_hasta_evento >= casillas_restantes
+    if viaje_completado:
+        detalle = f"¡El viaje ha concluido! La tirada ({total}) iguala o supera las {casillas_restantes} casillas restantes."
+    
+    return {
+        "success": True,
+        "d20": d20,
+        "modificador": modificador,
+        "total": total,
+        "cd": cd,
+        "exito": exito,
+        "margen": margen,
+        "casillas_hasta_evento": casillas_hasta_evento,
+        "viaje_completado": viaje_completado,
+        "detalle": detalle,
+        "desglose": {
+            "d20": d20,
+            "mod_sabiduria": request.modificador_sabiduria,
+            "competencia": request.bonus_competencia if (request.competencia_viajar or (request.tiene_mapa and request.competencia_cartografia) or (request.viaje_maritimo and request.competencia_navegacion)) else 0,
+            "penalizacion_roles": -5 if request.penalizacion_multiples_papeles else 0
         }
     }
 
