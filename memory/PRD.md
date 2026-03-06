@@ -7,7 +7,30 @@ Build a comprehensive web application to play a modified version of the "Lord of
 
 ## Current State (2026-03-06)
 
-### ✅ COMPLETED This Session - Map Style Refinement
+### ✅ COMPLETED This Session - P0 & P1 Tasks
+
+#### P0: Eliminación de Location Editor Temporal ✅
+- Eliminado `/app/frontend/src/pages/LocationEditor.jsx`
+- Eliminado import y ruta de `App.js`
+- La ruta `/location-editor` ya no existe
+
+#### P1: Zoom con Rueda del Ratón en Mapa del Maestro ✅
+- Añadida función `handleWheel` en `MiddleEarthMap.jsx`
+- El zoom se centra en la posición del cursor
+- Rango de zoom: 10% a 1500%
+
+#### P1: PDF del Viaje Mejorado (Estilo Tolkien) ✅
+- Sección "Tierras Atravesadas" con desglose de km por terreno
+- Sección "Experiencia Ganada" con desglose de PX por tipo de tierra
+- Estilo pergamino con fuentes Cinzel y Spectral
+
+#### P1: Integración de Narrativas IA ✅
+- Endpoint `/api/travel/generate-narrative` - Para eventos individuales
+- Endpoint `/api/travel/generate-journey-summary` - Para resumen del viaje (CORREGIDO: ahora acepta JSON body)
+- Usa GPT-4o vía Emergent LLM Key
+- Las narrativas se muestran en el registro de eventos y en el PDF
+
+### Previous Session - Map Coordinate System
 
 #### Estilo "Dibujado a Mano" para el Mapa ✅
 **Cambios realizados:**

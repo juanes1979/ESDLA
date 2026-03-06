@@ -1586,16 +1586,17 @@ Describe qué sucedió en el viaje de forma épica y tolkienesca."""
         }
 
 
-@router.post("/generate-journey-summary")
-async def generate_journey_summary(
-    origen: str,
-    destino: str,
-    dias: int,
-    eventos: List[Dict[str, Any]],
-    personajes: List[Dict[str, Any]],
-    px_total: int,
+class JourneySummaryRequest(BaseModel):
+    origen: str
+    destino: str
+    dias: int
+    eventos: List[Dict[str, Any]] = []
+    personajes: List[Dict[str, Any]] = []
+    px_total: int = 0
     terrenos: Dict[str, float] = None
-):
+
+@router.post("/generate-journey-summary")
+async def generate_journey_summary(request: JourneySummaryRequest):
     """
     Generate a complete Tolkien-style journey summary for PDF export.
     """
@@ -1610,17 +1611,17 @@ async def generate_journey_summary(
         
         # Build event summary
         eventos_text = ""
-        for i, e in enumerate(eventos, 1):
+        for i, e in enumerate(request.eventos, 1):
             resultado = "ÉXITO" if e.get('exito') else "FRACASO"
             eventos_text += f"\n  - Día {e.get('dia', i)}: {e.get('nombre', 'Evento')} - {resultado}"
         
         # Build party summary
-        grupo_text = ", ".join([f"{p.get('nombre')} ({p.get('papel', 'viajero')})" for p in personajes])
+        grupo_text = ", ".join([f"{p.get('nombre')} ({p.get('papel', 'viajero')})" for p in request.personajes])
         
         # Build terrain summary
         terreno_text = ""
-        if terrenos:
-            for terrain, km in terrenos.items():
+        if request.terrenos:
+            for terrain, km in request.terrenos.items():
                 terreno_text += f"\n  - {terrain}: {km:.1f} km"
         
         chat = LlmChat(
@@ -1635,12 +1636,12 @@ async def generate_journey_summary(
         
         prompt = f"""Escribe el relato completo de este viaje:
 
-VIAJE: De {origen} a {destino}
-DURACIÓN: {dias} días de marcha
+VIAJE: De {request.origen} a {request.destino}
+DURACIÓN: {request.dias} días de marcha
 COMPAÑÍA: {grupo_text}
 TERRENOS ATRAVESADOS: {terreno_text if terreno_text else "Diversos caminos y sendas"}
 ACONTECIMIENTOS: {eventos_text if eventos_text else "El viaje transcurrió sin mayores contratiempos"}
-EXPERIENCIA GANADA: {px_total} puntos
+EXPERIENCIA GANADA: {request.px_total} puntos
 
 Narra el viaje como si fuera una página del Libro Rojo de la Frontera del Oeste."""
         
@@ -1657,5 +1658,5 @@ Narra el viaje como si fuera una página del Libro Rojo de la Frontera del Oeste
         return {
             "success": False,
             "error": str(e),
-            "narrative": f"El viaje de {origen} a {destino} duró {dias} días."
+            "narrative": f"El viaje de {request.origen} a {request.destino} duró {request.dias} días."
         }

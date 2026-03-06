@@ -1329,6 +1329,45 @@ const EnhancedTravelSystem = () => {
           `).join('')}
         </div>
         
+        ${journeyCalc?.ruta?.terrain_summary && Object.keys(journeyCalc.ruta.terrain_summary).length > 0 ? `
+          <h2>Tierras Atravesadas</h2>
+          <div style="display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 20px;">
+            ${Object.entries(journeyCalc.ruta.terrain_summary).map(([terrain, km]) => {
+              const terrainNames = {
+                'facil': 'Camino Fácil',
+                'moderado': 'Terreno Moderado', 
+                'dificil': 'Terreno Difícil',
+                'muy_dificil': 'Terreno Muy Difícil',
+                'desalentador': 'Terreno Desalentador',
+                'infranqueable': 'Terreno Infranqueable'
+              };
+              return `<span style="padding: 5px 15px; background: rgba(139, 69, 19, 0.1); border: 1px solid #d4c4a8; border-radius: 4px;">
+                ${terrainNames[terrain] || terrain}: <strong>${km.toFixed(1)} km</strong>
+              </span>`;
+            }).join('')}
+          </div>
+        ` : ''}
+        
+        ${journeyCalc?.px_desglose && journeyCalc.estimaciones?.px_total > 0 ? `
+          <h2>Experiencia Ganada</h2>
+          <p style="margin-bottom: 10px;">El viaje a través de tierras peligrosas ha otorgado <strong>${journeyCalc.estimaciones.px_total} puntos de experiencia</strong> a cada miembro de la compañía.</p>
+          ${journeyCalc.px_desglose.por_tipo_tierra ? `
+            <div style="padding: 15px; background: rgba(34, 139, 34, 0.08); border: 1px solid #d4c4a8; margin-bottom: 15px;">
+              <p style="margin: 0 0 10px 0; font-weight: bold;">Desglose por Tipo de Tierra:</p>
+              ${Object.entries(journeyCalc.px_desglose.por_tipo_tierra).map(([tipo, info]) => {
+                const landNames = {
+                  'tierras_salvajes': 'Tierras Salvajes',
+                  'tierras_fronterizas': 'Tierras Fronterizas',
+                  'tierras_sombra': 'Tierras de la Sombra',
+                  'tierras_oscuras': 'Tierras Oscuras',
+                  'tierras_libres': 'Tierras Libres'
+                };
+                return `<p style="margin: 5px 0;">• ${landNames[tipo] || tipo}: ${info.km?.toFixed(1) || 0} km → <strong>${info.px || 0} PX</strong></p>`;
+              }).join('')}
+            </div>
+          ` : ''}
+        ` : ''}
+        
         ${events.length > 0 ? `
           <h2>Acontecimientos del Viaje</h2>
           ${events.map((e, i) => `
