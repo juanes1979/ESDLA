@@ -828,6 +828,36 @@ const MiddleEarthMap = () => {
     setIsDragging(false);
   };
   
+  // Handle mouse wheel for zoom
+  const handleWheel = (e) => {
+    e.preventDefault();
+    
+    // Get the mouse position relative to the container
+    const container = containerRef.current;
+    if (!container) return;
+    
+    const rect = container.getBoundingClientRect();
+    const mouseX = e.clientX - rect.left;
+    const mouseY = e.clientY - rect.top;
+    
+    // Calculate zoom direction and new zoom level
+    const zoomFactor = 0.1;
+    const delta = e.deltaY > 0 ? -zoomFactor : zoomFactor;
+    const newZoom = Math.min(15, Math.max(0.1, zoom + delta));
+    
+    // Calculate the point on the map under the mouse before zoom
+    const centerX = rect.width / 2;
+    const centerY = rect.height / 2;
+    
+    // Adjust pan to keep the mouse position as the zoom center
+    const zoomRatio = newZoom / zoom;
+    const newPanX = mouseX - (mouseX - pan.x) * zoomRatio + (centerX - mouseX) * (1 - zoomRatio);
+    const newPanY = mouseY - (mouseY - pan.y) * zoomRatio + (centerY - mouseY) * (1 - zoomRatio);
+    
+    setZoom(newZoom);
+    setPan({ x: newPanX, y: newPanY });
+  };
+  
   // Handle location drag start in edit mode
   const handleLocationDragStart = (loc, e) => {
     e.stopPropagation();
@@ -1899,6 +1929,7 @@ const MiddleEarthMap = () => {
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
         onMouseLeave={handleMouseUp}
+        onWheel={handleWheel}
         style={{ 
           cursor: isCreatingLocation || isDrawingRoad || isDrawingRiver || isDrawingBarrier
             ? 'crosshair'
