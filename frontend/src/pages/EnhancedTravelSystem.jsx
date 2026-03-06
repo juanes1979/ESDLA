@@ -1725,32 +1725,63 @@ const EnhancedTravelSystem = () => {
               )}
               
               {/* PX Breakdown */}
-              {journeyCalc.px_desglose && journeyCalc.px_desglose.px_total > 0 && (
+              {/* PX Breakdown - New per-km system */}
+              {journeyCalc.px_desglose && journeyCalc.estimaciones?.px_total > 0 && (
                 <div className="mt-3 p-3 bg-black/20 rounded text-sm">
                   <p className="text-muted-foreground mb-2">
                     <span className="text-[hsl(var(--gold))]">
                       <Sparkles className="w-4 h-4 inline mr-1" />
-                      Desglose PX:
+                      Experiencia del Viaje:
                     </span>
                   </p>
-                  <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs">
-                    <span>
-                      Vía: <span className="text-white">{journeyCalc.ruta.tipo_via?.replace('_', ' ')}</span>
-                    </span>
-                    <span>
-                      Base: <span className="text-white">{journeyCalc.px_desglose.px_base_por_casilla} PX/casilla</span>
-                    </span>
-                    {journeyCalc.px_desglose.px_bonus_terreno_por_casilla > 0 && (
-                      <span>
-                        Bonus terreno: <span className="text-yellow-400">+{journeyCalc.px_desglose.px_bonus_terreno_por_casilla} PX/casilla</span>
+                  <div className="space-y-2">
+                    <div className="flex justify-between items-center">
+                      <span className="text-white text-lg font-bold">{journeyCalc.estimaciones.px_total} PX</span>
+                      <span className="text-xs text-muted-foreground">
+                        ({journeyCalc.px_desglose.px_por_km_promedio} PX/km promedio)
                       </span>
-                    )}
-                    {journeyCalc.px_desglose.terreno_multiplicador > 1 && (
-                      <span>
-                        Multiplicador: <span className="text-orange-400">×{journeyCalc.px_desglose.terreno_multiplicador}</span>
-                      </span>
+                    </div>
+                    
+                    {/* Land type summary - show which lands give PX */}
+                    {journeyCalc.ruta?.land_type_summary && Object.keys(journeyCalc.ruta.land_type_summary).length > 0 && (
+                      <div className="text-xs space-y-1 border-t border-white/10 pt-2">
+                        <p className="text-muted-foreground mb-1">Tierras atravesadas:</p>
+                        {Object.entries(journeyCalc.ruta.land_type_summary).map(([land, km]) => {
+                          const landNames = {
+                            'tierras_libres': { name: 'Tierras Libres', color: 'text-green-400', px: false },
+                            'tierras_fronterizas': { name: 'Tierras Fronterizas', color: 'text-yellow-400', px: true },
+                            'tierras_salvajes': { name: 'Tierras Salvajes', color: 'text-orange-400', px: true },
+                            'tierras_sombra': { name: 'Tierras de la Sombra', color: 'text-red-400', px: true },
+                            'tierras_oscuras': { name: 'Tierras Oscuras', color: 'text-purple-400', px: true }
+                          };
+                          const info = landNames[land] || { name: land, color: 'text-white', px: false };
+                          return (
+                            <div key={land} className="flex justify-between items-center">
+                              <span className={info.color}>{info.name}</span>
+                              <span>
+                                {km.toFixed(1)} km
+                                {info.px && <span className="text-[hsl(var(--gold))] ml-1">★</span>}
+                              </span>
+                            </div>
+                          );
+                        })}
+                        <p className="text-xs text-muted-foreground mt-1 italic">
+                          ★ = Otorga experiencia
+                        </p>
+                      </div>
                     )}
                   </div>
+                </div>
+              )}
+              
+              {/* Show when no PX */}
+              {journeyCalc.px_desglose && journeyCalc.estimaciones?.px_total === 0 && (
+                <div className="mt-3 p-3 bg-black/20 rounded text-sm">
+                  <p className="text-muted-foreground">
+                    <Sparkles className="w-4 h-4 inline mr-1 text-gray-500" />
+                    <span className="text-gray-400">0 PX</span>
+                    <span className="text-xs ml-2">(El viaje por Tierras Libres no otorga experiencia)</span>
+                  </p>
                 </div>
               )}
               
@@ -3069,16 +3100,20 @@ const EnhancedTravelSystem = () => {
               <div className="mt-4 p-3 bg-black/30 rounded text-xs">
                 <p className="font-bold mb-2 text-[hsl(var(--gold))]">Desglose del cálculo:</p>
                 <div className="space-y-1 text-muted-foreground">
-                  <p>Terreno: {journeyCalc.ruta.terreno_nombre || journeyCalc.ruta.terreno}</p>
-                  <p>Tipo de Tierra: {journeyCalc.ruta.tipo_tierra_nombre}</p>
-                  <p>Vía: {journeyCalc.ruta.tipo_via?.replace('_', ' ')}</p>
-                  <p>Casillas: {journeyCalc.ruta.casillas}</p>
-                  <p>PX base por casilla: {journeyCalc.px_desglose.px_base_por_casilla}</p>
-                  {journeyCalc.px_desglose.px_bonus_terreno_por_casilla > 0 && (
-                    <p>Bonus terreno: +{journeyCalc.px_desglose.px_bonus_terreno_por_casilla}/casilla</p>
+                  <p>Distancia total: {journeyCalc.px_desglose.distancia_total_km} km</p>
+                  <p>PX por km (promedio): {journeyCalc.px_desglose.px_por_km_promedio}</p>
+                  {journeyCalc.ruta?.land_type_summary && (
+                    <div className="mt-2">
+                      <p className="font-medium text-white">Tierras atravesadas:</p>
+                      {Object.entries(journeyCalc.ruta.land_type_summary).map(([land, km]) => (
+                        <p key={land} className="pl-2">
+                          • {land.replace('_', ' ')}: {km.toFixed(1)} km
+                        </p>
+                      ))}
+                    </div>
                   )}
                   <p className="font-bold text-white mt-2">
-                    Total: {journeyCalc.px_desglose.px_base} + {journeyCalc.px_desglose.px_terreno_bonus} = {journeyCalc.px_desglose.px_total} PX
+                    Total: {journeyCalc.px_desglose.px_total} PX ({journeyCalc.px_desglose.nota})
                   </p>
                 </div>
               </div>

@@ -689,21 +689,50 @@ async def calculate_journey(config: JourneyConfig):
                 if path_result.success:
                     # Use pathfinding results
                     path_points = path_result.path
-                    path_segments = [
-                        {
+                    
+                    # Get land type for each segment based on nearest location
+                    def get_land_type_at_point(x, y):
+                        """Get land type at a point based on nearest location"""
+                        min_dist = float('inf')
+                        land_type = 'tierras_salvajes'
+                        for loc in all_locations:
+                            dist = ((x - loc.get('x', 0))**2 + (y - loc.get('y', 0))**2) ** 0.5
+                            if dist < min_dist:
+                                min_dist = dist
+                                land_type = loc.get('clase_region') or loc.get('tipo_tierra') or 'tierras_salvajes'
+                        return land_type
+                    
+                    path_segments = []
+                    for seg in path_result.segments:
+                        # Get land type at segment midpoint
+                        mid_x = (seg.start[0] + seg.end[0]) / 2
+                        mid_y = (seg.start[1] + seg.end[1]) / 2
+                        seg_land_type = get_land_type_at_point(mid_x, mid_y)
+                        
+                        path_segments.append({
                             "start": {"x": seg.start[0], "y": seg.start[1]},
                             "end": {"x": seg.end[0], "y": seg.end[1]},
                             "distance_km": seg.distance_km,
                             "terrain": seg.terrain,
                             "road_type": seg.road_type,
-                            "river_crossing": seg.river_crossing
-                        }
-                        for seg in path_result.segments
-                    ]
+                            "river_crossing": seg.river_crossing,
+                            "land_type": seg_land_type
+                        })
+                    
+                    # Build land type summary
+                    land_type_distances = {}
+                    for seg in path_segments:
+                        lt = seg.get('land_type', 'tierras_salvajes')
+                        if lt not in land_type_distances:
+                            land_type_distances[lt] = 0
+                        land_type_distances[lt] += seg['distance_km']
                     
                     # Get dominant terrain/road from segments
                     terrain_summary = path_result.terrain_summary
                     dominant_terrain = max(terrain_summary.items(), key=lambda x: x[1])[0] if terrain_summary else 'moderado'
+                    
+                    # Dominant land type
+                    dominant_land_type = max(land_type_distances.items(), key=lambda x: x[1])[0] if land_type_distances else 'tierras_salvajes'
                     
                     # Check road usage
                     has_road = len(path_result.roads_used) > 0
@@ -714,10 +743,11 @@ async def calculate_journey(config: JourneyConfig):
                         "distance_km": round(path_result.total_distance_km, 1),
                         "casillas": max(1, round(path_result.total_distance_km / 16)),  # 1 casilla = 16km
                         "terreno": dominant_terrain,
-                        "tipo_tierra": end_loc.get('clase_region', 'tierras_salvajes'),
+                        "tipo_tierra": dominant_land_type,
                         "path": path_points,
                         "segments": path_segments,
                         "terrain_summary": terrain_summary,
+                        "land_type_summary": {k: round(v, 1) for k, v in land_type_distances.items()},
                         "roads_used": list(path_result.roads_used),
                         "rivers_crossed": path_result.rivers_crossed,
                         "warnings": path_result.warnings
@@ -819,37 +849,87 @@ async def calculate_journey(config: JourneyConfig):
         'tierras_de_la_sombra': 'tierras_sombra',
         'tierras_oscuras': 'tierras_oscuras'
     }
-    tierra_col = tierra_col_map.get(tipo_tierra, 'tierras_salvajes')
     
-    # Determine which row of the PX table to use based on road type
-    tipo_via = 'campo_abierto'  # Default
-    if config.preferir_caminos:
-        tipo_via = 'camino_real'  # Use main road if preferring roads
+    # ============== CALCULATE PX PER SEGMENT ==============
+    # Now we calculate PX for each segment individually based on its terrain and land type
+    segments = route_data.get('segments', [])
     
-    # Find the matching row in PX table
-    px_base_per_casilla = 0
-    if px_table and px_table.get('filas'):
-        for fila in px_table['filas']:
-            if fila.get('tipo_via') == tipo_via:
-                px_base_per_casilla = fila.get(tierra_col, 0)
-                break
-        # Fallback to campo_abierto if not found
-        if px_base_per_casilla == 0 and tipo_via != 'campo_abierto':
+    px_total = 0
+    px_breakdown = []
+    
+    if segments and px_table and px_table.get('filas'):
+        terreno_mods = px_table.get('modificadores_terreno', {})
+        
+        for seg in segments:
+            seg_distance_km = seg.get('distance_km', 0)
+            seg_terrain = seg.get('terrain', 'moderado')
+            seg_land_type = seg.get('land_type', 'tierras_salvajes')
+            seg_road_type = seg.get('road_type', 'campo_abierto')
+            
+            # Determine via type based on road
+            if seg_road_type in ['camino_real', 'carretera']:
+                tipo_via = 'camino_real'
+            elif seg_road_type in ['senda']:
+                tipo_via = 'senda'
+            elif seg_road_type in ['sendero']:
+                tipo_via = 'sendero'
+            elif seg_road_type in ['terreno_dificil', 'montaña', 'pantano']:
+                tipo_via = 'terreno_dificil'
+            else:
+                tipo_via = 'campo_abierto'
+            
+            # Get land type column
+            tierra_col = tierra_col_map.get(seg_land_type, 'tierras_salvajes')
+            
+            # Find PX per km for this via + land type combination
+            px_per_km = 0
             for fila in px_table['filas']:
-                if fila.get('tipo_via') == 'campo_abierto':
-                    px_base_per_casilla = fila.get(tierra_col, 0)
+                if fila.get('tipo_via') == tipo_via:
+                    px_per_km = fila.get(tierra_col, 0)
                     break
+            
+            # Apply terrain modifier
+            terreno_mod = terreno_mods.get(seg_terrain, {'multiplicador': 1.0, 'bonus_px_km': 0})
+            
+            # Calculate PX for this segment
+            seg_px_base = px_per_km * seg_distance_km
+            seg_px_bonus = terreno_mod.get('bonus_px_km', 0) * seg_distance_km
+            seg_px_total = seg_px_base * terreno_mod.get('multiplicador', 1.0) + seg_px_bonus
+            
+            if seg_px_total > 0:
+                px_breakdown.append({
+                    "distancia_km": round(seg_distance_km, 1),
+                    "terreno": seg_terrain,
+                    "tipo_tierra": seg_land_type,
+                    "tipo_via": tipo_via,
+                    "px_base_km": px_per_km,
+                    "px_segment": round(seg_px_total, 1)
+                })
+            
+            px_total += seg_px_total
+    else:
+        # Fallback: old method using dominant terrain/land type
+        tipo_tierra = route_data['tipo_tierra']
+        tierra_col = tierra_col_map.get(tipo_tierra, 'tierras_salvajes')
+        
+        tipo_via = 'camino_real' if config.preferir_caminos else 'campo_abierto'
+        
+        px_per_km = 0
+        if px_table and px_table.get('filas'):
+            for fila in px_table['filas']:
+                if fila.get('tipo_via') == tipo_via:
+                    px_per_km = fila.get(tierra_col, 0)
+                    break
+        
+        terreno_mods = px_table.get('modificadores_terreno', {}) if px_table else {}
+        terreno_mod = terreno_mods.get(terreno_tipo, {'multiplicador': 1.0, 'bonus_px_km': 0})
+        
+        px_base = px_per_km * route_data['distance_km']
+        px_bonus = terreno_mod.get('bonus_px_km', 0) * route_data['distance_km']
+        px_total = px_base * terreno_mod.get('multiplicador', 1.0) + px_bonus
     
-    # Apply terrain difficulty modifier
-    terreno_mods = px_table.get('modificadores_terreno', {})
-    terreno_mod = terreno_mods.get(terreno_tipo, {'multiplicador': 1.0, 'bonus_px': 0})
-    
-    px_per_casilla = int(px_base_per_casilla * terreno_mod.get('multiplicador', 1.0))
-    px_bonus = terreno_mod.get('bonus_px', 0)
-    
-    px_base = px_per_casilla * casillas
-    px_terreno_bonus = px_bonus * casillas
-    px_total = px_base + px_terreno_bonus
+    # Round PX total
+    px_total = round(px_total)
     
     # Calculate number of expected events
     num_eventos_esperados = max(1, casillas // rules.get('orientation_success_distance', 3))
@@ -889,7 +969,8 @@ async def calculate_journey(config: JourneyConfig):
             "destino_coords": {
                 "x": route_data['destino'].get('x', 0),
                 "y": route_data['destino'].get('y', 0)
-            }
+            },
+            "land_type_summary": route_data.get('land_type_summary', {})
         },
         "estimaciones": {
             "dias_base": round(dias_base, 1),
@@ -899,15 +980,13 @@ async def calculate_journey(config: JourneyConfig):
             "px_por_personaje": px_total // total_miembros if total_miembros > 0 else px_total
         },
         "px_desglose": {
-            "px_base_por_casilla": px_base_per_casilla,
-            "px_bonus_terreno_por_casilla": px_bonus,
-            "px_total_por_casilla": px_per_casilla + px_bonus,
-            "casillas": casillas,
-            "px_base": px_base,
-            "px_terreno_bonus": px_terreno_bonus,
+            "unidad": "km",
             "px_total": px_total,
-            "terreno_multiplicador": terreno_mod.get('multiplicador', 1.0),
-            "terreno_nombre": terreno_mod.get('nombre', terreno_tipo)
+            "distancia_total_km": route_data['distance_km'],
+            "px_por_km_promedio": round(px_total / route_data['distance_km'], 2) if route_data['distance_km'] > 0 else 0,
+            "segmentos_con_px": len(px_breakdown),
+            "desglose_segmentos": px_breakdown[:10] if len(px_breakdown) > 10 else px_breakdown,  # Limit to 10 for readability
+            "nota": f"PX calculados por {len(segments)} segmentos de ruta" if segments else "PX calculados con método simplificado"
         },
         "modificadores": {
             "tiene_ventaja_eventos": tiene_ventaja,
