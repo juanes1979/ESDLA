@@ -4065,3 +4065,196 @@ async def delete_occupation_bonus(occupation_name: str):
     )
     
     return {"message": f"Occupation bonus '{occupation_name}' deleted"}
+
+
+# ============================================================
+# TERRAIN EDITOR ENDPOINTS
+# ============================================================
+
+class TerrainZone(BaseModel):
+    x: float
+    y: float
+    type: str
+    size: float = 0.25
+
+class TerrainZonesData(BaseModel):
+    mode: str  # 'terrain' or 'landType'
+    cells: List[TerrainZone]
+
+@router.get("/terrain-zones")
+async def get_terrain_zones():
+    """Get all terrain difficulty zones"""
+    doc = await db.terrain_zones.find_one({"_id": "terrain_data"})
+    if not doc:
+        return {"zones": []}
+    return {"zones": doc.get("zones", [])}
+
+@router.post("/terrain-zones")
+async def save_terrain_zones(data: TerrainZonesData):
+    """Save terrain difficulty zones (overwrite)"""
+    cells_data = [cell.dict() for cell in data.cells]
+    
+    await db.terrain_zones.update_one(
+        {"_id": "terrain_data"},
+        {
+            "$set": {
+                "zones": cells_data,
+                "mode": data.mode,
+                "updated_at": now_utc()
+            }
+        },
+        upsert=True
+    )
+    
+    return {"message": f"Terrain zones saved ({len(cells_data)} cells)", "count": len(cells_data)}
+
+@router.delete("/terrain-zones")
+async def clear_terrain_zones():
+    """Clear all terrain zones"""
+    await db.terrain_zones.delete_one({"_id": "terrain_data"})
+    return {"message": "Terrain zones cleared"}
+
+@router.get("/land-type-zones")
+async def get_land_type_zones():
+    """Get all land type zones"""
+    doc = await db.land_type_zones.find_one({"_id": "land_type_data"})
+    if not doc:
+        return {"zones": []}
+    return {"zones": doc.get("zones", [])}
+
+@router.post("/land-type-zones")
+async def save_land_type_zones(data: TerrainZonesData):
+    """Save land type zones (overwrite)"""
+    cells_data = [cell.dict() for cell in data.cells]
+    
+    await db.land_type_zones.update_one(
+        {"_id": "land_type_data"},
+        {
+            "$set": {
+                "zones": cells_data,
+                "mode": data.mode,
+                "updated_at": now_utc()
+            }
+        },
+        upsert=True
+    )
+    
+    return {"message": f"Land type zones saved ({len(cells_data)} cells)", "count": len(cells_data)}
+
+@router.delete("/land-type-zones")
+async def clear_land_type_zones():
+    """Clear all land type zones"""
+    await db.land_type_zones.delete_one({"_id": "land_type_data"})
+    return {"message": "Land type zones cleared"}
+
+
+# ============================================================
+# PATH DEBUGGER ENDPOINTS
+# ============================================================
+
+class PathPoint(BaseModel):
+    x: float
+    y: float
+
+class CustomPath(BaseModel):
+    origin_id: str
+    destination_id: Optional[str] = None
+    origin_name: str
+    destination_name: Optional[str] = None
+    path_points: List[PathPoint]
+    total_distance: float
+    description: Optional[str] = ""
+
+@router.get("/custom-paths")
+async def get_custom_paths():
+    """Get all user-defined custom paths"""
+    cursor = db.custom_paths.find({}, {"_id": 0})
+    paths = await cursor.to_list(length=100)
+    return {"paths": paths}
+
+@router.get("/custom-paths/{path_id}")
+async def get_custom_path(path_id: str):
+    """Get a specific custom path"""
+    doc = await db.custom_paths.find_one({"id": path_id}, {"_id": 0})
+    if not doc:
+        raise HTTPException(status_code=404, detail="Path not found")
+    return doc
+
+@router.post("/custom-paths")
+async def save_custom_path(data: CustomPath):
+    """Save a user-defined custom path"""
+    path_id = f"{data.origin_id}_{data.destination_id or 'partial'}_{uuid.uuid4().hex[:8]}"
+    
+    path_data = {
+        "id": path_id,
+        "origin_id": data.origin_id,
+        "destination_id": data.destination_id,
+        "origin_name": data.origin_name,
+        "destination_name": data.destination_name,
+        "path_points": [p.dict() for p in data.path_points],
+        "total_distance": data.total_distance,
+        "description": data.description,
+        "created_at": now_utc()
+    }
+    
+    await db.custom_paths.insert_one(path_data)
+    
+    return {"message": "Custom path saved", "id": path_id}
+
+@router.put("/custom-paths/{path_id}")
+async def update_custom_path(path_id: str, data: CustomPath):
+    """Update an existing custom path"""
+    existing = await db.custom_paths.find_one({"id": path_id})
+    if not existing:
+        raise HTTPException(status_code=404, detail="Path not found")
+    
+    await db.custom_paths.update_one(
+        {"id": path_id},
+        {
+            "$set": {
+                "origin_id": data.origin_id,
+                "destination_id": data.destination_id,
+                "origin_name": data.origin_name,
+                "destination_name": data.destination_name,
+                "path_points": [p.dict() for p in data.path_points],
+                "total_distance": data.total_distance,
+                "description": data.description,
+                "updated_at": now_utc()
+            }
+        }
+    )
+    
+    return {"message": "Custom path updated", "id": path_id}
+
+@router.delete("/custom-paths/{path_id}")
+async def delete_custom_path(path_id: str):
+    """Delete a custom path"""
+    result = await db.custom_paths.delete_one({"id": path_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Path not found")
+    return {"message": "Custom path deleted"}
+
+@router.get("/custom-paths/route/{origin_id}/{destination_id}")
+async def get_custom_path_for_route(origin_id: str, destination_id: str):
+    """Get custom path for a specific origin-destination pair"""
+    # Try to find exact match
+    doc = await db.custom_paths.find_one(
+        {"origin_id": origin_id, "destination_id": destination_id},
+        {"_id": 0}
+    )
+    
+    # Also try reverse direction
+    if not doc:
+        doc = await db.custom_paths.find_one(
+            {"origin_id": destination_id, "destination_id": origin_id},
+            {"_id": 0}
+        )
+        # Reverse the path if found in opposite direction
+        if doc:
+            doc["path_points"] = list(reversed(doc["path_points"]))
+    
+    if not doc:
+        return {"found": False, "path": None}
+    
+    return {"found": True, "path": doc}
+

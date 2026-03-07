@@ -104,7 +104,7 @@ const TerrainEditor = () => {
 
   // Mouse handlers for pan
   const handleMouseDown = (e) => {
-    if (e.button === 0 && !isDrawing) {
+    if (e.button === 0 && !paintMode) {
       setIsDragging(true);
       setLastMousePos({ x: e.clientX, y: e.clientY });
     }
@@ -197,7 +197,27 @@ const TerrainEditor = () => {
     }
   };
 
-  // Export painted terrain
+  // Save terrain to database
+  const saveTerrainToDatabase = async () => {
+    if (paintedCells.length === 0) {
+      toast.error('No hay celdas pintadas para guardar');
+      return;
+    }
+    
+    try {
+      const endpoint = mode === 'terrain' ? '/data/terrain-zones' : '/data/land-type-zones';
+      const response = await api.post(endpoint, {
+        mode,
+        cells: paintedCells
+      });
+      toast.success(`${response.data.count} celdas guardadas en la base de datos`);
+    } catch (err) {
+      console.error('Error saving terrain:', err);
+      toast.error('Error al guardar el terreno');
+    }
+  };
+
+  // Export painted terrain as JSON file
   const exportPaintedTerrain = () => {
     const data = {
       mode,
@@ -213,13 +233,26 @@ const TerrainEditor = () => {
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
-    toast.success('Terreno exportado');
+    toast.success('Terreno exportado a archivo');
   };
 
-  // Clear painted cells
+  // Clear painted cells from UI
   const clearPaintedCells = () => {
     setPaintedCells([]);
-    toast.info('Terreno limpiado');
+    toast.info('Terreno limpiado (cambios locales)');
+  };
+
+  // Clear terrain from database
+  const clearTerrainFromDatabase = async () => {
+    try {
+      const endpoint = mode === 'terrain' ? '/data/terrain-zones' : '/data/land-type-zones';
+      await api.delete(endpoint);
+      setPaintedCells([]);
+      toast.success('Terreno eliminado de la base de datos');
+    } catch (err) {
+      console.error('Error clearing terrain:', err);
+      toast.error('Error al eliminar el terreno');
+    }
   };
 
   // Render painted cells
@@ -476,11 +509,31 @@ const TerrainEditor = () => {
                   <span className="w-6 text-center">{brushSize}</span>
                   <Button size="sm" variant="outline" onClick={() => setBrushSize(Math.min(10, brushSize + 1))}>+</Button>
                 </div>
-                <Button variant="outline" size="sm" onClick={clearPaintedCells}>
+                <Button variant="outline" size="sm" onClick={clearPaintedCells} title="Limpiar cambios locales">
                   <Trash2 className="w-4 h-4" />
                 </Button>
-                <Button variant="outline" size="sm" onClick={exportPaintedTerrain}>
+                <Button variant="outline" size="sm" onClick={exportPaintedTerrain} title="Exportar a JSON">
                   <Download className="w-4 h-4" />
+                </Button>
+                <div className="h-6 w-px bg-gray-600 mx-1" />
+                <Button 
+                  variant="default" 
+                  size="sm" 
+                  onClick={saveTerrainToDatabase}
+                  className="bg-green-600 hover:bg-green-700"
+                  title="Guardar en base de datos"
+                >
+                  <Save className="w-4 h-4 mr-1" />
+                  Guardar BD
+                </Button>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={clearTerrainFromDatabase}
+                  className="border-red-600 text-red-400 hover:bg-red-600/20"
+                  title="Eliminar de base de datos"
+                >
+                  <Trash2 className="w-4 h-4" />
                 </Button>
               </>
             )}

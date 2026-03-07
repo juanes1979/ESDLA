@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { ArrowLeft, ZoomIn, ZoomOut, Move, Play, Pause, RotateCcw, Download, Upload, MapPin, Navigation } from 'lucide-react';
+import { ArrowLeft, ZoomIn, ZoomOut, Move, Play, Pause, RotateCcw, Download, Upload, MapPin, Navigation, Save } from 'lucide-react';
 import { toast } from 'sonner';
 import api from '@/services/api';
 import { useNavigate } from 'react-router-dom';
@@ -188,7 +188,7 @@ const PathDebugger = () => {
     setClickMode(false);
   };
 
-  // Export path
+  // Export path to JSON file
   const exportPath = () => {
     const data = {
       origin: selectedOrigin,
@@ -211,7 +211,66 @@ const PathDebugger = () => {
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
     
-    toast.success('Camino exportado');
+    toast.success('Camino exportado a archivo');
+  };
+
+  // Save path to database
+  const savePathToDatabase = async () => {
+    if (pathPoints.length < 2) {
+      toast.error('El camino debe tener al menos 2 puntos');
+      return;
+    }
+    
+    if (!selectedOrigin) {
+      toast.error('Selecciona un origen');
+      return;
+    }
+    
+    const originLoc = locations.find(l => l.id === selectedOrigin);
+    const destLoc = selectedDestination ? locations.find(l => l.id === selectedDestination) : null;
+    
+    try {
+      const response = await api.post('/data/custom-paths', {
+        origin_id: selectedOrigin,
+        destination_id: selectedDestination,
+        origin_name: originLoc?.nombre || 'Desconocido',
+        destination_name: destLoc?.nombre || 'En progreso',
+        path_points: pathPoints,
+        total_distance: distanceTraveled,
+        description: `Ruta de ${originLoc?.nombre} a ${destLoc?.nombre || 'en progreso'}`
+      });
+      
+      toast.success(`Camino guardado: ${response.data.id}`);
+    } catch (err) {
+      console.error('Error saving path:', err);
+      toast.error('Error al guardar el camino');
+    }
+  };
+
+  // Load custom paths for current route
+  const loadExistingPath = async () => {
+    if (!selectedOrigin || !selectedDestination) {
+      toast.info('Selecciona origen y destino para cargar camino existente');
+      return;
+    }
+    
+    try {
+      const response = await api.get(`/data/custom-paths/route/${selectedOrigin}/${selectedDestination}`);
+      
+      if (response.data.found) {
+        const path = response.data.path;
+        setPathPoints(path.path_points);
+        setDistanceTraveled(path.total_distance);
+        setDebugMode(true);
+        setClickMode(true);
+        toast.success(`Camino cargado: ${path.path_points.length} puntos`);
+      } else {
+        toast.info('No hay camino guardado para esta ruta');
+      }
+    } catch (err) {
+      console.error('Error loading path:', err);
+      toast.error('Error al cargar el camino');
+    }
   };
 
   // Render locations on map
@@ -394,6 +453,17 @@ const PathDebugger = () => {
                   )}
                 </div>
               </div>
+              
+              {selectedOrigin && selectedDestination && !debugMode && (
+                <Button 
+                  variant="outline" 
+                  className="w-full" 
+                  onClick={loadExistingPath}
+                >
+                  <Upload className="w-4 h-4 mr-2" />
+                  Cargar camino guardado
+                </Button>
+              )}
             </CardContent>
           </Card>
           
@@ -438,6 +508,15 @@ const PathDebugger = () => {
                       Exportar
                     </Button>
                   </div>
+                  
+                  <Button 
+                    className="w-full bg-green-600 hover:bg-green-700" 
+                    onClick={savePathToDatabase}
+                    disabled={pathPoints.length < 2}
+                  >
+                    <Save className="w-4 h-4 mr-2" />
+                    Guardar en BD
+                  </Button>
                 </>
               )}
             </CardContent>
