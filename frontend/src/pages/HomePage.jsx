@@ -241,8 +241,22 @@ const HomePage = () => {
         </p>
       </div>
       
-      {/* Sheet Editor Link - Developer tool */}
-      <div className="absolute bottom-4 right-4 z-10">
+      {/* Developer/Debug Links */}
+      <div className="absolute bottom-4 right-4 z-10 flex gap-4">
+        <button
+          onClick={() => navigate('/terrain-editor')}
+          className="text-xs text-gray-600 hover:text-amber-400 transition-colors"
+          title="Editor de Terrenos (temporal)"
+        >
+          Terrenos
+        </button>
+        <button
+          onClick={() => navigate('/path-debugger')}
+          className="text-xs text-gray-600 hover:text-amber-400 transition-colors"
+          title="Depurador de Caminos (temporal)"
+        >
+          Caminos
+        </button>
         <button
           onClick={() => navigate('/sheet-editor')}
           className="text-xs text-gray-600 hover:text-amber-400 transition-colors"
