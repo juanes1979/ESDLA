@@ -5,32 +5,44 @@ Build a comprehensive web application to play a modified version of the "Lord of
 
 **User's preferred language**: Español
 
-## Current State (2026-03-06)
+## Current State (2026-12-XX)
 
-### ✅ COMPLETED This Session - P0 & P1 Tasks
+### ✅ COMPLETED This Session - Bug Fixes P0
 
-#### P0: Eliminación de Location Editor Temporal ✅
-- Eliminado `/app/frontend/src/pages/LocationEditor.jsx`
-- Eliminado import y ruta de `App.js`
-- La ruta `/location-editor` ya no existe
+#### BUG FIX P0: Flujo de Finalización del Viaje ✅
+**Problema:** Después de resolver eventos, la app no mostraba la pantalla de resultados.
+**Causa:** El estado de `events` no se pasaba correctamente a `continueAfterEvent` debido a batching de React.
+**Solución:**
+- Modificada función `continueAfterEvent` para aceptar `updatedEvents` como parámetro opcional
+- Modificada función `resolveCurrentEvent` para pasar los eventos actualizados explícitamente
+- Añadida validación de seguridad para `journeyCalc?.ruta?.casillas`
 
-#### P1: Zoom con Rueda del Ratón en Mapa del Maestro ✅
-- Añadida función `handleWheel` en `MiddleEarthMap.jsx`
-- El zoom se centra en la posición del cursor
-- Rango de zoom: 10% a 1500%
+#### BUG FIX P0: Mapa del PDF Roto ✅
+**Problema:** El mapa generado en el PDF de la crónica era feo/roto porque usaba SVG inline con imagen externa.
+**Solución:**
+- Refactorizado `printJourneyDocument` para usar `html2canvas` para capturar el mapa existente
+- El mapa ahora se captura como una imagen data URL y se inserta directamente en el HTML del PDF
+- Añadido manejo de errores y toast de progreso
 
-#### P1: PDF del Viaje Mejorado (Estilo Tolkien) ✅
-- Sección "Tierras Atravesadas" con desglose de km por terreno
-- Sección "Experiencia Ganada" con desglose de PX por tipo de tierra
-- Estilo pergamino con fuentes Cinzel y Spectral
+#### BUG FIX P0: Coordenadas del Mapa en Resultados ✅
+**Problema:** El mapa no se mostraba en la pantalla de resultados.
+**Causa:** Las coordenadas estaban en `journeyCalc.ruta.origen_coords` pero el código buscaba `journeyCalc.origen_coords`.
+**Solución:** Corregidas las referencias de coordenadas en `renderResults`.
 
-#### P1: Integración de Narrativas IA ✅
-- Endpoint `/api/travel/generate-narrative` - Para eventos individuales
-- Endpoint `/api/travel/generate-journey-summary` - Para resumen del viaje (CORREGIDO: ahora acepta JSON body)
-- Usa GPT-4o vía Emergent LLM Key
-- Las narrativas se muestran en el registro de eventos y en el PDF
+#### NEW: Marcadores de Eventos en el Mapa ✅
+- Componente `JourneyMiniMap` ahora acepta prop `events`
+- Muestra marcadores de eventos a lo largo de la ruta (verde=éxito, rojo=fracaso)
+- Leyenda actualizada para incluir indicadores de éxito/fracaso
 
-### Previous Session - Map Coordinate System
+### Testing Results (iteration_32.json)
+- **Frontend:** 100% (3/3 features verified)
+- Flujo de finalización de viaje: PASS
+- Mapa con marcadores de eventos: PASS (después de fix)
+- Imprimir crónica con mapa: PASS
+
+---
+
+## Previous Session (2026-03-06)
 
 #### Estilo "Dibujado a Mano" para el Mapa ✅
 **Cambios realizados:**
