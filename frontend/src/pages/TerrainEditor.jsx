@@ -42,10 +42,13 @@ const TerrainEditor = () => {
   const navigate = useNavigate();
   const containerRef = useRef(null);
   const [mode, setMode] = useState('terrain'); // 'terrain' or 'landType'
-  const [zoom, setZoom] = useState(1);
+  const [zoom, setZoom] = useState(1); // 1 = fit to view
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
   const [lastMousePos, setLastMousePos] = useState({ x: 0, y: 0 });
+  
+  // Zoom mode - only zoom with wheel when this is active
+  const [zoomMode, setZoomMode] = useState(false);
   
   // Data
   const [terrainZones, setTerrainZones] = useState([]);
@@ -59,7 +62,7 @@ const TerrainEditor = () => {
   // Drawing/Editing mode
   const [paintMode, setPaintMode] = useState(false);
   const [selectedBrush, setSelectedBrush] = useState(null); // 'facil', 'moderado', etc.
-  const [brushSize, setBrushSize] = useState(3); // Size in grid cells
+  const [brushSize, setBrushSize] = useState(1); // Default to 1 cell
   const [paintedCells, setPaintedCells] = useState([]); // Painted terrain cells
   
   // Piece editing mode
@@ -129,13 +132,14 @@ const TerrainEditor = () => {
     setIsDragging(false);
   };
 
-  // Wheel zoom
+  // Wheel zoom - only when zoomMode is active
   const handleWheel = useCallback((e) => {
+    if (!zoomMode) return; // Only zoom when zoom mode is active
     e.preventDefault();
     const zoomFactor = e.deltaY > 0 ? 0.9 : 1.1;
-    const newZoom = Math.min(20, Math.max(0.02, zoom * zoomFactor));
+    const newZoom = Math.min(20, Math.max(0.05, zoom * zoomFactor));
     setZoom(newZoom);
-  }, [zoom]);
+  }, [zoom, zoomMode]);
 
   // Convert screen to map coordinates
   const screenToMap = (screenX, screenY) => {
@@ -459,12 +463,26 @@ const TerrainEditor = () => {
             
             {/* Zoom controls */}
             <div className="flex items-center gap-2">
-              <Button variant="outline" size="sm" onClick={() => setZoom(z => Math.max(0.02, z * 0.8))}>
+              <Button variant="outline" size="sm" onClick={() => setZoom(z => Math.max(0.05, z * 0.8))}>
                 <ZoomOut className="w-4 h-4" />
               </Button>
               <span className="text-sm w-20 text-center">{Math.round(zoom * 100)}%</span>
               <Button variant="outline" size="sm" onClick={() => setZoom(z => Math.min(20, z * 1.25))}>
                 <ZoomIn className="w-4 h-4" />
+              </Button>
+              <Button 
+                variant={zoomMode ? "default" : "outline"} 
+                size="sm" 
+                onClick={() => {
+                  setZoomMode(!zoomMode);
+                  if (!zoomMode) {
+                    toast.info('Modo zoom activado. Usa la rueda del ratón para hacer zoom.');
+                  }
+                }}
+                className={zoomMode ? 'bg-purple-600' : ''}
+                title="Activar zoom con rueda del ratón"
+              >
+                🔍
               </Button>
               <Button variant="outline" size="sm" onClick={() => { setZoom(1); setPan({ x: 0, y: 0 }); }}>
                 <Move className="w-4 h-4" />
@@ -644,27 +662,13 @@ const TerrainEditor = () => {
           width="100%"
           height="100%"
           viewBox={`0 0 ${MAP_PIXEL_WIDTH} ${MAP_PIXEL_HEIGHT}`}
+          preserveAspectRatio="xMidYMid meet"
           style={{
             transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
-            transformOrigin: 'top left',
+            transformOrigin: 'center center',
           }}
         >
-          {/* Grid background - simplified, draw FIRST so it's behind everything */}
-          <defs>
-            <pattern id="smallGrid" width={MAP_PIXEL_WIDTH / 100} height={MAP_PIXEL_HEIGHT / 100} patternUnits="userSpaceOnUse">
-              <path d={`M ${MAP_PIXEL_WIDTH / 100} 0 L 0 0 0 ${MAP_PIXEL_HEIGHT / 100}`} fill="none" stroke="#c9a227" strokeWidth="2" strokeOpacity="0.3"/>
-            </pattern>
-            <pattern id="largeGrid" width={MAP_PIXEL_WIDTH / 10} height={MAP_PIXEL_HEIGHT / 10} patternUnits="userSpaceOnUse">
-              <rect width={MAP_PIXEL_WIDTH / 10} height={MAP_PIXEL_HEIGHT / 10} fill="url(#smallGrid)"/>
-              <path d={`M ${MAP_PIXEL_WIDTH / 10} 0 L 0 0 0 ${MAP_PIXEL_HEIGHT / 10}`} fill="none" stroke="#c9a227" strokeWidth="6" strokeOpacity="0.5"/>
-            </pattern>
-          </defs>
-          <rect width={MAP_PIXEL_WIDTH} height={MAP_PIXEL_HEIGHT} fill="url(#largeGrid)" />
-          
-          {/* Render painted cells - BEFORE map so they show through */}
-          {renderPaintedCells()}
-          
-          {/* Map background image - maestro map, faded */}
+          {/* 1. Map background image FIRST */}
           <image
             href="/mapa_maestro.jpg"
             x={0}
@@ -672,27 +676,38 @@ const TerrainEditor = () => {
             width={MAP_PIXEL_WIDTH}
             height={MAP_PIXEL_HEIGHT}
             preserveAspectRatio="xMidYMid slice"
-            opacity={0.35}
+            opacity={0.5}
           />
           
-          {/* Semi-transparent overlay to soften the map */}
+          {/* 2. Semi-transparent overlay to soften the map */}
           <rect
             x={0}
             y={0}
             width={MAP_PIXEL_WIDTH}
             height={MAP_PIXEL_HEIGHT}
             fill="#1a1510"
-            fillOpacity={0.3}
+            fillOpacity={0.4}
           />
           
-          {/* Render regions from database */}
+          {/* 3. Grid overlay */}
+          <defs>
+            <pattern id="gridPattern" width={MAP_PIXEL_WIDTH / 100} height={MAP_PIXEL_HEIGHT / 100} patternUnits="userSpaceOnUse">
+              <rect width={MAP_PIXEL_WIDTH / 100} height={MAP_PIXEL_HEIGHT / 100} fill="none" stroke="#c9a227" strokeWidth="4" strokeOpacity="0.4"/>
+            </pattern>
+          </defs>
+          <rect width={MAP_PIXEL_WIDTH} height={MAP_PIXEL_HEIGHT} fill="url(#gridPattern)" />
+          
+          {/* 4. Render regions from database */}
           {renderRegions()}
           
-          {/* Render custom zones */}
+          {/* 5. Render custom zones */}
           {renderZones()}
           
-          {/* Render roads */}
+          {/* 6. Render roads */}
           {renderRoads()}
+          
+          {/* 7. Render painted cells ON TOP */}
+          {renderPaintedCells()}
         </svg>
       </div>
       
