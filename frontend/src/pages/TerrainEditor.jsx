@@ -669,6 +669,51 @@ const TerrainEditor = () => {
             </Button>
           </div>
         )}
+        
+        {/* List of elements when in edit mode */}
+        {editPieceMode && (
+          <div className="mt-2 p-2 bg-black/40 rounded max-h-32 overflow-y-auto">
+            <div className="text-xs text-amber-400 mb-1 font-bold">
+              {editPieceMode === 'roads' && `Caminos (${roads.length})`}
+              {editPieceMode === 'mountains' && 'Montañas (zonas de terreno difícil)'}
+              {editPieceMode === 'rivers' && `Ríos (${rivers.length})`}
+            </div>
+            <div className="flex flex-wrap gap-1">
+              {editPieceMode === 'roads' && roads.slice(0, 15).map((road, idx) => (
+                <Badge 
+                  key={idx} 
+                  variant={selectedPiece?.data?.id === road.id ? "default" : "outline"}
+                  className="cursor-pointer text-xs"
+                  onClick={() => {
+                    setSelectedPiece({ type: 'road', id: road.id, data: road });
+                    toast.info(`Seleccionado: ${road.nombre}`);
+                  }}
+                >
+                  {road.nombre}
+                </Badge>
+              ))}
+              {editPieceMode === 'roads' && roads.length > 15 && (
+                <span className="text-xs text-muted-foreground">+{roads.length - 15} más</span>
+              )}
+              {editPieceMode === 'rivers' && rivers.slice(0, 15).map((river, idx) => (
+                <Badge 
+                  key={idx}
+                  variant={selectedPiece?.data?.id === river.id ? "default" : "outline"}
+                  className="cursor-pointer text-xs"
+                  onClick={() => {
+                    setSelectedPiece({ type: 'river', id: river.id, data: river });
+                    toast.info(`Seleccionado: ${river.nombre}`);
+                  }}
+                >
+                  {river.nombre}
+                </Badge>
+              ))}
+              {editPieceMode === 'mountains' && (
+                <span className="text-xs text-muted-foreground">Usa el pincel "Muy Difícil" o "Infranqueable" para marcar montañas</span>
+              )}
+            </div>
+          </div>
+        )}
       </div>
       
       {/* Map Container */}
