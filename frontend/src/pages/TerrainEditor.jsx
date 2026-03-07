@@ -41,8 +41,9 @@ const LAND_TYPE_COLORS = {
 const TerrainEditor = () => {
   const navigate = useNavigate();
   const containerRef = useRef(null);
+  const svgRef = useRef(null);
   const [mode, setMode] = useState('terrain'); // 'terrain' or 'landType'
-  const [zoom, setZoom] = useState(1); // 1 = fit to view
+  const [zoom, setZoom] = useState(0.05); // Start zoomed out to see full map
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
   const [lastMousePos, setLastMousePos] = useState({ x: 0, y: 0 });
@@ -484,7 +485,7 @@ const TerrainEditor = () => {
               >
                 🔍
               </Button>
-              <Button variant="outline" size="sm" onClick={() => { setZoom(1); setPan({ x: 0, y: 0 }); }}>
+              <Button variant="outline" size="sm" onClick={() => { setZoom(0.05); setPan({ x: 0, y: 0 }); }}>
                 <Move className="w-4 h-4" />
               </Button>
             </div>
@@ -659,24 +660,24 @@ const TerrainEditor = () => {
         onClick={handleMapClick}
       >
         <svg
-          width="100%"
-          height="100%"
+          ref={svgRef}
+          width={MAP_PIXEL_WIDTH}
+          height={MAP_PIXEL_HEIGHT}
           viewBox={`0 0 ${MAP_PIXEL_WIDTH} ${MAP_PIXEL_HEIGHT}`}
-          preserveAspectRatio="xMidYMid meet"
           style={{
             transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
-            transformOrigin: 'center center',
+            transformOrigin: 'top left',
           }}
         >
           {/* 1. Map background image FIRST */}
           <image
-            href="/mapa_maestro.jpg"
+            href="/mapa_jugadores.jpg"
             x={0}
             y={0}
             width={MAP_PIXEL_WIDTH}
             height={MAP_PIXEL_HEIGHT}
-            preserveAspectRatio="xMidYMid slice"
-            opacity={0.5}
+            preserveAspectRatio="none"
+            opacity={0.6}
           />
           
           {/* 2. Semi-transparent overlay to soften the map */}
