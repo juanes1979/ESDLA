@@ -185,8 +185,8 @@ const TerrainEditor = () => {
       return;
     }
     
-    // Add painted cell - BIGGER cells (1% = ~20km per cell for better visibility)
-    const cellSize = 1.0; // 1% of map = ~20km
+    // Add painted cell - smaller cells for precision (0.125% = 1/8 of original)
+    const cellSize = 0.125; // 0.125% of map = ~2.5km per cell
     const cellX = Math.floor(coords.x / cellSize) * cellSize;
     const cellY = Math.floor(coords.y / cellSize) * cellSize;
     
@@ -702,13 +702,17 @@ const TerrainEditor = () => {
             fillOpacity={0.25}
           />
           
-          {/* 3. Grid overlay */}
+          {/* 3. Grid overlay - 800 divisions (8x more precise) */}
           <defs>
-            <pattern id="gridPattern" width={MAP_PIXEL_WIDTH / 100} height={MAP_PIXEL_HEIGHT / 100} patternUnits="userSpaceOnUse">
-              <rect width={MAP_PIXEL_WIDTH / 100} height={MAP_PIXEL_HEIGHT / 100} fill="none" stroke="#c9a227" strokeWidth="4" strokeOpacity="0.4"/>
+            <pattern id="gridPattern" width={MAP_PIXEL_WIDTH / 800} height={MAP_PIXEL_HEIGHT / 800} patternUnits="userSpaceOnUse">
+              <rect width={MAP_PIXEL_WIDTH / 800} height={MAP_PIXEL_HEIGHT / 800} fill="none" stroke="#c9a227" strokeWidth="1" strokeOpacity="0.25"/>
+            </pattern>
+            <pattern id="gridPatternLarge" width={MAP_PIXEL_WIDTH / 100} height={MAP_PIXEL_HEIGHT / 100} patternUnits="userSpaceOnUse">
+              <rect width={MAP_PIXEL_WIDTH / 100} height={MAP_PIXEL_HEIGHT / 100} fill="none" stroke="#c9a227" strokeWidth="4" strokeOpacity="0.5"/>
             </pattern>
           </defs>
           <rect width={MAP_PIXEL_WIDTH} height={MAP_PIXEL_HEIGHT} fill="url(#gridPattern)" />
+          <rect width={MAP_PIXEL_WIDTH} height={MAP_PIXEL_HEIGHT} fill="url(#gridPatternLarge)" />
           
           {/* 4. Render regions from database */}
           {renderRegions()}
@@ -736,7 +740,7 @@ const TerrainEditor = () => {
             }
           </p>
           <p className="text-xs mt-1">
-            Escala: 1 celda ≈ 20 km | Celdas pintadas: {paintedCells.length} | Zoom máx: 2000%
+            Escala: 1 celda ≈ 2.5 km | Celdas pintadas: {paintedCells.length} | Zoom máx: 2000%
           </p>
         </div>
       </div>
