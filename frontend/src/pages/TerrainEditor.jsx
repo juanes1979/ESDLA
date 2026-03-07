@@ -104,7 +104,13 @@ const TerrainEditor = () => {
 
   // Mouse handlers for pan
   const handleMouseDown = (e) => {
+    // Solo permitir pan si NO estamos en modo pincel, o si es click derecho
     if (e.button === 0 && !paintMode) {
+      setIsDragging(true);
+      setLastMousePos({ x: e.clientX, y: e.clientY });
+    } else if (e.button === 2) {
+      // Click derecho siempre permite pan
+      e.preventDefault();
       setIsDragging(true);
       setLastMousePos({ x: e.clientX, y: e.clientY });
     }
@@ -152,10 +158,24 @@ const TerrainEditor = () => {
 
   // Handle painting on map
   const handleMapClick = (e) => {
-    if (!paintMode || !selectedBrush) return;
+    // Solo pintar si el modo pincel está activo Y hay un brush seleccionado
+    if (!paintMode || !selectedBrush) {
+      if (paintMode && !selectedBrush) {
+        toast.info('Selecciona un color primero');
+      }
+      return;
+    }
+    
+    // Evitar pintar si estábamos haciendo drag
+    if (isDragging) return;
     
     const coords = screenToMap(e.clientX, e.clientY);
     if (!coords) return;
+    
+    // Validar que las coordenadas estén dentro del mapa
+    if (coords.x < 0 || coords.x > 100 || coords.y < 0 || coords.y > 100) {
+      return;
+    }
     
     // Add painted cell
     const cellSize = 0.25; // 5km = 0.25% of map (since 100% = 2000km approx)
@@ -180,7 +200,9 @@ const TerrainEditor = () => {
       const filtered = prev.filter(c => 
         !newCells.some(nc => Math.abs(nc.x - c.x) < 0.01 && Math.abs(nc.y - c.y) < 0.01)
       );
-      return [...filtered, ...newCells];
+      const updated = [...filtered, ...newCells];
+      console.log(`Painted ${newCells.length} cells at (${cellX.toFixed(2)}, ${cellY.toFixed(2)}). Total: ${updated.length}`);
+      return updated;
     });
   };
 
@@ -470,8 +492,15 @@ const TerrainEditor = () => {
                 }}
                 title={config.description}
                 onClick={() => {
-                  if (paintMode) {
-                    setSelectedBrush(selectedBrush === key ? null : key);
+                  // Permitir seleccionar brush siempre, y activar paintMode automáticamente
+                  if (selectedBrush === key) {
+                    setSelectedBrush(null);
+                  } else {
+                    setSelectedBrush(key);
+                    if (!paintMode) {
+                      setPaintMode(true);
+                      toast.info(`Pincel ${config.name} activado. Haz clic en el mapa para pintar.`);
+                    }
                   }
                 }}
               >
@@ -503,6 +532,17 @@ const TerrainEditor = () => {
             
             {paintMode && (
               <>
+                {/* Brush info and cell count */}
+                <div className="flex items-center gap-2 text-xs bg-black/40 px-2 py-1 rounded">
+                  <span className="text-muted-foreground">
+                    Pincel: <span className="text-white font-bold">{selectedBrush ? TERRAIN_COLORS[selectedBrush]?.name || LAND_TYPE_COLORS[selectedBrush]?.name || selectedBrush : 'Ninguno'}</span>
+                  </span>
+                  <span className="text-muted-foreground">|</span>
+                  <span className="text-muted-foreground">
+                    Celdas: <span className="text-green-400 font-bold">{paintedCells.length}</span>
+                  </span>
+                </div>
+                
                 <div className="flex items-center gap-1 text-xs">
                   <span>Tamaño:</span>
                   <Button size="sm" variant="outline" onClick={() => setBrushSize(Math.max(1, brushSize - 1))}>-</Button>
