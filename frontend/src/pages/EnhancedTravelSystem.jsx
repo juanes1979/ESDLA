@@ -1421,27 +1421,27 @@ const EnhancedTravelSystem = () => {
         'stroke="' + (ev.exito ? '#228B22' : '#8B0000') + '" stroke-width="' + (lineWidth * 0.5) + '" />'
       ).join('');
       
-      // Use local map image for PDF
-      const mapImageUrl = window.location.origin + '/maps/mapa_tierra_media_19791x15133.jpg';
+      // Use local map image for PDF - same as player map preview
+      const mapImageUrl = window.location.origin + '/mapa_jugadores.jpg';
       
       return '<div style="margin: 20px 0; border: 2px solid #d4c4a8; border-radius: 8px; overflow: hidden;">' +
-        '<svg viewBox="' + minX + ' ' + minY + ' ' + width + ' ' + height + '" style="width: 100%; height: 300px; background: #f4efe6;">' +
-        '<image href="' + mapImageUrl + '" x="0" y="0" width="' + MAP_PIXEL_WIDTH + '" height="' + MAP_PIXEL_HEIGHT + '" opacity="0.85" />' +
-        '<path d="' + pathD + '" fill="none" stroke="#3d2914" stroke-width="' + lineWidth + '" stroke-linecap="round" stroke-linejoin="round" opacity="0.7" />' +
+        '<svg viewBox="' + minX + ' ' + minY + ' ' + width + ' ' + height + '" style="width: 100%; height: 350px; background: #f4efe6;" preserveAspectRatio="xMidYMid meet">' +
+        '<image href="' + mapImageUrl + '" x="0" y="0" width="' + MAP_PIXEL_WIDTH + '" height="' + MAP_PIXEL_HEIGHT + '" preserveAspectRatio="xMidYMid slice" />' +
+        '<path d="' + pathD + '" fill="none" stroke="#5c3d2e" stroke-width="' + lineWidth + '" stroke-linecap="round" stroke-linejoin="round" opacity="0.8" />' +
         eventMarkersHTML +
-        '<circle cx="' + origen.x + '" cy="' + origen.y + '" r="' + markerRadius + '" fill="none" stroke="#228B22" stroke-width="' + (lineWidth * 0.8) + '" />' +
-        '<circle cx="' + origen.x + '" cy="' + origen.y + '" r="' + (markerRadius * 0.3) + '" fill="#228B22" />' +
-        '<text x="' + origen.x + '" y="' + (origen.y - markerRadius * 1.5) + '" text-anchor="middle" fill="#2d3a1d" font-size="' + fontSize + '" font-style="italic" font-family="Georgia, serif">' + config.origenNombre + '</text>' +
-        '<line x1="' + (destino.x - markerRadius * 0.6) + '" y1="' + (destino.y - markerRadius * 0.6) + '" x2="' + (destino.x + markerRadius * 0.6) + '" y2="' + (destino.y + markerRadius * 0.6) + '" stroke="#8B0000" stroke-width="' + (lineWidth * 0.8) + '" />' +
-        '<line x1="' + (destino.x + markerRadius * 0.6) + '" y1="' + (destino.y - markerRadius * 0.6) + '" x2="' + (destino.x - markerRadius * 0.6) + '" y2="' + (destino.y + markerRadius * 0.6) + '" stroke="#8B0000" stroke-width="' + (lineWidth * 0.8) + '" />' +
-        '<circle cx="' + destino.x + '" cy="' + destino.y + '" r="' + markerRadius + '" fill="none" stroke="#8B0000" stroke-width="' + (lineWidth * 0.8) + '" />' +
-        '<text x="' + destino.x + '" y="' + (destino.y + markerRadius * 2) + '" text-anchor="middle" fill="#4a1c1c" font-size="' + fontSize + '" font-style="italic" font-family="Georgia, serif">' + config.destinoNombre + '</text>' +
+        '<circle cx="' + origen.x + '" cy="' + origen.y + '" r="' + markerRadius + '" fill="none" stroke="#2d5a27" stroke-width="' + (lineWidth * 0.6) + '" />' +
+        '<circle cx="' + origen.x + '" cy="' + origen.y + '" r="' + (markerRadius * 0.35) + '" fill="#2d5a27" />' +
+        '<text x="' + origen.x + '" y="' + (origen.y - markerRadius * 1.8) + '" text-anchor="middle" fill="#2d3a1d" font-size="' + fontSize + '" font-style="italic" font-family="Georgia, serif">' + config.origenNombre + '</text>' +
+        '<line x1="' + (destino.x - markerRadius * 0.5) + '" y1="' + (destino.y - markerRadius * 0.5) + '" x2="' + (destino.x + markerRadius * 0.5) + '" y2="' + (destino.y + markerRadius * 0.5) + '" stroke="#8B2500" stroke-width="' + (lineWidth * 0.6) + '" />' +
+        '<line x1="' + (destino.x + markerRadius * 0.5) + '" y1="' + (destino.y - markerRadius * 0.5) + '" x2="' + (destino.x - markerRadius * 0.5) + '" y2="' + (destino.y + markerRadius * 0.5) + '" stroke="#8B2500" stroke-width="' + (lineWidth * 0.6) + '" />' +
+        '<circle cx="' + destino.x + '" cy="' + destino.y + '" r="' + markerRadius + '" fill="none" stroke="#8B2500" stroke-width="' + (lineWidth * 0.6) + '" />' +
+        '<text x="' + destino.x + '" y="' + (destino.y + markerRadius * 2.2) + '" text-anchor="middle" fill="#4a1c1c" font-size="' + fontSize + '" font-style="italic" font-family="Georgia, serif">' + config.destinoNombre + '</text>' +
         '</svg>' +
         '<div style="display: flex; justify-content: center; gap: 20px; padding: 8px; background: rgba(139, 69, 19, 0.05); border-top: 1px solid #d4c4a8; font-size: 10pt;">' +
-        '<span><span style="display: inline-block; width: 12px; height: 12px; border-radius: 50%; border: 2px solid #228B22; margin-right: 5px;"></span> Origen</span>' +
-        '<span><span style="display: inline-block; width: 12px; height: 12px; border-radius: 50%; border: 2px solid #8B0000; margin-right: 5px;"></span> Destino</span>' +
-        '<span><span style="display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: rgba(144, 238, 144, 0.8); border: 1px solid #228B22; margin-right: 5px;"></span> Éxito</span>' +
-        '<span><span style="display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: rgba(255, 182, 193, 0.8); border: 1px solid #8B0000; margin-right: 5px;"></span> Fracaso</span>' +
+        '<span><span style="display: inline-block; width: 10px; height: 10px; border-radius: 50%; border: 2px solid #2d5a27; margin-right: 5px;"></span> Origen</span>' +
+        '<span><span style="display: inline-block; width: 10px; height: 10px; border-radius: 50%; border: 2px solid #8B2500; margin-right: 5px;"></span> Destino</span>' +
+        (events.length > 0 ? '<span><span style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: rgba(144, 238, 144, 0.8); border: 1px solid #228B22; margin-right: 5px;"></span> Éxito</span>' +
+        '<span><span style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: rgba(255, 182, 193, 0.8); border: 1px solid #8B0000; margin-right: 5px;"></span> Fracaso</span>' : '') +
         '</div>' +
         '</div>';
     };

@@ -663,7 +663,7 @@ class MiddleEarthPathfinder:
         
         return PathResult(
             success=True,
-            path=path,
+            path=self._simplify_path(path),  # Simplify the path to remove zigzag
             segments=segments,
             total_distance_km=round(total_distance, 1),
             total_travel_cost=round(total_cost, 1),
@@ -673,6 +673,65 @@ class MiddleEarthPathfinder:
             roads_used=list(roads_used),
             terrain_summary={k: round(v, 1) for k, v in terrain_distances.items()}
         )
+    
+    def _simplify_path(self, path: List[Tuple[float, float]], tolerance: float = 0.5) -> List[Tuple[float, float]]:
+        """
+        Simplify the path using the Ramer-Douglas-Peucker algorithm.
+        This removes unnecessary intermediate points while preserving the shape.
+        """
+        if len(path) < 3:
+            return path
+        
+        # Find the point with the maximum distance from the line between start and end
+        start = path[0]
+        end = path[-1]
+        max_dist = 0
+        max_idx = 0
+        
+        for i in range(1, len(path) - 1):
+            dist = self._perpendicular_distance(path[i], start, end)
+            if dist > max_dist:
+                max_dist = dist
+                max_idx = i
+        
+        # If max distance is greater than tolerance, recursively simplify
+        if max_dist > tolerance:
+            # Recursively simplify
+            left_simplified = self._simplify_path(path[:max_idx + 1], tolerance)
+            right_simplified = self._simplify_path(path[max_idx:], tolerance)
+            
+            # Combine results (avoid duplicating the middle point)
+            return left_simplified[:-1] + right_simplified
+        else:
+            # All intermediate points are within tolerance, return just start and end
+            return [start, end]
+    
+    def _perpendicular_distance(
+        self, 
+        point: Tuple[float, float], 
+        line_start: Tuple[float, float], 
+        line_end: Tuple[float, float]
+    ) -> float:
+        """Calculate perpendicular distance from a point to a line"""
+        px, py = point
+        x1, y1 = line_start
+        x2, y2 = line_end
+        
+        # Line length squared
+        line_len_sq = (x2 - x1) ** 2 + (y2 - y1) ** 2
+        
+        if line_len_sq == 0:
+            # Line is a point
+            return self._distance(point, line_start)
+        
+        # Project point onto line
+        t = max(0, min(1, ((px - x1) * (x2 - x1) + (py - y1) * (y2 - y1)) / line_len_sq))
+        
+        # Closest point on line
+        proj_x = x1 + t * (x2 - x1)
+        proj_y = y1 + t * (y2 - y1)
+        
+        return self._distance(point, (proj_x, proj_y))
     
     def find_path_by_location_ids(
         self,

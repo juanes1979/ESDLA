@@ -1719,12 +1719,13 @@ async def generate_event_narrative(
         chat = LlmChat(
             api_key=api_key,
             session_id=f"narrative_{uuid.uuid4().hex[:8]}",
-            system_message="""Eres un narrador de estilo Tolkien para un juego de rol de El Señor de los Anillos. 
-            Genera narrativas cortas (2-3 frases), evocadoras y épicas en español.
-            Usa un lenguaje arcaico pero comprensible.
-            IMPORTANTE: NO menciones el origen ni el destino del viaje. Céntrate SOLO en el evento y el terreno actual.
-            Menciona el resultado (éxito/fracaso) de forma natural en la narrativa.
-            No uses emojis. Mantén un tono serio y épico."""
+            system_message="""Eres un narrador para un juego de rol ambientado en la Tierra Media. 
+            Genera narrativas cortas (2-3 frases) en español con un tono natural y cálido.
+            Escribe como si fuera un diario de viaje o una conversación junto al fuego.
+            NO uses lenguaje arcaico ni épico. Evita palabras como "épico", "glorioso", "valeroso".
+            NO menciones origen ni destino. Céntrate SOLO en el momento presente del viaje.
+            Describe la escena de forma sencilla pero evocadora, como lo haría un hobbit contando una historia.
+            No uses emojis."""
         ).with_model("openai", "gpt-4o")
         
         prompt = f"""Genera una breve narrativa (2-3 frases) para este evento de viaje:
@@ -1732,12 +1733,11 @@ async def generate_event_narrative(
 FASE DEL VIAJE: {fase_viaje} (día {dia_actual} de {dias_totales})
 TERRENO ACTUAL: {terreno_desc}
 EVENTO: {evento_nombre}
-RESULTADO: {resultado}
+RESULTADO: {"El grupo tuvo éxito" if exito else "Las cosas no salieron bien"}
 PERSONAJE RESPONSABLE: {personaje_nombre} ({papel_name})
-TIRADA: {tirada} vs CD {cd}
-CONSECUENCIA MECÁNICA: {consecuencia}
+CONSECUENCIA: {consecuencia}
 
-INSTRUCCIONES: Describe qué sucedió en este momento del viaje. NO menciones "{origen}" ni "{destino}". Céntrate en la escena actual."""
+INSTRUCCIONES: Describe qué sucedió de forma natural y sencilla, como si lo contaras a un amigo. Evita el tono épico."""
         
         user_message = UserMessage(text=prompt)
         response = await chat.send_message(user_message)
@@ -1799,23 +1799,23 @@ async def generate_journey_summary(request: JourneySummaryRequest):
         chat = LlmChat(
             api_key=api_key,
             session_id=f"summary_{uuid.uuid4().hex[:8]}",
-            system_message="""Eres un cronista de la Tierra Media escribiendo el relato de un viaje épico.
-            Escribe en español con estilo tolkienesco: prosa elevada, descripciones evocadoras, 
-            referencias a la naturaleza y los peligros del camino.
-            Estructura tu relato con un párrafo de introducción, desarrollo del viaje, y conclusión.
-            Máximo 300 palabras. No uses emojis."""
+            system_message="""Eres un narrador que escribe relatos de viajes por la Tierra Media.
+            Escribe en español con un tono cálido y natural, como si contaras la historia junto a una chimenea.
+            Evita el lenguaje arcaico y épico excesivo. Sé descriptivo pero accesible.
+            NO menciones puntos de experiencia, tiradas, ni mecánicas de juego.
+            Estructura tu relato con naturalidad: cómo empezó el viaje, qué pasó en el camino, y cómo llegaron.
+            Máximo 250 palabras. No uses emojis."""
         ).with_model("openai", "gpt-4o")
         
-        prompt = f"""Escribe el relato completo de este viaje:
+        prompt = f"""Escribe el relato de este viaje:
 
 VIAJE: De {request.origen} a {request.destino}
-DURACIÓN: {request.dias} días de marcha
-COMPAÑÍA: {grupo_text}
-TERRENOS ATRAVESADOS: {terreno_text if terreno_text else "Diversos caminos y sendas"}
-ACONTECIMIENTOS: {eventos_text if eventos_text else "El viaje transcurrió sin mayores contratiempos"}
-EXPERIENCIA GANADA: {request.px_total} puntos
+DURACIÓN: {request.dias} días
+COMPAÑÍA: {grupo_text if grupo_text else "Un grupo de viajeros"}
+TERRENOS: {terreno_text if terreno_text else "Caminos y sendas de la Tierra Media"}
+ACONTECIMIENTOS: {eventos_text if eventos_text else "El viaje fue tranquilo"}
 
-Narra el viaje como si fuera una página del Libro Rojo de la Frontera del Oeste."""
+Narra el viaje de forma natural, como si se lo contaras a alguien. Describe el paisaje, el clima, los momentos importantes. NO menciones puntos de experiencia ni mecánicas de juego."""
         
         user_message = UserMessage(text=prompt)
         response = await chat.send_message(user_message)
