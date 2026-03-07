@@ -185,21 +185,33 @@ const TerrainEditor = () => {
       return;
     }
     
-    // Add painted cell - smaller cells for precision (0.125% = 1/8 of original)
+    // Cell size for precision (0.125% = 1/8 of original)
     const cellSize = 0.125; // 0.125% of map = ~2.5km per cell
-    const cellX = Math.floor(coords.x / cellSize) * cellSize;
-    const cellY = Math.floor(coords.y / cellSize) * cellSize;
+    const centerX = Math.floor(coords.x / cellSize) * cellSize + cellSize / 2;
+    const centerY = Math.floor(coords.y / cellSize) * cellSize + cellSize / 2;
     
-    // Paint cells based on brush size
+    // Paint cells in a CIRCULAR pattern based on brush size
     const newCells = [];
-    for (let dx = 0; dx < brushSize; dx++) {
-      for (let dy = 0; dy < brushSize; dy++) {
-        newCells.push({
-          x: cellX + dx * cellSize,
-          y: cellY + dy * cellSize,
-          type: selectedBrush,
-          size: cellSize
-        });
+    const radius = brushSize; // Radius in cells
+    
+    for (let dx = -radius; dx <= radius; dx++) {
+      for (let dy = -radius; dy <= radius; dy++) {
+        // Check if this cell is within the circular brush
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        if (distance <= radius) {
+          const cellX = Math.floor((centerX + dx * cellSize) / cellSize) * cellSize;
+          const cellY = Math.floor((centerY + dy * cellSize) / cellSize) * cellSize;
+          
+          // Only add if within map bounds
+          if (cellX >= 0 && cellX < 100 && cellY >= 0 && cellY < 100) {
+            newCells.push({
+              x: cellX,
+              y: cellY,
+              type: selectedBrush,
+              size: cellSize
+            });
+          }
+        }
       }
     }
     
@@ -578,7 +590,7 @@ const TerrainEditor = () => {
                   <span>Tamaño:</span>
                   <Button size="sm" variant="outline" onClick={() => setBrushSize(Math.max(1, brushSize - 1))}>-</Button>
                   <span className="w-6 text-center">{brushSize}</span>
-                  <Button size="sm" variant="outline" onClick={() => setBrushSize(Math.min(10, brushSize + 1))}>+</Button>
+                  <Button size="sm" variant="outline" onClick={() => setBrushSize(Math.min(20, brushSize + 1))}>+</Button>
                 </div>
                 <Button variant="outline" size="sm" onClick={clearPaintedCells} title="Limpiar cambios locales">
                   <Trash2 className="w-4 h-4" />
