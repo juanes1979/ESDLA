@@ -27,6 +27,7 @@ const TERRAIN_COLORS = {
   muy_dificil: { color: '#ef4444', name: 'Muy Difícil', description: 'Montañas, pantanos' },
   desalentador: { color: '#dc2626', name: 'Desalentador', description: 'Terreno extremo' },
   infranqueable: { color: '#7f1d1d', name: 'Infranqueable', description: 'Imposible de atravesar' },
+  agua: { color: '#0ea5e9', name: 'Agua', description: 'Ríos, lagos, mar - requiere embarcación' },
 };
 
 // Land type colors
@@ -498,8 +499,8 @@ const TerrainEditor = () => {
             points={points.map(p => `${p.x},${p.y}`).join(' ')}
             fill="none"
             stroke={color}
-            strokeWidth={20}
-            strokeDasharray="50,30"
+            strokeWidth={10}
+            strokeDasharray="30,15"
             strokeOpacity={0.8}
           />
         )}
@@ -512,30 +513,30 @@ const TerrainEditor = () => {
             x2={points[0].x}
             y2={points[0].y}
             stroke={color}
-            strokeWidth={15}
-            strokeDasharray="30,20"
+            strokeWidth={8}
+            strokeDasharray="20,10"
             strokeOpacity={0.4}
           />
         )}
         
-        {/* Points */}
+        {/* Points - smaller size */}
         {points.map((point, idx) => (
           <g key={idx}>
             <circle
               cx={point.x}
               cy={point.y}
-              r={idx === 0 ? 80 : 50}
+              r={idx === 0 ? 40 : 25}
               fill={idx === 0 ? '#00ff00' : color}
               fillOpacity={0.9}
               stroke="#ffffff"
-              strokeWidth={10}
+              strokeWidth={5}
             />
             <text
               x={point.x}
-              y={point.y + 20}
+              y={point.y + 8}
               textAnchor="middle"
               fill="#ffffff"
-              fontSize={60}
+              fontSize={30}
               fontWeight="bold"
             >
               {idx + 1}
