@@ -146,13 +146,18 @@ class MiddleEarthPathfinder:
         rivers: List[Dict],
         barriers: List[Dict],
         locations: List[Dict],
-        regions: Optional[List[Dict]] = None
+        regions: Optional[List[Dict]] = None,
+        prefer_roads: bool = True
     ):
         self.roads = roads
         self.rivers = rivers
         self.barriers = barriers
         self.locations = locations
         self.regions = regions or []
+        self.prefer_roads = prefer_roads
+        
+        # Road preference multiplier: lower = more preferred when prefer_roads=True
+        self.road_preference_multiplier = 0.3 if prefer_roads else 1.0
         
         # Pre-process data for efficient lookup
         self._build_road_network()
@@ -442,7 +447,15 @@ class MiddleEarthPathfinder:
         
         # Apply road bonus (reduces terrain penalty)
         if road != RoadType.NINGUNO:
+            # Road reduces cost significantly
             cost *= road.multiplier
+            # If prefer_roads is enabled, roads are even more attractive
+            if self.prefer_roads:
+                cost *= self.road_preference_multiplier  # Additional bonus for roads
+        else:
+            # No road - if prefer_roads is enabled, penalize off-road travel
+            if self.prefer_roads:
+                cost *= 1.5  # 50% penalty for traveling without a road
         
         # Apply river crossing penalty
         if river_crossing:

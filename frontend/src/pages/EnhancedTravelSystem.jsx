@@ -1301,6 +1301,55 @@ const EnhancedTravelSystem = () => {
   };
   
   const printJourneyDocument = () => {
+    // Export debug JSON for journey analysis
+    const exportDebugJson = () => {
+      const debugData = {
+        timestamp: new Date().toISOString(),
+        journey: {
+          origen: config.origenNombre,
+          destino: config.destinoNombre,
+          origen_id: config.origenId,
+          destino_id: config.destinoId,
+          preferir_caminos: config.preferirCaminos,
+          evitar_sombra: config.evitarSombra,
+          estacion: config.estacion,
+          ritmo: config.ritmo
+        },
+        calculation_result: journeyCalc,
+        events: events.map(e => ({
+          casilla: e.casilla,
+          evento_nombre: e.evento?.nombre,
+          resuelto: e.resuelto,
+          exito: e.exito,
+          tirada: e.tirada,
+          orientacion: e.orientacion
+        })),
+        orientation_checks: orientationChecks,
+        positions: {
+          current: currentPosition,
+          next_event: nextEventPosition
+        }
+      };
+      
+      // Create and download JSON file
+      const blob = new Blob([JSON.stringify(debugData, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `viaje_debug_${config.origenNombre}_${config.destinoNombre}_${Date.now()}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      
+      toast.success('Debug JSON exportado');
+    };
+    
+    // Check if we should export debug instead of print
+    if (window.event?.shiftKey) {
+      exportDebugJson();
+      return;
+    }
     // Generate the SVG map for the PDF
     const generateMapSVG = () => {
       if (!journeyCalc?.ruta?.path || !config.origenId || !config.destinoId) {
@@ -3601,6 +3650,55 @@ const EnhancedTravelSystem = () => {
               >
                 <Printer className="w-4 h-4 mr-2" />
                 Imprimir Crónica
+              </Button>
+              
+              <Button 
+                onClick={() => {
+                  const debugData = {
+                    timestamp: new Date().toISOString(),
+                    journey: {
+                      origen: config.origenNombre,
+                      destino: config.destinoNombre,
+                      origen_id: config.origenId,
+                      destino_id: config.destinoId,
+                      preferir_caminos: config.preferirCaminos,
+                      evitar_sombra: config.evitarSombra,
+                      estacion: config.estacion,
+                      ritmo: config.ritmo
+                    },
+                    calculation_result: journeyCalc,
+                    events: events.map(e => ({
+                      casilla: e.casilla,
+                      evento_nombre: e.evento?.nombre,
+                      resuelto: e.resuelto,
+                      exito: e.exito,
+                      tirada: e.tirada,
+                      orientacion: e.orientacion
+                    })),
+                    orientation_checks: orientationChecks,
+                    positions: {
+                      current: currentPosition,
+                      next_event: nextEventPosition
+                    }
+                  };
+                  
+                  const blob = new Blob([JSON.stringify(debugData, null, 2)], { type: 'application/json' });
+                  const url = URL.createObjectURL(blob);
+                  const a = document.createElement('a');
+                  a.href = url;
+                  a.download = `viaje_debug_${config.origenNombre}_${config.destinoNombre}_${Date.now()}.json`;
+                  document.body.appendChild(a);
+                  a.click();
+                  document.body.removeChild(a);
+                  URL.revokeObjectURL(url);
+                  toast.success('Debug JSON exportado');
+                }}
+                variant="outline"
+                className="flex-1"
+                title="Exportar datos del viaje para depuración"
+              >
+                <FileText className="w-4 h-4 mr-2" />
+                Exportar Debug
               </Button>
             </div>
           </CardContent>

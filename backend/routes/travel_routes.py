@@ -658,7 +658,32 @@ async def calculate_journey(config: JourneyConfig):
     """
     Calculate a complete journey with route, events, and estimates.
     Uses pathfinding if available, otherwise direct calculation.
+    Returns debug info for journey analysis.
     """
+    # Debug info collection
+    debug_info = {
+        "timestamp": str(datetime.now()),
+        "config": {
+            "origen_id": config.origen_id,
+            "destino_id": config.destino_id,
+            "preferir_caminos": config.preferir_caminos,
+            "evitar_sombra": config.evitar_sombra,
+            "marcha_forzada": config.horas_marcha_forzada > 0,
+            "estacion": config.estacion
+        },
+        "pathfinding": {
+            "used": False,
+            "success": False,
+            "roads_found": 0,
+            "barriers_found": 0,
+            "locations_found": 0,
+            "preference_multiplier": 0.3 if config.preferir_caminos else 1.0,
+            "algorithm_steps": []
+        },
+        "route_decision": "",
+        "errors": []
+    }
+    
     # Get configurations from DB
     events_table = await get_travel_events()
     land_types = await get_land_types()
@@ -678,8 +703,12 @@ async def calculate_journey(config: JourneyConfig):
         # Remove MongoDB _id for serialization
         if start_loc:
             start_loc['id'] = str(start_loc.pop('_id'))
+            debug_info["config"]["origen_nombre"] = start_loc.get('nombre', 'Unknown')
+            debug_info["config"]["origen_coords"] = {"x": start_loc.get('x'), "y": start_loc.get('y')}
         if end_loc:
             end_loc['id'] = str(end_loc.pop('_id'))
+            debug_info["config"]["destino_nombre"] = end_loc.get('nombre', 'Unknown')
+            debug_info["config"]["destino_coords"] = {"x": end_loc.get('x'), "y": end_loc.get('y')}
         
         if start_loc and end_loc:
             # Try to use pathfinding if map data exists
@@ -688,12 +717,20 @@ async def calculate_journey(config: JourneyConfig):
             barriers = list(await db.barriers.find({}, {"_id": 0}).to_list(length=1000))
             all_locations = list(await db.locations.find({}).to_list(length=1000))
             
+            debug_info["pathfinding"]["roads_found"] = len(roads)
+            debug_info["pathfinding"]["barriers_found"] = len(barriers)
+            debug_info["pathfinding"]["locations_found"] = len(all_locations)
+            
+            # Log road names for debugging
+            debug_info["pathfinding"]["available_roads"] = [r.get('nombre', 'Unknown') for r in roads]
+            
             # Clean up locations for pathfinder
             for loc in all_locations:
                 if '_id' in loc:
                     loc['id'] = str(loc.pop('_id'))
             
             if roads or barriers:
+                debug_info["pathfinding"]["used"] = True
                 # Use pathfinding
                 from utils.pathfinding import MiddleEarthPathfinder
                 
@@ -701,13 +738,21 @@ async def calculate_journey(config: JourneyConfig):
                     roads=roads,
                     rivers=rivers,
                     barriers=barriers,
-                    locations=all_locations
+                    locations=all_locations,
+                    prefer_roads=config.preferir_caminos
                 )
                 
                 start_coords = (start_loc.get('x', 0), start_loc.get('y', 0))
                 end_coords = (end_loc.get('x', 0), end_loc.get('y', 0))
                 
+                debug_info["pathfinding"]["start_coords"] = start_coords
+                debug_info["pathfinding"]["end_coords"] = end_coords
+                
                 path_result = pathfinder.find_path(start_coords, end_coords)
+                
+                debug_info["pathfinding"]["success"] = path_result.success
+                debug_info["pathfinding"]["total_distance_km"] = getattr(path_result, 'total_distance_km', 0)
+                debug_info["pathfinding"]["segments_count"] = len(path_result.segments) if path_result.success else 0
                 
                 if path_result.success:
                     # Use pathfinding results
@@ -1027,7 +1072,8 @@ async def calculate_journey(config: JourneyConfig):
         "reglas": {
             "fatigue_base_cd": rules.get('fatigue_base_cd', 10),
             "cd_terreno": terrain_config.get('cd_prueba', 15)
-        }
+        },
+        "debug": debug_info
     }
 
 @router.post("/orientation-check")
