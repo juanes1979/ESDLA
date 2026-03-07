@@ -10,7 +10,7 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ArrowLeft, ZoomIn, ZoomOut, Move, Save, Trash2, Plus, Edit3 } from 'lucide-react';
+import { ArrowLeft, ZoomIn, ZoomOut, Move, Save, Trash2, Plus, Edit3, Download } from 'lucide-react';
 import { toast } from 'sonner';
 import api from '@/services/api';
 import { useNavigate } from 'react-router-dom';
@@ -51,12 +51,20 @@ const TerrainEditor = () => {
   const [terrainZones, setTerrainZones] = useState([]);
   const [landTypeZones, setLandTypeZones] = useState([]);
   const [regions, setRegions] = useState([]);
+  const [roads, setRoads] = useState([]);
+  const [rivers, setRivers] = useState([]);
+  const [barriers, setBarriers] = useState([]);
   const [loading, setLoading] = useState(true);
   
-  // Drawing mode
-  const [isDrawing, setIsDrawing] = useState(false);
-  const [currentTool, setCurrentTool] = useState(null); // 'facil', 'moderado', etc.
-  const [drawnPoints, setDrawnPoints] = useState([]);
+  // Drawing/Editing mode
+  const [paintMode, setPaintMode] = useState(false);
+  const [selectedBrush, setSelectedBrush] = useState(null); // 'facil', 'moderado', etc.
+  const [brushSize, setBrushSize] = useState(3); // Size in grid cells
+  const [paintedCells, setPaintedCells] = useState([]); // Painted terrain cells
+  
+  // Piece editing mode
+  const [editPieceMode, setEditPieceMode] = useState(null); // 'roads', 'mountains', 'rivers'
+  const [selectedPiece, setSelectedPiece] = useState(null);
 
   // Load data
   useEffect(() => {
@@ -66,6 +74,12 @@ const TerrainEditor = () => {
         const regionsRes = await api.get('/data/regions');
         if (regionsRes.data) {
           setRegions(regionsRes.data.regions || regionsRes.data || []);
+        }
+        
+        // Load roads
+        const roadsRes = await api.get('/data/roads');
+        if (roadsRes.data) {
+          setRoads(roadsRes.data.roads || roadsRes.data || []);
         }
         
         // Load terrain zones if they exist
@@ -113,7 +127,7 @@ const TerrainEditor = () => {
   const handleWheel = useCallback((e) => {
     e.preventDefault();
     const zoomFactor = e.deltaY > 0 ? 0.9 : 1.1;
-    const newZoom = Math.min(2, Math.max(0.02, zoom * zoomFactor));
+    const newZoom = Math.min(20, Math.max(0.02, zoom * zoomFactor));
     setZoom(newZoom);
   }, [zoom]);
 
@@ -135,6 +149,139 @@ const TerrainEditor = () => {
   // Get color config based on mode
   const getColorConfig = () => mode === 'terrain' ? TERRAIN_COLORS : LAND_TYPE_COLORS;
   const getZones = () => mode === 'terrain' ? terrainZones : landTypeZones;
+
+  // Handle painting on map
+  const handleMapClick = (e) => {
+    if (!paintMode || !selectedBrush) return;
+    
+    const coords = screenToMap(e.clientX, e.clientY);
+    if (!coords) return;
+    
+    // Add painted cell
+    const cellSize = 0.25; // 5km = 0.25% of map (since 100% = 2000km approx)
+    const cellX = Math.floor(coords.x / cellSize) * cellSize;
+    const cellY = Math.floor(coords.y / cellSize) * cellSize;
+    
+    // Paint cells based on brush size
+    const newCells = [];
+    for (let dx = 0; dx < brushSize; dx++) {
+      for (let dy = 0; dy < brushSize; dy++) {
+        newCells.push({
+          x: cellX + dx * cellSize,
+          y: cellY + dy * cellSize,
+          type: selectedBrush,
+          size: cellSize
+        });
+      }
+    }
+    
+    setPaintedCells(prev => {
+      // Remove existing cells at same positions
+      const filtered = prev.filter(c => 
+        !newCells.some(nc => Math.abs(nc.x - c.x) < 0.01 && Math.abs(nc.y - c.y) < 0.01)
+      );
+      return [...filtered, ...newCells];
+    });
+  };
+
+  // Handle mouse drag for painting
+  const handleMouseMoveForPaint = (e) => {
+    if (isDragging && !paintMode) {
+      const dx = e.clientX - lastMousePos.x;
+      const dy = e.clientY - lastMousePos.y;
+      setPan(prev => ({ x: prev.x + dx, y: prev.y + dy }));
+      setLastMousePos({ x: e.clientX, y: e.clientY });
+    } else if (paintMode && e.buttons === 1 && selectedBrush) {
+      // Paint while dragging
+      handleMapClick(e);
+    }
+  };
+
+  // Export painted terrain
+  const exportPaintedTerrain = () => {
+    const data = {
+      mode,
+      cells: paintedCells,
+      exportedAt: new Date().toISOString()
+    };
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `terrain_${mode}_${Date.now()}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    toast.success('Terreno exportado');
+  };
+
+  // Clear painted cells
+  const clearPaintedCells = () => {
+    setPaintedCells([]);
+    toast.info('Terreno limpiado');
+  };
+
+  // Render painted cells
+  const renderPaintedCells = () => {
+    const colors = getColorConfig();
+    return paintedCells.map((cell, idx) => {
+      const config = colors[cell.type];
+      if (!config) return null;
+      
+      const x = (cell.x / 100) * MAP_PIXEL_WIDTH;
+      const y = MAP_PIXEL_HEIGHT - (cell.y / 100) * MAP_PIXEL_HEIGHT;
+      const size = (cell.size / 100) * MAP_PIXEL_WIDTH;
+      
+      return (
+        <rect
+          key={idx}
+          x={x}
+          y={y - size}
+          width={size}
+          height={size}
+          fill={config.color}
+          fillOpacity={0.6}
+          stroke={config.color}
+          strokeWidth={2}
+        />
+      );
+    });
+  };
+
+  // Render roads for editing
+  const renderRoads = () => {
+    return roads.map((road, idx) => {
+      if (!road.puntos || road.puntos.length < 2) return null;
+      
+      const isSelected = selectedPiece?.type === 'road' && selectedPiece?.id === road.id;
+      
+      const pathD = road.puntos.map((p, i) => {
+        const x = (p.x / 100) * MAP_PIXEL_WIDTH;
+        const y = MAP_PIXEL_HEIGHT - (p.y / 100) * MAP_PIXEL_HEIGHT;
+        return `${i === 0 ? 'M' : 'L'} ${x} ${y}`;
+      }).join(' ');
+      
+      return (
+        <path
+          key={idx}
+          d={pathD}
+          fill="none"
+          stroke={isSelected ? '#3b82f6' : '#8B4513'}
+          strokeWidth={isSelected ? 50 : 30}
+          strokeOpacity={0.7}
+          strokeLinecap="round"
+          style={{ cursor: editPieceMode === 'roads' ? 'pointer' : 'default' }}
+          onClick={() => {
+            if (editPieceMode === 'roads') {
+              setSelectedPiece({ type: 'road', id: road.id, data: road });
+              toast.info(`Seleccionado: ${road.nombre}`);
+            }
+          }}
+        />
+      );
+    });
+  };
 
   // Render zones on map
   const renderZones = () => {
@@ -260,11 +407,11 @@ const TerrainEditor = () => {
               <Button variant="outline" size="sm" onClick={() => setZoom(z => Math.max(0.02, z * 0.8))}>
                 <ZoomOut className="w-4 h-4" />
               </Button>
-              <span className="text-sm w-16 text-center">{Math.round(zoom * 100)}%</span>
-              <Button variant="outline" size="sm" onClick={() => setZoom(z => Math.min(2, z * 1.25))}>
+              <span className="text-sm w-20 text-center">{Math.round(zoom * 100)}%</span>
+              <Button variant="outline" size="sm" onClick={() => setZoom(z => Math.min(20, z * 1.25))}>
                 <ZoomIn className="w-4 h-4" />
               </Button>
-              <Button variant="outline" size="sm" onClick={() => { setZoom(0.05); setPan({ x: 0, y: 0 }); }}>
+              <Button variant="outline" size="sm" onClick={() => { setZoom(1); setPan({ x: 0, y: 0 }); }}>
                 <Move className="w-4 h-4" />
               </Button>
             </div>
@@ -272,39 +419,132 @@ const TerrainEditor = () => {
         </div>
       </div>
       
-      {/* Legend */}
+      {/* Legend and Tools */}
       <div className="p-3 bg-black/30 border-b border-[hsl(var(--gold))]/10">
-        <div className="flex flex-wrap gap-3 justify-center">
-          {Object.entries(getColorConfig()).map(([key, config]) => (
-            <Badge 
-              key={key}
-              className="cursor-pointer"
-              style={{ 
-                backgroundColor: config.color + '40',
-                borderColor: config.color,
-                color: '#fff'
+        <div className="flex flex-wrap items-center gap-3 justify-between">
+          {/* Color Legend / Brush Selection */}
+          <div className="flex flex-wrap gap-2">
+            {Object.entries(getColorConfig()).map(([key, config]) => (
+              <Badge 
+                key={key}
+                className={`cursor-pointer transition-all ${
+                  selectedBrush === key ? 'ring-2 ring-white scale-110' : ''
+                }`}
+                style={{ 
+                  backgroundColor: config.color + (selectedBrush === key ? 'ff' : '40'),
+                  borderColor: config.color,
+                  color: '#fff'
+                }}
+                title={config.description}
+                onClick={() => {
+                  if (paintMode) {
+                    setSelectedBrush(selectedBrush === key ? null : key);
+                  }
+                }}
+              >
+                <div 
+                  className="w-3 h-3 rounded-full mr-2" 
+                  style={{ backgroundColor: config.color }}
+                />
+                {config.name}
+              </Badge>
+            ))}
+          </div>
+          
+          {/* Tools */}
+          <div className="flex items-center gap-2">
+            <Button
+              variant={paintMode ? "default" : "outline"}
+              size="sm"
+              onClick={() => {
+                setPaintMode(!paintMode);
+                if (!paintMode) {
+                  toast.info('Modo pincel activado. Selecciona un color y pinta en el mapa.');
+                }
               }}
-              title={config.description}
+              className={paintMode ? 'bg-blue-600' : ''}
             >
-              <div 
-                className="w-3 h-3 rounded-full mr-2" 
-                style={{ backgroundColor: config.color }}
-              />
-              {config.name}
-            </Badge>
-          ))}
+              <Edit3 className="w-4 h-4 mr-1" />
+              Pincel
+            </Button>
+            
+            {paintMode && (
+              <>
+                <div className="flex items-center gap-1 text-xs">
+                  <span>Tamaño:</span>
+                  <Button size="sm" variant="outline" onClick={() => setBrushSize(Math.max(1, brushSize - 1))}>-</Button>
+                  <span className="w-6 text-center">{brushSize}</span>
+                  <Button size="sm" variant="outline" onClick={() => setBrushSize(Math.min(10, brushSize + 1))}>+</Button>
+                </div>
+                <Button variant="outline" size="sm" onClick={clearPaintedCells}>
+                  <Trash2 className="w-4 h-4" />
+                </Button>
+                <Button variant="outline" size="sm" onClick={exportPaintedTerrain}>
+                  <Download className="w-4 h-4" />
+                </Button>
+              </>
+            )}
+            
+            <div className="h-6 w-px bg-gray-600 mx-2" />
+            
+            {/* Piece editing */}
+            <Button
+              variant={editPieceMode === 'roads' ? "default" : "outline"}
+              size="sm"
+              onClick={() => {
+                setEditPieceMode(editPieceMode === 'roads' ? null : 'roads');
+                setSelectedPiece(null);
+              }}
+              className={editPieceMode === 'roads' ? 'bg-amber-600' : ''}
+            >
+              Caminos
+            </Button>
+            <Button
+              variant={editPieceMode === 'mountains' ? "default" : "outline"}
+              size="sm"
+              onClick={() => {
+                setEditPieceMode(editPieceMode === 'mountains' ? null : 'mountains');
+                setSelectedPiece(null);
+              }}
+              className={editPieceMode === 'mountains' ? 'bg-gray-600' : ''}
+            >
+              Montañas
+            </Button>
+            <Button
+              variant={editPieceMode === 'rivers' ? "default" : "outline"}
+              size="sm"
+              onClick={() => {
+                setEditPieceMode(editPieceMode === 'rivers' ? null : 'rivers');
+                setSelectedPiece(null);
+              }}
+              className={editPieceMode === 'rivers' ? 'bg-blue-600' : ''}
+            >
+              Ríos
+            </Button>
+          </div>
         </div>
+        
+        {/* Selected piece info */}
+        {selectedPiece && (
+          <div className="mt-2 p-2 bg-blue-900/30 rounded text-sm">
+            <span className="font-bold">Seleccionado:</span> {selectedPiece.data?.nombre || 'Sin nombre'}
+            <Button size="sm" variant="ghost" className="ml-2" onClick={() => setSelectedPiece(null)}>
+              Deseleccionar
+            </Button>
+          </div>
+        )}
       </div>
       
       {/* Map Container */}
       <div 
         ref={containerRef}
-        className="flex-1 overflow-hidden cursor-grab active:cursor-grabbing"
+        className={`flex-1 overflow-hidden ${paintMode ? 'cursor-crosshair' : 'cursor-grab active:cursor-grabbing'}`}
         onMouseDown={handleMouseDown}
-        onMouseMove={handleMouseMove}
+        onMouseMove={handleMouseMoveForPaint}
         onMouseUp={handleMouseUp}
         onMouseLeave={handleMouseUp}
         onWheel={handleWheel}
+        onClick={handleMapClick}
       >
         <svg
           width="100%"
@@ -332,26 +572,31 @@ const TerrainEditor = () => {
           {/* Render custom zones */}
           {renderZones()}
           
-          {/* Grid for reference - 10km per cell */}
-          {/* Each cell is approximately 100 coordinate units = 10km */}
-          <g opacity={0.15}>
-            {Array.from({ length: 101 }, (_, i) => (
+          {/* Render painted cells */}
+          {renderPaintedCells()}
+          
+          {/* Render roads */}
+          {renderRoads()}
+          
+          {/* Grid for reference - 5km per cell (0.25% of map) */}
+          <g opacity={0.12}>
+            {Array.from({ length: 401 }, (_, i) => (
               <React.Fragment key={i}>
                 <line
-                  x1={i * (MAP_PIXEL_WIDTH / 100)}
+                  x1={i * (MAP_PIXEL_WIDTH / 400)}
                   y1={0}
-                  x2={i * (MAP_PIXEL_WIDTH / 100)}
+                  x2={i * (MAP_PIXEL_WIDTH / 400)}
                   y2={MAP_PIXEL_HEIGHT}
                   stroke="#c9a227"
-                  strokeWidth={5}
+                  strokeWidth={i % 2 === 0 ? 3 : 1}
                 />
                 <line
                   x1={0}
-                  y1={i * (MAP_PIXEL_HEIGHT / 100)}
+                  y1={i * (MAP_PIXEL_HEIGHT / 400)}
                   x2={MAP_PIXEL_WIDTH}
-                  y2={i * (MAP_PIXEL_HEIGHT / 100)}
+                  y2={i * (MAP_PIXEL_HEIGHT / 400)}
                   stroke="#c9a227"
-                  strokeWidth={5}
+                  strokeWidth={i % 2 === 0 ? 3 : 1}
                 />
               </React.Fragment>
             ))}
@@ -363,13 +608,15 @@ const TerrainEditor = () => {
       <div className="p-3 bg-black/40 border-t border-[hsl(var(--gold))]/20">
         <div className="text-center text-sm text-muted-foreground">
           <p>
-            {mode === 'terrain' 
-              ? 'Mapa de Dificultad del Terreno - Muestra la dificultad de movimiento por cada zona'
-              : 'Mapa de Tipos de Tierra - Muestra la clasificación de cada región (afecta a PX y eventos)'
+            {paintMode 
+              ? `Modo Pincel: ${selectedBrush ? getColorConfig()[selectedBrush]?.name : 'Selecciona un color'} | Tamaño: ${brushSize} celdas`
+              : mode === 'terrain' 
+                ? 'Mapa de Dificultad del Terreno - Activa el pincel para pintar'
+                : 'Mapa de Tipos de Tierra - Activa el pincel para pintar'
             }
           </p>
           <p className="text-xs mt-1">
-            Escala: 1 celda de la cuadrícula ≈ 10 km | Regiones: {regions.length} | Zoom: rueda del ratón
+            Escala: 1 celda ≈ 5 km | Celdas pintadas: {paintedCells.length} | Zoom máx: 2000%
           </p>
         </div>
       </div>

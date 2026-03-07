@@ -22,6 +22,7 @@ import {
   Printer, FileText, BookOpen, Package
 } from 'lucide-react';
 import { toast } from 'sonner';
+import html2canvas from 'html2canvas';
 import api from '@/services/api';
 
 // Map URLs and coordinate system
@@ -194,7 +195,7 @@ const createSmoothPath = (points) => {
   return path;
 };
 
-const JourneyMiniMap = ({ origenCoords, destinoCoords, origenNombre, destinoNombre, pathPoints, isDirectLine, expanded = false, onToggleExpand }) => {
+const JourneyMiniMap = ({ origenCoords, destinoCoords, origenNombre, destinoNombre, pathPoints, isDirectLine, expanded = false, onToggleExpand, events = [] }) => {
   const [imageLoaded, setImageLoaded] = useState(false);
   const svgRef = useRef(null);
   
@@ -434,11 +435,34 @@ const JourneyMiniMap = ({ origenCoords, destinoCoords, origenNombre, destinoNomb
               >
                 {destinoNombre}
               </text>
+              
+              {/* Event markers along the path */}
+              {events && events.length > 0 && events.map((event, idx) => {
+                // Calculate position along the path based on event position
+                const totalCasillas = pathInPixelCoords.length - 1;
+                const eventProgress = Math.min(1, (event.casilla || idx + 1) / (totalCasillas + 1));
+                const pathIndex = Math.floor(eventProgress * (pathInPixelCoords.length - 1));
+                const point = pathInPixelCoords[Math.min(pathIndex, pathInPixelCoords.length - 1)];
+                if (!point) return null;
+                
+                const eventMarkerRadius = markerRadius * 0.6;
+                return (
+                  <circle
+                    key={`event-${idx}`}
+                    cx={point.x}
+                    cy={point.y}
+                    r={eventMarkerRadius}
+                    fill={event.exito ? 'rgba(144, 238, 144, 0.9)' : 'rgba(255, 182, 193, 0.9)'}
+                    stroke={event.exito ? '#228B22' : '#8B0000'}
+                    strokeWidth={lineWidth * 0.4}
+                  />
+                );
+              })}
             </svg>
           )}
           
           {/* Legend - parchment style */}
-          <div className="absolute bottom-2 left-2 bg-amber-50/90 border border-amber-900/30 rounded px-2 py-1 text-xs flex gap-3">
+          <div className="absolute bottom-2 left-2 bg-amber-50/90 border border-amber-900/30 rounded px-2 py-1 text-xs flex flex-wrap gap-3">
             <span className="flex items-center gap-1 text-green-900">
               <span className="w-2 h-2 rounded-full border border-green-800 bg-transparent"></span>
               Origen
@@ -449,6 +473,18 @@ const JourneyMiniMap = ({ origenCoords, destinoCoords, origenNombre, destinoNomb
               </span>
               Destino
             </span>
+            {events && events.length > 0 && (
+              <>
+                <span className="flex items-center gap-1 text-green-700">
+                  <span className="w-2 h-2 rounded-full bg-green-200 border border-green-600"></span>
+                  Éxito
+                </span>
+                <span className="flex items-center gap-1 text-red-700">
+                  <span className="w-2 h-2 rounded-full bg-red-200 border border-red-600"></span>
+                  Fracaso
+                </span>
+              </>
+            )}
           </div>
         </div>
       </CardContent>
@@ -527,6 +563,9 @@ const EnhancedTravelSystem = () => {
   // Journey narrative state
   const [journeyNarrative, setJourneyNarrative] = useState(null);
   const [generatingNarrative, setGeneratingNarrative] = useState(false);
+  
+  // Ref for the map container to capture for PDF
+  const mapContainerRef = useRef(null);
   
   // Orientation check state (new system)
   const [orientationChecks, setOrientationChecks] = useState([]); // All orientation checks
@@ -781,12 +820,17 @@ const EnhancedTravelSystem = () => {
   }, []);
   
   // After resolving an event, continue with next orientation check
-  const continueAfterEvent = async () => {
+  const continueAfterEvent = async (updatedEvents = null) => {
     // Update current position to event position
     setCurrentPosition(nextEventPosition);
     setStageDays(prev => prev + 1);
     
-    const casillasRestantes = journeyCalc.ruta.casillas - nextEventPosition;
+    // Use passed events or fall back to state (for direct calls)
+    const currentEvents = updatedEvents || events;
+    
+    // Safety check for journeyCalc
+    const totalCasillas = journeyCalc?.ruta?.casillas || 0;
+    const casillasRestantes = totalCasillas - nextEventPosition;
     
     // Check for nearby refuges
     const refuges = checkForNearbyRefuge(nextEventPosition);
@@ -811,7 +855,7 @@ const EnhancedTravelSystem = () => {
         completado: true
       }]);
       
-      await calculateFatigueResults(events);
+      await calculateFatigueResults(currentEvents);
       setMode('results');
     } else if (shouldEndStage && refuges.length > 0) {
       // Refuge available - offer to rest
@@ -1075,8 +1119,9 @@ const EnhancedTravelSystem = () => {
       // No longer looking for "next unresolved" since events are generated one by one
       setCurrentEvent(null);
       
-      // Continue with next orientation check
-      await continueAfterEvent();
+      // Continue with next orientation check - pass updated events explicitly
+      // because React state may not be updated yet due to batching
+      await continueAfterEvent(updatedEvents);
       
     } catch (err) {
       console.error('Error resolving event:', err);
@@ -1474,109 +1519,48 @@ const EnhancedTravelSystem = () => {
       exportDebugJson();
       return;
     }
-    // Generate the SVG map for the PDF
-    const generateMapSVG = () => {
-      if (!journeyCalc?.ruta?.path || !config.origenId || !config.destinoId) {
-        return '';
+    
+    // Capture the map using html2canvas
+    const captureMapImage = async () => {
+      if (!mapContainerRef.current) return null;
+      try {
+        const canvas = await html2canvas(mapContainerRef.current, {
+          backgroundColor: '#f4efe6',
+          scale: 2, // Higher quality
+          logging: false,
+          useCORS: true,
+          allowTaint: true
+        });
+        return canvas.toDataURL('image/png');
+      } catch (err) {
+        console.error('Error capturing map:', err);
+        return null;
       }
-      
-      const origenLoc = locations.find(l => l.id === config.origenId);
-      const destinoLoc = locations.find(l => l.id === config.destinoId);
-      
-      if (!origenLoc || !destinoLoc) return '';
-      
-      // Convert percentage coords to pixels
-      const percentToPixels = (xPercent, yPercent) => ({
-        x: (xPercent / 100) * MAP_PIXEL_WIDTH,
-        y: MAP_PIXEL_HEIGHT - (yPercent / 100) * MAP_PIXEL_HEIGHT
-      });
-      
-      const origen = percentToPixels(origenLoc.x, origenLoc.y);
-      const destino = percentToPixels(destinoLoc.x, destinoLoc.y);
-      
-      // Convert path points
-      let pathPoints = (journeyCalc.ruta.path || [])
-        .map(p => {
-          const px = Array.isArray(p) ? p[0] : (p?.x ?? null);
-          const py = Array.isArray(p) ? p[1] : (p?.y ?? null);
-          return px !== null && py !== null ? percentToPixels(px, py) : null;
-        })
-        .filter(p => p !== null);
-      
-      if (pathPoints.length < 2) {
-        pathPoints = [origen, destino];
-      }
-      
-      // Calculate viewBox
-      const allX = [origen.x, destino.x, ...pathPoints.map(p => p.x)];
-      const allY = [origen.y, destino.y, ...pathPoints.map(p => p.y)];
-      const padding = Math.max(MAP_PIXEL_WIDTH, MAP_PIXEL_HEIGHT) * 0.08;
-      const minX = Math.max(0, Math.min(...allX) - padding);
-      const minY = Math.max(0, Math.min(...allY) - padding);
-      const maxX = Math.min(MAP_PIXEL_WIDTH, Math.max(...allX) + padding);
-      const maxY = Math.min(MAP_PIXEL_HEIGHT, Math.max(...allY) + padding);
-      const width = maxX - minX;
-      const height = maxY - minY;
-      
-      // Create path line
-      const pathD = pathPoints.map((p, i) => (i === 0 ? 'M' : 'L') + ' ' + p.x + ' ' + p.y).join(' ');
-      
-      // Scale factors
-      const mapScale = Math.max(width, height);
-      const lineWidth = Math.max(30, mapScale * 0.002);
-      const markerRadius = Math.max(80, mapScale * 0.005);
-      const eventRadius = Math.max(60, mapScale * 0.004);
-      const fontSize = Math.max(150, mapScale * 0.01);
-      
-      // Calculate event positions along the path
-      const eventMarkers = events.map((e, idx) => {
-        const totalDays = journeyCalc?.estimaciones?.dias_estimados || events.length;
-        const progress = Math.min(1, (e.casilla || idx + 1) / totalDays);
-        const pathIndex = Math.floor(progress * (pathPoints.length - 1));
-        const point = pathPoints[pathIndex] || pathPoints[0];
-        return {
-          x: point.x,
-          y: point.y,
-          exito: e.exito
-        };
-      });
-      
-      const eventMarkersHTML = eventMarkers.map(ev => 
-        '<circle cx="' + ev.x + '" cy="' + ev.y + '" r="' + eventRadius + '" ' +
-        'fill="' + (ev.exito ? 'rgba(144, 238, 144, 0.8)' : 'rgba(255, 182, 193, 0.8)') + '" ' +
-        'stroke="' + (ev.exito ? '#228B22' : '#8B0000') + '" stroke-width="' + (lineWidth * 0.5) + '" />'
-      ).join('');
-      
-      // Use local map image for PDF - same as player map preview
-      const mapImageUrl = window.location.origin + '/mapa_jugadores.jpg';
-      
-      return '<div style="margin: 20px 0; border: 2px solid #d4c4a8; border-radius: 8px; overflow: hidden;">' +
-        '<svg viewBox="' + minX + ' ' + minY + ' ' + width + ' ' + height + '" style="width: 100%; height: 350px; background: #f4efe6;" preserveAspectRatio="xMidYMid meet">' +
-        '<image href="' + mapImageUrl + '" x="0" y="0" width="' + MAP_PIXEL_WIDTH + '" height="' + MAP_PIXEL_HEIGHT + '" preserveAspectRatio="xMidYMid slice" />' +
-        '<path d="' + pathD + '" fill="none" stroke="#5c3d2e" stroke-width="' + lineWidth + '" stroke-linecap="round" stroke-linejoin="round" opacity="0.8" />' +
-        eventMarkersHTML +
-        '<circle cx="' + origen.x + '" cy="' + origen.y + '" r="' + markerRadius + '" fill="none" stroke="#2d5a27" stroke-width="' + (lineWidth * 0.6) + '" />' +
-        '<circle cx="' + origen.x + '" cy="' + origen.y + '" r="' + (markerRadius * 0.35) + '" fill="#2d5a27" />' +
-        '<text x="' + origen.x + '" y="' + (origen.y - markerRadius * 1.8) + '" text-anchor="middle" fill="#2d3a1d" font-size="' + fontSize + '" font-style="italic" font-family="Georgia, serif">' + config.origenNombre + '</text>' +
-        '<line x1="' + (destino.x - markerRadius * 0.5) + '" y1="' + (destino.y - markerRadius * 0.5) + '" x2="' + (destino.x + markerRadius * 0.5) + '" y2="' + (destino.y + markerRadius * 0.5) + '" stroke="#8B2500" stroke-width="' + (lineWidth * 0.6) + '" />' +
-        '<line x1="' + (destino.x + markerRadius * 0.5) + '" y1="' + (destino.y - markerRadius * 0.5) + '" x2="' + (destino.x - markerRadius * 0.5) + '" y2="' + (destino.y + markerRadius * 0.5) + '" stroke="#8B2500" stroke-width="' + (lineWidth * 0.6) + '" />' +
-        '<circle cx="' + destino.x + '" cy="' + destino.y + '" r="' + markerRadius + '" fill="none" stroke="#8B2500" stroke-width="' + (lineWidth * 0.6) + '" />' +
-        '<text x="' + destino.x + '" y="' + (destino.y + markerRadius * 2.2) + '" text-anchor="middle" fill="#4a1c1c" font-size="' + fontSize + '" font-style="italic" font-family="Georgia, serif">' + config.destinoNombre + '</text>' +
-        '</svg>' +
-        '<div style="display: flex; justify-content: center; gap: 20px; padding: 8px; background: rgba(139, 69, 19, 0.05); border-top: 1px solid #d4c4a8; font-size: 10pt;">' +
-        '<span><span style="display: inline-block; width: 10px; height: 10px; border-radius: 50%; border: 2px solid #2d5a27; margin-right: 5px;"></span> Origen</span>' +
-        '<span><span style="display: inline-block; width: 10px; height: 10px; border-radius: 50%; border: 2px solid #8B2500; margin-right: 5px;"></span> Destino</span>' +
-        (events.length > 0 ? '<span><span style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: rgba(144, 238, 144, 0.8); border: 1px solid #228B22; margin-right: 5px;"></span> Éxito</span>' +
-        '<span><span style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: rgba(255, 182, 193, 0.8); border: 1px solid #8B0000; margin-right: 5px;"></span> Fracaso</span>' : '') +
-        '</div>' +
-        '</div>';
     };
     
-    const mapSVG = generateMapSVG();
+    // Generate map image placeholder HTML (will be replaced with actual capture)
+    const generateMapPlaceholder = (mapDataUrl) => {
+      if (!mapDataUrl) {
+        return '<p style="text-align: center; color: #888; padding: 40px;">Mapa no disponible</p>';
+      }
+      return `<div style="margin: 20px 0; border: 2px solid #d4c4a8; border-radius: 8px; overflow: hidden;">
+        <img src="${mapDataUrl}" style="width: 100%; max-height: 400px; object-fit: contain; display: block;" />
+        <div style="display: flex; justify-content: center; gap: 20px; padding: 8px; background: rgba(139, 69, 19, 0.05); border-top: 1px solid #d4c4a8; font-size: 10pt;">
+          <span><span style="display: inline-block; width: 10px; height: 10px; border-radius: 50%; border: 2px solid #2d5a27; margin-right: 5px;"></span> Origen</span>
+          <span><span style="display: inline-block; width: 10px; height: 10px; border-radius: 50%; border: 2px solid #8B2500; margin-right: 5px;"></span> Destino</span>
+          ${events.length > 0 ? `<span><span style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: rgba(144, 238, 144, 0.8); border: 1px solid #228B22; margin-right: 5px;"></span> Éxito</span>
+          <span><span style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: rgba(255, 182, 193, 0.8); border: 1px solid #8B0000; margin-right: 5px;"></span> Fracaso</span>` : ''}
+        </div>
+      </div>`;
+    };
     
-    // Create a print-ready document with Tolkien styling
-    const printContent = `
-      <!DOCTYPE html>
+    // Generate the print content
+    const generatePrintContent = async () => {
+      toast.info('Generando crónica del viaje...');
+      const mapDataUrl = await captureMapImage();
+      const mapHTML = generateMapPlaceholder(mapDataUrl);
+      
+      return `<!DOCTYPE html>
       <html>
       <head>
         <title>Crónica del Viaje - ${config.origenNombre} a ${config.destinoNombre}</title>
@@ -1668,7 +1652,7 @@ const EnhancedTravelSystem = () => {
           De <strong>${config.origenNombre}</strong> a <strong>${config.destinoNombre}</strong>
         </p>
         
-        ${mapSVG}
+        ${mapHTML}
         
         <div class="stats">
           <div class="stat">
@@ -1772,14 +1756,24 @@ const EnhancedTravelSystem = () => {
           <p>${new Date().toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
         </div>
       </body>
-      </html>
-    `;
+      </html>`;
+    };
     
-    const printWindow = window.open('', '_blank');
-    printWindow.document.write(printContent);
-    printWindow.document.close();
-    printWindow.focus();
-    setTimeout(() => printWindow.print(), 500);
+    // Execute the async function
+    generatePrintContent().then(printContent => {
+      const printWindow = window.open('', '_blank');
+      if (printWindow) {
+        printWindow.document.write(printContent);
+        printWindow.document.close();
+        printWindow.focus();
+        setTimeout(() => printWindow.print(), 500);
+      } else {
+        toast.error('No se pudo abrir la ventana de impresión. Verifica que los pop-ups no estén bloqueados.');
+      }
+    }).catch(err => {
+      console.error('Error generating print content:', err);
+      toast.error('Error al generar la crónica');
+    });
   };
   
   // =============== APPLY PX TO CHARACTERS ===============
@@ -3490,6 +3484,19 @@ const EnhancedTravelSystem = () => {
     
     return (
       <div className="space-y-6">
+        {/* Journey Map for PDF capture */}
+        <div ref={mapContainerRef}>
+          <JourneyMiniMap
+            origenCoords={journeyCalc?.ruta?.origen_coords}
+            destinoCoords={journeyCalc?.ruta?.destino_coords}
+            origenNombre={config.origenNombre}
+            destinoNombre={config.destinoNombre}
+            pathPoints={journeyCalc?.ruta?.path}
+            isDirectLine={!journeyCalc?.ruta?.path || journeyCalc.ruta.path.length < 3}
+            events={events}
+          />
+        </div>
+        
         {/* Journey Summary */}
         <Card className="card-parchment">
           <CardHeader>

@@ -93,7 +93,7 @@ const PathDebugger = () => {
   const handleWheel = useCallback((e) => {
     e.preventDefault();
     const zoomFactor = e.deltaY > 0 ? 0.9 : 1.1;
-    setZoom(z => Math.min(2, Math.max(0.02, z * zoomFactor)));
+    setZoom(z => Math.min(20, Math.max(0.02, z * zoomFactor)));
   }, []);
 
   // Convert screen to map coordinates
