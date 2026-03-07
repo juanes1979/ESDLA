@@ -834,7 +834,7 @@ const MiddleEarthMap = () => {
     
     // Calculate zoom direction and new zoom level
     const zoomFactor = e.deltaY > 0 ? 0.9 : 1.1; // 10% zoom in/out
-    const newZoom = Math.min(10, Math.max(0.05, zoom * zoomFactor));
+    const newZoom = Math.min(20, Math.max(0.05, zoom * zoomFactor));
     
     // Get mouse position relative to container
     const container = containerRef.current;
@@ -1888,7 +1888,7 @@ const MiddleEarthMap = () => {
               onChange={(e) => {
                 const val = e.target.value.replace('%', '').trim();
                 const num = parseInt(val, 10);
-                if (!isNaN(num) && num >= 1 && num <= 1000) {
+                if (!isNaN(num) && num >= 1 && num <= 2000) {
                   setZoom(num / 100);
                 }
               }}
@@ -1897,8 +1897,8 @@ const MiddleEarthMap = () => {
                 const num = parseInt(val, 10);
                 if (isNaN(num) || num < 1) {
                   setZoom(0.01);
-                } else if (num > 1000) {
-                  setZoom(10);
+                } else if (num > 2000) {
+                  setZoom(20);
                 }
               }}
               className="w-16 text-center text-sm bg-background border border-input rounded px-1 py-1"
@@ -1906,7 +1906,7 @@ const MiddleEarthMap = () => {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => setZoom(z => Math.min(10, z * 1.25))}
+              onClick={() => setZoom(z => Math.min(20, z * 1.25))}
             >
               <ZoomIn className="w-4 h-4" />
             </Button>
