@@ -120,7 +120,7 @@ const MiddleEarthMap = () => {
   const [loading, setLoading] = useState(true);
   
   // View state
-  const [zoom, setZoom] = useState(0.05); // Initial zoom to fit large map
+  const [zoom, setZoom] = useState(1); // Initial zoom at 100%
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
@@ -1913,7 +1913,7 @@ const MiddleEarthMap = () => {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => { setZoom(0.05); setPan({ x: 0, y: 0 }); }}
+              onClick={() => { setZoom(1); setPan({ x: 0, y: 0 }); }}
               title="Restablecer vista"
             >
               <Move className="w-4 h-4" />
