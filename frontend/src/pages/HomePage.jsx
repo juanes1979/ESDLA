@@ -242,7 +242,7 @@ const HomePage = () => {
       </div>
       
       {/* Developer/Debug Links */}
-      <div className="absolute bottom-4 right-4 z-10 flex gap-4">
+      <div className="absolute bottom-4 left-4 z-10 flex gap-4">
         <button
           onClick={() => navigate('/terrain-editor')}
           className="text-xs text-gray-600 hover:text-amber-400 transition-colors"
