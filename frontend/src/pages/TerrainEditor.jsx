@@ -42,7 +42,7 @@ const TerrainEditor = () => {
   const navigate = useNavigate();
   const containerRef = useRef(null);
   const [mode, setMode] = useState('terrain'); // 'terrain' or 'landType'
-  const [zoom, setZoom] = useState(0.05);
+  const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
   const [lastMousePos, setLastMousePos] = useState({ x: 0, y: 0 });

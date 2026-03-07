@@ -25,7 +25,7 @@ const KM_TO_COORD = 0.5; // 1 coordinate unit ≈ 2km
 const PathDebugger = () => {
   const navigate = useNavigate();
   const containerRef = useRef(null);
-  const [zoom, setZoom] = useState(0.08);
+  const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
   const [lastMousePos, setLastMousePos] = useState({ x: 0, y: 0 });
