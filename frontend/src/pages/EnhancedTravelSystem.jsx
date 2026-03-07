@@ -19,7 +19,7 @@ import {
   Sun, Moon, Snowflake, Leaf, ArrowLeft, ArrowRight, Plus, MapPin, 
   Route, AlertTriangle, Shield, Footprints, Dice6, Check, X,
   ChevronRight, SkipForward, Flag, Zap, Heart, Eye, Sparkles, Maximize2,
-  Printer, FileText, BookOpen
+  Printer, FileText, BookOpen, Package
 } from 'lucide-react';
 import { toast } from 'sonner';
 import api from '@/services/api';
@@ -535,6 +535,14 @@ const EnhancedTravelSystem = () => {
   const [awaitingOrientationCheck, setAwaitingOrientationCheck] = useState(false);
   const [lastOrientationResult, setLastOrientationResult] = useState(null);
   
+  // Journey Stages system (new)
+  const [journeyStages, setJourneyStages] = useState([]); // Completed stages
+  const [currentStage, setCurrentStage] = useState(1); // Current stage number
+  const [stageDays, setStageDays] = useState(0); // Days in current stage
+  const [stageEvents, setStageEvents] = useState([]); // Events in current stage
+  const [stageFatigueDC, setStageFatigueDC] = useState(10); // Fatigue DC for current stage
+  const [nearbyRefuges, setNearbyRefuges] = useState([]); // Refuges near current position
+  
   // =============== LOAD DATA ===============
   
   useEffect(() => {
@@ -755,24 +763,142 @@ const EnhancedTravelSystem = () => {
     }
   };
   
+  // Check if there's a refuge nearby
+  const checkForNearbyRefuge = useCallback((positionInTiles) => {
+    // Refugios conocidos con sus posiciones aproximadas en casillas
+    const refugios = [
+      { nombre: 'Bree', casilla: 5, region: 'Eriador' },
+      { nombre: 'Rivendel', casilla: 15, region: 'Eriador' },
+      { nombre: 'Lothlórien', casilla: 30, region: 'Rhovanion' },
+      { nombre: 'Valle', casilla: 45, region: 'Rhovanion' },
+      { nombre: 'Erebor', casilla: 48, region: 'Rhovanion' },
+      { nombre: 'Edoras', casilla: 35, region: 'Rohan' },
+      { nombre: 'Minas Tirith', casilla: 50, region: 'Gondor' },
+    ];
+    
+    // Find refuges within 2 tiles of current position
+    return refugios.filter(r => Math.abs(r.casilla - positionInTiles) <= 2);
+  }, []);
+  
   // After resolving an event, continue with next orientation check
   const continueAfterEvent = async () => {
     // Update current position to event position
     setCurrentPosition(nextEventPosition);
+    setStageDays(prev => prev + 1);
     
     const casillasRestantes = journeyCalc.ruta.casillas - nextEventPosition;
     
+    // Check for nearby refuges
+    const refuges = checkForNearbyRefuge(nextEventPosition);
+    setNearbyRefuges(refuges);
+    
+    // Check if we should end the current stage
+    const shouldEndStage = 
+      stageDays >= 7 || // 7+ days in this stage
+      refuges.length > 0 || // Refuge nearby
+      casillasRestantes <= 0; // Journey complete
+    
     if (casillasRestantes <= 0) {
-      // Journey complete
+      // Journey complete - final fatigue check for this stage
       toast.success('¡La compañía ha llegado a su destino!');
+      
+      // Save current stage
+      setJourneyStages(prev => [...prev, {
+        numero: currentStage,
+        dias: stageDays,
+        eventos: [...stageEvents],
+        fatigueDC: stageFatigueDC,
+        completado: true
+      }]);
+      
       await calculateFatigueResults(events);
       setMode('results');
-    } else {
-      // Need another orientation check
+    } else if (shouldEndStage && refuges.length > 0) {
+      // Refuge available - offer to rest
+      toast.info(`¡Refugio cercano: ${refuges.map(r => r.nombre).join(', ')}! Puedes descansar aquí.`, {
+        duration: 5000,
+        action: {
+          label: 'Descansar',
+          onClick: () => handleRestAtRefuge(refuges[0])
+        }
+      });
+      
+      // Still continue with orientation check, but show refuge option
       setAwaitingOrientationCheck(true);
       setCurrentEvent(null);
-      toast.info(`Quedan ${casillasRestantes} casillas. El Guía debe realizar otra tirada de Orientación.`);
+    } else if (stageDays >= 10) {
+      // Force stage end after 10 days - fatigue check required
+      toast.warning('Han pasado 10 días. Es necesario realizar la tirada de Fatiga de esta etapa.');
+      await handleEndStage();
+    } else {
+      // Continue journey
+      setAwaitingOrientationCheck(true);
+      setCurrentEvent(null);
+      toast.info(`Quedan ${casillasRestantes} casillas (día ${stageDays} de la etapa ${currentStage}).`);
     }
+  };
+  
+  // Handle resting at a refuge
+  const handleRestAtRefuge = async (refuge) => {
+    // Calculate fatigue for current stage
+    await calculateStageFatigue();
+    
+    // Save completed stage
+    setJourneyStages(prev => [...prev, {
+      numero: currentStage,
+      dias: stageDays,
+      eventos: [...stageEvents],
+      fatigueDC: stageFatigueDC,
+      refugio: refuge.nombre,
+      completado: true
+    }]);
+    
+    // Reset for new stage
+    setCurrentStage(prev => prev + 1);
+    setStageDays(0);
+    setStageEvents([]);
+    setStageFatigueDC(10);
+    
+    toast.success(`Descanso en ${refuge.nombre}. La fatiga acumulada se reinicia. Nueva etapa comenzada.`);
+    setAwaitingOrientationCheck(true);
+  };
+  
+  // Handle ending a stage (for fatigue calculation)
+  const handleEndStage = async () => {
+    await calculateStageFatigue();
+    
+    setJourneyStages(prev => [...prev, {
+      numero: currentStage,
+      dias: stageDays,
+      eventos: [...stageEvents],
+      fatigueDC: stageFatigueDC,
+      completado: true
+    }]);
+    
+    // Start new stage
+    setCurrentStage(prev => prev + 1);
+    setStageDays(0);
+    setStageEvents([]);
+    setStageFatigueDC(10);
+    
+    setAwaitingOrientationCheck(true);
+  };
+  
+  // Calculate fatigue for current stage only
+  const calculateStageFatigue = async () => {
+    // Calculate CD based on stage events
+    let cd = 10 + stageDays; // Base + days
+    stageEvents.forEach(e => {
+      if (!e.exito) cd += 2; // Failed events add to fatigue
+    });
+    
+    // Apply marcha forzada if used
+    if (config.horasMarchaForzada > 0) {
+      cd += config.horasMarchaForzada * 2;
+    }
+    
+    setStageFatigueDC(cd);
+    // Note: Actual fatigue rolls happen in calculateFatigueResults
   };
   
   const startDayByDayJourney = async () => {
@@ -3555,11 +3681,119 @@ const EnhancedTravelSystem = () => {
                         {' = '}<span className="font-bold">{result.tirada?.total}</span>
                         {' vs CD '}<span className="text-red-400 font-bold">{result.cd}</span>
                       </p>
+                      {/* Show exhaustion effect for this character */}
+                      {result.niveles_cansancio > 0 && (
+                        <div className="mt-2 p-2 bg-black/30 rounded text-xs">
+                          <p className="font-bold text-yellow-400 mb-1">Efectos del cansancio:</p>
+                          {result.niveles_cansancio >= 1 && <p>• Nivel 1: Desventaja en pruebas de característica</p>}
+                          {result.niveles_cansancio >= 2 && <p>• Nivel 2: Velocidad reducida a la mitad</p>}
+                          {result.niveles_cansancio >= 3 && <p>• Nivel 3: Desventaja en ataques y salvaciones</p>}
+                          {result.niveles_cansancio >= 4 && <p>• Nivel 4: PG máximos reducidos a la mitad</p>}
+                          {result.niveles_cansancio >= 5 && <p className="text-red-400">• Nivel 5: Velocidad reducida a 0</p>}
+                          {result.niveles_cansancio >= 6 && <p className="text-red-600 font-bold">• Nivel 6: MUERTE</p>}
+                        </div>
+                      )}
                     </div>
                   </Card>
                 ))}
               </div>
             </ScrollArea>
+            
+            {/* Exhaustion Reference Table */}
+            <div className="mt-4 p-3 bg-black/20 rounded">
+              <p className="font-bold text-sm mb-2 text-[hsl(var(--gold))]">Referencia: Niveles de Cansancio</p>
+              <div className="grid grid-cols-2 gap-1 text-xs">
+                <div className="flex justify-between p-1 bg-yellow-900/30 rounded">
+                  <span>Nivel 1</span>
+                  <span className="text-muted-foreground">Desventaja en pruebas</span>
+                </div>
+                <div className="flex justify-between p-1 bg-yellow-900/40 rounded">
+                  <span>Nivel 2</span>
+                  <span className="text-muted-foreground">Velocidad ½</span>
+                </div>
+                <div className="flex justify-between p-1 bg-orange-900/40 rounded">
+                  <span>Nivel 3</span>
+                  <span className="text-muted-foreground">Desv. ataques/salv.</span>
+                </div>
+                <div className="flex justify-between p-1 bg-orange-900/50 rounded">
+                  <span>Nivel 4</span>
+                  <span className="text-muted-foreground">PG máx. ½</span>
+                </div>
+                <div className="flex justify-between p-1 bg-red-900/50 rounded">
+                  <span>Nivel 5</span>
+                  <span className="text-muted-foreground">Velocidad 0</span>
+                </div>
+                <div className="flex justify-between p-1 bg-red-900/70 rounded">
+                  <span>Nivel 6</span>
+                  <span className="text-red-400 font-bold">Muerte</span>
+                </div>
+              </div>
+              <div className="mt-2 text-xs text-muted-foreground">
+                <p><strong>Recuperación:</strong> Un descanso largo reduce 1 nivel (si come y bebe).</p>
+                <p><strong>Acumulación:</strong> Los efectos son acumulativos.</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        
+        {/* Food and Water Consumption */}
+        <Card className="card-parchment">
+          <CardHeader>
+            <CardTitle className="text-lg text-blue-400">
+              <Package className="w-5 h-5 inline mr-2" />
+              Provisiones Consumidas
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {(() => {
+              const numPersonajes = config.miembros.filter(m => m.papeles?.length > 0).length || 1;
+              const diasViaje = diasFinales || 1;
+              const comidaTotal = numPersonajes * diasViaje * 0.5; // 500g = 0.5kg per day
+              const aguaTotal = numPersonajes * diasViaje * 4; // 4L per day
+              
+              return (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="bg-amber-900/20 p-4 rounded border border-amber-500/30">
+                      <div className="flex items-center gap-2 mb-2">
+                        <span className="text-2xl">🍞</span>
+                        <span className="font-bold text-amber-400">Comida</span>
+                      </div>
+                      <p className="text-2xl font-bold">{comidaTotal.toFixed(1)} kg</p>
+                      <p className="text-xs text-muted-foreground">
+                        {numPersonajes} personas × {diasViaje} días × 0.5 kg/día
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        (500g por persona y día)
+                      </p>
+                    </div>
+                    <div className="bg-blue-900/20 p-4 rounded border border-blue-500/30">
+                      <div className="flex items-center gap-2 mb-2">
+                        <span className="text-2xl">💧</span>
+                        <span className="font-bold text-blue-400">Agua</span>
+                      </div>
+                      <p className="text-2xl font-bold">{aguaTotal} L</p>
+                      <p className="text-xs text-muted-foreground">
+                        {numPersonajes} personas × {diasViaje} días × 4 L/día
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        (8L en calor intenso)
+                      </p>
+                    </div>
+                  </div>
+                  
+                  <div className="p-3 bg-black/30 rounded text-xs">
+                    <p className="font-bold text-[hsl(var(--gold))] mb-2">Reglas de Supervivencia:</p>
+                    <div className="space-y-1 text-muted-foreground">
+                      <p><strong>Sin comida:</strong> Aguanta 3 + mod. CON días. Después, +1 nivel de cansancio/día.</p>
+                      <p><strong>Media ración (250g):</strong> Cuenta como medio día sin comer.</p>
+                      <p><strong>Mitad de agua:</strong> Prueba CON CD 15 o +1 cansancio.</p>
+                      <p><strong>Sin agua:</strong> +1 cansancio automático (+2 si ya está cansado).</p>
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
           </CardContent>
         </Card>
         

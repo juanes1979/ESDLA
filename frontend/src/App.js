@@ -17,6 +17,8 @@ import MapSelectionPage from "@/pages/MapSelectionPage";
 import PlayerMap from "@/pages/PlayerMap";
 import FontDemo from "@/pages/FontDemo";
 import StoragePage from "@/pages/StoragePage";
+import TerrainEditor from "@/pages/TerrainEditor";
+import PathDebugger from "@/pages/PathDebugger";
 import { CharacterCreatorWizard } from "@/components/character-creator";
 
 function App() {
@@ -39,6 +41,8 @@ function App() {
             <Route path="/map/player" element={<PlayerMap />} />
             <Route path="/font-demo" element={<FontDemo />} />
             <Route path="/storage" element={<StoragePage />} />
+            <Route path="/terrain-editor" element={<TerrainEditor />} />
+            <Route path="/path-debugger" element={<PathDebugger />} />
           </Routes>
         </BrowserRouter>
         <Toaster />
