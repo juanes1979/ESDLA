@@ -681,25 +681,25 @@ const TerrainEditor = () => {
             transformOrigin: 'top left',
           }}
         >
-          {/* 1. Map background image FIRST - mapa de jugadores como base */}
+          {/* 1. Map background image - MAPA DEL MAESTRO */}
           <image
-            href="/mapa_jugadores.jpg"
+            href="https://customer-assets.emergentagent.com/job_c7e3a7c3-5d85-46bd-b91f-9f0c34045f08/artifacts/8bm4010y_Tierra%20Media.jpg"
             x={0}
             y={0}
             width={MAP_PIXEL_WIDTH}
             height={MAP_PIXEL_HEIGHT}
             preserveAspectRatio="none"
-            opacity={0.5}
+            opacity={0.7}
           />
           
-          {/* 2. Semi-transparent overlay to soften the map and hide location markers */}
+          {/* 2. Semi-transparent overlay to soften the map slightly */}
           <rect
             x={0}
             y={0}
             width={MAP_PIXEL_WIDTH}
             height={MAP_PIXEL_HEIGHT}
-            fill="#2a2015"
-            fillOpacity={0.5}
+            fill="#1a1510"
+            fillOpacity={0.25}
           />
           
           {/* 3. Grid overlay */}
