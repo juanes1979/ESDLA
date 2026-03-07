@@ -517,6 +517,64 @@ async def get_travel_rules() -> dict:
         await db.travel_rules.insert_one(rules)
     return rules
 
+async def get_terrain_at_coordinate(x: float, y: float) -> Optional[dict]:
+    """
+    Get terrain difficulty at a specific coordinate from painted terrain zones.
+    x, y are in percentage coordinates (0-100).
+    Returns terrain type if found, None otherwise.
+    """
+    # Load terrain zones from database
+    terrain_doc = await db.terrain_zones.find_one({"_id": "terrain_data"})
+    if not terrain_doc or not terrain_doc.get("zones"):
+        return None
+    
+    zones = terrain_doc["zones"]
+    cell_size = 1.0  # Each cell is 1% of map
+    
+    # Find the cell that contains this coordinate
+    for zone in zones:
+        zone_x = zone.get("x", 0)
+        zone_y = zone.get("y", 0)
+        zone_size = zone.get("size", cell_size)
+        
+        if (zone_x <= x < zone_x + zone_size) and (zone_y <= y < zone_y + zone_size):
+            return {
+                "type": zone.get("type"),
+                "x": zone_x,
+                "y": zone_y
+            }
+    
+    return None
+
+async def get_land_type_at_coordinate(x: float, y: float) -> Optional[dict]:
+    """
+    Get land type at a specific coordinate from painted land type zones.
+    x, y are in percentage coordinates (0-100).
+    Returns land type if found, None otherwise.
+    """
+    # Load land type zones from database
+    land_doc = await db.land_type_zones.find_one({"_id": "land_type_data"})
+    if not land_doc or not land_doc.get("zones"):
+        return None
+    
+    zones = land_doc["zones"]
+    cell_size = 1.0  # Each cell is 1% of map
+    
+    # Find the cell that contains this coordinate
+    for zone in zones:
+        zone_x = zone.get("x", 0)
+        zone_y = zone.get("y", 0)
+        zone_size = zone.get("size", cell_size)
+        
+        if (zone_x <= x < zone_x + zone_size) and (zone_y <= y < zone_y + zone_size):
+            return {
+                "type": zone.get("type"),
+                "x": zone_x,
+                "y": zone_y
+            }
+    
+    return None
+
 # ============== CRUD ENDPOINTS FOR EDITABLE DATA ==============
 
 @router.get("/config/events")
@@ -588,6 +646,17 @@ async def get_land_types_config():
     """Get land types with PX values"""
     lands = await get_land_types()
     return {"land_types": lands}
+
+@router.get("/terrain-at/{x}/{y}")
+async def get_terrain_at_point(x: float, y: float):
+    """Get terrain and land type at a specific coordinate (for debugging)"""
+    terrain = await get_terrain_at_coordinate(x, y)
+    land_type = await get_land_type_at_coordinate(x, y)
+    return {
+        "coordinate": {"x": x, "y": y},
+        "terrain": terrain,
+        "land_type": land_type
+    }
 
 @router.put("/config/land-types/{land_id}")
 async def update_land_type(land_id: str, land: LandTypeConfig):

@@ -86,10 +86,13 @@ const TerrainEditor = () => {
           setRoads(roadsRes.data.roads || roadsRes.data || []);
         }
         
-        // Load terrain zones if they exist
+        // Load terrain zones if they exist - and set as painted cells
         const terrainRes = await api.get('/data/terrain-zones');
-        if (terrainRes.data?.zones) {
+        if (terrainRes.data?.zones && terrainRes.data.zones.length > 0) {
           setTerrainZones(terrainRes.data.zones);
+          // Also load as painted cells if we're in terrain mode
+          setPaintedCells(terrainRes.data.zones);
+          toast.success(`Cargadas ${terrainRes.data.zones.length} celdas de terreno`);
         }
         
         // Load land type zones if they exist
@@ -455,7 +458,16 @@ const TerrainEditor = () => {
           
           <div className="flex items-center gap-4">
             {/* Mode selector */}
-            <Tabs value={mode} onValueChange={setMode}>
+            <Tabs value={mode} onValueChange={(newMode) => {
+              setMode(newMode);
+              // Switch painted cells based on mode
+              if (newMode === 'terrain') {
+                setPaintedCells(terrainZones);
+              } else {
+                setPaintedCells(landTypeZones);
+              }
+              setSelectedBrush(null);
+            }}>
               <TabsList>
                 <TabsTrigger value="terrain">Dificultad</TabsTrigger>
                 <TabsTrigger value="landType">Tipo de Tierra</TabsTrigger>
@@ -669,7 +681,7 @@ const TerrainEditor = () => {
             transformOrigin: 'top left',
           }}
         >
-          {/* 1. Map background image FIRST */}
+          {/* 1. Map background image FIRST - mapa de jugadores como base */}
           <image
             href="/mapa_jugadores.jpg"
             x={0}
@@ -677,17 +689,17 @@ const TerrainEditor = () => {
             width={MAP_PIXEL_WIDTH}
             height={MAP_PIXEL_HEIGHT}
             preserveAspectRatio="none"
-            opacity={0.6}
+            opacity={0.5}
           />
           
-          {/* 2. Semi-transparent overlay to soften the map */}
+          {/* 2. Semi-transparent overlay to soften the map and hide location markers */}
           <rect
             x={0}
             y={0}
             width={MAP_PIXEL_WIDTH}
             height={MAP_PIXEL_HEIGHT}
-            fill="#1a1510"
-            fillOpacity={0.4}
+            fill="#2a2015"
+            fillOpacity={0.5}
           />
           
           {/* 3. Grid overlay */}
