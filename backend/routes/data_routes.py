@@ -4114,6 +4114,63 @@ async def clear_terrain_zones():
     await db.terrain_zones.delete_one({"_id": "terrain_data"})
     return {"message": "Terrain zones cleared"}
 
+# ============================================================
+# TERRAIN POLYGONS (More efficient than cells)
+# ============================================================
+
+class PolygonPoint(BaseModel):
+    x: float
+    y: float
+
+class TerrainPolygon(BaseModel):
+    id: Optional[str] = None
+    type: str
+    points: List[PolygonPoint]
+
+class TerrainPolygonsData(BaseModel):
+    mode: str  # 'terrain' or 'landType'
+    polygons: List[TerrainPolygon]
+
+@router.get("/terrain-polygons")
+async def get_terrain_polygons():
+    """Get all terrain polygons"""
+    doc = await db.terrain_polygons.find_one({"_id": "terrain_polygons_data"})
+    if not doc:
+        return {"polygons": []}
+    return {"polygons": doc.get("polygons", [])}
+
+@router.post("/terrain-polygons")
+async def save_terrain_polygons(data: TerrainPolygonsData):
+    """Save terrain polygons (overwrite)"""
+    polygons_data = []
+    for poly in data.polygons:
+        poly_dict = {
+            "id": poly.id or f"poly_{uuid.uuid4().hex[:8]}",
+            "type": poly.type,
+            "points": [{"x": p.x, "y": p.y} for p in poly.points]
+        }
+        polygons_data.append(poly_dict)
+    
+    await db.terrain_polygons.update_one(
+        {"_id": "terrain_polygons_data"},
+        {
+            "$set": {
+                "polygons": polygons_data,
+                "mode": data.mode,
+                "updated_at": now_utc()
+            }
+        },
+        upsert=True
+    )
+    
+    return {"message": f"Terrain polygons saved ({len(polygons_data)} polygons)", "count": len(polygons_data)}
+
+@router.delete("/terrain-polygons")
+async def clear_terrain_polygons():
+    """Clear all terrain polygons"""
+    await db.terrain_polygons.delete_one({"_id": "terrain_polygons_data"})
+    return {"message": "Terrain polygons cleared"}
+
 @router.get("/land-type-zones")
 async def get_land_type_zones():
     """Get all land type zones"""

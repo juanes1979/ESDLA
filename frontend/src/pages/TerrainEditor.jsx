@@ -90,20 +90,16 @@ const TerrainEditor = () => {
           setRoads(roadsRes.data.roads || roadsRes.data || []);
         }
         
-        // Load terrain zones if they exist - and set as painted cells
-        const terrainRes = await api.get('/data/terrain-zones');
-        if (terrainRes.data?.zones && terrainRes.data.zones.length > 0) {
-          setTerrainZones(terrainRes.data.zones);
-          // Also load as painted cells if we're in terrain mode
-          setPaintedCells(terrainRes.data.zones);
-          toast.success(`Cargadas ${terrainRes.data.zones.length} celdas de terreno`);
+        // Load terrain polygons (NOT cells - too slow)
+        const terrainRes = await api.get('/data/terrain-polygons');
+        if (terrainRes.data?.polygons && terrainRes.data.polygons.length > 0) {
+          setDrawnPolygons(terrainRes.data.polygons);
+          toast.success(`Cargados ${terrainRes.data.polygons.length} polígonos de terreno`);
         }
         
-        // Load land type zones if they exist
-        const landRes = await api.get('/data/land-type-zones');
-        if (landRes.data?.zones) {
-          setLandTypeZones(landRes.data.zones);
-        }
+        // Don't load individual cells - too many, too slow
+        // setPaintedCells is now only for temporary brush strokes
+        
       } catch (err) {
         console.log('Loading terrain data:', err);
       } finally {
@@ -289,20 +285,19 @@ const TerrainEditor = () => {
     }
   };
 
-  // Save terrain to database
+  // Save terrain to database (polygons)
   const saveTerrainToDatabase = async () => {
-    if (paintedCells.length === 0) {
-      toast.error('No hay celdas pintadas para guardar');
+    if (drawnPolygons.length === 0) {
+      toast.error('No hay polígonos para guardar');
       return;
     }
     
     try {
-      const endpoint = mode === 'terrain' ? '/data/terrain-zones' : '/data/land-type-zones';
-      const response = await api.post(endpoint, {
+      const response = await api.post('/data/terrain-polygons', {
         mode,
-        cells: paintedCells
+        polygons: drawnPolygons
       });
-      toast.success(`${response.data.count} celdas guardadas en la base de datos`);
+      toast.success(`${response.data.count} polígonos guardados en la base de datos`);
     } catch (err) {
       console.error('Error saving terrain:', err);
       toast.error('Error al guardar el terreno');
@@ -367,28 +362,29 @@ const TerrainEditor = () => {
     toast.info('Polígono eliminado');
   };
 
-  // Clear painted cells from UI - with confirmation
+  // Clear all local changes - with confirmation
   const clearPaintedCells = () => {
-    if (paintedCells.length === 0) {
-      toast.info('No hay celdas para borrar');
+    if (drawnPolygons.length === 0 && currentPolygon.length === 0) {
+      toast.info('No hay nada para borrar');
       return;
     }
-    if (window.confirm(`¿Estás seguro de que quieres borrar ${paintedCells.length} celdas locales?`)) {
+    if (window.confirm(`¿Estás seguro de que quieres borrar ${drawnPolygons.length} polígonos locales?`)) {
+      setDrawnPolygons([]);
+      setCurrentPolygon([]);
       setPaintedCells([]);
-      toast.info('Terreno limpiado (cambios locales)');
+      toast.info('Cambios locales eliminados');
     }
   };
 
   // Clear terrain from database - with confirmation
   const clearTerrainFromDatabase = async () => {
-    if (!window.confirm('¿Estás seguro de que quieres ELIMINAR TODO el terreno de la base de datos? Esta acción no se puede deshacer.')) {
+    if (!window.confirm('¿Estás seguro de que quieres ELIMINAR TODOS los polígonos de la base de datos? Esta acción no se puede deshacer.')) {
       return;
     }
     try {
-      const endpoint = mode === 'terrain' ? '/data/terrain-zones' : '/data/land-type-zones';
-      await api.delete(endpoint);
-      setPaintedCells([]);
-      toast.success('Terreno eliminado de la base de datos');
+      await api.delete('/data/terrain-polygons');
+      setDrawnPolygons([]);
+      toast.success('Polígonos eliminados de la base de datos');
     } catch (err) {
       console.error('Error clearing terrain:', err);
       toast.error('Error al eliminar el terreno');
@@ -414,8 +410,13 @@ const TerrainEditor = () => {
     });
   };
 
-  // Render painted cells - bright and visible
+  // Render painted cells - DISABLED for performance
+  // Use polygons instead
   const renderPaintedCells = () => {
+    // Don't render individual cells - too slow with many cells
+    // Only render if there are very few (for brush preview)
+    if (paintedCells.length > 100) return null;
+    
     const colors = getColorConfig();
     return paintedCells.map((cell, idx) => {
       const config = colors[cell.type];
@@ -780,40 +781,22 @@ const TerrainEditor = () => {
             ))}
           </div>
           
-          {/* Tools */}
+          {/* Tools - Polygon based */}
           <div className="flex items-center gap-2">
-            <Button
-              variant={paintMode ? "default" : "outline"}
-              size="sm"
-              onClick={() => {
-                setPaintMode(!paintMode);
-                setEraseMode(false);
-                setPolygonMode(false);
-                if (!paintMode) {
-                  toast.info('Modo pincel activado. Selecciona un color y pinta en el mapa.');
-                }
-              }}
-              className={paintMode ? 'bg-blue-600' : ''}
-            >
-              <Edit3 className="w-4 h-4 mr-1" />
-              Pincel
-            </Button>
-            
             <Button
               variant={polygonMode ? "default" : "outline"}
               size="sm"
               onClick={() => {
                 setPolygonMode(!polygonMode);
-                setPaintMode(false);
                 setEraseMode(false);
                 if (!polygonMode) {
-                  toast.info('Modo polígono activado. Haz clic para poner puntos. Cierra el polígono haciendo clic cerca del primer punto (verde).');
+                  toast.info('Modo polígono activado. Haz clic para poner puntos. Cierra haciendo clic cerca del primer punto (verde).');
                 }
               }}
               className={polygonMode ? 'bg-green-600' : ''}
             >
               <Plus className="w-4 h-4 mr-1" />
-              Polígono
+              Dibujar Zona
             </Button>
             
             <Button
@@ -821,99 +804,66 @@ const TerrainEditor = () => {
               size="sm"
               onClick={() => {
                 setEraseMode(!eraseMode);
-                setPaintMode(false);
                 setPolygonMode(false);
                 if (!eraseMode) {
-                  toast.info('Modo goma activado. Haz clic en celdas o polígonos para borrarlos.');
+                  toast.info('Modo borrar activado. Haz clic en un polígono para eliminarlo.');
                 }
               }}
               className={eraseMode ? 'bg-pink-600' : ''}
             >
               <Eraser className="w-4 h-4 mr-1" />
-              Goma
+              Borrar
             </Button>
             
+            {/* Info display */}
+            <div className="flex items-center gap-2 text-xs bg-black/40 px-2 py-1 rounded">
+              <span>Polígonos: <span className="text-amber-400 font-bold">{drawnPolygons.length}</span></span>
+            </div>
+            
             {/* Polygon mode controls */}
-            {polygonMode && (
+            {polygonMode && currentPolygon.length > 0 && (
               <>
-                <div className="flex items-center gap-2 text-xs bg-black/40 px-2 py-1 rounded">
-                  <span className="text-green-400 font-bold">Polígono</span>
-                  <span className="text-muted-foreground">|</span>
-                  <span>Puntos: <span className="text-white font-bold">{currentPolygon.length}</span></span>
-                  <span className="text-muted-foreground">|</span>
-                  <span>Polígonos: <span className="text-amber-400 font-bold">{drawnPolygons.length}</span></span>
+                <div className="text-xs bg-green-900/40 px-2 py-1 rounded">
+                  Puntos: <span className="text-white font-bold">{currentPolygon.length}</span>
                 </div>
-                
-                {currentPolygon.length > 0 && (
-                  <>
-                    <Button size="sm" variant="outline" onClick={undoLastPoint} title="Deshacer último punto">
-                      ↩
-                    </Button>
-                    <Button size="sm" variant="outline" onClick={cancelPolygon} title="Cancelar polígono">
-                      ✕
-                    </Button>
-                    {currentPolygon.length >= 3 && (
-                      <Button size="sm" variant="default" onClick={closePolygon} className="bg-green-600" title="Cerrar polígono">
-                        ✓ Cerrar
-                      </Button>
-                    )}
-                  </>
+                <Button size="sm" variant="outline" onClick={undoLastPoint} title="Deshacer último punto">
+                  ↩
+                </Button>
+                <Button size="sm" variant="outline" onClick={cancelPolygon} title="Cancelar">
+                  ✕
+                </Button>
+                {currentPolygon.length >= 3 && (
+                  <Button size="sm" variant="default" onClick={closePolygon} className="bg-green-600" title="Cerrar polígono">
+                    ✓ Cerrar
+                  </Button>
                 )}
               </>
             )}
             
-            {/* Brush/Eraser mode controls */}
-            {(paintMode || eraseMode) && (
-              <>
-                {/* Brush info and cell count */}
-                <div className="flex items-center gap-2 text-xs bg-black/40 px-2 py-1 rounded">
-                  <span className="text-muted-foreground">
-                    {eraseMode ? (
-                      <span className="text-pink-400 font-bold">Goma de Borrar</span>
-                    ) : (
-                      <>Pincel: <span className="text-white font-bold">{selectedBrush ? TERRAIN_COLORS[selectedBrush]?.name || LAND_TYPE_COLORS[selectedBrush]?.name || selectedBrush : 'Ninguno'}</span></>
-                    )}
-                  </span>
-                  <span className="text-muted-foreground">|</span>
-                  <span className="text-muted-foreground">
-                    Celdas: <span className="text-green-400 font-bold">{paintedCells.length}</span>
-                  </span>
-                </div>
-                
-                <div className="flex items-center gap-1 text-xs">
-                  <span>Tamaño:</span>
-                  <Button size="sm" variant="outline" onClick={() => setBrushSize(Math.max(1, brushSize - 1))}>-</Button>
-                  <span className="w-6 text-center">{brushSize}</span>
-                  <Button size="sm" variant="outline" onClick={() => setBrushSize(Math.min(20, brushSize + 1))}>+</Button>
-                </div>
-                <Button variant="outline" size="sm" onClick={clearPaintedCells} title="Limpiar TODO (con confirmación)">
-                  <Trash2 className="w-4 h-4" />
-                </Button>
-                <Button variant="outline" size="sm" onClick={exportPaintedTerrain} title="Exportar a JSON">
-                  <Download className="w-4 h-4" />
-                </Button>
-                <div className="h-6 w-px bg-gray-600 mx-1" />
-                <Button 
-                  variant="default" 
-                  size="sm" 
-                  onClick={saveTerrainToDatabase}
-                  className="bg-green-600 hover:bg-green-700"
-                  title="Guardar en base de datos"
-                >
-                  <Save className="w-4 h-4 mr-1" />
-                  Guardar BD
-                </Button>
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  onClick={clearTerrainFromDatabase}
-                  className="border-red-600 text-red-400 hover:bg-red-600/20"
-                  title="Eliminar de base de datos"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </Button>
-              </>
-            )}
+            {/* Save/Export buttons */}
+            <div className="h-6 w-px bg-gray-600 mx-1" />
+            <Button variant="outline" size="sm" onClick={exportPaintedTerrain} title="Exportar a JSON">
+              <Download className="w-4 h-4" />
+            </Button>
+            <Button 
+              variant="default" 
+              size="sm" 
+              onClick={saveTerrainToDatabase}
+              className="bg-green-600 hover:bg-green-700"
+              title="Guardar en base de datos"
+              disabled={drawnPolygons.length === 0}
+            >
+              <Save className="w-4 h-4 mr-1" />
+              Guardar
+            </Button>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={clearPaintedCells}
+              title="Limpiar todo local"
+            >
+              <Trash2 className="w-4 h-4" />
+            </Button>
             
             <div className="h-6 w-px bg-gray-600 mx-2" />
             
