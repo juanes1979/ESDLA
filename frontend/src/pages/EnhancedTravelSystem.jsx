@@ -705,11 +705,9 @@ const EnhancedTravelSystem = () => {
           // Journey is complete!
           toast.success(result.detalle);
           setAwaitingOrientationCheck(false);
-          // Move to results
-          if (events.length === 0) {
-            // No events occurred, journey was peaceful
-            setMode('results');
-          }
+          // Move to results - calculate fatigue first
+          await calculateFatigueResults(events);
+          setMode('results');
         } else {
           // Calculate next event position
           const nuevaPosicionEvento = currentPosition + result.casillas_hasta_evento;
@@ -952,7 +950,7 @@ const EnhancedTravelSystem = () => {
       setCurrentEvent(null);
       
       // Continue with next orientation check
-      continueAfterEvent();
+      await continueAfterEvent();
       
     } catch (err) {
       console.error('Error resolving event:', err);
