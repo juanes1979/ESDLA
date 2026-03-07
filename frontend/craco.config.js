@@ -78,6 +78,12 @@ if (config.enableVisualEdits && babelMetadataPlugin) {
 }
 
 webpackConfig.devServer = (devServerConfig) => {
+  // Disable the error overlay that blocks interaction
+  devServerConfig.client = {
+    ...devServerConfig.client,
+    overlay: false,
+  };
+  
   // Apply visual edits dev server setup only if enabled
   if (config.enableVisualEdits && setupDevServer) {
     devServerConfig = setupDevServer(devServerConfig);

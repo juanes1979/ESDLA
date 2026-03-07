@@ -177,8 +177,8 @@ const TerrainEditor = () => {
       return;
     }
     
-    // Add painted cell
-    const cellSize = 0.25; // 5km = 0.25% of map (since 100% = 2000km approx)
+    // Add painted cell - BIGGER cells (1% = ~20km per cell for better visibility)
+    const cellSize = 1.0; // 1% of map = ~20km
     const cellX = Math.floor(coords.x / cellSize) * cellSize;
     const cellY = Math.floor(coords.y / cellSize) * cellSize;
     
@@ -201,7 +201,6 @@ const TerrainEditor = () => {
         !newCells.some(nc => Math.abs(nc.x - c.x) < 0.01 && Math.abs(nc.y - c.y) < 0.01)
       );
       const updated = [...filtered, ...newCells];
-      console.log(`Painted ${newCells.length} cells at (${cellX.toFixed(2)}, ${cellY.toFixed(2)}). Total: ${updated.length}`);
       return updated;
     });
   };
@@ -277,7 +276,7 @@ const TerrainEditor = () => {
     }
   };
 
-  // Render painted cells
+  // Render painted cells - bright and visible
   const renderPaintedCells = () => {
     const colors = getColorConfig();
     return paintedCells.map((cell, idx) => {
@@ -290,15 +289,16 @@ const TerrainEditor = () => {
       
       return (
         <rect
-          key={idx}
+          key={`cell-${idx}`}
           x={x}
           y={y - size}
           width={size}
           height={size}
           fill={config.color}
-          fillOpacity={0.6}
+          fillOpacity={0.7}
           stroke={config.color}
-          strokeWidth={2}
+          strokeWidth={8}
+          strokeOpacity={1}
         />
       );
     });
@@ -632,6 +632,7 @@ const TerrainEditor = () => {
       <div 
         ref={containerRef}
         className={`flex-1 overflow-hidden ${paintMode ? 'cursor-crosshair' : 'cursor-grab active:cursor-grabbing'}`}
+        style={{ backgroundColor: '#1a1510' }}
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMoveForPaint}
         onMouseUp={handleMouseUp}
@@ -648,15 +649,40 @@ const TerrainEditor = () => {
             transformOrigin: 'top left',
           }}
         >
-          {/* Map background image for reference */}
+          {/* Grid background - simplified, draw FIRST so it's behind everything */}
+          <defs>
+            <pattern id="smallGrid" width={MAP_PIXEL_WIDTH / 100} height={MAP_PIXEL_HEIGHT / 100} patternUnits="userSpaceOnUse">
+              <path d={`M ${MAP_PIXEL_WIDTH / 100} 0 L 0 0 0 ${MAP_PIXEL_HEIGHT / 100}`} fill="none" stroke="#c9a227" strokeWidth="2" strokeOpacity="0.3"/>
+            </pattern>
+            <pattern id="largeGrid" width={MAP_PIXEL_WIDTH / 10} height={MAP_PIXEL_HEIGHT / 10} patternUnits="userSpaceOnUse">
+              <rect width={MAP_PIXEL_WIDTH / 10} height={MAP_PIXEL_HEIGHT / 10} fill="url(#smallGrid)"/>
+              <path d={`M ${MAP_PIXEL_WIDTH / 10} 0 L 0 0 0 ${MAP_PIXEL_HEIGHT / 10}`} fill="none" stroke="#c9a227" strokeWidth="6" strokeOpacity="0.5"/>
+            </pattern>
+          </defs>
+          <rect width={MAP_PIXEL_WIDTH} height={MAP_PIXEL_HEIGHT} fill="url(#largeGrid)" />
+          
+          {/* Render painted cells - BEFORE map so they show through */}
+          {renderPaintedCells()}
+          
+          {/* Map background image - maestro map, faded */}
           <image
-            href="/mapa_jugadores.jpg"
+            href="/mapa_maestro.jpg"
             x={0}
             y={0}
             width={MAP_PIXEL_WIDTH}
             height={MAP_PIXEL_HEIGHT}
             preserveAspectRatio="xMidYMid slice"
-            opacity={0.7}
+            opacity={0.35}
+          />
+          
+          {/* Semi-transparent overlay to soften the map */}
+          <rect
+            x={0}
+            y={0}
+            width={MAP_PIXEL_WIDTH}
+            height={MAP_PIXEL_HEIGHT}
+            fill="#1a1510"
+            fillOpacity={0.3}
           />
           
           {/* Render regions from database */}
@@ -665,35 +691,8 @@ const TerrainEditor = () => {
           {/* Render custom zones */}
           {renderZones()}
           
-          {/* Render painted cells */}
-          {renderPaintedCells()}
-          
           {/* Render roads */}
           {renderRoads()}
-          
-          {/* Grid for reference - 5km per cell (0.25% of map) */}
-          <g opacity={0.12}>
-            {Array.from({ length: 401 }, (_, i) => (
-              <React.Fragment key={i}>
-                <line
-                  x1={i * (MAP_PIXEL_WIDTH / 400)}
-                  y1={0}
-                  x2={i * (MAP_PIXEL_WIDTH / 400)}
-                  y2={MAP_PIXEL_HEIGHT}
-                  stroke="#c9a227"
-                  strokeWidth={i % 2 === 0 ? 3 : 1}
-                />
-                <line
-                  x1={0}
-                  y1={i * (MAP_PIXEL_HEIGHT / 400)}
-                  x2={MAP_PIXEL_WIDTH}
-                  y2={i * (MAP_PIXEL_HEIGHT / 400)}
-                  stroke="#c9a227"
-                  strokeWidth={i % 2 === 0 ? 3 : 1}
-                />
-              </React.Fragment>
-            ))}
-          </g>
         </svg>
       </div>
       
@@ -709,7 +708,7 @@ const TerrainEditor = () => {
             }
           </p>
           <p className="text-xs mt-1">
-            Escala: 1 celda ≈ 5 km | Celdas pintadas: {paintedCells.length} | Zoom máx: 2000%
+            Escala: 1 celda ≈ 20 km | Celdas pintadas: {paintedCells.length} | Zoom máx: 2000%
           </p>
         </div>
       </div>
