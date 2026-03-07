@@ -7,7 +7,42 @@ Build a comprehensive web application to play a modified version of the "Lord of
 
 ## Current State (2026-12-XX)
 
-### ✅ COMPLETED This Session - Bug Fixes P0
+### ✅ COMPLETED This Session - Task 1 & 2
+
+#### TASK 1: Path Debugger - Backend y Funcionalidad Completa ✅
+**Nuevos endpoints:**
+- `GET /api/data/custom-paths` - Lista todos los caminos personalizados
+- `POST /api/data/custom-paths` - Guarda un nuevo camino
+- `GET /api/data/custom-paths/route/{origin_id}/{destination_id}` - Busca camino existente para una ruta
+- `DELETE /api/data/custom-paths/{path_id}` - Elimina un camino
+
+**Funcionalidades frontend:**
+- Botón "Guardar en BD" para persistir caminos definidos manualmente
+- Botón "Cargar camino guardado" para recuperar rutas existentes
+- Los caminos se buscan en ambas direcciones (A→B y B→A)
+
+#### TASK 2: Terrain Editor - Backend y Funcionalidad Completa ✅
+**Nuevos endpoints:**
+- `GET /api/data/terrain-zones` - Obtiene zonas de dificultad
+- `POST /api/data/terrain-zones` - Guarda zonas de dificultad
+- `DELETE /api/data/terrain-zones` - Limpia zonas de dificultad
+- `GET /api/data/land-type-zones` - Obtiene zonas de tipo de tierra
+- `POST /api/data/land-type-zones` - Guarda zonas de tipo de tierra  
+- `DELETE /api/data/land-type-zones` - Limpia zonas de tipo de tierra
+
+**Funcionalidades frontend:**
+- Botón verde "Guardar BD" para persistir celdas pintadas
+- Botón rojo para eliminar zonas de la base de datos
+- Las zonas se cargan automáticamente al abrir el editor
+
+### Testing Results (iteration_33.json)
+- **Backend:** 100% (16/16 tests passed)
+- **Frontend:** 100% (5/5 features verified)
+- Test file: `/app/backend/tests/test_terrain_path_debugger.py`
+
+---
+
+### ✅ COMPLETED Previous Session - Bug Fixes P0
 
 #### BUG FIX P0: Flujo de Finalización del Viaje ✅
 **Problema:** Después de resolver eventos, la app no mostraba la pantalla de resultados.
@@ -33,12 +68,6 @@ Build a comprehensive web application to play a modified version of the "Lord of
 - Componente `JourneyMiniMap` ahora acepta prop `events`
 - Muestra marcadores de eventos a lo largo de la ruta (verde=éxito, rojo=fracaso)
 - Leyenda actualizada para incluir indicadores de éxito/fracaso
-
-### Testing Results (iteration_32.json)
-- **Frontend:** 100% (3/3 features verified)
-- Flujo de finalización de viaje: PASS
-- Mapa con marcadores de eventos: PASS (después de fix)
-- Imprimir crónica con mapa: PASS
 
 ---
 
