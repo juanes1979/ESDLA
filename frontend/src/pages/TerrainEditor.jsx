@@ -111,12 +111,17 @@ const TerrainEditor = () => {
 
   // Mouse handlers for pan
   const handleMouseDown = (e) => {
-    // Solo permitir pan si NO estamos en modo pincel, o si es click derecho
-    if (e.button === 0 && !paintMode) {
+    // Allow pan with left click when NOT in polygon or erase mode
+    if (e.button === 0 && !polygonMode && !eraseMode) {
       setIsDragging(true);
       setLastMousePos({ x: e.clientX, y: e.clientY });
     } else if (e.button === 2) {
-      // Click derecho siempre permite pan
+      // Right click always allows pan
+      e.preventDefault();
+      setIsDragging(true);
+      setLastMousePos({ x: e.clientX, y: e.clientY });
+    } else if (e.button === 1) {
+      // Middle click also allows pan
       e.preventDefault();
       setIsDragging(true);
       setLastMousePos({ x: e.clientX, y: e.clientY });
@@ -268,20 +273,12 @@ const TerrainEditor = () => {
 
   // Handle mouse drag for painting
   const handleMouseMoveForPaint = (e) => {
-    if (isDragging && !paintMode && !eraseMode) {
+    // Pan when dragging and NOT in any drawing mode
+    if (isDragging && !polygonMode && !eraseMode) {
       const dx = e.clientX - lastMousePos.x;
       const dy = e.clientY - lastMousePos.y;
       setPan(prev => ({ x: prev.x + dx, y: prev.y + dy }));
       setLastMousePos({ x: e.clientX, y: e.clientY });
-    } else if (eraseMode && e.buttons === 1) {
-      // Erase while dragging
-      const coords = screenToMap(e.clientX, e.clientY);
-      if (coords && coords.x >= 0 && coords.x <= 100 && coords.y >= 0 && coords.y <= 100) {
-        eraseCellsAt(coords);
-      }
-    } else if (paintMode && e.buttons === 1 && selectedBrush) {
-      // Paint while dragging
-      handleMapClick(e);
     }
   };
 
@@ -963,7 +960,7 @@ const TerrainEditor = () => {
       {/* Map Container */}
       <div 
         ref={containerRef}
-        className={`flex-1 overflow-hidden ${eraseMode ? 'cursor-crosshair' : paintMode ? 'cursor-crosshair' : 'cursor-grab active:cursor-grabbing'}`}
+        className={`flex-1 overflow-hidden ${polygonMode ? 'cursor-crosshair' : eraseMode ? 'cursor-not-allowed' : 'cursor-grab active:cursor-grabbing'}`}
         style={{ backgroundColor: '#1a1510' }}
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMoveForPaint}
