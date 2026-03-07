@@ -315,8 +315,16 @@ const TerrainEditor = () => {
             transformOrigin: 'top left',
           }}
         >
-          {/* Background */}
-          <rect width={MAP_PIXEL_WIDTH} height={MAP_PIXEL_HEIGHT} fill="#1a1510" />
+          {/* Map background image for reference */}
+          <image
+            href="/mapa_jugadores.jpg"
+            x={0}
+            y={0}
+            width={MAP_PIXEL_WIDTH}
+            height={MAP_PIXEL_HEIGHT}
+            preserveAspectRatio="xMidYMid slice"
+            opacity={0.7}
+          />
           
           {/* Render regions from database */}
           {renderRegions()}
@@ -324,25 +332,26 @@ const TerrainEditor = () => {
           {/* Render custom zones */}
           {renderZones()}
           
-          {/* Grid for reference */}
-          <g opacity={0.1}>
-            {Array.from({ length: 11 }, (_, i) => (
+          {/* Grid for reference - 10km per cell */}
+          {/* Each cell is approximately 100 coordinate units = 10km */}
+          <g opacity={0.15}>
+            {Array.from({ length: 101 }, (_, i) => (
               <React.Fragment key={i}>
                 <line
-                  x1={i * (MAP_PIXEL_WIDTH / 10)}
+                  x1={i * (MAP_PIXEL_WIDTH / 100)}
                   y1={0}
-                  x2={i * (MAP_PIXEL_WIDTH / 10)}
+                  x2={i * (MAP_PIXEL_WIDTH / 100)}
                   y2={MAP_PIXEL_HEIGHT}
                   stroke="#c9a227"
-                  strokeWidth={10}
+                  strokeWidth={5}
                 />
                 <line
                   x1={0}
-                  y1={i * (MAP_PIXEL_HEIGHT / 10)}
+                  y1={i * (MAP_PIXEL_HEIGHT / 100)}
                   x2={MAP_PIXEL_WIDTH}
-                  y2={i * (MAP_PIXEL_HEIGHT / 10)}
+                  y2={i * (MAP_PIXEL_HEIGHT / 100)}
                   stroke="#c9a227"
-                  strokeWidth={10}
+                  strokeWidth={5}
                 />
               </React.Fragment>
             ))}
@@ -360,7 +369,7 @@ const TerrainEditor = () => {
             }
           </p>
           <p className="text-xs mt-1">
-            Regiones cargadas: {regions.length} | Usa la rueda del ratón para hacer zoom
+            Escala: 1 celda de la cuadrícula ≈ 10 km | Regiones: {regions.length} | Zoom: rueda del ratón
           </p>
         </div>
       </div>
