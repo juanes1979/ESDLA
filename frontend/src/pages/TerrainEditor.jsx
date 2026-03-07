@@ -63,9 +63,12 @@ const TerrainEditor = () => {
   // Drawing/Editing mode
   const [paintMode, setPaintMode] = useState(false);
   const [eraseMode, setEraseMode] = useState(false); // Eraser mode
+  const [polygonMode, setPolygonMode] = useState(false); // Polygon drawing mode
+  const [currentPolygon, setCurrentPolygon] = useState([]); // Points of current polygon being drawn
   const [selectedBrush, setSelectedBrush] = useState(null); // 'facil', 'moderado', etc.
   const [brushSize, setBrushSize] = useState(1); // Default to 1 cell
   const [paintedCells, setPaintedCells] = useState([]); // Painted terrain cells
+  const [drawnPolygons, setDrawnPolygons] = useState([]); // Completed polygons
   
   // Piece editing mode
   const [editPieceMode, setEditPieceMode] = useState(null); // 'roads', 'mountains', 'rivers'
@@ -167,7 +170,38 @@ const TerrainEditor = () => {
 
   // Handle painting on map
   const handleMapClick = (e) => {
-    // Check eraser mode first
+    // Check polygon mode first
+    if (polygonMode) {
+      if (!selectedBrush) {
+        toast.info('Selecciona un color primero');
+        return;
+      }
+      
+      const coords = screenToMap(e.clientX, e.clientY);
+      if (!coords) return;
+      if (coords.x < 0 || coords.x > 100 || coords.y < 0 || coords.y > 100) return;
+      
+      // Check if clicking near the first point to close the polygon
+      if (currentPolygon.length >= 3) {
+        const firstPoint = currentPolygon[0];
+        const distance = Math.sqrt(
+          Math.pow(coords.x - firstPoint.x, 2) + 
+          Math.pow(coords.y - firstPoint.y, 2)
+        );
+        
+        // If close enough to first point, close the polygon
+        if (distance < 1.5) { // 1.5% threshold
+          closePolygon();
+          return;
+        }
+      }
+      
+      // Add point to current polygon
+      setCurrentPolygon(prev => [...prev, { x: coords.x, y: coords.y }]);
+      return;
+    }
+    
+    // Check eraser mode
     if (eraseMode) {
       if (isDragging) return;
       const coords = screenToMap(e.clientX, e.clientY);
@@ -280,6 +314,7 @@ const TerrainEditor = () => {
     const data = {
       mode,
       cells: paintedCells,
+      polygons: drawnPolygons,
       exportedAt: new Date().toISOString()
     };
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
@@ -292,6 +327,44 @@ const TerrainEditor = () => {
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
     toast.success('Terreno exportado a archivo');
+  };
+
+  // Close polygon and fill it with selected color
+  const closePolygon = () => {
+    if (currentPolygon.length < 3) {
+      toast.error('El polígono necesita al menos 3 puntos');
+      return;
+    }
+    
+    // Add the completed polygon
+    const newPolygon = {
+      id: `poly_${Date.now()}`,
+      type: selectedBrush,
+      points: [...currentPolygon]
+    };
+    
+    setDrawnPolygons(prev => [...prev, newPolygon]);
+    setCurrentPolygon([]);
+    toast.success(`Polígono creado con ${newPolygon.points.length} puntos`);
+  };
+
+  // Cancel current polygon
+  const cancelPolygon = () => {
+    setCurrentPolygon([]);
+    toast.info('Polígono cancelado');
+  };
+
+  // Undo last point in polygon
+  const undoLastPoint = () => {
+    if (currentPolygon.length > 0) {
+      setCurrentPolygon(prev => prev.slice(0, -1));
+    }
+  };
+
+  // Delete a drawn polygon
+  const deletePolygon = (polygonId) => {
+    setDrawnPolygons(prev => prev.filter(p => p.id !== polygonId));
+    toast.info('Polígono eliminado');
   };
 
   // Clear painted cells from UI - with confirmation
@@ -367,6 +440,112 @@ const TerrainEditor = () => {
         />
       );
     });
+  };
+
+  // Render drawn polygons
+  const renderDrawnPolygons = () => {
+    const colors = getColorConfig();
+    return drawnPolygons.map((polygon) => {
+      const config = colors[polygon.type];
+      if (!config || !polygon.points || polygon.points.length < 3) return null;
+      
+      // Convert points to pixel coordinates
+      const pointsStr = polygon.points.map(p => {
+        const x = (p.x / 100) * MAP_PIXEL_WIDTH;
+        const y = MAP_PIXEL_HEIGHT - (p.y / 100) * MAP_PIXEL_HEIGHT;
+        return `${x},${y}`;
+      }).join(' ');
+      
+      return (
+        <polygon
+          key={polygon.id}
+          points={pointsStr}
+          fill={config.color}
+          fillOpacity={0.6}
+          stroke={config.color}
+          strokeWidth={15}
+          strokeOpacity={0.9}
+          onClick={() => {
+            if (eraseMode) {
+              if (window.confirm('¿Eliminar este polígono?')) {
+                deletePolygon(polygon.id);
+              }
+            }
+          }}
+          style={{ cursor: eraseMode ? 'pointer' : 'default' }}
+        />
+      );
+    });
+  };
+
+  // Render current polygon being drawn
+  const renderCurrentPolygon = () => {
+    if (currentPolygon.length === 0) return null;
+    
+    const colors = getColorConfig();
+    const config = colors[selectedBrush];
+    const color = config?.color || '#ffffff';
+    
+    // Convert points to pixel coordinates
+    const points = currentPolygon.map(p => ({
+      x: (p.x / 100) * MAP_PIXEL_WIDTH,
+      y: MAP_PIXEL_HEIGHT - (p.y / 100) * MAP_PIXEL_HEIGHT
+    }));
+    
+    return (
+      <g>
+        {/* Lines connecting points */}
+        {points.length > 1 && (
+          <polyline
+            points={points.map(p => `${p.x},${p.y}`).join(' ')}
+            fill="none"
+            stroke={color}
+            strokeWidth={20}
+            strokeDasharray="50,30"
+            strokeOpacity={0.8}
+          />
+        )}
+        
+        {/* Line from last point to first (preview of closing) */}
+        {points.length >= 3 && (
+          <line
+            x1={points[points.length - 1].x}
+            y1={points[points.length - 1].y}
+            x2={points[0].x}
+            y2={points[0].y}
+            stroke={color}
+            strokeWidth={15}
+            strokeDasharray="30,20"
+            strokeOpacity={0.4}
+          />
+        )}
+        
+        {/* Points */}
+        {points.map((point, idx) => (
+          <g key={idx}>
+            <circle
+              cx={point.x}
+              cy={point.y}
+              r={idx === 0 ? 80 : 50}
+              fill={idx === 0 ? '#00ff00' : color}
+              fillOpacity={0.9}
+              stroke="#ffffff"
+              strokeWidth={10}
+            />
+            <text
+              x={point.x}
+              y={point.y + 20}
+              textAnchor="middle"
+              fill="#ffffff"
+              fontSize={60}
+              fontWeight="bold"
+            >
+              {idx + 1}
+            </text>
+          </g>
+        ))}
+      </g>
+    );
   };
 
   // Render roads for editing
@@ -609,6 +788,7 @@ const TerrainEditor = () => {
               onClick={() => {
                 setPaintMode(!paintMode);
                 setEraseMode(false);
+                setPolygonMode(false);
                 if (!paintMode) {
                   toast.info('Modo pincel activado. Selecciona un color y pinta en el mapa.');
                 }
@@ -620,13 +800,31 @@ const TerrainEditor = () => {
             </Button>
             
             <Button
+              variant={polygonMode ? "default" : "outline"}
+              size="sm"
+              onClick={() => {
+                setPolygonMode(!polygonMode);
+                setPaintMode(false);
+                setEraseMode(false);
+                if (!polygonMode) {
+                  toast.info('Modo polígono activado. Haz clic para poner puntos. Cierra el polígono haciendo clic cerca del primer punto (verde).');
+                }
+              }}
+              className={polygonMode ? 'bg-green-600' : ''}
+            >
+              <Plus className="w-4 h-4 mr-1" />
+              Polígono
+            </Button>
+            
+            <Button
               variant={eraseMode ? "default" : "outline"}
               size="sm"
               onClick={() => {
                 setEraseMode(!eraseMode);
                 setPaintMode(false);
+                setPolygonMode(false);
                 if (!eraseMode) {
-                  toast.info('Modo goma activado. Haz clic o arrastra para borrar celdas.');
+                  toast.info('Modo goma activado. Haz clic en celdas o polígonos para borrarlos.');
                 }
               }}
               className={eraseMode ? 'bg-pink-600' : ''}
@@ -635,6 +833,36 @@ const TerrainEditor = () => {
               Goma
             </Button>
             
+            {/* Polygon mode controls */}
+            {polygonMode && (
+              <>
+                <div className="flex items-center gap-2 text-xs bg-black/40 px-2 py-1 rounded">
+                  <span className="text-green-400 font-bold">Polígono</span>
+                  <span className="text-muted-foreground">|</span>
+                  <span>Puntos: <span className="text-white font-bold">{currentPolygon.length}</span></span>
+                  <span className="text-muted-foreground">|</span>
+                  <span>Polígonos: <span className="text-amber-400 font-bold">{drawnPolygons.length}</span></span>
+                </div>
+                
+                {currentPolygon.length > 0 && (
+                  <>
+                    <Button size="sm" variant="outline" onClick={undoLastPoint} title="Deshacer último punto">
+                      ↩
+                    </Button>
+                    <Button size="sm" variant="outline" onClick={cancelPolygon} title="Cancelar polígono">
+                      ✕
+                    </Button>
+                    {currentPolygon.length >= 3 && (
+                      <Button size="sm" variant="default" onClick={closePolygon} className="bg-green-600" title="Cerrar polígono">
+                        ✓ Cerrar
+                      </Button>
+                    )}
+                  </>
+                )}
+              </>
+            )}
+            
+            {/* Brush/Eraser mode controls */}
             {(paintMode || eraseMode) && (
               <>
                 {/* Brush info and cell count */}
@@ -846,8 +1074,14 @@ const TerrainEditor = () => {
           {/* 6. Render roads */}
           {renderRoads()}
           
-          {/* 7. Render painted cells ON TOP */}
+          {/* 7. Render painted cells */}
           {renderPaintedCells()}
+          
+          {/* 8. Render drawn polygons */}
+          {renderDrawnPolygons()}
+          
+          {/* 9. Render current polygon being drawn */}
+          {renderCurrentPolygon()}
         </svg>
       </div>
       
@@ -855,11 +1089,15 @@ const TerrainEditor = () => {
       <div className="p-3 bg-black/40 border-t border-[hsl(var(--gold))]/20">
         <div className="text-center text-sm text-muted-foreground">
           <p>
-            {paintMode 
-              ? `Modo Pincel: ${selectedBrush ? getColorConfig()[selectedBrush]?.name : 'Selecciona un color'} | Tamaño: ${brushSize} celdas`
-              : mode === 'terrain' 
-                ? 'Mapa de Dificultad del Terreno - Activa el pincel para pintar'
-                : 'Mapa de Tipos de Tierra - Activa el pincel para pintar'
+            {polygonMode 
+              ? `Modo Polígono: ${selectedBrush ? getColorConfig()[selectedBrush]?.name : 'Selecciona un color'} | Puntos: ${currentPolygon.length} | Polígonos: ${drawnPolygons.length}`
+              : paintMode 
+                ? `Modo Pincel: ${selectedBrush ? getColorConfig()[selectedBrush]?.name : 'Selecciona un color'} | Tamaño: ${brushSize} celdas`
+                : eraseMode
+                  ? 'Modo Goma: Haz clic para borrar celdas o polígonos'
+                  : mode === 'terrain' 
+                    ? 'Mapa de Dificultad del Terreno - Selecciona una herramienta'
+                    : 'Mapa de Tipos de Tierra - Selecciona una herramienta'
             }
           </p>
           <p className="text-xs mt-1">
