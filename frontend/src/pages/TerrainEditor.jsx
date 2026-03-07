@@ -10,7 +10,7 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ArrowLeft, ZoomIn, ZoomOut, Move, Save, Trash2, Plus, Edit3, Download } from 'lucide-react';
+import { ArrowLeft, ZoomIn, ZoomOut, Move, Save, Trash2, Plus, Edit3, Download, Eraser } from 'lucide-react';
 import { toast } from 'sonner';
 import api from '@/services/api';
 import { useNavigate } from 'react-router-dom';
@@ -62,6 +62,7 @@ const TerrainEditor = () => {
   
   // Drawing/Editing mode
   const [paintMode, setPaintMode] = useState(false);
+  const [eraseMode, setEraseMode] = useState(false); // Eraser mode
   const [selectedBrush, setSelectedBrush] = useState(null); // 'facil', 'moderado', etc.
   const [brushSize, setBrushSize] = useState(1); // Default to 1 cell
   const [paintedCells, setPaintedCells] = useState([]); // Painted terrain cells
@@ -166,6 +167,16 @@ const TerrainEditor = () => {
 
   // Handle painting on map
   const handleMapClick = (e) => {
+    // Check eraser mode first
+    if (eraseMode) {
+      if (isDragging) return;
+      const coords = screenToMap(e.clientX, e.clientY);
+      if (!coords) return;
+      if (coords.x < 0 || coords.x > 100 || coords.y < 0 || coords.y > 100) return;
+      eraseCellsAt(coords);
+      return;
+    }
+    
     // Solo pintar si el modo pincel está activo Y hay un brush seleccionado
     if (!paintMode || !selectedBrush) {
       if (paintMode && !selectedBrush) {
@@ -227,11 +238,17 @@ const TerrainEditor = () => {
 
   // Handle mouse drag for painting
   const handleMouseMoveForPaint = (e) => {
-    if (isDragging && !paintMode) {
+    if (isDragging && !paintMode && !eraseMode) {
       const dx = e.clientX - lastMousePos.x;
       const dy = e.clientY - lastMousePos.y;
       setPan(prev => ({ x: prev.x + dx, y: prev.y + dy }));
       setLastMousePos({ x: e.clientX, y: e.clientY });
+    } else if (eraseMode && e.buttons === 1) {
+      // Erase while dragging
+      const coords = screenToMap(e.clientX, e.clientY);
+      if (coords && coords.x >= 0 && coords.x <= 100 && coords.y >= 0 && coords.y <= 100) {
+        eraseCellsAt(coords);
+      }
     } else if (paintMode && e.buttons === 1 && selectedBrush) {
       // Paint while dragging
       handleMapClick(e);
@@ -277,14 +294,23 @@ const TerrainEditor = () => {
     toast.success('Terreno exportado a archivo');
   };
 
-  // Clear painted cells from UI
+  // Clear painted cells from UI - with confirmation
   const clearPaintedCells = () => {
-    setPaintedCells([]);
-    toast.info('Terreno limpiado (cambios locales)');
+    if (paintedCells.length === 0) {
+      toast.info('No hay celdas para borrar');
+      return;
+    }
+    if (window.confirm(`¿Estás seguro de que quieres borrar ${paintedCells.length} celdas locales?`)) {
+      setPaintedCells([]);
+      toast.info('Terreno limpiado (cambios locales)');
+    }
   };
 
-  // Clear terrain from database
+  // Clear terrain from database - with confirmation
   const clearTerrainFromDatabase = async () => {
+    if (!window.confirm('¿Estás seguro de que quieres ELIMINAR TODO el terreno de la base de datos? Esta acción no se puede deshacer.')) {
+      return;
+    }
     try {
       const endpoint = mode === 'terrain' ? '/data/terrain-zones' : '/data/land-type-zones';
       await api.delete(endpoint);
@@ -294,6 +320,25 @@ const TerrainEditor = () => {
       console.error('Error clearing terrain:', err);
       toast.error('Error al eliminar el terreno');
     }
+  };
+
+  // Erase cells at coordinate (eraser tool)
+  const eraseCellsAt = (coords) => {
+    const cellSize = 0.125;
+    const centerX = Math.floor(coords.x / cellSize) * cellSize + cellSize / 2;
+    const centerY = Math.floor(coords.y / cellSize) * cellSize + cellSize / 2;
+    const radius = brushSize;
+    
+    setPaintedCells(prev => {
+      return prev.filter(cell => {
+        const cellCenterX = cell.x + cell.size / 2;
+        const cellCenterY = cell.y + cell.size / 2;
+        const dx = (cellCenterX - centerX) / cellSize;
+        const dy = (cellCenterY - centerY) / cellSize;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        return distance > radius; // Keep cells outside the eraser radius
+      });
+    });
   };
 
   // Render painted cells - bright and visible
@@ -563,6 +608,7 @@ const TerrainEditor = () => {
               size="sm"
               onClick={() => {
                 setPaintMode(!paintMode);
+                setEraseMode(false);
                 if (!paintMode) {
                   toast.info('Modo pincel activado. Selecciona un color y pinta en el mapa.');
                 }
@@ -573,12 +619,32 @@ const TerrainEditor = () => {
               Pincel
             </Button>
             
-            {paintMode && (
+            <Button
+              variant={eraseMode ? "default" : "outline"}
+              size="sm"
+              onClick={() => {
+                setEraseMode(!eraseMode);
+                setPaintMode(false);
+                if (!eraseMode) {
+                  toast.info('Modo goma activado. Haz clic o arrastra para borrar celdas.');
+                }
+              }}
+              className={eraseMode ? 'bg-pink-600' : ''}
+            >
+              <Eraser className="w-4 h-4 mr-1" />
+              Goma
+            </Button>
+            
+            {(paintMode || eraseMode) && (
               <>
                 {/* Brush info and cell count */}
                 <div className="flex items-center gap-2 text-xs bg-black/40 px-2 py-1 rounded">
                   <span className="text-muted-foreground">
-                    Pincel: <span className="text-white font-bold">{selectedBrush ? TERRAIN_COLORS[selectedBrush]?.name || LAND_TYPE_COLORS[selectedBrush]?.name || selectedBrush : 'Ninguno'}</span>
+                    {eraseMode ? (
+                      <span className="text-pink-400 font-bold">Goma de Borrar</span>
+                    ) : (
+                      <>Pincel: <span className="text-white font-bold">{selectedBrush ? TERRAIN_COLORS[selectedBrush]?.name || LAND_TYPE_COLORS[selectedBrush]?.name || selectedBrush : 'Ninguno'}</span></>
+                    )}
                   </span>
                   <span className="text-muted-foreground">|</span>
                   <span className="text-muted-foreground">
@@ -592,7 +658,7 @@ const TerrainEditor = () => {
                   <span className="w-6 text-center">{brushSize}</span>
                   <Button size="sm" variant="outline" onClick={() => setBrushSize(Math.min(20, brushSize + 1))}>+</Button>
                 </div>
-                <Button variant="outline" size="sm" onClick={clearPaintedCells} title="Limpiar cambios locales">
+                <Button variant="outline" size="sm" onClick={clearPaintedCells} title="Limpiar TODO (con confirmación)">
                   <Trash2 className="w-4 h-4" />
                 </Button>
                 <Button variant="outline" size="sm" onClick={exportPaintedTerrain} title="Exportar a JSON">
@@ -719,7 +785,7 @@ const TerrainEditor = () => {
       {/* Map Container */}
       <div 
         ref={containerRef}
-        className={`flex-1 overflow-hidden ${paintMode ? 'cursor-crosshair' : 'cursor-grab active:cursor-grabbing'}`}
+        className={`flex-1 overflow-hidden ${eraseMode ? 'cursor-crosshair' : paintMode ? 'cursor-crosshair' : 'cursor-grab active:cursor-grabbing'}`}
         style={{ backgroundColor: '#1a1510' }}
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMoveForPaint}
