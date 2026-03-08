@@ -1227,15 +1227,31 @@ const MiddleEarthMap = () => {
     const markerSize = baseSize * inverseZoom;
     const hitAreaSize = 300 * inverseZoom;
     
+    // Check if we're in drawing mode - if so, clicking on location should add a point, not drag
+    const isDrawingMode = isDrawingRoad || isDrawingRiver || isDrawingBarrier;
+    
     return (
       <g
         key={loc.id}
         transform={`translate(${pos.x}, ${pos.y})`}
-        onMouseDown={(e) => editMode ? handleLocationDragStart(loc, e) : handleLocationClick(loc, e)}
-        onClick={(e) => !editMode && handleLocationClick(loc, e)}
+        onMouseDown={(e) => {
+          if (isDrawingMode) {
+            // Don't drag - let the click pass through to add a road/river/barrier point
+            e.stopPropagation();
+            if (isDrawingRoad) addRoadPoint(e);
+            else if (isDrawingRiver) addRiverPoint(e);
+            else if (isDrawingBarrier) addBarrierPoint(e);
+          } else if (editMode) {
+            handleLocationDragStart(loc, e);
+          } else {
+            handleLocationClick(loc, e);
+          }
+        }}
+        onClick={(e) => !editMode && !isDrawingMode && handleLocationClick(loc, e)}
         style={{ 
-          cursor: editMode ? (isDraggingThis ? 'grabbing' : 'grab') : 'pointer',
+          cursor: isDrawingMode ? 'crosshair' : (editMode ? (isDraggingThis ? 'grabbing' : 'grab') : 'pointer'),
           userSelect: 'none',
+          pointerEvents: isDrawingMode ? 'auto' : 'auto',
         }}
         data-testid={`map-location-${loc.id}`}
       >
