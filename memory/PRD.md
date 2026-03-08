@@ -5,9 +5,39 @@ Build a comprehensive web application to play a modified version of the "Lord of
 
 **User's preferred language**: Español
 
-## Current State (2026-12-XX)
+## Current State (2026-12-08)
 
-### ✅ COMPLETED This Session - Task 1 & 2
+### ✅ COMPLETED This Session - Depurador de Rutas Paso a Paso
+
+#### TASK: Path Debugger UI Completa ✅
+**Endpoint mejorado:**
+- `POST /api/travel/debug-pathfinding` - Ahora devuelve análisis paso a paso con:
+  - Decisiones: INICIO, SEGUIR_CAMINO, IR_A_CAMINO, CAMPO_TRAVES, EVITAR, LLEGADA
+  - Razón de cada decisión
+  - Alternativas descartadas con explicación
+  - Anti-oscilación: evita volver a caminos recién abandonados durante 3 pasos
+  - Soporte para campo `puntos` (no solo `path`) en caminos
+
+**Frontend PathDebugger.jsx refactorizado:**
+- Mapa interactivo con zoom y pan
+- Selectores de origen/destino agrupados por región
+- Opciones: preferir caminos, evitar tierras de sombra/oscuras, paso en km
+- Visualización de ruta paso a paso con marcadores de colores
+- Panel de detalles: terreno, tipo de tierra, camino actual
+- Navegación entre pasos con botones < > y reproducción automática
+- Sección de "Alternativas descartadas" cuando existen
+- Resumen: pasos totales, distancia, desvío vs línea recta
+
+**Ruta:** `/path-debugger`
+
+### Testing Results (iteration_34.json)
+- **Backend:** 100% (16/16 tests passed)
+- **Frontend:** 100% (6/6 features verified)
+- Test file: `/app/backend/tests/test_path_debugger.py`
+
+---
+
+### ✅ COMPLETED Previous Session - Task 1 & 2
 
 #### TASK 1: Path Debugger - Backend y Funcionalidad Completa ✅
 **Nuevos endpoints:**
