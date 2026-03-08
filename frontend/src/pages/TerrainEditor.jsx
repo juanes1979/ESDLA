@@ -72,7 +72,7 @@ const TerrainEditor = () => {
   const [drawnPolygons, setDrawnPolygons] = useState([]); // Completed polygons
   
   // Piece editing mode
-  const [editPieceMode, setEditPieceMode] = useState(null); // 'roads', 'mountains', 'rivers'
+  const [editPieceMode, setEditPieceMode] = useState(null); // 'roads', 'barriers', 'rivers'
   const [selectedPiece, setSelectedPiece] = useState(null);
 
   // Load data
@@ -89,6 +89,18 @@ const TerrainEditor = () => {
         const roadsRes = await api.get('/data/roads');
         if (roadsRes.data) {
           setRoads(roadsRes.data.roads || roadsRes.data || []);
+        }
+        
+        // Load rivers
+        const riversRes = await api.get('/data/rivers');
+        if (riversRes.data) {
+          setRivers(riversRes.data.rivers || riversRes.data || []);
+        }
+        
+        // Load barriers
+        const barriersRes = await api.get('/data/barriers');
+        if (barriersRes.data) {
+          setBarriers(barriersRes.data.barriers || barriersRes.data || []);
         }
         
         // Load terrain polygons (NOT cells - too slow)
@@ -581,6 +593,75 @@ const TerrainEditor = () => {
     });
   };
 
+  // Render rivers for editing
+  const renderRivers = () => {
+    return rivers.map((river, idx) => {
+      if (!river.puntos || river.puntos.length < 2) return null;
+      
+      const isSelected = selectedPiece?.type === 'river' && selectedPiece?.id === river.id;
+      
+      const pathD = river.puntos.map((p, i) => {
+        const x = (p.x / 100) * MAP_PIXEL_WIDTH;
+        const y = MAP_PIXEL_HEIGHT - (p.y / 100) * MAP_PIXEL_HEIGHT;
+        return `${i === 0 ? 'M' : 'L'} ${x} ${y}`;
+      }).join(' ');
+      
+      return (
+        <path
+          key={idx}
+          d={pathD}
+          fill="none"
+          stroke={isSelected ? '#22d3ee' : '#3b82f6'}
+          strokeWidth={isSelected ? 60 : 40}
+          strokeOpacity={0.7}
+          strokeLinecap="round"
+          style={{ cursor: editPieceMode === 'rivers' ? 'pointer' : 'default' }}
+          onClick={() => {
+            if (editPieceMode === 'rivers') {
+              setSelectedPiece({ type: 'river', id: river.id, data: river });
+              toast.info(`Seleccionado: ${river.nombre}`);
+            }
+          }}
+        />
+      );
+    });
+  };
+
+  // Render barriers for editing
+  const renderBarriers = () => {
+    return barriers.map((barrier, idx) => {
+      if (!barrier.puntos || barrier.puntos.length < 2) return null;
+      
+      const isSelected = selectedPiece?.type === 'barrier' && selectedPiece?.id === barrier.id;
+      
+      const pathD = barrier.puntos.map((p, i) => {
+        const x = (p.x / 100) * MAP_PIXEL_WIDTH;
+        const y = MAP_PIXEL_HEIGHT - (p.y / 100) * MAP_PIXEL_HEIGHT;
+        return `${i === 0 ? 'M' : 'L'} ${x} ${y}`;
+      }).join(' ');
+      
+      return (
+        <path
+          key={idx}
+          d={pathD}
+          fill="none"
+          stroke={isSelected ? '#f87171' : '#6b7280'}
+          strokeWidth={isSelected ? 70 : 50}
+          strokeOpacity={0.8}
+          strokeLinecap="round"
+          strokeDasharray="100,50"
+          style={{ cursor: editPieceMode === 'barriers' ? 'pointer' : 'default' }}
+          onClick={() => {
+            if (editPieceMode === 'barriers') {
+              setSelectedPiece({ type: 'barrier', id: barrier.id, data: barrier });
+              toast.info(`Seleccionado: ${barrier.nombre || `Barrera ${idx + 1}`}`);
+            }
+          }}
+        />
+      );
+    });
+  };
+
   // Render zones on map
   const renderZones = () => {
     const zones = getZones();
@@ -875,18 +956,18 @@ const TerrainEditor = () => {
               }}
               className={editPieceMode === 'roads' ? 'bg-amber-600' : ''}
             >
-              Caminos
+              Caminos ({roads.length})
             </Button>
             <Button
-              variant={editPieceMode === 'mountains' ? "default" : "outline"}
+              variant={editPieceMode === 'barriers' ? "default" : "outline"}
               size="sm"
               onClick={() => {
-                setEditPieceMode(editPieceMode === 'mountains' ? null : 'mountains');
+                setEditPieceMode(editPieceMode === 'barriers' ? null : 'barriers');
                 setSelectedPiece(null);
               }}
-              className={editPieceMode === 'mountains' ? 'bg-gray-600' : ''}
+              className={editPieceMode === 'barriers' ? 'bg-gray-600' : ''}
             >
-              Montañas
+              Barreras ({barriers.length})
             </Button>
             <Button
               variant={editPieceMode === 'rivers' ? "default" : "outline"}
@@ -897,7 +978,7 @@ const TerrainEditor = () => {
               }}
               className={editPieceMode === 'rivers' ? 'bg-blue-600' : ''}
             >
-              Ríos
+              Ríos ({rivers.length})
             </Button>
           </div>
         </div>
@@ -917,10 +998,13 @@ const TerrainEditor = () => {
           <div className="mt-2 p-2 bg-black/40 rounded max-h-32 overflow-y-auto">
             <div className="text-xs text-amber-400 mb-1 font-bold">
               {editPieceMode === 'roads' && `Caminos (${roads.length})`}
-              {editPieceMode === 'mountains' && 'Montañas (zonas de terreno difícil)'}
+              {editPieceMode === 'barriers' && `Barreras (${barriers.length})`}
               {editPieceMode === 'rivers' && `Ríos (${rivers.length})`}
             </div>
             <div className="flex flex-wrap gap-1">
+              {editPieceMode === 'roads' && roads.length === 0 && (
+                <span className="text-xs text-muted-foreground">No hay caminos definidos</span>
+              )}
               {editPieceMode === 'roads' && roads.slice(0, 15).map((road, idx) => (
                 <Badge 
                   key={idx} 
@@ -937,6 +1021,9 @@ const TerrainEditor = () => {
               {editPieceMode === 'roads' && roads.length > 15 && (
                 <span className="text-xs text-muted-foreground">+{roads.length - 15} más</span>
               )}
+              {editPieceMode === 'rivers' && rivers.length === 0 && (
+                <span className="text-xs text-muted-foreground">No hay ríos definidos</span>
+              )}
               {editPieceMode === 'rivers' && rivers.slice(0, 15).map((river, idx) => (
                 <Badge 
                   key={idx}
@@ -950,8 +1037,24 @@ const TerrainEditor = () => {
                   {river.nombre}
                 </Badge>
               ))}
-              {editPieceMode === 'mountains' && (
-                <span className="text-xs text-muted-foreground">Usa el pincel "Muy Difícil" o "Infranqueable" para marcar montañas</span>
+              {editPieceMode === 'barriers' && barriers.length === 0 && (
+                <span className="text-xs text-muted-foreground">No hay barreras definidas</span>
+              )}
+              {editPieceMode === 'barriers' && barriers.slice(0, 15).map((barrier, idx) => (
+                <Badge 
+                  key={idx}
+                  variant={selectedPiece?.data?.id === barrier.id ? "default" : "outline"}
+                  className="cursor-pointer text-xs bg-gray-700"
+                  onClick={() => {
+                    setSelectedPiece({ type: 'barrier', id: barrier.id, data: barrier });
+                    toast.info(`Seleccionado: ${barrier.nombre || `Barrera ${idx + 1}`}`);
+                  }}
+                >
+                  {barrier.nombre || `Barrera ${idx + 1}`}
+                </Badge>
+              ))}
+              {editPieceMode === 'barriers' && barriers.length > 15 && (
+                <span className="text-xs text-muted-foreground">+{barriers.length - 15} más</span>
               )}
             </div>
           </div>
@@ -1021,6 +1124,12 @@ const TerrainEditor = () => {
           
           {/* 6. Render roads */}
           {renderRoads()}
+          
+          {/* 6b. Render rivers */}
+          {renderRivers()}
+          
+          {/* 6c. Render barriers */}
+          {renderBarriers()}
           
           {/* 7. Render painted cells */}
           {renderPaintedCells()}
