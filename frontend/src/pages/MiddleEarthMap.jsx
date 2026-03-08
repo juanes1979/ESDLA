@@ -424,10 +424,10 @@ const MiddleEarthMap = () => {
       descripcion: roadFormData.descripcion,
       puntos: [],  // Array of {x, y} coordinates (percentage)
     });
-    toast.info('Haz clic en el mapa para añadir puntos al camino. Clic cerca de una ubicación = ancla automático. Doble clic para terminar.');
+    toast.info('Haz clic para añadir puntos. Solo ancla si haces clic encima de una ubicación. Doble clic para terminar.');
   };
   
-  // Add point to current road - with snap to nearby locations
+  // Add point to current road - with snap to nearby locations ONLY if clicking directly on them
   const addRoadPoint = (e) => {
     if (!isDrawingRoad || !currentRoad) return;
     
@@ -436,8 +436,8 @@ const MiddleEarthMap = () => {
     
     const coords = posToCoord(svgPoint.x, svgPoint.y);
     
-    // Check for nearby location to snap to (within 1.5% of map = ~30km)
-    const SNAP_DISTANCE = 1.5;
+    // ONLY snap if clicking VERY close to a location (0.3% of map = ~6km, basically on top of it)
+    const SNAP_DISTANCE = 0.3;
     let finalCoords = { x: coords.x, y: coords.y };
     let snappedTo = null;
     
@@ -456,7 +456,7 @@ const MiddleEarthMap = () => {
     }));
     
     if (snappedTo) {
-      toast.success(`📍 Punto anclado a: ${snappedTo}`, { duration: 1500 });
+      toast.success(`📍 Anclado a: ${snappedTo}`, { duration: 1500 });
     }
   };
   
@@ -560,7 +560,7 @@ const MiddleEarthMap = () => {
     toast.info('Haz clic en el mapa para añadir puntos al río. Doble clic para terminar.');
   };
   
-  // Add point to current river - with snap to nearby locations
+  // Add point to current river - with snap to nearby locations ONLY if clicking directly on them
   const addRiverPoint = (e) => {
     if (!isDrawingRiver || !currentRiver) return;
     
@@ -569,8 +569,8 @@ const MiddleEarthMap = () => {
     
     const coords = posToCoord(svgPoint.x, svgPoint.y);
     
-    // Check for nearby location to snap to (within 1.5% of map = ~30km)
-    const SNAP_DISTANCE = 1.5;
+    // ONLY snap if clicking VERY close to a location (0.3% of map = ~6km)
+    const SNAP_DISTANCE = 0.3;
     let finalCoords = { x: coords.x, y: coords.y };
     let snappedTo = null;
     
@@ -589,7 +589,7 @@ const MiddleEarthMap = () => {
     }));
     
     if (snappedTo) {
-      toast.success(`📍 Punto anclado a: ${snappedTo}`, { duration: 1500 });
+      toast.success(`📍 Anclado a: ${snappedTo}`, { duration: 1500 });
     }
   };
   
@@ -701,8 +701,8 @@ const MiddleEarthMap = () => {
     
     const coords = posToCoord(svgPoint.x, svgPoint.y);
     
-    // Check for nearby location to snap to (within 1.5% of map = ~30km)
-    const SNAP_DISTANCE = 1.5;
+    // ONLY snap if clicking VERY close to a location (0.3% of map = ~6km)
+    const SNAP_DISTANCE = 0.3;
     let finalCoords = { x: coords.x, y: coords.y };
     let snappedTo = null;
     
@@ -721,7 +721,7 @@ const MiddleEarthMap = () => {
     }));
     
     if (snappedTo) {
-      toast.success(`📍 Punto anclado a: ${snappedTo}`, { duration: 1500 });
+      toast.success(`📍 Anclado a: ${snappedTo}`, { duration: 1500 });
     }
   };
   
