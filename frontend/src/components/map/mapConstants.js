@@ -102,6 +102,7 @@ export const TYPE_CATEGORIES = {
 
 // Road types
 export const ROAD_TYPES = {
+  real: { label: 'Camino Real', color: '#c9a227', width: 5 },
   principal: { label: 'Camino Principal', color: '#8B4513', width: 4 },
   secundario: { label: 'Camino Secundario', color: '#A0522D', width: 3 },
   sendero: { label: 'Sendero', color: '#D2691E', width: 2 },

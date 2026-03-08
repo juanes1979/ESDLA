@@ -61,7 +61,7 @@ const BarriersPanel = ({
           </p>
         ) : (
           barriers.map(barrier => {
-            const barrierStyle = BARRIER_TYPES[barrier.tipo] || BARRIER_TYPES.mountain;
+            const barrierStyle = BARRIER_TYPES[barrier.tipo] || BARRIER_TYPES.cordillera || { label: 'Desconocido', color: '#808080', width: 4 };
             const isEditing = editingBarrierId === barrier.id;
             
             return (

@@ -61,7 +61,7 @@ const RoadsPanel = ({
           </p>
         ) : (
           roads.map(road => {
-            const roadStyle = ROAD_TYPES[road.tipo] || ROAD_TYPES.secondary;
+            const roadStyle = ROAD_TYPES[road.tipo] || ROAD_TYPES.sendero || { label: 'Desconocido', color: '#888888', width: 2 };
             const isEditing = editingRoadId === road.id;
             
             return (

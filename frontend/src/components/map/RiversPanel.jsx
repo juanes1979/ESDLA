@@ -61,7 +61,7 @@ const RiversPanel = ({
           </p>
         ) : (
           rivers.map(river => {
-            const riverStyle = RIVER_TYPES[river.tipo] || RIVER_TYPES.river;
+            const riverStyle = RIVER_TYPES[river.tipo] || RIVER_TYPES.rio || { label: 'Desconocido', color: '#4169E1', width: 2 };
             const isEditing = editingRiverId === river.id;
             
             return (
