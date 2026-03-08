@@ -427,7 +427,7 @@ const MiddleEarthMap = () => {
     toast.info('Haz clic para añadir puntos. Solo ancla si haces clic encima de una ubicación. Doble clic para terminar.');
   };
   
-  // Add point to current road - with snap to nearby locations ONLY if clicking directly on them
+  // Add point to current road - ONLY snap if clicking EXACTLY on a location marker
   const addRoadPoint = (e) => {
     if (!isDrawingRoad || !currentRoad) return;
     
@@ -436,8 +436,8 @@ const MiddleEarthMap = () => {
     
     const coords = posToCoord(svgPoint.x, svgPoint.y);
     
-    // ONLY snap if clicking VERY close to a location (0.3% of map = ~6km, basically on top of it)
-    const SNAP_DISTANCE = 0.3;
+    // ONLY snap if clicking EXACTLY on a location (0.08% = basically on the marker itself)
+    const SNAP_DISTANCE = 0.08;
     let finalCoords = { x: coords.x, y: coords.y };
     let snappedTo = null;
     
@@ -560,7 +560,7 @@ const MiddleEarthMap = () => {
     toast.info('Haz clic en el mapa para añadir puntos al río. Doble clic para terminar.');
   };
   
-  // Add point to current river - with snap to nearby locations ONLY if clicking directly on them
+  // Add point to current river - ONLY snap if clicking EXACTLY on a location marker
   const addRiverPoint = (e) => {
     if (!isDrawingRiver || !currentRiver) return;
     
@@ -569,8 +569,8 @@ const MiddleEarthMap = () => {
     
     const coords = posToCoord(svgPoint.x, svgPoint.y);
     
-    // ONLY snap if clicking VERY close to a location (0.3% of map = ~6km)
-    const SNAP_DISTANCE = 0.3;
+    // ONLY snap if clicking EXACTLY on a location (0.08% = basically on the marker itself)
+    const SNAP_DISTANCE = 0.08;
     let finalCoords = { x: coords.x, y: coords.y };
     let snappedTo = null;
     
@@ -701,8 +701,8 @@ const MiddleEarthMap = () => {
     
     const coords = posToCoord(svgPoint.x, svgPoint.y);
     
-    // ONLY snap if clicking VERY close to a location (0.3% of map = ~6km)
-    const SNAP_DISTANCE = 0.3;
+    // ONLY snap if clicking EXACTLY on a location (0.08% = basically on the marker itself)
+    const SNAP_DISTANCE = 0.08;
     let finalCoords = { x: coords.x, y: coords.y };
     let snappedTo = null;
     
