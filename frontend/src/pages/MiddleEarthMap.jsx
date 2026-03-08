@@ -1288,13 +1288,13 @@ const MiddleEarthMap = () => {
         {/* Label - only visible when zoomed in enough, fixed size on screen */}
         {showLabels && !editMode && zoom > 0.06 && (
           <text
-            y={250 * inverseZoom}
+            y={260 * inverseZoom}
             textAnchor="middle"
             fill="#fff"
-            fontSize={180 * inverseZoom}
+            fontSize={195 * inverseZoom}
             fontWeight="bold"
             stroke="#000"
-            strokeWidth={50 * inverseZoom}
+            strokeWidth={55 * inverseZoom}
             paintOrder="stroke"
             style={{ pointerEvents: 'none' }}
           >
@@ -1305,13 +1305,13 @@ const MiddleEarthMap = () => {
         {/* Label in edit mode - visible when zoomed in, fixed size */}
         {editMode && showLabels && zoom > 0.06 && (
           <text
-            y={200 * inverseZoom}
+            y={210 * inverseZoom}
             textAnchor="middle"
             fill="#fff"
-            fontSize={160 * inverseZoom}
+            fontSize={175 * inverseZoom}
             fontWeight="bold"
             stroke="#000"
-            strokeWidth={40 * inverseZoom}
+            strokeWidth={45 * inverseZoom}
             paintOrder="stroke"
             style={{ pointerEvents: 'none' }}
           >
@@ -2076,8 +2076,8 @@ const MiddleEarthMap = () => {
           {showRoads && roads.map(road => {
             const roadStyle = ROAD_TYPES[road.tipo] || ROAD_TYPES.secundario;
             const isSelected = selectedRoad?.id === road.id;
-            // Base width that scales appropriately - minimum visibility ensured
-            const baseWidth = Math.max(0.8, roadStyle.width / Math.sqrt(zoom));
+            // Base width that scales appropriately - increased for better visibility
+            const baseWidth = Math.max(1.5, (roadStyle.width * 1.8) / Math.sqrt(zoom));
             return (
               <g key={road.id}>
                 {/* Road shadow/outline for better visibility */}
@@ -2085,10 +2085,10 @@ const MiddleEarthMap = () => {
                   d={roadToPath(road)}
                   fill="none"
                   stroke="#000"
-                  strokeWidth={(baseWidth + 0.5) * (isSelected ? 1.5 : 1)}
+                  strokeWidth={(baseWidth + 1) * (isSelected ? 1.5 : 1)}
                   strokeLinecap="round"
                   strokeLinejoin="round"
-                  opacity={0.3}
+                  opacity={0.4}
                 />
                 {/* Main road path */}
                 <path
@@ -2110,13 +2110,13 @@ const MiddleEarthMap = () => {
                 {showLabels && road.puntos?.length > 1 && (
                   <text
                     x={coordToPos(road.puntos[Math.floor(road.puntos.length / 2)].x, road.puntos[Math.floor(road.puntos.length / 2)].y).x}
-                    y={coordToPos(road.puntos[Math.floor(road.puntos.length / 2)].x, road.puntos[Math.floor(road.puntos.length / 2)].y).y - 10 / zoom}
+                    y={coordToPos(road.puntos[Math.floor(road.puntos.length / 2)].x, road.puntos[Math.floor(road.puntos.length / 2)].y).y - 12 / zoom}
                     fill={roadStyle.color}
-                    fontSize={10 / zoom}
+                    fontSize={12 / zoom}
                     textAnchor="middle"
                     fontWeight="bold"
                     stroke="#000"
-                    strokeWidth={2 / zoom}
+                    strokeWidth={2.5 / zoom}
                     paintOrder="stroke"
                     opacity={0.9}
                   >
@@ -2130,14 +2130,24 @@ const MiddleEarthMap = () => {
           {/* Current road being drawn */}
           {isDrawingRoad && currentRoad && currentRoad.puntos.length > 0 && (
             <g>
+              {/* Shadow for current road */}
+              <path
+                d={roadToPath(currentRoad)}
+                fill="none"
+                stroke="#000"
+                strokeWidth={6 / zoom}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                opacity={0.4}
+              />
               <path
                 d={roadToPath(currentRoad)}
                 fill="none"
                 stroke="#00ff00"
-                strokeWidth={3 / zoom}
+                strokeWidth={4 / zoom}
                 strokeLinecap="round"
                 strokeLinejoin="round"
-                strokeDasharray={`${5 / zoom} ${5 / zoom}`}
+                strokeDasharray={`${8 / zoom} ${4 / zoom}`}
                 opacity={0.9}
               />
               {/* Points markers */}
