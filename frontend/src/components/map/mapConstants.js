@@ -102,11 +102,15 @@ export const TYPE_CATEGORIES = {
 
 // Road types
 export const ROAD_TYPES = {
-  real: { label: 'Camino Real', color: '#c9a227', width: 5 },
-  principal: { label: 'Camino Principal', color: '#8B4513', width: 4 },
-  secundario: { label: 'Camino Secundario', color: '#A0522D', width: 3 },
-  sendero: { label: 'Sendero', color: '#D2691E', width: 2 },
-  oculto: { label: 'Camino Oculto', color: '#696969', width: 2, dashed: true },
+  grande: { label: 'Grandes Caminos', color: '#FFD700', width: 6 },
+  mayor: { label: 'Caminos Mayores', color: '#C9A227', width: 4.5 },
+  menor: { label: 'Caminos Menores', color: '#A08050', width: 3 },
+  senda: { label: 'Sendas', color: '#8B7355', width: 2, dashed: true },
+  // Legacy types for backwards compatibility
+  real: { label: 'Grandes Caminos', color: '#FFD700', width: 6 },
+  principal: { label: 'Caminos Mayores', color: '#C9A227', width: 4.5 },
+  secundario: { label: 'Caminos Menores', color: '#A08050', width: 3 },
+  sendero: { label: 'Sendas', color: '#8B7355', width: 2, dashed: true },
 };
 
 // River types

@@ -178,15 +178,21 @@ const MiddleEarthMap = () => {
   const [editingRoadId, setEditingRoadId] = useState(null);  // Road being edited in panel
   const [roadFormData, setRoadFormData] = useState({
     nombre: '',
-    tipo: 'secundario',  // sendero, secundario, real
+    tipo: 'menor',  // grande, mayor, menor, senda
     descripcion: '',
   });
   
   // Road types configuration
   const ROAD_TYPES = {
-    sendero: { label: 'Sendero', color: '#8B7355', width: 1.5, dash: [3, 2] },
-    secundario: { label: 'Camino Secundario', color: '#C4A574', width: 2.5, dash: [] },
-    real: { label: 'Camino Real', color: '#FFD700', width: 4, dash: [] },
+    grande: { label: 'Grandes Caminos', color: '#FFD700', width: 6, dash: [] },
+    mayor: { label: 'Caminos Mayores', color: '#C9A227', width: 4.5, dash: [] },
+    menor: { label: 'Caminos Menores', color: '#A08050', width: 3, dash: [] },
+    senda: { label: 'Sendas', color: '#8B7355', width: 2, dash: [4, 2] },
+    // Legacy types for backwards compatibility
+    real: { label: 'Grandes Caminos', color: '#FFD700', width: 6, dash: [] },
+    principal: { label: 'Caminos Mayores', color: '#C9A227', width: 4.5, dash: [] },
+    secundario: { label: 'Caminos Menores', color: '#A08050', width: 3, dash: [] },
+    sendero: { label: 'Sendas', color: '#8B7355', width: 2, dash: [4, 2] },
   };
   
   // River types configuration
@@ -1738,9 +1744,10 @@ const MiddleEarthMap = () => {
                 onChange={(e) => setRoadFormData(prev => ({ ...prev, tipo: e.target.value }))}
                 className="h-8 text-xs bg-black/30 border border-border/30 rounded px-2"
               >
-                {Object.entries(ROAD_TYPES).map(([key, val]) => (
-                  <option key={key} value={key}>{val.label}</option>
-                ))}
+                <option value="grande">Grandes Caminos</option>
+                <option value="mayor">Caminos Mayores</option>
+                <option value="menor">Caminos Menores</option>
+                <option value="senda">Sendas</option>
               </select>
               <Input
                 value={roadFormData.nombre}
@@ -2074,10 +2081,10 @@ const MiddleEarthMap = () => {
           
           {/* Saved Roads */}
           {showRoads && roads.map(road => {
-            const roadStyle = ROAD_TYPES[road.tipo] || ROAD_TYPES.secundario;
+            const roadStyle = ROAD_TYPES[road.tipo] || ROAD_TYPES.menor;
             const isSelected = selectedRoad?.id === road.id;
-            // Base width that scales appropriately - increased for better visibility
-            const baseWidth = Math.max(1.5, (roadStyle.width * 1.8) / Math.sqrt(zoom));
+            // Base width that scales appropriately - significantly increased for better visibility
+            const baseWidth = Math.max(2.5, (roadStyle.width * 2.5) / Math.sqrt(zoom));
             return (
               <g key={road.id}>
                 {/* Road shadow/outline for better visibility */}
@@ -2085,10 +2092,10 @@ const MiddleEarthMap = () => {
                   d={roadToPath(road)}
                   fill="none"
                   stroke="#000"
-                  strokeWidth={(baseWidth + 1) * (isSelected ? 1.5 : 1)}
+                  strokeWidth={(baseWidth + 1.5) * (isSelected ? 1.5 : 1)}
                   strokeLinecap="round"
                   strokeLinejoin="round"
-                  opacity={0.4}
+                  opacity={0.5}
                 />
                 {/* Main road path */}
                 <path
@@ -2099,7 +2106,7 @@ const MiddleEarthMap = () => {
                   strokeDasharray={roadStyle.dash.length > 0 ? roadStyle.dash.map(d => d / Math.sqrt(zoom)).join(' ') : 'none'}
                   strokeLinecap="round"
                   strokeLinejoin="round"
-                  opacity={0.9}
+                  opacity={0.95}
                   style={{ cursor: 'pointer' }}
                   onClick={(e) => {
                     e.stopPropagation();
@@ -2135,20 +2142,20 @@ const MiddleEarthMap = () => {
                 d={roadToPath(currentRoad)}
                 fill="none"
                 stroke="#000"
-                strokeWidth={6 / zoom}
+                strokeWidth={10 / zoom}
                 strokeLinecap="round"
                 strokeLinejoin="round"
-                opacity={0.4}
+                opacity={0.5}
               />
               <path
                 d={roadToPath(currentRoad)}
                 fill="none"
                 stroke="#00ff00"
-                strokeWidth={4 / zoom}
+                strokeWidth={7 / zoom}
                 strokeLinecap="round"
                 strokeLinejoin="round"
-                strokeDasharray={`${8 / zoom} ${4 / zoom}`}
-                opacity={0.9}
+                strokeDasharray={`${10 / zoom} ${5 / zoom}`}
+                opacity={0.95}
               />
               {/* Points markers */}
               {currentRoad.puntos.map((p, i) => (
