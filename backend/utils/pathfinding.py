@@ -18,6 +18,7 @@ class TerrainType(Enum):
     MUY_DIFICIL = ("muy_dificil", 3.0)
     DESALENTADOR = ("desalentador", 4.0)
     INFRANQUEABLE = ("infranqueable", float('inf'))
+    AGUA = ("agua", float('inf'))  # Water - requires boat
     
     def __init__(self, key: str, multiplier: float):
         self.key = key
@@ -140,6 +141,26 @@ class MiddleEarthPathfinder:
     # Base travel speed (km/day at normal pace on easy terrain)
     BASE_SPEED_KM_DAY = 36
     
+    # Priority order for terrain difficulty
+    TERRAIN_PRIORITY = {
+        'agua': 7,
+        'infranqueable': 6,
+        'desalentador': 5,
+        'muy_dificil': 4,
+        'dificil': 3,
+        'moderado': 2,
+        'facil': 1,
+    }
+    
+    # Priority order for land types
+    LAND_TYPE_PRIORITY = {
+        'tierras_oscuras': 5,
+        'tierras_sombra': 4,
+        'tierras_salvajes': 3,
+        'tierras_fronterizas': 2,
+        'tierras_libres': 1,
+    }
+    
     def __init__(
         self,
         roads: List[Dict],
@@ -147,6 +168,7 @@ class MiddleEarthPathfinder:
         barriers: List[Dict],
         locations: List[Dict],
         regions: Optional[List[Dict]] = None,
+        terrain_polygons: Optional[List[Dict]] = None,
         prefer_roads: bool = True
     ):
         self.roads = roads
@@ -154,6 +176,7 @@ class MiddleEarthPathfinder:
         self.barriers = barriers
         self.locations = locations
         self.regions = regions or []
+        self.terrain_polygons = terrain_polygons or []
         self.prefer_roads = prefer_roads
         
         # Road preference multiplier: lower = more preferred when prefer_roads=True
@@ -164,6 +187,77 @@ class MiddleEarthPathfinder:
         self._build_river_segments()
         self._build_barrier_segments()
         self._build_location_map()
+    
+    def _point_in_polygon(self, x: float, y: float, polygon_points: list) -> bool:
+        """Check if point is inside polygon using ray casting"""
+        n = len(polygon_points)
+        if n < 3:
+            return False
+        
+        inside = False
+        j = n - 1
+        
+        for i in range(n):
+            xi = polygon_points[i].get("x", 0)
+            yi = polygon_points[i].get("y", 0)
+            xj = polygon_points[j].get("x", 0)
+            yj = polygon_points[j].get("y", 0)
+            
+            if ((yi > y) != (yj > y)) and (x < (xj - xi) * (y - yi) / (yj - yi) + xi):
+                inside = not inside
+            j = i
+        
+        return inside
+    
+    def get_terrain_from_polygons(self, x: float, y: float) -> str:
+        """Get terrain type at coordinate from polygons, with priority"""
+        if not self.terrain_polygons:
+            return "moderado"
+        
+        matching = []
+        for poly in self.terrain_polygons:
+            poly_type = poly.get("type", "")
+            if poly_type not in self.TERRAIN_PRIORITY:
+                continue
+            
+            points = poly.get("points", [])
+            if self._point_in_polygon(x, y, points):
+                matching.append({
+                    "type": poly_type,
+                    "priority": self.TERRAIN_PRIORITY.get(poly_type, 0)
+                })
+        
+        if not matching:
+            return "moderado"
+        
+        # Return highest priority (most difficult)
+        matching.sort(key=lambda m: m["priority"], reverse=True)
+        return matching[0]["type"]
+    
+    def get_land_type_from_polygons(self, x: float, y: float) -> str:
+        """Get land type at coordinate from polygons, with priority"""
+        if not self.terrain_polygons:
+            return "tierras_salvajes"
+        
+        matching = []
+        for poly in self.terrain_polygons:
+            poly_type = poly.get("type", "")
+            if poly_type not in self.LAND_TYPE_PRIORITY:
+                continue
+            
+            points = poly.get("points", [])
+            if self._point_in_polygon(x, y, points):
+                matching.append({
+                    "type": poly_type,
+                    "priority": self.LAND_TYPE_PRIORITY.get(poly_type, 0)
+                })
+        
+        if not matching:
+            return "tierras_salvajes"
+        
+        # Return highest priority
+        matching.sort(key=lambda m: m["priority"], reverse=True)
+        return matching[0]["type"]
     
     def _build_road_network(self):
         """Build efficient road lookup structure"""
@@ -391,7 +485,14 @@ class MiddleEarthPathfinder:
         return None
     
     def _get_terrain_at_point(self, x: float, y: float) -> str:
-        """Get terrain type at point (from nearest location or default)"""
+        """Get terrain type at point - first from polygons, then fallback to locations"""
+        # First check terrain polygons (highest priority)
+        if self.terrain_polygons:
+            polygon_terrain = self.get_terrain_from_polygons(x, y)
+            if polygon_terrain != "moderado":  # Found specific terrain
+                return polygon_terrain
+        
+        # Fallback to location-based terrain
         grid_key = (round(x), round(y))
         
         if grid_key in self.location_map:

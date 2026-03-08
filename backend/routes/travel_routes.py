@@ -517,63 +517,154 @@ async def get_travel_rules() -> dict:
         await db.travel_rules.insert_one(rules)
     return rules
 
+# Priority order for terrain difficulty (higher = more priority)
+TERRAIN_PRIORITY = {
+    'agua': 7,
+    'infranqueable': 6,
+    'desalentador': 5,
+    'muy_dificil': 4,
+    'dificil': 3,
+    'moderado': 2,
+    'facil': 1,
+}
+
+# Priority order for land types (higher = more priority)
+LAND_TYPE_PRIORITY = {
+    'tierras_oscuras': 5,
+    'tierras_sombra': 4,
+    'tierras_salvajes': 3,
+    'tierras_fronterizas': 2,
+    'tierras_libres': 1,
+}
+
+def point_in_polygon(x: float, y: float, polygon_points: list) -> bool:
+    """
+    Check if a point (x, y) is inside a polygon using ray casting algorithm.
+    polygon_points is a list of {"x": float, "y": float} dicts.
+    """
+    n = len(polygon_points)
+    if n < 3:
+        return False
+    
+    inside = False
+    j = n - 1
+    
+    for i in range(n):
+        xi = polygon_points[i].get("x", 0)
+        yi = polygon_points[i].get("y", 0)
+        xj = polygon_points[j].get("x", 0)
+        yj = polygon_points[j].get("y", 0)
+        
+        if ((yi > y) != (yj > y)) and (x < (xj - xi) * (y - yi) / (yj - yi) + xi):
+            inside = not inside
+        j = i
+    
+    return inside
+
+async def get_terrain_polygons() -> list:
+    """Get terrain polygons from database"""
+    doc = await db.terrain_polygons.find_one({"_id": "terrain_polygons_data"})
+    if not doc:
+        return []
+    return doc.get("polygons", [])
+
 async def get_terrain_at_coordinate(x: float, y: float) -> Optional[dict]:
     """
-    Get terrain difficulty at a specific coordinate from painted terrain zones.
+    Get terrain difficulty at a specific coordinate from terrain polygons.
     x, y are in percentage coordinates (0-100).
-    Returns terrain type if found, None otherwise.
+    If multiple polygons overlap, returns the one with highest priority (most difficult).
     """
-    # Load terrain zones from database
-    terrain_doc = await db.terrain_zones.find_one({"_id": "terrain_data"})
-    if not terrain_doc or not terrain_doc.get("zones"):
+    polygons = await get_terrain_polygons()
+    if not polygons:
         return None
     
-    zones = terrain_doc["zones"]
-    cell_size = 1.0  # Each cell is 1% of map
+    # Filter terrain polygons (not land type)
+    terrain_types = set(TERRAIN_PRIORITY.keys())
     
-    # Find the cell that contains this coordinate
-    for zone in zones:
-        zone_x = zone.get("x", 0)
-        zone_y = zone.get("y", 0)
-        zone_size = zone.get("size", cell_size)
+    # Find all polygons that contain this point
+    matching = []
+    for poly in polygons:
+        poly_type = poly.get("type", "")
+        if poly_type not in terrain_types:
+            continue
         
-        if (zone_x <= x < zone_x + zone_size) and (zone_y <= y < zone_y + zone_size):
-            return {
-                "type": zone.get("type"),
-                "x": zone_x,
-                "y": zone_y
-            }
+        points = poly.get("points", [])
+        if point_in_polygon(x, y, points):
+            matching.append({
+                "type": poly_type,
+                "priority": TERRAIN_PRIORITY.get(poly_type, 0),
+                "polygon_id": poly.get("id")
+            })
     
-    return None
+    if not matching:
+        return None
+    
+    # Return the one with highest priority
+    matching.sort(key=lambda m: m["priority"], reverse=True)
+    return {
+        "type": matching[0]["type"],
+        "x": x,
+        "y": y,
+        "polygon_id": matching[0]["polygon_id"]
+    }
 
 async def get_land_type_at_coordinate(x: float, y: float) -> Optional[dict]:
     """
-    Get land type at a specific coordinate from painted land type zones.
+    Get land type at a specific coordinate from terrain polygons.
     x, y are in percentage coordinates (0-100).
-    Returns land type if found, None otherwise.
+    If multiple polygons overlap, returns the one with highest priority.
+    Priority: Tierras Oscuras > Sombra > Salvajes > Fronterizas > Libres
     """
-    # Load land type zones from database
-    land_doc = await db.land_type_zones.find_one({"_id": "land_type_data"})
-    if not land_doc or not land_doc.get("zones"):
+    polygons = await get_terrain_polygons()
+    if not polygons:
         return None
     
-    zones = land_doc["zones"]
-    cell_size = 1.0  # Each cell is 1% of map
+    # Filter land type polygons
+    land_types = set(LAND_TYPE_PRIORITY.keys())
     
-    # Find the cell that contains this coordinate
-    for zone in zones:
-        zone_x = zone.get("x", 0)
-        zone_y = zone.get("y", 0)
-        zone_size = zone.get("size", cell_size)
+    # Find all polygons that contain this point
+    matching = []
+    for poly in polygons:
+        poly_type = poly.get("type", "")
+        if poly_type not in land_types:
+            continue
         
-        if (zone_x <= x < zone_x + zone_size) and (zone_y <= y < zone_y + zone_size):
-            return {
-                "type": zone.get("type"),
-                "x": zone_x,
-                "y": zone_y
-            }
+        points = poly.get("points", [])
+        if point_in_polygon(x, y, points):
+            matching.append({
+                "type": poly_type,
+                "priority": LAND_TYPE_PRIORITY.get(poly_type, 0),
+                "polygon_id": poly.get("id")
+            })
     
-    return None
+    if not matching:
+        return None
+    
+    # Return the one with highest priority
+    matching.sort(key=lambda m: m["priority"], reverse=True)
+    return {
+        "type": matching[0]["type"],
+        "x": x,
+        "y": y,
+        "polygon_id": matching[0]["polygon_id"]
+    }
+
+async def get_terrain_and_land_at_coordinate(x: float, y: float) -> dict:
+    """
+    Get both terrain difficulty and land type at a coordinate.
+    Returns combined info for pathfinding calculations.
+    """
+    terrain = await get_terrain_at_coordinate(x, y)
+    land_type = await get_land_type_at_coordinate(x, y)
+    
+    return {
+        "x": x,
+        "y": y,
+        "terrain": terrain.get("type") if terrain else "moderado",  # default
+        "land_type": land_type.get("type") if land_type else "tierras_salvajes",  # default
+        "terrain_priority": TERRAIN_PRIORITY.get(terrain.get("type") if terrain else "moderado", 2),
+        "land_priority": LAND_TYPE_PRIORITY.get(land_type.get("type") if land_type else "tierras_salvajes", 3),
+    }
 
 # ============== CRUD ENDPOINTS FOR EDITABLE DATA ==============
 
@@ -649,13 +740,14 @@ async def get_land_types_config():
 
 @router.get("/terrain-at/{x}/{y}")
 async def get_terrain_at_point(x: float, y: float):
-    """Get terrain and land type at a specific coordinate (for debugging)"""
-    terrain = await get_terrain_at_coordinate(x, y)
-    land_type = await get_land_type_at_coordinate(x, y)
+    """Get terrain difficulty and land type at a specific coordinate (uses polygon data)"""
+    result = await get_terrain_and_land_at_coordinate(x, y)
     return {
         "coordinate": {"x": x, "y": y},
-        "terrain": terrain,
-        "land_type": land_type
+        "terrain": result["terrain"],
+        "land_type": result["land_type"],
+        "terrain_priority": result["terrain_priority"],
+        "land_priority": result["land_priority"]
     }
 
 @router.put("/config/land-types/{land_id}")
@@ -803,11 +895,16 @@ async def calculate_journey(config: JourneyConfig):
                 # Use pathfinding
                 from utils.pathfinding import MiddleEarthPathfinder
                 
+                # Load terrain polygons
+                terrain_polygons = await get_terrain_polygons()
+                debug_info["pathfinding"]["terrain_polygons_count"] = len(terrain_polygons)
+                
                 pathfinder = MiddleEarthPathfinder(
                     roads=roads,
                     rivers=rivers,
                     barriers=barriers,
                     locations=all_locations,
+                    terrain_polygons=terrain_polygons,
                     prefer_roads=config.preferir_caminos
                 )
                 
