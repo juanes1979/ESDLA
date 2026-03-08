@@ -184,8 +184,8 @@ const MiddleEarthMap = () => {
   
   // Road types configuration
   const ROAD_TYPES = {
-    sendero: { label: 'Sendero', color: '#8B7355', width: 2, dash: [5, 5] },
-    secundario: { label: 'Camino Secundario', color: '#C4A574', width: 3, dash: [] },
+    sendero: { label: 'Sendero', color: '#8B7355', width: 1.5, dash: [3, 2] },
+    secundario: { label: 'Camino Secundario', color: '#C4A574', width: 2.5, dash: [] },
     real: { label: 'Camino Real', color: '#FFD700', width: 4, dash: [] },
   };
   
@@ -418,10 +418,10 @@ const MiddleEarthMap = () => {
       descripcion: roadFormData.descripcion,
       puntos: [],  // Array of {x, y} coordinates (percentage)
     });
-    toast.info('Haz clic en el mapa para añadir puntos al camino. Doble clic para terminar.');
+    toast.info('Haz clic en el mapa para añadir puntos al camino. Clic cerca de una ubicación = ancla automático. Doble clic para terminar.');
   };
   
-  // Add point to current road
+  // Add point to current road - with snap to nearby locations
   const addRoadPoint = (e) => {
     if (!isDrawingRoad || !currentRoad) return;
     
@@ -430,10 +430,28 @@ const MiddleEarthMap = () => {
     
     const coords = posToCoord(svgPoint.x, svgPoint.y);
     
+    // Check for nearby location to snap to (within 1.5% of map = ~30km)
+    const SNAP_DISTANCE = 1.5;
+    let finalCoords = { x: coords.x, y: coords.y };
+    let snappedTo = null;
+    
+    for (const loc of locations) {
+      const dist = Math.sqrt(Math.pow(loc.x - coords.x, 2) + Math.pow(loc.y - coords.y, 2));
+      if (dist < SNAP_DISTANCE) {
+        finalCoords = { x: loc.x, y: loc.y };
+        snappedTo = loc.nombre;
+        break;
+      }
+    }
+    
     setCurrentRoad(prev => ({
       ...prev,
-      puntos: [...prev.puntos, { x: coords.x, y: coords.y }],
+      puntos: [...prev.puntos, finalCoords],
     }));
+    
+    if (snappedTo) {
+      toast.success(`📍 Punto anclado a: ${snappedTo}`, { duration: 1500 });
+    }
   };
   
   // Finish drawing current road
@@ -536,7 +554,7 @@ const MiddleEarthMap = () => {
     toast.info('Haz clic en el mapa para añadir puntos al río. Doble clic para terminar.');
   };
   
-  // Add point to current river
+  // Add point to current river - with snap to nearby locations
   const addRiverPoint = (e) => {
     if (!isDrawingRiver || !currentRiver) return;
     
@@ -545,10 +563,28 @@ const MiddleEarthMap = () => {
     
     const coords = posToCoord(svgPoint.x, svgPoint.y);
     
+    // Check for nearby location to snap to (within 1.5% of map = ~30km)
+    const SNAP_DISTANCE = 1.5;
+    let finalCoords = { x: coords.x, y: coords.y };
+    let snappedTo = null;
+    
+    for (const loc of locations) {
+      const dist = Math.sqrt(Math.pow(loc.x - coords.x, 2) + Math.pow(loc.y - coords.y, 2));
+      if (dist < SNAP_DISTANCE) {
+        finalCoords = { x: loc.x, y: loc.y };
+        snappedTo = loc.nombre;
+        break;
+      }
+    }
+    
     setCurrentRiver(prev => ({
       ...prev,
-      puntos: [...prev.puntos, { x: coords.x, y: coords.y }],
+      puntos: [...prev.puntos, finalCoords],
     }));
+    
+    if (snappedTo) {
+      toast.success(`📍 Punto anclado a: ${snappedTo}`, { duration: 1500 });
+    }
   };
   
   // Finish drawing current river
@@ -650,7 +686,7 @@ const MiddleEarthMap = () => {
     toast.info('Haz clic en el mapa para añadir puntos a la barrera. Doble clic para terminar.');
   };
   
-  // Add point to current barrier
+  // Add point to current barrier - with snap to nearby locations
   const addBarrierPoint = (e) => {
     if (!isDrawingBarrier || !currentBarrier) return;
     
@@ -659,10 +695,28 @@ const MiddleEarthMap = () => {
     
     const coords = posToCoord(svgPoint.x, svgPoint.y);
     
+    // Check for nearby location to snap to (within 1.5% of map = ~30km)
+    const SNAP_DISTANCE = 1.5;
+    let finalCoords = { x: coords.x, y: coords.y };
+    let snappedTo = null;
+    
+    for (const loc of locations) {
+      const dist = Math.sqrt(Math.pow(loc.x - coords.x, 2) + Math.pow(loc.y - coords.y, 2));
+      if (dist < SNAP_DISTANCE) {
+        finalCoords = { x: loc.x, y: loc.y };
+        snappedTo = loc.nombre;
+        break;
+      }
+    }
+    
     setCurrentBarrier(prev => ({
       ...prev,
-      puntos: [...prev.puntos, { x: coords.x, y: coords.y }],
+      puntos: [...prev.puntos, finalCoords],
     }));
+    
+    if (snappedTo) {
+      toast.success(`📍 Punto anclado a: ${snappedTo}`, { duration: 1500 });
+    }
   };
   
   // Finish drawing current barrier
@@ -2022,17 +2076,30 @@ const MiddleEarthMap = () => {
           {showRoads && roads.map(road => {
             const roadStyle = ROAD_TYPES[road.tipo] || ROAD_TYPES.secundario;
             const isSelected = selectedRoad?.id === road.id;
+            // Base width that scales appropriately - minimum visibility ensured
+            const baseWidth = Math.max(0.8, roadStyle.width / Math.sqrt(zoom));
             return (
               <g key={road.id}>
+                {/* Road shadow/outline for better visibility */}
+                <path
+                  d={roadToPath(road)}
+                  fill="none"
+                  stroke="#000"
+                  strokeWidth={(baseWidth + 0.5) * (isSelected ? 1.5 : 1)}
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  opacity={0.3}
+                />
+                {/* Main road path */}
                 <path
                   d={roadToPath(road)}
                   fill="none"
                   stroke={isSelected ? '#00ff00' : roadStyle.color}
-                  strokeWidth={(roadStyle.width + (isSelected ? 2 : 0)) / zoom}
-                  strokeDasharray={roadStyle.dash.map(d => d / zoom).join(' ')}
+                  strokeWidth={baseWidth * (isSelected ? 1.5 : 1)}
+                  strokeDasharray={roadStyle.dash.length > 0 ? roadStyle.dash.map(d => d / Math.sqrt(zoom)).join(' ') : 'none'}
                   strokeLinecap="round"
                   strokeLinejoin="round"
-                  opacity={0.8}
+                  opacity={0.9}
                   style={{ cursor: 'pointer' }}
                   onClick={(e) => {
                     e.stopPropagation();
