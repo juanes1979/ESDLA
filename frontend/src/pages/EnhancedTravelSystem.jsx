@@ -667,8 +667,9 @@ const EnhancedTravelSystem = () => {
           papel: m.papel,
           tiene_montura: m.tieneMontura,
           montura_nombre: m.monturaNombre,
+          montura_velocidad: m.tieneMontura && m.monturaPropia ? (m.monturaPropia.velocidad || 60) : 0,
           montura_con_bonus: m.monturaConBonus || 0,
-          velocidad_base: 30,
+          velocidad_base: m.velocidadBase || 30,
           modificador_sabiduria: m.modSabiduria || 0,
           competencias: m.competencias || [],
           nivel: m.nivel || 1
@@ -1304,9 +1305,12 @@ const EnhancedTravelSystem = () => {
     const monturaPropia = char.montura ? {
       nombre: char.montura.nombre,
       capacidad: char.montura.capacidad_carga,
-      velocidad: char.montura.velocidad,
+      velocidad: char.montura.velocidad || 60, // Default horse speed
       constitucion: char.montura.constitucion
     } : null;
+    
+    // Character base speed (in feet, default 30 for most races)
+    const velocidadBase = char.velocidad || 30;
     
     setConfig(prev => ({
       ...prev,
@@ -1318,6 +1322,7 @@ const EnhancedTravelSystem = () => {
         monturaNombre: null,
         monturaConBonus: 0,
         monturaPropia: monturaPropia, // Store owned mount
+        velocidadBase: velocidadBase, // Character's base walking speed
         modSabiduria: Math.floor(((char.atributos?.sabiduria || 10) - 10) / 2),
         percepcionPasiva: 10 + Math.floor(((char.atributos?.sabiduria || 10) - 10) / 2),
         competencias: char.habilidades || [],
@@ -1337,9 +1342,12 @@ const EnhancedTravelSystem = () => {
     const monturaPropia = char.montura ? {
       nombre: char.montura.nombre,
       capacidad: char.montura.capacidad_carga,
-      velocidad: char.montura.velocidad,
+      velocidad: char.montura.velocidad || 60, // Default horse speed
       constitucion: char.montura.constitucion
     } : null;
+    
+    // Character base speed (in feet, default 30 for most races)
+    const velocidadBase = char.velocidad || 30;
     
     if (existingMember) {
       // Add role to existing member (allow multiple roles)
@@ -1372,6 +1380,7 @@ const EnhancedTravelSystem = () => {
           monturaNombre: null,
           monturaConBonus: 0,
           monturaPropia: monturaPropia,
+          velocidadBase: velocidadBase, // Character's base walking speed
           modSabiduria: Math.floor(((char.atributos?.sabiduria || 10) - 10) / 2),
           percepcionPasiva: 10 + Math.floor(((char.atributos?.sabiduria || 10) - 10) / 2),
           competencias: char.habilidades || [],
@@ -2094,6 +2103,46 @@ const EnhancedTravelSystem = () => {
                   <p className="text-xs text-muted-foreground">PX totales</p>
                 </div>
               </div>
+              
+              {/* Group Speed Info */}
+              {journeyCalc.velocidad_grupo && (
+                <div className="mt-3 p-3 bg-black/20 rounded text-sm">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Footprints className="w-4 h-4 text-[hsl(var(--gold))]" />
+                    <span className="text-[hsl(var(--gold))] font-medium">Velocidad del Grupo</span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="bg-black/30 p-2 rounded">
+                      <p className="text-muted-foreground text-xs">Km/día</p>
+                      <p className="text-lg font-bold text-white">{journeyCalc.velocidad_grupo.km_por_dia}</p>
+                    </div>
+                    <div className="bg-black/30 p-2 rounded">
+                      <p className="text-muted-foreground text-xs">Velocidad base</p>
+                      <p className="text-lg font-bold text-white">{journeyCalc.velocidad_grupo.velocidad_pies} pies</p>
+                    </div>
+                  </div>
+                  {journeyCalc.velocidad_grupo.miembro_mas_lento && (
+                    <p className="text-xs text-muted-foreground mt-2">
+                      El grupo viaja a la velocidad de <span className="text-yellow-400">{journeyCalc.velocidad_grupo.miembro_mas_lento}</span>
+                    </p>
+                  )}
+                  {journeyCalc.velocidad_grupo.desglose_velocidades && journeyCalc.velocidad_grupo.desglose_velocidades.length > 1 && (
+                    <div className="mt-2 text-xs">
+                      <p className="text-muted-foreground mb-1">Desglose por miembro:</p>
+                      <div className="flex flex-wrap gap-1">
+                        {journeyCalc.velocidad_grupo.desglose_velocidades.map((v, idx) => (
+                          <span 
+                            key={idx} 
+                            className={`px-2 py-0.5 rounded ${v.velocidad_efectiva === journeyCalc.velocidad_grupo.velocidad_pies ? 'bg-yellow-600/30 text-yellow-400' : 'bg-black/30 text-gray-400'}`}
+                          >
+                            {v.nombre}: {v.velocidad_efectiva}p {v.tiene_montura ? '🐴' : '🚶'}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
               
               {/* Terrain Breakdown - Detailed */}
               {journeyCalc.ruta?.terrain_summary && Object.keys(journeyCalc.ruta.terrain_summary).length > 0 && (

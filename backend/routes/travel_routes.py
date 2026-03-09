@@ -106,11 +106,22 @@ class TravelPartyMember(BaseModel):
     papel: Optional[str] = None  # guia, cazador, vigia, explorador
     tiene_montura: bool = False
     montura_nombre: Optional[str] = None
+    montura_velocidad: int = 0  # Mount speed in feet (0 if no mount)
     montura_con_bonus: int = 0
-    velocidad_base: int = 30  # feet
+    velocidad_base: int = 30  # Character base speed in feet
     modificador_sabiduria: int = 0
     competencias: List[str] = []
     nivel: int = 1
+    
+    def velocidad_efectiva(self) -> int:
+        """
+        Get effective travel speed for this member.
+        If mounted, use mount speed (if mount is faster).
+        Otherwise use character base speed.
+        """
+        if self.tiene_montura and self.montura_velocidad > 0:
+            return self.montura_velocidad
+        return self.velocidad_base
 
 class JourneyConfig(BaseModel):
     """Configuration for a journey"""
@@ -1419,16 +1430,64 @@ async def calculate_journey(config: JourneyConfig):
     # Calculate base days
     casillas = route_data['casillas']
     
-    # Determine speed modifier based on mounts and rhythm
+    # ============ CALCULATE GROUP SPEED ============
+    # The group travels at the speed of its slowest member
+    # Base speed: 30 feet = 36 km/day (normal pace)
+    # Speed scales: 60 feet = 72 km/day, etc.
+    BASE_FEET_FOR_36_KM_DAY = 30
+    BASE_KM_DAY = 36
+    
+    # Determine the slowest speed in the group
     tiene_monturas = sum(1 for m in config.miembros if m.tiene_montura)
     total_miembros = len(config.miembros) if config.miembros else 1
     porcentaje_monturas = tiene_monturas / total_miembros if total_miembros > 0 else 0
     
+    if config.miembros:
+        # Get effective speed for each member (considering mounts)
+        velocidades = []
+        for m in config.miembros:
+            vel_efectiva = m.velocidad_efectiva()
+            velocidades.append({
+                "nombre": m.nombre,
+                "velocidad_base": m.velocidad_base,
+                "tiene_montura": m.tiene_montura,
+                "montura_velocidad": m.montura_velocidad,
+                "velocidad_efectiva": vel_efectiva
+            })
+        
+        # Group speed = slowest member
+        velocidad_grupo = min(v["velocidad_efectiva"] for v in velocidades)
+        miembro_mas_lento = next(v["nombre"] for v in velocidades if v["velocidad_efectiva"] == velocidad_grupo)
+    else:
+        # No members specified, assume standard foot travel
+        velocidad_grupo = 30
+        velocidades = []
+        miembro_mas_lento = None
+    
+    # Calculate km/day for the group
+    # Ratio: if 30 feet = 36 km/day, then X feet = (X/30) * 36 km/day
+    km_por_dia_grupo = (velocidad_grupo / BASE_FEET_FOR_36_KM_DAY) * BASE_KM_DAY
+    
+    # Check if mounts are allowed in this terrain
+    if not terrain_config.get('permite_montura', True):
+        # Force foot speed if mounts not allowed
+        if config.miembros:
+            velocidad_grupo = min(m.velocidad_base for m in config.miembros)
+        else:
+            velocidad_grupo = 30
+        km_por_dia_grupo = (velocidad_grupo / BASE_FEET_FOR_36_KM_DAY) * BASE_KM_DAY
+    
     # Use pathfinder's estimated days if available (already accounts for terrain costs)
     # The pathfinder uses BASE_SPEED_KM_DAY = 36 km/day and terrain multipliers
+    # We need to adjust based on actual group speed
+    
+    # Speed ratio: how much faster/slower is the group compared to base 36 km/day
+    ratio_velocidad = km_por_dia_grupo / BASE_KM_DAY  # e.g., 72/36 = 2.0 for mounted, 24/36 = 0.67 for slow
+    
     if route_data.get('estimated_days_pathfinder'):
-        # Pathfinder already calculated days based on terrain costs
-        dias_base = route_data['estimated_days_pathfinder']
+        # Pathfinder already calculated days based on terrain costs at 36 km/day
+        # Adjust for actual group speed
+        dias_base = route_data['estimated_days_pathfinder'] / ratio_velocidad
         
         # Apply rhythm modifier
         if config.ritmo == 'lento':
@@ -1437,29 +1496,19 @@ async def calculate_journey(config: JourneyConfig):
             if not land_config.get('permite_ritmo_rapido', True):
                 return {"error": True, "message": f"Ritmo rápido no permitido en {land_config['nombre']}"}
             dias_base = dias_base * 0.75
-        
-        # Mount speed bonus (25% faster if more than half the party has mounts)
-        if porcentaje_monturas >= 0.5 and terrain_config.get('permite_montura', True):
-            dias_base = dias_base * 0.75
     else:
-        # Fallback to casillas-based calculation (for direct line paths)
-        speed_multiplier = terrain_config.get('modificador_velocidad', 1.0)
+        # Fallback to distance-based calculation (for direct line paths)
+        distance_km = route_data['distance_km']
         
+        # Days = distance / km_per_day (adjusted for rhythm)
         if config.ritmo == 'lento':
-            dias_base = casillas * 1.5
+            dias_base = distance_km / (km_por_dia_grupo * 0.67)  # Slow pace = 67% speed
         elif config.ritmo == 'rapido':
             if not land_config.get('permite_ritmo_rapido', True):
                 return {"error": True, "message": f"Ritmo rápido no permitido en {land_config['nombre']}"}
-            dias_base = casillas * 0.75
+            dias_base = distance_km / (km_por_dia_grupo * 1.33)  # Fast pace = 133% speed
         else:
-            dias_base = casillas
-        
-        # Apply terrain modifier
-        dias_base = dias_base / speed_multiplier
-        
-        # Mount speed bonus
-        if porcentaje_monturas >= 0.5 and terrain_config.get('permite_montura', True):
-            dias_base = dias_base * 0.75
+            dias_base = distance_km / km_por_dia_grupo
     
     dias_estimados = max(1, round(dias_base))
     
@@ -1622,6 +1671,13 @@ async def calculate_journey(config: JourneyConfig):
             "desventaja_estacion": es_invierno_otono,
             "porcentaje_monturas": round(porcentaje_monturas * 100),
             "bonus_montura_fatiga": sum(m.montura_con_bonus for m in config.miembros if m.tiene_montura) // max(1, tiene_monturas) if tiene_monturas > 0 else 0
+        },
+        "velocidad_grupo": {
+            "velocidad_pies": velocidad_grupo,
+            "km_por_dia": round(km_por_dia_grupo, 1),
+            "miembro_mas_lento": miembro_mas_lento,
+            "desglose_velocidades": velocidades if velocidades else None,
+            "monturas_permitidas": terrain_config.get('permite_montura', True)
         },
         "config": {
             "ritmo": config.ritmo,

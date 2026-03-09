@@ -1,0 +1,122 @@
+{
+  "summary": "Backend-only testing of group speed calculation feature (velocidad_grupo). All 9 tests passed. The TravelPartyMember.velocidad_efectiva() method correctly returns mount speed when mounted, or base speed when walking. Group speed is correctly calculated as the minimum effective speed among all members.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_group_speed.py",
+    "/app/test_reports/pytest/pytest_group_speed.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "TravelPartyMember.velocidad_efectiva() implementation is correct - returns montura_velocidad if mounted and speed > 0, else velocidad_base",
+    "Group speed calculation correctly uses min() to find slowest effective speed",
+    "km_por_dia calculation is correct: (velocidad_grupo / 30) * 36",
+    "Edge case handled: tiene_montura=True with montura_velocidad=0 falls back to base speed"
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_group_speed.py"
+  ],
+  "success_rate": {
+    "backend": "100% (9/9 tests passed)",
+    "frontend": "Not tested (backend-only request)"
+  },
+  "test_credentials": "No authentication required",
+  "seed_data_creation": "Used existing locations: Hobbiton (loc_002), Rivendel (loc_142)",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Group speed calculation feature is fully implemented and tested. The velocidad_grupo object in the API response includes velocidad_pies, km_por_dia, miembro_mas_lento, desglose_velocidades (array with each member's speed breakdown), and monturas_permitidas.",
+  "features_verified": {
+    "F1_accept_velocidad_base_and_montura_velocidad": {
+      "status": "PASS",
+      "description": "POST /api/travel/calculate-journey accepts miembros with velocidad_base and montura_velocidad",
+      "evidence": "All 9 tests use these fields and pass successfully"
+    },
+    "F2_velocidad_grupo_in_response": {
+      "status": "PASS",
+      "description": "Response includes velocidad_grupo with velocidad_pies, km_por_dia, miembro_mas_lento, desglose_velocidades",
+      "evidence": "test_velocidad_grupo_structure verified all required fields present"
+    },
+    "F3_unmounted_uses_base_speed": {
+      "status": "PASS",
+      "description": "Group with members without mount uses velocidad_base (slowest)",
+      "evidence": "test_member_without_mount_uses_base_speed: Frodo vel_base=25 → group speed 25"
+    },
+    "F4_all_mounted_uses_mount_speed": {
+      "status": "PASS",
+      "description": "Group with all mounted uses montura_velocidad (slowest)",
+      "evidence": "test_all_mounted_group: Frodo mount=40 + Aragorn mount=60 → group speed 40"
+    },
+    "F5_dias_estimados_varies_with_speed": {
+      "status": "PASS",
+      "description": "dias_estimados varies based on group speed (slower = more days)",
+      "evidence": "test_faster_group_fewer_days: Fast(60 feet)=4 days, Slow(25 feet)=10 days"
+    }
+  },
+  "backend_test_results": {
+    "total": 9,
+    "passed": 9,
+    "failed": 0,
+    "execution_time": "12.74s",
+    "tests": [
+      "TestTravelPartyMemberModel::test_member_without_mount_uses_base_speed - PASS",
+      "TestTravelPartyMemberModel::test_member_with_mount_uses_mount_speed - PASS",
+      "TestGroupSpeedCalculation::test_mixed_group_slowest_walker - PASS",
+      "TestGroupSpeedCalculation::test_all_mounted_group - PASS",
+      "TestGroupSpeedCalculation::test_all_walking_group - PASS",
+      "TestDaysEstimationWithGroupSpeed::test_faster_group_fewer_days - PASS",
+      "TestResponseStructure::test_velocidad_grupo_structure - PASS",
+      "TestEdgeCases::test_empty_members_default_speed - PASS",
+      "TestEdgeCases::test_mounted_with_zero_mount_speed - PASS"
+    ]
+  },
+  "key_validation_data": {
+    "test_scenarios": {
+      "frodo_walking": {
+        "velocidad_base": 25,
+        "tiene_montura": false,
+        "velocidad_efectiva": 25,
+        "km_por_dia": 30.0
+      },
+      "aragorn_mounted": {
+        "velocidad_base": 30,
+        "montura_velocidad": 60,
+        "velocidad_efectiva": 60,
+        "km_por_dia": 72.0
+      },
+      "mixed_group": {
+        "frodo_walking_25": "velocidad_efectiva 25",
+        "aragorn_mounted_60": "velocidad_efectiva 60",
+        "group_speed": 25,
+        "slowest_member": "Frodo"
+      },
+      "all_mounted_group": {
+        "frodo_pony_40": "velocidad_efectiva 40",
+        "aragorn_horse_60": "velocidad_efectiva 60",
+        "group_speed": 40,
+        "slowest_member": "Frodo"
+      }
+    },
+    "speed_to_km_formula": "(velocidad_pies / 30) * 36 = km_por_dia",
+    "examples": {
+      "30_feet": "36 km/day",
+      "25_feet": "30 km/day",
+      "40_feet": "48 km/day",
+      "60_feet": "72 km/day"
+    },
+    "days_comparison": {
+      "hobbiton_to_rivendel": {
+        "fast_group_60_feet": "4 days",
+        "slow_group_25_feet": "10 days",
+        "speed_ratio": "2.40x",
+        "days_ratio": "2.50x"
+      }
+    }
+  }
+}
