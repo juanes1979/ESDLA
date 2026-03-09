@@ -1,0 +1,96 @@
+{
+  "summary": "Backend-only testing of LOTR 5e Travel System journey calculation. All 13 tests passed. The COORD_TO_KM = 20 fix has been verified - Hobbiton to Esgaroth now correctly returns ~824 km (previously was ~264 km). Pathfinding is using roads correctly when preferir_caminos=true, and days are calculated based on terrain costs from the pathfinder.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_travel_journey.py",
+    "/app/test_reports/pytest/pytest_travel_journey.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [],
+  "updated_files": [
+    "/app/backend/tests/test_travel_journey.py"
+  ],
+  "success_rate": {
+    "backend": "100% (13/13 tests passed)",
+    "frontend": "Not tested (backend-only request)"
+  },
+  "test_credentials": "No authentication required",
+  "seed_data_creation": "Used existing locations: Hobbiton (loc_002), Esgaroth (loc_031)",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Journey calculation endpoint POST /api/travel/calculate-journey verified working. Key constants: COORD_TO_KM=20 (km per coordinate unit), BASE_SPEED_KM_DAY=36 (base travel speed). Hobbiton-Esgaroth test case: ~824 km distance, ~45 days, terrain breakdown shows facil/moderado/dificil/muy_dificil terrain types with km distances.",
+  "features_verified": {
+    "F1_distance_calculation_with_coord_to_km_fix": {
+      "status": "PASS",
+      "description": "Hobbiton to Esgaroth returns ~824 km (expected 800-900 km)",
+      "evidence": "test_journey_distance_hobbiton_to_esgaroth passed - distance_km=824.3"
+    },
+    "F2_pathfinder_uses_roads_when_preferir_caminos_true": {
+      "status": "PASS",
+      "description": "Route uses multiple roads when preferir_caminos=true",
+      "evidence": "roads_used: ['Paso Alto', 'Camino del Este', 'Camino a Valle', 'Camino a Fornost', 'Camino a Tierras de Bree', 'Camino del Viejo Vado', 'Camino a Annúminas']"
+    },
+    "F3_days_calculated_from_pathfinder_terrain_costs": {
+      "status": "PASS",
+      "description": "Estimated days (~45) based on terrain costs and BASE_SPEED_KM_DAY=36",
+      "evidence": "test_journey_days_based_on_terrain_cost passed - dias_estimados=45 for 824 km with mixed terrain"
+    },
+    "F4_terrain_summary_shows_distances_by_type": {
+      "status": "PASS",
+      "description": "terrain_summary returns km breakdown per terrain type",
+      "evidence": "terrain_summary: {'dificil': 329.7, 'muy_dificil': 196.6, 'facil': 269.7, 'desalentador': 28.3}"
+    },
+    "F5_pathfinder_constants_verified": {
+      "status": "PASS",
+      "description": "COORD_TO_KM=20 and BASE_SPEED_KM_DAY=36 confirmed working",
+      "evidence": "test_coord_to_km_scale_factor and test_base_speed_km_day both passed"
+    }
+  },
+  "backend_test_results": {
+    "total": 13,
+    "passed": 13,
+    "failed": 0,
+    "tests": [
+      "TestJourneyCalculation::test_journey_distance_hobbiton_to_esgaroth - PASS",
+      "TestJourneyCalculation::test_journey_uses_roads_when_preferir_caminos_true - PASS",
+      "TestJourneyCalculation::test_journey_days_based_on_terrain_cost - PASS",
+      "TestJourneyCalculation::test_journey_terrain_summary_breakdown - PASS",
+      "TestJourneyCalculation::test_journey_different_routes_with_preferir_caminos - PASS",
+      "TestJourneyCalculation::test_journey_required_fields_validation - PASS",
+      "TestJourneyCalculation::test_journey_invalid_location_id - PASS",
+      "TestJourneyCalculation::test_journey_estimations_structure - PASS",
+      "TestJourneyCalculation::test_journey_ruta_structure - PASS",
+      "TestPathfinderConstants::test_coord_to_km_scale_factor - PASS",
+      "TestPathfinderConstants::test_base_speed_km_day - PASS",
+      "TestRhythmModifiers::test_slow_rhythm_increases_days - PASS",
+      "TestRhythmModifiers::test_fast_rhythm_blocked_in_wild_lands - PASS"
+    ]
+  },
+  "key_validation_data": {
+    "hobbiton_to_esgaroth": {
+      "distance_km": 824.3,
+      "dias_estimados": 45,
+      "casillas": 52,
+      "roads_used_count": 7,
+      "terrain_breakdown": {
+        "facil": "269.7 km",
+        "dificil": "329.7 km",
+        "muy_dificil": "196.6 km",
+        "desalentador": "28.3 km"
+      }
+    },
+    "pathfinder_constants": {
+      "COORD_TO_KM": 20,
+      "BASE_SPEED_KM_DAY": 36,
+      "effective_speed_on_mixed_terrain": "~18.3 km/day"
+    }
+  }
+}

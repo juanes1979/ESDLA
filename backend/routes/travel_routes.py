@@ -1051,77 +1051,77 @@ async def debug_pathfinding(config: PathDebugConfig):
                     last_road_exited = current_road
                     steps_since_road_exit = 0
                     alternativas.append(f"El camino {current_road} no nos acerca más al destino")
+            
+            # Option 2: If not on road, look for nearest road (but avoid recently exited road)
+            if decision is None and config.preferir_caminos:
+                nearest_road, road_dist, road_name, road_type = find_nearest_road_point(current_x, current_y)
+                
+                # Avoid going back to a road we just exited (for 3 steps)
+                should_avoid_road = (road_name == last_road_exited and steps_since_road_exit < 3)
+                
+                # Check if going to road is worth it
+                if nearest_road and road_dist < 5 and not should_avoid_road:  # Within 5% (~100km)
+                    # Check if road goes towards destination
+                    road_x, road_y = nearest_road
+                    current_dist_to_dest = distance(current_x, current_y, dest_x, dest_y)
+                    road_dist_to_dest = distance(road_x, road_y, dest_x, dest_y)
+                    
+                    # Road is worth it if it doesn't add too much distance
+                    detour = road_dist - (current_dist_to_dest - road_dist_to_dest)
+                    
+                    if detour < current_dist_to_dest * 0.3:  # Less than 30% detour
+                        # Move towards road
+                        direction_x = (road_x - current_x)
+                        direction_y = (road_y - current_y)
+                        length = math.sqrt(direction_x**2 + direction_y**2)
+                        if length > 0:
+                            next_x = current_x + (direction_x / length) * STEP_PERCENT
+                            next_y = current_y + (direction_y / length) * STEP_PERCENT
+                            decision = "IR_A_CAMINO"
+                            razon = f"Nos desviamos hacia {road_name} (a {round(road_dist * KM_PER_PERCENT, 1)}km) porque nos beneficia"
+                    else:
+                        alternativas.append(f"Camino {road_name} descartado: desvío de {round(detour * KM_PER_PERCENT, 1)}km ({round(detour/current_dist_to_dest*100)}%)")
+                elif should_avoid_road:
+                    alternativas.append(f"Evitamos {road_name} (salimos hace {steps_since_road_exit} pasos)")
         
-        # Option 2: If not on road, look for nearest road (but avoid recently exited road)
-        if decision is None and config.preferir_caminos:
-            nearest_road, road_dist, road_name, road_type = find_nearest_road_point(current_x, current_y)
-            
-            # Avoid going back to a road we just exited (for 3 steps)
-            should_avoid_road = (road_name == last_road_exited and steps_since_road_exit < 3)
-            
-            # Check if going to road is worth it
-            if nearest_road and road_dist < 5 and not should_avoid_road:  # Within 5% (~100km)
-                # Check if road goes towards destination
-                road_x, road_y = nearest_road
-                current_dist_to_dest = distance(current_x, current_y, dest_x, dest_y)
-                road_dist_to_dest = distance(road_x, road_y, dest_x, dest_y)
+            # Option 3: Check for dangerous lands to avoid
+            if decision is None:
+                # Direct path towards destination
+                direction_x = (dest_x - current_x)
+                direction_y = (dest_y - current_y)
+                length = math.sqrt(direction_x**2 + direction_y**2)
                 
-                # Road is worth it if it doesn't add too much distance
-                detour = road_dist - (current_dist_to_dest - road_dist_to_dest)
-                
-                if detour < current_dist_to_dest * 0.3:  # Less than 30% detour
-                    # Move towards road
-                    direction_x = (road_x - current_x)
-                    direction_y = (road_y - current_y)
-                    length = math.sqrt(direction_x**2 + direction_y**2)
-                    if length > 0:
-                        next_x = current_x + (direction_x / length) * STEP_PERCENT
-                        next_y = current_y + (direction_y / length) * STEP_PERCENT
-                        decision = "IR_A_CAMINO"
-                        razon = f"Nos desviamos hacia {road_name} (a {round(road_dist * KM_PER_PERCENT, 1)}km) porque nos beneficia"
-                else:
-                    alternativas.append(f"Camino {road_name} descartado: desvío de {round(detour * KM_PER_PERCENT, 1)}km ({round(detour/current_dist_to_dest*100)}%)")
-            elif should_avoid_road:
-                alternativas.append(f"Evitamos {road_name} (salimos hace {steps_since_road_exit} pasos)")
-        
-        # Option 3: Check for dangerous lands to avoid
-        if decision is None:
-            # Direct path towards destination
-            direction_x = (dest_x - current_x)
-            direction_y = (dest_y - current_y)
-            length = math.sqrt(direction_x**2 + direction_y**2)
-            
-            if length > 0:
-                test_x = current_x + (direction_x / length) * STEP_PERCENT
-                test_y = current_y + (direction_y / length) * STEP_PERCENT
-                test_land = get_land_type_at(test_x, test_y)
-                test_terrain = get_terrain_at(test_x, test_y)
-                
-                # Check if we should avoid this terrain
-                avoid = False
-                avoid_reason = ""
-                
-                if config.evitar_tierras_oscuras and test_land == "tierras_oscuras":
-                    avoid = True
-                    avoid_reason = "Tierras Oscuras (muy peligrosas)"
-                elif config.evitar_tierras_sombra and test_land == "tierras_sombra":
-                    avoid = True
-                    avoid_reason = "Tierras de la Sombra (peligrosas)"
-                elif test_terrain in ["infranqueable", "agua"]:
-                    avoid = True
-                    avoid_reason = f"Terreno {test_terrain} (no se puede atravesar)"
-                
-                if avoid:
-                    # Try to go around
-                    # TODO: Implement avoidance logic
-                    decision = "EVITAR"
-                    razon = f"El camino directo pasa por {avoid_reason}, buscamos alternativa"
-                    # For now, just go direct but note the issue
-                    next_x, next_y = test_x, test_y
-                else:
-                    next_x, next_y = test_x, test_y
-                    decision = "CAMPO_TRAVES"
-                    razon = f"Avanzamos campo a través hacia el destino (terreno: {test_terrain})"
+                if length > 0:
+                    test_x = current_x + (direction_x / length) * STEP_PERCENT
+                    test_y = current_y + (direction_y / length) * STEP_PERCENT
+                    test_land = get_land_type_at(test_x, test_y)
+                    test_terrain = get_terrain_at(test_x, test_y)
+                    
+                    # Check if we should avoid this terrain
+                    avoid = False
+                    avoid_reason = ""
+                    
+                    if config.evitar_tierras_oscuras and test_land == "tierras_oscuras":
+                        avoid = True
+                        avoid_reason = "Tierras Oscuras (muy peligrosas)"
+                    elif config.evitar_tierras_sombra and test_land == "tierras_sombra":
+                        avoid = True
+                        avoid_reason = "Tierras de la Sombra (peligrosas)"
+                    elif test_terrain in ["infranqueable", "agua"]:
+                        avoid = True
+                        avoid_reason = f"Terreno {test_terrain} (no se puede atravesar)"
+                    
+                    if avoid:
+                        # Try to go around
+                        # TODO: Implement avoidance logic
+                        decision = "EVITAR"
+                        razon = f"El camino directo pasa por {avoid_reason}, buscamos alternativa"
+                        # For now, just go direct but note the issue
+                        next_x, next_y = test_x, test_y
+                    else:
+                        next_x, next_y = test_x, test_y
+                        decision = "CAMPO_TRAVES"
+                        razon = f"Avanzamos campo a través hacia el destino (terreno: {test_terrain})"
         
         # Default: go direct
         if next_x is None:
@@ -1287,6 +1287,8 @@ async def calculate_journey(config: JourneyConfig):
                 
                 debug_info["pathfinding"]["success"] = path_result.success
                 debug_info["pathfinding"]["total_distance_km"] = getattr(path_result, 'total_distance_km', 0)
+                debug_info["pathfinding"]["total_travel_cost"] = getattr(path_result, 'total_travel_cost', 0)
+                debug_info["pathfinding"]["estimated_days"] = getattr(path_result, 'estimated_days', 0)
                 debug_info["pathfinding"]["segments_count"] = len(path_result.segments) if path_result.success else 0
                 
                 if path_result.success:
@@ -1353,7 +1355,10 @@ async def calculate_journey(config: JourneyConfig):
                         "land_type_summary": {k: round(v, 1) for k, v in land_type_distances.items()},
                         "roads_used": list(path_result.roads_used),
                         "rivers_crossed": path_result.rivers_crossed,
-                        "warnings": path_result.warnings
+                        "warnings": path_result.warnings,
+                        # Use pathfinder's estimated days (based on terrain costs and 36 km/day base speed)
+                        "estimated_days_pathfinder": path_result.estimated_days,
+                        "total_travel_cost": path_result.total_travel_cost
                     }
             
             # Fallback to direct line if no pathfinding data or pathfinding failed
@@ -1417,24 +1422,42 @@ async def calculate_journey(config: JourneyConfig):
     total_miembros = len(config.miembros) if config.miembros else 1
     porcentaje_monturas = tiene_monturas / total_miembros if total_miembros > 0 else 0
     
-    # Base days calculation
-    speed_multiplier = terrain_config.get('modificador_velocidad', 1.0)
-    
-    if config.ritmo == 'lento':
-        dias_base = casillas * 1.5
-    elif config.ritmo == 'rapido':
-        if not land_config.get('permite_ritmo_rapido', True):
-            return {"error": True, "message": f"Ritmo rápido no permitido en {land_config['nombre']}"}
-        dias_base = casillas * 0.75
+    # Use pathfinder's estimated days if available (already accounts for terrain costs)
+    # The pathfinder uses BASE_SPEED_KM_DAY = 36 km/day and terrain multipliers
+    if route_data.get('estimated_days_pathfinder'):
+        # Pathfinder already calculated days based on terrain costs
+        dias_base = route_data['estimated_days_pathfinder']
+        
+        # Apply rhythm modifier
+        if config.ritmo == 'lento':
+            dias_base = dias_base * 1.5
+        elif config.ritmo == 'rapido':
+            if not land_config.get('permite_ritmo_rapido', True):
+                return {"error": True, "message": f"Ritmo rápido no permitido en {land_config['nombre']}"}
+            dias_base = dias_base * 0.75
+        
+        # Mount speed bonus (25% faster if more than half the party has mounts)
+        if porcentaje_monturas >= 0.5 and terrain_config.get('permite_montura', True):
+            dias_base = dias_base * 0.75
     else:
-        dias_base = casillas
-    
-    # Apply terrain modifier
-    dias_base = dias_base / speed_multiplier
-    
-    # Mount speed bonus
-    if porcentaje_monturas >= 0.5 and terrain_config.get('permite_montura', True):
-        dias_base = dias_base * 0.75
+        # Fallback to casillas-based calculation (for direct line paths)
+        speed_multiplier = terrain_config.get('modificador_velocidad', 1.0)
+        
+        if config.ritmo == 'lento':
+            dias_base = casillas * 1.5
+        elif config.ritmo == 'rapido':
+            if not land_config.get('permite_ritmo_rapido', True):
+                return {"error": True, "message": f"Ritmo rápido no permitido en {land_config['nombre']}"}
+            dias_base = casillas * 0.75
+        else:
+            dias_base = casillas
+        
+        # Apply terrain modifier
+        dias_base = dias_base / speed_multiplier
+        
+        # Mount speed bonus
+        if porcentaje_monturas >= 0.5 and terrain_config.get('permite_montura', True):
+            dias_base = dias_base * 0.75
     
     dias_estimados = max(1, round(dias_base))
     

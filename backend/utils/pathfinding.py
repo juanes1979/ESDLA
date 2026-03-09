@@ -132,8 +132,10 @@ class MiddleEarthPathfinder:
     Considers terrain, roads, rivers, and barriers
     """
     
-    # Map scale: 1 coordinate unit ≈ 6.4 km (1 hex = 4 miles)
-    COORD_TO_KM = 6.4
+    # Map scale: coordinates are in percentage (0-100) of map
+    # Middle-earth is approximately 2000 km west-to-east
+    # So 1 coordinate unit = ~20 km
+    COORD_TO_KM = 20.0
     
     # Grid resolution for pathfinding (smaller = more precise but slower)
     GRID_RESOLUTION = 1.0
