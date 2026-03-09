@@ -198,14 +198,15 @@ const createSmoothPath = (points) => {
   return path;
 };
 
-const JourneyMiniMap = ({ origenCoords, destinoCoords, origenNombre, destinoNombre, pathPoints, isDirectLine, expanded = false, onToggleExpand, events = [] }) => {
+const JourneyMiniMap = ({ origenCoords, destinoCoords, origenNombre, destinoNombre, pathPoints, isDirectLine, expanded = false, onToggleExpand, events = [], forPrint = false }) => {
   const [imageLoaded, setImageLoaded] = useState(false);
-  const svgRef = useRef(null);
+  const containerRef = useRef(null);
   
   // Preload image
   useEffect(() => {
     const img = new Image();
     img.onload = () => setImageLoaded(true);
+    img.onerror = () => setImageLoaded(true); // Continue even if image fails
     img.src = PLAYER_MAP_URL;
   }, []);
   
@@ -246,11 +247,9 @@ const JourneyMiniMap = ({ origenCoords, destinoCoords, origenNombre, destinoNomb
     .filter(p => p !== null);
   
   // ALWAYS ensure we have at least the origin and destination as path endpoints
-  // This guarantees a visible route line even if pathfinding returns empty
   if (pathInPixelCoords.length === 0) {
     pathInPixelCoords = [origen, destino];
   } else {
-    // Ensure path starts at origin and ends at destination
     if (pathInPixelCoords[0].x !== origen.x || pathInPixelCoords[0].y !== origen.y) {
       pathInPixelCoords.unshift(origen);
     }
@@ -306,6 +305,7 @@ const JourneyMiniMap = ({ origenCoords, destinoCoords, origenNombre, destinoNomb
   }
   
   const viewBox = `${minX} ${minY} ${width} ${height}`;
+  const viewBoxParts = [minX, minY, width, height];
   const containerHeight = expanded ? 'h-[500px]' : 'h-72';
   
   // Create smooth SVG path
@@ -335,19 +335,21 @@ const JourneyMiniMap = ({ origenCoords, destinoCoords, origenNombre, destinoNomb
         )}
       </CardHeader>
       <CardContent className="p-2">
-        <div className={`relative ${containerHeight} rounded overflow-hidden border border-border/30`}>
+        <div 
+          ref={containerRef}
+          className={`relative ${containerHeight} rounded overflow-hidden border border-border/30`}
+        >
           {!imageLoaded ? (
             <div className="w-full h-full flex items-center justify-center bg-black/40">
               <div className="animate-spin w-6 h-6 border-2 border-[hsl(var(--gold))] border-t-transparent rounded-full"></div>
             </div>
           ) : (
             <svg 
-              ref={svgRef}
               viewBox={viewBox}
               className="w-full h-full"
               preserveAspectRatio="xMidYMid slice"
             >
-              {/* Player map as background - uses actual pixel dimensions */}
+              {/* Player map as background */}
               <image
                 href={PLAYER_MAP_URL}
                 x="0"
@@ -357,7 +359,7 @@ const JourneyMiniMap = ({ origenCoords, destinoCoords, origenNombre, destinoNomb
                 preserveAspectRatio="none"
               />
               
-              {/* Route path - RED ink style (like hand-drawn on map) */}
+              {/* Route path - RED ink style */}
               <path
                 d={smoothPathD}
                 fill="none"
@@ -414,7 +416,7 @@ const JourneyMiniMap = ({ origenCoords, destinoCoords, origenNombre, destinoNomb
                 />
               </g>
               
-              {/* Origin label - italic calligraphy style */}
+              {/* Origin label */}
               <text
                 x={origen.x}
                 y={origen.y - markerRadius * 2.5}
@@ -770,14 +772,16 @@ const EnhancedTravelSystem = () => {
     
     try {
       const res = await api.post('/travel/orientation-check', {
-        modificador_sabiduria: guia.modSabiduria || 0,
+        // Use the pre-calculated modifier which includes competencia + pericia
+        modificador_sabiduria: guia.modViajar || guia.modSabiduria || 0,
         competencia_viajar: guia.competenciaViajar || false,
         competencia_cartografia: guia.competenciaCartografia || false,
         competencia_navegacion: false,
-        tiene_mapa: true, // Assume they have a map
+        tiene_mapa: true,
         viaje_maritimo: false,
         penalizacion_multiples_papeles: guiaTieneMultiplesRoles,
-        bonus_competencia: guia.bonusCompetencia || 2
+        // Bonus competencia is now included in modViajar, so set to 0 to avoid double counting
+        bonus_competencia: 0
       }, {
         params: { casillas_restantes: casillasRestantes }
       });
@@ -1300,14 +1304,57 @@ const EnhancedTravelSystem = () => {
     return 2;
   };
   
-  // Helper to check if character has a skill proficiency
+  // Helper to check if character has proficiency in a skill
   const tieneCompetenciaEn = (char, habilidad) => {
     const habilidades = char.habilidades || [];
-    const competencias = char.competencias || [];
-    // Check both arrays for the skill name (case-insensitive)
     const normalizedSkill = habilidad.toLowerCase();
-    return habilidades.some(h => h.toLowerCase().includes(normalizedSkill)) ||
-           competencias.some(c => c.toLowerCase().includes(normalizedSkill));
+    return habilidades.some(h => h.toLowerCase().includes(normalizedSkill));
+  };
+  
+  // Helper to check if character has expertise (pericia) in a skill
+  const tienePericia = (char, habilidad) => {
+    const pericias = char.pericia_elegida || [];
+    const normalizedSkill = habilidad.toLowerCase();
+    return pericias.some(p => p.toLowerCase().includes(normalizedSkill));
+  };
+  
+  // Calculate skill modifier: base + (competencia ? bonus : 0) + (pericia ? bonus : 0)
+  const calcModHabilidad = (char, habilidad, atributo = 'sabiduria') => {
+    const nivel = char.nivel || 1;
+    const bonusCompetencia = calcBonusCompetencia(nivel);
+    
+    // Check if character has stored skill scores
+    const puntuaciones = char.habilidades_puntuaciones || {};
+    if (puntuaciones[habilidad] !== undefined) {
+      // Use stored base score + competency bonuses
+      let mod = puntuaciones[habilidad];
+      
+      // Add proficiency bonus if competent
+      if (tieneCompetenciaEn(char, habilidad)) {
+        mod += bonusCompetencia;
+      }
+      
+      // Add another proficiency bonus if has expertise (pericia = x2)
+      if (tienePericia(char, habilidad)) {
+        mod += bonusCompetencia;
+      }
+      
+      return mod;
+    }
+    
+    // Fallback: calculate from attribute
+    const atributos = char.atributos || {};
+    const valorAtributo = atributos[atributo] || 10;
+    let mod = Math.floor((valorAtributo - 10) / 2);
+    
+    if (tieneCompetenciaEn(char, habilidad)) {
+      mod += bonusCompetencia;
+    }
+    if (tienePericia(char, habilidad)) {
+      mod += bonusCompetencia;
+    }
+    
+    return mod;
   };
   
   const addMember = (charId) => {
@@ -1320,29 +1367,25 @@ const EnhancedTravelSystem = () => {
     }
     
     // Get character's owned mount (if any)
-    // Mount speed is in meters (e.g., 18m for horse)
     const monturaPropia = char.montura ? {
       nombre: char.montura.nombre,
       capacidad: char.montura.capacidad_carga,
-      velocidad: char.montura.velocidad || 18, // Default horse speed 18m
+      velocidad: char.montura.velocidad || 18,
       constitucion: char.montura.constitucion
     } : null;
     
-    // Character base speed in METERS (from culture)
-    // Dúnedain: 10m, Elfos/Hombres: 9m, Enanos/Hobbits: 7m
-    const velocidadBase = char.velocidad || 9; // Default 9m if not set
+    // Character base speed in METERS
+    const velocidadBase = char.velocidad || 9;
     
-    // Calculate modifiers for travel roles
+    // Calculate skill modifiers for travel roles
     const nivel = char.nivel || 1;
     const bonusCompetencia = calcBonusCompetencia(nivel);
-    const modSabiduria = Math.floor(((char.atributos?.sabiduria || 10) - 10) / 2);
-    const modDestreza = Math.floor(((char.atributos?.destreza || 10) - 10) / 2);
     
-    // Check proficiencies for travel roles
-    const competenciaViajar = tieneCompetenciaEn(char, 'viajar') || tieneCompetenciaEn(char, 'supervivencia');
-    const competenciaCaza = tieneCompetenciaEn(char, 'caza') || tieneCompetenciaEn(char, 'naturaleza');
-    const competenciaPercepcion = tieneCompetenciaEn(char, 'percepción') || tieneCompetenciaEn(char, 'percepcion');
-    const competenciaExplorar = tieneCompetenciaEn(char, 'explorar') || tieneCompetenciaEn(char, 'sigilo');
+    // Use calcModHabilidad to get correct modifiers with pericia
+    const modViajar = calcModHabilidad(char, 'Viajar', 'sabiduria');
+    const modCaza = calcModHabilidad(char, 'Cazar', 'sabiduria');
+    const modPercepcion = calcModHabilidad(char, 'Percepción', 'sabiduria');
+    const modExplorar = calcModHabilidad(char, 'Explorar', 'destreza');
     
     setConfig(prev => ({
       ...prev,
@@ -1356,25 +1399,24 @@ const EnhancedTravelSystem = () => {
         monturaConBonus: 0,
         monturaPropia: monturaPropia,
         velocidadBase: velocidadBase,
-        // Ability modifiers
-        modSabiduria: modSabiduria,
-        modDestreza: modDestreza,
-        percepcionPasiva: 10 + modSabiduria + (competenciaPercepcion ? bonusCompetencia : 0),
-        // Proficiencies
+        // Skill modifiers (already include competencia + pericia)
+        modViajar: modViajar,
+        modCaza: modCaza,
+        modPercepcion: modPercepcion,
+        modExplorar: modExplorar,
+        // For backwards compatibility
+        modSabiduria: Math.floor(((char.atributos?.sabiduria || 10) - 10) / 2),
+        modDestreza: Math.floor(((char.atributos?.destreza || 10) - 10) / 2),
+        percepcionPasiva: 10 + modPercepcion,
+        // Proficiencies (for reference)
         competencias: char.habilidades || [],
-        competenciaViajar: competenciaViajar,
-        competenciaCaza: competenciaCaza,
-        competenciaPercepcion: competenciaPercepcion,
-        competenciaExplorar: competenciaExplorar,
+        pericias: char.pericia_elegida || [],
+        competenciaViajar: tieneCompetenciaEn(char, 'Viajar'),
+        periciaViajar: tienePericia(char, 'Viajar'),
         competenciaCartografia: tieneCompetenciaEn(char, 'cartograf'),
         // Level and bonus
         nivel: nivel,
-        bonusCompetencia: bonusCompetencia,
-        // Calculate total modifier for each role (for display)
-        modViajar: modSabiduria + (competenciaViajar ? bonusCompetencia : 0),
-        modCaza: modSabiduria + (competenciaCaza ? bonusCompetencia : 0),
-        modPercepcion: modSabiduria + (competenciaPercepcion ? bonusCompetencia : 0),
-        modExplorar: modDestreza + (competenciaExplorar ? bonusCompetencia : 0)
+        bonusCompetencia: bonusCompetencia
       }]
     }));
   };
@@ -1416,17 +1458,15 @@ const EnhancedTravelSystem = () => {
         })
       }));
     } else {
-      // Calculate modifiers for travel roles
+      // Calculate skill modifiers for travel roles
       const nivel = char.nivel || 1;
       const bonusCompetencia = calcBonusCompetencia(nivel);
-      const modSabiduria = Math.floor(((char.atributos?.sabiduria || 10) - 10) / 2);
-      const modDestreza = Math.floor(((char.atributos?.destreza || 10) - 10) / 2);
       
-      // Check proficiencies
-      const competenciaViajar = tieneCompetenciaEn(char, 'viajar') || tieneCompetenciaEn(char, 'supervivencia');
-      const competenciaCaza = tieneCompetenciaEn(char, 'caza') || tieneCompetenciaEn(char, 'naturaleza');
-      const competenciaPercepcion = tieneCompetenciaEn(char, 'percepción') || tieneCompetenciaEn(char, 'percepcion');
-      const competenciaExplorar = tieneCompetenciaEn(char, 'explorar') || tieneCompetenciaEn(char, 'sigilo');
+      // Use calcModHabilidad to get correct modifiers with pericia
+      const modViajar = calcModHabilidad(char, 'Viajar', 'sabiduria');
+      const modCaza = calcModHabilidad(char, 'Cazar', 'sabiduria');
+      const modPercepcion = calcModHabilidad(char, 'Percepción', 'sabiduria');
+      const modExplorar = calcModHabilidad(char, 'Explorar', 'destreza');
       
       // Add new member with role
       setConfig(prev => ({
@@ -1441,21 +1481,24 @@ const EnhancedTravelSystem = () => {
           monturaConBonus: 0,
           monturaPropia: monturaPropia,
           velocidadBase: velocidadBase,
-          modSabiduria: modSabiduria,
-          modDestreza: modDestreza,
-          percepcionPasiva: 10 + modSabiduria + (competenciaPercepcion ? bonusCompetencia : 0),
+          // Skill modifiers (already include competencia + pericia)
+          modViajar: modViajar,
+          modCaza: modCaza,
+          modPercepcion: modPercepcion,
+          modExplorar: modExplorar,
+          // For backwards compatibility
+          modSabiduria: Math.floor(((char.atributos?.sabiduria || 10) - 10) / 2),
+          modDestreza: Math.floor(((char.atributos?.destreza || 10) - 10) / 2),
+          percepcionPasiva: 10 + modPercepcion,
+          // Proficiencies
           competencias: char.habilidades || [],
-          competenciaViajar: competenciaViajar,
-          competenciaCaza: competenciaCaza,
-          competenciaPercepcion: competenciaPercepcion,
-          competenciaExplorar: competenciaExplorar,
+          pericias: char.pericia_elegida || [],
+          competenciaViajar: tieneCompetenciaEn(char, 'Viajar'),
+          periciaViajar: tienePericia(char, 'Viajar'),
           competenciaCartografia: tieneCompetenciaEn(char, 'cartograf'),
+          // Level and bonus
           nivel: nivel,
-          bonusCompetencia: bonusCompetencia,
-          modViajar: modSabiduria + (competenciaViajar ? bonusCompetencia : 0),
-          modCaza: modSabiduria + (competenciaCaza ? bonusCompetencia : 0),
-          modPercepcion: modSabiduria + (competenciaPercepcion ? bonusCompetencia : 0),
-          modExplorar: modDestreza + (competenciaExplorar ? bonusCompetencia : 0)
+          bonusCompetencia: bonusCompetencia
         }]
       }));
     }
@@ -1646,13 +1689,62 @@ const EnhancedTravelSystem = () => {
     const captureMapImage = async () => {
       if (!mapContainerRef.current) return null;
       try {
-        const canvas = await html2canvas(mapContainerRef.current, {
+        // Create a clone to manipulate without affecting the DOM
+        const clone = mapContainerRef.current.cloneNode(true);
+        const svg = clone.querySelector('svg');
+        
+        if (svg) {
+          // Convert SVG image to embedded base64 to avoid CORS issues with html2canvas
+          const svgImage = svg.querySelector('image');
+          if (svgImage) {
+            const href = svgImage.getAttribute('href') || svgImage.getAttribute('xlink:href');
+            if (href && !href.startsWith('data:')) {
+              try {
+                // Load image and convert to base64
+                const img = new Image();
+                img.crossOrigin = 'anonymous';
+                
+                const imageLoaded = await new Promise((resolve, reject) => {
+                  img.onload = () => resolve(true);
+                  img.onerror = () => resolve(false);
+                  img.src = href.startsWith('/') ? window.location.origin + href : href;
+                });
+                
+                if (imageLoaded) {
+                  const canvas = document.createElement('canvas');
+                  canvas.width = img.naturalWidth;
+                  canvas.height = img.naturalHeight;
+                  const ctx = canvas.getContext('2d');
+                  ctx.drawImage(img, 0, 0);
+                  const base64 = canvas.toDataURL('image/jpeg', 0.85);
+                  svgImage.setAttribute('href', base64);
+                  svgImage.removeAttribute('xlink:href');
+                }
+              } catch (imgErr) {
+                console.error('Error converting SVG image:', imgErr);
+              }
+            }
+          }
+        }
+        
+        // Temporarily add clone to DOM for capture
+        clone.style.position = 'absolute';
+        clone.style.left = '-9999px';
+        document.body.appendChild(clone);
+        
+        const canvas = await html2canvas(clone, {
           backgroundColor: '#f4efe6',
-          scale: 2, // Higher quality
+          scale: 2,
           logging: false,
           useCORS: true,
-          allowTaint: true
+          allowTaint: true,
+          imageTimeout: 15000,
+          removeContainer: false
         });
+        
+        // Remove clone
+        document.body.removeChild(clone);
+        
         return canvas.toDataURL('image/png');
       } catch (err) {
         console.error('Error capturing map:', err);
