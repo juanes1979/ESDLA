@@ -431,21 +431,23 @@ class MiddleEarthPathfinder:
         return ccw(p1, p3, p4) != ccw(p2, p3, p4) and ccw(p1, p2, p3) != ccw(p1, p2, p4)
     
     def _get_road_at_point(self, x: float, y: float) -> Optional[Dict]:
-        """Get road info if point is near a road - returns CLOSEST road"""
+        """Get road info if point is ON a road - returns CLOSEST road within strict tolerance"""
         grid_key = (round(x), round(y))
         
         # Check direct grid match
         if grid_key in self.road_points:
             return self.road_points[grid_key]
         
-        # Check nearby road segments - find the CLOSEST one
+        # Check nearby road segments - find the CLOSEST one within strict tolerance
+        # With GRID_RESOLUTION = 1.0, we need tight tolerance to avoid false positives
         point = (x, y)
         closest_road = None
         closest_dist = float('inf')
+        tolerance = 0.6 * self.GRID_RESOLUTION  # Scale tolerance with grid resolution
         
         for segment in self.road_segments:
             dist = self._point_to_segment_distance(point, segment['start'], segment['end'])
-            if dist < 1.5 and dist < closest_dist:  # Within 1.5 units AND closer than previous
+            if dist < tolerance and dist < closest_dist:
                 closest_dist = dist
                 closest_road = {'type': segment['type'], 'name': segment['name']}
         
@@ -514,6 +516,14 @@ class MiddleEarthPathfinder:
         t = max(0, min(1, ((px - x1) * dx + (py - y1) * dy) / (dx * dx + dy * dy)))
         
         return (x1 + t * dx, y1 + t * dy)
+
+
+    def _get_path_nodes(self, end_node: PathNode):
+        """Generator to iterate through path nodes from end to start"""
+        current = end_node
+        while current is not None:
+            yield current
+            current = current.parent
 
     
     def _check_river_crossing(
@@ -897,12 +907,14 @@ class MiddleEarthPathfinder:
         segments: List[PathSegment] = []
         rivers_crossed: List[Dict] = []
         roads_used_ordered: List[str] = []  # Ordered list of roads (maintains order of traversal)
+        roads_distances: Dict[str, float] = {}  # Track distance on each road
         terrain_distances: Dict[str, float] = {}
         
         current = end_node
         prev_node = None
         total_distance = 0
         total_cost = 0
+        current_road_streak: Dict[str, float] = {}  # Track consecutive distance on current road
         
         while current is not None:
             path.append((current.x, current.y))
@@ -916,13 +928,10 @@ class MiddleEarthPathfinder:
                 terrain = prev_node.terrain_type
                 terrain_distances[terrain] = terrain_distances.get(terrain, 0) + dist_km
                 
-                # Track roads (in order of traversal) - use road_name from node
+                # Track roads - only count roads with significant usage
                 if prev_node.road_type != 'ninguno' and prev_node.road_name:
                     road_name = prev_node.road_name
-                    # Add to list if not recently used (avoid oscillation patterns like A-B-A-B)
-                    recent_roads = roads_used_ordered[-3:] if len(roads_used_ordered) >= 3 else roads_used_ordered
-                    if road_name not in recent_roads:
-                        roads_used_ordered.append(road_name)
+                    roads_distances[road_name] = roads_distances.get(road_name, 0) + dist_km
                 
                 # Track rivers
                 if prev_node.river_crossing:
@@ -954,10 +963,20 @@ class MiddleEarthPathfinder:
             prev_node = current
             current = current.parent
         
+        # Filter roads: only include roads with at least 30km or 5% of total distance
+        # This filters out roads that are just briefly crossed
+        min_road_distance = max(30, total_distance * 0.05)  # At least 30km or 5%
+        significant_roads = {name: dist for name, dist in roads_distances.items() if dist >= min_road_distance}
+        
+        # Build ordered list of significant roads based on first appearance
+        for node in reversed(list(self._get_path_nodes(end_node))):
+            if node.road_name and node.road_name in significant_roads:
+                if node.road_name not in roads_used_ordered:
+                    roads_used_ordered.append(node.road_name)
+        
         # Reverse to get start-to-end order
         path.reverse()
         segments.reverse()
-        roads_used_ordered.reverse()  # Also reverse roads to match path order
         
         # Calculate estimated days
         estimated_days = total_cost / self.BASE_SPEED_KM_DAY if total_cost > 0 else 0

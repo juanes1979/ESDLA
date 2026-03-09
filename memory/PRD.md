@@ -9,76 +9,44 @@ Build a comprehensive web application to play a modified version of the "Lord of
 
 ### ✅ COMPLETED This Session
 
+#### BUG FIX: Lista de Caminos Mostraba Rutas Incorrectas ✅
+**Problema:** La lista de "Caminos utilizados" mostraba caminos que no se recorrían realmente (Annúminas, Fornost, Bree) cuando la ruta iba hacia el Este.
+
+**Causa:** 
+- El umbral de detección de caminos (1.5 unidades) era muy permisivo
+- Caminos que apenas se cruzaban aparecían en la lista
+- No había filtro por distancia mínima recorrida sobre cada camino
+
+**Solución:**
+1. Reducido umbral de detección: `tolerance = 0.6 * GRID_RESOLUTION`
+2. Añadido filtro de distancia mínima: solo caminos con >30km o >5% de la ruta total
+3. Los caminos ahora se ordenan por primera aparición en la ruta
+
+**Resultado:**
+- **Antes:** 9 caminos (incluyendo Annúminas, Fornost, Bree)
+- **Después:** 4 caminos principales (Camino del Este, Paso Alto, Camino del Viejo Vado, Sendero Elfo)
+
+---
+
 #### FEATURE: Sistema de Velocidad de Grupo ✅
-**Requerimiento:** Antes de calcular el viaje, el sistema debe considerar las velocidades de los personajes y sus monturas. El grupo viaja a la velocidad del miembro más lento.
+**Requerimiento:** El grupo viaja a la velocidad del miembro más lento.
 
 **Implementación:**
-- `TravelPartyMember` ahora tiene método `velocidad_efectiva()`:
-  - Si tiene montura → usa `montura_velocidad`
-  - Si no tiene montura → usa `velocidad_base`
-- Frontend envía `velocidad_base` y `montura_velocidad` de cada miembro
-- Backend calcula velocidad del grupo = `min(velocidades_efectivas)`
+- `TravelPartyMember.velocidad_efectiva()` devuelve velocidad de montura o base
 - `km_por_dia = (velocidad_pies / 30) * 36`
-
-**Respuesta API incluye `velocidad_grupo`:**
-```json
-{
-  "velocidad_grupo": {
-    "velocidad_pies": 25,
-    "km_por_dia": 30.0,
-    "miembro_mas_lento": "Frodo",
-    "desglose_velocidades": [
-      {"nombre": "Frodo", "velocidad_base": 25, "montura_velocidad": 0, "velocidad_efectiva": 25},
-      {"nombre": "Aragorn", "velocidad_base": 30, "montura_velocidad": 60, "velocidad_efectiva": 60}
-    ],
-    "monturas_permitidas": true
-  }
-}
-```
-
-**Ejemplos de cálculo:**
-| Personaje | Vel Base | Montura | Vel Efectiva | Km/día |
-|-----------|----------|---------|--------------|--------|
-| Frodo a pie | 25 | - | 25 | 30 |
-| Aragorn montado | 30 | 60 | 60 | 72 |
-| **Grupo mixto** | - | - | **25** | **30** |
+- Respuesta incluye `velocidad_grupo` con desglose por miembro
 
 **Testing:** 100% (9/9 tests passed) - `/app/test_reports/iteration_37.json`
 
 ---
 
-#### BUG FIX P0: Pathfinding Algorithm Logic Fixed ✅
-**Problema:** El algoritmo A* elegía la ruta más corta en lugar de la "mejor" ruta.
+#### BUG FIX P0: Pathfinding Algorithm Logic ✅
+**Problema:** A* elegía la ruta más corta en lugar de la "mejor".
 
-**Solución:** Nuevo sistema de multiplicadores de costo:
-- `Cost = distance_km × road_mult × terrain_mult × land_mult`
-- Mejores caminos → multiplicador más bajo → costo menor
+**Solución:** Sistema de multiplicadores de costo:
+- `Cost = distance × road_mult × terrain_mult × land_mult`
 
 **Testing:** 100% (8/8 tests passed) - `/app/test_reports/iteration_36.json`
-
----
-
-### ✅ Previous Sessions Summary
-
-#### Travel System - Complete
-- Sistema de viajes con pathfinding A*
-- Cálculo de distancia, días, PX por segmento
-- Eventos de viaje con tiradas d20
-- Modo jornada a jornada
-- Narrativa con IA (GPT-4o)
-- Comparación de rutas (segura vs directa)
-
-#### Map System - Complete
-- Mapa del Maestro y Mapa del Jugador
-- 210+ ubicaciones de la Tierra Media
-- Editor de caminos, ríos, barreras
-- Editor de terreno (zonas pintables)
-
-#### Character System - Complete
-- Creador de personajes multi-paso
-- Hoja de personaje interactiva
-- Sistema de equipamiento con monturas
-- Gestión de peso y estorbo
 
 ---
 
@@ -87,7 +55,7 @@ Build a comprehensive web application to play a modified version of the "Lord of
 ### P1 - Next Priority
 1. **Implementar opción "Evitar Caminos"** - Para escenarios de huida
 2. **Etapas de Viaje y Descansos** - Sistema de descanso durante viajes
-3. **Piezas móviles en Editor de Terreno** - Mover iconos en el mapa
+3. **Piezas móviles en Editor de Terreno**
 
 ### P2 - Medium Priority
 1. **Consumo de Comida/Agua**
@@ -107,38 +75,31 @@ Build a comprehensive web application to play a modified version of the "Lord of
 /app/
 ├── backend/
 │   ├── routes/
-│   │   └── travel_routes.py  # TravelPartyMember with velocidad_efectiva()
+│   │   └── travel_routes.py
 │   ├── utils/
-│   │   └── pathfinding.py    # A* with cost multipliers
+│   │   └── pathfinding.py  # Road detection with min distance filter
 │   └── server.py
 └── frontend/
     └── src/
         └── pages/
-            └── EnhancedTravelSystem.jsx  # Group speed display
+            └── EnhancedTravelSystem.jsx
 ```
 
 ## Key Technical Concepts
 
-### Group Speed Calculation
+### Road Detection Filter
 ```python
-class TravelPartyMember:
-    def velocidad_efectiva(self) -> int:
-        if self.tiene_montura and self.montura_velocidad > 0:
-            return self.montura_velocidad
-        return self.velocidad_base
-
-# Group travels at slowest member's speed
-velocidad_grupo = min(m.velocidad_efectiva() for m in miembros)
-km_por_dia = (velocidad_grupo / 30) * 36
+# Only include roads with significant usage
+min_road_distance = max(30, total_distance * 0.05)  # 30km or 5%
+significant_roads = {name: dist for name, dist in roads_distances.items() 
+                     if dist >= min_road_distance}
 ```
 
-### A* Pathfinding Cost System
+### Group Speed Calculation
 ```python
-Cost = distance_km * road_mult * terrain_mult * land_mult * river_mult
-
-ROAD_MULT = {'grande': 0.1, 'mayor': 0.25, 'menor': 0.45, 'senda': 0.65, 'ninguno': 1.0}
-TERRAIN_MULT = {'facil': 0.5, 'moderado': 1.0, 'dificil': 2.0, 'muy_dificil': 4.0, 'desalentador': 8.0}
-LAND_MULT = {'tierras_libres': 0.2, 'fronterizas': 0.5, 'salvajes': 1.0, 'sombra': 5.0, 'oscuras': 10.0}
+velocidad_efectiva = montura_velocidad if tiene_montura else velocidad_base
+velocidad_grupo = min(m.velocidad_efectiva() for m in miembros)
+km_por_dia = (velocidad_grupo / 30) * 36
 ```
 
 ---
@@ -146,7 +107,6 @@ LAND_MULT = {'tierras_libres': 0.2, 'fronterizas': 0.5, 'salvajes': 1.0, 'sombra
 ## Testing Results
 - `/app/test_reports/iteration_37.json` - Group Speed: 100% (9/9)
 - `/app/test_reports/iteration_36.json` - Pathfinding: 100% (8/8)
-- `/app/backend/tests/test_group_speed.py` - Unit tests
 
 ---
 
