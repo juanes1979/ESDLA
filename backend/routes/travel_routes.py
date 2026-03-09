@@ -979,6 +979,11 @@ async def debug_pathfinding(config: PathDebugConfig):
     last_road_exited = None
     steps_since_road_exit = 0
     
+    # ANTI-LOOP: Track visited positions to detect and break loops
+    visited_positions = set()
+    visited_positions.add((round(current_x, 1), round(current_y, 1)))
+    loop_detected = False
+    
     for step in range(1, config.max_pasos + 1):
         dist_to_dest = distance(current_x, current_y, dest_x, dest_y)
         
@@ -1014,18 +1019,38 @@ async def debug_pathfinding(config: PathDebugConfig):
         razon = ""
         alternativas = []  # Track alternatives considered
         
-        # Option 1: If on a road, try to continue on it
-        if on_road and config.preferir_caminos:
-            next_point = get_next_road_point_towards_dest(current_road, current_x, current_y, dest_x, dest_y)
-            if next_point:
-                next_x, next_y = next_point
-                decision = "SEGUIR_CAMINO"
-                razon = f"Continuamos por {current_road} que nos acerca al destino"
-            else:
-                # Road doesn't help, mark that we're leaving it
-                last_road_exited = current_road
-                steps_since_road_exit = 0
-                alternativas.append(f"El camino {current_road} no nos acerca más al destino")
+        # ANTI-LOOP: Check if we're about to enter a loop
+        # Only check after step 10 to allow initial movement
+        pos_key = (round(current_x, 1), round(current_y, 1))
+        if step > 10 and pos_key in visited_positions:
+            loop_detected = True
+            alternativas.append(f"¡BUCLE DETECTADO! Posición ({current_x:.1f}, {current_y:.1f}) ya visitada")
+        
+        # If loop detected, ignore road preferences and go directly to destination
+        if loop_detected:
+            direction_x = (dest_x - current_x)
+            direction_y = (dest_y - current_y)
+            length = math.sqrt(direction_x**2 + direction_y**2)
+            if length > 0:
+                next_x = current_x + (direction_x / length) * STEP_PERCENT
+                next_y = current_y + (direction_y / length) * STEP_PERCENT
+            decision = "DIRECTO_FORZADO"
+            razon = f"Bucle detectado: ignoramos preferencias y vamos directo al destino"
+        
+        # Normal logic (only if not in loop mode)
+        if decision is None:
+            # Option 1: If on a road, try to continue on it
+            if on_road and config.preferir_caminos:
+                next_point = get_next_road_point_towards_dest(current_road, current_x, current_y, dest_x, dest_y)
+                if next_point:
+                    next_x, next_y = next_point
+                    decision = "SEGUIR_CAMINO"
+                    razon = f"Continuamos por {current_road} que nos acerca al destino"
+                else:
+                    # Road doesn't help, mark that we're leaving it
+                    last_road_exited = current_road
+                    steps_since_road_exit = 0
+                    alternativas.append(f"El camino {current_road} no nos acerca más al destino")
         
         # Option 2: If not on road, look for nearest road (but avoid recently exited road)
         if decision is None and config.preferir_caminos:
@@ -1115,6 +1140,10 @@ async def debug_pathfinding(config: PathDebugConfig):
         
         # Move
         current_x, current_y = next_x, next_y
+        
+        # ANTI-LOOP: Add new position to visited set
+        new_pos_key = (round(current_x, 1), round(current_y, 1))
+        visited_positions.add(new_pos_key)
         
         # Record step
         new_on_road, new_road_name, new_road_type = is_on_road(current_x, current_y)

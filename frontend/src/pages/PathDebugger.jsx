@@ -30,6 +30,7 @@ const DECISION_CONFIG = {
   'CAMPO_TRAVES': { color: '#8b5cf6', bgColor: 'bg-purple-900/30', icon: Footprints, label: 'Campo Través' },
   'EVITAR': { color: '#ef4444', bgColor: 'bg-red-900/30', icon: AlertTriangle, label: 'Evitar' },
   'DIRECTO': { color: '#6b7280', bgColor: 'bg-gray-900/30', icon: ChevronRight, label: 'Directo' },
+  'DIRECTO_FORZADO': { color: '#dc2626', bgColor: 'bg-red-900/40', icon: AlertTriangle, label: 'Directo (Bucle)' },
 };
 
 // Land type colors
@@ -543,7 +544,7 @@ const PathDebugger = () => {
     );
   };
 
-  // Render location markers
+  // Render location markers - WITHOUT names to not obstruct the view
   const renderLocations = () => {
     if (zoom < 0.05) return null;
     
@@ -553,29 +554,31 @@ const PathDebugger = () => {
       const isOrigin = loc.nombre === selectedOrigin;
       const isDestination = loc.nombre === selectedDestination;
       
-      if (!isOrigin && !isDestination && zoom < 0.08) return null;
+      // Only show origin and destination markers, not all locations
+      if (!isOrigin && !isDestination) return null;
       
       return (
         <g key={loc._id || loc.nombre} transform={`translate(${x}, ${y})`}>
           <circle
-            r={isOrigin || isDestination ? 80 : 40}
-            fill={isOrigin ? '#22c55e' : isDestination ? '#ef4444' : '#c9a227'}
-            opacity={0.8}
+            r={80}
+            fill={isOrigin ? '#22c55e' : '#ef4444'}
+            opacity={0.9}
+            stroke="#fff"
+            strokeWidth={20}
           />
-          {zoom > 0.06 && (
-            <text
-              y={120}
-              textAnchor="middle"
-              fill="#fff"
-              fontSize={100}
-              fontWeight="bold"
-              stroke="#000"
-              strokeWidth={20}
-              paintOrder="stroke"
-            >
-              {loc.nombre}
-            </text>
-          )}
+          {/* Only show name for origin/destination, positioned above */}
+          <text
+            y={-120}
+            textAnchor="middle"
+            fill={isOrigin ? '#22c55e' : '#ef4444'}
+            fontSize={90}
+            fontWeight="bold"
+            stroke="#000"
+            strokeWidth={15}
+            paintOrder="stroke"
+          >
+            {isOrigin ? 'ORIGEN' : 'DESTINO'}
+          </text>
         </g>
       );
     });
