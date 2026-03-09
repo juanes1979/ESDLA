@@ -1634,6 +1634,240 @@ async def calculate_journey(config: JourneyConfig):
         "debug": debug_info
     }
 
+
+# ============== ROUTE COMPARISON ==============
+
+class RouteComparisonRequest(BaseModel):
+    """Request for comparing two route strategies"""
+    origen_id: str
+    origen_nombre: str
+    destino_id: str
+    destino_nombre: str
+    evitar_sombra: bool = False
+    evitar_tierras_oscuras: bool = False
+    ritmo: str = "normal"
+
+@router.post("/compare-routes")
+async def compare_routes(request: RouteComparisonRequest):
+    """
+    Compare two route strategies:
+    1. Route preferring roads (safer, possibly longer)
+    2. Direct cross-country route (shorter, but more dangerous)
+    
+    Both routes NEVER cross impassable terrain (infranqueable, agua).
+    Both routes respect evitar_sombra and evitar_tierras_oscuras options.
+    """
+    from utils.pathfinding import MiddleEarthPathfinder
+    
+    # Get locations
+    start_loc = await db.locations.find_one({"_id": request.origen_id})
+    end_loc = await db.locations.find_one({"_id": request.destino_id})
+    
+    if not start_loc or not end_loc:
+        return {"error": True, "message": "Ubicaciones no encontradas"}
+    
+    # Clean up _id
+    start_loc['id'] = str(start_loc.pop('_id'))
+    end_loc['id'] = str(end_loc.pop('_id'))
+    
+    # Get map data
+    roads = list(await db.roads.find({}, {"_id": 0}).to_list(length=1000))
+    rivers = list(await db.rivers.find({}, {"_id": 0}).to_list(length=1000))
+    barriers = list(await db.barriers.find({}, {"_id": 0}).to_list(length=1000))
+    all_locations = list(await db.locations.find({}).to_list(length=1000))
+    terrain_polygons = await get_terrain_polygons()
+    
+    # Clean location IDs
+    for loc in all_locations:
+        if '_id' in loc:
+            loc['id'] = str(loc.pop('_id'))
+    
+    start_coords = (start_loc.get('x', 0), start_loc.get('y', 0))
+    end_coords = (end_loc.get('x', 0), end_loc.get('y', 0))
+    
+    # Calculate straight-line distance for reference
+    import math
+    COORD_TO_KM = 20.0
+    straight_line_distance = math.sqrt(
+        (end_coords[0] - start_coords[0])**2 + 
+        (end_coords[1] - start_coords[1])**2
+    ) * COORD_TO_KM
+    straight_line_days = round(straight_line_distance / 36, 1)  # Base speed 36 km/day
+    
+    # Helper function to calculate route
+    def calculate_route_data(path_result, route_type):
+        if not path_result.success:
+            return None
+        
+        # Get land type for each segment
+        def get_land_type_at_point(x, y):
+            min_dist = float('inf')
+            land_type = 'tierras_salvajes'
+            for loc in all_locations:
+                dist = ((x - loc.get('x', 0))**2 + (y - loc.get('y', 0))**2) ** 0.5
+                if dist < min_dist:
+                    min_dist = dist
+                    land_type = loc.get('clase_region') or loc.get('tipo_tierra') or 'tierras_salvajes'
+            return land_type
+        
+        # Build segments with land type
+        segments = []
+        for seg in path_result.segments:
+            mid_x = (seg.start[0] + seg.end[0]) / 2
+            mid_y = (seg.start[1] + seg.end[1]) / 2
+            segments.append({
+                "start": {"x": seg.start[0], "y": seg.start[1]},
+                "end": {"x": seg.end[0], "y": seg.end[1]},
+                "distance_km": seg.distance_km,
+                "terrain": seg.terrain,
+                "road_type": seg.road_type,
+                "land_type": get_land_type_at_point(mid_x, mid_y)
+            })
+        
+        # Build land type summary
+        land_type_distances = {}
+        for seg in segments:
+            lt = seg.get('land_type', 'tierras_salvajes')
+            land_type_distances[lt] = land_type_distances.get(lt, 0) + seg['distance_km']
+        
+        # Calculate days based on rhythm
+        dias_base = path_result.estimated_days
+        if request.ritmo == 'lento':
+            dias_base *= 1.5
+        elif request.ritmo == 'rapido':
+            dias_base *= 0.75
+        
+        return {
+            "tipo": route_type,
+            "distance_km": round(path_result.total_distance_km, 1),
+            "dias_estimados": max(1, round(dias_base)),
+            "casillas": max(1, round(path_result.total_distance_km / 16)),
+            "path": path_result.path,
+            "segments": segments,
+            "terrain_summary": path_result.terrain_summary,
+            "land_type_summary": {k: round(v, 1) for k, v in land_type_distances.items()},
+            "roads_used": list(path_result.roads_used),
+            "rivers_crossed": path_result.rivers_crossed,
+            "warnings": path_result.warnings,
+            "travel_cost": path_result.total_travel_cost
+        }
+    
+    # Calculate ROUTE 1: Preferring roads
+    pathfinder_roads = MiddleEarthPathfinder(
+        roads=roads,
+        rivers=rivers,
+        barriers=barriers,
+        locations=all_locations,
+        terrain_polygons=terrain_polygons,
+        prefer_roads=True  # Prefer roads
+    )
+    result_roads = pathfinder_roads.find_path(start_coords, end_coords)
+    route_with_roads = calculate_route_data(result_roads, "caminos")
+    
+    # Calculate ROUTE 2: Cross-country (no road preference)
+    pathfinder_direct = MiddleEarthPathfinder(
+        roads=roads,  # Still has roads data for crossing detection
+        rivers=rivers,
+        barriers=barriers,
+        locations=all_locations,
+        terrain_polygons=terrain_polygons,
+        prefer_roads=False  # No road preference
+    )
+    result_direct = pathfinder_direct.find_path(start_coords, end_coords)
+    route_direct = calculate_route_data(result_direct, "directo")
+    
+    # Check for shadow/dark lands violations if options are enabled
+    def check_land_violations(route_data):
+        if not route_data:
+            return []
+        violations = []
+        land_summary = route_data.get('land_type_summary', {})
+        if request.evitar_sombra and land_summary.get('tierras_sombra', 0) > 0:
+            violations.append(f"Atraviesa {round(land_summary['tierras_sombra'], 1)} km de Tierras de la Sombra")
+        if request.evitar_tierras_oscuras and land_summary.get('tierras_oscuras', 0) > 0:
+            violations.append(f"Atraviesa {round(land_summary['tierras_oscuras'], 1)} km de Tierras Oscuras")
+        return violations
+    
+    # Add violation warnings
+    if route_with_roads:
+        violations = check_land_violations(route_with_roads)
+        if violations:
+            route_with_roads['warnings'] = route_with_roads.get('warnings', []) + violations
+            route_with_roads['has_land_violations'] = True
+    
+    if route_direct:
+        violations = check_land_violations(route_direct)
+        if violations:
+            route_direct['warnings'] = route_direct.get('warnings', []) + violations
+            route_direct['has_land_violations'] = True
+    
+    # Calculate comparison metrics
+    comparison = None
+    if route_with_roads and route_direct:
+        dist_diff = route_with_roads['distance_km'] - route_direct['distance_km']
+        days_diff = route_with_roads['dias_estimados'] - route_direct['dias_estimados']
+        
+        # Determine which route is better
+        if abs(dist_diff) < 1:  # Routes are essentially the same
+            ruta_mas_corta = "igual"
+            ruta_mas_rapida = "igual"
+        else:
+            ruta_mas_corta = "directo" if dist_diff > 0 else "caminos"
+            ruta_mas_rapida = "directo" if days_diff > 0 else "caminos"
+        
+        comparison = {
+            "distancia_diferencia_km": round(dist_diff, 1),
+            "dias_diferencia": days_diff,
+            "ruta_mas_corta": ruta_mas_corta,
+            "ruta_mas_rapida": ruta_mas_rapida,
+            "porcentaje_mas_largo": round(abs(dist_diff) / min(route_with_roads['distance_km'], route_direct['distance_km']) * 100, 1) if min(route_with_roads['distance_km'], route_direct['distance_km']) > 0 else 0,
+            "rutas_identicas": abs(dist_diff) < 1
+        }
+    
+    # Straight line reference data
+    linea_recta = {
+        "distance_km": round(straight_line_distance, 1),
+        "dias_teoricos": straight_line_days,
+        "descripcion": "Distancia en línea recta (teórica, sin obstáculos)"
+    }
+    
+    # Add deviation info to routes
+    if route_with_roads:
+        route_with_roads['desvio_vs_recta_km'] = round(route_with_roads['distance_km'] - straight_line_distance, 1)
+        route_with_roads['desvio_vs_recta_pct'] = round((route_with_roads['distance_km'] / straight_line_distance - 1) * 100, 1) if straight_line_distance > 0 else 0
+    
+    if route_direct:
+        route_direct['desvio_vs_recta_km'] = round(route_direct['distance_km'] - straight_line_distance, 1)
+        route_direct['desvio_vs_recta_pct'] = round((route_direct['distance_km'] / straight_line_distance - 1) * 100, 1) if straight_line_distance > 0 else 0
+    
+    return {
+        "success": True,
+        "origen": {
+            "id": start_loc['id'],
+            "nombre": start_loc.get('nombre'),
+            "x": start_loc.get('x'),
+            "y": start_loc.get('y')
+        },
+        "destino": {
+            "id": end_loc['id'],
+            "nombre": end_loc.get('nombre'),
+            "x": end_loc.get('x'),
+            "y": end_loc.get('y')
+        },
+        "linea_recta": linea_recta,
+        "ruta_caminos": route_with_roads,
+        "ruta_directa": route_direct,
+        "comparacion": comparison,
+        "opciones": {
+            "evitar_sombra": request.evitar_sombra,
+            "evitar_tierras_oscuras": request.evitar_tierras_oscuras,
+            "ritmo": request.ritmo
+        },
+        "nota": "Ambas rutas evitan terreno infranqueable. Si las rutas son idénticas, significa que no hay un camino más directo disponible sin atravesar barreras."
+    }
+
+
+
 @router.post("/orientation-check")
 async def orientation_check(request: OrientationCheckRequest, casillas_restantes: int = 100):
     """

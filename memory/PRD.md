@@ -7,7 +7,31 @@ Build a comprehensive web application to play a modified version of the "Lord of
 
 ## Current State (2026-12-09)
 
-### ✅ COMPLETED This Session - P0 Fix: Sistema de Viajes Oficial
+### ✅ COMPLETED This Session
+
+#### FEATURE: Modo de Comparación de Rutas ✅
+**Nuevo endpoint:** `POST /api/travel/compare-routes`
+
+**Funcionalidad:**
+- Compara "Ruta por Caminos" vs "Ruta Directa" (campo a través)
+- Muestra línea recta teórica para referencia (distancia sin obstáculos)
+- Ambas rutas **NUNCA** atraviesan terreno infranqueable
+- Soporta opciones: evitar Tierras de Sombra / Tierras Oscuras
+
+**UI implementada:**
+- Botón "Comparar Rutas (Caminos vs Campo a Través)" en el sistema de viajes
+- Panel de comparación lado a lado con:
+  - Distancia, días estimados, caminos usados
+  - Desvío vs línea recta (km y %)
+  - Desglose de terreno
+  - Indicador cuando las rutas son idénticas (barreras fuerzan mismo camino)
+
+**Archivos modificados:**
+- `/app/backend/routes/travel_routes.py` (nuevo endpoint compare-routes)
+- `/app/backend/utils/pathfinding.py` (ajustes para prefer_roads=False)
+- `/app/frontend/src/pages/EnhancedTravelSystem.jsx` (UI de comparación)
+
+---
 
 #### BUG FIX P0: Cálculo de Distancia Incorrecto ✅
 **Problema:** Un viaje de ~800 km (Hobbiton → Esgaroth) se calculaba como ~264 km.

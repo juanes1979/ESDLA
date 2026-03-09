@@ -19,7 +19,7 @@ import {
   Sun, Moon, Snowflake, Leaf, ArrowLeft, ArrowRight, Plus, MapPin, 
   Route, AlertTriangle, Shield, Footprints, Dice6, Check, X,
   ChevronRight, SkipForward, Flag, Zap, Heart, Eye, Sparkles, Maximize2,
-  Printer, FileText, BookOpen, Package
+  Printer, FileText, BookOpen, Package, ArrowLeftRight, Loader2
 } from 'lucide-react';
 import { toast } from 'sonner';
 import html2canvas from 'html2canvas';
@@ -534,6 +534,11 @@ const EnhancedTravelSystem = () => {
   const [journeyCalc, setJourneyCalc] = useState(null);
   const [loadingCalc, setLoadingCalc] = useState(false);
   
+  // Route comparison
+  const [routeComparison, setRouteComparison] = useState(null);
+  const [loadingComparison, setLoadingComparison] = useState(false);
+  const [showComparison, setShowComparison] = useState(false);
+  
   // Map expansion state
   const [mapExpanded, setMapExpanded] = useState(false);
   
@@ -677,6 +682,39 @@ const EnhancedTravelSystem = () => {
       toast.error('Error al calcular viaje');
     } finally {
       setLoadingCalc(false);
+    }
+  }, [config]);
+  
+  // Compare routes function
+  const compareRoutes = useCallback(async () => {
+    if (!config.origenId || !config.destinoId) {
+      toast.error('Selecciona origen y destino');
+      return;
+    }
+    
+    setLoadingComparison(true);
+    try {
+      const res = await api.post('/travel/compare-routes', {
+        origen_id: config.origenId,
+        origen_nombre: config.origenNombre,
+        destino_id: config.destinoId,
+        destino_nombre: config.destinoNombre,
+        evitar_sombra: config.evitarSombra || false,
+        evitar_tierras_oscuras: config.evitarTierrasOscuras || false,
+        ritmo: config.ritmo || 'normal'
+      });
+      
+      if (res.data.success) {
+        setRouteComparison(res.data);
+        setShowComparison(true);
+      } else {
+        toast.error(res.data.message || 'Error al comparar rutas');
+      }
+    } catch (err) {
+      console.error('Error comparing routes:', err);
+      toast.error('Error al comparar rutas');
+    } finally {
+      setLoadingComparison(false);
     }
   }, [config]);
   
@@ -2223,6 +2261,188 @@ const EnhancedTravelSystem = () => {
                   ))}
                 </div>
               )}
+              
+              {/* Compare Routes Button */}
+              <div className="mt-4 pt-4 border-t border-white/10">
+                <Button
+                  variant="outline"
+                  className="w-full border-amber-500/50 text-amber-300 hover:bg-amber-900/30"
+                  onClick={compareRoutes}
+                  disabled={loadingComparison}
+                >
+                  {loadingComparison ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Comparando rutas...
+                    </>
+                  ) : (
+                    <>
+                      <ArrowLeftRight className="w-4 h-4 mr-2" />
+                      Comparar Rutas (Caminos vs Campo a Través)
+                    </>
+                  )}
+                </Button>
+              </div>
+            </div>
+          )}
+          
+          {/* Route Comparison Panel */}
+          {showComparison && routeComparison && (
+            <div className="mt-4 p-4 bg-slate-900/50 rounded-lg border border-amber-500/30">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-lg font-bold text-[hsl(var(--gold))]">
+                  <ArrowLeftRight className="w-5 h-5 inline mr-2" />
+                  Comparación de Rutas
+                </h3>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowComparison(false)}
+                  className="text-muted-foreground hover:text-white"
+                >
+                  <X className="w-4 h-4" />
+                </Button>
+              </div>
+              
+              {/* Straight Line Reference */}
+              {routeComparison.linea_recta && (
+                <div className="mb-4 p-3 bg-blue-900/20 rounded border border-blue-500/30">
+                  <p className="text-blue-400 text-sm mb-1">
+                    📏 Línea Recta (teórica, sin obstáculos):
+                  </p>
+                  <p className="text-white font-bold">
+                    {routeComparison.linea_recta.distance_km} km ({routeComparison.linea_recta.dias_teoricos} días)
+                  </p>
+                </div>
+              )}
+              
+              {/* Routes Comparison Grid */}
+              <div className="grid md:grid-cols-2 gap-4">
+                {/* Route by Roads */}
+                {routeComparison.ruta_caminos && (
+                  <div className="p-4 bg-amber-900/20 rounded-lg border border-amber-500/40">
+                    <h4 className="text-amber-400 font-bold mb-3 flex items-center gap-2">
+                      <Route className="w-4 h-4" />
+                      Ruta por Caminos
+                    </h4>
+                    <div className="space-y-2 text-sm">
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Distancia:</span>
+                        <span className="text-white font-bold">{routeComparison.ruta_caminos.distance_km} km</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Días estimados:</span>
+                        <span className="text-[hsl(var(--gold))] font-bold">{routeComparison.ruta_caminos.dias_estimados}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Caminos usados:</span>
+                        <span className="text-amber-300">{routeComparison.ruta_caminos.roads_used?.length || 0}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Desvío vs recta:</span>
+                        <span className="text-orange-400">+{routeComparison.ruta_caminos.desvio_vs_recta_km} km</span>
+                      </div>
+                      
+                      {/* Terrain breakdown mini */}
+                      {routeComparison.ruta_caminos.terrain_summary && (
+                        <div className="mt-2 pt-2 border-t border-amber-500/20">
+                          <p className="text-xs text-muted-foreground mb-1">Terreno:</p>
+                          <div className="flex flex-wrap gap-1">
+                            {Object.entries(routeComparison.ruta_caminos.terrain_summary).map(([t, km]) => (
+                              <span key={t} className="text-xs px-1 py-0.5 bg-black/30 rounded">
+                                {t}: {km.toFixed(0)}km
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      
+                      {routeComparison.ruta_caminos.has_land_violations && (
+                        <div className="mt-2 p-2 bg-red-900/30 rounded">
+                          <p className="text-red-400 text-xs">⚠️ Atraviesa tierras prohibidas</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+                
+                {/* Direct Route */}
+                {routeComparison.ruta_directa && (
+                  <div className="p-4 bg-green-900/20 rounded-lg border border-green-500/40">
+                    <h4 className="text-green-400 font-bold mb-3 flex items-center gap-2">
+                      <Mountain className="w-4 h-4" />
+                      Ruta Directa
+                    </h4>
+                    <div className="space-y-2 text-sm">
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Distancia:</span>
+                        <span className="text-white font-bold">{routeComparison.ruta_directa.distance_km} km</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Días estimados:</span>
+                        <span className="text-[hsl(var(--gold))] font-bold">{routeComparison.ruta_directa.dias_estimados}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Caminos usados:</span>
+                        <span className="text-green-300">{routeComparison.ruta_directa.roads_used?.length || 0}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Desvío vs recta:</span>
+                        <span className="text-orange-400">+{routeComparison.ruta_directa.desvio_vs_recta_km} km</span>
+                      </div>
+                      
+                      {/* Terrain breakdown mini */}
+                      {routeComparison.ruta_directa.terrain_summary && (
+                        <div className="mt-2 pt-2 border-t border-green-500/20">
+                          <p className="text-xs text-muted-foreground mb-1">Terreno:</p>
+                          <div className="flex flex-wrap gap-1">
+                            {Object.entries(routeComparison.ruta_directa.terrain_summary).map(([t, km]) => (
+                              <span key={t} className="text-xs px-1 py-0.5 bg-black/30 rounded">
+                                {t}: {km.toFixed(0)}km
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      
+                      {routeComparison.ruta_directa.has_land_violations && (
+                        <div className="mt-2 p-2 bg-red-900/30 rounded">
+                          <p className="text-red-400 text-xs">⚠️ Atraviesa tierras prohibidas</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+              
+              {/* Comparison Summary */}
+              {routeComparison.comparacion && (
+                <div className="mt-4 p-3 bg-slate-800/50 rounded">
+                  {routeComparison.comparacion.rutas_identicas ? (
+                    <p className="text-center text-muted-foreground">
+                      ℹ️ Las rutas son idénticas. Las barreras naturales (montañas, agua) fuerzan el mismo camino.
+                    </p>
+                  ) : (
+                    <div className="text-center">
+                      <p className="text-white">
+                        La ruta <span className="text-amber-400 font-bold">{routeComparison.comparacion.ruta_mas_rapida === 'caminos' ? 'por Caminos' : 'Directa'}</span> es{' '}
+                        <span className="text-green-400 font-bold">{Math.abs(routeComparison.comparacion.dias_diferencia)} días más rápida</span>
+                      </p>
+                      {Math.abs(routeComparison.comparacion.distancia_diferencia_km) > 0 && (
+                        <p className="text-sm text-muted-foreground mt-1">
+                          Diferencia de {Math.abs(routeComparison.comparacion.distancia_diferencia_km)} km ({routeComparison.comparacion.porcentaje_mas_largo}% más largo)
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+              
+              {/* Options reminder */}
+              <div className="mt-3 text-xs text-muted-foreground text-center">
+                {routeComparison.opciones?.evitar_sombra && <span className="mr-2">🛡️ Evitando Tierras de Sombra</span>}
+                {routeComparison.opciones?.evitar_tierras_oscuras && <span>🛡️ Evitando Tierras Oscuras</span>}
+              </div>
             </div>
           )}
           

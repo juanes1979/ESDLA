@@ -555,10 +555,17 @@ class MiddleEarthPathfinder:
             # If prefer_roads is enabled, roads are even more attractive
             if self.prefer_roads:
                 cost *= self.road_preference_multiplier  # Additional bonus for roads
+            # If NOT preferring roads, we still use the road multiplier but add
+            # a slight penalty to encourage more direct routes
+            else:
+                # Don't give road bonus - just use base terrain cost
+                # This makes the algorithm prefer shorter direct paths
+                cost = distance * terrain.multiplier * 1.1  # Slight overhead for using roads
         else:
             # No road - if prefer_roads is enabled, penalize off-road travel
             if self.prefer_roads:
                 cost *= 1.5  # 50% penalty for traveling without a road
+            # If not preferring roads, no penalty for off-road
         
         # Apply river crossing penalty
         if river_crossing:
