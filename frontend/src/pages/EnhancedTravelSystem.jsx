@@ -141,8 +141,11 @@ const createNaturalPath = (points, variationAmount = 2) => {
       const px = -dy / len;
       const py = dx / len;
       
-      // Random variation
-      const variation = (Math.random() - 0.5) * variationAmount;
+      // Random variation - more pronounced for a hand-drawn look
+      // Using sine wave for smoother, more natural variations
+      const baseVariation = Math.sin(i * 0.8) * variationAmount * 0.7;
+      const randomVariation = (Math.random() - 0.5) * variationAmount * 0.5;
+      const variation = baseVariation + randomVariation;
       
       result.push({
         x: curr.x + px * variation,
@@ -263,7 +266,8 @@ const JourneyMiniMap = ({ origenCoords, destinoCoords, origenNombre, destinoNomb
   }
   
   // Add natural variation to make the path look hand-drawn
-  const naturalPath = createNaturalPath(pathInPixelCoords, isDirectLine ? 5 : 3);
+  // Moderate variation for a realistic hand-drawn look
+  const naturalPath = createNaturalPath(pathInPixelCoords, isDirectLine ? 50 : 25);
   
   // Calculate viewBox to show entire route with padding
   // IMPORTANT: Always include both origin and destination markers
@@ -353,15 +357,15 @@ const JourneyMiniMap = ({ origenCoords, destinoCoords, origenNombre, destinoNomb
                 preserveAspectRatio="none"
               />
               
-              {/* Route path - brown ink style */}
+              {/* Route path - RED ink style (like hand-drawn on map) */}
               <path
                 d={smoothPathD}
                 fill="none"
-                stroke="#5c3d2e"
-                strokeWidth={lineWidth}
+                stroke="#c43c3c"
+                strokeWidth={lineWidth * 1.3}
                 strokeLinecap="round"
                 strokeLinejoin="round"
-                opacity="0.9"
+                opacity="0.85"
               />
               
               {/* Origin marker - green circle */}

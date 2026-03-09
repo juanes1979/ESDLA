@@ -519,8 +519,12 @@ class MiddleEarthPathfinder:
         to_y: float
     ) -> Tuple[float, str, str, Optional[str]]:
         """
-        Calculate movement cost considering terrain, roads, and rivers
+        Calculate movement cost considering terrain, roads, rivers, and LAND TYPE.
         Returns: (cost, road_type, terrain_type, river_crossing)
+        
+        IMPORTANT: Shadow and Dark lands are ALWAYS heavily penalized,
+        even if the user hasn't explicitly enabled "avoid shadow lands".
+        The path should prioritize Free/Frontier/Wild lands over Shadow/Dark lands.
         """
         from_pos = (from_node.x, from_node.y)
         to_pos = (to_x, to_y)
@@ -575,6 +579,24 @@ class MiddleEarthPathfinder:
                 cost = float('inf')
             else:
                 cost *= river.multiplier
+        
+        # ===== LAND TYPE PENALTY - ALWAYS APPLIED =====
+        # Shadow and Dark lands should ALWAYS be penalized heavily
+        # Even if the user hasn't enabled "avoid shadow lands", we should
+        # prioritize paths through Free/Frontier/Wild lands
+        land_type = self.get_land_type_from_polygons(to_x, to_y)
+        
+        # Land type multipliers (applied ALWAYS)
+        land_type_multipliers = {
+            'tierras_libres': 0.8,      # Bonus for free lands
+            'tierras_fronterizas': 1.0,  # No change
+            'tierras_salvajes': 1.2,     # Slight penalty
+            'tierras_sombra': 3.5,       # HEAVY penalty - avoid if possible
+            'tierras_oscuras': 5.0       # VERY HEAVY penalty - avoid at all costs
+        }
+        
+        land_multiplier = land_type_multipliers.get(land_type, 1.2)
+        cost *= land_multiplier
         
         return (cost, road_type_str, terrain_str, river_crossing_str)
     
@@ -725,8 +747,9 @@ class MiddleEarthPathfinder:
                     road_info = self._get_road_at_point(prev_node.x, prev_node.y)
                     if road_info:
                         road_name = road_info.get('name', prev_node.road_type)
-                        # Add to list if not already the last one (avoid duplicates from consecutive segments)
-                        if not roads_used_ordered or roads_used_ordered[-1] != road_name:
+                        # Add to list if not recently used (avoid oscillation patterns like A-B-A-B)
+                        recent_roads = roads_used_ordered[-3:] if len(roads_used_ordered) >= 3 else roads_used_ordered
+                        if road_name not in recent_roads:
                             roads_used_ordered.append(road_name)
                 
                 # Track rivers
