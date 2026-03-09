@@ -139,7 +139,13 @@ class PathResult:
 class MiddleEarthPathfinder:
     """
     A* Pathfinding for Middle-earth map
-    Considers terrain, roads, rivers, and barriers
+    Uses a COST MULTIPLIER SYSTEM where lower cost = better path.
+    Cost = distance_km * road_mult * terrain_mult * land_mult * river_mult
+    
+    Key multipliers:
+    - Roads: grande(0.1) to ninguno(1.0) - better roads = lower cost
+    - Terrain: facil(0.5) to desalentador(8.0) - easier terrain = lower cost  
+    - Land type: libres(0.2) to oscuras(10.0) - safer lands = lower cost
     """
     
     # Map scale: coordinates are in percentage (0-100) of map
@@ -148,12 +154,47 @@ class MiddleEarthPathfinder:
     COORD_TO_KM = 20.0
     
     # Grid resolution for pathfinding (smaller = more precise but slower)
-    GRID_RESOLUTION = 0.5  # Finer grid for better road following
+    GRID_RESOLUTION = 0.5
     
     # Base travel speed (km/day at normal pace on easy terrain)
     BASE_SPEED_KM_DAY = 36
     
-    # Priority order for terrain difficulty
+    # ============ SCORING SYSTEM (points per km) ============
+    
+    # Road quality points (better roads = more points)
+    ROAD_POINTS = {
+        'grande': 10,      # Grandes Caminos - best
+        'mayor': 7,        # Caminos Mayores
+        'menor': 4,        # Caminos Menores
+        'senda': 2,        # Sendas
+        'sendero': 2,      # Legacy: Sendas
+        'secundario': 4,   # Legacy: Menores
+        'real': 7,         # Legacy: Mayores
+        'ninguno': 1,      # Campo a través - worst
+    }
+    
+    # Terrain difficulty points (easier = more points)
+    TERRAIN_POINTS = {
+        'facil': 5,
+        'moderado': 3,
+        'dificil': 2,
+        'muy_dificil': 1,
+        'desalentador': 0.5,
+        'infranqueable': -1000,  # Blocked
+        'agua': -1000,           # Blocked
+    }
+    
+    # Land type danger points (safer = more points, dangerous = HEAVY negative)
+    LAND_TYPE_POINTS = {
+        'tierras_libres': 15,
+        'tierras_fronterizas': 8,
+        'fronterizas': 8,
+        'tierras_salvajes': 3,
+        'tierras_sombra': -25,    # Heavy penalty
+        'tierras_oscuras': -50,   # Very heavy penalty
+    }
+    
+    # Priority order for terrain difficulty (for display/sorting)
     TERRAIN_PRIORITY = {
         'agua': 7,
         'infranqueable': 6,
@@ -164,7 +205,7 @@ class MiddleEarthPathfinder:
         'facil': 1,
     }
     
-    # Priority order for land types
+    # Priority order for land types (for display/sorting)
     LAND_TYPE_PRIORITY = {
         'tierras_oscuras': 5,
         'tierras_sombra': 4,
@@ -184,7 +225,8 @@ class MiddleEarthPathfinder:
         prefer_roads: bool = True,
         avoid_roads: bool = False,
         avoid_shadow_lands: bool = False,
-        avoid_dark_lands: bool = False
+        avoid_dark_lands: bool = False,
+        direct_mode: bool = False  # If True, ignores land danger penalties for shortest path
     ):
         self.roads = roads
         self.rivers = rivers
@@ -196,9 +238,7 @@ class MiddleEarthPathfinder:
         self.avoid_roads = avoid_roads  # For fleeing from pursuers
         self.avoid_shadow_lands = avoid_shadow_lands
         self.avoid_dark_lands = avoid_dark_lands
-        
-        # Road preference multiplier: lower = more preferred when prefer_roads=True
-        self.road_preference_multiplier = 0.3 if prefer_roads else 1.0
+        self.direct_mode = direct_mode  # Direct route ignores land danger
         
         # Pre-process data for efficient lookup
         self._build_road_network()
@@ -604,18 +644,23 @@ class MiddleEarthPathfinder:
         to_y: float
     ) -> Tuple[float, str, str, str, Optional[str]]:
         """
-        Calculate movement cost considering terrain, roads, rivers, and LAND TYPE.
-        Returns: (cost, road_type, road_name, terrain_type, river_crossing)
+        Calculate movement cost using an INVERSE SCORING SYSTEM.
+        We convert our point system to a cost system where:
+        - Base cost = distance in km
+        - Multiplied by quality factor (better conditions = lower multiplier)
         
-        IMPORTANT: Shadow and Dark lands are ALWAYS heavily penalized,
-        even if the user hasn't explicitly enabled "avoid shadow lands".
-        The path should prioritize Free/Frontier/Wild lands over Shadow/Dark lands.
+        Quality hierarchy:
+        - Roads: grande(0.1) < mayor(0.3) < menor(0.5) < senda(0.7) < ninguno(1.0)
+        - Terrain: facil(0.5) < moderado(1.0) < dificil(2.0) < muy_dificil(4.0) < desalentador(8.0)
+        - Land: libres(0.2) < fronterizas(0.5) < salvajes(1.0) < sombra(5.0) < oscuras(10.0)
+        
+        Returns: (cost, road_type, road_name, terrain_type, river_crossing)
         """
         from_pos = (from_node.x, from_node.y)
         to_pos = (to_x, to_y)
         
-        # Base distance
-        distance = self._distance(from_pos, to_pos)
+        # Base distance in km
+        distance_km = self._distance(from_pos, to_pos) * self.COORD_TO_KM
         
         # Check for barrier (impassable)
         if self._check_barrier_crossing(from_pos, to_pos):
@@ -623,33 +668,58 @@ class MiddleEarthPathfinder:
         
         # Get terrain
         terrain_str = self._get_terrain_at_point(to_x, to_y)
-        terrain = TerrainType.from_string(terrain_str)
         
-        # Get road info at both from and to positions
-        from_road_info = self._get_road_at_point(from_node.x, from_node.y)
+        # Get road info
         to_road_info = self._get_road_at_point(to_x, to_y)
-        
         road_type_str = to_road_info['type'] if to_road_info else 'ninguno'
         road_name_str = to_road_info['name'] if to_road_info else ''
-        road = RoadType.from_string(road_type_str)
         
         # Check river crossing
         river_crossing = self._check_river_crossing(from_pos, to_pos)
         river_crossing_str = river_crossing['type'] if river_crossing else None
         
-        # Get land type for danger penalty
+        # Get land type
         land_type = self.get_land_type_from_polygons(to_x, to_y)
         
-        # ===== LAND TYPE DANGER MULTIPLIERS =====
-        # Tierras Libres < Fronterizas < Salvajes < Sombra < Oscuras
-        land_danger_multipliers = {
-            'tierras_libres': 0.8,         # Bonus - safest
-            'tierras_fronterizas': 1.0,    # Neutral
-            'tierras_salvajes': 1.3,       # Slight penalty
-            'tierras_sombra': 3.0,         # HEAVY penalty - dangerous
-            'tierras_oscuras': 5.0         # VERY HEAVY penalty - extremely dangerous
+        # ============ TERRAIN MULTIPLIER (higher = worse terrain) ============
+        TERRAIN_MULT = {
+            'facil': 0.5,
+            'moderado': 1.0,
+            'dificil': 2.0,
+            'muy_dificil': 4.0,
+            'desalentador': 8.0,
+            'infranqueable': float('inf'),
+            'agua': float('inf'),
         }
-        land_danger = land_danger_multipliers.get(land_type, 1.3)
+        terrain_mult = TERRAIN_MULT.get(terrain_str, 1.0)
+        
+        # Check if terrain is impassable
+        if terrain_mult == float('inf'):
+            return (float('inf'), road_type_str, road_name_str, terrain_str, river_crossing_str)
+        
+        # ============ ROAD MULTIPLIER (lower = better road) ============
+        ROAD_MULT = {
+            'grande': 0.1,      # Grandes Caminos - best (huge bonus)
+            'mayor': 0.25,     # Caminos Mayores
+            'menor': 0.45,     # Caminos Menores
+            'senda': 0.65,     # Sendas
+            'sendero': 0.65,   # Legacy: Sendas
+            'secundario': 0.45, # Legacy: Menores
+            'real': 0.25,      # Legacy: Mayores
+            'ninguno': 1.0,    # Campo a través - base cost
+        }
+        road_mult = ROAD_MULT.get(road_type_str, 1.0)
+        
+        # ============ LAND TYPE MULTIPLIER (higher = more dangerous) ============
+        LAND_MULT = {
+            'tierras_libres': 0.2,      # Safe lands - huge bonus
+            'tierras_fronterizas': 0.5,  # Borderlands
+            'fronterizas': 0.5,          # Legacy
+            'tierras_salvajes': 1.0,     # Wild lands - base
+            'tierras_sombra': 5.0,       # Shadow lands - HEAVY penalty
+            'tierras_oscuras': 10.0,     # Dark lands - VERY HEAVY penalty
+        }
+        land_mult = LAND_MULT.get(land_type, 1.0)
         
         # If user explicitly wants to AVOID shadow/dark lands, make them impassable
         if self.avoid_shadow_lands and land_type == 'tierras_sombra':
@@ -657,55 +727,33 @@ class MiddleEarthPathfinder:
         if self.avoid_dark_lands and land_type == 'tierras_oscuras':
             return (float('inf'), 'ninguno', '', terrain_str, river_crossing_str)
         
-        # ===== BASE COST CALCULATION =====
-        # Start with terrain difficulty
-        cost = distance * terrain.multiplier
+        # In DIRECT MODE, reduce land danger penalties significantly
+        if self.direct_mode:
+            # Direct mode: land danger has much less impact
+            land_mult = max(0.5, land_mult * 0.1)  # Reduce penalty to 10% 
         
-        # Apply land danger (affects ALL movement)
-        cost *= land_danger
-        
-        # ===== ROAD BONUS/PENALTY =====
-        if road != RoadType.NINGUNO:
-            if self.avoid_roads:
-                # AVOID ROADS: Heavy penalty for using roads (fleeing from pursuers)
-                cost *= 3.0  # Roads are dangerous when being pursued
+        # ============ AVOID ROADS MODE ============
+        if self.avoid_roads:
+            if road_type_str != 'ninguno':
+                road_mult = 5.0  # Heavy penalty for using roads when fleeing
             else:
-                # Roads significantly reduce cost
-                cost *= road.multiplier
-                
-                # If preferring roads, give extra bonus
-                if self.prefer_roads:
-                    cost *= 0.5  # Roads are even more attractive
-                    
-                    # CONTINUITY BONUS: If continuing on the SAME road, extra bonus
-                    if from_road_info and to_road_info:
-                        from_road_name = from_road_info.get('name', '')
-                        to_road_name = to_road_info.get('name', '')
-                        if from_road_name == to_road_name:
-                            cost *= 0.7  # 30% bonus for staying on same road
-        else:
-            # NO ROAD - Campo a través
-            if self.avoid_roads:
-                # When avoiding roads, cross-country is preferred
-                cost *= 0.8  # Bonus for staying off roads
-            elif self.prefer_roads:
-                # Heavy penalty for leaving roads when "prefer roads" is active
-                if from_road_info:
-                    # LEAVING a road - extra penalty
-                    cost *= 3.5  # Very heavy penalty for leaving a road
-                else:
-                    # Already off-road - moderate penalty
-                    cost *= 2.5
+                road_mult = 0.5  # Bonus for staying off roads
         
-        # Apply river crossing penalty
+        # ============ RIVER CROSSING ============
+        river_mult = 1.0
         if river_crossing:
             river = RiverType.from_string(river_crossing['type'])
             if river == RiverType.INFRANQUEABLE:
-                cost = float('inf')
+                return (float('inf'), road_type_str, road_name_str, terrain_str, river_crossing_str)
             else:
-                cost *= river.multiplier
+                river_mult = river.multiplier  # 1.5 for vadeable, 3.0 for profundo
         
-        return (cost, road_type_str, road_name_str, terrain_str, river_crossing_str)
+        # ============ CALCULATE TOTAL COST ============
+        # Cost = distance * road_factor * terrain_factor * land_factor * river_factor
+        # Lower cost = better path
+        total_cost = distance_km * road_mult * terrain_mult * land_mult * river_mult
+        
+        return (total_cost, road_type_str, road_name_str, terrain_str, river_crossing_str)
     
     def _get_neighbors(self, node: PathNode) -> List[Tuple[float, float]]:
         """Get valid neighbor positions for A* expansion"""
@@ -757,7 +805,9 @@ class MiddleEarthPathfinder:
         
         # Initialize start node
         start_node = PathNode(x=actual_start[0], y=actual_start[1])
-        start_node.h_cost = self._distance(actual_start, end)
+        # Heuristic: distance * best possible multiplier (0.1 for grande road, 0.2 for free lands, 0.5 for easy terrain)
+        # This ensures h_cost is admissible (never overestimates)
+        start_node.h_cost = self._distance(actual_start, end) * self.COORD_TO_KM * 0.01  # Minimum possible cost per km
         if start_road:
             start_node.road_type = start_road.get('type', 'ninguno')
         
@@ -799,7 +849,8 @@ class MiddleEarthPathfinder:
                 
                 if existing is None or tentative_g < existing.g_cost:
                     neighbor.g_cost = tentative_g
-                    neighbor.h_cost = self._distance((nx, ny), end)
+                    # Heuristic: distance * minimum possible cost multiplier
+                    neighbor.h_cost = self._distance((nx, ny), end) * self.COORD_TO_KM * 0.01
                     neighbor.parent = current
                     neighbor.road_type = road_type
                     neighbor.road_name = road_name

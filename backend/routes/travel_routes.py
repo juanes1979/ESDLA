@@ -1754,8 +1754,8 @@ async def compare_routes(request: RouteComparisonRequest):
             "travel_cost": path_result.total_travel_cost
         }
     
-    # Calculate ROUTE 1: Preferring roads (with shadow/dark land avoidance if enabled)
-    pathfinder_roads = MiddleEarthPathfinder(
+    # Calculate ROUTE 1: Safe route (maximizes points - avoids dangerous lands)
+    pathfinder_safe = MiddleEarthPathfinder(
         roads=roads,
         rivers=rivers,
         barriers=barriers,
@@ -1763,25 +1763,26 @@ async def compare_routes(request: RouteComparisonRequest):
         terrain_polygons=terrain_polygons,
         prefer_roads=True,  # Prefer roads
         avoid_shadow_lands=request.evitar_sombra,  # Respect user choice
-        avoid_dark_lands=request.evitar_tierras_oscuras  # Respect user choice
+        avoid_dark_lands=request.evitar_tierras_oscuras,  # Respect user choice
+        direct_mode=False  # Use full scoring with land danger penalties
     )
-    result_roads = pathfinder_roads.find_path(start_coords, end_coords)
-    route_with_roads = calculate_route_data(result_roads, "caminos")
+    result_roads = pathfinder_safe.find_path(start_coords, end_coords)
+    route_with_roads = calculate_route_data(result_roads, "segura")
     
-    # Calculate ROUTE 2: Direct cross-country (NO restrictions on shadow/dark lands)
-    # This route is the "shortest path" regardless of danger
+    # Calculate ROUTE 2: Direct route (shortest path, ignores land danger)
     pathfinder_direct = MiddleEarthPathfinder(
-        roads=roads,  # Still has roads data for crossing detection
+        roads=roads,
         rivers=rivers,
         barriers=barriers,
         locations=all_locations,
         terrain_polygons=terrain_polygons,
         prefer_roads=False,  # No road preference
-        avoid_shadow_lands=False,  # No shadow land avoidance - direct route
-        avoid_dark_lands=False  # No dark land avoidance - direct route
+        avoid_shadow_lands=False,  # Direct route can go through shadow lands
+        avoid_dark_lands=False,  # Direct route can go through dark lands
+        direct_mode=True  # Ignores land danger penalties for shortest path
     )
     result_direct = pathfinder_direct.find_path(start_coords, end_coords)
-    route_direct = calculate_route_data(result_direct, "directo")
+    route_direct = calculate_route_data(result_direct, "directa")
     
     # Check for shadow/dark lands violations if options are enabled
     def check_land_violations(route_data):
