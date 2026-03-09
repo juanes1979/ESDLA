@@ -770,7 +770,7 @@ const EnhancedTravelSystem = () => {
     
     try {
       const res = await api.post('/travel/orientation-check', {
-        modificador_sabiduria: guia.modificadorSabiduria || 0,
+        modificador_sabiduria: guia.modSabiduria || 0,
         competencia_viajar: guia.competenciaViajar || false,
         competencia_cartografia: guia.competenciaCartografia || false,
         competencia_navegacion: false,
@@ -845,22 +845,21 @@ const EnhancedTravelSystem = () => {
     }
   };
   
-  // Check if there's a refuge nearby
+  // Check if there's a refuge nearby on the route (using calculated route data)
   const checkForNearbyRefuge = useCallback((positionInTiles) => {
-    // Refugios conocidos con sus posiciones aproximadas en casillas
-    const refugios = [
-      { nombre: 'Bree', casilla: 5, region: 'Eriador' },
-      { nombre: 'Rivendel', casilla: 15, region: 'Eriador' },
-      { nombre: 'Lothlórien', casilla: 30, region: 'Rhovanion' },
-      { nombre: 'Valle', casilla: 45, region: 'Rhovanion' },
-      { nombre: 'Erebor', casilla: 48, region: 'Rhovanion' },
-      { nombre: 'Edoras', casilla: 35, region: 'Rohan' },
-      { nombre: 'Minas Tirith', casilla: 50, region: 'Gondor' },
-    ];
+    // Use refuges from the calculated route instead of hardcoded list
+    const refugiosEnRuta = journeyCalc?.ruta?.refugios_en_ruta || [];
+    
+    if (refugiosEnRuta.length === 0) {
+      return [];
+    }
     
     // Find refuges within 2 tiles of current position
-    return refugios.filter(r => Math.abs(r.casilla - positionInTiles) <= 2);
-  }, []);
+    return refugiosEnRuta.filter(r => {
+      const distancia = Math.abs(r.casilla - positionInTiles);
+      return distancia <= 2;
+    });
+  }, [journeyCalc?.ruta?.refugios_en_ruta]);
   
   // After resolving an event, continue with next orientation check
   const continueAfterEvent = async (updatedEvents = null) => {
@@ -1292,6 +1291,25 @@ const EnhancedTravelSystem = () => {
   
   // =============== MEMBER MANAGEMENT ===============
   
+  // Helper to calculate proficiency bonus based on level
+  const calcBonusCompetencia = (nivel) => {
+    if (nivel >= 17) return 6;
+    if (nivel >= 13) return 5;
+    if (nivel >= 9) return 4;
+    if (nivel >= 5) return 3;
+    return 2;
+  };
+  
+  // Helper to check if character has a skill proficiency
+  const tieneCompetenciaEn = (char, habilidad) => {
+    const habilidades = char.habilidades || [];
+    const competencias = char.competencias || [];
+    // Check both arrays for the skill name (case-insensitive)
+    const normalizedSkill = habilidad.toLowerCase();
+    return habilidades.some(h => h.toLowerCase().includes(normalizedSkill)) ||
+           competencias.some(c => c.toLowerCase().includes(normalizedSkill));
+  };
+  
   const addMember = (charId) => {
     const char = characters.find(c => c.id === charId);
     if (!char) return;
@@ -1314,22 +1332,49 @@ const EnhancedTravelSystem = () => {
     // Dúnedain: 10m, Elfos/Hombres: 9m, Enanos/Hobbits: 7m
     const velocidadBase = char.velocidad || 9; // Default 9m if not set
     
+    // Calculate modifiers for travel roles
+    const nivel = char.nivel || 1;
+    const bonusCompetencia = calcBonusCompetencia(nivel);
+    const modSabiduria = Math.floor(((char.atributos?.sabiduria || 10) - 10) / 2);
+    const modDestreza = Math.floor(((char.atributos?.destreza || 10) - 10) / 2);
+    
+    // Check proficiencies for travel roles
+    const competenciaViajar = tieneCompetenciaEn(char, 'viajar') || tieneCompetenciaEn(char, 'supervivencia');
+    const competenciaCaza = tieneCompetenciaEn(char, 'caza') || tieneCompetenciaEn(char, 'naturaleza');
+    const competenciaPercepcion = tieneCompetenciaEn(char, 'percepción') || tieneCompetenciaEn(char, 'percepcion');
+    const competenciaExplorar = tieneCompetenciaEn(char, 'explorar') || tieneCompetenciaEn(char, 'sigilo');
+    
     setConfig(prev => ({
       ...prev,
       miembros: [...prev.miembros, {
         id: char.id,
         nombre: char.nombre,
-        raza: char.cultura || char.raza || 'Desconocida', // Store race/culture for display
-        papeles: [], // Array of roles now
+        raza: char.cultura_nombre || char.cultura || char.raza || 'Desconocida',
+        papeles: [],
         tieneMontura: false,
         monturaNombre: null,
         monturaConBonus: 0,
-        monturaPropia: monturaPropia, // Store owned mount
-        velocidadBase: velocidadBase, // Character's base walking speed in METERS
-        modSabiduria: Math.floor(((char.atributos?.sabiduria || 10) - 10) / 2),
-        percepcionPasiva: 10 + Math.floor(((char.atributos?.sabiduria || 10) - 10) / 2),
+        monturaPropia: monturaPropia,
+        velocidadBase: velocidadBase,
+        // Ability modifiers
+        modSabiduria: modSabiduria,
+        modDestreza: modDestreza,
+        percepcionPasiva: 10 + modSabiduria + (competenciaPercepcion ? bonusCompetencia : 0),
+        // Proficiencies
         competencias: char.habilidades || [],
-        nivel: char.nivel || 1
+        competenciaViajar: competenciaViajar,
+        competenciaCaza: competenciaCaza,
+        competenciaPercepcion: competenciaPercepcion,
+        competenciaExplorar: competenciaExplorar,
+        competenciaCartografia: tieneCompetenciaEn(char, 'cartograf'),
+        // Level and bonus
+        nivel: nivel,
+        bonusCompetencia: bonusCompetencia,
+        // Calculate total modifier for each role (for display)
+        modViajar: modSabiduria + (competenciaViajar ? bonusCompetencia : 0),
+        modCaza: modSabiduria + (competenciaCaza ? bonusCompetencia : 0),
+        modPercepcion: modSabiduria + (competenciaPercepcion ? bonusCompetencia : 0),
+        modExplorar: modDestreza + (competenciaExplorar ? bonusCompetencia : 0)
       }]
     }));
   };
@@ -1342,17 +1387,15 @@ const EnhancedTravelSystem = () => {
     const existingMember = config.miembros.find(m => m.id === charId);
     
     // Get character's owned mount (if any)
-    // Mount speed is in meters (e.g., 18m for horse)
     const monturaPropia = char.montura ? {
       nombre: char.montura.nombre,
       capacidad: char.montura.capacidad_carga,
-      velocidad: char.montura.velocidad || 18, // Default horse speed 18m
+      velocidad: char.montura.velocidad || 18,
       constitucion: char.montura.constitucion
     } : null;
     
-    // Character base speed in METERS (from culture)
-    // Dúnedain: 10m, Elfos/Hombres: 9m, Enanos/Hobbits: 7m
-    const velocidadBase = char.velocidad || 9; // Default 9m if not set
+    // Character base speed in METERS
+    const velocidadBase = char.velocidad || 9;
     
     if (existingMember) {
       // Add role to existing member (allow multiple roles)
@@ -1360,7 +1403,6 @@ const EnhancedTravelSystem = () => {
         ...prev,
         miembros: prev.miembros.map(m => {
           if (m.id === charId) {
-            // Check if already has max roles
             if (m.papeles.length >= MAX_ROLES_PER_CHARACTER && !m.papeles.includes(role)) {
               toast.error(`Máximo ${MAX_ROLES_PER_CHARACTER} papeles por personaje`);
               return m;
@@ -1374,23 +1416,46 @@ const EnhancedTravelSystem = () => {
         })
       }));
     } else {
+      // Calculate modifiers for travel roles
+      const nivel = char.nivel || 1;
+      const bonusCompetencia = calcBonusCompetencia(nivel);
+      const modSabiduria = Math.floor(((char.atributos?.sabiduria || 10) - 10) / 2);
+      const modDestreza = Math.floor(((char.atributos?.destreza || 10) - 10) / 2);
+      
+      // Check proficiencies
+      const competenciaViajar = tieneCompetenciaEn(char, 'viajar') || tieneCompetenciaEn(char, 'supervivencia');
+      const competenciaCaza = tieneCompetenciaEn(char, 'caza') || tieneCompetenciaEn(char, 'naturaleza');
+      const competenciaPercepcion = tieneCompetenciaEn(char, 'percepción') || tieneCompetenciaEn(char, 'percepcion');
+      const competenciaExplorar = tieneCompetenciaEn(char, 'explorar') || tieneCompetenciaEn(char, 'sigilo');
+      
       // Add new member with role
       setConfig(prev => ({
         ...prev,
         miembros: [...prev.miembros, {
           id: char.id,
           nombre: char.nombre,
-          raza: char.cultura || char.raza || 'Desconocida', // Store race/culture for display
+          raza: char.cultura_nombre || char.cultura || char.raza || 'Desconocida',
           papeles: [role],
           tieneMontura: false,
           monturaNombre: null,
           monturaConBonus: 0,
           monturaPropia: monturaPropia,
-          velocidadBase: velocidadBase, // Character's base walking speed in METERS
-          modSabiduria: Math.floor(((char.atributos?.sabiduria || 10) - 10) / 2),
-          percepcionPasiva: 10 + Math.floor(((char.atributos?.sabiduria || 10) - 10) / 2),
+          velocidadBase: velocidadBase,
+          modSabiduria: modSabiduria,
+          modDestreza: modDestreza,
+          percepcionPasiva: 10 + modSabiduria + (competenciaPercepcion ? bonusCompetencia : 0),
           competencias: char.habilidades || [],
-          nivel: char.nivel || 1
+          competenciaViajar: competenciaViajar,
+          competenciaCaza: competenciaCaza,
+          competenciaPercepcion: competenciaPercepcion,
+          competenciaExplorar: competenciaExplorar,
+          competenciaCartografia: tieneCompetenciaEn(char, 'cartograf'),
+          nivel: nivel,
+          bonusCompetencia: bonusCompetencia,
+          modViajar: modSabiduria + (competenciaViajar ? bonusCompetencia : 0),
+          modCaza: modSabiduria + (competenciaCaza ? bonusCompetencia : 0),
+          modPercepcion: modSabiduria + (competenciaPercepcion ? bonusCompetencia : 0),
+          modExplorar: modDestreza + (competenciaExplorar ? bonusCompetencia : 0)
         }]
       }));
     }

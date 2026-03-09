@@ -1,7 +1,7 @@
 # LOTR 5e RPG - Product Requirements Document
 
 ## Original Problem Statement
-Build a comprehensive web application to play a modified version of the "Lord of the Rings 5e" tabletop role-playing game.
+Build a comprehensive web application for a modified "Lord of the Rings 5e" tabletop RPG.
 
 **User's preferred language**: Español
 
@@ -9,81 +9,116 @@ Build a comprehensive web application to play a modified version of the "Lord of
 
 ### ✅ COMPLETED This Session
 
-#### FEATURE: Sistema de Velocidad por Raza (Sistema Métrico) ✅
-**Requerimiento:** La velocidad de los personajes debe afectar los días de viaje. Enanos/Hobbits son más lentos que Dúnedain.
+#### 1. Modificadores de Habilidad para Papeles de Viaje ✅
+**Problema:** Los modificadores de habilidad no se aplicaban (ej: +6 en Viajar para Guía).
 
-**Implementación:**
-- Velocidades en METROS (no pies):
-  - Dúnedain: 10m = 40 km/día
-  - Elfos/Hombres: 9m = 36 km/día
-  - Enanos/Hobbits: 7m = 28 km/día
-  - Caballo: 18m = 72 km/día
-- Fórmula: `km_por_dia = velocidad_metros × 4`
-- El grupo viaja a la velocidad del miembro más lento
+**Solución:**
+- Helper `calcBonusCompetencia(nivel)` - calcula bonificación por nivel
+- Helper `tieneCompetenciaEn(char, habilidad)` - verifica competencias
+- Al añadir miembro se calculan:
+  - `modViajar`, `modCaza`, `modPercepcion`, `modExplorar`
+  - `bonusCompetencia`, `competenciaViajar`, etc.
+- Se envían correctamente al backend para tiradas
 
-**Ejemplo Verificado (Hobbiton → Rivendel, 458 km):**
-| Grupo | Velocidad | Días |
-|-------|-----------|------|
-| Solo Aragorn (Dúnedain) | 40 km/día | 9 |
-| Aragorn + Gimli (Enano) | 28 km/día | 13 |
+#### 2. Refugios Seguros en Ruta ✅
+**Problema:** Los refugios estaban hardcodeados y ofrecían descanso en el destino final.
+
+**Solución:**
+- Backend detecta refugios que la ruta pasa (<30km de distancia)
+- Calcula casilla/km de cada refugio
+- **Excluye el destino final** de la lista
+- Frontend usa `journeyCalc.ruta.refugios_en_ruta`
+
+**Ejemplo (Hobbiton → Esgaroth):**
+```
+Los Gamos: casilla 2, km 40
+Bree: casilla 10, km 171
+Rivendel: casilla 28, km 456  ← Solo aparece si es punto de paso
+Las Estancias del Rey Elfo: casilla 55, km 887
+```
+
+#### 3. Sistema Métrico Completo ✅
+Todas las velocidades en metros:
+- Dúnedain: 10m = 40 km/día
+- Elfos/Hombres: 9m = 36 km/día
+- Enanos/Hobbits: 7m = 28 km/día
+
+#### 4. Filtro de Caminos ✅
+Solo muestra caminos con >30km o >5% de la ruta total.
 
 ---
 
-#### BUG FIX: Lista de Caminos Mostraba Rutas Incorrectas ✅
-**Solución:** Filtro de distancia mínima (>30km o >5% del total)
-
-**Resultado:**
-- Antes: 9 caminos (incluyendo cruces breves)
-- Después: 4 caminos principales
-
----
-
-#### BUG FIX P0: Pathfinding Algorithm ✅
-Sistema de multiplicadores de costo implementado.
+### 🔴 PENDIENTE: Mapa en PDF/Crónica
+**Problema:** El mapa aparece negro en la vista de resultados y en el PDF.
+**Causa probable:** `html2canvas` no captura correctamente imágenes dentro de SVG.
+**Estado:** Requiere investigación adicional.
 
 ---
 
 ## 📋 UPCOMING TASKS
 
-### P1 - Next Priority
-1. **Implementar opción "Evitar Caminos"** - Para escenarios de huida
-2. **Etapas de Viaje y Descansos** - Sistema de descanso durante viajes
-3. **Piezas móviles en Editor de Terreno**
+### P0 - Inmediato
+- Arreglar visualización del mapa en PDF/crónica
 
-### P2 - Medium Priority
-1. **Consumo de Comida/Agua**
-2. **Control de acceso por roles** (Admin/Maestro/Jugador)
-3. **Refactorizar componentes grandes**
+### P1 - Próximo
+- Sistema de descanso cada 7-10 días (acumular CD fatiga)
+- Implementar "Evitar Caminos" para huida
+- Piezas móviles en Editor de Terreno
+
+### P2 - Medio Plazo
+- Consumo de Comida/Agua
+- Control de acceso por roles
 
 ---
 
 ## Key Technical Concepts
 
-### Velocidades por Cultura (Sistema Métrico)
-```
-Dúnedain:       10m = 40 km/día
-Elfos/Hombres:   9m = 36 km/día  
-Enanos/Hobbits:  7m = 28 km/día
-Caballo:        18m = 72 km/día
+### Modificadores de Viaje
+```javascript
+// Calcular bonificación por nivel
+const calcBonusCompetencia = (nivel) => {
+  if (nivel >= 17) return 6;
+  if (nivel >= 13) return 5;
+  if (nivel >= 9) return 4;
+  if (nivel >= 5) return 3;
+  return 2;
+};
+
+// Modificador total = mod_atributo + (competencia ? bonus : 0)
+modViajar = modSabiduria + (competenciaViajar ? bonusCompetencia : 0)
 ```
 
-### Cálculo de Velocidad del Grupo
+### Refugios en Ruta (Backend)
 ```python
-# El grupo viaja a la velocidad del más lento
-velocidad_grupo = min(m.velocidad_efectiva() for m in miembros)
-km_por_dia = velocidad_grupo * 4  # 1m de velocidad = 4 km/día
+# Detectar refugios dentro de 1.5 unidades (~30km) del path
+for loc in all_locations:
+    if loc.get('nombre') == config.destino_nombre:
+        continue  # Excluir destino
+    
+    # Calcular distancia mínima al path
+    for px, py in path_points:
+        dist = ((loc_x - px)**2 + (loc_y - py)**2)**0.5
+        if dist < 1.5:
+            refugios_en_ruta.append({...})
 ```
 
 ---
 
-## Testing Results
-- Velocidad Dúnedain vs Enano: ✅ Diferencia de 4 días verificada
-- Sistema métrico: ✅ Todo en metros/km
+## API Response Example
+```json
+{
+  "ruta": {
+    "refugios_en_ruta": [
+      {"nombre": "Bree", "casilla": 10, "km": 171.7},
+      {"nombre": "Rivendel", "casilla": 28, "km": 455.7}
+    ]
+  }
+}
+```
 
 ---
 
-## 3rd Party Integrations
-- **OpenAI GPT-4o:** Narrativa de viajes
-- **jspdf & html2canvas:** Generación de PDF
-- **lucide-react:** Iconos
-- **shapely:** Operaciones geométricas
+## Testing Done
+- Refugios en ruta Hobbiton→Rivendel: ✅ Rivendel excluido (es destino)
+- Refugios en ruta Hobbiton→Esgaroth: ✅ Rivendel incluido (es paso)
+- Modificadores de habilidad: ✅ Se calculan y envían correctamente

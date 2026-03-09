@@ -1626,6 +1626,66 @@ async def calculate_journey(config: JourneyConfig):
     estacion = config.estacion
     es_invierno_otono = estacion in ['invierno', 'otono']
     
+    # ============ DETECT SAFE HAVENS ALONG THE ROUTE ============
+    # Find refuges that the path passes near (within ~30km / 1.5 coordinate units)
+    refugios_en_ruta = []
+    path_points = route_data.get('path', [])
+    total_distance = route_data['distance_km']
+    
+    # Get all safe haven locations
+    all_locations = await db.locations.find({"refugio": True}, {"_id": 0}).to_list(length=1000)
+    
+    if path_points and len(path_points) > 1:
+        # Calculate cumulative distance at each path point
+        cumulative_distances = [0]
+        for i in range(1, len(path_points)):
+            prev = path_points[i-1]
+            curr = path_points[i]
+            # Distance in coordinate units, convert to km
+            dist = ((curr[0]-prev[0])**2 + (curr[1]-prev[1])**2)**0.5 * 20  # ~20km per unit
+            cumulative_distances.append(cumulative_distances[-1] + dist)
+        
+        # Normalize to actual total distance
+        if cumulative_distances[-1] > 0:
+            scale = total_distance / cumulative_distances[-1]
+            cumulative_distances = [d * scale for d in cumulative_distances]
+        
+        # Check each refuge
+        for loc in all_locations:
+            loc_x, loc_y = loc.get('x', 0), loc.get('y', 0)
+            
+            # Skip the destination (can't rest at final destination)
+            if loc.get('nombre') == config.destino_nombre:
+                continue
+            
+            # Find closest point on path and its distance
+            min_dist_to_path = float('inf')
+            km_at_refuge = 0
+            
+            for i, (px, py) in enumerate(path_points):
+                dist = ((loc_x - px)**2 + (loc_y - py)**2)**0.5
+                if dist < min_dist_to_path:
+                    min_dist_to_path = dist
+                    km_at_refuge = cumulative_distances[i] if i < len(cumulative_distances) else 0
+            
+            # If refuge is within 1.5 units (~30km) of path, include it
+            if min_dist_to_path < 1.5:
+                # Calculate which "casilla" (tile) this corresponds to
+                casilla_refugio = int((km_at_refuge / total_distance) * casillas) if total_distance > 0 else 0
+                
+                # Only include if not at the very start or end
+                if 1 <= casilla_refugio < casillas - 1:
+                    refugios_en_ruta.append({
+                        "nombre": loc.get('nombre'),
+                        "casilla": casilla_refugio,
+                        "km": round(km_at_refuge, 1),
+                        "x": loc_x,
+                        "y": loc_y
+                    })
+    
+    # Sort refuges by their position in the journey
+    refugios_en_ruta.sort(key=lambda r: r['casilla'])
+
     return {
         "success": True,
         "ruta": {
@@ -1645,6 +1705,8 @@ async def calculate_journey(config: JourneyConfig):
             "roads_used": route_data.get('roads_used', []),
             "rivers_crossed": route_data.get('rivers_crossed', []),
             "is_direct_line": route_data.get('is_direct_line', False),
+            # Safe havens along the route (for rest opportunities)
+            "refugios_en_ruta": refugios_en_ruta,
             # Coordinates for map rendering (start and end)
             "origen_coords": {
                 "x": route_data['origen'].get('x', 0),
