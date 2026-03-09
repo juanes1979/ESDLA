@@ -1302,27 +1302,30 @@ const EnhancedTravelSystem = () => {
     }
     
     // Get character's owned mount (if any)
+    // Mount speed is in meters (e.g., 18m for horse)
     const monturaPropia = char.montura ? {
       nombre: char.montura.nombre,
       capacidad: char.montura.capacidad_carga,
-      velocidad: char.montura.velocidad || 60, // Default horse speed
+      velocidad: char.montura.velocidad || 18, // Default horse speed 18m
       constitucion: char.montura.constitucion
     } : null;
     
-    // Character base speed (in feet, default 30 for most races)
-    const velocidadBase = char.velocidad || 30;
+    // Character base speed in METERS (from culture)
+    // Dúnedain: 10m, Elfos/Hombres: 9m, Enanos/Hobbits: 7m
+    const velocidadBase = char.velocidad || 9; // Default 9m if not set
     
     setConfig(prev => ({
       ...prev,
       miembros: [...prev.miembros, {
         id: char.id,
         nombre: char.nombre,
+        raza: char.cultura || char.raza || 'Desconocida', // Store race/culture for display
         papeles: [], // Array of roles now
         tieneMontura: false,
         monturaNombre: null,
         monturaConBonus: 0,
         monturaPropia: monturaPropia, // Store owned mount
-        velocidadBase: velocidadBase, // Character's base walking speed
+        velocidadBase: velocidadBase, // Character's base walking speed in METERS
         modSabiduria: Math.floor(((char.atributos?.sabiduria || 10) - 10) / 2),
         percepcionPasiva: 10 + Math.floor(((char.atributos?.sabiduria || 10) - 10) / 2),
         competencias: char.habilidades || [],
@@ -1339,15 +1342,17 @@ const EnhancedTravelSystem = () => {
     const existingMember = config.miembros.find(m => m.id === charId);
     
     // Get character's owned mount (if any)
+    // Mount speed is in meters (e.g., 18m for horse)
     const monturaPropia = char.montura ? {
       nombre: char.montura.nombre,
       capacidad: char.montura.capacidad_carga,
-      velocidad: char.montura.velocidad || 60, // Default horse speed
+      velocidad: char.montura.velocidad || 18, // Default horse speed 18m
       constitucion: char.montura.constitucion
     } : null;
     
-    // Character base speed (in feet, default 30 for most races)
-    const velocidadBase = char.velocidad || 30;
+    // Character base speed in METERS (from culture)
+    // Dúnedain: 10m, Elfos/Hombres: 9m, Enanos/Hobbits: 7m
+    const velocidadBase = char.velocidad || 9; // Default 9m if not set
     
     if (existingMember) {
       // Add role to existing member (allow multiple roles)
@@ -1375,12 +1380,13 @@ const EnhancedTravelSystem = () => {
         miembros: [...prev.miembros, {
           id: char.id,
           nombre: char.nombre,
+          raza: char.cultura || char.raza || 'Desconocida', // Store race/culture for display
           papeles: [role],
           tieneMontura: false,
           monturaNombre: null,
           monturaConBonus: 0,
           monturaPropia: monturaPropia,
-          velocidadBase: velocidadBase, // Character's base walking speed
+          velocidadBase: velocidadBase, // Character's base walking speed in METERS
           modSabiduria: Math.floor(((char.atributos?.sabiduria || 10) - 10) / 2),
           percepcionPasiva: 10 + Math.floor(((char.atributos?.sabiduria || 10) - 10) / 2),
           competencias: char.habilidades || [],
@@ -2118,7 +2124,7 @@ const EnhancedTravelSystem = () => {
                     </div>
                     <div className="bg-black/30 p-2 rounded">
                       <p className="text-muted-foreground text-xs">Velocidad base</p>
-                      <p className="text-lg font-bold text-white">{journeyCalc.velocidad_grupo.velocidad_pies} pies</p>
+                      <p className="text-lg font-bold text-white">{journeyCalc.velocidad_grupo.velocidad_metros || journeyCalc.velocidad_grupo.velocidad_pies} m</p>
                     </div>
                   </div>
                   {journeyCalc.velocidad_grupo.miembro_mas_lento && (
@@ -2133,9 +2139,9 @@ const EnhancedTravelSystem = () => {
                         {journeyCalc.velocidad_grupo.desglose_velocidades.map((v, idx) => (
                           <span 
                             key={idx} 
-                            className={`px-2 py-0.5 rounded ${v.velocidad_efectiva === journeyCalc.velocidad_grupo.velocidad_pies ? 'bg-yellow-600/30 text-yellow-400' : 'bg-black/30 text-gray-400'}`}
+                            className={`px-2 py-0.5 rounded ${v.velocidad_efectiva === (journeyCalc.velocidad_grupo.velocidad_metros || journeyCalc.velocidad_grupo.velocidad_pies) ? 'bg-yellow-600/30 text-yellow-400' : 'bg-black/30 text-gray-400'}`}
                           >
-                            {v.nombre}: {v.velocidad_efectiva}p {v.tiene_montura ? '🐴' : '🚶'}
+                            {v.nombre}: {v.velocidad_efectiva}m ({v.km_por_dia} km/día) {v.tiene_montura ? '🐴' : '🚶'}
                           </span>
                         ))}
                       </div>

@@ -9,44 +9,37 @@ Build a comprehensive web application to play a modified version of the "Lord of
 
 ### ✅ COMPLETED This Session
 
-#### BUG FIX: Lista de Caminos Mostraba Rutas Incorrectas ✅
-**Problema:** La lista de "Caminos utilizados" mostraba caminos que no se recorrían realmente (Annúminas, Fornost, Bree) cuando la ruta iba hacia el Este.
-
-**Causa:** 
-- El umbral de detección de caminos (1.5 unidades) era muy permisivo
-- Caminos que apenas se cruzaban aparecían en la lista
-- No había filtro por distancia mínima recorrida sobre cada camino
-
-**Solución:**
-1. Reducido umbral de detección: `tolerance = 0.6 * GRID_RESOLUTION`
-2. Añadido filtro de distancia mínima: solo caminos con >30km o >5% de la ruta total
-3. Los caminos ahora se ordenan por primera aparición en la ruta
-
-**Resultado:**
-- **Antes:** 9 caminos (incluyendo Annúminas, Fornost, Bree)
-- **Después:** 4 caminos principales (Camino del Este, Paso Alto, Camino del Viejo Vado, Sendero Elfo)
-
----
-
-#### FEATURE: Sistema de Velocidad de Grupo ✅
-**Requerimiento:** El grupo viaja a la velocidad del miembro más lento.
+#### FEATURE: Sistema de Velocidad por Raza (Sistema Métrico) ✅
+**Requerimiento:** La velocidad de los personajes debe afectar los días de viaje. Enanos/Hobbits son más lentos que Dúnedain.
 
 **Implementación:**
-- `TravelPartyMember.velocidad_efectiva()` devuelve velocidad de montura o base
-- `km_por_dia = (velocidad_pies / 30) * 36`
-- Respuesta incluye `velocidad_grupo` con desglose por miembro
+- Velocidades en METROS (no pies):
+  - Dúnedain: 10m = 40 km/día
+  - Elfos/Hombres: 9m = 36 km/día
+  - Enanos/Hobbits: 7m = 28 km/día
+  - Caballo: 18m = 72 km/día
+- Fórmula: `km_por_dia = velocidad_metros × 4`
+- El grupo viaja a la velocidad del miembro más lento
 
-**Testing:** 100% (9/9 tests passed) - `/app/test_reports/iteration_37.json`
+**Ejemplo Verificado (Hobbiton → Rivendel, 458 km):**
+| Grupo | Velocidad | Días |
+|-------|-----------|------|
+| Solo Aragorn (Dúnedain) | 40 km/día | 9 |
+| Aragorn + Gimli (Enano) | 28 km/día | 13 |
 
 ---
 
-#### BUG FIX P0: Pathfinding Algorithm Logic ✅
-**Problema:** A* elegía la ruta más corta en lugar de la "mejor".
+#### BUG FIX: Lista de Caminos Mostraba Rutas Incorrectas ✅
+**Solución:** Filtro de distancia mínima (>30km o >5% del total)
 
-**Solución:** Sistema de multiplicadores de costo:
-- `Cost = distance × road_mult × terrain_mult × land_mult`
+**Resultado:**
+- Antes: 9 caminos (incluyendo cruces breves)
+- Después: 4 caminos principales
 
-**Testing:** 100% (8/8 tests passed) - `/app/test_reports/iteration_36.json`
+---
+
+#### BUG FIX P0: Pathfinding Algorithm ✅
+Sistema de multiplicadores de costo implementado.
 
 ---
 
@@ -62,56 +55,35 @@ Build a comprehensive web application to play a modified version of the "Lord of
 2. **Control de acceso por roles** (Admin/Maestro/Jugador)
 3. **Refactorizar componentes grandes**
 
-### P3 - Future Tasks
-- Sistema de Autenticación completo
-- Backup/Restore de base de datos
-- Pantalla del DM
-- Interfaz de juego online
-
 ---
-
-## Code Architecture
-```
-/app/
-├── backend/
-│   ├── routes/
-│   │   └── travel_routes.py
-│   ├── utils/
-│   │   └── pathfinding.py  # Road detection with min distance filter
-│   └── server.py
-└── frontend/
-    └── src/
-        └── pages/
-            └── EnhancedTravelSystem.jsx
-```
 
 ## Key Technical Concepts
 
-### Road Detection Filter
-```python
-# Only include roads with significant usage
-min_road_distance = max(30, total_distance * 0.05)  # 30km or 5%
-significant_roads = {name: dist for name, dist in roads_distances.items() 
-                     if dist >= min_road_distance}
+### Velocidades por Cultura (Sistema Métrico)
+```
+Dúnedain:       10m = 40 km/día
+Elfos/Hombres:   9m = 36 km/día  
+Enanos/Hobbits:  7m = 28 km/día
+Caballo:        18m = 72 km/día
 ```
 
-### Group Speed Calculation
+### Cálculo de Velocidad del Grupo
 ```python
-velocidad_efectiva = montura_velocidad if tiene_montura else velocidad_base
+# El grupo viaja a la velocidad del más lento
 velocidad_grupo = min(m.velocidad_efectiva() for m in miembros)
-km_por_dia = (velocidad_grupo / 30) * 36
+km_por_dia = velocidad_grupo * 4  # 1m de velocidad = 4 km/día
 ```
 
 ---
 
 ## Testing Results
-- `/app/test_reports/iteration_37.json` - Group Speed: 100% (9/9)
-- `/app/test_reports/iteration_36.json` - Pathfinding: 100% (8/8)
+- Velocidad Dúnedain vs Enano: ✅ Diferencia de 4 días verificada
+- Sistema métrico: ✅ Todo en metros/km
 
 ---
 
 ## 3rd Party Integrations
-- **OpenAI GPT-4o:** Narrativa de viajes (via emergentintegrations)
+- **OpenAI GPT-4o:** Narrativa de viajes
 - **jspdf & html2canvas:** Generación de PDF
 - **lucide-react:** Iconos
-- **shapely:** Operaciones geométricas (backend)
+- **shapely:** Operaciones geométricas

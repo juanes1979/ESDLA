@@ -106,16 +106,16 @@ class TravelPartyMember(BaseModel):
     papel: Optional[str] = None  # guia, cazador, vigia, explorador
     tiene_montura: bool = False
     montura_nombre: Optional[str] = None
-    montura_velocidad: int = 0  # Mount speed in feet (0 if no mount)
+    montura_velocidad: float = 0  # Mount speed in METERS (0 if no mount). Horse ~18m
     montura_con_bonus: int = 0
-    velocidad_base: int = 30  # Character base speed in feet
+    velocidad_base: float = 9  # Character base speed in METERS. Dúnedain=10, Elfos/Hombres=9, Enanos/Hobbits=7
     modificador_sabiduria: int = 0
     competencias: List[str] = []
     nivel: int = 1
     
-    def velocidad_efectiva(self) -> int:
+    def velocidad_efectiva(self) -> float:
         """
-        Get effective travel speed for this member.
+        Get effective travel speed for this member in METERS.
         If mounted, use mount speed (if mount is faster).
         Otherwise use character base speed.
         """
@@ -1430,12 +1430,18 @@ async def calculate_journey(config: JourneyConfig):
     # Calculate base days
     casillas = route_data['casillas']
     
-    # ============ CALCULATE GROUP SPEED ============
+    # ============ CALCULATE GROUP SPEED (METRIC SYSTEM) ============
     # The group travels at the speed of its slowest member
-    # Base speed: 30 feet = 36 km/day (normal pace)
-    # Speed scales: 60 feet = 72 km/day, etc.
-    BASE_FEET_FOR_36_KM_DAY = 30
-    BASE_KM_DAY = 36
+    # Speed is in METERS (e.g., Dúnedain=10m, Elfos/Hombres=9m, Enanos/Hobbits=7m)
+    # Formula: km_por_dia = velocidad_metros * 4 (assuming 8h march at 0.5km/h per meter of speed)
+    # Examples:
+    #   - 9m (Elfos/Hombres) = 36 km/día
+    #   - 10m (Dúnedain) = 40 km/día
+    #   - 7m (Enanos/Hobbits) = 28 km/día
+    #   - 18m (Caballo) = 72 km/día
+    BASE_SPEED_METERS = 9  # Standard human speed
+    BASE_KM_DAY = 36  # Corresponds to 9m speed
+    KM_PER_METER_SPEED = 4  # 1m of speed = 4 km/day
     
     # Determine the slowest speed in the group
     tiene_monturas = sum(1 for m in config.miembros if m.tiene_montura)
@@ -1447,26 +1453,27 @@ async def calculate_journey(config: JourneyConfig):
         velocidades = []
         for m in config.miembros:
             vel_efectiva = m.velocidad_efectiva()
+            km_dia_miembro = vel_efectiva * KM_PER_METER_SPEED
             velocidades.append({
                 "nombre": m.nombre,
                 "velocidad_base": m.velocidad_base,
                 "tiene_montura": m.tiene_montura,
                 "montura_velocidad": m.montura_velocidad,
-                "velocidad_efectiva": vel_efectiva
+                "velocidad_efectiva": vel_efectiva,
+                "km_por_dia": km_dia_miembro
             })
         
         # Group speed = slowest member
         velocidad_grupo = min(v["velocidad_efectiva"] for v in velocidades)
         miembro_mas_lento = next(v["nombre"] for v in velocidades if v["velocidad_efectiva"] == velocidad_grupo)
     else:
-        # No members specified, assume standard foot travel
-        velocidad_grupo = 30
+        # No members specified, assume standard human speed (9m = 36 km/day)
+        velocidad_grupo = BASE_SPEED_METERS
         velocidades = []
         miembro_mas_lento = None
     
     # Calculate km/day for the group
-    # Ratio: if 30 feet = 36 km/day, then X feet = (X/30) * 36 km/day
-    km_por_dia_grupo = (velocidad_grupo / BASE_FEET_FOR_36_KM_DAY) * BASE_KM_DAY
+    km_por_dia_grupo = velocidad_grupo * KM_PER_METER_SPEED
     
     # Check if mounts are allowed in this terrain
     if not terrain_config.get('permite_montura', True):
@@ -1474,8 +1481,8 @@ async def calculate_journey(config: JourneyConfig):
         if config.miembros:
             velocidad_grupo = min(m.velocidad_base for m in config.miembros)
         else:
-            velocidad_grupo = 30
-        km_por_dia_grupo = (velocidad_grupo / BASE_FEET_FOR_36_KM_DAY) * BASE_KM_DAY
+            velocidad_grupo = BASE_SPEED_METERS
+        km_por_dia_grupo = velocidad_grupo * KM_PER_METER_SPEED
     
     # Use pathfinder's estimated days if available (already accounts for terrain costs)
     # The pathfinder uses BASE_SPEED_KM_DAY = 36 km/day and terrain multipliers
@@ -1673,7 +1680,7 @@ async def calculate_journey(config: JourneyConfig):
             "bonus_montura_fatiga": sum(m.montura_con_bonus for m in config.miembros if m.tiene_montura) // max(1, tiene_monturas) if tiene_monturas > 0 else 0
         },
         "velocidad_grupo": {
-            "velocidad_pies": velocidad_grupo,
+            "velocidad_metros": velocidad_grupo,  # Speed in meters (e.g., 9m for humans)
             "km_por_dia": round(km_por_dia_grupo, 1),
             "miembro_mas_lento": miembro_mas_lento,
             "desglose_velocidades": velocidades if velocidades else None,
