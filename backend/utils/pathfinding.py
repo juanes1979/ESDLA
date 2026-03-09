@@ -700,7 +700,7 @@ class MiddleEarthPathfinder:
         path: List[Tuple[float, float]] = []
         segments: List[PathSegment] = []
         rivers_crossed: List[Dict] = []
-        roads_used: Set[str] = set()
+        roads_used_ordered: List[str] = []  # Ordered list of roads (maintains order of traversal)
         terrain_distances: Dict[str, float] = {}
         
         current = end_node
@@ -720,11 +720,14 @@ class MiddleEarthPathfinder:
                 terrain = prev_node.terrain_type
                 terrain_distances[terrain] = terrain_distances.get(terrain, 0) + dist_km
                 
-                # Track roads
+                # Track roads (in order of traversal)
                 if prev_node.road_type != 'ninguno':
                     road_info = self._get_road_at_point(prev_node.x, prev_node.y)
                     if road_info:
-                        roads_used.add(road_info.get('name', prev_node.road_type))
+                        road_name = road_info.get('name', prev_node.road_type)
+                        # Add to list if not already the last one (avoid duplicates from consecutive segments)
+                        if not roads_used_ordered or roads_used_ordered[-1] != road_name:
+                            roads_used_ordered.append(road_name)
                 
                 # Track rivers
                 if prev_node.river_crossing:
@@ -759,6 +762,7 @@ class MiddleEarthPathfinder:
         # Reverse to get start-to-end order
         path.reverse()
         segments.reverse()
+        roads_used_ordered.reverse()  # Also reverse roads to match path order
         
         # Calculate estimated days
         estimated_days = total_cost / self.BASE_SPEED_KM_DAY if total_cost > 0 else 0
@@ -780,7 +784,7 @@ class MiddleEarthPathfinder:
             estimated_days=round(estimated_days, 1),
             warnings=warnings,
             rivers_crossed=rivers_crossed,
-            roads_used=list(roads_used),
+            roads_used=roads_used_ordered,  # Now ordered by traversal
             terrain_summary={k: round(v, 1) for k, v in terrain_distances.items()}
         )
     

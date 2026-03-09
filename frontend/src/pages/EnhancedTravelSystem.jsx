@@ -2143,12 +2143,13 @@ const EnhancedTravelSystem = () => {
                 <div className="mt-2 p-3 bg-amber-900/20 rounded border border-amber-500/30 text-sm">
                   <p className="text-amber-400 mb-2">
                     <Route className="w-4 h-4 inline mr-1" />
-                    Caminos utilizados:
+                    Caminos utilizados (en orden de recorrido):
                   </p>
                   <div className="flex flex-wrap gap-2">
                     {journeyCalc.ruta.roads_used.map((road, i) => (
                       <Badge key={i} variant="outline" className="border-amber-500/50 text-amber-300">
-                        🛤️ {road}
+                        <span className="inline-flex items-center justify-center w-5 h-5 mr-1 text-xs font-bold bg-amber-600/50 rounded-full">{i + 1}</span>
+                        {road}
                       </Badge>
                     ))}
                   </div>
