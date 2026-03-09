@@ -5,9 +5,33 @@ Build a comprehensive web application to play a modified version of the "Lord of
 
 **User's preferred language**: Español
 
-## Current State (2026-12-08)
+## Current State (2026-12-09)
 
-### ✅ COMPLETED This Session - Depurador de Rutas Paso a Paso
+### ✅ COMPLETED This Session - P0 Fix: Sistema de Viajes Oficial
+
+#### BUG FIX P0: Cálculo de Distancia Incorrecto ✅
+**Problema:** Un viaje de ~800 km (Hobbiton → Esgaroth) se calculaba como ~264 km.
+**Causa:** El factor de escala `COORD_TO_KM` en `pathfinding.py` era incorrecto.
+**Solución:** 
+- Verificado que `COORD_TO_KM = 20` es correcto (1 unidad de coordenada = 20 km)
+- Modificado `calculate-journey` endpoint para usar `estimated_days` del pathfinder en lugar del sistema de casillas
+- El pathfinder calcula días basándose en `total_travel_cost / BASE_SPEED_KM_DAY (36)`
+
+**Resultados verificados (Hobbiton → Esgaroth):**
+- Distancia: 824.3 km ✅
+- Casillas: 52 ✅
+- Días estimados: 45 (con penalizaciones de terreno) ✅
+- PX totales: 1677 ✅
+- Caminos usados: 7 (Paso Alto, Camino del Este, Camino a Valle, etc.) ✅
+- Desglose de terreno: Difícil 329.7km, Fácil 269.7km, Muy Difícil 196.6km, Desalentador 28.3km ✅
+
+**Testing Results (iteration_35.json):**
+- **Backend:** 100% (13/13 tests passed)
+- Test file: `/app/backend/tests/test_travel_journey.py`
+
+---
+
+### ✅ COMPLETED Previous Session - Depurador de Rutas Paso a Paso
 
 #### TASK: Path Debugger UI Completa ✅
 **Endpoint mejorado:**
