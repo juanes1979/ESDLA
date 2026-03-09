@@ -153,8 +153,9 @@ class MiddleEarthPathfinder:
     # So 1 coordinate unit = ~20 km
     COORD_TO_KM = 20.0
     
-    # Grid resolution for pathfinding (smaller = more precise but slower)
-    GRID_RESOLUTION = 0.5
+    # Grid resolution for pathfinding (larger = faster but less precise)
+    # 1.0 gives good balance between precision and performance
+    GRID_RESOLUTION = 1.0
     
     # Base travel speed (km/day at normal pace on easy terrain)
     BASE_SPEED_KM_DAY = 36

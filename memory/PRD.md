@@ -9,1008 +9,175 @@ Build a comprehensive web application to play a modified version of the "Lord of
 
 ### ✅ COMPLETED This Session
 
+#### BUG FIX P0: Pathfinding Algorithm Logic Fixed ✅
+**Problema:** El algoritmo A* elegía la ruta más corta en lugar de la "mejor" ruta según las reglas del juego. Esto causaba rutas ilógicas (ej: ir al norte desde Hobbiton en lugar de al este hacia el Camino del Este).
+
+**Causa Raíz:** 
+- El sistema anterior usaba puntos negativos como costo (`cost = -total_points + distance * 0.01`)
+- Esto rompía la coherencia del A* porque `g_cost` era negativo pero `h_cost` (heurística) era positivo
+- El resultado era rutas absurdamente largas (8084 km para una línea recta de 741 km)
+
+**Solución Implementada:**
+- Reescrito `_calculate_move_cost()` en `/app/backend/utils/pathfinding.py`
+- Nuevo sistema de **multiplicadores de costo** donde:
+  - `Cost = distance_km * road_mult * terrain_mult * land_mult * river_mult`
+  - Mejores caminos = multiplicador más bajo = menor costo
+  - Terreno peligroso = multiplicador más alto = mayor costo
+- Heurística ajustada para ser admisible: `h_cost = distance * COORD_TO_KM * 0.01`
+
+**Multiplicadores del Sistema:**
+| Factor | Mejor | ... | Peor |
+|--------|-------|-----|------|
+| **Camino** | grande(0.1) | mayor(0.25) → menor(0.45) → senda(0.65) | ninguno(1.0) |
+| **Terreno** | fácil(0.5) | moderado(1.0) → difícil(2.0) → muy_difícil(4.0) | desalentador(8.0) |
+| **Tipo Tierra** | libres(0.2) | fronterizas(0.5) → salvajes(1.0) | sombra(5.0), oscuras(10.0) |
+
+**Modos de Pathfinding:**
+1. **Ruta Segura (default):** Usa todos los multiplicadores, evita tierras peligrosas
+2. **Ruta Directa:** Reduce penalización de tierras peligrosas a 10% (`land_mult * 0.1`)
+3. **Evitar Caminos:** Penaliza uso de caminos (`road_mult = 5.0`)
+
+**Resultados Verificados (Hobbiton → Esgaroth):**
+- Línea recta: 741.7 km
+- Ruta con caminos: 916 km, 27 días, 9 caminos usados ✅
+- Ruta directa: 879 km, 22 días ✅
+- **Dirección: ESTE** (como especificó el usuario) ✅
+- **"Camino del Este" incluido** en ambas rutas ✅
+
+**Optimización de Performance:**
+- `GRID_RESOLUTION` aumentado de 0.5 a 1.0
+- Tiempo de respuesta reducido de ~60s a ~8-17s para rutas largas
+- Rutas cortas responden en ~1-3s
+
+**Testing Results (iteration_36.json):**
+- **Backend:** 100% (8/8 tests passed)
+- F1: Ambas rutas retornadas ✅
+- F2: Ruta va hacia el ESTE ✅
+- F3: Distancias razonables ✅
+- F4: Sistema de penalizaciones funciona ✅
+- F5: "Camino del Este" usado ✅
+
+---
+
+### ✅ COMPLETED Previous Session - Comparación de Rutas
+
 #### FEATURE: Modo de Comparación de Rutas ✅
-**Nuevo endpoint:** `POST /api/travel/compare-routes`
+**Endpoint:** `POST /api/travel/compare-routes`
 
 **Funcionalidad:**
-- Compara "Ruta por Caminos" vs "Ruta Directa" (campo a través)
-- Muestra línea recta teórica para referencia (distancia sin obstáculos)
-- Ambas rutas **NUNCA** atraviesan terreno infranqueable
-- Soporta opciones: evitar Tierras de Sombra / Tierras Oscuras
+- Compara "Ruta por Caminos" vs "Ruta Directa"
+- Muestra línea recta teórica para referencia
+- Ambas rutas NUNCA atraviesan terreno infranqueable
 
 **UI implementada:**
-- Botón "Comparar Rutas (Caminos vs Campo a Través)" en el sistema de viajes
-- Panel de comparación lado a lado con:
-  - Distancia, días estimados, caminos usados
-  - Desvío vs línea recta (km y %)
-  - Desglose de terreno
-  - Indicador cuando las rutas son idénticas (barreras fuerzan mismo camino)
-
-**Archivos modificados:**
-- `/app/backend/routes/travel_routes.py` (nuevo endpoint compare-routes)
-- `/app/backend/utils/pathfinding.py` (ajustes para prefer_roads=False)
-- `/app/frontend/src/pages/EnhancedTravelSystem.jsx` (UI de comparación)
+- Panel de comparación lado a lado
+- Desvío vs línea recta (km y %)
+- Desglose de terreno
 
 ---
 
-#### BUG FIX P0: Cálculo de Distancia Incorrecto ✅
-**Problema:** Un viaje de ~800 km (Hobbiton → Esgaroth) se calculaba como ~264 km.
-**Causa:** El factor de escala `COORD_TO_KM` en `pathfinding.py` era incorrecto.
-**Solución:** 
-- Verificado que `COORD_TO_KM = 20` es correcto (1 unidad de coordenada = 20 km)
-- Modificado `calculate-journey` endpoint para usar `estimated_days` del pathfinder en lugar del sistema de casillas
-- El pathfinder calcula días basándose en `total_travel_cost / BASE_SPEED_KM_DAY (36)`
+## Previous Sessions Summary
 
-**Resultados verificados (Hobbiton → Esgaroth):**
-- Distancia: 824.3 km ✅
-- Casillas: 52 ✅
-- Días estimados: 45 (con penalizaciones de terreno) ✅
-- PX totales: 1677 ✅
-- Caminos usados: 7 (Paso Alto, Camino del Este, Camino a Valle, etc.) ✅
-- Desglose de terreno: Difícil 329.7km, Fácil 269.7km, Muy Difícil 196.6km, Desalentador 28.3km ✅
+### Travel System - Complete ✅
+- Sistema completo de viajes con pathfinding A*
+- Cálculo de distancia, días, PX por segmento
+- Eventos de viaje con tiradas d20
+- Modo jornada a jornada
+- Narrativa con IA (GPT-4o)
+- Impresión de crónica en PDF
 
-**Testing Results (iteration_35.json):**
-- **Backend:** 100% (13/13 tests passed)
-- Test file: `/app/backend/tests/test_travel_journey.py`
+### Map System - Complete ✅
+- Mapa del Maestro y Mapa del Jugador separados
+- 210+ ubicaciones de la Tierra Media
+- Editor de caminos, ríos y barreras
+- Editor de terreno (zonas pintables)
+- Pathfinding A* integrado
 
----
-
-### ✅ COMPLETED Previous Session - Depurador de Rutas Paso a Paso
-
-#### TASK: Path Debugger UI Completa ✅
-**Endpoint mejorado:**
-- `POST /api/travel/debug-pathfinding` - Ahora devuelve análisis paso a paso con:
-  - Decisiones: INICIO, SEGUIR_CAMINO, IR_A_CAMINO, CAMPO_TRAVES, EVITAR, LLEGADA
-  - Razón de cada decisión
-  - Alternativas descartadas con explicación
-  - Anti-oscilación: evita volver a caminos recién abandonados durante 3 pasos
-  - Soporte para campo `puntos` (no solo `path`) en caminos
-
-**Frontend PathDebugger.jsx refactorizado:**
-- Mapa interactivo con zoom y pan
-- Selectores de origen/destino agrupados por región
-- Opciones: preferir caminos, evitar tierras de sombra/oscuras, paso en km
-- Visualización de ruta paso a paso con marcadores de colores
-- Panel de detalles: terreno, tipo de tierra, camino actual
-- Navegación entre pasos con botones < > y reproducción automática
-- Sección de "Alternativas descartadas" cuando existen
-- Resumen: pasos totales, distancia, desvío vs línea recta
-
-**Ruta:** `/path-debugger`
-
-### Testing Results (iteration_34.json)
-- **Backend:** 100% (16/16 tests passed)
-- **Frontend:** 100% (6/6 features verified)
-- Test file: `/app/backend/tests/test_path_debugger.py`
+### Character System - Complete ✅
+- Creador de personajes multi-paso
+- Hoja de personaje interactiva
+- Sistema de equipamiento con monturas
+- Recompensas y mejoras
+- Gestión de peso y estorbo
 
 ---
-
-### ✅ COMPLETED Previous Session - Task 1 & 2
-
-#### TASK 1: Path Debugger - Backend y Funcionalidad Completa ✅
-**Nuevos endpoints:**
-- `GET /api/data/custom-paths` - Lista todos los caminos personalizados
-- `POST /api/data/custom-paths` - Guarda un nuevo camino
-- `GET /api/data/custom-paths/route/{origin_id}/{destination_id}` - Busca camino existente para una ruta
-- `DELETE /api/data/custom-paths/{path_id}` - Elimina un camino
-
-**Funcionalidades frontend:**
-- Botón "Guardar en BD" para persistir caminos definidos manualmente
-- Botón "Cargar camino guardado" para recuperar rutas existentes
-- Los caminos se buscan en ambas direcciones (A→B y B→A)
-
-#### TASK 2: Terrain Editor - Backend y Funcionalidad Completa ✅
-**Nuevos endpoints:**
-- `GET /api/data/terrain-zones` - Obtiene zonas de dificultad
-- `POST /api/data/terrain-zones` - Guarda zonas de dificultad
-- `DELETE /api/data/terrain-zones` - Limpia zonas de dificultad
-- `GET /api/data/land-type-zones` - Obtiene zonas de tipo de tierra
-- `POST /api/data/land-type-zones` - Guarda zonas de tipo de tierra  
-- `DELETE /api/data/land-type-zones` - Limpia zonas de tipo de tierra
-
-**Funcionalidades frontend:**
-- Botón verde "Guardar BD" para persistir celdas pintadas
-- Botón rojo para eliminar zonas de la base de datos
-- Las zonas se cargan automáticamente al abrir el editor
-
-### Testing Results (iteration_33.json)
-- **Backend:** 100% (16/16 tests passed)
-- **Frontend:** 100% (5/5 features verified)
-- Test file: `/app/backend/tests/test_terrain_path_debugger.py`
-
----
-
-### ✅ COMPLETED Previous Session - Bug Fixes P0
-
-#### BUG FIX P0: Flujo de Finalización del Viaje ✅
-**Problema:** Después de resolver eventos, la app no mostraba la pantalla de resultados.
-**Causa:** El estado de `events` no se pasaba correctamente a `continueAfterEvent` debido a batching de React.
-**Solución:**
-- Modificada función `continueAfterEvent` para aceptar `updatedEvents` como parámetro opcional
-- Modificada función `resolveCurrentEvent` para pasar los eventos actualizados explícitamente
-- Añadida validación de seguridad para `journeyCalc?.ruta?.casillas`
-
-#### BUG FIX P0: Mapa del PDF Roto ✅
-**Problema:** El mapa generado en el PDF de la crónica era feo/roto porque usaba SVG inline con imagen externa.
-**Solución:**
-- Refactorizado `printJourneyDocument` para usar `html2canvas` para capturar el mapa existente
-- El mapa ahora se captura como una imagen data URL y se inserta directamente en el HTML del PDF
-- Añadido manejo de errores y toast de progreso
-
-#### BUG FIX P0: Coordenadas del Mapa en Resultados ✅
-**Problema:** El mapa no se mostraba en la pantalla de resultados.
-**Causa:** Las coordenadas estaban en `journeyCalc.ruta.origen_coords` pero el código buscaba `journeyCalc.origen_coords`.
-**Solución:** Corregidas las referencias de coordenadas en `renderResults`.
-
-#### NEW: Marcadores de Eventos en el Mapa ✅
-- Componente `JourneyMiniMap` ahora acepta prop `events`
-- Muestra marcadores de eventos a lo largo de la ruta (verde=éxito, rojo=fracaso)
-- Leyenda actualizada para incluir indicadores de éxito/fracaso
-
----
-
-## Previous Session (2026-03-06)
-
-#### Estilo "Dibujado a Mano" para el Mapa ✅
-**Cambios realizados:**
-1. **Línea de ruta muy fina** - Grosor reducido a `mapScale * 0.002` (mínimo 1.5px)
-   - Color marrón tinta (#3d2914)
-   - Sin sombras ni efectos
-   - Una sola capa, estilo pluma sobre pergamino
-
-2. **Marcadores pequeños** - Radio reducido a `mapScale * 0.005` (mínimo 3px)
-   - Origen: Círculo verde vacío con punto central
-   - Destino: Círculo rojo vacío con X interior
-   - Sin glows ni efectos brillantes
-
-3. **Etiquetas en cursiva** - Fuente Georgia serif, estilo itálico
-   - Colores oscuros (#2d3a1d para origen, #4a1c1c para destino)
-
-4. **Leyenda estilo pergamino** - Fondo ámbar claro, bordes sutiles
-   - "○ Origen" y "✕ Destino"
-
-#### Botón de Volver ✅
-- Añadido botón "← Inicio" en el header de la página
-- Lleva a la página principal de la aplicación
-
-### Previous Session - Major Travel System Overhaul
-
-#### Mejoras del Mapa de Viaje ✅
-**Problemas reportados por el usuario y sus correcciones:**
-
-1. **Línea de ruta muy gruesa/invisible** → CORREGIDO
-   - Línea más sutil con color marrón/sepia (#5c4033) para look de pergamino
-   - Grosor adaptativo: más grueso en mapas grandes, más fino en mapas pequeños
-   - Triple capa (sombra + línea principal + highlight) para mejor visibilidad
-
-2. **Marcadores de origen/destino no visibles** → CORREGIDO
-   - Marcadores más grandes con efecto glow
-   - Siempre incluidos en el cálculo del viewBox
-   - Validación de coordenadas para evitar NaN
-
-3. **Ruta atravesando montañas** → VERIFICADO FUNCIONANDO
-   - Backend usa A* pathfinding correctamente
-   - 61 puntos de path para Hobbiton → Minas Tirith (no línea recta)
-
-#### Narrativa de Eventos con IA ✅ (NUEVO)
-**Endpoints añadidos:**
-- `POST /api/travel/generate-narrative` - Genera narrativa tolkienesca para eventos
-- `POST /api/travel/generate-journey-summary` - Genera resumen completo del viaje
-
-**Características:**
-- Usa GPT-4o vía Emergent LLM Key
-- Estilo épico y arcaico en español
-- Integrado en la UI de resolución de eventos
-
-#### Impresión de Crónica del Viaje ✅ (NUEVO)
-**Nuevo componente en la sección de resultados:**
-- Botón "Generar Narrativa" - Crea resumen del viaje con IA
-- Botón "Imprimir Crónica" - Abre ventana de impresión con:
-  - Fuente Cinzel (estilo élfico)
-  - Diseño tipo pergamino
-  - Estadísticas del viaje
-  - Lista de la compañía con roles
-  - Registro de acontecimientos (éxitos/fracasos)
-  - Resultados de fatiga
-  - Narrativa generada por IA
-
-#### Tabla de PX Restaurada ✅
-**Se restauraron los valores por defecto de la tabla de PX:**
-- Camino Real: TL=0, TF=0, TS=10, TSombra=25, TOscuras=25
-- Senda: TL=0, TF=5, TS=15, TSombra=30, TOscuras=30
-- Sendero: TL=0, TF=5, TS=20, TSombra=35, TOscuras=35
-- Campo Abierto: TL=0, TF=10, TS=25, TSombra=50, TOscuras=50
-- Terreno Difícil: TL=0, TF=25, TS=50, TSombra=100, TOscuras=100
-
-**Nota:** PX=0 para viajes por "Tierras Libres" es correcto según las reglas.
-
-### Testing Results (iteration_31.json)
-- **Frontend:** 100% (9/9 features verified)
-- All playwright tests PASS
-
----
-
-## Previous Sessions
-
-### ✅ COMPLETED This Session - Corrección de Bugs y Nuevas Funcionalidades
-
-#### BUG FIX CRÍTICO: Guía no reconocido al iniciar viaje ✅
-**Problema:** Al seleccionar un guía y dar a "Iniciar Viaje" mostraba "no hay ninguno asignado"
-**Causa:** Se usaba `m.papel === 'guia'` en lugar de `m.papeles?.includes('guia')`
-**Corrección en:** `EnhancedTravelSystem.jsx` líneas 429 y 476 (funciones `startGlobalJourney` y `startDayByDayJourney`)
-
-#### Límite de 2 Papeles por Personaje ✅
-**Regla:** Un personaje puede tener MÁXIMO 2 papeles de viaje (con penalización -5)
-**Implementación:**
-- `MAX_ROLES_PER_CHARACTER = 2` (constante)
-- Dropdown muestra "(2/2 papeles)" cuando el personaje está al límite
-- Selección deshabilitada para personajes con 2 papeles
-- Toast error "Máximo 2 papeles por personaje" si se intenta añadir más
-
-#### Mapa del Viaje ✅
-**Nuevo componente:** `JourneyMiniMap` (líneas 117-253)
-- Muestra recorte del mapa del jugador con la ruta
-- Marcador verde para origen
-- Marcador rojo para destino
-- Línea punteada verde indicando la ruta
-- Leyenda con Origen/Destino
-- Botón de expandir/colapsar
-- Coordenadas obtenidas del backend (`origen_coords`, `destino_coords`)
-
-**Backend actualizado:** `travel_routes.py` línea 799-806
-- Endpoint `/api/travel/calculate-journey` ahora devuelve coordenadas
-
-### ✅ COMPLETED Previous Session - Papeles Múltiples y Monturas
-
-#### Sistema de Múltiples Papeles por Personaje ✅
-**Regla implementada:** Un mismo personaje puede tener varios papeles de viaje, pero sufre -5 en todas sus funciones y Percepción pasiva.
-
-**Cambios en `/app/frontend/src/pages/EnhancedTravelSystem.jsx`:**
-- Cambiado `member.papel: string` → `member.papeles: string[]`
-- Constante `MULTI_ROLE_PENALTY = -5`
-- Helpers `hasMultipleRoles()` y `hasPenalty()`
-- UI muestra badge "⚠️ X papeles: -5" cuando un personaje tiene múltiples roles
-- Bonificador se reduce automáticamente en 5
-- Aviso amarillo "Personajes con múltiples papeles" lista todos los afectados
-- Aviso naranja para "Marcha Forzada activa" (también -5 Percepción)
-
-#### Sistema de Monturas Propias ✅
-**Regla implementada:** Solo se pueden seleccionar las monturas que el personaje posee en propiedad.
-
-**Cambios:**
-- Campo `monturaPropia` almacena la montura del personaje (de `char.montura`)
-- Switch toggle entre "A pie" y la montura propia
-- Muestra "Sin montura propia" si el personaje no tiene montura
-- Eliminado el catálogo de monturas general
-
-### ✅ COMPLETED Previous Session (2026-03-05 - P0/P1/P2 Travel System)
-
-#### P0: Aplicar PX a Personajes al Finalizar Viaje ✅ (NEW)
-**Nuevo endpoint en `/app/backend/routes/travel_routes.py` (línea 1222+):**
-- `POST /api/travel/apply-px` - Actualiza PX de múltiples personajes
-  - Recibe: `character_ids`, `px_amount`, `journey_id` (opcional), `journey_description` (opcional)
-  - Devuelve: Resumen de aplicación con XP anterior/nuevo por personaje
-  - Validaciones: Lista vacía, PX <= 0, personajes no encontrados
-
-**Nuevo botón en EnhancedTravelSystem.jsx:**
-- Botón verde "Finalizar Viaje y Repartir PX" (`data-testid="apply-px-btn"`)
-- Aparece en la pantalla de resultados después de completar un viaje
-- Muestra estado de aplicación y XP total por personaje
-- Estado: `applyingPX`, `pxApplied`, `pxResults`
-
-#### P1: Mejoras al Modo Jornada a Jornada ✅ (NEW)
-**Mejoras en `renderDayByDay()` de EnhancedTravelSystem.jsx:**
-- Header con origen/destino y tipo de tierra/terreno
-- Grid de estadísticas: CD Fatiga, PX Totales, Eventos
-- Selector de ritmo con kilómetros (24/36/48 km)
-- Marcha forzada hasta +3 horas (+18 km)
-- Vista de grupo con iconos de roles y miembros asignados
-- Panel de acontecimiento mejorado con CD, objetivo, consecuencias
-- Registro de jornadas con log de días anteriores
-- Botón "Finalizar Viaje" cuando se completan todas las casillas
-
-#### P2: Corregir Toast de Error en Config. Viajes ✅ (NEW)
-**Cambio en `/app/frontend/src/components/rules/sections/TravelRulesSection.jsx`:**
-- Cambiado `Promise.all` a `Promise.allSettled` (línea 44)
-- El error toast solo aparece si TODAS las peticiones fallan
-- Cada respuesta se maneja individualmente con `status === 'fulfilled'`
-
-### ✅ COMPLETED Previous Session (2026-03-05 - Travel System Complete)
-
-#### P0: Sistema de Viajes Mejorado - Backend ✅
-Se creó un sistema completo de reglas de viaje con datos editables desde la UI.
-
-**Nuevo archivo: `/app/backend/routes/travel_routes.py`**
-- **Endpoints de Configuración (CRUD):**
-  - `GET/PUT /api/travel/config/events` - Tabla de acontecimientos de viaje (d20)
-  - `GET/PUT /api/travel/config/objectives` - Objetivos de acontecimientos (d3)
-  - `GET/PUT /api/travel/config/terrains` - Configuración de terrenos
-  - `GET/PUT /api/travel/config/land-types` - Tipos de tierra con PX
-  - `GET/PUT /api/travel/config/rules` - Reglas generales de fatiga, orientación, velocidad
-
-- **Endpoints de Viaje:**
-  - `POST /api/travel/calculate-journey` - Calcula viaje completo ✅ PROBADO
-  - `POST /api/travel/generate-event` - Genera acontecimiento con tiradas ✅ PROBADO
-  - `POST /api/travel/resolve-event` - Resuelve acontecimiento
-  - `POST /api/travel/fatigue-save` - Tirada de fatiga final
-
-- **Endpoints de Modo Jornada a Jornada:**
-  - `POST /api/travel/journey/start` - Inicia viaje día a día
-  - `GET /api/travel/journey/{id}` - Estado del viaje activo
-  - `POST /api/travel/journey/{id}/advance-day` - Avanza un día
-  - `POST /api/travel/journey/{id}/add-event` - Añade evento al día
-  - `POST /api/travel/journey/{id}/complete` - Completa viaje
-
-**Datos por defecto incluidos:**
-- 7 tipos de acontecimientos (Terrible desgracia → Vista agradable)
-- 3 objetivos de acontecimientos (Explorador, Vigía, Cazador)
-- 3 tipos de terreno (Difícil, Camino, Campo abierto)
-- 5 tipos de tierra (Libres, Fronterizas, Salvajes, Sombra, Oscuras)
-
-#### P1: Sección de Configuración de Viajes en RulesPage ✅
-**Nuevo componente: `/app/frontend/src/components/rules/sections/TravelRulesSection.jsx`**
-
-Interfaz con 4 pestañas editables:
-1. **Acontecimientos** - Tabla d20 con rangos, CD fatiga, consecuencias
-2. **Terrenos** - CD prueba, modificador velocidad, permite montura
-3. **Tipos de Tierra** - PX por tipo de terreno, ventaja/desventaja, ritmo rápido
-4. **Reglas** - CD base fatiga, orientación, velocidad, modificadores estacionales
-
-#### P2: Frontend del Generador de Viajes Mejorado ✅ (NEW)
-**Nuevo archivo: `/app/frontend/src/pages/EnhancedTravelSystem.jsx`**
-
-Sistema completo de generación de viajes con:
-- **Selector de Origen/Destino** con 216 ubicaciones agrupadas por región
-- **Opciones de ruta:** Evitar Tierras de Sombra/Oscuras, Preferir Caminos
-- **Cálculo automático** de distancia, casillas, días, PX y eventos esperados
-- **Configuración del viaje:** Ritmo (lento/normal/rápido), mes élfico, marcha forzada
-- **Gestión de miembros:** Añadir personajes, asignar papeles de viaje, monturas
-- **Dos modos de viaje:**
-  - **Viaje Global** - Ejecuta todo de una vez
-  - **Jornada a Jornada** - Avanza día a día con opciones de cambio
-
-**Ruta:** `/travel` (reemplaza el antiguo TravelGenerator)
-**Ruta legacy:** `/travel/legacy` (mantiene el anterior por compatibilidad)
-
-**Integración en RulesPage:**
-- Nueva categoría "Config. Viajes" añadida al menú de reglas
-- Icono de engranaje (Settings)
-- Todas las tablas son editables y se guardan en MongoDB
-
-### ✅ COMPLETED Previous Session (2026-03-05)
-
-#### P0: Verificación de Lógica de Pathfinding "Pasos de Montaña" ✅
-La lógica de pathfinding que permite que los caminos crucen barreras infranqueables (creando "pasos") **ya estaba implementada**.
-
-**Funciones clave en `/app/backend/utils/pathfinding.py`:**
-- `_check_barrier_crossing()` - Verifica si un segmento cruza una barrera
-- `_road_crosses_barrier_at_segment()` - Detecta si un camino cruza la misma barrera, creando un paso transitable
-- `_get_intersection_point()` - Calcula el punto exacto de intersección
-
-**Pruebas verificadas:**
-- Hobbiton → Erebor: 395.5 km, 10.6 días, usando "Paso Alto"
-- Rivendel → Lothlórien: 110.4 km, 5.2 días, usando "Camino del Este"
-
-#### P1: Refactorización Adicional de MiddleEarthMap.jsx ✅ (NEW)
-Se continuó la modularización del archivo, integrando componentes ya creados:
-
-**Componentes integrados:**
-- **EditLocationPanel.jsx** - Panel de edición de ubicaciones (reemplazó `renderEditPanel()`)
-- **CreateLocationPanel.jsx** - Panel de creación de ubicaciones (reemplazó `renderCreatePanel()`)
-
-**Resultado:**
-- Archivo reducido de **2815 a 2376 líneas** (~439 líneas adicionales, **-16%**)
-- Total reducción desde inicio: de ~3552 a 2376 líneas (**-33%**)
-- 2 funciones render adicionales eliminadas
-- Componentes ahora reutilizables y testables
-
-**Index actualizado (`/app/frontend/src/components/map/index.js`):**
-- Ahora exporta 10 componentes del mapa
-
-### ✅ COMPLETED Previous Session (2026-03-05)
-
-#### P0: Refactorización de RulesPage.jsx ✅
-Se extrajeron múltiples secciones del archivo monolítico `RulesPage.jsx` (~4700 líneas) a componentes independientes:
-
-**Nuevos componentes creados (`/app/frontend/src/components/rules/`):**
-1. **EquipmentSection.jsx** - Tablas de equipamiento con todas las categorías, modal PDF, y editores
-2. **PriceModifiersSection.jsx** - Visualización de modificadores de precio
-3. **RegionsSection.jsx** - Gestión CRUD de regiones con terreno y peligro
-4. **CulturesSection.jsx** - Cards expandibles de culturas con detalles completos
-5. **OccupationsSection.jsx** - Cards expandibles de ocupaciones/clases
-
-**Impacto:** RulesPage.jsx ahora usa 20+ componentes refactorizados, mejorando mantenibilidad.
-
-#### P1: Sistema de Archivos GridFS ✅
-Sistema completo de almacenamiento persistente usando MongoDB GridFS.
-
-**Backend (`/app/backend/routes/storage_routes.py`):**
-- Endpoints para listar, subir, descargar, eliminar archivos
-- Gestión de campañas, jugadores, personajes
-- Estadísticas de almacenamiento
-
-**Frontend:**
-- **FileManager.jsx** - Explorador jerárquico con búsqueda, upload y creación de campañas
-- **StoragePage.jsx** - Nueva ruta `/storage` para acceso al sistema de archivos
-
-#### P2: Integración GridFS con Character Sheets ✅ (NEW)
-Se integró el sistema GridFS con la generación de fichas de personaje.
-
-**Cambios en `InteractiveCharacterSheet.jsx`:**
-- Función `generatePDF` ahora acepta parámetro `saveToStorage`
-- Nuevo botón "Guardar en Almacén" que genera el PDF y lo sube a GridFS
-- Los PDFs se guardan en la carpeta `character_sheets` con el ID del personaje
-
-#### P2: Refactorización de MiddleEarthMap.jsx - COMPLETA ✅
-Se crearon componentes base y se integaron completamente en el mapa:
-
-**Componentes creados (`/app/frontend/src/components/map/`):**
-1. **mapConstants.js** - Constantes compartidas (colores, tipos de ubicación, iconos, tipos de caminos/ríos/barreras)
-2. **RoadsPanel.jsx** - Panel de gestión de caminos (integrado)
-3. **RiversPanel.jsx** - Panel de gestión de ríos (integrado)
-4. **BarriersPanel.jsx** - Panel de gestión de barreras (integrado)
-5. **LocationInfoPanel.jsx** - Panel de información de ubicación (integrado)
-6. **RoutePanel.jsx** - Panel de ruta calculada (integrado) (NEW)
-7. **MapControls.jsx** - Controles de zoom, filtros y opciones de vista
-
-**Resultado Final:**
-- Archivo reducido de **3552 a 2814 líneas** (~738 líneas menos, **-21%**)
-- 5 funciones render eliminadas y convertidas a componentes
-- Constantes compartidas en `mapConstants.js`
-- Mapa del Maestro funcionando correctamente con todos los paneles
-
-#### P2: Acceso directo al Almacén desde HomePage ✅
-- Añadido nuevo medallón "Almacén de Archivos" en la HomePage
-- Generada imagen personalizada del cofre del tesoro medieval
-- Reemplazó el medallón "Juego en Línea" (no implementado) por acceso funcional al almacén
-- Link a `/storage` funcionando correctamente
-
-#### P2: Lógica de Creación de Personajes - VERIFICADA ✅
-La lógica de dinero/equipo inicial ya está implementada en `Step7Equipment.jsx`:
-- Equipo automático según Nivel de Vida (Frugal, Común, Próspero)
-- Dinero inicial combinando Nivel de Vida + Ocupación
-- Sistema funcionando correctamente en el wizard de creación
-
-### ✅ COMPLETED Previous Session (2026-03-04)
-
-#### P0: Sistema "Compra-Venta Dinámica" ✅ (NEW)
-Sistema completo de comercio dinámico con generación de diálogos de NPC usando IA.
-
-**Backend (`/app/backend/routes/trading_routes.py`):**
-- **Endpoints de Configuración:**
-  - `GET /api/trading/config` - Configuración completa del sistema
-  - `PUT /api/trading/config` - Actualizar configuración
-  - `POST /api/trading/config/reset` - Restablecer a valores por defecto
-  
-- **Endpoints de Cálculo:**
-  - `POST /api/trading/calculate` - Calcular precio justo y reacción del NPC
-  - `POST /api/trading/calculate-with-dialogue` - Calcular + generar diálogo con LLM
-
-- **Endpoints de NPCs:**
-  - `GET /api/trading/npcs` - Listar NPCs comerciantes
-  - `POST /api/trading/npcs` - Crear NPC
-  - `POST /api/trading/npcs/generate` - Generar NPC aleatorio
-  - `PUT /api/trading/npcs/{id}` - Actualizar NPC
-  - `DELETE /api/trading/npcs/{id}` - Eliminar NPC
-  
-- **Endpoints de Relaciones:**
-  - `GET /api/trading/relationships` - Listar relaciones PJ-NPC
-  - `POST /api/trading/relationships` - Crear/actualizar relación
-
-**Sistema de Cálculo de Precios:**
-1. Precio base del artículo
-2. × Modificador de bendición (+15% a +50%)
-3. × Factor de región (configurable por zona)
-4. × Factor de asentamiento (configurable por tipo)
-5. × Factor de contexto histórico (guerra, prosperidad, hambruna, etc.)
-6. = Precio de mercado
-7. × Factor de relación (Hostil a Hermandad)
-8. × Factor de perfil del comerciante (Normal, Codicioso, Honorable, Desesperado, etc.)
-9. = **Precio Justo Final**
-
-**Sistema de Reacción del NPC:**
-- Tirada d100 modificada por relación y contexto
-- **Resultados:** Acepta, Rechaza, Contraoferta, Enfado (leve/moderado/severo)
-- Cada resultado afecta la relación futura
-
-**Integración LLM (OpenAI GPT-4o):**
-- Genera diálogos narrativos inmersivos en español
-- Refleja personalidad del NPC y resultado de la negociación
-- Indicador "Generado con IA" en la UI
-- Fallback a diálogos pregenerados si LLM falla
-
-**Frontend (`/app/frontend/src/components/rules/TradingSystemSection.jsx`):**
-- **4 Tabs:**
-  1. **Calculadora:** Selector de artículo, modificadores, oferta, botón calcular
-  2. **Configuración:** Editar todos los modificadores del sistema
-  3. **PNJs:** Listar, crear, editar, eliminar, generar aleatorios
-  4. **Relaciones:** Ver historial de relaciones PJ-NPC
-  
-- **Resultado de Cálculo:**
-  - Desglose completo del precio
-  - Tirada de d100 con bonificadores
-  - Resultado visual (verde=acepta, rojo=rechaza, amarillo=contraoferta)
-  - Diálogo del NPC generado por IA
-
-**Nueva categoría en RulesPage:** "Compra-Venta" con icono de monedas
-
-#### Gemas Añadidas al Catálogo de Equipo ✅ (NEW)
-- **102 Gemas Preciosas:** Alejandrita, Rubí, Esmeralda, Zafiro, Diamantes (varios), etc.
-- **130 Gemas Semipreciosas:** Turquesa, Lapislázuli, Malaquita, Obsidiana, etc.
-- Cada gema con nombre, precio y tipo de moneda (mp, mo, mb, mc)
-- Visible en sección "Precios de Equipo" > "💎 GEMAS"
-
----
-
-#### P0: Actualización de Posiciones de Campos de la Hoja de Personaje ✅
-- **Base de datos actualizada:** 182 campos totales (146 page1, 32 page2, 4 page3) con las nuevas coordenadas proporcionadas por el usuario
-- **Código fuente sincronizado:**
-  - `SheetPage1.jsx`: Actualizado `peso_transportado` (y: 377→369) y `peso_montura` (x: 1130→1186, y: 428→421, width: 160→116)
-  - `SheetPage2.jsx`: Actualizado `sombra` (y: 418→411), `descripcion_sombra` (y: 465→462), renombrado `rasgos_culturales_2` → `rasgos_personalidad`
-- **Endpoint utilizado:** `PUT /api/data/sheet-positions`
-- **Verificación:** Screenshot de la hoja interactiva confirmando que los campos se renderizan correctamente
-
-#### P0: Editor de Lógica de Creación de Personajes ✅ (NEW)
-**Backend (`/app/backend/routes/data_routes.py`):**
-- Nueva colección `character_creation_config` en MongoDB
-- Endpoints CRUD:
-  - `GET /api/data/character-creation-config` - Obtener configuración completa
-  - `PUT /api/data/character-creation-config` - Actualizar configuración completa
-  - `PUT /api/data/character-creation-config/wealth-levels` - Actualizar niveles de vida
-  - `PUT /api/data/character-creation-config/occupation-bonuses` - Actualizar bonificaciones por ocupación
-  - `POST /api/data/character-creation-config/reset` - Restablecer a valores por defecto
-  - Endpoints individuales para editar niveles/ocupaciones específicas
-- **Valores por defecto:**
-  - 5 niveles de vida: Pobre (5mc), Frugal (2mp+10mc), Común (10mp+20mc), Próspero (2mo+20mp), Rico (10mo+50mp)
-  - 6 ocupaciones con bonificaciones de dinero y equipo
-
-**Frontend:**
-- Nuevo componente `CharacterCreationSection.jsx` (`/app/frontend/src/components/rules/`)
-- Nueva categoría "Lógica de Creación" en `RulesPage.jsx` (RULE_CATEGORIES)
-- **Características UI:**
-  - Panel colapsable para cada nivel de vida con colores diferenciados
-  - Edición de descripción, dinero inicial (oro/plata/cobre/estaño), equipo adicional
-  - Panel de bonificaciones por ocupación con dinero extra y equipo
-  - Botones: Guardar, Restablecer, Añadir nueva ocupación, Eliminar ocupación
-  - Caja informativa explicando cómo funciona el sistema
-- **Verificación:** Screenshots confirmando funcionamiento correcto de toda la UI
-
-#### Sistema de Mapas Separados (Maestro/Jugador) ✅ (NEW)
-**Estructura de rutas:**
-- `/map` - Página de selección de mapas (MapSelectionPage.jsx)
-- `/map/master` - Mapa del Maestro con todas las funcionalidades (MiddleEarthMap.jsx)
-- `/map/player` - Mapa del Jugador simplificado (PlayerMap.jsx)
-
-**Página de Selección (`MapSelectionPage.jsx`):**
-- Dos tarjetas estilizadas: Maestro (dorado) y Jugador (azul)
-- Lista de características de cada mapa
-- Indicador visual de "Solo Maestro" con icono de candado (sin efecto aún)
-- Nota explicativa sobre cálculo de viajes
-
-**Mapa del Jugador (`PlayerMap.jsx`):**
-- Nuevo mapa simplificado sin nombres de ubicaciones
-- Imagen: `Mapa jugadores.png` de los artifacts del usuario
-- Funcionalidades: Pan, Zoom, Reset de vista
-- Preparado para mostrar rutas de viaje calculadas
-- Sistema de conversión de coordenadas Master→Player
-
-**Mapa del Maestro:**
-- Actualizado header: "MAPA DEL MAESTRO"
-- Botón "← Mapas" que vuelve a la selección
-- Mantiene todas las funcionalidades existentes
-
-#### Herramienta de Corrección de Terreno ✅ (NEW)
-**Componente:** `TerrainCorrectionTool.jsx` (`/app/frontend/src/components/rules/`)
-**Categoría en Reglas:** "Terrenos"
-
-**Características:**
-- Lista de 216 ubicaciones con terreno y tipo de tierra
-- Detecta 20 ubicaciones con problemas (valores faltantes o inconsistentes)
-- **Filtros:** Búsqueda, región, tipo de terreno, tipo de tierra, solo problemas
-- **Leyenda visual:** Colores para dificultad (Fácil→Infranqueable) y tipo (Tierras Libres→Oscuras)
-- **Selectores editables** para cada ubicación (solo admin)
-- **Botón "Auto-corregir"** que normaliza valores inconsistentes:
-  - `severo` → `desalentador`
-  - `tierras_de_la_sombra` → `tierras_sombra`
-  - `tierras_fronterizas` → `fronterizas`
-  - Valores faltantes → valores por defecto
-- **Indicadores de estado:** ✓ verde (OK), ⚠️ naranja (problemas), 💾 verde (cambios pendientes)
-- **Guardado por lotes** de todos los cambios
-
----
-
-## Previous State (2026-02-24)
-
-### ✅ COMPLETED This Session (2026-02-24)
-
-#### Sistema de Dibujo de Ríos en el Mapa ✅ (NEW)
-**Backend:**
-- Nuevos endpoints CRUD para ríos: `/api/data/rivers`
-- Modelo `River` con: nombre, tipo, descripcion, puntos (coordenadas)
-- Colección `rivers` en MongoDB
-- **3 tipos de ríos:**
-  - `vadeable`: Cruzable con montura (color azul claro #4A90D9)
-  - `profundo`: Solo nadando, sin monturas (color azul medio #2E5A8B)
-  - `infranqueable`: Solo barcaza o puente (color azul oscuro #1A3A5C)
-
-**Frontend (MiddleEarthMap.jsx):**
-- Botón "🌊 Dibujar Río" en modo edición
-- Selector de tipo de río (Vadeable, Profundo, Infranqueable)
-- Campo para nombre del río
-- Renderizado de ríos en el SVG con colores según tipo
-- Panel de "Gestión de Ríos" con lista de ríos guardados
-- Opciones de Ver, Editar y Eliminar para cada río
-- Contador de ríos por tipo en el footer del panel
-
-#### Sistema de Dibujo de Barreras/Líneas Infranqueables en el Mapa ✅ (NEW)
-**Backend:**
-- Nuevos endpoints CRUD para barreras: `/api/data/barriers`
-- Modelo `Barrier` con: nombre, tipo, descripcion, puntos (coordenadas)
-- Colección `barriers` en MongoDB
-- **3 tipos de barreras:**
-  - `montana`: Cordillera infranqueable (color marrón #8B4513, línea punteada)
-  - `acantilado`: Pared vertical (color marrón oscuro #654321)
-  - `frontera`: Barrera mágica/peligrosa (color rojo oscuro #4A0000)
-
-**Frontend (MiddleEarthMap.jsx):**
-- Botón "⛰️ Dibujar Barrera" en modo edición
-- Selector de tipo de barrera (Montaña, Acantilado, Frontera Oscura)
-- Campo para nombre de la barrera
-- Renderizado de barreras en el SVG con líneas punteadas según tipo
-- Panel de "Barreras Infranqueables" con lista de barreras guardadas
-- Opciones de Ver, Editar y Eliminar para cada barrera
-- Contador de barreras por tipo en el footer del panel
-
-#### Algoritmo de Pathfinding A* ✅ (NEW)
-**Backend (/app/backend/utils/pathfinding.py):**
-- Implementación completa del algoritmo A* para calcular rutas óptimas
-- Consideraciones del algoritmo:
-  - **Terreno:** facil (×1.0), moderado (×1.33), dificil (×2.0), muy_dificil (×3.0), desalentador (×4.0), infranqueable (×∞)
-  - **Caminos:** ninguno (×1.0), sendero (×0.85), secundario (×0.7), real (×0.5)
-  - **Ríos:** vadeable (×1.5, montura permitida), profundo (×3.0, sin montura), infranqueable (×∞)
-  - **Barreras:** Completamente infranqueables, la ruta las evita
-- Velocidad base: 36 km/día
-
-**Endpoints:**
-- `POST /api/data/pathfinding/calculate` - Calcula ruta entre coordenadas o IDs de ubicación
-- `GET /api/data/pathfinding/between/{start_id}/{end_id}` - Shortcut para rutas entre ubicaciones
-
-**Respuesta del pathfinding:**
-```json
-{
-  "success": true,
-  "path": [[x, y], ...],  // Waypoints de la ruta
-  "total_distance_km": 195.1,
-  "estimated_days": 5.3,
-  "roads_used": ["Camino del Este"],
-  "rivers_crossed": [],
-  "terrain_summary": {"dificil": 161.6, "moderado": 27.2, "muy_dificil": 6.4},
-  "warnings": ["📍 Hobbiton → Rivendel"]
-}
-```
-
-**Frontend (TravelGenerator.jsx):**
-- Nuevo panel "Ruta Óptima Calculada (A*)" cuando se selecciona origen/destino
-- Muestra: km total, días estimados, waypoints, caminos usados
-- Desglose de terreno atravesado con badges de colores
-- Lista de ríos a cruzar (si aplica)
-
-**Frontend (MiddleEarthMap.jsx):**
-- Renderizado de ruta calculada como línea cyan sobre el mapa
-- Marcadores de inicio (verde) y fin (rojo)
-- Flecha de dirección en el punto medio
-- Panel de ruta muestra información del pathfinding
-
-**Datos de prueba verificados:**
-- Hobbiton → Rivendel: 195.1 km, 5.3 días, usando Camino del Este, 29 waypoints
-
-#### Sistema de Dibujo de Caminos en el Mapa ✅ (Previous)
-**Backend:**
-- Nuevos endpoints CRUD para caminos: `/api/data/roads`
-- Modelo `Road` con: nombre, tipo (sendero/secundario/real), descripcion, puntos (coordenadas)
-- Colección `roads` en MongoDB
-
-**Frontend (MiddleEarthMap.jsx):**
-- Modo de dibujo de caminos con puntos conectados
-- Botón "🛤️ Dibujar Camino" en modo edición
-- Selector de tipo de camino (Sendero, Secundario, Real)
-- Campo para nombre del camino
-- Visualización de caminos con colores por tipo:
-  - Sendero: marrón (#8B7355), línea punteada
-  - Secundario: beige (#C4A574), línea sólida
-  - Real: dorado (#FFD700), línea gruesa
-- Puntos de control verdes durante el dibujo
-- Doble clic para terminar el camino
-
-#### Sistema Completo de Cálculo de Viajes ✅
-**Backend (endpoints nuevos):**
-- `POST /api/data/travel/calculate` - Calcula km/día con todas las reglas
-- `GET /api/data/travel/options` - Opciones para poblar selectores
-- `POST /api/data/travel/find-route` - Busca rutas alternativas por pasos de montaña
-
-**Frontend (TravelGenerator.jsx) - Integrado:**
-- **Selector de Ritmo**: Lento 24km, Normal 36km, Rápido 48km
-- **Selector de Tipo de Camino**: Sin camino, Sendero, Secundario, Real
-- **Selector de Horas de Marcha Forzada**: 0-4 horas con CD dinámico
-- **Calculadora en vivo**: Muestra km/día con fórmula desglosada
-- **Advertencias automáticas**: Ritmo rápido prohibido en regiones peligrosas, montura no disponible en terreno difícil
-- **CD de marcha forzada dinámico**: Incluye modificadores por región
-
-**Reglas implementadas:**
-- Terreno moderado en sendero = ×1 (anula penalización)
-- Tierras de la Sombra reduce bonus de camino 50%
-- Tierras Oscuras anula bonus de camino
-- Montura ×1.5 (no aplica en terreno muy difícil+)
-- Infranqueable = 0 km (requiere paso de montaña)
-
-#### Sistema de Tipos de Terreno y Clases de Peligro ✅
-**Backend:**
-- Nuevos campos `tipo_terreno` y `clase_region` añadidos a regiones y ubicaciones
-- Script `analyze_map_terrain.py` que analiza los colores del mapa y asigna automáticamente:
-  - Tipos de terreno basados en colores: Fácil (#d3ba84), Moderado (#948c4d), Difícil (#c38d4f), Muy Difícil (#a57044), Desalentador (#af4b27), Infranqueable (#664540)
-  - Clases de peligro basadas en lore: Tierras Libres, Fronterizas, Salvajes, de la Sombra, Oscuras
-- Campo `es_paso_montana` para identificar pasos de montaña que permiten atravesar terreno infranqueable
-- Módulo `travel_config.py` con multiplicadores y cálculos para el generador de viajes
-
-**Frontend (RulesPage.jsx):**
-- Selectores de tipo de terreno y clase de región para cada región y subregión
-- Badges de colores que muestran visualmente la dificultad y peligro
-- Leyenda explicativa con multiplicadores de tiempo de viaje y porcentajes de encuentros
-
-**Datos actualizados:**
-- 211 ubicaciones con tipo de terreno y clase de peligro
-- 100 regiones con tipo de terreno y clase de peligro
-- Pasos de montaña identificados: Moria, Paso de Caradhras, Paso Alto, Morannon, etc.
-
-#### Campo MonturaPeso en Hoja de Personaje ✅
-- Nuevo campo `montura_peso` que muestra "MONTURA, PesoCargadoKg/PesoMaxKg"
-- Cálculo incluye: peso equipo montura + peso equipo personaje + peso del jinete
-
----
-
-## Previous Session (2026-02-23)
-
-### ✅ COMPLETED Previous Session (2026-02-23)
-
-#### P0: Sistema de Peso de Montura y Gestión de Equipo Completado ✅
-- **`SheetPage1.jsx`** - Sistema de cálculo de peso implementado:
-  - `calcularPesoMontura()` - Calcula peso de items llevados por la montura
-  - `calcularPesoTransportado()` - Excluye peso de items en la montura
-  - Campo `peso_montura` muestra "(M:X.XX)" junto al peso transportado
-  - La montura aparece en la lista de equipo con su capacidad
-
-- **`EquipmentManagerModal.jsx`** - Gestión completa de equipamiento:
-  - Muestra resumen: dinero, peso personaje, peso/capacidad montura
-  - Procesa `equipo_ocupacion` para mostrar armas, armaduras y equipo
-  - Categorización automática: armas, armaduras, escudos, equipo ocupación
-  - Muestra mejoras aplicadas en items (ej: "Espada corta [AFILADA]")
-  - Botones para mover items entre personaje y montura
-  - Total de 18 items mostrados para personaje de prueba
-
-#### P1/P2: Modificadores de Precio en RulesPage ✅
-- **Nueva categoría** "Modificadores de Precio" con icono Coins
-- **Función `renderPriceModifiers()`** que muestra 4 tablas:
-  - Por Región (14 regiones: Eriador, Bosque Negro, Mordor, etc.)
-  - Por Asentamiento (10 tipos: Aldea pequeña, Ciudad, Capital, etc.)
-  - Por Relación con Vendedor (8 tipos: Amigo, Enemigo, etc.)
-  - Por Contexto Histórico (8 tipos: Guerra activa, Paz, etc.)
-- **Colores intuitivos**: verde para descuentos, rojo para aumentos
-- **Ejemplo de cálculo** con fórmula explicada
-
----
-
-## Previous Session (2025-02-23)
-
-### ✅ COMPLETED Previous Session
-
-#### Sistema Completo de Gestión de Equipamiento ✅
-- **Nuevo modal `EquipmentManagerModal.jsx`:**
-  - Pestaña "Añadir Equipo": Navegar catálogo por categorías, búsqueda, seleccionar cantidad
-  - Pestaña "Gestionar": Ver todo el equipamiento, eliminar items, mover entre personaje/montura
-  - Tipo de adquisición: "Comprar" (deduce dinero) o "Regalo/Tesoro" (gratis)
-  - Sistema de conversión de monedas (mo > mp > me > mc)
-  - Validación de dinero suficiente antes de comprar
-  - Soporte completo para monturas con capacidad de carga
-  - Visualización de peso y estado de estorbo en tiempo real
-
-- **Nuevos endpoints backend:**
-  - `POST /api/characters/{id}/equipment/add` - Añadir equipo (compra o regalo)
-  - `DELETE /api/characters/{id}/equipment/remove` - Eliminar equipo
-  - `PATCH /api/characters/{id}/equipment/carry` - Mover equipo entre personaje y montura
-  - `GET /api/characters/{id}/weight-summary` - Resumen de peso y estorbo
-
-- **Lógica de peso implementada:**
-  - Armas y armaduras SIEMPRE las lleva el personaje
-  - Items del inventario pueden asignarse a la montura
-  - Peso en montura no cuenta para estorbo del personaje
-  - Capacidad de carga de montura se actualiza en tiempo real
-
-#### P1: Lógica Completa de Aplicar Recompensas ✅
-(Completado anteriormente en esta sesión)
-
----
-
-## Previous State (2025-12-19)
-
-### ✅ COMPLETED This Session
-
-#### P0: Sistema de Gestión de Regiones Dinámico 🗺️
-- **Backend CRUD completo** para regiones en `/api/data/regions`:
-  - `GET /regions` - Lista jerárquica de regiones principales con sub-regiones
-  - `GET /regions/flat` - Lista plana para dropdowns simples
-  - `POST /regions` - Crear nueva región (principal o sub-región)
-  - `PUT /regions/{id}` - Actualizar nombre de región
-  - `DELETE /regions/{id}` - Eliminar región (y sub-regiones si es principal)
-  - `POST /regions/seed` - Poblar con 48 regiones iniciales de la Tierra Media
-- **Interfaz de gestión en RulesPage**:
-  - Nueva categoría "Regiones" con icono MapPin
-  - Vista jerárquica: regiones principales con sus sub-regiones
-  - CRUD completo: crear, editar, eliminar regiones y sub-regiones
-  - Botón para cargar regiones iniciales si la colección está vacía
-- **Integración en el Mapa**:
-  - El selector de regiones ahora carga datos dinámicos del backend
-  - Fallback a jerarquía estática si no hay datos
-  - Usado tanto en crear como en editar ubicaciones
-
-#### P1: Sistema de Recompensas al Equipamiento ⚔️
-- **Modal `EquipmentRewardsModal.jsx`** en la hoja de personaje:
-  - Selección de equipamiento (armas, armaduras, escudos)
-  - Lista de mejoras aplicables filtradas por tipo de equipo
-  - Aplicación de mejoras con persistencia en la base de datos
-  - Visualización de mejoras ya aplicadas en cada equipo
-- **Botón "Recompensas"** añadido al header de InteractiveCharacterSheet
-
-#### P2: Exportar Viajes a PDF 📄
-- **Función `exportToPDF`** en TravelGenerator:
-  - Genera PDF con jsPDF
-  - Incluye: origen/destino, resumen del viaje, días, casillas, terreno
-  - Lista de eventos con tiradas, CD, y consecuencias
-  - Formato estilizado con colores según éxito/fracaso
-- **Botón "Exportar PDF"** añadido junto a "Guardar Viaje"
-
-#### P2: Exportar Equipamiento a PDF con Filtros 🖨️
-- **Modal mejorado** con filtros:
-  - **Filtrar por Asentamiento:** dropdown para mostrar solo items disponibles en ese tipo
-  - **Filtrar por Región:** dropdown jerárquico con todas las regiones/subregiones
-  - Indicador visual cuando hay filtros activos
-- **7 categorías** en grid de 2 columnas
-- **PDF generado** respetando los filtros seleccionados
-
-#### Sistema de Edición y Disponibilidad de Equipamiento 🛠️
-- **Botones de editar/eliminar** en cada fila de equipamiento (visible al pasar el ratón)
-- **Modal de edición completo** con:
-  - Campos editables: nombre, precio, moneda, peso, daño, CA, etc.
-  - Selector de disponibilidad por asentamiento (Aldea, Pueblo, Villa, Ciudad, Capital, Especial)
-  - **Selector de disponibilidad por región** con jerarquía completa:
-    - Checkboxes para cada región principal y sus subregiones
-    - Botones "Todas" y "Ninguna" para selección rápida
-    - Si no hay selección = disponible en todas las regiones
-- **Precios actualizados y disponibilidad regional configurada:**
-  - Caballos de Rohan: solo en Rohan y Gondor
-  - Caballos de Lothlórien: Lothlórien, Rhovanion, Eriador
-  - Camellos/Elefantes: Harad, Rhûn
-  - Transporte marítimo: solo regiones costeras (Gondor, Belfalas, Umbar, Lindon)
-  - Venenos: Mordor, Angmar, Harad, Rhûn
-  - Hierbas raras: ciudades principales
-
-#### P2: Refactorización del Mapa 🗺️
-- **Nuevos componentes modulares en `/components/map/`**:
-  - `MapControls.jsx` - Controles de zoom, switches de vista
-  - `MapFilters.jsx` - Filtros de región, tipo, búsqueda
-  - `LocationInfoPanel.jsx` - Panel de información de ubicación
-  - `EditLocationPanel.jsx` - Formulario de edición
-  - `CreateLocationPanel.jsx` - Formulario de creación
-  - `RouteInfoPanel.jsx` - Información de ruta calculada
-  - `index.js` - Exportaciones centralizadas
-
-#### Mejoras de Navegación
-- **Botón "Inicio"** añadido al mapa para volver a la página principal
-
-### ✅ COMPLETED Previous Sessions
-
-#### P0: Trasfondos Reorganizados por Raza/Cultura
-- Nuevo endpoint `GET /api/data/backgrounds/grouped/by-race` 
-- Componente `BackgroundsSection.jsx` con tabs por raza (Elfos, Enanos, Hobbits, Hombres)
-- 114 trasfondos organizados en culturas colapsables
-
-#### P1: Sistema de Recompensas de Equipamiento
-- Datos completos extraídos del PDF `Recompensas.pdf`
-- 6 mejoras detalladas con efectos, restricciones y reglas de "El Anillo Único"
-- Información de bendiciones, niveles de recompensa, y tradiciones de armas con nombre
-
-#### P1: Sistema de Ubicaciones del Mapa - COMPLETO 🗺️
-**182 ubicaciones de la Tierra Media cargadas desde 4 mapas:**
-
-| Mapa | Ubicaciones |
-|------|-------------|
-| Gondor/Rohan | 60 |
-| Mordor | 28 |
-| Eriador | 49 |
-| Rhovanion | 28 |
-
-**Por Región:**
-- Eriador: 50 (La Comarca, Bree, Rivendel, Moria, Angmar...)
-- Rhovanion: 33 (Erebor, Valle, Bosque Negro, Lothlórien...)
-- Gondor: 32 (Minas Tirith, Osgiliath, Dol Amroth...)
-- Mordor: 25 (Barad-dûr, Orodruin, Minas Morgul...)
-- Rohan: 15 (Edoras, Helm's Deep, Isengard...)
-
-**Por Tipo de Terreno:**
-- Fácil: 52
-- Moderado: 37
-- Difícil: 35
-- Muy Difícil: 18
-- Infranqueable: 12
-- Desalentador: 11
-
-**Por Tipo de Tierra:**
-- 🟢 Tierras Libres: 65
-- 🟠 Tierras Salvajes: 36
-- 🟡 Fronterizas: 28
-- 🔴 Tierras de Sombra: 19
-- ⚫ Tierras Oscuras: 17
-
-**Escala:** 1 hexágono = 4 millas = 6.4 km
-
-#### P1: Integración de Ubicaciones en el Generador de Viajes ✅
-- Endpoint `GET /api/data/locations/calculate-route/{origin}/{dest}` calcula:
-  - Distancia en km, millas y hexágonos
-  - Días de viaje estimados
-  - Terreno y tipo de tierra
-  - Nivel de peligro
-  - Dirección cardinal
-- Frontend actualizado con:
-  - Selectores de ubicación agrupados por región
-  - Cálculo automático de ruta al seleccionar origen/destino
-  - Panel de información con distancia, días, peligro, terreno
-  - Indicadores de refugio y nombres sindarin
-
-## Key Files Modified This Session
-- `/app/backend/routes/data_routes.py` - Endpoints de backgrounds, recompensas, locations, calculate-route
-- `/app/backend/load_gondor_locations.py` - Carga mapa Gondor/Rohan (60 locs)
-- `/app/backend/load_mordor_locations.py` - Carga mapa Mordor (28 locs)
-- `/app/backend/load_eriador_locations.py` - Carga mapa Eriador (49 locs)
-- `/app/backend/load_rhovanion_locations.py` - Carga mapa Rhovanion (28 locs)
-- `/app/frontend/src/components/rules/BackgroundsSection.jsx` - Nuevo componente
-- `/app/frontend/src/pages/TravelGenerator.jsx` - Integración de ubicaciones
-- `/app/frontend/src/pages/RulesPage.jsx` - Sección Recompensas actualizada
-
-## Key Files Modified This Session (2026-02-24 Rivers & Barriers)
-- `/app/backend/routes/data_routes.py` - Nuevos endpoints CRUD para rivers y barriers
-
-## Key Files Modified This Session (2026-02-24 Pathfinding A*)
-- `/app/backend/utils/pathfinding.py` - NUEVO: Módulo de pathfinding A* completo
-- `/app/backend/routes/data_routes.py` - Nuevos endpoints pathfinding/calculate y pathfinding/between
-- `/app/frontend/src/pages/TravelGenerator.jsx` - Estado pathfindingResult, panel de ruta óptima
-- `/app/frontend/src/pages/MiddleEarthMap.jsx` - calculatedPath state, renderRoute mejorado para rutas A*
 
 ## 📋 UPCOMING TASKS
 
 ### P1 - Next Priority
-1. **Refactorizar `MiddleEarthMap.jsx`** (~3600 líneas) - Los componentes modulares están creados en `/components/map/`, falta mover la lógica del archivo principal
-2. **Refactorizar `RulesPage.jsx`** (~4000+ líneas) - Extraer componentes para mejorar mantenibilidad
+1. **Implementar opción "Evitar Caminos"** - Para escenarios de huida
+2. **Etapas de Viaje y Descansos** - Sistema de descanso durante viajes
+3. **Piezas móviles en Editor de Terreno** - Mover iconos en el mapa
 
 ### P2 - Medium Priority
-1. **Tool para revisar/corregir datos de terreno** - UI para corregir asignaciones incorrectas del script analyze_map_colors.py
-2. **Sistema de Autenticación** (Maestro > Admin > Jugador)
-3. **Backup/Restore de base de datos**
-4. **Pantalla del DM** - Vista centralizada para el director de juego
+1. **Consumo de Comida/Agua**
+2. **Control de acceso por roles** (Admin/Maestro/Jugador)
+3. **Refactorizar componentes grandes** (EnhancedTravelSystem, MiddleEarthMap, TerrainEditor)
 
 ### P3 - Future Tasks
+- Sistema de Autenticación completo
+- Backup/Restore de base de datos
+- Pantalla del DM
 - Interfaz de juego online
-- Integración IA para historias de NPCs
-- Creador de personajes multi-fase completo
+
+---
+
+## Code Architecture
+```
+/app/
+├── backend/
+│   ├── routes/
+│   │   └── travel_routes.py  # Endpoints de viaje, compare-routes
+│   ├── utils/
+│   │   └── pathfinding.py    # A* con sistema de multiplicadores
+│   └── server.py
+└── frontend/
+    └── src/
+        ├── pages/
+        │   ├── MiddleEarthMap.jsx      # Mapa interactivo
+        │   └── EnhancedTravelSystem.jsx # Sistema de viajes
+        └── components/
+            └── travel/
+```
+
+## Key Technical Concepts
+
+### A* Pathfinding - Cost Multiplier System
+```python
+Cost = distance_km * road_mult * terrain_mult * land_mult * river_mult
+
+# Lower multiplier = better path
+ROAD_MULT = {'grande': 0.1, 'mayor': 0.25, 'menor': 0.45, 'senda': 0.65, 'ninguno': 1.0}
+TERRAIN_MULT = {'facil': 0.5, 'moderado': 1.0, 'dificil': 2.0, 'muy_dificil': 4.0, 'desalentador': 8.0}
+LAND_MULT = {'tierras_libres': 0.2, 'fronterizas': 0.5, 'salvajes': 1.0, 'sombra': 5.0, 'oscuras': 10.0}
+```
+
+### Direct Mode
+En modo directo, las penalizaciones de tierras peligrosas se reducen al 10%:
+```python
+if self.direct_mode:
+    land_mult = max(0.5, land_mult * 0.1)
+```
+
+---
 
 ## Database Collections
-- `locations`: 182+ documentos con coordenadas x/y, terreno, tipo_tierra, peligro, refugio
-- `regions`: 48 documentos con jerarquía parent_id para regiones/sub-regiones
-- `roads`: Caminos dibujados en el mapa (nombre, tipo, puntos)
-- `rivers`: Ríos dibujados en el mapa (nombre, tipo: vadeable/profundo/infranqueable, puntos)
-- `barriers`: Barreras/líneas infranqueables dibujadas en el mapa (nombre, tipo: montana/acantilado/frontera, puntos)
-- `recompensas`: Documento con mejoras, niveles, bendiciones, armas_con_nombre
-- `backgrounds`: 114 documentos agrupables por raza/cultura
-- `viajes_guardados`: Viajes generados y guardados por los usuarios
+- `locations`: 210+ documentos con coordenadas, terreno, tipo_tierra
+- `roads`: Caminos con puntos de coordenadas
+- `rivers`: Ríos con tipo (vadeable/profundo/infranqueable)
+- `barriers`: Barreras infranqueables
+- `terrain_polygons`: Zonas de terreno pintadas
+
+---
 
 ## Testing
-- `/app/test_reports/iteration_23.json` - 100% pass rate (Rivers & Barriers feature)
-- `/app/test_reports/iteration_24.json` - 100% pass rate (Pathfinding A* feature)
+- `/app/test_reports/iteration_36.json` - 100% pass rate (Pathfinding fix)
+- `/app/backend/tests/test_pathfinding_compare_routes.py` - Tests del sistema
+
+---
+
+## 3rd Party Integrations
+- **OpenAI GPT-4o:** Narrativa de viajes (via emergentintegrations, Emergent LLM Key)
+- **jspdf & html2canvas:** Generación de PDF
+- **lucide-react:** Iconos
+- **shapely:** Operaciones geométricas (backend)
