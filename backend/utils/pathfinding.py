@@ -171,7 +171,9 @@ class MiddleEarthPathfinder:
         locations: List[Dict],
         regions: Optional[List[Dict]] = None,
         terrain_polygons: Optional[List[Dict]] = None,
-        prefer_roads: bool = True
+        prefer_roads: bool = True,
+        avoid_shadow_lands: bool = False,
+        avoid_dark_lands: bool = False
     ):
         self.roads = roads
         self.rivers = rivers
@@ -180,6 +182,8 @@ class MiddleEarthPathfinder:
         self.regions = regions or []
         self.terrain_polygons = terrain_polygons or []
         self.prefer_roads = prefer_roads
+        self.avoid_shadow_lands = avoid_shadow_lands
+        self.avoid_dark_lands = avoid_dark_lands
         
         # Road preference multiplier: lower = more preferred when prefer_roads=True
         self.road_preference_multiplier = 0.3 if prefer_roads else 1.0
@@ -374,21 +378,25 @@ class MiddleEarthPathfinder:
         return ccw(p1, p3, p4) != ccw(p2, p3, p4) and ccw(p1, p2, p3) != ccw(p1, p2, p4)
     
     def _get_road_at_point(self, x: float, y: float) -> Optional[Dict]:
-        """Get road info if point is near a road"""
+        """Get road info if point is near a road - returns CLOSEST road"""
         grid_key = (round(x), round(y))
         
         # Check direct grid match
         if grid_key in self.road_points:
             return self.road_points[grid_key]
         
-        # Check nearby road segments
+        # Check nearby road segments - find the CLOSEST one
         point = (x, y)
+        closest_road = None
+        closest_dist = float('inf')
+        
         for segment in self.road_segments:
             dist = self._point_to_segment_distance(point, segment['start'], segment['end'])
-            if dist < 1.5:  # Within 1.5 units of road
-                return {'type': segment['type'], 'name': segment['name']}
+            if dist < 1.5 and dist < closest_dist:  # Within 1.5 units AND closer than previous
+                closest_dist = dist
+                closest_road = {'type': segment['type'], 'name': segment['name']}
         
-        return None
+        return closest_road
     
     def _check_river_crossing(
         self,
@@ -580,23 +588,17 @@ class MiddleEarthPathfinder:
             else:
                 cost *= river.multiplier
         
-        # ===== LAND TYPE PENALTY - ALWAYS APPLIED =====
-        # Shadow and Dark lands should ALWAYS be penalized heavily
-        # Even if the user hasn't enabled "avoid shadow lands", we should
-        # prioritize paths through Free/Frontier/Wild lands
+        # ===== LAND TYPE PENALTY - ONLY WHEN OPTIONS ARE ENABLED =====
+        # Shadow and Dark lands are only penalized/blocked when user enables the options
         land_type = self.get_land_type_from_polygons(to_x, to_y)
         
-        # Land type multipliers (applied ALWAYS)
-        land_type_multipliers = {
-            'tierras_libres': 0.8,      # Bonus for free lands
-            'tierras_fronterizas': 1.0,  # No change
-            'tierras_salvajes': 1.2,     # Slight penalty
-            'tierras_sombra': 3.5,       # HEAVY penalty - avoid if possible
-            'tierras_oscuras': 5.0       # VERY HEAVY penalty - avoid at all costs
-        }
-        
-        land_multiplier = land_type_multipliers.get(land_type, 1.2)
-        cost *= land_multiplier
+        # Apply penalties only if user has enabled avoidance options
+        if self.avoid_shadow_lands and land_type == 'tierras_sombra':
+            # Make shadow lands impassable when option is enabled
+            cost = float('inf')
+        elif self.avoid_dark_lands and land_type == 'tierras_oscuras':
+            # Make dark lands impassable when option is enabled
+            cost = float('inf')
         
         return (cost, road_type_str, terrain_str, river_crossing_str)
     

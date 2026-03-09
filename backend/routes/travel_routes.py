@@ -1274,7 +1274,9 @@ async def calculate_journey(config: JourneyConfig):
                     barriers=barriers,
                     locations=all_locations,
                     terrain_polygons=terrain_polygons,
-                    prefer_roads=config.preferir_caminos
+                    prefer_roads=config.preferir_caminos,
+                    avoid_shadow_lands=config.evitar_sombra,
+                    avoid_dark_lands=config.evitar_tierras_oscuras
                 )
                 
                 start_coords = (start_loc.get('x', 0), start_loc.get('y', 0))
@@ -1752,26 +1754,31 @@ async def compare_routes(request: RouteComparisonRequest):
             "travel_cost": path_result.total_travel_cost
         }
     
-    # Calculate ROUTE 1: Preferring roads
+    # Calculate ROUTE 1: Preferring roads (with shadow/dark land avoidance if enabled)
     pathfinder_roads = MiddleEarthPathfinder(
         roads=roads,
         rivers=rivers,
         barriers=barriers,
         locations=all_locations,
         terrain_polygons=terrain_polygons,
-        prefer_roads=True  # Prefer roads
+        prefer_roads=True,  # Prefer roads
+        avoid_shadow_lands=request.evitar_sombra,  # Respect user choice
+        avoid_dark_lands=request.evitar_tierras_oscuras  # Respect user choice
     )
     result_roads = pathfinder_roads.find_path(start_coords, end_coords)
     route_with_roads = calculate_route_data(result_roads, "caminos")
     
-    # Calculate ROUTE 2: Cross-country (no road preference)
+    # Calculate ROUTE 2: Direct cross-country (NO restrictions on shadow/dark lands)
+    # This route is the "shortest path" regardless of danger
     pathfinder_direct = MiddleEarthPathfinder(
         roads=roads,  # Still has roads data for crossing detection
         rivers=rivers,
         barriers=barriers,
         locations=all_locations,
         terrain_polygons=terrain_polygons,
-        prefer_roads=False  # No road preference
+        prefer_roads=False,  # No road preference
+        avoid_shadow_lands=False,  # No shadow land avoidance - direct route
+        avoid_dark_lands=False  # No dark land avoidance - direct route
     )
     result_direct = pathfinder_direct.find_path(start_coords, end_coords)
     route_direct = calculate_route_data(result_direct, "directo")
