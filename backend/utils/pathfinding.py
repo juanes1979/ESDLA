@@ -33,11 +33,20 @@ class TerrainType(Enum):
 
 
 class RoadType(Enum):
-    """Road types with travel bonuses"""
-    NINGUNO = ("ninguno", 1.0)
-    SENDERO = ("sendero", 0.85)
-    SECUNDARIO = ("secundario", 0.7)
-    REAL = ("real", 0.5)
+    """
+    Road types with travel bonuses (lower = faster)
+    Hierarchy: Grandes Caminos > Caminos Mayores > Caminos Menores > Sendas
+    """
+    NINGUNO = ("ninguno", 1.0)           # No road - base speed
+    SENDA = ("senda", 0.85)              # Sendas - slight bonus
+    MENOR = ("menor", 0.7)               # Caminos Menores - good bonus
+    MAYOR = ("mayor", 0.5)               # Caminos Mayores - great bonus
+    GRANDE = ("grande", 0.35)            # Grandes Caminos - best roads
+    
+    # Legacy types (mapped to new system)
+    SENDERO = ("sendero", 0.85)          # -> Senda
+    SECUNDARIO = ("secundario", 0.7)     # -> Menor
+    REAL = ("real", 0.5)                 # -> Mayor
     
     def __init__(self, key: str, multiplier: float):
         self.key = key
@@ -79,6 +88,7 @@ class PathNode:
     h_cost: float = 0  # Heuristic cost to end
     parent: Optional['PathNode'] = field(default=None, repr=False)
     road_type: str = "ninguno"
+    road_name: str = ""  # Name of the road at this point
     terrain_type: str = "moderado"
     river_crossing: Optional[str] = None
     
@@ -138,7 +148,7 @@ class MiddleEarthPathfinder:
     COORD_TO_KM = 20.0
     
     # Grid resolution for pathfinding (smaller = more precise but slower)
-    GRID_RESOLUTION = 1.0
+    GRID_RESOLUTION = 0.5  # Finer grid for better road following
     
     # Base travel speed (km/day at normal pace on easy terrain)
     BASE_SPEED_KM_DAY = 36
@@ -172,6 +182,7 @@ class MiddleEarthPathfinder:
         regions: Optional[List[Dict]] = None,
         terrain_polygons: Optional[List[Dict]] = None,
         prefer_roads: bool = True,
+        avoid_roads: bool = False,
         avoid_shadow_lands: bool = False,
         avoid_dark_lands: bool = False
     ):
@@ -182,6 +193,7 @@ class MiddleEarthPathfinder:
         self.regions = regions or []
         self.terrain_polygons = terrain_polygons or []
         self.prefer_roads = prefer_roads
+        self.avoid_roads = avoid_roads  # For fleeing from pursuers
         self.avoid_shadow_lands = avoid_shadow_lands
         self.avoid_dark_lands = avoid_dark_lands
         
@@ -397,6 +409,71 @@ class MiddleEarthPathfinder:
                 closest_road = {'type': segment['type'], 'name': segment['name']}
         
         return closest_road
+
+    def _find_best_nearby_road_point(
+        self,
+        point: Tuple[float, float],
+        max_distance: float = 3.0
+    ) -> Optional[Tuple[float, float]]:
+        """
+        Find the best road point near a location.
+        Prefers better road types (grande > mayor > menor > senda).
+        Returns the closest point on the best road found.
+        """
+        road_type_priority = {
+            'grande': 1,
+            'mayor': 2, 
+            'menor': 3,
+            'senda': 4,
+            'sendero': 4,
+            'secundario': 3,
+            'real': 2
+        }
+        
+        best_point = None
+        best_priority = 999
+        best_distance = max_distance
+        
+        for segment in self.road_segments:
+            road_type = segment.get('type', 'senda')
+            priority = road_type_priority.get(road_type, 5)
+            
+            # Find closest point on this segment
+            closest = self._closest_point_on_segment(
+                point, segment['start'], segment['end']
+            )
+            dist = self._distance(point, closest)
+            
+            if dist < max_distance:
+                # Better road type OR same type but closer
+                if priority < best_priority or (priority == best_priority and dist < best_distance):
+                    best_priority = priority
+                    best_distance = dist
+                    best_point = closest
+        
+        return best_point
+    
+    def _closest_point_on_segment(
+        self,
+        point: Tuple[float, float],
+        seg_start: Tuple[float, float],
+        seg_end: Tuple[float, float]
+    ) -> Tuple[float, float]:
+        """Find the closest point on a line segment to a given point"""
+        px, py = point
+        x1, y1 = seg_start
+        x2, y2 = seg_end
+        
+        dx = x2 - x1
+        dy = y2 - y1
+        
+        if dx == 0 and dy == 0:
+            return seg_start
+        
+        t = max(0, min(1, ((px - x1) * dx + (py - y1) * dy) / (dx * dx + dy * dy)))
+        
+        return (x1 + t * dx, y1 + t * dy)
+
     
     def _check_river_crossing(
         self,
@@ -525,10 +602,10 @@ class MiddleEarthPathfinder:
         from_node: PathNode,
         to_x: float,
         to_y: float
-    ) -> Tuple[float, str, str, Optional[str]]:
+    ) -> Tuple[float, str, str, str, Optional[str]]:
         """
         Calculate movement cost considering terrain, roads, rivers, and LAND TYPE.
-        Returns: (cost, road_type, terrain_type, river_crossing)
+        Returns: (cost, road_type, road_name, terrain_type, river_crossing)
         
         IMPORTANT: Shadow and Dark lands are ALWAYS heavily penalized,
         even if the user hasn't explicitly enabled "avoid shadow lands".
@@ -542,65 +619,93 @@ class MiddleEarthPathfinder:
         
         # Check for barrier (impassable)
         if self._check_barrier_crossing(from_pos, to_pos):
-            return (float('inf'), 'ninguno', 'infranqueable', None)
+            return (float('inf'), 'ninguno', '', 'infranqueable', None)
         
         # Get terrain
         terrain_str = self._get_terrain_at_point(to_x, to_y)
         terrain = TerrainType.from_string(terrain_str)
         
-        # Get road bonus
-        road_info = self._get_road_at_point(to_x, to_y)
-        road_type_str = road_info['type'] if road_info else 'ninguno'
+        # Get road info at both from and to positions
+        from_road_info = self._get_road_at_point(from_node.x, from_node.y)
+        to_road_info = self._get_road_at_point(to_x, to_y)
+        
+        road_type_str = to_road_info['type'] if to_road_info else 'ninguno'
+        road_name_str = to_road_info['name'] if to_road_info else ''
         road = RoadType.from_string(road_type_str)
         
         # Check river crossing
         river_crossing = self._check_river_crossing(from_pos, to_pos)
         river_crossing_str = river_crossing['type'] if river_crossing else None
         
-        # Calculate cost
+        # Get land type for danger penalty
+        land_type = self.get_land_type_from_polygons(to_x, to_y)
+        
+        # ===== LAND TYPE DANGER MULTIPLIERS =====
+        # Tierras Libres < Fronterizas < Salvajes < Sombra < Oscuras
+        land_danger_multipliers = {
+            'tierras_libres': 0.8,         # Bonus - safest
+            'tierras_fronterizas': 1.0,    # Neutral
+            'tierras_salvajes': 1.3,       # Slight penalty
+            'tierras_sombra': 3.0,         # HEAVY penalty - dangerous
+            'tierras_oscuras': 5.0         # VERY HEAVY penalty - extremely dangerous
+        }
+        land_danger = land_danger_multipliers.get(land_type, 1.3)
+        
+        # If user explicitly wants to AVOID shadow/dark lands, make them impassable
+        if self.avoid_shadow_lands and land_type == 'tierras_sombra':
+            return (float('inf'), 'ninguno', '', terrain_str, river_crossing_str)
+        if self.avoid_dark_lands and land_type == 'tierras_oscuras':
+            return (float('inf'), 'ninguno', '', terrain_str, river_crossing_str)
+        
+        # ===== BASE COST CALCULATION =====
+        # Start with terrain difficulty
         cost = distance * terrain.multiplier
         
-        # Apply road bonus (reduces terrain penalty)
+        # Apply land danger (affects ALL movement)
+        cost *= land_danger
+        
+        # ===== ROAD BONUS/PENALTY =====
         if road != RoadType.NINGUNO:
-            # Road reduces cost significantly
-            cost *= road.multiplier
-            # If prefer_roads is enabled, roads are even more attractive
-            if self.prefer_roads:
-                cost *= self.road_preference_multiplier  # Additional bonus for roads
-            # If NOT preferring roads, we still use the road multiplier but add
-            # a slight penalty to encourage more direct routes
+            if self.avoid_roads:
+                # AVOID ROADS: Heavy penalty for using roads (fleeing from pursuers)
+                cost *= 3.0  # Roads are dangerous when being pursued
             else:
-                # Don't give road bonus - just use base terrain cost
-                # This makes the algorithm prefer shorter direct paths
-                cost = distance * terrain.multiplier * 1.1  # Slight overhead for using roads
+                # Roads significantly reduce cost
+                cost *= road.multiplier
+                
+                # If preferring roads, give extra bonus
+                if self.prefer_roads:
+                    cost *= 0.5  # Roads are even more attractive
+                    
+                    # CONTINUITY BONUS: If continuing on the SAME road, extra bonus
+                    if from_road_info and to_road_info:
+                        from_road_name = from_road_info.get('name', '')
+                        to_road_name = to_road_info.get('name', '')
+                        if from_road_name == to_road_name:
+                            cost *= 0.7  # 30% bonus for staying on same road
         else:
-            # No road - if prefer_roads is enabled, penalize off-road travel
-            if self.prefer_roads:
-                cost *= 1.5  # 50% penalty for traveling without a road
-            # If not preferring roads, no penalty for off-road
+            # NO ROAD - Campo a través
+            if self.avoid_roads:
+                # When avoiding roads, cross-country is preferred
+                cost *= 0.8  # Bonus for staying off roads
+            elif self.prefer_roads:
+                # Heavy penalty for leaving roads when "prefer roads" is active
+                if from_road_info:
+                    # LEAVING a road - extra penalty
+                    cost *= 3.5  # Very heavy penalty for leaving a road
+                else:
+                    # Already off-road - moderate penalty
+                    cost *= 2.5
         
         # Apply river crossing penalty
         if river_crossing:
             river = RiverType.from_string(river_crossing['type'])
             if river == RiverType.INFRANQUEABLE:
-                # Check if there's a bridge/ford nearby
                 cost = float('inf')
             else:
                 cost *= river.multiplier
         
-        # ===== LAND TYPE PENALTY - ONLY WHEN OPTIONS ARE ENABLED =====
-        # Shadow and Dark lands are only penalized/blocked when user enables the options
-        land_type = self.get_land_type_from_polygons(to_x, to_y)
-        
-        # Apply penalties only if user has enabled avoidance options
-        if self.avoid_shadow_lands and land_type == 'tierras_sombra':
-            # Make shadow lands impassable when option is enabled
-            cost = float('inf')
-        elif self.avoid_dark_lands and land_type == 'tierras_oscuras':
-            # Make dark lands impassable when option is enabled
-            cost = float('inf')
-        
-        return (cost, road_type_str, terrain_str, river_crossing_str)
+        return (cost, road_type_str, road_name_str, terrain_str, river_crossing_str)
     
     def _get_neighbors(self, node: PathNode) -> List[Tuple[float, float]]:
         """Get valid neighbor positions for A* expansion"""
@@ -639,9 +744,22 @@ class MiddleEarthPathfinder:
         """
         warnings: List[str] = []
         
+        # If preferring roads, find the best nearby road connection point
+        actual_start = start
+        if self.prefer_roads:
+            best_road_point = self._find_best_nearby_road_point(start)
+            if best_road_point:
+                actual_start = best_road_point
+                warnings.append(f"Ruta ajustada para comenzar en el camino más cercano")
+        
+        # Find the best nearby road at the start point
+        start_road = self._get_road_at_point(actual_start[0], actual_start[1])
+        
         # Initialize start node
-        start_node = PathNode(x=start[0], y=start[1])
-        start_node.h_cost = self._distance(start, end)
+        start_node = PathNode(x=actual_start[0], y=actual_start[1])
+        start_node.h_cost = self._distance(actual_start, end)
+        if start_road:
+            start_node.road_type = start_road.get('type', 'ninguno')
         
         # Priority queue and visited set
         open_set: List[PathNode] = [start_node]
@@ -669,7 +787,7 @@ class MiddleEarthPathfinder:
                     continue
                 
                 # Calculate movement cost
-                cost, road_type, terrain, river = self._calculate_move_cost(current, nx, ny)
+                cost, road_type, road_name, terrain, river = self._calculate_move_cost(current, nx, ny)
                 
                 if cost == float('inf'):
                     continue  # Impassable
@@ -684,6 +802,7 @@ class MiddleEarthPathfinder:
                     neighbor.h_cost = self._distance((nx, ny), end)
                     neighbor.parent = current
                     neighbor.road_type = road_type
+                    neighbor.road_name = road_name
                     neighbor.terrain_type = terrain
                     neighbor.river_crossing = river
                     
@@ -694,6 +813,7 @@ class MiddleEarthPathfinder:
                         existing.g_cost = tentative_g
                         existing.parent = current
                         existing.road_type = road_type
+                        existing.road_name = road_name
                         existing.terrain_type = terrain
                         existing.river_crossing = river
                         heapq.heapify(open_set)
@@ -744,15 +864,13 @@ class MiddleEarthPathfinder:
                 terrain = prev_node.terrain_type
                 terrain_distances[terrain] = terrain_distances.get(terrain, 0) + dist_km
                 
-                # Track roads (in order of traversal)
-                if prev_node.road_type != 'ninguno':
-                    road_info = self._get_road_at_point(prev_node.x, prev_node.y)
-                    if road_info:
-                        road_name = road_info.get('name', prev_node.road_type)
-                        # Add to list if not recently used (avoid oscillation patterns like A-B-A-B)
-                        recent_roads = roads_used_ordered[-3:] if len(roads_used_ordered) >= 3 else roads_used_ordered
-                        if road_name not in recent_roads:
-                            roads_used_ordered.append(road_name)
+                # Track roads (in order of traversal) - use road_name from node
+                if prev_node.road_type != 'ninguno' and prev_node.road_name:
+                    road_name = prev_node.road_name
+                    # Add to list if not recently used (avoid oscillation patterns like A-B-A-B)
+                    recent_roads = roads_used_ordered[-3:] if len(roads_used_ordered) >= 3 else roads_used_ordered
+                    if road_name not in recent_roads:
+                        roads_used_ordered.append(road_name)
                 
                 # Track rivers
                 if prev_node.river_crossing:
