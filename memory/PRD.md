@@ -1,29 +1,15 @@
 # LOTR 5e RPG - Product Requirements Document
 
-## Current State (2026-12-09)
+## Current State (2026-03-10)
 
-### ✅ COMPLETED This Session
+### ✅ COMPLETED This Session (Fork #38)
 
-#### 1. Sistema de Modificadores de Habilidad Corregido
-**Problema:** Los modificadores de habilidad no se aplicaban correctamente (ej: +6 en Viajar).
+#### 1. P0 FIX: Mapa en PDF/Crónica - RESUELTO
+El mapa que aparecía como caja negra ahora renderiza correctamente.
+Ver sección "3. Mapa en PDF/Crónica" para detalles técnicos.
 
-**Reglas LOTR 5e (Corregido):**
-- **Base:** Modificador del atributo (ej: Sabiduría +2)
-- **Competencia:** +bonus_competencia (nivel 1 = +2)
-- **Pericia (Expertise):** +bonus_competencia ADICIONAL (x2 total)
-
-**Ejemplo:** +6 en Viajar = +2 (Sabiduría) + 4 (Pericia x2)
-
-**Implementación:**
-```javascript
-// Calcular modificador con pericia
-const calcModHabilidad = (char, habilidad, atributo) => {
-  let mod = puntuaciones[habilidad] || modAtributo;
-  if (tieneCompetenciaEn(char, habilidad)) mod += bonusCompetencia;
-  if (tienePericia(char, habilidad)) mod += bonusCompetencia; // x2 total
-  return mod;
-};
-```
+#### 2. Modificadores de Habilidad - VERIFICADO
+Los modificadores de habilidad se calculan correctamente incluyendo competencia + pericia.
 
 #### 2. Refugios Seguros en Ruta
 **Regla:** Solo se puede descansar en refugios seguros cuando se pasa cerca (~30km).
@@ -38,13 +24,30 @@ const calcModHabilidad = (char, habilidad, atributo) => {
 - Bree: casilla 10
 - Rivendel: casilla 28 (solo si es paso, no destino)
 
-#### 3. Mejora Captura de Mapa para PDF
-**Problema:** El mapa aparecía negro en el PDF.
+#### 3. Mapa en PDF/Crónica - CORREGIDO (2026-03-10)
+**Problema:** El mapa aparecía como caja negra en el PDF generado.
 
-**Solución:** Convertir imagen SVG a base64 antes de html2canvas:
-- Clona el elemento del mapa
-- Convierte `<image href="...">` a base64
-- Captura con html2canvas
+**Causa:** `html2canvas` no puede renderizar correctamente SVGs con imágenes externas (`<image href="/mapa_jugadores.jpg">`), incluso con `useCORS: true`.
+
+**Solución FINAL:** Renderizar SVG directamente a Canvas (sin html2canvas):
+```javascript
+const captureMapImage = async () => {
+  // 1. Obtener viewBox del SVG para conocer la región visible
+  // 2. Crear canvas de 800px de ancho (proporcional)
+  // 3. Cargar imagen del mapa y dibujar solo la región visible
+  // 4. Dibujar path (ruta) parseando el atributo 'd'
+  // 5. Dibujar marcadores (círculos, líneas X)
+  // 6. Dibujar etiquetas de texto (origen/destino)
+  return outputCanvas.toDataURL('image/png', 0.9);
+};
+```
+
+**Resultado:** El mapa ahora aparece correctamente con:
+- Fondo de mapa (región visible del viewBox)
+- Ruta en rojo (#c43c3c)
+- Marcador origen: círculo verde (#2d5016)
+- Marcador destino: X rojo (#8b1a1a)
+- Etiquetas de ubicaciones
 
 ---
 
