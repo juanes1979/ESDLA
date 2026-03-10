@@ -301,9 +301,10 @@ DEFAULT_TERRAIN_DIFFICULTIES = [
 
 # Road types (tipos de camino)
 DEFAULT_ROAD_TYPES = [
-    {"id": "road_real", "tipo": "camino_real", "nombre": "Camino Real", "cd_prueba": 8, "modificador_velocidad": 1.5, "permite_montura": True, "es_camino": True},
-    {"id": "road_senda", "tipo": "senda", "nombre": "Senda", "cd_prueba": 10, "modificador_velocidad": 1.25, "permite_montura": True, "es_camino": True},
-    {"id": "road_sendero", "tipo": "sendero", "nombre": "Sendero", "cd_prueba": 12, "modificador_velocidad": 1.1, "permite_montura": True, "es_camino": True},
+    {"id": "road_gran", "tipo": "gran_camino", "nombre": "Gran Camino", "cd_prueba": 8, "modificador_velocidad": 1.5, "permite_montura": True, "es_camino": True},
+    {"id": "road_mayor", "tipo": "camino_mayor", "nombre": "Camino Mayor", "cd_prueba": 10, "modificador_velocidad": 1.25, "permite_montura": True, "es_camino": True},
+    {"id": "road_menor", "tipo": "camino_menor", "nombre": "Camino Menor", "cd_prueba": 12, "modificador_velocidad": 1.1, "permite_montura": True, "es_camino": True},
+    {"id": "road_sendas", "tipo": "sendas", "nombre": "Sendas", "cd_prueba": 14, "modificador_velocidad": 1.0, "permite_montura": False, "es_camino": True},
     {"id": "road_campo", "tipo": "campo_abierto", "nombre": "Campo Abierto", "cd_prueba": 15, "modificador_velocidad": 1.0, "permite_montura": True, "es_camino": False}
 ]
 
@@ -382,22 +383,22 @@ DEFAULT_LAND_TYPES = [
 
 # Complete PX Table (editable matrix)
 # Combina: Tipo de Camino + Tipo de Tierra + Dificultad de Terreno
-# Nota: Los caminos principales (Camino Real) en tierras peligrosas son más rápidos
+# Nota: Los Gran Caminos en tierras peligrosas son más rápidos
 # pero más peligrosos (pueden estar vigilados). Las sendas suman PX extra.
 DEFAULT_PX_TABLE = {
     "id": "px_table_main",
     "nombre": "Tabla de PX por Viaje",
     "descripcion": "Al cruzar un área peligrosa, cuenta un número de casillas igual a la puntuación de Peligro del área. Los caminos en tierras hostiles pueden estar vigilados.",
     "notas": [
-        "Camino Real: Rápido pero puede estar vigilado en tierras hostiles",
-        "Senda/Sendero: Más seguro pero añade PX extra por dificultad",
+        "Gran Camino: Rápido pero puede estar vigilado en tierras hostiles",
+        "Camino Mayor/Menor: Más seguro pero añade PX extra por dificultad",
         "Los PX se calculan por casilla atravesada"
     ],
     # Tabla base por tipo de vía y tipo de tierra
     "filas": [
         {
-            "tipo_via": "camino_real",
-            "nombre": "...Camino Real",
+            "tipo_via": "gran_camino",
+            "nombre": "...Gran Camino",
             "tierras_libres": 0,
             "tierras_fronterizas": 0,
             "tierras_salvajes": 10,
@@ -405,8 +406,8 @@ DEFAULT_PX_TABLE = {
             "tierras_oscuras": 25
         },
         {
-            "tipo_via": "senda",
-            "nombre": "...Senda",
+            "tipo_via": "camino_mayor",
+            "nombre": "...Camino Mayor",
             "tierras_libres": 0,
             "tierras_fronterizas": 5,
             "tierras_salvajes": 15,
@@ -414,13 +415,22 @@ DEFAULT_PX_TABLE = {
             "tierras_oscuras": 30
         },
         {
-            "tipo_via": "sendero",
-            "nombre": "...Sendero",
+            "tipo_via": "camino_menor",
+            "nombre": "...Camino Menor",
             "tierras_libres": 0,
             "tierras_fronterizas": 5,
             "tierras_salvajes": 20,
             "tierras_sombra": 35,
             "tierras_oscuras": 35
+        },
+        {
+            "tipo_via": "sendas",
+            "nombre": "...Sendas",
+            "tierras_libres": 0,
+            "tierras_fronterizas": 10,
+            "tierras_salvajes": 20,
+            "tierras_sombra": 40,
+            "tierras_oscuras": 40
         },
         {
             "tipo_via": "campo_abierto", 

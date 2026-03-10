@@ -412,7 +412,7 @@ const TravelRulesSection = () => {
             <TabsContent value="lands">
               <div className="space-y-3">
                 <p className="text-sm text-muted-foreground mb-4">
-                  Configura los tipos de tierra y sus valores de PX por casilla.
+                  Configura los tipos de tierra y sus multiplicadores de PX.
                 </p>
                 {landTypes.map((land) => (
                   <Card 
@@ -613,7 +613,7 @@ const TravelRulesSection = () => {
             <TabsContent value="pxtable">
               <div className="space-y-4">
                 <p className="text-sm text-muted-foreground mb-4">
-                  Tabla de puntos de experiencia por casilla según tipo de terreno y tipo de tierra.
+                  Tabla de puntos de experiencia según tipo de terreno y tipo de tierra.
                 </p>
                 
                 {pxTable && (
@@ -622,7 +622,7 @@ const TravelRulesSection = () => {
                       <thead>
                         <tr className="bg-black/30">
                           <th className="p-2 border border-border/50 text-left text-[hsl(var(--gold))]">
-                            Por cada casilla cruzada a través de...
+                            Por cada tramo cruzado a través de...
                           </th>
                           <th className="p-2 border border-border/50 text-center">T. Libres</th>
                           <th className="p-2 border border-border/50 text-center">T. Fronterizas</th>
@@ -905,7 +905,7 @@ const TravelRulesSection = () => {
                     <h4 className="font-bold text-green-400 mb-3">Velocidad</h4>
                     <div className="grid grid-cols-4 gap-4">
                       <div>
-                        <Label className="text-xs">Umbral Lento (pies)</Label>
+                        <Label className="text-xs">Umbral Lento (m)</Label>
                         <Input
                           type="number"
                           value={rules.speed_slow_threshold}
@@ -921,7 +921,7 @@ const TravelRulesSection = () => {
                         />
                       </div>
                       <div>
-                        <Label className="text-xs">Umbral Rápido (pies)</Label>
+                        <Label className="text-xs">Umbral Rápido (m)</Label>
                         <Input
                           type="number"
                           value={rules.speed_fast_threshold}

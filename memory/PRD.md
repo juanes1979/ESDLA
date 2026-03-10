@@ -11,7 +11,62 @@ Ver sección "3. Mapa en PDF/Crónica" para detalles técnicos.
 #### 2. Modificadores de Habilidad - VERIFICADO
 Los modificadores de habilidad se calculan correctamente incluyendo competencia + pericia.
 
-#### 2. Refugios Seguros en Ruta
+#### 3. Botón "Descargar PDF (3 hojas)" - MOVIDO
+- Quitado del creador de personajes (antes de crear)
+- Añadido a la página de "HOJA DE PERSONAJE" junto a "Ficha Oficial"
+
+#### 4. Nombres de Caminos Actualizados
+- **Gran Camino** (antes: Camino Real) - CD 8, ×1.5 vel
+- **Camino Mayor** (antes: Senda) - CD 10, ×1.25 vel
+- **Camino Menor** (antes: Sendero) - CD 12, ×1.1 vel
+- **Sendas** (nuevo) - CD 14, ×1 vel, sin montura
+- **Campo Abierto** - CD 15, ×1 vel
+
+#### 5. Sistema Métrico - ACTUALIZADO
+- Velocidad en metros (m) en lugar de pies
+- Labels en Config. Viajes actualizados: "Umbral Lento (m)", "Umbral Rápido (m)"
+
+#### 6. Sistema de Cálculo de PX - IMPLEMENTADO
+Fórmula: `PX final = PX base × diferencia × terreno × peligrosidad`
+
+**Tablas añadidas a la sección VIAJES:**
+
+1. **PX Base según CD:**
+   | CD  | Dificultad | Éxito | Fallo |
+   |-----|------------|-------|-------|
+   | 10  | Muy fácil  | +1    | 0     |
+   | 12  | Fácil      | +2    | −1    |
+   | 14  | Moderada   | +3    | −1    |
+   | 16  | Difícil    | +4    | −2    |
+   | 18  | Muy difícil| +5    | −2    |
+   | 20+ | Extrema    | +6    | −3    |
+
+2. **Modificador por diferencia:**
+   - +10 o más: ×2
+   - +5 a +9: ×1.5
+   - +1 a +4: ×1.2
+   - 0: ×1
+   - −1 a −3: ×1
+   - −4 a −6: ×1.2
+   - −7 o más: ×1.5
+
+3. **Multiplicador por terreno:**
+   - Fácil: ×0.8
+   - Moderado: ×1
+   - Difícil: ×1.2
+   - Muy Difícil: ×1.5
+   - Desalentador: ×1.8
+
+4. **Multiplicador por tierras:**
+   - Libres: ×0.8
+   - Fronterizas: ×1
+   - Salvajes: ×1.2
+   - Sombra: ×1.5
+   - Oscuras: ×1.8
+
+**Límite:** máximo ±12 PX por tirada
+
+#### 7. Refugios Seguros en Ruta
 **Regla:** Solo se puede descansar en refugios seguros cuando se pasa cerca (~30km).
 
 **Implementación:**
@@ -19,35 +74,10 @@ Los modificadores de habilidad se calculan correctamente incluyendo competencia 
 - Excluye el destino final de la lista
 - Calcula casilla/km de cada refugio
 
-**Ejemplo (Hobbiton → Esgaroth):**
-- Los Gamos: casilla 2
-- Bree: casilla 10
-- Rivendel: casilla 28 (solo si es paso, no destino)
-
-#### 3. Mapa en PDF/Crónica - CORREGIDO (2026-03-10)
+#### 8. Mapa en PDF/Crónica - CORREGIDO (2026-03-10)
 **Problema:** El mapa aparecía como caja negra en el PDF generado.
 
-**Causa:** `html2canvas` no puede renderizar correctamente SVGs con imágenes externas (`<image href="/mapa_jugadores.jpg">`), incluso con `useCORS: true`.
-
-**Solución FINAL:** Renderizar SVG directamente a Canvas (sin html2canvas):
-```javascript
-const captureMapImage = async () => {
-  // 1. Obtener viewBox del SVG para conocer la región visible
-  // 2. Crear canvas de 800px de ancho (proporcional)
-  // 3. Cargar imagen del mapa y dibujar solo la región visible
-  // 4. Dibujar path (ruta) parseando el atributo 'd'
-  // 5. Dibujar marcadores (círculos, líneas X)
-  // 6. Dibujar etiquetas de texto (origen/destino)
-  return outputCanvas.toDataURL('image/png', 0.9);
-};
-```
-
-**Resultado:** El mapa ahora aparece correctamente con:
-- Fondo de mapa (región visible del viewBox)
-- Ruta en rojo (#c43c3c)
-- Marcador origen: círculo verde (#2d5016)
-- Marcador destino: X rojo (#8b1a1a)
-- Etiquetas de ubicaciones
+**Solución FINAL:** Renderizar SVG directamente a Canvas (sin html2canvas).
 
 ---
 
@@ -70,14 +100,4 @@ Dúnedain:       10m = 40 km/día
 Elfos/Hombres:   9m = 36 km/día
 Enanos/Hobbits:  7m = 28 km/día
 Caballo:        18m = 72 km/día
-```
-
-## Refugios en Ruta (Backend)
-```python
-# Detectar refugios dentro de ~30km del path
-for loc in all_locations:
-    if loc.get('nombre') == config.destino_nombre:
-        continue  # Excluir destino
-    if min_dist_to_path < 1.5:
-        refugios_en_ruta.append({...})
 ```

@@ -168,8 +168,8 @@ const ViajeSection = ({ data }) => {
                 <thead>
                   <tr className="border-b border-border/30">
                     <th className="text-left py-2 px-2">Tipo</th>
-                    <th className="text-center py-2 px-2">Velocidad</th>
-                    <th className="text-center py-2 px-2">Casillas/Día</th>
+                    <th className="text-center py-2 px-2">Velocidad (m)</th>
+                    <th className="text-center py-2 px-2">km/Día</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -177,7 +177,7 @@ const ViajeSection = ({ data }) => {
                     <tr key={i} className="border-b border-border/10">
                       <td className="py-2 px-2">{v.tipo}</td>
                       <td className="text-center py-2 px-2 text-[hsl(var(--magic-blue))]">{v.velocidad}</td>
-                      <td className="text-center py-2 px-2 text-[hsl(var(--gold))] font-bold">{v.casillas}</td>
+                      <td className="text-center py-2 px-2 text-[hsl(var(--gold))] font-bold">{v.km_dia || v.casillas}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -277,20 +277,195 @@ const ViajeSection = ({ data }) => {
             ⭐ EXPERIENCIA POR VIAJE
           </h3>
           {data.experiencia_viaje.descripcion && (
-            <p className="text-sm text-muted-foreground mb-2">{data.experiencia_viaje.descripcion}</p>
+            <p className="text-sm text-muted-foreground mb-4">{data.experiencia_viaje.descripcion}</p>
           )}
+          
+          {/* Fórmula */}
+          <div className="bg-[hsl(var(--magic-blue))/10] p-3 rounded mb-4">
+            <p className="text-sm font-bold text-[hsl(var(--magic-blue))] mb-2">Fórmula de cálculo:</p>
+            <p className="text-sm font-mono text-center py-2 bg-black/20 rounded">
+              PX final = PX base × diferencia × terreno × peligrosidad
+            </p>
+            <p className="text-xs text-muted-foreground mt-2 text-center">
+              Límite: máximo ±12 PX por tirada. Redondeo al entero más cercano.
+            </p>
+          </div>
+          
+          {/* 1. PX Base según CD */}
+          <div className="mb-4">
+            <h4 className="font-semibold text-[hsl(var(--torch-orange))] mb-2">1️⃣ PX Base según Clase de Dificultad (CD)</h4>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-border/30 bg-black/20">
+                    <th className="text-center py-2 px-2">CD</th>
+                    <th className="text-left py-2 px-2">Dificultad</th>
+                    <th className="text-center py-2 px-2">PX Éxito</th>
+                    <th className="text-center py-2 px-2">PX Fallo</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr className="border-b border-border/10">
+                    <td className="text-center py-1 px-2 font-mono">10</td>
+                    <td className="py-1 px-2">Muy fácil</td>
+                    <td className="text-center py-1 px-2 text-green-400">+1</td>
+                    <td className="text-center py-1 px-2 text-muted-foreground">0</td>
+                  </tr>
+                  <tr className="border-b border-border/10">
+                    <td className="text-center py-1 px-2 font-mono">12</td>
+                    <td className="py-1 px-2">Fácil</td>
+                    <td className="text-center py-1 px-2 text-green-400">+2</td>
+                    <td className="text-center py-1 px-2 text-red-400">−1</td>
+                  </tr>
+                  <tr className="border-b border-border/10">
+                    <td className="text-center py-1 px-2 font-mono">14</td>
+                    <td className="py-1 px-2">Moderada</td>
+                    <td className="text-center py-1 px-2 text-green-400">+3</td>
+                    <td className="text-center py-1 px-2 text-red-400">−1</td>
+                  </tr>
+                  <tr className="border-b border-border/10">
+                    <td className="text-center py-1 px-2 font-mono">16</td>
+                    <td className="py-1 px-2">Difícil</td>
+                    <td className="text-center py-1 px-2 text-green-400">+4</td>
+                    <td className="text-center py-1 px-2 text-red-400">−2</td>
+                  </tr>
+                  <tr className="border-b border-border/10">
+                    <td className="text-center py-1 px-2 font-mono">18</td>
+                    <td className="py-1 px-2">Muy difícil</td>
+                    <td className="text-center py-1 px-2 text-green-400">+5</td>
+                    <td className="text-center py-1 px-2 text-red-400">−2</td>
+                  </tr>
+                  <tr className="border-b border-border/10">
+                    <td className="text-center py-1 px-2 font-mono">20+</td>
+                    <td className="py-1 px-2">Extrema</td>
+                    <td className="text-center py-1 px-2 text-green-400">+6</td>
+                    <td className="text-center py-1 px-2 text-red-400">−3</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+          
+          {/* 2. Modificador por diferencia */}
+          <div className="mb-4">
+            <h4 className="font-semibold text-[hsl(var(--magic-blue))] mb-2">2️⃣ Modificador según diferencia con la tirada</h4>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+              <div className="bg-green-500/10 p-2 rounded text-center">
+                <p className="text-xs text-muted-foreground">+10 o más</p>
+                <p className="font-bold text-green-400">×2</p>
+              </div>
+              <div className="bg-green-500/10 p-2 rounded text-center">
+                <p className="text-xs text-muted-foreground">+5 a +9</p>
+                <p className="font-bold text-green-400">×1.5</p>
+              </div>
+              <div className="bg-green-500/10 p-2 rounded text-center">
+                <p className="text-xs text-muted-foreground">+1 a +4</p>
+                <p className="font-bold text-green-400">×1.2</p>
+              </div>
+              <div className="bg-yellow-500/10 p-2 rounded text-center">
+                <p className="text-xs text-muted-foreground">0</p>
+                <p className="font-bold text-yellow-400">×1</p>
+              </div>
+              <div className="bg-yellow-500/10 p-2 rounded text-center">
+                <p className="text-xs text-muted-foreground">−1 a −3</p>
+                <p className="font-bold text-yellow-400">×1</p>
+              </div>
+              <div className="bg-red-500/10 p-2 rounded text-center">
+                <p className="text-xs text-muted-foreground">−4 a −6</p>
+                <p className="font-bold text-red-400">×1.2</p>
+              </div>
+              <div className="bg-red-500/10 p-2 rounded text-center">
+                <p className="text-xs text-muted-foreground">−7 o más</p>
+                <p className="font-bold text-red-400">×1.5</p>
+              </div>
+            </div>
+            <p className="text-xs text-muted-foreground mt-2 italic">En fallos, el multiplicador aumenta la penalización.</p>
+          </div>
+          
+          {/* 3. Multiplicador por Terreno */}
+          <div className="mb-4">
+            <h4 className="font-semibold text-yellow-400 mb-2">3️⃣ Multiplicador por Tipo de Terreno</h4>
+            <div className="grid grid-cols-5 gap-2">
+              <div className="bg-green-500/10 p-2 rounded text-center">
+                <p className="text-xs text-muted-foreground">Fácil</p>
+                <p className="font-bold text-green-400">×0.8</p>
+              </div>
+              <div className="bg-yellow-500/10 p-2 rounded text-center">
+                <p className="text-xs text-muted-foreground">Moderado</p>
+                <p className="font-bold text-yellow-400">×1</p>
+              </div>
+              <div className="bg-orange-500/10 p-2 rounded text-center">
+                <p className="text-xs text-muted-foreground">Difícil</p>
+                <p className="font-bold text-orange-400">×1.2</p>
+              </div>
+              <div className="bg-red-500/10 p-2 rounded text-center">
+                <p className="text-xs text-muted-foreground">Muy Difícil</p>
+                <p className="font-bold text-red-400">×1.5</p>
+              </div>
+              <div className="bg-red-900/20 p-2 rounded text-center">
+                <p className="text-xs text-muted-foreground">Desalentador</p>
+                <p className="font-bold text-red-500">×1.8</p>
+              </div>
+            </div>
+          </div>
+          
+          {/* 4. Multiplicador por Tierras */}
+          <div className="mb-4">
+            <h4 className="font-semibold text-purple-400 mb-2">4️⃣ Multiplicador por Tipo de Tierras</h4>
+            <div className="grid grid-cols-5 gap-2">
+              <div className="bg-green-500/10 p-2 rounded text-center">
+                <p className="text-xs text-muted-foreground">T. Libres</p>
+                <p className="font-bold text-green-400">×0.8</p>
+              </div>
+              <div className="bg-yellow-500/10 p-2 rounded text-center">
+                <p className="text-xs text-muted-foreground">T. Fronterizas</p>
+                <p className="font-bold text-yellow-400">×1</p>
+              </div>
+              <div className="bg-orange-500/10 p-2 rounded text-center">
+                <p className="text-xs text-muted-foreground">T. Salvajes</p>
+                <p className="font-bold text-orange-400">×1.2</p>
+              </div>
+              <div className="bg-red-500/10 p-2 rounded text-center">
+                <p className="text-xs text-muted-foreground">T. Sombra</p>
+                <p className="font-bold text-red-400">×1.5</p>
+              </div>
+              <div className="bg-red-900/20 p-2 rounded text-center">
+                <p className="text-xs text-muted-foreground">T. Oscuras</p>
+                <p className="font-bold text-red-500">×1.8</p>
+              </div>
+            </div>
+          </div>
+          
+          {/* Ejemplo */}
+          <div className="bg-black/20 p-4 rounded">
+            <h4 className="font-semibold text-[hsl(var(--gold))] mb-3">📝 Ejemplo: Tirada de orientación del Guía</h4>
+            <div className="grid md:grid-cols-2 gap-4 text-sm">
+              <div>
+                <p className="mb-1"><span className="text-muted-foreground">CD:</span> <span className="font-mono">16</span></p>
+                <p className="mb-1"><span className="text-muted-foreground">Resultado:</span> <span className="font-mono">22</span></p>
+                <p className="mb-1"><span className="text-muted-foreground">Diferencia:</span> <span className="font-mono text-green-400">+6</span></p>
+              </div>
+              <div className="space-y-1">
+                <p><span className="text-muted-foreground">1. PX base (CD 16):</span> <span className="text-green-400">4 PX</span></p>
+                <p><span className="text-muted-foreground">2. Diferencia (+6):</span> 4 × 1.5 = <span className="text-[hsl(var(--magic-blue))]">6</span></p>
+                <p><span className="text-muted-foreground">3. Terreno Difícil:</span> 6 × 1.2 = <span className="text-yellow-400">7.2</span></p>
+                <p><span className="text-muted-foreground">4. T. Salvajes:</span> 7.2 × 1.2 = <span className="text-orange-400">8.6</span></p>
+                <p className="pt-2 border-t border-border/30 font-bold">
+                  <span className="text-muted-foreground">Resultado final:</span> <span className="text-[hsl(var(--gold))] text-lg">9 PX</span>
+                </p>
+              </div>
+            </div>
+          </div>
+          
           {data.experiencia_viaje.condiciones && (
-            <>
+            <div className="mt-4">
               <p className="text-sm text-muted-foreground mb-2">Se otorgan PX solo si:</p>
               <ul className="text-sm mb-4 space-y-1">
                 {data.experiencia_viaje.condiciones.map((c, i) => (
                   <li key={i}>• {c}</li>
                 ))}
               </ul>
-            </>
-          )}
-          {data.experiencia_viaje.calculo && (
-            <p className="text-sm text-[hsl(var(--magic-blue))]">{data.experiencia_viaje.calculo}</p>
+            </div>
           )}
         </div>
       )}
