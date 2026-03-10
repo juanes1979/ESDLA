@@ -21,6 +21,7 @@ import OccupationEditor from '@/components/admin/OccupationEditor';
 import EquipmentEditor from '@/components/admin/EquipmentEditor';
 // Refactored rule section components
 import { SombraSection, CombateSection, SalariosSection, VariosSection, ViajeSection, ComunidadSection, NPCsSection, CriaturasSinNombreSection, BackgroundsSection, CharacterCreationSection, TerrainCorrectionTool, TradingSystemSection, VirtuesSection, ArtesSection, RecompensasSection, EquipmentSection, PriceModifiersSection, RegionsSection, CulturesSection, OccupationsSection, TravelRulesSection } from '@/components/rules';
+import ObjectInteractionSection from '@/components/rules/sections/ObjectInteractionSection';
 
 const RULE_CATEGORIES = [
   { id: 'cultures', name: 'Culturas', icon: Users, color: 'gold', description: 'Las razas y pueblos de la Tierra Media' },
@@ -36,6 +37,7 @@ const RULE_CATEGORIES = [
   { id: 'artes', name: 'Artes', icon: BookOpen, color: 'magic-blue', description: 'Habilidades especiales' },
   { id: 'recompensas', name: 'Recompensas', icon: Crown, color: 'gold', description: 'Mejoras de equipo y bendiciones' },
   { id: 'combate', name: 'Combate', icon: Swords, color: 'destructive', description: 'Reglas de combate y ataque' },
+  { id: 'objects', name: 'Objetos', icon: Package, color: 'magic-blue', description: 'Interacciones para romper puertas, cofres, cerrojos...' },
   { id: 'salarios', name: 'Salarios', icon: Crown, color: 'gold', description: 'Tabla de salarios por ocupación' },
   { id: 'varios', name: 'Reglas Varias', icon: BookOpen, color: 'magic-blue', description: 'Pruebas, Cansancio, Inspiración, Ojo de Mordor' },
   { id: 'travel', name: 'Viajes', icon: Map, color: 'gold', description: 'Reglas de exploración' },
@@ -3013,6 +3015,9 @@ const RulesPage = () => {
       
       case 'combate':
         return <CombateSection data={data} />;
+      
+      case 'objects':
+        return <ObjectInteractionSection />;
       
       case 'travel':
         return <ViajeSection data={data} />;
