@@ -54,6 +54,42 @@
    - `PUT /api/characters/{id}/fatigue`
    - Actualiza fatiga directamente (clamp 0-6)
 
+#### 2. Sistema de Interacciones con Objetos - COMPLETADO
+
+Sistema interactivo para romper puertas, cofres, cerrojos y otros objetos:
+
+**Clase de Armadura por Material:**
+| Material | CA |
+|----------|-----|
+| Tela, papel, cuerda | 11 |
+| Cristal, vidrio, hielo | 13 |
+| Madera, hueso | 15 |
+| Piedra | 17 |
+| Hierro, acero | 19 |
+| Mithril | 21 |
+| Adamantina | 23 |
+
+**Puntos de Golpe por Tamaño:**
+| Tamaño | Frágil | Resistente |
+|--------|--------|------------|
+| Diminuto | 1d4 (~2) | 2d4 (~5) |
+| Pequeño | 1d6 (~3) | 3d6 (~10) |
+| Mediano | 1d8 (~4) | 4d8 (~18) |
+| Grande | 1d10 (~5) | 5d10 (~27) |
+
+**Estados que modifican CA y PG:**
+- **Ruinoso:** -4 CA, ×0.5 PG
+- **Desgastado:** -2 CA, ×0.75 PG
+- **Normal:** +0 CA, ×1 PG
+- **Reforzado:** +2 CA, ×1.25 PG
+- **Obra maestra:** +4 CA, ×1.5 PG
+
+**Reglas especiales:**
+- **1 Natural (Pifia):** Fallo automático. 50% de dañar el arma.
+- **20 Natural (Crítico):** Impacto automático con daño doble.
+
+**Objetos predefinidos:** Cerrojo común, Cerrojo reforzado, Cofre de madera, Puerta vieja, Puerta de castillo, Portón de hierro, Cadenas, Ventana de vidrio, Barril, Estatua de piedra, Puerta de Mithril
+
 ---
 
 ### ✅ COMPLETED Previous Session (Fork #38)
