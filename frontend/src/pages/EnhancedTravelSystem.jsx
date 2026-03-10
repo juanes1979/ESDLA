@@ -200,14 +200,46 @@ const createSmoothPath = (points) => {
 
 const JourneyMiniMap = ({ origenCoords, destinoCoords, origenNombre, destinoNombre, pathPoints, isDirectLine, expanded = false, onToggleExpand, events = [], forPrint = false }) => {
   const [imageLoaded, setImageLoaded] = useState(false);
+  const [mapImageBase64, setMapImageBase64] = useState(null);
   const containerRef = useRef(null);
   
-  // Preload image
+  // Preload image and convert to base64 for html2canvas compatibility
   useEffect(() => {
-    const img = new Image();
-    img.onload = () => setImageLoaded(true);
-    img.onerror = () => setImageLoaded(true); // Continue even if image fails
-    img.src = PLAYER_MAP_URL;
+    const loadImageAsBase64 = async () => {
+      try {
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        
+        img.onload = () => {
+          // Create canvas to convert to base64
+          const canvas = document.createElement('canvas');
+          // Use smaller size for base64 to avoid memory issues
+          const maxSize = 2000;
+          const scale = Math.min(1, maxSize / Math.max(img.naturalWidth, img.naturalHeight));
+          canvas.width = img.naturalWidth * scale;
+          canvas.height = img.naturalHeight * scale;
+          
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+          
+          const base64 = canvas.toDataURL('image/jpeg', 0.7);
+          setMapImageBase64(base64);
+          setImageLoaded(true);
+        };
+        
+        img.onerror = () => {
+          console.error('Failed to load map image');
+          setImageLoaded(true); // Continue even if image fails
+        };
+        
+        img.src = window.location.origin + PLAYER_MAP_URL;
+      } catch (err) {
+        console.error('Error loading map image:', err);
+        setImageLoaded(true);
+      }
+    };
+    
+    loadImageAsBase64();
   }, []);
   
   // Validate required coordinates
@@ -376,9 +408,9 @@ const JourneyMiniMap = ({ origenCoords, destinoCoords, origenNombre, destinoNomb
               className="w-full h-full"
               preserveAspectRatio="xMidYMid slice"
             >
-              {/* Player map as background */}
+              {/* Player map as background - use base64 for html2canvas compatibility */}
               <image
-                href={PLAYER_MAP_URL}
+                href={mapImageBase64 || PLAYER_MAP_URL}
                 x="0"
                 y="0"
                 width={MAP_PIXEL_WIDTH}
@@ -608,6 +640,8 @@ const EnhancedTravelSystem = () => {
   
   // Ref for the map container to capture for PDF
   const mapContainerRef = useRef(null);
+  // Saved map image captured when route is calculated
+  const [savedMapImage, setSavedMapImage] = useState(null);
   
   // Orientation check state (new system)
   const [orientationChecks, setOrientationChecks] = useState([]); // All orientation checks
@@ -1770,7 +1804,34 @@ const EnhancedTravelSystem = () => {
     setPxApplied(false);
     setPxResults(null);
     setJourneyNarrative(null);
+    setSavedMapImage(null); // Reset saved map image on new journey
   };
+  
+  // Capture map image when journeyCalc is available and we have coordinates
+  useEffect(() => {
+    if (journeyCalc?.ruta?.path_coords && mapContainerRef.current && !savedMapImage) {
+      // Wait for the map to render, then capture it
+      const timer = setTimeout(async () => {
+        try {
+          const canvas = await html2canvas(mapContainerRef.current, {
+            backgroundColor: '#f4efe6',
+            scale: 2,
+            logging: false,
+            useCORS: true,
+            allowTaint: true,
+            imageTimeout: 15000
+          });
+          const dataUrl = canvas.toDataURL('image/png', 0.9);
+          setSavedMapImage(dataUrl);
+          console.log('Map image auto-captured');
+        } catch (err) {
+          console.error('Error auto-capturing map:', err);
+        }
+      }, 1000); // Wait 1 second for map to fully render
+      
+      return () => clearTimeout(timer);
+    }
+  }, [journeyCalc?.ruta?.path_coords, savedMapImage]);
   
   // =============== JOURNEY NARRATIVE & PDF ===============
   
@@ -1856,185 +1917,60 @@ const EnhancedTravelSystem = () => {
       return;
     }
     
-    // Capture the map by rendering SVG directly to canvas (bypasses html2canvas SVG issues)
+    // Capture the map using html2canvas on the visible element
+    // This should be called when the map is visible on screen
     const captureMapImage = async () => {
+      // If we already have a saved map image, use it
+      if (savedMapImage) {
+        return savedMapImage;
+      }
+      
       if (!mapContainerRef.current) return null;
       
       try {
-        const svg = mapContainerRef.current.querySelector('svg');
-        if (!svg) return null;
+        // Wait a bit to ensure the map is fully rendered
+        await new Promise(resolve => setTimeout(resolve, 100));
         
-        // Get SVG viewBox to know what region we're viewing
-        const viewBox = svg.getAttribute('viewBox');
-        if (!viewBox) return null;
-        
-        const [vbX, vbY, vbW, vbH] = viewBox.split(' ').map(Number);
-        
-        // Output canvas dimensions (reasonable size for PDF)
-        const outputWidth = 800;
-        const outputHeight = Math.round(outputWidth * (vbH / vbW));
-        
-        // Create output canvas
-        const outputCanvas = document.createElement('canvas');
-        outputCanvas.width = outputWidth;
-        outputCanvas.height = outputHeight;
-        const ctx = outputCanvas.getContext('2d');
-        
-        // Fill with parchment background
-        ctx.fillStyle = '#f4efe6';
-        ctx.fillRect(0, 0, outputWidth, outputHeight);
-        
-        // Load the map image
-        const mapImg = new Image();
-        mapImg.crossOrigin = 'anonymous';
-        
-        const mapLoaded = await new Promise((resolve) => {
-          mapImg.onload = () => resolve(true);
-          mapImg.onerror = () => resolve(false);
-          // Use full URL to avoid CORS issues
-          mapImg.src = window.location.origin + PLAYER_MAP_URL;
+        const canvas = await html2canvas(mapContainerRef.current, {
+          backgroundColor: '#f4efe6',
+          scale: 2,
+          logging: false,
+          useCORS: true,
+          allowTaint: true,
+          imageTimeout: 15000
         });
         
-        if (mapLoaded) {
-          // Calculate source rectangle (from the full map) and draw to canvas
-          // Source: coordinates from the map image corresponding to viewBox
-          // The viewBox is in map pixel coordinates, mapImg.naturalWidth/Height are the actual image dimensions
-          const scaleX = mapImg.naturalWidth / MAP_PIXEL_WIDTH;
-          const scaleY = mapImg.naturalHeight / MAP_PIXEL_HEIGHT;
-          
-          const srcX = vbX * scaleX;
-          const srcY = vbY * scaleY;
-          const srcW = vbW * scaleX;
-          const srcH = vbH * scaleY;
-          
-          // Draw the map region
-          ctx.drawImage(
-            mapImg,
-            srcX, srcY, srcW, srcH,  // Source rectangle
-            0, 0, outputWidth, outputHeight  // Destination rectangle
-          );
-        }
+        const dataUrl = canvas.toDataURL('image/png', 0.9);
+        return dataUrl;
+      } catch (err) {
+        console.error('Error capturing map with html2canvas:', err);
+        return null;
+      }
+    };
+    
+    // Function to capture and save the map image
+    // Should be called when the route is calculated and the map is visible
+    const captureAndSaveMapImage = async () => {
+      if (!mapContainerRef.current) return;
+      
+      try {
+        // Wait for the map to render
+        await new Promise(resolve => setTimeout(resolve, 500));
         
-        // Now draw the route and markers on top
-        // Scale factor from viewBox coordinates to canvas coordinates
-        const scale = outputWidth / vbW;
-        const offsetX = -vbX * scale;
-        const offsetY = -vbY * scale;
-        
-        // Helper to convert viewBox coords to canvas coords
-        const toCanvas = (x, y) => ({
-          x: x * scale + offsetX,
-          y: y * scale + offsetY
+        const canvas = await html2canvas(mapContainerRef.current, {
+          backgroundColor: '#f4efe6',
+          scale: 2,
+          logging: false,
+          useCORS: true,
+          allowTaint: true,
+          imageTimeout: 15000
         });
         
-        // Get path data from SVG
-        const pathElement = svg.querySelector('path');
-        if (pathElement) {
-          const pathD = pathElement.getAttribute('d');
-          const strokeWidth = parseFloat(pathElement.getAttribute('stroke-width')) || 20;
-          
-          // Draw path manually by parsing the d attribute
-          ctx.beginPath();
-          ctx.strokeStyle = '#c43c3c';
-          ctx.lineWidth = Math.max(2, strokeWidth * scale);
-          ctx.lineCap = 'round';
-          ctx.lineJoin = 'round';
-          ctx.globalAlpha = 0.85;
-          
-          // Simple path parser for M, L, Q commands
-          const commands = pathD.match(/[MLQZ][^MLQZ]*/gi) || [];
-          commands.forEach(cmd => {
-            const type = cmd[0].toUpperCase();
-            const coords = cmd.slice(1).trim().split(/[\s,]+/).map(Number);
-            
-            if (type === 'M' && coords.length >= 2) {
-              const p = toCanvas(coords[0], coords[1]);
-              ctx.moveTo(p.x, p.y);
-            } else if (type === 'L' && coords.length >= 2) {
-              const p = toCanvas(coords[0], coords[1]);
-              ctx.lineTo(p.x, p.y);
-            } else if (type === 'Q' && coords.length >= 4) {
-              const cp = toCanvas(coords[0], coords[1]);
-              const ep = toCanvas(coords[2], coords[3]);
-              ctx.quadraticCurveTo(cp.x, cp.y, ep.x, ep.y);
-            }
-          });
-          ctx.stroke();
-          ctx.globalAlpha = 1;
-        }
-        
-        // Draw origin and destination markers
-        const circles = svg.querySelectorAll('circle');
-        const lines = svg.querySelectorAll('line');
-        const texts = svg.querySelectorAll('text');
-        
-        // Draw circles (markers)
-        circles.forEach(circle => {
-          const cx = parseFloat(circle.getAttribute('cx'));
-          const cy = parseFloat(circle.getAttribute('cy'));
-          const r = parseFloat(circle.getAttribute('r'));
-          const fill = circle.getAttribute('fill');
-          const stroke = circle.getAttribute('stroke');
-          const strokeWidth = parseFloat(circle.getAttribute('stroke-width')) || 1;
-          
-          const p = toCanvas(cx, cy);
-          const radius = r * scale;
-          
-          ctx.beginPath();
-          ctx.arc(p.x, p.y, Math.max(3, radius), 0, Math.PI * 2);
-          
-          if (fill && fill !== 'none') {
-            ctx.fillStyle = fill;
-            ctx.fill();
-          }
-          if (stroke && stroke !== 'none') {
-            ctx.strokeStyle = stroke;
-            ctx.lineWidth = Math.max(1, strokeWidth * scale);
-            ctx.stroke();
-          }
-        });
-        
-        // Draw X marks for destination
-        lines.forEach(line => {
-          const x1 = parseFloat(line.getAttribute('x1'));
-          const y1 = parseFloat(line.getAttribute('y1'));
-          const x2 = parseFloat(line.getAttribute('x2'));
-          const y2 = parseFloat(line.getAttribute('y2'));
-          const stroke = line.getAttribute('stroke');
-          const strokeWidth = parseFloat(line.getAttribute('stroke-width')) || 1;
-          
-          const p1 = toCanvas(x1, y1);
-          const p2 = toCanvas(x2, y2);
-          
-          ctx.beginPath();
-          ctx.moveTo(p1.x, p1.y);
-          ctx.lineTo(p2.x, p2.y);
-          ctx.strokeStyle = stroke || '#8b1a1a';
-          ctx.lineWidth = Math.max(1, strokeWidth * scale);
-          ctx.stroke();
-        });
-        
-        // Draw text labels
-        ctx.textAlign = 'center';
-        texts.forEach(text => {
-          const x = parseFloat(text.getAttribute('x'));
-          const y = parseFloat(text.getAttribute('y'));
-          const fontSize = parseFloat(text.getAttribute('font-size')) || 100;
-          const fill = text.getAttribute('fill') || '#2d3a1d';
-          const content = text.textContent;
-          
-          const p = toCanvas(x, y);
-          const scaledFontSize = Math.max(10, fontSize * scale);
-          
-          ctx.font = `italic ${scaledFontSize}px Georgia, serif`;
-          ctx.fillStyle = fill;
-          ctx.fillText(content, p.x, p.y);
-        });
-        
-        return outputCanvas.toDataURL('image/png', 0.9);
+        const dataUrl = canvas.toDataURL('image/png', 0.9);
+        setSavedMapImage(dataUrl);
+        console.log('Map image captured and saved');
       } catch (err) {
         console.error('Error capturing map:', err);
-        return null;
       }
     };
     
