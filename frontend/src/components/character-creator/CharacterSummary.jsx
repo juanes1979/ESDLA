@@ -1,11 +1,9 @@
 /**
  * Character Summary - Final review before creation
  */
-import { useState } from 'react';
-import { Loader2, Edit2, Check, User, Sword, Shield, Heart, Star, Crown, FileDown } from 'lucide-react';
+import { Loader2, Edit2, Check, User, Sword, Shield, Heart, Star, Crown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { downloadCharacterPDF } from '@/utils/characterPDF';
 
 const getModifier = (score) => {
   const mod = Math.floor((score - 10) / 2);
@@ -13,19 +11,6 @@ const getModifier = (score) => {
 };
 
 const CharacterSummary = ({ draft, onFinalize, onEdit, loading }) => {
-  const [generatingPDF, setGeneratingPDF] = useState(false);
-
-  const handleDownloadPDF = async () => {
-    try {
-      setGeneratingPDF(true);
-      await downloadCharacterPDF(draft);
-    } catch (err) {
-      console.error('Error generating PDF:', err);
-    } finally {
-      setGeneratingPDF(false);
-    }
-  };
-
   if (!draft) return null;
 
   // Use 'caracteristicas' or 'atributos_finales' (whichever exists)
@@ -649,20 +634,6 @@ const CharacterSummary = ({ draft, onFinalize, onEdit, loading }) => {
         >
           <Edit2 className="w-4 h-4 mr-2" />
           Editar
-        </Button>
-        <Button
-          variant="outline"
-          onClick={handleDownloadPDF}
-          disabled={generatingPDF}
-          className="border-[hsl(var(--magic-blue))] text-[hsl(var(--magic-blue))] hover:bg-[hsl(var(--magic-blue))/10]"
-          data-testid="download-pdf-btn"
-        >
-          {generatingPDF ? (
-            <Loader2 className="w-4 h-4 animate-spin mr-2" />
-          ) : (
-            <FileDown className="w-4 h-4 mr-2" />
-          )}
-          Descargar PDF (3 hojas)
         </Button>
         <Button
           onClick={onFinalize}

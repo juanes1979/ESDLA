@@ -6,7 +6,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { 
   Loader2, ArrowLeft, Heart, Shield, Footprints, Eye, 
   Swords, Star, Book, Crown, Package, Scroll, Edit2,
-  Plus, Minus, Save, FileText, Printer
+  Plus, Minus, Save, FileText, Printer, FileDown
 } from 'lucide-react';
 import { getCharacter, deleteCharacter, getOccupations } from '@/services/api';
 import { Button } from '@/components/ui/button';
@@ -14,6 +14,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 import api from '@/services/api';
 import { LevelUpButton } from '@/components/LevelUpModal';
+import { downloadCharacterPDF } from '@/utils/characterPDF';
 
 const getModifier = (score) => Math.floor((score - 10) / 2);
 const formatModifier = (mod) => mod >= 0 ? `+${mod}` : `${mod}`;
@@ -39,6 +40,20 @@ const CharacterSheetPage = () => {
   const [editingHp, setEditingHp] = useState(false);
   const [hpChange, setHpChange] = useState(0);
   const [savingHp, setSavingHp] = useState(false);
+  const [generatingPDF, setGeneratingPDF] = useState(false);
+
+  // Handle PDF download
+  const handleDownloadPDF = async () => {
+    if (!character) return;
+    try {
+      setGeneratingPDF(true);
+      await downloadCharacterPDF(character);
+    } catch (err) {
+      console.error('Error generating PDF:', err);
+    } finally {
+      setGeneratingPDF(false);
+    }
+  };
 
   // Load character and related data (culture, occupation, background)
   useEffect(() => {
@@ -166,6 +181,20 @@ const CharacterSheetPage = () => {
             Hoja de Personaje
           </h1>
           <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              onClick={handleDownloadPDF}
+              disabled={generatingPDF}
+              className="border-[hsl(var(--magic-blue))] text-[hsl(var(--magic-blue))] hover:bg-[hsl(var(--magic-blue))/10]"
+              data-testid="download-pdf-btn"
+            >
+              {generatingPDF ? (
+                <Loader2 className="w-4 h-4 animate-spin mr-2" />
+              ) : (
+                <FileDown className="w-4 h-4 mr-2" />
+              )}
+              Descargar PDF (3 hojas)
+            </Button>
             <Button
               variant="outline"
               onClick={() => navigate(`/character/${characterId}/sheet`)}
