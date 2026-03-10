@@ -2326,6 +2326,9 @@ async def start_journey(config: JourneyConfig):
     
     await db.active_journeys.insert_one(journey_dict)
     
+    # Remove MongoDB _id before returning
+    journey_dict.pop('_id', None)
+    
     return {
         "success": True,
         "journey_id": journey.id,

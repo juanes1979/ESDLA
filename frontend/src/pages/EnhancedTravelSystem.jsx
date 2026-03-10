@@ -19,7 +19,7 @@ import {
   Sun, Moon, Snowflake, Leaf, ArrowLeft, ArrowRight, Plus, MapPin, 
   Route, AlertTriangle, Shield, Footprints, Dice6, Check, X,
   ChevronRight, SkipForward, Flag, Zap, Heart, Eye, Sparkles, Maximize2,
-  Printer, FileText, BookOpen, Package, ArrowLeftRight, Loader2
+  Printer, FileText, BookOpen, Package, ArrowLeftRight, Loader2, Droplets, Utensils
 } from 'lucide-react';
 import { toast } from 'sonner';
 import html2canvas from 'html2canvas';
@@ -1129,11 +1129,114 @@ const EnhancedTravelSystem = () => {
     });
   }, [journeyCalc?.ruta?.refugios_en_ruta]);
   
+  // =============== DAILY CONSUMPTION ===============
+  // Consume food and water for each party member, apply fatigue if supplies run out
+  const consumeDailyProvisions = useCallback(() => {
+    const numPersonajes = config.miembros.length;
+    const comidaConsumidaHoy = numPersonajes; // 1 ration per person
+    const aguaConsumidaHoy = numPersonajes * 2; // 2L per person
+    
+    setPartyProvisions(prev => {
+      const nuevaComidaDisponible = prev.comidaTotal - prev.comidaConsumida - comidaConsumidaHoy;
+      const nuevaAguaDisponible = prev.aguaTotal - prev.aguaConsumida - aguaConsumidaHoy;
+      
+      // Track provision fatigue per character
+      const newProvisionFatigue = { ...provisionFatigue };
+      
+      config.miembros.forEach(miembro => {
+        if (!newProvisionFatigue[miembro.id]) {
+          newProvisionFatigue[miembro.id] = { sinComida: 0, sinAgua: 0 };
+        }
+        
+        // If no food available, increment days without food
+        if (nuevaComidaDisponible < 0) {
+          newProvisionFatigue[miembro.id].sinComida += 1;
+        }
+        
+        // If no water available, increment days without water
+        if (nuevaAguaDisponible < 0) {
+          newProvisionFatigue[miembro.id].sinAgua += 1;
+        }
+      });
+      
+      setProvisionFatigue(newProvisionFatigue);
+      
+      // Show warnings if running low
+      if (nuevaComidaDisponible < numPersonajes && nuevaComidaDisponible >= 0) {
+        toast.warning(`¡Comida escasa! Queda para ${Math.floor(nuevaComidaDisponible / numPersonajes)} día(s).`);
+      } else if (nuevaComidaDisponible < 0) {
+        toast.error(`¡Sin comida! +1 nivel de fatiga para cada miembro.`);
+      }
+      
+      if (nuevaAguaDisponible < numPersonajes * 2 && nuevaAguaDisponible >= 0) {
+        toast.warning(`¡Agua escasa! Queda para ${Math.floor(nuevaAguaDisponible / (numPersonajes * 2))} día(s).`);
+      } else if (nuevaAguaDisponible < 0) {
+        toast.error(`¡Sin agua! +2 niveles de fatiga para cada miembro.`);
+      }
+      
+      return {
+        ...prev,
+        comidaConsumida: prev.comidaConsumida + comidaConsumidaHoy,
+        aguaConsumida: prev.aguaConsumida + aguaConsumidaHoy
+      };
+    });
+  }, [config.miembros, provisionFatigue]);
+  
+  // Refill water near towns/rivers
+  const refillWaterNearTown = useCallback((townName) => {
+    const numPersonajes = config.miembros.length;
+    const aguaNecesaria = numPersonajes * 2 * 3; // 3 days of water
+    
+    setPartyProvisions(prev => ({
+      ...prev,
+      aguaTotal: prev.aguaTotal + aguaNecesaria,
+    }));
+    
+    toast.success(`Agua rellenada cerca de ${townName}. +${aguaNecesaria}L disponibles.`);
+  }, [config.miembros]);
+  
+  // Foraging action - costs time, success depends on Survival check
+  const performForaging = useCallback(async (characterId) => {
+    const char = config.miembros.find(m => m.id === characterId);
+    if (!char) return;
+    
+    // Roll d20 + Wisdom modifier + proficiency if applicable
+    const d20 = Math.floor(Math.random() * 20) + 1;
+    const modifier = char.modSabiduria || 0;
+    const total = d20 + modifier;
+    const cd = 15; // Survival DC for foraging
+    const exito = total >= cd;
+    
+    if (exito) {
+      // Success: find 1d4 rations and 1d4 liters of water
+      const comidaEncontrada = Math.floor(Math.random() * 4) + 1;
+      const aguaEncontrada = Math.floor(Math.random() * 4) + 1;
+      
+      setPartyProvisions(prev => ({
+        ...prev,
+        comidaTotal: prev.comidaTotal + comidaEncontrada,
+        aguaTotal: prev.aguaTotal + aguaEncontrada
+      }));
+      
+      toast.success(`¡${char.nombre} encontró ${comidaEncontrada} raciones y ${aguaEncontrada}L de agua! (Tirada: ${total} vs CD ${cd})`);
+    } else {
+      toast.error(`${char.nombre} no encontró nada comestible. (Tirada: ${total} vs CD ${cd})`);
+    }
+    
+    // Foraging takes time - add 1 to stage days
+    setStageDays(prev => prev + 1);
+    
+    return { exito, tirada: total, cd };
+  }, [config.miembros]);
+
   // After resolving an event, continue with next orientation check
   const continueAfterEvent = async (updatedEvents = null) => {
     // Update current position to event position
     setCurrentPosition(nextEventPosition);
     setStageDays(prev => prev + 1);
+    
+    // *** CONSUME DAILY PROVISIONS ***
+    consumeDailyProvisions();
     
     // Use passed events or fall back to state (for direct calls)
     const currentEvents = updatedEvents || events;
@@ -1265,6 +1368,46 @@ const EnhancedTravelSystem = () => {
       toast.error('Debe haber al menos un Guía asignado');
       return;
     }
+    
+    // *** INITIALIZE PROVISIONS ***
+    // Calculate initial provisions from party inventory
+    let comidaInicial = 0;
+    let aguaInicial = 0;
+    
+    config.miembros.forEach(miembro => {
+      const char = characters.find(c => c.id === miembro.id);
+      if (!char?.inventario) return;
+      
+      char.inventario.forEach(item => {
+        const foodItem = foodWaterItems.food_items?.find(f => 
+          f.nombre?.toLowerCase() === item.nombre?.toLowerCase()
+        );
+        if (foodItem) {
+          const porcentaje = foodItem.porcentaje_racion || 100;
+          const cantidad = item.cantidad || 1;
+          comidaInicial += (cantidad * porcentaje) / 100;
+        }
+        
+        const waterItem = foodWaterItems.water_items?.find(w => 
+          w.nombre?.toLowerCase() === item.nombre?.toLowerCase()
+        );
+        if (waterItem) {
+          const litros = waterItem.litros || 0;
+          const cantidad = item.cantidad || 1;
+          aguaInicial += cantidad * litros;
+        }
+      });
+    });
+    
+    setPartyProvisions({
+      comidaTotal: comidaInicial,
+      aguaTotal: aguaInicial,
+      comidaConsumida: 0,
+      aguaConsumida: 0
+    });
+    
+    // Reset provision fatigue tracking
+    setProvisionFatigue({});
     
     try {
       const payload = {
@@ -3919,6 +4062,84 @@ const EnhancedTravelSystem = () => {
               <p className="text-2xl font-bold text-blue-400">{events.length}</p>
               <p className="text-xs text-muted-foreground">Eventos</p>
             </div>
+          </div>
+          
+          {/* Provisions Status */}
+          <div className="bg-black/20 p-3 rounded mb-4">
+            <div className="flex items-center justify-between mb-2">
+              <h4 className="font-bold text-sm flex items-center gap-2">
+                <Package className="w-4 h-4" />
+                Provisiones
+              </h4>
+              <Button 
+                variant="ghost" 
+                size="sm"
+                onClick={() => performForaging(config.miembros.find(m => m.papeles?.includes('explorador'))?.id || config.miembros[0]?.id)}
+                className="text-xs h-7"
+                data-testid="forage-btn"
+              >
+                <Leaf className="w-3 h-3 mr-1" />
+                Forrajear
+              </Button>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className={`p-2 rounded border ${
+                (partyProvisions.comidaTotal - partyProvisions.comidaConsumida) > config.miembros.length 
+                  ? 'border-green-500/30 bg-green-500/10' 
+                  : 'border-red-500/30 bg-red-500/10'
+              }`}>
+                <div className="flex items-center gap-1 text-xs font-medium">
+                  <Utensils className="w-3 h-3 text-orange-400" />
+                  Comida
+                </div>
+                <p className="text-lg font-bold">
+                  {Math.max(0, partyProvisions.comidaTotal - partyProvisions.comidaConsumida).toFixed(1)}
+                  <span className="text-xs text-muted-foreground ml-1">raciones</span>
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  ~{Math.floor(Math.max(0, partyProvisions.comidaTotal - partyProvisions.comidaConsumida) / config.miembros.length)} días
+                </p>
+              </div>
+              <div className={`p-2 rounded border ${
+                (partyProvisions.aguaTotal - partyProvisions.aguaConsumida) > config.miembros.length * 2 
+                  ? 'border-blue-500/30 bg-blue-500/10' 
+                  : 'border-red-500/30 bg-red-500/10'
+              }`}>
+                <div className="flex items-center gap-1 text-xs font-medium">
+                  <Droplets className="w-3 h-3 text-blue-400" />
+                  Agua
+                </div>
+                <p className="text-lg font-bold">
+                  {Math.max(0, partyProvisions.aguaTotal - partyProvisions.aguaConsumida).toFixed(1)}
+                  <span className="text-xs text-muted-foreground ml-1">litros</span>
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  ~{Math.floor(Math.max(0, partyProvisions.aguaTotal - partyProvisions.aguaConsumida) / (config.miembros.length * 2))} días
+                </p>
+              </div>
+            </div>
+            {/* Fatigue warnings from provisions */}
+            {Object.entries(provisionFatigue).some(([_, f]) => f.sinComida > 0 || f.sinAgua > 0) && (
+              <div className="mt-2 p-2 bg-red-500/20 rounded border border-red-500/30">
+                <p className="text-xs font-bold text-red-400 flex items-center gap-1">
+                  <AlertTriangle className="w-3 h-3" />
+                  Fatiga por falta de provisiones:
+                </p>
+                <div className="text-xs mt-1 space-y-0.5">
+                  {Object.entries(provisionFatigue).map(([charId, fatigue]) => {
+                    if (fatigue.sinComida === 0 && fatigue.sinAgua === 0) return null;
+                    const char = config.miembros.find(m => m.id === charId);
+                    const totalFatiga = fatigue.sinComida + (fatigue.sinAgua * 2);
+                    return (
+                      <div key={charId} className="flex justify-between">
+                        <span>{char?.nombre || 'Desconocido'}</span>
+                        <span className="text-red-400">+{totalFatiga} fatiga</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </div>
           
           {/* Day Configuration */}
