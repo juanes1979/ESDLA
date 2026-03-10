@@ -1228,6 +1228,126 @@ const EnhancedTravelSystem = () => {
     
     return { exito, tirada: total, cd };
   }, [config.miembros]);
+  
+  // =============== REST SYSTEM ===============
+  // Types of rest and their effects on fatigue
+  const REST_TYPES = {
+    short: {
+      nombre: 'Descanso Corto',
+      duracion: '1 hora',
+      efecto: 'Recupera uso de habilidades (según clase)',
+      fatiga: 0, // No fatigue reduction
+      sinFatiga: false
+    },
+    long: {
+      nombre: 'Descanso Largo',
+      duracion: '8 horas',
+      efecto: '-1 nivel de fatiga (con tirada CON exitosa)',
+      fatiga: -1,
+      sinFatiga: false,
+      requiereTiradaCON: true,
+      cdBase: 10
+    },
+    sanctuary: {
+      nombre: 'Descanso en Santuario',
+      duracion: '1+ días',
+      efecto: 'Elimina toda la fatiga sin tirada',
+      fatiga: 'all',
+      sinFatiga: true
+    }
+  };
+  
+  // State for rest dialog
+  const [showRestDialog, setShowRestDialog] = useState(false);
+  const [selectedRestType, setSelectedRestType] = useState('long');
+  const [restResults, setRestResults] = useState(null);
+  
+  // Perform rest action
+  const performRest = useCallback(async (restType = 'long') => {
+    const restConfig = REST_TYPES[restType];
+    const results = [];
+    
+    for (const miembro of config.miembros) {
+      const char = characters.find(c => c.id === miembro.id);
+      if (!char) continue;
+      
+      let result = {
+        nombre: miembro.nombre,
+        tipoDescanso: restConfig.nombre,
+        fatigaAntes: char.fatiga || 0,
+        fatigaDespues: char.fatiga || 0,
+        tirada: null,
+        cd: null,
+        exito: true
+      };
+      
+      if (restType === 'sanctuary') {
+        // Sanctuary rest removes all fatigue without roll
+        result.fatigaDespues = 0;
+        result.exito = true;
+        
+        // Update character fatigue in database
+        try {
+          await api.put(`/characters/${miembro.id}/fatigue`, { fatiga: 0 });
+        } catch (err) {
+          console.error('Error updating fatigue:', err);
+        }
+      } else if (restType === 'long' && restConfig.requiereTiradaCON) {
+        // Long rest requires CON check
+        const modCON = char.atributos?.constitucion 
+          ? Math.floor((char.atributos.constitucion - 10) / 2) 
+          : 0;
+        const d20 = Math.floor(Math.random() * 20) + 1;
+        const total = d20 + modCON;
+        const cd = restConfig.cdBase + (provisionFatigue[miembro.id]?.sinComida || 0) + (provisionFatigue[miembro.id]?.sinAgua || 0) * 2;
+        
+        result.tirada = total;
+        result.cd = cd;
+        result.exito = total >= cd;
+        
+        if (result.exito) {
+          result.fatigaDespues = Math.max(0, (char.fatiga || 0) - 1);
+          try {
+            await api.put(`/characters/${miembro.id}/fatigue`, { fatiga: result.fatigaDespues });
+          } catch (err) {
+            console.error('Error updating fatigue:', err);
+          }
+        }
+      }
+      
+      results.push(result);
+    }
+    
+    setRestResults(results);
+    
+    // If resting for long/sanctuary, add time
+    if (restType === 'long') {
+      setStageDays(prev => prev + 1);
+    } else if (restType === 'sanctuary') {
+      // Sanctuary rest ends the current stage
+      await handleRestAtRefuge({ nombre: 'Santuario' });
+    }
+    
+    // Reset provision fatigue tracking after rest
+    if (restType === 'sanctuary' || restType === 'long') {
+      setProvisionFatigue({});
+    }
+    
+    return results;
+  }, [config.miembros, characters, provisionFatigue]);
+  
+  // Check if near a water source to refill
+  const checkWaterRefill = useCallback((positionInTiles) => {
+    // Check refuges near current position for water refill
+    const refugiosEnRuta = journeyCalc?.ruta?.refugios_en_ruta || [];
+    const nearbyRefuge = refugiosEnRuta.find(r => Math.abs(r.casilla - positionInTiles) <= 1);
+    
+    if (nearbyRefuge) {
+      refillWaterNearTown(nearbyRefuge.nombre);
+      return true;
+    }
+    return false;
+  }, [journeyCalc?.ruta?.refugios_en_ruta, refillWaterNearTown]);
 
   // After resolving an event, continue with next orientation check
   const continueAfterEvent = async (updatedEvents = null) => {
@@ -4071,16 +4191,28 @@ const EnhancedTravelSystem = () => {
                 <Package className="w-4 h-4" />
                 Provisiones
               </h4>
-              <Button 
-                variant="ghost" 
-                size="sm"
-                onClick={() => performForaging(config.miembros.find(m => m.papeles?.includes('explorador'))?.id || config.miembros[0]?.id)}
-                className="text-xs h-7"
-                data-testid="forage-btn"
-              >
-                <Leaf className="w-3 h-3 mr-1" />
-                Forrajear
-              </Button>
+              <div className="flex gap-2">
+                <Button 
+                  variant="ghost" 
+                  size="sm"
+                  onClick={() => setShowRestDialog(true)}
+                  className="text-xs h-7"
+                  data-testid="rest-btn"
+                >
+                  <Moon className="w-3 h-3 mr-1" />
+                  Descansar
+                </Button>
+                <Button 
+                  variant="ghost" 
+                  size="sm"
+                  onClick={() => performForaging(config.miembros.find(m => m.papeles?.includes('explorador'))?.id || config.miembros[0]?.id)}
+                  className="text-xs h-7"
+                  data-testid="forage-btn"
+                >
+                  <Leaf className="w-3 h-3 mr-1" />
+                  Forrajear
+                </Button>
+              </div>
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className={`p-2 rounded border ${
@@ -4527,6 +4659,105 @@ const EnhancedTravelSystem = () => {
           <Flag className="w-4 h-4 mr-2" /> Finalizar Viaje
         </Button>
       </div>
+      
+      {/* Rest Dialog */}
+      {showRestDialog && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50" onClick={() => setShowRestDialog(false)}>
+          <Card className="card-parchment w-full max-w-md mx-4" onClick={(e) => e.stopPropagation()}>
+            <CardHeader>
+              <CardTitle className="text-lg text-[hsl(var(--gold))] flex items-center gap-2">
+                <Moon className="w-5 h-5" />
+                Descansar
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {!restResults ? (
+                <>
+                  <p className="text-sm text-muted-foreground">
+                    Elige el tipo de descanso para la compañía:
+                  </p>
+                  
+                  <div className="space-y-2">
+                    {Object.entries(REST_TYPES).map(([key, rest]) => (
+                      <div 
+                        key={key}
+                        onClick={() => setSelectedRestType(key)}
+                        className={`p-3 rounded border cursor-pointer transition-colors ${
+                          selectedRestType === key 
+                            ? 'border-[hsl(var(--gold))] bg-[hsl(var(--gold))/10]' 
+                            : 'border-transparent bg-black/20 hover:bg-black/30'
+                        }`}
+                      >
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <h4 className="font-bold text-sm">{rest.nombre}</h4>
+                            <p className="text-xs text-muted-foreground">{rest.duracion}</p>
+                          </div>
+                          {key === 'sanctuary' && nearbyRefuges.length === 0 && (
+                            <Badge variant="outline" className="text-xs text-red-400">
+                              Requiere refugio
+                            </Badge>
+                          )}
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-1">{rest.efecto}</p>
+                      </div>
+                    ))}
+                  </div>
+                  
+                  <div className="flex gap-2 mt-4">
+                    <Button 
+                      variant="outline" 
+                      onClick={() => setShowRestDialog(false)} 
+                      className="flex-1"
+                    >
+                      Cancelar
+                    </Button>
+                    <Button 
+                      onClick={() => performRest(selectedRestType)}
+                      disabled={selectedRestType === 'sanctuary' && nearbyRefuges.length === 0}
+                      className="flex-1"
+                      data-testid="confirm-rest-btn"
+                    >
+                      <Moon className="w-4 h-4 mr-2" />
+                      Descansar
+                    </Button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <h4 className="font-bold text-sm">Resultados del descanso:</h4>
+                  <div className="space-y-2">
+                    {restResults.map((result, idx) => (
+                      <div key={idx} className={`p-2 rounded ${result.exito ? 'bg-green-500/20' : 'bg-red-500/20'}`}>
+                        <div className="flex justify-between items-center">
+                          <span className="font-medium">{result.nombre}</span>
+                          <Badge variant={result.exito ? 'default' : 'destructive'}>
+                            {result.exito ? '✓ Éxito' : '✗ Fallo'}
+                          </Badge>
+                        </div>
+                        {result.tirada !== null && (
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Tirada CON: {result.tirada} vs CD {result.cd}
+                          </p>
+                        )}
+                        <p className="text-xs mt-1">
+                          Fatiga: {result.fatigaAntes} → {result.fatigaDespues}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                  <Button 
+                    onClick={() => { setRestResults(null); setShowRestDialog(false); }}
+                    className="w-full"
+                  >
+                    Continuar
+                  </Button>
+                </>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      )}
     </div>
   );
   

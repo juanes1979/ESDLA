@@ -933,6 +933,24 @@ async def update_character_shadow(character_id: str, shadow_change: int = Body(.
     return {"puntos_sombra": new_shadow}
 
 
+@router.put("/{character_id}/fatigue")
+async def update_character_fatigue(character_id: str, fatiga: int = Body(..., embed=True)):
+    """Update character's fatigue level directly"""
+    character = await db.characters.find_one({"_id": character_id})
+    if not character:
+        raise HTTPException(status_code=404, detail="Character not found")
+    
+    # Fatigue can be 0-6 (6 levels of exhaustion in 5e)
+    new_fatigue = max(0, min(6, fatiga))
+    
+    await db.characters.update_one(
+        {"_id": character_id},
+        {"$set": {"fatiga": new_fatigue, "updated_at": now_utc()}}
+    )
+    
+    return {"fatiga": new_fatigue}
+
+
 @router.patch("/{character_id}/xp")
 async def add_experience(character_id: str, xp: int = Body(..., embed=True)):
     """Add experience points to character"""
