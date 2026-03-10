@@ -90,6 +90,44 @@ Sistema interactivo para romper puertas, cofres, cerrojos y otros objetos:
 
 **Objetos predefinidos:** Cerrojo común, Cerrojo reforzado, Cofre de madera, Puerta vieja, Puerta de castillo, Portón de hierro, Cadenas, Ventana de vidrio, Barril, Estatua de piedra, Puerta de Mithril
 
+**Vulnerabilidades y Resistencias por Tipo de Daño:**
+| Material | Vulnerable (×2) | Resistente (×0.5) | Inmune (×0) |
+|----------|-----------------|-------------------|-------------|
+| Tela | Fuego, Cortante | - | - |
+| Cristal | Contundente, Trueno | - | Perforante |
+| Madera | Fuego | Contundente | - |
+| Piedra | Trueno | Cortante, Perforante, Fuego | - |
+| Hierro | Ácido | Cortante, Perforante | Fuego |
+| Mithril | - | Todos físicos + Fuego, Frío | Ácido |
+| Adamantina | - | Todos físicos + Fuego, Frío, Rayo | Ácido, Trueno |
+
+**Editor de Materiales:** Permite añadir/modificar materiales con sus vulnerabilidades y resistencias.
+
+#### 3. Sistema de Tesoros - COMPLETADO
+
+Sistema completo de generación de tesoros, objetos mágicos, joyas y arte:
+
+**Niveles de Tesoro:**
+| Nivel | Valor Base | Tiradas Mágicas | CD Sombra |
+|-------|------------|-----------------|-----------|
+| Menor | 9 + 2d8 po | 1d20 | 10 |
+| Mayor | 16 + 3d10 po | 2d20 | 15 |
+| Maravilloso | 26 + 4d12 po | 3d20 | 20 |
+
+**Tabla de Tesoro Mágico (d20):**
+- 1-14: Ningún tesoro mágico (Sombra: 1d4-2)
+- 15-17: Artefacto maravilloso con 1 bendición (Sombra: 1d6-3)
+- 18-19: Objeto extraordinario con 2 bendiciones (Sombra: 1d8-4)
+- 20: Arma o armadura famosa (Sombra: 1d8-4)
+
+**20 Bendiciones** (d20): Acertijos, Acrobacias, Atletismo, Cazar, Engaño, Explorar, Interpretación, Intimidación, Investigación, Juego de manos, Medicina, Naturaleza, Percepción, Perspicacia, Persuasión, Saber antiguo, Sigilo, Trato con animales, Viajar, Tira dos veces
+
+**9 Maldiciones:** Debilidad, Oscurecedor, Perseguido, Mala suerte, Mal augurio, Maligno, Adueñado, Marcado por la Sombra, Debilitante
+
+**Generador de Joyas:** Con formas (anillo, broche, collar, diadema, corona, cinturón), materiales (oro, plata, bronce, platino, mithril), gemas (perla, zafiro, rubí, amatista, diamante, esmeralda) y manufacturas.
+
+**~50 Objetos de Arte:** Gemas preciosas, máscaras, cálices, estatuillas, tapices, joyas decoradas, instrumentos, coronas, etc.
+
 ---
 
 ### ✅ COMPLETED Previous Session (Fork #38)
