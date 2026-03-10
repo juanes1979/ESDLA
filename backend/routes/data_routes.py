@@ -1296,6 +1296,29 @@ async def update_object_materials(data: dict = Body(...)):
     return {"message": "Materials saved successfully"}
 
 
+# === TREASURE INDEX (DM's pre-created magic items) ===
+
+@router.get("/treasure-index")
+async def get_treasure_index():
+    """Get DM's treasure index"""
+    data = await db.treasure_index.find_one({"_id": "default"})
+    if not data:
+        return {"items": []}
+    return {"items": data.get("items", [])}
+
+
+@router.put("/treasure-index")
+async def update_treasure_index(data: dict = Body(...)):
+    """Update DM's treasure index"""
+    items = data.get("items", [])
+    await db.treasure_index.update_one(
+        {"_id": "default"},
+        {"$set": {"items": items, "updated_at": now_utc()}},
+        upsert=True
+    )
+    return {"message": "Treasure index saved successfully"}
+
+
 # === ARTES (Arts) ===
 
 @router.get("/artes")
