@@ -2221,22 +2221,25 @@ const EnhancedTravelSystem = () => {
       return;
     }
     
-    // Check if any character has earned XP
-    const hasAnyXP = membersWithRoles.some(m => characterXP[m.id]?.total !== undefined);
-    if (!hasAnyXP && !journeyCalc?.estimaciones?.px_por_personaje) {
-      toast.error('No hay PX para aplicar');
-      return;
-    }
+    // Calculate base journey PX divided equally
+    const journeyBasePX = journeyCalc?.estimaciones?.px_total || 0;
+    const pxPerMemberFromJourney = Math.round(journeyBasePX / membersWithRoles.length);
     
     setApplyingPX(true);
     
     try {
-      // Build array of {character_id, px_amount} for individual XP
-      const characterPXList = membersWithRoles.map(m => ({
-        character_id: m.id,
-        character_name: m.nombre,
-        px_amount: characterXP[m.id]?.total || 0
-      }));
+      // Build array of {character_id, px_amount} with TOTAL = journey share + individual rolls
+      const characterPXList = membersWithRoles.map(m => {
+        const rollsXP = characterXP[m.id]?.total || 0;
+        const totalXP = pxPerMemberFromJourney + rollsXP;
+        return {
+          character_id: m.id,
+          character_name: m.nombre,
+          px_amount: totalXP,
+          px_journey: pxPerMemberFromJourney,
+          px_rolls: rollsXP
+        };
+      });
       
       const response = await api.post('/travel/apply-px-individual', {
         characters: characterPXList,
@@ -2255,7 +2258,8 @@ const EnhancedTravelSystem = () => {
       console.error('Error applying PX:', err);
       // Fallback to old method if new endpoint doesn't exist
       try {
-        const avgPX = Math.round(Object.values(characterXP).reduce((sum, c) => sum + (c.total || 0), 0) / membersWithRoles.length) || journeyCalc?.estimaciones?.px_por_personaje || 0;
+        const totalRollsXP = Object.values(characterXP).reduce((sum, c) => sum + (c.total || 0), 0);
+        const avgPX = Math.round((journeyBasePX + totalRollsXP) / membersWithRoles.length);
         const response = await api.post('/travel/apply-px', {
           character_ids: membersWithRoles.map(m => m.id),
           px_amount: avgPX,
@@ -4263,99 +4267,130 @@ const EnhancedTravelSystem = () => {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-sm text-muted-foreground mb-4">
-              {pxApplied 
-                ? '¡Los PX han sido aplicados a las fichas de los personajes!'
-                : 'Cada personaje recibirá PX según sus tiradas individuales durante el viaje.'
-              }
-            </p>
-            <div className="grid md:grid-cols-2 gap-3">
-              {config.miembros.filter(m => m.papeles?.length > 0).map((member) => {
-                const memberResult = pxResults?.results?.find(r => r.character_id === member.id);
-                const hasMultiple = member.papeles.length > 1;
-                const memberXP = characterXP[member.id] || { total: 0, rolls: [] };
-                const rollCount = memberXP.rolls?.length || 0;
-                const successCount = memberXP.rolls?.filter(r => r.exito).length || 0;
-                const failCount = rollCount - successCount;
-                
-                return (
-                  <Card key={member.id} className={`p-4 ${pxApplied ? 'bg-green-600/20 border-green-400' : 'bg-green-900/20 border-green-500/30'}`}>
+            {/* Calculate base journey PX divided equally */}
+            {(() => {
+              const membersWithRoles = config.miembros.filter(m => m.papeles?.length > 0);
+              const numMembers = membersWithRoles.length || 1;
+              const journeyBasePX = journeyCalc?.estimaciones?.px_total || 0;
+              const pxPerMemberFromJourney = Math.round(journeyBasePX / numMembers);
+              
+              return (
+                <>
+                  <p className="text-sm text-muted-foreground mb-2">
+                    {pxApplied 
+                      ? '¡Los PX han sido aplicados a las fichas de los personajes!'
+                      : 'PX del viaje repartidos a partes iguales + PX individuales por tiradas.'
+                    }
+                  </p>
+                  
+                  {/* Base journey PX info */}
+                  <div className="p-3 bg-[hsl(var(--magic-blue))/10] rounded mb-4 text-sm">
                     <div className="flex justify-between items-center">
-                      <div className="flex-1">
-                        <p className="font-bold text-[hsl(var(--gold))]">{member.nombre}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {member.papeles.map(p => ROLE_INFO[p]?.nombre).join(', ')}
-                        </p>
-                        {hasMultiple && (
-                          <p className="text-xs text-yellow-400">⚠️ Múltiples papeles: -5</p>
-                        )}
-                        {rollCount > 0 && (
-                          <p className="text-xs text-muted-foreground mt-1">
-                            {rollCount} tirada{rollCount !== 1 ? 's' : ''}: 
-                            <span className="text-green-400 ml-1">{successCount}✓</span>
-                            <span className="text-red-400 ml-1">{failCount}✗</span>
-                          </p>
-                        )}
-                        {memberResult && pxApplied && (
-                          <p className="text-xs text-green-400 mt-1">
-                            XP Total: {memberResult.xp_nuevo}
-                          </p>
-                        )}
+                      <span className="text-muted-foreground">PX base del viaje ({journeyCalc?.estimaciones?.distancia_km || 0} km):</span>
+                      <span className="font-bold text-[hsl(var(--magic-blue))]">{journeyBasePX} PX</span>
+                    </div>
+                    <div className="flex justify-between items-center mt-1">
+                      <span className="text-muted-foreground">Dividido entre {numMembers} viajero{numMembers !== 1 ? 's' : ''}:</span>
+                      <span className="font-bold text-[hsl(var(--gold))]">+{pxPerMemberFromJourney} PX c/u</span>
+                    </div>
+                  </div>
+                  
+                  <div className="grid md:grid-cols-2 gap-3">
+                    {membersWithRoles.map((member) => {
+                      const memberResult = pxResults?.results?.find(r => r.character_id === member.id);
+                      const hasMultiple = member.papeles.length > 1;
+                      const memberXP = characterXP[member.id] || { total: 0, rolls: [] };
+                      const rollCount = memberXP.rolls?.length || 0;
+                      const successCount = memberXP.rolls?.filter(r => r.exito).length || 0;
+                      const failCount = rollCount - successCount;
+                      
+                      // Total = PX viaje (repartido) + PX tiradas (individual)
+                      const totalPXForMember = pxPerMemberFromJourney + (memberXP.total || 0);
+                      
+                      return (
+                        <Card key={member.id} className={`p-4 ${pxApplied ? 'bg-green-600/20 border-green-400' : 'bg-green-900/20 border-green-500/30'}`}>
+                          <div className="flex justify-between items-center">
+                            <div className="flex-1">
+                              <p className="font-bold text-[hsl(var(--gold))]">{member.nombre}</p>
+                              <p className="text-xs text-muted-foreground">
+                                {member.papeles.map(p => ROLE_INFO[p]?.nombre).join(', ')}
+                              </p>
+                              {hasMultiple && (
+                                <p className="text-xs text-yellow-400">⚠️ Múltiples papeles: -5</p>
+                              )}
+                              {/* PX breakdown */}
+                              <div className="text-xs mt-2 space-y-0.5">
+                                <p className="text-[hsl(var(--magic-blue))]">
+                                  Viaje: +{pxPerMemberFromJourney}
+                                </p>
+                                <p className={memberXP.total >= 0 ? 'text-green-400' : 'text-red-400'}>
+                                  Tiradas ({rollCount}): {memberXP.total >= 0 ? '+' : ''}{memberXP.total || 0}
+                                  {rollCount > 0 && (
+                                    <span className="text-muted-foreground ml-1">
+                                      ({successCount}✓ {failCount}✗)
+                                    </span>
+                                  )}
+                                </p>
+                              </div>
+                              {memberResult && pxApplied && (
+                                <p className="text-xs text-green-400 mt-1">
+                                  XP Total: {memberResult.xp_nuevo}
+                                </p>
+                              )}
+                            </div>
+                            <div className="text-right">
+                              <p className={`text-3xl font-bold ${totalPXForMember >= 0 ? (pxApplied ? 'text-green-300' : 'text-green-400') : 'text-red-400'}`}>
+                                {pxApplied ? '✓' : (totalPXForMember >= 0 ? '+' : '')}{totalPXForMember}
+                              </p>
+                              <p className="text-xs text-muted-foreground">PX</p>
+                            </div>
+                          </div>
+                          {/* Individual roll breakdown */}
+                          {!pxApplied && memberXP.rolls?.length > 0 && (
+                            <details className="mt-2">
+                              <summary className="text-xs text-muted-foreground cursor-pointer hover:text-white">
+                                Ver desglose tiradas
+                              </summary>
+                              <div className="mt-1 max-h-24 overflow-y-auto text-xs space-y-1 bg-black/20 p-2 rounded">
+                                {memberXP.rolls.map((roll, idx) => (
+                                  <div key={idx} className={`flex justify-between ${roll.exito ? 'text-green-400' : 'text-red-400'}`}>
+                                    <span>
+                                      {roll.type === 'orientacion' ? '🧭' : '⚔️'} 
+                                      {roll.tirada} vs CD{roll.cd}
+                                    </span>
+                                    <span className="font-bold">
+                                      {roll.pxFinal >= 0 ? '+' : ''}{roll.pxFinal}
+                                    </span>
+                                  </div>
+                                ))}
+                              </div>
+                            </details>
+                          )}
+                        </Card>
+                      );
+                    })}
+                  </div>
+                  
+                  {/* Summary of total XP earned */}
+                  <div className="mt-4 p-3 bg-black/30 rounded text-sm">
+                    <p className="font-bold mb-2 text-[hsl(var(--gold))]">Resumen:</p>
+                    <div className="grid grid-cols-2 gap-2 text-xs">
+                      <div className="text-muted-foreground">
+                        <p>PX base viaje: {journeyBasePX}</p>
+                        <p>Total tiradas: {Object.values(characterXP).reduce((sum, c) => sum + (c.rolls?.length || 0), 0)}</p>
+                        <p>Éxitos: {Object.values(characterXP).reduce((sum, c) => sum + (c.rolls?.filter(r => r.exito).length || 0), 0)} | Fracasos: {Object.values(characterXP).reduce((sum, c) => sum + (c.rolls?.filter(r => !r.exito).length || 0), 0)}</p>
                       </div>
-                      <div className="text-right">
-                        <p className={`text-3xl font-bold ${memberXP.total >= 0 ? (pxApplied ? 'text-green-300' : 'text-green-400') : 'text-red-400'}`}>
-                          {pxApplied ? '✓' : (memberXP.total >= 0 ? '+' : '')}{memberXP.total || 0}
+                      <div>
+                        <p className="text-muted-foreground">PX tiradas grupo: {Object.values(characterXP).reduce((sum, c) => sum + (c.total || 0), 0)}</p>
+                        <p className="font-medium text-white">
+                          PX Total Grupo: {journeyBasePX + Object.values(characterXP).reduce((sum, c) => sum + (c.total || 0), 0)}
                         </p>
-                        <p className="text-xs text-muted-foreground">PX</p>
                       </div>
                     </div>
-                    {/* Individual roll breakdown */}
-                    {!pxApplied && memberXP.rolls?.length > 0 && (
-                      <details className="mt-2">
-                        <summary className="text-xs text-muted-foreground cursor-pointer hover:text-white">
-                          Ver desglose
-                        </summary>
-                        <div className="mt-1 max-h-24 overflow-y-auto text-xs space-y-1 bg-black/20 p-2 rounded">
-                          {memberXP.rolls.map((roll, idx) => (
-                            <div key={idx} className={`flex justify-between ${roll.exito ? 'text-green-400' : 'text-red-400'}`}>
-                              <span>
-                                {roll.type === 'orientacion' ? '🧭' : '⚔️'} 
-                                {roll.tirada} vs CD{roll.cd}
-                              </span>
-                              <span className="font-bold">
-                                {roll.pxFinal >= 0 ? '+' : ''}{roll.pxFinal}
-                              </span>
-                            </div>
-                          ))}
-                        </div>
-                      </details>
-                    )}
-                  </Card>
-                );
-              })}
-            </div>
-            
-            {/* Summary of total XP earned */}
-            {Object.keys(characterXP).length > 0 && (
-              <div className="mt-4 p-3 bg-black/30 rounded text-sm">
-                <p className="font-bold mb-2 text-[hsl(var(--gold))]">Resumen de tiradas:</p>
-                <div className="grid grid-cols-2 gap-2 text-xs text-muted-foreground">
-                  <div>
-                    <p>Total tiradas: {Object.values(characterXP).reduce((sum, c) => sum + (c.rolls?.length || 0), 0)}</p>
-                    <p>Éxitos: {Object.values(characterXP).reduce((sum, c) => sum + (c.rolls?.filter(r => r.exito).length || 0), 0)}</p>
-                    <p>Fracasos: {Object.values(characterXP).reduce((sum, c) => sum + (c.rolls?.filter(r => !r.exito).length || 0), 0)}</p>
                   </div>
-                  <div>
-                    <p className="font-medium text-white">
-                      PX Total Grupo: {Object.values(characterXP).reduce((sum, c) => sum + (c.total || 0), 0)}
-                    </p>
-                    <p className="text-xs">
-                      (Basado en fórmula: PX base × diferencia × terreno × tierras)
-                    </p>
-                  </div>
-                </div>
-              </div>
-            )}
+                </>
+              );
+            })()}
             
             {/* Apply PX Button */}
             {!pxApplied && (
