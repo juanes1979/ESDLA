@@ -1273,6 +1273,29 @@ async def add_occupation_shadow_path(data: dict = Body(...)):
     return {"message": f"Shadow path '{senda}' saved successfully"}
 
 
+# === OBJECT MATERIALS (for Object Interaction system) ===
+
+@router.get("/object-materials")
+async def get_object_materials():
+    """Get object materials with vulnerabilities/resistances"""
+    data = await db.object_materials.find_one({"_id": "default"})
+    if not data:
+        return {"materials": []}
+    return {"materials": data.get("materials", [])}
+
+
+@router.put("/object-materials")
+async def update_object_materials(data: dict = Body(...)):
+    """Update object materials"""
+    materials = data.get("materials", [])
+    await db.object_materials.update_one(
+        {"_id": "default"},
+        {"$set": {"materials": materials, "updated_at": now_utc()}},
+        upsert=True
+    )
+    return {"message": "Materials saved successfully"}
+
+
 # === ARTES (Arts) ===
 
 @router.get("/artes")

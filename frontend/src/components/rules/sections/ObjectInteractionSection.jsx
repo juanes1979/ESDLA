@@ -1,9 +1,9 @@
 /**
  * Object Interaction Section
  * Interactive system for breaking/damaging objects (doors, chests, locks, etc.)
- * Based on LOTR 5e rules
+ * With vulnerabilities, resistances, and editable materials
  */
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -12,73 +12,93 @@ import { Progress } from '@/components/ui/progress';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Checkbox } from '@/components/ui/checkbox';
 import { 
   Hammer, Shield, Heart, Dice6, Sparkles, AlertTriangle, 
-  Check, X, RotateCcw, Swords, Target, Box
+  Check, X, RotateCcw, Swords, Target, Box, Plus, Trash2,
+  Save, Edit, Flame, Snowflake, Zap, Wind
 } from 'lucide-react';
 import { toast } from 'sonner';
+import api from '@/services/api';
 
-// =============== CONSTANTS ===============
-
-const MATERIALS = [
-  { id: 'cloth', nombre: 'Tela, papel, cuerda', ca: 11, icon: '📜' },
-  { id: 'glass', nombre: 'Cristal, vidrio, hielo', ca: 13, icon: '💎' },
-  { id: 'wood', nombre: 'Madera, hueso', ca: 15, icon: '🪵' },
-  { id: 'stone', nombre: 'Piedra', ca: 17, icon: '🪨' },
-  { id: 'iron', nombre: 'Hierro, acero', ca: 19, icon: '⚔️' },
-  { id: 'mithril', nombre: 'Mithril', ca: 21, icon: '✨' },
-  { id: 'adamantine', nombre: 'Adamantina', ca: 23, icon: '💠' }
+// =============== DAMAGE TYPES ===============
+const DAMAGE_TYPES = [
+  { id: 'slashing', nombre: 'Cortante', icon: '⚔️' },
+  { id: 'piercing', nombre: 'Perforante', icon: '🗡️' },
+  { id: 'bludgeoning', nombre: 'Contundente', icon: '🔨' },
+  { id: 'fire', nombre: 'Fuego', icon: '🔥' },
+  { id: 'cold', nombre: 'Frío', icon: '❄️' },
+  { id: 'lightning', nombre: 'Rayo', icon: '⚡' },
+  { id: 'acid', nombre: 'Ácido', icon: '🧪' },
+  { id: 'thunder', nombre: 'Trueno', icon: '💥' }
 ];
 
-const SIZES = [
+// =============== DEFAULT DATA ===============
+const DEFAULT_MATERIALS = [
   { 
-    id: 'tiny', 
-    nombre: 'Diminuto', 
-    ejemplos: 'botella, cerrojo, candado',
-    fragil: { dado: '1d4', media: 2 },
-    resistente: { dado: '2d4', media: 5 }
+    id: 'cloth', nombre: 'Tela, papel, cuerda', ca: 11, icon: '📜',
+    vulnerable: ['fire', 'slashing'], // ×2 damage
+    resistant: [], // ×0.5 damage
+    immune: [] // No damage
   },
   { 
-    id: 'small', 
-    nombre: 'Pequeño', 
-    ejemplos: 'cofre, laúd, ventana',
-    fragil: { dado: '1d6', media: 3 },
-    resistente: { dado: '3d6', media: 10 }
+    id: 'glass', nombre: 'Cristal, vidrio, hielo', ca: 13, icon: '💎',
+    vulnerable: ['bludgeoning', 'thunder'],
+    resistant: [],
+    immune: ['piercing'] // Piercing shatters but doesn't break through
   },
   { 
-    id: 'medium', 
-    nombre: 'Mediano', 
-    ejemplos: 'barril, puerta, lámpara de araña',
-    fragil: { dado: '1d8', media: 4 },
-    resistente: { dado: '4d8', media: 18 }
+    id: 'wood', nombre: 'Madera, hueso', ca: 15, icon: '🪵',
+    vulnerable: ['fire'],
+    resistant: ['bludgeoning'],
+    immune: []
   },
   { 
-    id: 'large', 
-    nombre: 'Grande', 
-    ejemplos: 'carreta, portón, ventana 3x3m',
-    fragil: { dado: '1d10', media: 5 },
-    resistente: { dado: '5d10', media: 27 }
+    id: 'stone', nombre: 'Piedra', ca: 17, icon: '🪨',
+    vulnerable: ['thunder'],
+    resistant: ['slashing', 'piercing', 'fire'],
+    immune: []
+  },
+  { 
+    id: 'iron', nombre: 'Hierro, acero', ca: 19, icon: '⚔️',
+    vulnerable: ['acid'],
+    resistant: ['slashing', 'piercing'],
+    immune: ['fire']
+  },
+  { 
+    id: 'mithril', nombre: 'Mithril', ca: 21, icon: '✨',
+    vulnerable: [],
+    resistant: ['slashing', 'piercing', 'bludgeoning', 'fire', 'cold'],
+    immune: ['acid']
+  },
+  { 
+    id: 'adamantine', nombre: 'Adamantina', ca: 23, icon: '💠',
+    vulnerable: [],
+    resistant: ['slashing', 'piercing', 'bludgeoning', 'fire', 'cold', 'lightning'],
+    immune: ['acid', 'thunder']
   }
 ];
 
-const STATES = [
+const DEFAULT_SIZES = [
+  { id: 'tiny', nombre: 'Diminuto', ejemplos: 'botella, cerrojo, candado', fragil: '1d4', resistente: '2d4' },
+  { id: 'small', nombre: 'Pequeño', ejemplos: 'cofre, laúd, ventana', fragil: '1d6', resistente: '3d6' },
+  { id: 'medium', nombre: 'Mediano', ejemplos: 'barril, puerta, lámpara de araña', fragil: '1d8', resistente: '4d8' },
+  { id: 'large', nombre: 'Grande', ejemplos: 'carreta, portón, ventana 3x3m', fragil: '1d10', resistente: '5d10' }
+];
+
+const DEFAULT_STATES = [
   { id: 'ruined', nombre: 'Ruinoso', descripcion: 'Viejo, podrido, agrietado', modCA: -4, modHP: 0.5 },
   { id: 'worn', nombre: 'Desgastado', descripcion: 'Usado, con signos de edad', modCA: -2, modHP: 0.75 },
   { id: 'normal', nombre: 'Normal', descripcion: 'Estado estándar', modCA: 0, modHP: 1 },
-  { id: 'reinforced', nombre: 'Reforzado', descripcion: 'Bien construido, calidad', modCA: +2, modHP: 1.25 },
-  { id: 'masterwork', nombre: 'Obra maestra', descripcion: 'Calidad excepcional, forja élfica/enana', modCA: +4, modHP: 1.5 }
+  { id: 'reinforced', nombre: 'Reforzado', descripcion: 'Bien construido, calidad', modCA: 2, modHP: 1.25 },
+  { id: 'masterwork', nombre: 'Obra maestra', descripcion: 'Calidad excepcional', modCA: 4, modHP: 1.5 }
 ];
 
-const DURABILITIES = [
-  { id: 'fragile', nombre: 'Frágil', descripcion: 'Se rompe fácilmente' },
-  { id: 'resistant', nombre: 'Resistente', descripcion: 'Sólido y duradero' }
-];
-
-// Common objects presets
-const PRESETS = [
+const DEFAULT_PRESETS = [
   { nombre: 'Cerrojo común', material: 'iron', size: 'tiny', state: 'normal', durability: 'fragile' },
   { nombre: 'Cerrojo reforzado', material: 'iron', size: 'tiny', state: 'reinforced', durability: 'resistant' },
-  { nombre: 'Cofre de madera', material: 'wood', size: 'small', state: 'normal', durability: 'resistente' },
+  { nombre: 'Cofre de madera', material: 'wood', size: 'small', state: 'normal', durability: 'resistant' },
   { nombre: 'Puerta vieja', material: 'wood', size: 'medium', state: 'worn', durability: 'fragile' },
   { nombre: 'Puerta de castillo', material: 'wood', size: 'medium', state: 'reinforced', durability: 'resistant' },
   { nombre: 'Portón de hierro', material: 'iron', size: 'large', state: 'normal', durability: 'resistant' },
@@ -90,10 +110,9 @@ const PRESETS = [
 ];
 
 // =============== HELPER FUNCTIONS ===============
-
 const rollDice = (notation) => {
   const match = notation.match(/(\d+)d(\d+)/);
-  if (!match) return 0;
+  if (!match) return { total: 0, rolls: [], notation };
   const [, count, sides] = match.map(Number);
   let total = 0;
   const rolls = [];
@@ -107,15 +126,188 @@ const rollDice = (notation) => {
 
 const rollD20 = () => Math.floor(Math.random() * 20) + 1;
 
-// =============== MAIN COMPONENT ===============
+// =============== MATERIAL EDITOR COMPONENT ===============
+const MaterialEditor = ({ materials, onSave, onClose }) => {
+  const [editedMaterials, setEditedMaterials] = useState([...materials]);
+  const [newMaterial, setNewMaterial] = useState({
+    id: '', nombre: '', ca: 15, icon: '📦',
+    vulnerable: [], resistant: [], immune: []
+  });
+  
+  const handleAdd = () => {
+    if (!newMaterial.nombre || !newMaterial.id) {
+      toast.error('Completa nombre e ID');
+      return;
+    }
+    setEditedMaterials([...editedMaterials, { ...newMaterial }]);
+    setNewMaterial({ id: '', nombre: '', ca: 15, icon: '📦', vulnerable: [], resistant: [], immune: [] });
+  };
+  
+  const handleRemove = (id) => {
+    setEditedMaterials(editedMaterials.filter(m => m.id !== id));
+  };
+  
+  const handleUpdate = (id, field, value) => {
+    setEditedMaterials(editedMaterials.map(m => 
+      m.id === id ? { ...m, [field]: value } : m
+    ));
+  };
+  
+  const toggleDamageType = (materialId, category, damageType) => {
+    setEditedMaterials(editedMaterials.map(m => {
+      if (m.id !== materialId) return m;
+      const current = m[category] || [];
+      const updated = current.includes(damageType)
+        ? current.filter(d => d !== damageType)
+        : [...current, damageType];
+      return { ...m, [category]: updated };
+    }));
+  };
+  
+  return (
+    <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
+      <Card className="card-parchment w-full max-w-4xl max-h-[90vh] overflow-hidden">
+        <CardHeader>
+          <CardTitle className="flex justify-between items-center">
+            <span className="text-[hsl(var(--gold))]">Editor de Materiales</span>
+            <Button variant="ghost" size="sm" onClick={onClose}><X className="w-4 h-4" /></Button>
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <ScrollArea className="h-[60vh]">
+            <div className="space-y-4">
+              {editedMaterials.map((mat) => (
+                <div key={mat.id} className="p-3 bg-black/20 rounded border border-[hsl(var(--gold))/30]">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Input 
+                      value={mat.icon} 
+                      onChange={(e) => handleUpdate(mat.id, 'icon', e.target.value)}
+                      className="w-12 text-center"
+                    />
+                    <Input 
+                      value={mat.nombre} 
+                      onChange={(e) => handleUpdate(mat.id, 'nombre', e.target.value)}
+                      className="flex-1"
+                    />
+                    <div className="flex items-center gap-1">
+                      <Label className="text-xs">CA:</Label>
+                      <Input 
+                        type="number" 
+                        value={mat.ca}
+                        onChange={(e) => handleUpdate(mat.id, 'ca', parseInt(e.target.value))}
+                        className="w-16"
+                      />
+                    </div>
+                    <Button variant="ghost" size="sm" onClick={() => handleRemove(mat.id)}>
+                      <Trash2 className="w-4 h-4 text-red-400" />
+                    </Button>
+                  </div>
+                  
+                  {/* Vulnerabilities, Resistances, Immunities */}
+                  <div className="grid grid-cols-3 gap-2 text-xs">
+                    <div>
+                      <Label className="text-red-400 text-xs">Vulnerable (×2)</Label>
+                      <div className="flex flex-wrap gap-1 mt-1">
+                        {DAMAGE_TYPES.map(dt => (
+                          <Badge 
+                            key={dt.id}
+                            variant={mat.vulnerable?.includes(dt.id) ? 'default' : 'outline'}
+                            className={`cursor-pointer text-xs ${mat.vulnerable?.includes(dt.id) ? 'bg-red-600' : ''}`}
+                            onClick={() => toggleDamageType(mat.id, 'vulnerable', dt.id)}
+                          >
+                            {dt.icon}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+                    <div>
+                      <Label className="text-blue-400 text-xs">Resistente (×0.5)</Label>
+                      <div className="flex flex-wrap gap-1 mt-1">
+                        {DAMAGE_TYPES.map(dt => (
+                          <Badge 
+                            key={dt.id}
+                            variant={mat.resistant?.includes(dt.id) ? 'default' : 'outline'}
+                            className={`cursor-pointer text-xs ${mat.resistant?.includes(dt.id) ? 'bg-blue-600' : ''}`}
+                            onClick={() => toggleDamageType(mat.id, 'resistant', dt.id)}
+                          >
+                            {dt.icon}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+                    <div>
+                      <Label className="text-gray-400 text-xs">Inmune (×0)</Label>
+                      <div className="flex flex-wrap gap-1 mt-1">
+                        {DAMAGE_TYPES.map(dt => (
+                          <Badge 
+                            key={dt.id}
+                            variant={mat.immune?.includes(dt.id) ? 'default' : 'outline'}
+                            className={`cursor-pointer text-xs ${mat.immune?.includes(dt.id) ? 'bg-gray-600' : ''}`}
+                            onClick={() => toggleDamageType(mat.id, 'immune', dt.id)}
+                          >
+                            {dt.icon}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+              
+              {/* Add New Material */}
+              <div className="p-3 bg-green-500/10 rounded border border-green-500/30">
+                <h4 className="text-sm font-bold text-green-400 mb-2">Añadir Nuevo Material</h4>
+                <div className="grid grid-cols-4 gap-2">
+                  <Input 
+                    placeholder="ID (ej: bronze)"
+                    value={newMaterial.id}
+                    onChange={(e) => setNewMaterial({...newMaterial, id: e.target.value})}
+                  />
+                  <Input 
+                    placeholder="Nombre"
+                    value={newMaterial.nombre}
+                    onChange={(e) => setNewMaterial({...newMaterial, nombre: e.target.value})}
+                  />
+                  <Input 
+                    type="number"
+                    placeholder="CA"
+                    value={newMaterial.ca}
+                    onChange={(e) => setNewMaterial({...newMaterial, ca: parseInt(e.target.value)})}
+                  />
+                  <Button onClick={handleAdd}><Plus className="w-4 h-4 mr-1" /> Añadir</Button>
+                </div>
+              </div>
+            </div>
+          </ScrollArea>
+          
+          <div className="flex gap-2 mt-4">
+            <Button variant="outline" onClick={onClose} className="flex-1">Cancelar</Button>
+            <Button onClick={() => { onSave(editedMaterials); onClose(); }} className="flex-1">
+              <Save className="w-4 h-4 mr-2" /> Guardar Cambios
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+};
 
+// =============== MAIN COMPONENT ===============
 const ObjectInteractionSection = () => {
+  // Data state (loadable/editable)
+  const [materials, setMaterials] = useState(DEFAULT_MATERIALS);
+  const [sizes] = useState(DEFAULT_SIZES);
+  const [states] = useState(DEFAULT_STATES);
+  const [presets] = useState(DEFAULT_PRESETS);
+  const [showMaterialEditor, setShowMaterialEditor] = useState(false);
+  
   // Object configuration
   const [objectName, setObjectName] = useState('Objeto');
   const [material, setMaterial] = useState('wood');
   const [size, setSize] = useState('medium');
   const [state, setState] = useState('normal');
   const [durability, setDurability] = useState('resistant');
+  const [damageType, setDamageType] = useState('slashing');
   
   // Combat state
   const [objectHP, setObjectHP] = useState(null);
@@ -123,6 +315,7 @@ const ObjectInteractionSection = () => {
   const [objectCA, setObjectCA] = useState(null);
   const [combatStarted, setCombatStarted] = useState(false);
   const [combatLog, setCombatLog] = useState([]);
+  const [currentMaterial, setCurrentMaterial] = useState(null);
   
   // Attack configuration
   const [attackBonus, setAttackBonus] = useState(5);
@@ -130,30 +323,48 @@ const ObjectInteractionSection = () => {
   const [damageBonus, setDamageBonus] = useState(3);
   const [weaponName, setWeaponName] = useState('Espada');
   
+  // Load materials from backend
+  useEffect(() => {
+    const loadMaterials = async () => {
+      try {
+        const res = await api.get('/data/object-materials');
+        if (res.data?.materials?.length > 0) {
+          setMaterials(res.data.materials);
+        }
+      } catch (err) {
+        // Use defaults if API fails
+        console.log('Using default materials');
+      }
+    };
+    loadMaterials();
+  }, []);
+  
+  // Save materials to backend
+  const saveMaterials = async (newMaterials) => {
+    try {
+      await api.put('/data/object-materials', { materials: newMaterials });
+      setMaterials(newMaterials);
+      toast.success('Materiales guardados');
+    } catch (err) {
+      // Still update locally even if API fails
+      setMaterials(newMaterials);
+      toast.info('Materiales actualizados (solo localmente)');
+    }
+  };
+  
   // Calculate object stats
   const calculateObjectStats = useCallback(() => {
-    const mat = MATERIALS.find(m => m.id === material);
-    const siz = SIZES.find(s => s.id === size);
-    const sta = STATES.find(s => s.id === state);
-    const dur = durability === 'fragile' ? siz.fragil : siz.resistente;
+    const mat = materials.find(m => m.id === material);
+    const siz = sizes.find(s => s.id === size);
+    const sta = states.find(s => s.id === state);
+    const durDice = durability === 'fragile' ? siz.fragil : siz.resistente;
     
-    // CA = base material + state modifier
     const finalCA = mat.ca + sta.modCA;
-    
-    // HP = roll dice * state multiplier
-    const hpRoll = rollDice(dur.dado);
+    const hpRoll = rollDice(durDice);
     const baseHP = Math.max(1, Math.round(hpRoll.total * sta.modHP));
     
-    return {
-      ca: finalCA,
-      hp: baseHP,
-      hpRoll,
-      material: mat,
-      size: siz,
-      state: sta,
-      durability: dur
-    };
-  }, [material, size, state, durability]);
+    return { ca: finalCA, hp: baseHP, hpRoll, material: mat, size: siz, state: sta };
+  }, [material, size, state, durability, materials, sizes, states]);
   
   // Start combat
   const startCombat = useCallback(() => {
@@ -161,12 +372,28 @@ const ObjectInteractionSection = () => {
     setObjectCA(stats.ca);
     setObjectHP(stats.hp);
     setObjectMaxHP(stats.hp);
+    setCurrentMaterial(stats.material);
     setCombatStarted(true);
     setCombatLog([{
       type: 'info',
       text: `${objectName} creado: CA ${stats.ca}, PG ${stats.hp} (${stats.hpRoll.notation}: [${stats.hpRoll.rolls.join(', ')}] × ${stats.state.modHP})`
     }]);
-    toast.success(`¡${objectName} listo para ser destruido!`);
+    
+    // Log vulnerabilities/resistances
+    if (stats.material.vulnerable?.length > 0) {
+      const vulnNames = stats.material.vulnerable.map(v => DAMAGE_TYPES.find(d => d.id === v)?.nombre).join(', ');
+      setCombatLog(prev => [...prev, { type: 'warning', text: `⚠️ Vulnerable a: ${vulnNames} (×2 daño)` }]);
+    }
+    if (stats.material.resistant?.length > 0) {
+      const resNames = stats.material.resistant.map(r => DAMAGE_TYPES.find(d => d.id === r)?.nombre).join(', ');
+      setCombatLog(prev => [...prev, { type: 'info', text: `🛡️ Resistente a: ${resNames} (×0.5 daño)` }]);
+    }
+    if (stats.material.immune?.length > 0) {
+      const immNames = stats.material.immune.map(i => DAMAGE_TYPES.find(d => d.id === i)?.nombre).join(', ');
+      setCombatLog(prev => [...prev, { type: 'info', text: `✨ Inmune a: ${immNames}` }]);
+    }
+    
+    toast.success(`¡${objectName} listo!`);
   }, [calculateObjectStats, objectName]);
   
   // Reset combat
@@ -175,6 +402,7 @@ const ObjectInteractionSection = () => {
     setObjectHP(null);
     setObjectMaxHP(null);
     setObjectCA(null);
+    setCurrentMaterial(null);
     setCombatLog([]);
   }, []);
   
@@ -187,6 +415,23 @@ const ObjectInteractionSection = () => {
     const isFumble = d20 === 1;
     const totalAttack = d20 + attackBonus;
     
+    // Check damage modifiers based on material
+    let damageMultiplier = 1;
+    let damageModText = '';
+    
+    if (currentMaterial?.immune?.includes(damageType)) {
+      damageMultiplier = 0;
+      damageModText = ' [INMUNE - sin daño]';
+    } else if (currentMaterial?.vulnerable?.includes(damageType)) {
+      damageMultiplier = 2;
+      damageModText = ' [VULNERABLE ×2]';
+    } else if (currentMaterial?.resistant?.includes(damageType)) {
+      damageMultiplier = 0.5;
+      damageModText = ' [RESISTENTE ×0.5]';
+    }
+    
+    const dtName = DAMAGE_TYPES.find(d => d.id === damageType)?.nombre || damageType;
+    
     let logEntry = {
       type: 'attack',
       d20,
@@ -196,33 +441,33 @@ const ObjectInteractionSection = () => {
       hit: false,
       damage: 0,
       crit: isCrit,
-      fumble: isFumble
+      fumble: isFumble,
+      damageType: dtName
     };
     
     if (isFumble) {
-      // FUMBLE! Possible weapon damage
       logEntry.text = `🎲 ¡PIFIA! (${d20}) - El golpe falla estrepitosamente...`;
       logEntry.type = 'fumble';
-      
-      // 50% chance of weapon damage on fumble
       if (Math.random() < 0.5) {
         logEntry.weaponDamage = true;
-        logEntry.text += ` ¡${weaponName} sufre daño! (-1 a tiradas hasta reparar)`;
+        logEntry.text += ` ¡${weaponName} sufre daño!`;
         toast.error(`¡Pifia! ${weaponName} ha sufrido daño.`);
       } else {
-        toast.warning('¡Pifia! El golpe falla completamente.');
+        toast.warning('¡Pifia! El golpe falla.');
       }
+    } else if (damageMultiplier === 0) {
+      // Immune - auto miss regardless of roll
+      logEntry.text = `🎲 Tirada: ${d20} + ${attackBonus} = ${totalAttack} (${dtName}) - ¡INMUNE! El ${objectName.toLowerCase()} no sufre daño de tipo ${dtName}.`;
+      logEntry.type = 'immune';
+      toast.info(`${objectName} es inmune a ${dtName}`);
     } else if (isCrit) {
-      // CRITICAL HIT! Auto-success, double damage
       const dmgRoll = rollDice(damageNotation);
-      // Double the dice for crit
       const critDmgRoll = rollDice(damageNotation);
-      const totalDamage = dmgRoll.total + critDmgRoll.total + damageBonus;
+      let totalDamage = Math.floor((dmgRoll.total + critDmgRoll.total + damageBonus) * damageMultiplier);
       
       logEntry.hit = true;
       logEntry.damage = totalDamage;
-      logEntry.damageRolls = [dmgRoll.rolls, critDmgRoll.rolls];
-      logEntry.text = `🎲 ¡CRÍTICO! (${d20}) - ¡Golpe devastador! Daño: ${totalDamage} ([${dmgRoll.rolls.join('+')}] + [${critDmgRoll.rolls.join('+')}] + ${damageBonus})`;
+      logEntry.text = `🎲 ¡CRÍTICO! (${d20}) - Daño ${dtName}: ${totalDamage}${damageModText}`;
       logEntry.type = 'crit';
       
       const newHP = Math.max(0, objectHP - totalDamage);
@@ -230,20 +475,18 @@ const ObjectInteractionSection = () => {
       
       if (newHP <= 0) {
         logEntry.destroyed = true;
-        logEntry.text += ' - ¡DESTRUIDO de un solo golpe!';
-        toast.success('¡Crítico! ¡El objeto ha sido destruido!');
+        logEntry.text += ' - ¡DESTRUIDO!';
+        toast.success('¡Crítico! ¡Destruido!');
       } else {
-        toast.success(`¡Crítico! ${totalDamage} de daño.`);
+        toast.success(`¡Crítico! ${totalDamage} daño.`);
       }
     } else if (totalAttack >= objectCA) {
-      // Normal hit
       const dmgRoll = rollDice(damageNotation);
-      const totalDamage = dmgRoll.total + damageBonus;
+      let totalDamage = Math.floor((dmgRoll.total + damageBonus) * damageMultiplier);
       
       logEntry.hit = true;
       logEntry.damage = totalDamage;
-      logEntry.damageRolls = [dmgRoll.rolls];
-      logEntry.text = `🎲 Tirada: ${d20} + ${attackBonus} = ${totalAttack} vs CA ${objectCA} - ¡Impacto! Daño: ${totalDamage} ([${dmgRoll.rolls.join('+')}] + ${damageBonus})`;
+      logEntry.text = `🎲 ${d20} + ${attackBonus} = ${totalAttack} vs CA ${objectCA} - ¡Impacto! Daño ${dtName}: ${totalDamage}${damageModText}`;
       
       const newHP = Math.max(0, objectHP - totalDamage);
       setObjectHP(newHP);
@@ -251,16 +494,15 @@ const ObjectInteractionSection = () => {
       if (newHP <= 0) {
         logEntry.destroyed = true;
         logEntry.text += ' - ¡DESTRUIDO!';
-        toast.success('¡El objeto ha sido destruido!');
+        toast.success('¡Destruido!');
       }
     } else {
-      // Miss
-      logEntry.text = `🎲 Tirada: ${d20} + ${attackBonus} = ${totalAttack} vs CA ${objectCA} - Fallo. El golpe rebota sin causar daño.`;
-      toast.error('El golpe no consigue dañar el objeto.');
+      logEntry.text = `🎲 ${d20} + ${attackBonus} = ${totalAttack} vs CA ${objectCA} - Fallo.`;
+      toast.error('El golpe no causa daño.');
     }
     
     setCombatLog(prev => [...prev, logEntry]);
-  }, [combatStarted, objectHP, objectCA, attackBonus, damageNotation, damageBonus, weaponName]);
+  }, [combatStarted, objectHP, objectCA, attackBonus, damageNotation, damageBonus, weaponName, damageType, currentMaterial, objectName]);
   
   // Load preset
   const loadPreset = useCallback((preset) => {
@@ -273,410 +515,442 @@ const ObjectInteractionSection = () => {
     toast.info(`Cargado: ${preset.nombre}`);
   }, [resetCombat]);
   
-  // Current stats preview
-  const mat = MATERIALS.find(m => m.id === material);
-  const siz = SIZES.find(s => s.id === size);
-  const sta = STATES.find(s => s.id === state);
-  const dur = durability === 'fragile' ? siz?.fragil : siz?.resistente;
+  // Preview stats
+  const mat = materials.find(m => m.id === material);
+  const siz = sizes.find(s => s.id === size);
+  const sta = states.find(s => s.id === state);
   const previewCA = mat && sta ? mat.ca + sta.modCA : 0;
+  const previewDice = durability === 'fragile' ? siz?.fragil : siz?.resistente;
   
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="text-center mb-6">
-        <h2 className="text-2xl font-bold text-[hsl(var(--gold))] flex items-center justify-center gap-2">
-          <Hammer className="w-6 h-6" />
-          Interacciones con Objetos
-        </h2>
-        <p className="text-sm text-muted-foreground mt-1">
-          Sistema para romper puertas, cofres, cerrojos y otros objetos
-        </p>
+      <div className="flex justify-between items-center">
+        <div className="text-center flex-1">
+          <h2 className="text-2xl font-bold text-[hsl(var(--gold))] flex items-center justify-center gap-2">
+            <Hammer className="w-6 h-6" />
+            Interacciones con Objetos
+          </h2>
+          <p className="text-sm text-muted-foreground mt-1">
+            Sistema para romper puertas, cofres, cerrojos y otros objetos
+          </p>
+        </div>
+        <Button variant="outline" onClick={() => setShowMaterialEditor(true)} data-testid="edit-materials-btn">
+          <Edit className="w-4 h-4 mr-2" /> Editar Materiales
+        </Button>
       </div>
       
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* LEFT COLUMN: Object Configuration */}
-        <div className="space-y-4">
-          <Card className="card-parchment">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-lg text-[hsl(var(--gold))] flex items-center gap-2">
-                <Box className="w-5 h-5" />
-                Configurar Objeto
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {/* Presets */}
-              <div>
-                <Label className="text-sm">Objetos Predefinidos</Label>
-                <ScrollArea className="h-24 mt-1">
-                  <div className="flex flex-wrap gap-1">
-                    {PRESETS.map((preset, idx) => (
-                      <Badge 
-                        key={idx}
-                        variant="outline" 
-                        className="cursor-pointer hover:bg-[hsl(var(--gold))/20] text-xs"
-                        onClick={() => loadPreset(preset)}
-                      >
-                        {preset.nombre}
-                      </Badge>
-                    ))}
-                  </div>
-                </ScrollArea>
-              </div>
-              
-              {/* Object Name */}
-              <div>
-                <Label className="text-sm">Nombre del Objeto</Label>
-                <Input 
-                  value={objectName}
-                  onChange={(e) => setObjectName(e.target.value)}
-                  placeholder="Ej: Puerta de la taberna"
-                  className="mt-1"
-                  disabled={combatStarted}
-                />
-              </div>
-              
-              {/* Material */}
-              <div>
-                <Label className="text-sm">Material (CA base)</Label>
-                <Select value={material} onValueChange={setMaterial} disabled={combatStarted}>
-                  <SelectTrigger className="mt-1">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {MATERIALS.map(m => (
-                      <SelectItem key={m.id} value={m.id}>
-                        {m.icon} {m.nombre} (CA {m.ca})
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              
-              {/* Size */}
-              <div>
-                <Label className="text-sm">Tamaño (PG base)</Label>
-                <Select value={size} onValueChange={setSize} disabled={combatStarted}>
-                  <SelectTrigger className="mt-1">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {SIZES.map(s => (
-                      <SelectItem key={s.id} value={s.id}>
-                        {s.nombre} - {s.ejemplos}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              
-              {/* State */}
-              <div>
-                <Label className="text-sm">Estado (modifica CA y PG)</Label>
-                <Select value={state} onValueChange={setState} disabled={combatStarted}>
-                  <SelectTrigger className="mt-1">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {STATES.map(s => (
-                      <SelectItem key={s.id} value={s.id}>
-                        {s.nombre} ({s.modCA >= 0 ? '+' : ''}{s.modCA} CA, ×{s.modHP} PG) - {s.descripcion}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              
-              {/* Durability */}
-              <div>
-                <Label className="text-sm">Durabilidad</Label>
-                <Select value={durability} onValueChange={setDurability} disabled={combatStarted}>
-                  <SelectTrigger className="mt-1">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {DURABILITIES.map(d => (
-                      <SelectItem key={d.id} value={d.id}>
-                        {d.nombre} - {d.descripcion}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              
-              {/* Preview Stats */}
-              {!combatStarted && (
-                <div className="bg-black/20 p-3 rounded border border-[hsl(var(--gold))/30]">
-                  <p className="text-xs text-muted-foreground mb-2">Vista previa:</p>
-                  <div className="grid grid-cols-2 gap-2 text-sm">
-                    <div className="flex items-center gap-1">
-                      <Shield className="w-4 h-4 text-blue-400" />
-                      <span>CA: <strong>{previewCA}</strong></span>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <Heart className="w-4 h-4 text-red-400" />
-                      <span>PG: <strong>{dur?.dado}</strong> (media ~{dur?.media})</span>
-                    </div>
-                  </div>
-                </div>
-              )}
-              
-              {/* Start/Reset Button */}
-              {!combatStarted ? (
-                <Button 
-                  onClick={startCombat} 
-                  className="w-full"
-                  data-testid="start-object-combat-btn"
-                >
-                  <Target className="w-4 h-4 mr-2" />
-                  Crear Objeto y Comenzar
-                </Button>
-              ) : (
-                <Button 
-                  onClick={resetCombat} 
-                  variant="outline"
-                  className="w-full"
-                >
-                  <RotateCcw className="w-4 h-4 mr-2" />
-                  Reiniciar
-                </Button>
-              )}
-            </CardContent>
-          </Card>
-          
-          {/* Attack Configuration */}
-          <Card className="card-parchment">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-lg text-[hsl(var(--gold))] flex items-center gap-2">
-                <Swords className="w-5 h-5" />
-                Configurar Ataque
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div>
-                <Label className="text-sm">Nombre del Arma</Label>
-                <Input 
-                  value={weaponName}
-                  onChange={(e) => setWeaponName(e.target.value)}
-                  placeholder="Ej: Hacha de guerra"
-                  className="mt-1"
-                />
-              </div>
-              
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <Label className="text-sm">Bonificador de Ataque</Label>
-                  <Input 
-                    type="number"
-                    value={attackBonus}
-                    onChange={(e) => setAttackBonus(parseInt(e.target.value) || 0)}
-                    className="mt-1"
-                  />
-                </div>
-                <div>
-                  <Label className="text-sm">Dados de Daño</Label>
-                  <Select value={damageNotation} onValueChange={setDamageNotation}>
-                    <SelectTrigger className="mt-1">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="1d4">1d4 (daga)</SelectItem>
-                      <SelectItem value="1d6">1d6 (espada corta)</SelectItem>
-                      <SelectItem value="1d8">1d8 (espada larga)</SelectItem>
-                      <SelectItem value="1d10">1d10 (alabarda)</SelectItem>
-                      <SelectItem value="1d12">1d12 (hacha a dos manos)</SelectItem>
-                      <SelectItem value="2d6">2d6 (espada a dos manos)</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-              
-              <div>
-                <Label className="text-sm">Bonificador de Daño (FUE/DES)</Label>
-                <Input 
-                  type="number"
-                  value={damageBonus}
-                  onChange={(e) => setDamageBonus(parseInt(e.target.value) || 0)}
-                  className="mt-1"
-                />
-              </div>
-              
-              <p className="text-xs text-muted-foreground">
-                Daño total: {damageNotation} + {damageBonus}
-              </p>
-            </CardContent>
-          </Card>
-        </div>
+      <Tabs defaultValue="simulator" className="w-full">
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="simulator">Simulador de Combate</TabsTrigger>
+          <TabsTrigger value="reference">Tablas de Referencia</TabsTrigger>
+        </TabsList>
         
-        {/* RIGHT COLUMN: Combat */}
-        <div className="space-y-4">
-          {/* Object Status */}
-          <Card className={`card-parchment ${objectHP === 0 ? 'border-red-500/50' : ''}`}>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-lg text-[hsl(var(--gold))]">
-                {objectName || 'Objeto'}
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {combatStarted ? (
-                <div className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="bg-blue-500/20 p-3 rounded text-center">
-                      <Shield className="w-6 h-6 mx-auto text-blue-400 mb-1" />
-                      <p className="text-2xl font-bold">{objectCA}</p>
-                      <p className="text-xs text-muted-foreground">Clase de Armadura</p>
-                    </div>
-                    <div className={`p-3 rounded text-center ${objectHP > 0 ? 'bg-red-500/20' : 'bg-gray-500/20'}`}>
-                      <Heart className={`w-6 h-6 mx-auto mb-1 ${objectHP > 0 ? 'text-red-400' : 'text-gray-500'}`} />
-                      <p className="text-2xl font-bold">{objectHP} / {objectMaxHP}</p>
-                      <p className="text-xs text-muted-foreground">Puntos de Golpe</p>
-                    </div>
-                  </div>
-                  
-                  {/* HP Bar */}
+        <TabsContent value="simulator">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* LEFT: Configuration */}
+            <div className="space-y-4">
+              <Card className="card-parchment">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-lg text-[hsl(var(--gold))] flex items-center gap-2">
+                    <Box className="w-5 h-5" />
+                    Configurar Objeto
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {/* Presets */}
                   <div>
-                    <Progress 
-                      value={(objectHP / objectMaxHP) * 100} 
-                      className="h-4"
-                    />
-                    <p className="text-xs text-center text-muted-foreground mt-1">
-                      {objectHP > 0 
-                        ? `${Math.round((objectHP / objectMaxHP) * 100)}% de integridad`
-                        : '¡DESTRUIDO!'
-                      }
-                    </p>
+                    <Label className="text-sm">Objetos Predefinidos</Label>
+                    <ScrollArea className="h-20 mt-1">
+                      <div className="flex flex-wrap gap-1">
+                        {presets.map((preset, idx) => (
+                          <Badge 
+                            key={idx}
+                            variant="outline" 
+                            className="cursor-pointer hover:bg-[hsl(var(--gold))/20] text-xs"
+                            onClick={() => loadPreset(preset)}
+                          >
+                            {preset.nombre}
+                          </Badge>
+                        ))}
+                      </div>
+                    </ScrollArea>
                   </div>
                   
-                  {/* Attack Button */}
-                  <Button 
-                    onClick={attackObject}
-                    disabled={objectHP <= 0}
-                    className="w-full h-14 text-lg"
-                    data-testid="attack-object-btn"
-                  >
-                    <Dice6 className="w-5 h-5 mr-2" />
-                    {objectHP > 0 ? '¡Atacar!' : 'Objeto Destruido'}
-                  </Button>
+                  <div>
+                    <Label className="text-sm">Nombre del Objeto</Label>
+                    <Input 
+                      value={objectName}
+                      onChange={(e) => setObjectName(e.target.value)}
+                      disabled={combatStarted}
+                    />
+                  </div>
                   
-                  {objectHP <= 0 && (
-                    <div className="text-center p-4 bg-green-500/20 rounded border border-green-500/30">
-                      <Check className="w-8 h-8 mx-auto text-green-400 mb-2" />
-                      <p className="font-bold text-green-400">¡Éxito!</p>
-                      <p className="text-sm text-muted-foreground">
-                        El {objectName.toLowerCase()} ha sido destruido.
-                      </p>
+                  <div>
+                    <Label className="text-sm">Material (CA base)</Label>
+                    <Select value={material} onValueChange={setMaterial} disabled={combatStarted}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {materials.map(m => (
+                          <SelectItem key={m.id} value={m.id}>
+                            {m.icon} {m.nombre} (CA {m.ca})
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <Label className="text-sm">Tamaño</Label>
+                      <Select value={size} onValueChange={setSize} disabled={combatStarted}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          {sizes.map(s => (
+                            <SelectItem key={s.id} value={s.id}>{s.nombre}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </div>
-                  )}
-                </div>
-              ) : (
-                <div className="text-center p-6 text-muted-foreground">
-                  <Box className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                  <p>Configura y crea un objeto para comenzar</p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-          
-          {/* Combat Log */}
-          <Card className="card-parchment">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-lg flex items-center gap-2">
-                <Dice6 className="w-5 h-5" />
-                Registro de Combate
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <ScrollArea className="h-64">
-                {combatLog.length === 0 ? (
-                  <p className="text-center text-muted-foreground py-8">
-                    El registro aparecerá aquí...
-                  </p>
-                ) : (
-                  <div className="space-y-2">
-                    {combatLog.map((entry, idx) => (
-                      <div 
-                        key={idx}
-                        className={`p-2 rounded text-sm ${
-                          entry.type === 'info' ? 'bg-blue-500/20 border-l-2 border-blue-500' :
-                          entry.type === 'crit' ? 'bg-yellow-500/20 border-l-2 border-yellow-500' :
-                          entry.type === 'fumble' ? 'bg-red-500/20 border-l-2 border-red-500' :
-                          entry.hit ? 'bg-green-500/20 border-l-2 border-green-500' :
-                          'bg-gray-500/20 border-l-2 border-gray-500'
-                        }`}
-                      >
-                        <p>{entry.text}</p>
-                        {entry.destroyed && (
-                          <Badge className="mt-1 bg-green-600">¡DESTRUIDO!</Badge>
+                    <div>
+                      <Label className="text-sm">Durabilidad</Label>
+                      <Select value={durability} onValueChange={setDurability} disabled={combatStarted}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="fragile">Frágil</SelectItem>
+                          <SelectItem value="resistant">Resistente</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <Label className="text-sm">Estado</Label>
+                    <Select value={state} onValueChange={setState} disabled={combatStarted}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {states.map(s => (
+                          <SelectItem key={s.id} value={s.id}>
+                            {s.nombre} ({s.modCA >= 0 ? '+' : ''}{s.modCA} CA, ×{s.modHP} PG)
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  
+                  {/* Preview */}
+                  {!combatStarted && mat && (
+                    <div className="bg-black/20 p-3 rounded border border-[hsl(var(--gold))/30]">
+                      <div className="grid grid-cols-2 gap-2 text-sm mb-2">
+                        <div className="flex items-center gap-1">
+                          <Shield className="w-4 h-4 text-blue-400" />
+                          CA: <strong>{previewCA}</strong>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <Heart className="w-4 h-4 text-red-400" />
+                          PG: <strong>{previewDice}</strong>
+                        </div>
+                      </div>
+                      {/* Show vulnerabilities */}
+                      <div className="text-xs space-y-1">
+                        {mat.vulnerable?.length > 0 && (
+                          <p className="text-red-400">
+                            Vulnerable: {mat.vulnerable.map(v => DAMAGE_TYPES.find(d => d.id === v)?.icon).join(' ')}
+                          </p>
                         )}
-                        {entry.weaponDamage && (
-                          <Badge variant="destructive" className="mt-1">Arma dañada</Badge>
+                        {mat.resistant?.length > 0 && (
+                          <p className="text-blue-400">
+                            Resistente: {mat.resistant.map(r => DAMAGE_TYPES.find(d => d.id === r)?.icon).join(' ')}
+                          </p>
+                        )}
+                        {mat.immune?.length > 0 && (
+                          <p className="text-gray-400">
+                            Inmune: {mat.immune.map(i => DAMAGE_TYPES.find(d => d.id === i)?.icon).join(' ')}
+                          </p>
                         )}
                       </div>
-                    ))}
+                    </div>
+                  )}
+                  
+                  {!combatStarted ? (
+                    <Button onClick={startCombat} className="w-full" data-testid="start-object-combat-btn">
+                      <Target className="w-4 h-4 mr-2" /> Crear Objeto
+                    </Button>
+                  ) : (
+                    <Button variant="outline" onClick={resetCombat} className="w-full">
+                      <RotateCcw className="w-4 h-4 mr-2" /> Reiniciar
+                    </Button>
+                  )}
+                </CardContent>
+              </Card>
+              
+              {/* Attack Config */}
+              <Card className="card-parchment">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-lg text-[hsl(var(--gold))] flex items-center gap-2">
+                    <Swords className="w-5 h-5" /> Configurar Ataque
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <div>
+                    <Label className="text-sm">Tipo de Daño</Label>
+                    <Select value={damageType} onValueChange={setDamageType}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {DAMAGE_TYPES.map(dt => (
+                          <SelectItem key={dt.id} value={dt.id}>
+                            {dt.icon} {dt.nombre}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
-                )}
-              </ScrollArea>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
-      
-      {/* Reference Tables */}
-      <Card className="card-parchment">
-        <CardHeader className="pb-2">
-          <CardTitle className="text-lg text-[hsl(var(--gold))]">
-            Tablas de Referencia
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* CA by Material */}
-            <div>
-              <h4 className="font-bold text-sm mb-2 flex items-center gap-1">
-                <Shield className="w-4 h-4" /> Clase de Armadura por Material
-              </h4>
-              <div className="space-y-1">
-                {MATERIALS.map(m => (
-                  <div key={m.id} className="flex justify-between items-center text-sm p-1 bg-black/10 rounded">
-                    <span>{m.icon} {m.nombre}</span>
-                    <Badge variant="outline">CA {m.ca}</Badge>
-                  </div>
-                ))}
-              </div>
-            </div>
-            
-            {/* HP by Size */}
-            <div>
-              <h4 className="font-bold text-sm mb-2 flex items-center gap-1">
-                <Heart className="w-4 h-4" /> Puntos de Golpe por Tamaño
-              </h4>
-              <div className="space-y-1">
-                {SIZES.map(s => (
-                  <div key={s.id} className="flex justify-between items-center text-sm p-1 bg-black/10 rounded">
-                    <span>{s.nombre}</span>
-                    <div className="flex gap-2">
-                      <Badge variant="outline" className="text-xs">Frágil: {s.fragil.dado}</Badge>
-                      <Badge className="text-xs bg-blue-600">Resist: {s.resistente.dado}</Badge>
+                  
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <Label className="text-sm">Arma</Label>
+                      <Input value={weaponName} onChange={(e) => setWeaponName(e.target.value)} />
+                    </div>
+                    <div>
+                      <Label className="text-sm">Bonus Ataque</Label>
+                      <Input type="number" value={attackBonus} onChange={(e) => setAttackBonus(parseInt(e.target.value) || 0)} />
                     </div>
                   </div>
-                ))}
-              </div>
+                  
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <Label className="text-sm">Dados Daño</Label>
+                      <Select value={damageNotation} onValueChange={setDamageNotation}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="1d4">1d4</SelectItem>
+                          <SelectItem value="1d6">1d6</SelectItem>
+                          <SelectItem value="1d8">1d8</SelectItem>
+                          <SelectItem value="1d10">1d10</SelectItem>
+                          <SelectItem value="1d12">1d12</SelectItem>
+                          <SelectItem value="2d6">2d6</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label className="text-sm">Bonus Daño</Label>
+                      <Input type="number" value={damageBonus} onChange={(e) => setDamageBonus(parseInt(e.target.value) || 0)} />
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+            
+            {/* RIGHT: Combat */}
+            <div className="space-y-4">
+              <Card className={`card-parchment ${objectHP === 0 ? 'border-red-500/50' : ''}`}>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-lg">{objectName || 'Objeto'}</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {combatStarted ? (
+                    <div className="space-y-4">
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="bg-blue-500/20 p-3 rounded text-center">
+                          <Shield className="w-6 h-6 mx-auto text-blue-400 mb-1" />
+                          <p className="text-2xl font-bold">{objectCA}</p>
+                          <p className="text-xs text-muted-foreground">CA</p>
+                        </div>
+                        <div className={`p-3 rounded text-center ${objectHP > 0 ? 'bg-red-500/20' : 'bg-gray-500/20'}`}>
+                          <Heart className={`w-6 h-6 mx-auto mb-1 ${objectHP > 0 ? 'text-red-400' : 'text-gray-500'}`} />
+                          <p className="text-2xl font-bold">{objectHP} / {objectMaxHP}</p>
+                          <p className="text-xs text-muted-foreground">PG</p>
+                        </div>
+                      </div>
+                      
+                      <Progress value={(objectHP / objectMaxHP) * 100} className="h-4" />
+                      
+                      <Button 
+                        onClick={attackObject}
+                        disabled={objectHP <= 0}
+                        className="w-full h-12 text-lg"
+                        data-testid="attack-object-btn"
+                      >
+                        <Dice6 className="w-5 h-5 mr-2" />
+                        {objectHP > 0 ? '¡Atacar!' : 'Destruido'}
+                      </Button>
+                      
+                      {objectHP <= 0 && (
+                        <div className="text-center p-4 bg-green-500/20 rounded border border-green-500/30">
+                          <Check className="w-8 h-8 mx-auto text-green-400 mb-2" />
+                          <p className="font-bold text-green-400">¡Destruido!</p>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="text-center p-6 text-muted-foreground">
+                      <Box className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                      <p>Crea un objeto para comenzar</p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+              
+              {/* Combat Log */}
+              <Card className="card-parchment">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    <Dice6 className="w-5 h-5" /> Registro de Combate
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <ScrollArea className="h-56">
+                    {combatLog.length === 0 ? (
+                      <p className="text-center text-muted-foreground py-8">El registro aparecerá aquí...</p>
+                    ) : (
+                      <div className="space-y-2">
+                        {combatLog.map((entry, idx) => (
+                          <div key={idx} className={`p-2 rounded text-sm border-l-2 ${
+                            entry.type === 'info' ? 'bg-blue-500/20 border-blue-500' :
+                            entry.type === 'warning' ? 'bg-yellow-500/20 border-yellow-500' :
+                            entry.type === 'crit' ? 'bg-yellow-500/20 border-yellow-500' :
+                            entry.type === 'fumble' ? 'bg-red-500/20 border-red-500' :
+                            entry.type === 'immune' ? 'bg-gray-500/20 border-gray-500' :
+                            entry.hit ? 'bg-green-500/20 border-green-500' :
+                            'bg-gray-500/20 border-gray-500'
+                          }`}>
+                            <p>{entry.text}</p>
+                            {entry.destroyed && <Badge className="mt-1 bg-green-600">DESTRUIDO</Badge>}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </ScrollArea>
+                </CardContent>
+              </Card>
             </div>
           </div>
-          
-          {/* Special Rules */}
-          <div className="mt-4 p-3 bg-black/20 rounded border border-[hsl(var(--gold))/30]">
-            <h4 className="font-bold text-sm mb-2 flex items-center gap-1">
-              <Sparkles className="w-4 h-4" /> Reglas Especiales
-            </h4>
-            <ul className="text-sm space-y-1 text-muted-foreground">
-              <li>• <strong>1 Natural (Pifia):</strong> Fallo automático. 50% de probabilidad de dañar el arma.</li>
-              <li>• <strong>20 Natural (Crítico):</strong> Impacto automático con daño doble. Puede destruir el objeto de un golpe.</li>
-              <li>• <strong>Inmunidades:</strong> Los objetos son inmunes a veneno y daño psíquico.</li>
-              <li>• <strong>Resistencias:</strong> Algunos materiales resisten ciertos tipos de daño (ej: adamantina vs cortante).</li>
-            </ul>
+        </TabsContent>
+        
+        <TabsContent value="reference">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Materials Table */}
+            <Card className="card-parchment">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-lg text-[hsl(var(--gold))] flex items-center gap-2">
+                  <Shield className="w-5 h-5" /> Materiales y Vulnerabilidades
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  {materials.map(m => (
+                    <div key={m.id} className="p-2 bg-black/10 rounded">
+                      <div className="flex justify-between items-center mb-1">
+                        <span className="font-medium">{m.icon} {m.nombre}</span>
+                        <Badge variant="outline">CA {m.ca}</Badge>
+                      </div>
+                      <div className="text-xs space-x-2">
+                        {m.vulnerable?.length > 0 && (
+                          <span className="text-red-400">
+                            Vuln: {m.vulnerable.map(v => DAMAGE_TYPES.find(d => d.id === v)?.icon).join('')}
+                          </span>
+                        )}
+                        {m.resistant?.length > 0 && (
+                          <span className="text-blue-400">
+                            Res: {m.resistant.map(r => DAMAGE_TYPES.find(d => d.id === r)?.icon).join('')}
+                          </span>
+                        )}
+                        {m.immune?.length > 0 && (
+                          <span className="text-gray-400">
+                            Inm: {m.immune.map(i => DAMAGE_TYPES.find(d => d.id === i)?.icon).join('')}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+            
+            {/* Sizes Table */}
+            <Card className="card-parchment">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-lg text-[hsl(var(--gold))] flex items-center gap-2">
+                  <Heart className="w-5 h-5" /> Tamaños y Puntos de Golpe
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  {sizes.map(s => (
+                    <div key={s.id} className="flex justify-between items-center p-2 bg-black/10 rounded">
+                      <div>
+                        <span className="font-medium">{s.nombre}</span>
+                        <p className="text-xs text-muted-foreground">{s.ejemplos}</p>
+                      </div>
+                      <div className="flex gap-2">
+                        <Badge variant="outline">Frágil: {s.fragil}</Badge>
+                        <Badge className="bg-blue-600">Resist: {s.resistente}</Badge>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+            
+            {/* Damage Types */}
+            <Card className="card-parchment">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-lg text-[hsl(var(--gold))]">Tipos de Daño</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-4 gap-2">
+                  {DAMAGE_TYPES.map(dt => (
+                    <div key={dt.id} className="text-center p-2 bg-black/10 rounded">
+                      <span className="text-2xl">{dt.icon}</span>
+                      <p className="text-xs">{dt.nombre}</p>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+            
+            {/* Special Rules */}
+            <Card className="card-parchment">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-lg text-[hsl(var(--gold))]">Reglas Especiales</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ul className="text-sm space-y-2">
+                  <li className="flex items-start gap-2">
+                    <Badge variant="destructive">1</Badge>
+                    <span><strong>Pifia:</strong> Fallo automático. 50% de dañar el arma.</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <Badge className="bg-yellow-600">20</Badge>
+                    <span><strong>Crítico:</strong> Impacto automático, daño doble.</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <Badge className="bg-red-600">×2</Badge>
+                    <span><strong>Vulnerable:</strong> El daño se duplica.</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <Badge className="bg-blue-600">×0.5</Badge>
+                    <span><strong>Resistente:</strong> El daño se reduce a la mitad.</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <Badge className="bg-gray-600">×0</Badge>
+                    <span><strong>Inmune:</strong> No recibe daño de ese tipo.</span>
+                  </li>
+                </ul>
+              </CardContent>
+            </Card>
           </div>
-        </CardContent>
-      </Card>
+        </TabsContent>
+      </Tabs>
+      
+      {/* Material Editor Modal */}
+      {showMaterialEditor && (
+        <MaterialEditor 
+          materials={materials}
+          onSave={saveMaterials}
+          onClose={() => setShowMaterialEditor(false)}
+        />
+      )}
     </div>
   );
 };

@@ -22,6 +22,7 @@ import EquipmentEditor from '@/components/admin/EquipmentEditor';
 // Refactored rule section components
 import { SombraSection, CombateSection, SalariosSection, VariosSection, ViajeSection, ComunidadSection, NPCsSection, CriaturasSinNombreSection, BackgroundsSection, CharacterCreationSection, TerrainCorrectionTool, TradingSystemSection, VirtuesSection, ArtesSection, RecompensasSection, EquipmentSection, PriceModifiersSection, RegionsSection, CulturesSection, OccupationsSection, TravelRulesSection } from '@/components/rules';
 import ObjectInteractionSection from '@/components/rules/sections/ObjectInteractionSection';
+import TreasureSystemSection from '@/components/rules/sections/TreasureSystemSection';
 
 const RULE_CATEGORIES = [
   { id: 'cultures', name: 'Culturas', icon: Users, color: 'gold', description: 'Las razas y pueblos de la Tierra Media' },
@@ -38,6 +39,7 @@ const RULE_CATEGORIES = [
   { id: 'recompensas', name: 'Recompensas', icon: Crown, color: 'gold', description: 'Mejoras de equipo y bendiciones' },
   { id: 'combate', name: 'Combate', icon: Swords, color: 'destructive', description: 'Reglas de combate y ataque' },
   { id: 'objects', name: 'Objetos', icon: Package, color: 'magic-blue', description: 'Interacciones para romper puertas, cofres, cerrojos...' },
+  { id: 'treasures', name: 'Tesoros', icon: Crown, color: 'gold', description: 'Generador de tesoros, objetos mágicos y joyas' },
   { id: 'salarios', name: 'Salarios', icon: Crown, color: 'gold', description: 'Tabla de salarios por ocupación' },
   { id: 'varios', name: 'Reglas Varias', icon: BookOpen, color: 'magic-blue', description: 'Pruebas, Cansancio, Inspiración, Ojo de Mordor' },
   { id: 'travel', name: 'Viajes', icon: Map, color: 'gold', description: 'Reglas de exploración' },
@@ -3018,6 +3020,9 @@ const RulesPage = () => {
       
       case 'objects':
         return <ObjectInteractionSection />;
+      
+      case 'treasures':
+        return <TreasureSystemSection />;
       
       case 'travel':
         return <ViajeSection data={data} />;
