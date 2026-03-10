@@ -598,6 +598,10 @@ const EnhancedTravelSystem = () => {
   const [pxApplied, setPxApplied] = useState(false);
   const [pxResults, setPxResults] = useState(null);
   
+  // Individual PX tracking per character based on their rolls
+  // { characterId: { total: number, rolls: [{ type, cd, tirada, diff, px, terreno, tierras }] } }
+  const [characterXP, setCharacterXP] = useState({});
+  
   // Journey narrative state
   const [journeyNarrative, setJourneyNarrative] = useState(null);
   const [generatingNarrative, setGeneratingNarrative] = useState(false);
@@ -761,6 +765,95 @@ const EnhancedTravelSystem = () => {
     await calculateJourney();
   }, [config.origenId, config.destinoId, calculateJourney]);
   
+  // =============== PX CALCULATION PER ROLL ===============
+  // Formula: PX final = PX base × diferencia × terreno × peligrosidad
+  // Limit: ±12 PX per roll
+  
+  const calculateRollXP = useCallback((cd, tirada, exito, terreno, tipoTierra) => {
+    // 1. PX Base based on CD
+    let pxBase = 0;
+    if (exito) {
+      if (cd >= 20) pxBase = 6;
+      else if (cd >= 18) pxBase = 5;
+      else if (cd >= 16) pxBase = 4;
+      else if (cd >= 14) pxBase = 3;
+      else if (cd >= 12) pxBase = 2;
+      else pxBase = 1; // CD 10 or less
+    } else {
+      if (cd >= 20) pxBase = -3;
+      else if (cd >= 18) pxBase = -2;
+      else if (cd >= 16) pxBase = -2;
+      else if (cd >= 14) pxBase = -1;
+      else if (cd >= 12) pxBase = -1;
+      else pxBase = 0; // CD 10 or less
+    }
+    
+    // 2. Modifier based on difference
+    const diferencia = tirada - cd;
+    let multDiferencia = 1;
+    if (exito) {
+      if (diferencia >= 10) multDiferencia = 2;
+      else if (diferencia >= 5) multDiferencia = 1.5;
+      else if (diferencia >= 1) multDiferencia = 1.2;
+      // 0 = ×1
+    } else {
+      // In failures, multiplier increases the penalty
+      if (diferencia <= -7) multDiferencia = 1.5;
+      else if (diferencia <= -4) multDiferencia = 1.2;
+      // -1 to -3 = ×1
+    }
+    
+    // 3. Terrain multiplier
+    const terrenoMults = {
+      'facil': 0.8,
+      'moderado': 1,
+      'dificil': 1.2,
+      'muy_dificil': 1.5,
+      'desalentador': 1.8
+    };
+    const multTerreno = terrenoMults[terreno?.toLowerCase()] || 1;
+    
+    // 4. Land type multiplier
+    const tierraMults = {
+      'tierras_libres': 0.8,
+      'tierras_fronterizas': 1,
+      'tierras_salvajes': 1.2,
+      'tierras_sombra': 1.5,
+      'tierras_oscuras': 1.8
+    };
+    const multTierra = tierraMults[tipoTierra?.toLowerCase()] || 1;
+    
+    // Final calculation
+    let pxFinal = pxBase * multDiferencia * multTerreno * multTierra;
+    
+    // Round and apply limit ±12
+    pxFinal = Math.round(pxFinal);
+    pxFinal = Math.max(-12, Math.min(12, pxFinal));
+    
+    return {
+      pxBase,
+      diferencia,
+      multDiferencia,
+      multTerreno,
+      multTierra,
+      pxFinal
+    };
+  }, []);
+  
+  // Add XP to a character
+  const addCharacterXP = useCallback((characterId, rollData) => {
+    setCharacterXP(prev => {
+      const charData = prev[characterId] || { total: 0, rolls: [] };
+      return {
+        ...prev,
+        [characterId]: {
+          total: charData.total + rollData.pxFinal,
+          rolls: [...charData.rolls, rollData]
+        }
+      };
+    });
+  }, []);
+
   // =============== START JOURNEY ===============
   
   const startGlobalJourney = async () => {
@@ -781,6 +874,7 @@ const EnhancedTravelSystem = () => {
     setCurrentPosition(0);
     setNextEventPosition(0);
     setLastOrientationResult(null);
+    setCharacterXP({}); // Reset individual XP tracking
     
     // Check if guide has multiple roles (penalty -5)
     const guiaTieneMultiplesRoles = guia.papeles && guia.papeles.length > 1;
@@ -822,6 +916,28 @@ const EnhancedTravelSystem = () => {
           casilla_actual: currentPosition,
           casillas_restantes: casillasRestantes
         }]);
+        
+        // Calculate XP for the Guide's orientation check
+        // CD for orientation is always 15, exito is tirada >= CD
+        const orientationCD = 15;
+        const exito = result.total >= orientationCD;
+        const xpResult = calculateRollXP(
+          orientationCD,
+          result.total,
+          exito,
+          journeyCalc?.ruta?.terreno || 'moderado',
+          journeyCalc?.ruta?.tipo_tierra || 'tierras_salvajes'
+        );
+        
+        // Add XP to guide
+        addCharacterXP(guia.id, {
+          type: 'orientacion',
+          cd: orientationCD,
+          tirada: result.total,
+          exito: exito,
+          ...xpResult,
+          casilla: currentPosition
+        });
         
         if (result.viaje_completado) {
           // Journey is complete!
@@ -1126,6 +1242,27 @@ const EnhancedTravelSystem = () => {
     
     const cd = currentEvent.resolucion.cd;
     const exito = tirada >= cd;
+    
+    // Calculate XP for the character resolving the event
+    if (targetMember) {
+      const xpResult = calculateRollXP(
+        cd,
+        tirada,
+        exito,
+        journeyCalc?.ruta?.terreno || 'moderado',
+        journeyCalc?.ruta?.tipo_tierra || 'tierras_salvajes'
+      );
+      
+      addCharacterXP(targetMember.id, {
+        type: 'evento',
+        eventoNombre: currentEvent.evento.nombre,
+        cd: cd,
+        tirada: tirada,
+        exito: exito,
+        ...xpResult,
+        casilla: currentEvent.casilla
+      });
+    }
     
     try {
       const res = await api.post('/travel/resolve-event', null, {
@@ -2142,23 +2279,31 @@ const EnhancedTravelSystem = () => {
   // =============== APPLY PX TO CHARACTERS ===============
   
   const applyPXToCharacters = async () => {
-    if (!journeyCalc?.estimaciones?.px_por_personaje) {
-      toast.error('No hay PX para aplicar');
-      return;
-    }
-    
     const membersWithRoles = config.miembros.filter(m => m.papeles?.length > 0);
     if (membersWithRoles.length === 0) {
       toast.error('No hay personajes con roles asignados');
       return;
     }
     
+    // Check if any character has earned XP
+    const hasAnyXP = membersWithRoles.some(m => characterXP[m.id]?.total !== undefined);
+    if (!hasAnyXP && !journeyCalc?.estimaciones?.px_por_personaje) {
+      toast.error('No hay PX para aplicar');
+      return;
+    }
+    
     setApplyingPX(true);
     
     try {
-      const response = await api.post('/travel/apply-px', {
-        character_ids: membersWithRoles.map(m => m.id),
-        px_amount: journeyCalc.estimaciones.px_por_personaje,
+      // Build array of {character_id, px_amount} for individual XP
+      const characterPXList = membersWithRoles.map(m => ({
+        character_id: m.id,
+        character_name: m.nombre,
+        px_amount: characterXP[m.id]?.total || 0
+      }));
+      
+      const response = await api.post('/travel/apply-px-individual', {
+        characters: characterPXList,
         journey_id: activeJourney?.id || null,
         journey_description: `Viaje de ${config.origenNombre} a ${config.destinoNombre}`
       });
@@ -2166,13 +2311,32 @@ const EnhancedTravelSystem = () => {
       if (response.data.success) {
         setPxApplied(true);
         setPxResults(response.data);
-        toast.success(`¡${response.data.px_por_personaje} PX aplicados a ${response.data.exitosos} personajes!`);
+        toast.success(`¡PX aplicados a ${response.data.exitosos} personajes!`);
       } else {
         toast.error(response.data.message || 'Error al aplicar PX');
       }
     } catch (err) {
       console.error('Error applying PX:', err);
-      toast.error('Error al aplicar PX a los personajes');
+      // Fallback to old method if new endpoint doesn't exist
+      try {
+        const avgPX = Math.round(Object.values(characterXP).reduce((sum, c) => sum + (c.total || 0), 0) / membersWithRoles.length) || journeyCalc?.estimaciones?.px_por_personaje || 0;
+        const response = await api.post('/travel/apply-px', {
+          character_ids: membersWithRoles.map(m => m.id),
+          px_amount: avgPX,
+          journey_id: activeJourney?.id || null,
+          journey_description: `Viaje de ${config.origenNombre} a ${config.destinoNombre}`
+        });
+        
+        if (response.data.success) {
+          setPxApplied(true);
+          setPxResults(response.data);
+          toast.success(`¡PX aplicados a ${response.data.exitosos} personajes!`);
+        } else {
+          toast.error(response.data.message || 'Error al aplicar PX');
+        }
+      } catch (fallbackErr) {
+        toast.error('Error al aplicar PX a los personajes');
+      }
     } finally {
       setApplyingPX(false);
     }
@@ -4166,23 +4330,35 @@ const EnhancedTravelSystem = () => {
             <p className="text-sm text-muted-foreground mb-4">
               {pxApplied 
                 ? '¡Los PX han sido aplicados a las fichas de los personajes!'
-                : 'Cada personaje recibirá los siguientes PX al finalizar el viaje.'
+                : 'Cada personaje recibirá PX según sus tiradas individuales durante el viaje.'
               }
             </p>
             <div className="grid md:grid-cols-2 gap-3">
               {config.miembros.filter(m => m.papeles?.length > 0).map((member) => {
                 const memberResult = pxResults?.results?.find(r => r.character_id === member.id);
                 const hasMultiple = member.papeles.length > 1;
+                const memberXP = characterXP[member.id] || { total: 0, rolls: [] };
+                const rollCount = memberXP.rolls?.length || 0;
+                const successCount = memberXP.rolls?.filter(r => r.exito).length || 0;
+                const failCount = rollCount - successCount;
+                
                 return (
                   <Card key={member.id} className={`p-4 ${pxApplied ? 'bg-green-600/20 border-green-400' : 'bg-green-900/20 border-green-500/30'}`}>
                     <div className="flex justify-between items-center">
-                      <div>
+                      <div className="flex-1">
                         <p className="font-bold text-[hsl(var(--gold))]">{member.nombre}</p>
                         <p className="text-xs text-muted-foreground">
                           {member.papeles.map(p => ROLE_INFO[p]?.nombre).join(', ')}
                         </p>
                         {hasMultiple && (
                           <p className="text-xs text-yellow-400">⚠️ Múltiples papeles: -5</p>
+                        )}
+                        {rollCount > 0 && (
+                          <p className="text-xs text-muted-foreground mt-1">
+                            {rollCount} tirada{rollCount !== 1 ? 's' : ''}: 
+                            <span className="text-green-400 ml-1">{successCount}✓</span>
+                            <span className="text-red-400 ml-1">{failCount}✗</span>
+                          </p>
                         )}
                         {memberResult && pxApplied && (
                           <p className="text-xs text-green-400 mt-1">
@@ -4191,36 +4367,56 @@ const EnhancedTravelSystem = () => {
                         )}
                       </div>
                       <div className="text-right">
-                        <p className={`text-3xl font-bold ${pxApplied ? 'text-green-300' : 'text-green-400'}`}>
-                          {pxApplied ? '✓' : '+'}{journeyCalc?.estimaciones?.px_por_personaje || 0}
+                        <p className={`text-3xl font-bold ${memberXP.total >= 0 ? (pxApplied ? 'text-green-300' : 'text-green-400') : 'text-red-400'}`}>
+                          {pxApplied ? '✓' : (memberXP.total >= 0 ? '+' : '')}{memberXP.total || 0}
                         </p>
                         <p className="text-xs text-muted-foreground">PX</p>
                       </div>
                     </div>
+                    {/* Individual roll breakdown */}
+                    {!pxApplied && memberXP.rolls?.length > 0 && (
+                      <details className="mt-2">
+                        <summary className="text-xs text-muted-foreground cursor-pointer hover:text-white">
+                          Ver desglose
+                        </summary>
+                        <div className="mt-1 max-h-24 overflow-y-auto text-xs space-y-1 bg-black/20 p-2 rounded">
+                          {memberXP.rolls.map((roll, idx) => (
+                            <div key={idx} className={`flex justify-between ${roll.exito ? 'text-green-400' : 'text-red-400'}`}>
+                              <span>
+                                {roll.type === 'orientacion' ? '🧭' : '⚔️'} 
+                                {roll.tirada} vs CD{roll.cd}
+                              </span>
+                              <span className="font-bold">
+                                {roll.pxFinal >= 0 ? '+' : ''}{roll.pxFinal}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </details>
+                    )}
                   </Card>
                 );
               })}
             </div>
             
-            {journeyCalc?.px_desglose && (
-              <div className="mt-4 p-3 bg-black/30 rounded text-xs">
-                <p className="font-bold mb-2 text-[hsl(var(--gold))]">Desglose del cálculo:</p>
-                <div className="space-y-1 text-muted-foreground">
-                  <p>Distancia total: {journeyCalc.px_desglose.distancia_total_km} km</p>
-                  <p>PX por km (promedio): {journeyCalc.px_desglose.px_por_km_promedio}</p>
-                  {journeyCalc.ruta?.land_type_summary && (
-                    <div className="mt-2">
-                      <p className="font-medium text-white">Tierras atravesadas:</p>
-                      {Object.entries(journeyCalc.ruta.land_type_summary).map(([land, km]) => (
-                        <p key={land} className="pl-2">
-                          • {land.replace('_', ' ')}: {km.toFixed(1)} km
-                        </p>
-                      ))}
-                    </div>
-                  )}
-                  <p className="font-bold text-white mt-2">
-                    Total: {journeyCalc.px_desglose.px_total} PX ({journeyCalc.px_desglose.nota})
-                  </p>
+            {/* Summary of total XP earned */}
+            {Object.keys(characterXP).length > 0 && (
+              <div className="mt-4 p-3 bg-black/30 rounded text-sm">
+                <p className="font-bold mb-2 text-[hsl(var(--gold))]">Resumen de tiradas:</p>
+                <div className="grid grid-cols-2 gap-2 text-xs text-muted-foreground">
+                  <div>
+                    <p>Total tiradas: {Object.values(characterXP).reduce((sum, c) => sum + (c.rolls?.length || 0), 0)}</p>
+                    <p>Éxitos: {Object.values(characterXP).reduce((sum, c) => sum + (c.rolls?.filter(r => r.exito).length || 0), 0)}</p>
+                    <p>Fracasos: {Object.values(characterXP).reduce((sum, c) => sum + (c.rolls?.filter(r => !r.exito).length || 0), 0)}</p>
+                  </div>
+                  <div>
+                    <p className="font-medium text-white">
+                      PX Total Grupo: {Object.values(characterXP).reduce((sum, c) => sum + (c.total || 0), 0)}
+                    </p>
+                    <p className="text-xs">
+                      (Basado en fórmula: PX base × diferencia × terreno × tierras)
+                    </p>
+                  </div>
                 </div>
               </div>
             )}

@@ -2772,3 +2772,82 @@ Narra el viaje de forma natural, como si se lo contaras a alguien. Describe el p
             "error": str(e),
             "narrative": f"El viaje de {request.origen} a {request.destino} duró {request.dias} días."
         }
+
+
+
+# New endpoint to apply individual PX amounts per character
+class ApplyPXIndividualRequest(BaseModel):
+    characters: List[dict]  # List of {character_id: str, character_name: str, px_amount: int}
+    journey_id: Optional[str] = None
+    journey_description: Optional[str] = None
+
+@router.post("/apply-px-individual")
+async def apply_px_individual(request: ApplyPXIndividualRequest):
+    """Apply different PX amounts to each character based on their individual performance"""
+    try:
+        results = []
+        exitosos = 0
+        
+        for char_data in request.characters:
+            char_id = char_data.get('character_id')
+            px_amount = char_data.get('px_amount', 0)
+            char_name = char_data.get('character_name', 'Desconocido')
+            
+            if not char_id:
+                continue
+            
+            # Find character in DB
+            from bson import ObjectId
+            try:
+                character = await db.characters.find_one({"_id": ObjectId(char_id)})
+            except:
+                character = await db.characters.find_one({"_id": char_id})
+            
+            if not character:
+                results.append({
+                    "character_id": char_id,
+                    "character_name": char_name,
+                    "success": False,
+                    "error": "Personaje no encontrado"
+                })
+                continue
+            
+            # Update XP
+            current_xp = character.get('xp', 0) or 0
+            new_xp = current_xp + px_amount
+            
+            try:
+                await db.characters.update_one(
+                    {"_id": character["_id"]},
+                    {"$set": {"xp": new_xp}}
+                )
+                exitosos += 1
+                results.append({
+                    "character_id": char_id,
+                    "character_name": char_name,
+                    "success": True,
+                    "xp_anterior": current_xp,
+                    "xp_ganado": px_amount,
+                    "xp_nuevo": new_xp
+                })
+            except Exception as e:
+                results.append({
+                    "character_id": char_id,
+                    "character_name": char_name,
+                    "success": False,
+                    "error": str(e)
+                })
+        
+        return {
+            "success": exitosos > 0,
+            "exitosos": exitosos,
+            "total": len(request.characters),
+            "results": results,
+            "journey_description": request.journey_description
+        }
+        
+    except Exception as e:
+        return {
+            "success": False,
+            "error": str(e)
+        }
