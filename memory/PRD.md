@@ -128,6 +128,40 @@ Sistema completo de generación de tesoros, objetos mágicos, joyas y arte:
 
 **~50 Objetos de Arte:** Gemas preciosas, máscaras, cálices, estatuillas, tapices, joyas decoradas, instrumentos, coronas, etc.
 
+#### 4. Armas y Armaduras Famosas - COMPLETADO
+
+Sistema completo para crear armas legendarias con cualidades encantadas:
+
+**Manufacturas (6 tipos):**
+- Númenóreana (Oesternesse) - 2 perdiciones, ×1.1 precio
+- Élfica (Eregion) - 1 perdición, ×1.05 precio
+- Élfica (Beleriand) - 1 perdición, ×1.1 precio
+- Enana (Khazad-dûm) - cualidades rúnicas, ×1.1 precio
+- Enana (Erebor/Beleriand) - cualidades rúnicas, ×1.0 precio
+
+**Perdiciones (Banes):**
+- **Élficas:** Destroza orcos (+3 mo), Perseguidora de lobos (+2 mo), Destripa arañas (+4 mo), Exterminadora de todos (+5 mo)
+- **Númenóreanas:** Letal contra orcos (+3 mo), Exterminadora de troles (+4 mo), Cazadora de lobos (+2 mo), Pesadilla de hombres malignos (+3 mo), Rompe espíritus impuros (+4 mo), Exterminadora de todos (+5 mo)
+
+**23 Cualidades de Arma:** Afilada, Aplastante, Cruel, Dolorosa, Rasgadora, Afilada Mayor, Cruel Mayor, Dolorosa Mayor, Exterminadora de Enemigos, Arma Rúnica, Dardo Hiriente, Luminiscencia, Llama de Esperanza, Resplandor de Terror, Trayectoria Recta, Acero Hueco, etc.
+
+**6 Cualidades de Armadura:** Ajustada (+320 mp), Hábilmente Fabricada (+320 mp), Armadura Rúnica (+400 mp), Ajustada por los Antiguos (+600 mp), Hábilmente Fabricada por los Antiguos (+1200 mp), Armadura de Mithril (+30 mp)
+
+**5 Cualidades de Escudo:** Reforzado (×300%), Rúnico (×360%), Reforzado Mayor enano (×900%), Reforzado Mayor élfico (×750%), Reforzado Mayor númenóreano (×850%)
+
+**Latencia por Nivel:** 
+- Nivel 1-4: 1 cualidad visible
+- Nivel 5-8: 2 cualidades visibles
+- Nivel 9+: 3 cualidades visibles
+
+#### 5. Índice de Tesoros del DM - COMPLETADO
+
+Sistema para pre-crear objetos mágicos específicos para la campaña:
+- CRUD completo (crear, ver, eliminar)
+- Persistencia en MongoDB vía `/api/data/treasure-index`
+- 50% probabilidad de aparecer cuando se genera "Arma/Armadura Famosa" en el generador
+- Muestra nombre, tipo, manufactura, cualidades, perdiciones, precio e historia
+
 ---
 
 ### ✅ COMPLETED Previous Session (Fork #38)
@@ -157,7 +191,6 @@ Fórmula: `PX final = PX base × diferencia × terreno × peligrosidad`
 ## 📋 PRÓXIMAS TAREAS
 
 ### P1 - Próximo
-- **Piezas móviles** en Editor de Terreno
 - **Rellenado automático de agua** cerca de ríos/ciudades durante viaje
 - **Opción "Evitar Caminos"** para huidas
 
@@ -165,7 +198,8 @@ Fórmula: `PX final = PX base × diferencia × terreno × peligrosidad`
 - Control de acceso por roles (Maestro, Admin, Jugador)
 - Refactorizar componentes grandes (EnhancedTravelSystem, MiddleEarthMap)
 
-### Backlog
+### Backlog / Tareas Futuras
+- **Piezas móviles** en Editor de Terreno (pendiente definir requisitos)
 - Sistema completo de autenticación de usuarios
 - Backup/restauración de base de datos
 - Pantalla del DM e interfaz de juego online
