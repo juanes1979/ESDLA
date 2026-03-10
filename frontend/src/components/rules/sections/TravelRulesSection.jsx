@@ -14,10 +14,139 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
   Map, Save, Plus, Trash2, Edit, Check, X, 
-  AlertTriangle, Footprints, Mountain, Compass
+  AlertTriangle, Footprints, Mountain, Compass, Utensils
 } from 'lucide-react';
 import { toast } from 'sonner';
 import api from '@/services/api';
+import FoodWaterEditor from '@/components/admin/FoodWaterEditor';
+
+// Food/Water Editor Tab Component
+const FoodWaterTab = () => {
+  const [showEditor, setShowEditor] = useState(false);
+  const [foodItems, setFoodItems] = useState([]);
+  const [waterItems, setWaterItems] = useState([]);
+  const [loading, setLoading] = useState(true);
+  
+  useEffect(() => {
+    loadFoodWaterItems();
+  }, []);
+  
+  const loadFoodWaterItems = async () => {
+    try {
+      setLoading(true);
+      const res = await api.get('/data/equipment-catalog/food-items');
+      setFoodItems(res.data.food_items || []);
+      setWaterItems(res.data.water_items || []);
+    } catch (err) {
+      console.error('Error loading food/water items:', err);
+      toast.error('Error al cargar items de comida/agua');
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  if (loading) {
+    return (
+      <div className="flex justify-center py-8">
+        <div className="animate-spin w-6 h-6 border-2 border-[hsl(var(--gold))] border-t-transparent rounded-full"></div>
+      </div>
+    );
+  }
+  
+  return (
+    <div className="space-y-4">
+      <div className="flex justify-between items-center">
+        <div>
+          <p className="text-sm text-muted-foreground">
+            Gestiona qué items del catálogo se consideran comida o agua para el consumo durante viajes.
+          </p>
+          <p className="text-xs text-muted-foreground mt-1">
+            Cada personaje necesita 1 ración de comida y 2L de agua por día de viaje.
+          </p>
+        </div>
+        <Button onClick={() => setShowEditor(true)} data-testid="open-food-water-editor-btn">
+          <Edit className="w-4 h-4 mr-2" />
+          Editar Items
+        </Button>
+      </div>
+      
+      <div className="grid grid-cols-2 gap-4">
+        {/* Food Items */}
+        <Card className="p-4 border-orange-500/30">
+          <h4 className="font-bold text-orange-400 mb-3 flex items-center gap-2">
+            <Utensils className="w-4 h-4" />
+            Comida ({foodItems.length} items)
+          </h4>
+          {foodItems.length === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              No hay items marcados como comida. Usa el editor para marcarlos.
+            </p>
+          ) : (
+            <ScrollArea className="h-48">
+              <div className="space-y-1">
+                {foodItems.map((item, idx) => (
+                  <div key={idx} className="flex justify-between items-center text-sm p-1 rounded hover:bg-black/10">
+                    <span>{item.nombre}</span>
+                    <Badge variant="outline" className="text-xs">
+                      {item.porcentaje_racion || 100}%
+                    </Badge>
+                  </div>
+                ))}
+              </div>
+            </ScrollArea>
+          )}
+        </Card>
+        
+        {/* Water Items */}
+        <Card className="p-4 border-blue-500/30">
+          <h4 className="font-bold text-blue-400 mb-3 flex items-center gap-2">
+            <Compass className="w-4 h-4" />
+            Agua ({waterItems.length} items)
+          </h4>
+          {waterItems.length === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              No hay items marcados como agua. Usa el editor para marcarlos.
+            </p>
+          ) : (
+            <ScrollArea className="h-48">
+              <div className="space-y-1">
+                {waterItems.map((item, idx) => (
+                  <div key={idx} className="flex justify-between items-center text-sm p-1 rounded hover:bg-black/10">
+                    <span>{item.nombre}</span>
+                    <Badge variant="outline" className="text-xs">
+                      {item.litros || 0}L
+                    </Badge>
+                  </div>
+                ))}
+              </div>
+            </ScrollArea>
+          )}
+        </Card>
+      </div>
+      
+      {/* Rules Summary */}
+      <Card className="p-4 bg-black/20">
+        <h4 className="font-bold text-[hsl(var(--gold))] mb-2">Reglas de Consumo</h4>
+        <ul className="text-sm space-y-1 text-muted-foreground">
+          <li>• <strong>Comida:</strong> 1 ración por día (100%). Items con menor % necesitan más cantidad.</li>
+          <li>• <strong>Agua:</strong> 2 litros por día. Cerca de ciudades/ríos se puede rellenar automáticamente.</li>
+          <li>• <strong>Sin comida:</strong> +1 nivel de fatiga por día sin comer.</li>
+          <li>• <strong>Sin agua:</strong> +2 niveles de fatiga por día sin beber.</li>
+          <li>• <strong>Forrajear:</strong> Tirada de Supervivencia CD 15 para encontrar comida/agua en la naturaleza.</li>
+        </ul>
+      </Card>
+      
+      {showEditor && (
+        <FoodWaterEditor 
+          onClose={() => {
+            setShowEditor(false);
+            loadFoodWaterItems();
+          }} 
+        />
+      )}
+    </div>
+  );
+};
 
 const TravelRulesSection = () => {
   // State for all travel configurations
@@ -160,7 +289,7 @@ const TravelRulesSection = () => {
         </CardHeader>
         <CardContent>
           <Tabs defaultValue="events" className="w-full">
-            <TabsList className="grid w-full grid-cols-6 mb-4">
+            <TabsList className="grid w-full grid-cols-7 mb-4">
               <TabsTrigger value="events" data-testid="tab-events">
                 <AlertTriangle className="w-4 h-4 mr-1" /> Acontecimientos
               </TabsTrigger>
@@ -172,6 +301,9 @@ const TravelRulesSection = () => {
               </TabsTrigger>
               <TabsTrigger value="lands" data-testid="tab-lands">
                 <Map className="w-4 h-4 mr-1" /> Tierras
+              </TabsTrigger>
+              <TabsTrigger value="foodwater" data-testid="tab-foodwater">
+                <Utensils className="w-4 h-4 mr-1" /> Comida
               </TabsTrigger>
               <TabsTrigger value="pxtable" data-testid="tab-pxtable">
                 <Compass className="w-4 h-4 mr-1" /> Tabla PX
@@ -607,6 +739,11 @@ const TravelRulesSection = () => {
                   </Card>
                 ))}
               </div>
+            </TabsContent>
+            
+            {/* FOOD/WATER TAB */}
+            <TabsContent value="foodwater">
+              <FoodWaterTab />
             </TabsContent>
             
             {/* PX TABLE TAB */}

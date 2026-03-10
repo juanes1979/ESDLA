@@ -1029,6 +1029,131 @@ async def get_equipment_catalog(
     return result
 
 
+
+# === FOOD/WATER ITEM MANAGEMENT ===
+
+class FoodWaterUpdate(BaseModel):
+    nombre: str
+    categoria: str
+    es_comida: bool = False
+    es_agua: bool = False
+    porcentaje_racion: int = 100  # 100% = full ration, 50% = half ration
+    litros: float = 0  # For water items
+
+class BulkFoodWaterUpdate(BaseModel):
+    items: List[FoodWaterUpdate]
+
+@router.put("/equipment-catalog/food-water")
+async def update_food_water_items(request: BulkFoodWaterUpdate):
+    """Update multiple items with food/water properties"""
+    catalog = await db.equipment_catalog.find_one({"_id": "main"})
+    if not catalog:
+        catalog = await db.equipment_catalog.find_one({})
+    if not catalog:
+        raise HTTPException(status_code=404, detail="Equipment catalog not found")
+    
+    updated_count = 0
+    
+    for update in request.items:
+        categoria = update.categoria
+        if categoria not in catalog:
+            continue
+        
+        items = catalog.get(categoria, [])
+        for i, item in enumerate(items):
+            if item.get('nombre') == update.nombre:
+                items[i]['es_comida'] = update.es_comida
+                items[i]['es_agua'] = update.es_agua
+                items[i]['porcentaje_racion'] = update.porcentaje_racion
+                items[i]['litros'] = update.litros
+                updated_count += 1
+                break
+        
+        catalog[categoria] = items
+    
+    # Save updated catalog
+    await db.equipment_catalog.update_one(
+        {"_id": catalog.get("_id", "main")},
+        {"$set": catalog}
+    )
+    
+    return {"success": True, "updated": updated_count}
+
+class MoveItemRequest(BaseModel):
+    nombre: str
+    from_categoria: str
+    to_categoria: str
+    item_data: Optional[dict] = None  # Additional item data to update
+
+@router.put("/equipment-catalog/move-item")
+async def move_equipment_item(request: MoveItemRequest):
+    """Move an item from one category to another"""
+    catalog = await db.equipment_catalog.find_one({"_id": "main"})
+    if not catalog:
+        catalog = await db.equipment_catalog.find_one({})
+    if not catalog:
+        raise HTTPException(status_code=404, detail="Equipment catalog not found")
+    
+    # Find and remove item from source category
+    source_items = catalog.get(request.from_categoria, [])
+    item_to_move = None
+    
+    for i, item in enumerate(source_items):
+        if item.get('nombre') == request.nombre:
+            item_to_move = source_items.pop(i)
+            break
+    
+    if not item_to_move:
+        raise HTTPException(status_code=404, detail=f"Item '{request.nombre}' not found in '{request.from_categoria}'")
+    
+    # Update item data if provided
+    if request.item_data:
+        item_to_move.update(request.item_data)
+    
+    # Add to destination category
+    dest_items = catalog.get(request.to_categoria, [])
+    dest_items.append(item_to_move)
+    
+    # Update catalog
+    catalog[request.from_categoria] = source_items
+    catalog[request.to_categoria] = dest_items
+    
+    await db.equipment_catalog.update_one(
+        {"_id": catalog.get("_id", "main")},
+        {"$set": {
+            request.from_categoria: source_items,
+            request.to_categoria: dest_items
+        }}
+    )
+    
+    return {"success": True, "message": f"Item moved from {request.from_categoria} to {request.to_categoria}"}
+
+@router.get("/equipment-catalog/food-items")
+async def get_food_water_items():
+    """Get all items marked as food or water across all categories"""
+    catalog = await db.equipment_catalog.find_one({"_id": "main"})
+    if not catalog:
+        catalog = await db.equipment_catalog.find_one({})
+    if not catalog:
+        return {"food_items": [], "water_items": []}
+    
+    food_items = []
+    water_items = []
+    
+    for categoria, items in catalog.items():
+        if categoria.startswith('_') or not isinstance(items, list):
+            continue
+        for item in items:
+            if isinstance(item, dict):
+                if item.get('es_comida'):
+                    food_items.append({**item, 'categoria': categoria})
+                if item.get('es_agua'):
+                    water_items.append({**item, 'categoria': categoria})
+    
+    return {"food_items": food_items, "water_items": water_items}
+
+
+
 # === SHEET POSITIONS (for character sheet layout) ===
 
 @router.get("/sheet-positions")

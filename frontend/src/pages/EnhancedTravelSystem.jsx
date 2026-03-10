@@ -658,18 +658,33 @@ const EnhancedTravelSystem = () => {
   const [stageFatigueDC, setStageFatigueDC] = useState(10); // Fatigue DC for current stage
   const [nearbyRefuges, setNearbyRefuges] = useState([]); // Refuges near current position
   
+  // =============== PROVISIONS SYSTEM (Food/Water) ===============
+  const [foodWaterItems, setFoodWaterItems] = useState({ food_items: [], water_items: [] });
+  const [provisionsCheck, setProvisionsCheck] = useState(null); // Result of provisions check
+  const [showProvisionsWarning, setShowProvisionsWarning] = useState(false);
+  // Party provisions tracking during journey
+  const [partyProvisions, setPartyProvisions] = useState({
+    comidaTotal: 0, // Total food rations available
+    aguaTotal: 0,   // Total liters of water
+    comidaConsumida: 0,
+    aguaConsumida: 0
+  });
+  // Fatigue from lack of provisions
+  const [provisionFatigue, setProvisionFatigue] = useState({}); // { charId: { sinComida: days, sinAgua: days } }
+  
   // =============== LOAD DATA ===============
   
   useEffect(() => {
     const loadData = async () => {
       try {
-        const [locRes, charRes, mountRes, rulesRes, landsRes, terrainsRes] = await Promise.all([
+        const [locRes, charRes, mountRes, rulesRes, landsRes, terrainsRes, foodWaterRes] = await Promise.all([
           api.get('/data/locations'),
           api.get('/characters/'),
           api.get('/data/monturas'),
           api.get('/travel/config/rules'),
           api.get('/travel/config/land-types'),
-          api.get('/travel/config/terrains')
+          api.get('/travel/config/terrains'),
+          api.get('/data/equipment-catalog/food-items')
         ]);
         
         // Process locations
@@ -693,6 +708,7 @@ const EnhancedTravelSystem = () => {
         setTravelRules(rulesRes.data?.rules || {});
         setLandTypes(landsRes.data?.land_types || []);
         setTerrainTypes(terrainsRes.data?.terrains || []);
+        setFoodWaterItems(foodWaterRes.data || { food_items: [], water_items: [] });
       } catch (err) {
         console.error('Error loading data:', err);
         toast.error('Error al cargar datos');
@@ -798,6 +814,76 @@ const EnhancedTravelSystem = () => {
     }
     await calculateJourney();
   }, [config.origenId, config.destinoId, calculateJourney]);
+  
+  // =============== PROVISIONS CHECK ===============
+  // Check if party has enough food and water for the journey
+  const checkProvisionsForJourney = useCallback((diasViaje) => {
+    if (!config.miembros.length || !diasViaje) return null;
+    
+    const numPersonajes = config.miembros.length;
+    // Requirements: 1 ration/day per person, 2L water/day per person
+    const comidaNecesaria = numPersonajes * diasViaje; // in rations
+    const aguaNecesaria = numPersonajes * diasViaje * 2; // in liters
+    
+    // Calculate total provisions from party inventory
+    // This would need to check each character's inventory
+    let comidaDisponible = 0;
+    let aguaDisponible = 0;
+    
+    // For each member, check their character's inventory for food/water items
+    config.miembros.forEach(miembro => {
+      const char = characters.find(c => c.id === miembro.id);
+      if (!char?.inventario) return;
+      
+      // Check inventory items against foodWaterItems
+      char.inventario.forEach(item => {
+        // Check if this item is marked as food
+        const foodItem = foodWaterItems.food_items?.find(f => 
+          f.nombre?.toLowerCase() === item.nombre?.toLowerCase()
+        );
+        if (foodItem) {
+          const porcentaje = foodItem.porcentaje_racion || 100;
+          const cantidad = item.cantidad || 1;
+          comidaDisponible += (cantidad * porcentaje) / 100;
+        }
+        
+        // Check if this item is marked as water
+        const waterItem = foodWaterItems.water_items?.find(w => 
+          w.nombre?.toLowerCase() === item.nombre?.toLowerCase()
+        );
+        if (waterItem) {
+          const litros = waterItem.litros || 0;
+          const cantidad = item.cantidad || 1;
+          aguaDisponible += cantidad * litros;
+        }
+      });
+    });
+    
+    return {
+      comidaNecesaria,
+      aguaNecesaria,
+      comidaDisponible,
+      aguaDisponible,
+      comidaSuficiente: comidaDisponible >= comidaNecesaria,
+      aguaSuficiente: aguaDisponible >= comidaNecesaria,
+      diasComida: comidaDisponible / numPersonajes,
+      diasAgua: aguaDisponible / (numPersonajes * 2),
+      faltaComida: Math.max(0, comidaNecesaria - comidaDisponible),
+      faltaAgua: Math.max(0, aguaNecesaria - aguaDisponible)
+    };
+  }, [config.miembros, characters, foodWaterItems]);
+  
+  // Check provisions when journey is calculated
+  useEffect(() => {
+    if (journeyCalc?.success && journeyCalc?.estimaciones?.dias_estimados) {
+      const check = checkProvisionsForJourney(journeyCalc.estimaciones.dias_estimados);
+      setProvisionsCheck(check);
+      // Show warning if provisions are insufficient
+      if (check && (!check.comidaSuficiente || !check.aguaSuficiente)) {
+        setShowProvisionsWarning(true);
+      }
+    }
+  }, [journeyCalc, checkProvisionsForJourney]);
   
   // =============== PX CALCULATION PER ROLL ===============
   // Formula: PX final = PX base × diferencia × terreno × peligrosidad
@@ -3309,6 +3395,47 @@ const EnhancedTravelSystem = () => {
             <MapPin className="w-5 h-5 mr-2" />
             Calcular Ruta
           </Button>
+          
+          {/* Provisions Warning */}
+          {provisionsCheck && showProvisionsWarning && (!provisionsCheck.comidaSuficiente || !provisionsCheck.aguaSuficiente) && (
+            <Card className="mt-3 p-3 border-yellow-500/50 bg-yellow-500/10">
+              <div className="flex items-start gap-2">
+                <AlertTriangle className="w-5 h-5 text-yellow-500 flex-shrink-0 mt-0.5" />
+                <div className="flex-1">
+                  <p className="font-bold text-yellow-500 text-sm">Provisiones Insuficientes</p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Para {journeyCalc?.estimaciones?.dias_estimados || '?'} días de viaje con {config.miembros.length} personas:
+                  </p>
+                  <div className="grid grid-cols-2 gap-2 mt-2 text-xs">
+                    <div className={provisionsCheck.comidaSuficiente ? 'text-green-400' : 'text-red-400'}>
+                      <span className="font-medium">Comida:</span> {provisionsCheck.comidaDisponible.toFixed(1)}/{provisionsCheck.comidaNecesaria} raciones
+                      {!provisionsCheck.comidaSuficiente && (
+                        <span className="block text-yellow-400">Faltan {provisionsCheck.faltaComida.toFixed(1)} raciones</span>
+                      )}
+                    </div>
+                    <div className={provisionsCheck.aguaSuficiente ? 'text-green-400' : 'text-red-400'}>
+                      <span className="font-medium">Agua:</span> {provisionsCheck.aguaDisponible.toFixed(1)}/{provisionsCheck.aguaNecesaria}L
+                      {!provisionsCheck.aguaSuficiente && (
+                        <span className="block text-yellow-400">Faltan {provisionsCheck.faltaAgua.toFixed(1)}L</span>
+                      )}
+                    </div>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-2 italic">
+                    Sin provisiones: +1 fatiga/día sin comida, +2 fatiga/día sin agua.
+                    Puedes forrajear durante el viaje (Supervivencia CD 15).
+                  </p>
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    onClick={() => setShowProvisionsWarning(false)}
+                    className="mt-2 text-xs"
+                  >
+                    Continuar de todos modos
+                  </Button>
+                </div>
+              </div>
+            </Card>
+          )}
           
           <Button 
             onClick={travelMode === 'global' ? startGlobalJourney : startDayByDayJourney}

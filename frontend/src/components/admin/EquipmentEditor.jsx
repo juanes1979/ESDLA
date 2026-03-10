@@ -77,12 +77,12 @@ const EQUIPMENT_CATEGORIES = [
   {
     key: 'consumibles',
     name: 'Consumibles y Alimentación',
-    fields: ['nombre', 'precio', 'moneda', 'peso_kg']
+    fields: ['nombre', 'precio', 'moneda', 'peso_kg', 'es_comida', 'es_agua', 'porcentaje_racion', 'litros']
   },
   {
     key: 'comida_posadas',
     name: 'Comida en Posadas',
-    fields: ['nombre', 'precio', 'moneda', 'peso_kg']
+    fields: ['nombre', 'precio', 'moneda', 'peso_kg', 'es_comida', 'es_agua', 'porcentaje_racion', 'litros']
   },
   {
     key: 'hierbas',
@@ -141,7 +141,12 @@ const FIELD_CONFIG = {
   capacidad_pequeno: { label: 'Capacidad Pequeño', type: 'checkbox' },
   capacidad_mediano: { label: 'Capacidad Mediano', type: 'checkbox' },
   capacidad_kg: { label: 'Capacidad (Kg)', type: 'number' },
-  m2: { label: 'Metros²', type: 'text' }
+  m2: { label: 'Metros²', type: 'text' },
+  // Food/Water fields
+  es_comida: { label: '¿Es Comida?', type: 'checkbox' },
+  es_agua: { label: '¿Es Agua?', type: 'checkbox' },
+  porcentaje_racion: { label: '% Ración Diaria', type: 'number', placeholder: '100 = ración completa, 50 = media ración', step: 1 },
+  litros: { label: 'Litros (si es agua)', type: 'number', step: 0.1 }
 };
 
 const EquipmentEditor = ({ onClose, onSave }) => {
