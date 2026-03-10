@@ -268,7 +268,7 @@ const JourneyMiniMap = ({ origenCoords, destinoCoords, origenNombre, destinoNomb
   // Moderate variation for a realistic hand-drawn look
   const naturalPath = createNaturalPath(pathInPixelCoords, isDirectLine ? 50 : 25);
   
-  // Calculate viewBox to show entire route with padding
+  // Calculate viewBox to show entire route CENTERED with padding
   // IMPORTANT: Always include both origin and destination markers
   const allX = [origen.x, destino.x, ...naturalPath.map(p => p.x)].filter(v => !isNaN(v));
   const allY = [origen.y, destino.y, ...naturalPath.map(p => p.y)].filter(v => !isNaN(v));
@@ -284,25 +284,52 @@ const JourneyMiniMap = ({ origenCoords, destinoCoords, origenNombre, destinoNomb
     );
   }
   
-  // Padding in pixels (about 5% of visible area)
-  const padding = Math.max(MAP_PIXEL_WIDTH, MAP_PIXEL_HEIGHT) * 0.05;
-  const minX = Math.max(0, Math.min(...allX) - padding);
-  const minY = Math.max(0, Math.min(...allY) - padding);
-  const maxX = Math.min(MAP_PIXEL_WIDTH, Math.max(...allX) + padding);
-  const maxY = Math.min(MAP_PIXEL_HEIGHT, Math.max(...allY) + padding);
+  // Calculate bounding box of the route
+  const routeMinX = Math.min(...allX);
+  const routeMaxX = Math.max(...allX);
+  const routeMinY = Math.min(...allY);
+  const routeMaxY = Math.max(...allY);
   
-  let width = Math.max(maxX - minX, MAP_PIXEL_WIDTH * 0.1);
-  let height = Math.max(maxY - minY, MAP_PIXEL_HEIGHT * 0.1);
+  // Route dimensions
+  const routeWidth = routeMaxX - routeMinX;
+  const routeHeight = routeMaxY - routeMinY;
   
-  // Maintain map aspect ratio (19791/15133 = 1.308)
+  // Center of the route
+  const centerX = (routeMinX + routeMaxX) / 2;
+  const centerY = (routeMinY + routeMaxY) / 2;
+  
+  // Add generous padding (30% of route size, minimum 15% of map)
+  const paddingX = Math.max(routeWidth * 0.3, MAP_PIXEL_WIDTH * 0.15);
+  const paddingY = Math.max(routeHeight * 0.3, MAP_PIXEL_HEIGHT * 0.15);
+  
+  // Calculate viewBox dimensions centered on route
+  let width = routeWidth + paddingX * 2;
+  let height = routeHeight + paddingY * 2;
+  
+  // Maintain map aspect ratio (19791/15133 = 1.308) but allow some flexibility
   const mapAspect = MAP_PIXEL_WIDTH / MAP_PIXEL_HEIGHT;
   const currentAspect = width / height;
   
-  if (currentAspect > mapAspect * 1.5) {
+  // Adjust to be closer to map aspect ratio
+  if (currentAspect > mapAspect * 1.3) {
+    // Too wide, increase height
     height = width / mapAspect;
-  } else if (currentAspect < mapAspect * 0.5) {
+  } else if (currentAspect < mapAspect * 0.7) {
+    // Too tall, increase width
     width = height * mapAspect;
   }
+  
+  // Calculate viewBox origin (centered on route)
+  let minX = centerX - width / 2;
+  let minY = centerY - height / 2;
+  
+  // Clamp to map boundaries
+  minX = Math.max(0, Math.min(minX, MAP_PIXEL_WIDTH - width));
+  minY = Math.max(0, Math.min(minY, MAP_PIXEL_HEIGHT - height));
+  
+  // Ensure viewBox doesn't exceed map size
+  width = Math.min(width, MAP_PIXEL_WIDTH);
+  height = Math.min(height, MAP_PIXEL_HEIGHT);
   
   const viewBox = `${minX} ${minY} ${width} ${height}`;
   const viewBoxParts = [minX, minY, width, height];

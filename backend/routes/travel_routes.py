@@ -1586,8 +1586,11 @@ async def calculate_journey(config: JourneyConfig):
             terreno_mod = terreno_mods.get(seg_terrain, {'multiplicador': 1.0, 'bonus_px_km': 0})
             
             # Calculate PX for this segment
-            seg_px_base = px_per_km * seg_distance_km
-            seg_px_bonus = terreno_mod.get('bonus_px_km', 0) * seg_distance_km
+            # NOTA: Los valores de px_per_km son realmente "por casilla" (~16km)
+            # Convertimos km a casillas dividiendo por 16
+            seg_casillas = seg_distance_km / 16.0
+            seg_px_base = px_per_km * seg_casillas
+            seg_px_bonus = terreno_mod.get('bonus_px_km', 0) * seg_casillas
             seg_px_total = seg_px_base * terreno_mod.get('multiplicador', 1.0) + seg_px_bonus
             
             if seg_px_total > 0:
@@ -1608,18 +1611,20 @@ async def calculate_journey(config: JourneyConfig):
         
         tipo_via = 'camino_real' if config.preferir_caminos else 'campo_abierto'
         
-        px_per_km = 0
+        px_per_casilla = 0
         if px_table and px_table.get('filas'):
             for fila in px_table['filas']:
                 if fila.get('tipo_via') == tipo_via:
-                    px_per_km = fila.get(tierra_col, 0)
+                    px_per_casilla = fila.get(tierra_col, 0)
                     break
         
         terreno_mods = px_table.get('modificadores_terreno', {}) if px_table else {}
         terreno_mod = terreno_mods.get(terreno_tipo, {'multiplicador': 1.0, 'bonus_px_km': 0})
         
-        px_base = px_per_km * route_data['distance_km']
-        px_bonus = terreno_mod.get('bonus_px_km', 0) * route_data['distance_km']
+        # Convertir km a casillas (~16 km por casilla)
+        num_casillas = route_data['distance_km'] / 16.0
+        px_base = px_per_casilla * num_casillas
+        px_bonus = terreno_mod.get('bonus_px_km', 0) * num_casillas
         px_total = px_base * terreno_mod.get('multiplicador', 1.0) + px_bonus
     
     # Round PX total
