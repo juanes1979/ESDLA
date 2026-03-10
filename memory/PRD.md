@@ -2,95 +2,99 @@
 
 ## Current State (2026-03-10)
 
-### ✅ COMPLETED This Session (Fork #38)
+### ✅ COMPLETED This Session (Fork #39-41)
 
-#### 1. P0 FIX: Mapa en PDF/Crónica - RESUELTO
+#### 1. P0: Sistema de Descanso, Fatiga, Comida y Agua - COMPLETADO
+
+**Funcionalidades implementadas:**
+
+1. **Pestaña "Comida" en CONFIG. VIAJES**
+   - Muestra items marcados como comida/agua
+   - Integración con FoodWaterEditor modal para edición en lote
+   - Muestra porcentaje de ración y litros por item
+
+2. **Editor de Comida/Agua (FoodWaterEditor)**
+   - Marcar items como comida/agua
+   - Configurar `porcentaje_racion` (cuánto de una ración representa)
+   - Configurar `litros` de agua por unidad
+   - Edición en lote por categoría
+
+3. **Verificación de Provisiones Pre-Viaje**
+   - Calcula provisiones necesarias según días y personas
+   - Muestra advertencia si hay insuficientes
+   - Detalles: raciones y litros disponibles vs necesarios
+
+4. **Panel de Provisiones Durante Viaje (Día a Día)**
+   - Indicadores de comida (raciones) y agua (litros) disponibles
+   - Días restantes de provisiones
+   - Código de colores: verde (suficiente), rojo (insuficiente)
+
+5. **Consumo Diario Automático**
+   - 1 ración de comida por persona/día
+   - 2 litros de agua por persona/día
+   - Advertencias cuando escasean las provisiones
+
+6. **Sistema de Forrajeo**
+   - Botón "Forrajear" en panel de provisiones
+   - Tirada de Supervivencia CD 15
+   - Éxito: encuentra 1d4 raciones + 1d4 litros
+   - Costo: 1 día adicional en la etapa
+
+7. **Sistema de Descanso (3 tipos)**
+   - **Corto (1 hora):** Recupera uso de habilidades
+   - **Largo (8 horas):** -1 fatiga con tirada CON exitosa (CD 10 + modificadores)
+   - **Santuario (1+ días):** Elimina toda fatiga sin tirada (requiere refugio)
+
+8. **Fatiga por Falta de Provisiones**
+   - Sin comida: +1 nivel de fatiga por día
+   - Sin agua: +2 niveles de fatiga por día
+   - Tracking por personaje
+
+9. **Endpoint de Fatiga**
+   - `PUT /api/characters/{id}/fatigue`
+   - Actualiza fatiga directamente (clamp 0-6)
+
+---
+
+### ✅ COMPLETED Previous Session (Fork #38)
+
+#### Mapa en PDF/Crónica - RESUELTO
 El mapa que aparecía como caja negra ahora renderiza correctamente.
-Ver sección "3. Mapa en PDF/Crónica" para detalles técnicos.
 
-#### 2. Modificadores de Habilidad - VERIFICADO
+#### Modificadores de Habilidad - VERIFICADO
 Los modificadores de habilidad se calculan correctamente incluyendo competencia + pericia.
 
-#### 3. Botón "Descargar PDF (3 hojas)" - MOVIDO
-- Quitado del creador de personajes (antes de crear)
-- Añadido a la página de "HOJA DE PERSONAJE" junto a "Ficha Oficial"
+#### Botón "Descargar PDF (3 hojas)" - MOVIDO
+- Quitado del creador de personajes
+- Añadido a la página de "HOJA DE PERSONAJE"
 
-#### 4. Nombres de Caminos Actualizados
-- **Gran Camino** (antes: Camino Real) - CD 8, ×1.5 vel
-- **Camino Mayor** (antes: Senda) - CD 10, ×1.25 vel
-- **Camino Menor** (antes: Sendero) - CD 12, ×1.1 vel
-- **Sendas** (nuevo) - CD 14, ×1 vel, sin montura
+#### Nombres de Caminos Actualizados
+- **Gran Camino** - CD 8, ×1.5 vel
+- **Camino Mayor** - CD 10, ×1.25 vel
+- **Camino Menor** - CD 12, ×1.1 vel
+- **Sendas** - CD 14, ×1 vel
 - **Campo Abierto** - CD 15, ×1 vel
 
-#### 5. Sistema Métrico - ACTUALIZADO
-- Velocidad en metros (m) en lugar de pies
-- Labels en Config. Viajes actualizados: "Umbral Lento (m)", "Umbral Rápido (m)"
-
-#### 6. Sistema de Cálculo de PX - IMPLEMENTADO
+#### Sistema de Cálculo de PX - IMPLEMENTADO
 Fórmula: `PX final = PX base × diferencia × terreno × peligrosidad`
-
-**Tablas añadidas a la sección VIAJES:**
-
-1. **PX Base según CD:**
-   | CD  | Dificultad | Éxito | Fallo |
-   |-----|------------|-------|-------|
-   | 10  | Muy fácil  | +1    | 0     |
-   | 12  | Fácil      | +2    | −1    |
-   | 14  | Moderada   | +3    | −1    |
-   | 16  | Difícil    | +4    | −2    |
-   | 18  | Muy difícil| +5    | −2    |
-   | 20+ | Extrema    | +6    | −3    |
-
-2. **Modificador por diferencia:**
-   - +10 o más: ×2
-   - +5 a +9: ×1.5
-   - +1 a +4: ×1.2
-   - 0: ×1
-   - −1 a −3: ×1
-   - −4 a −6: ×1.2
-   - −7 o más: ×1.5
-
-3. **Multiplicador por terreno:**
-   - Fácil: ×0.8
-   - Moderado: ×1
-   - Difícil: ×1.2
-   - Muy Difícil: ×1.5
-   - Desalentador: ×1.8
-
-4. **Multiplicador por tierras:**
-   - Libres: ×0.8
-   - Fronterizas: ×1
-   - Salvajes: ×1.2
-   - Sombra: ×1.5
-   - Oscuras: ×1.8
-
-**Límite:** máximo ±12 PX por tirada
-
-#### 7. Refugios Seguros en Ruta
-**Regla:** Solo se puede descansar en refugios seguros cuando se pasa cerca (~30km).
-
-**Implementación:**
-- Backend detecta refugios dentro de 1.5 unidades del path
-- Excluye el destino final de la lista
-- Calcula casilla/km de cada refugio
-
-#### 8. Mapa en PDF/Crónica - CORREGIDO (2026-03-10)
-**Problema:** El mapa aparecía como caja negra en el PDF generado.
-
-**Solución FINAL:** Renderizar SVG directamente a Canvas (sin html2canvas).
 
 ---
 
 ## 📋 PRÓXIMAS TAREAS
 
 ### P1 - Próximo
-- **Sistema de descanso cada 7-10 días** (acumular CD fatiga si no descansa)
-- **Opción "Evitar Caminos"** para huidas
 - **Piezas móviles** en Editor de Terreno
+- **Rellenado automático de agua** cerca de ríos/ciudades durante viaje
+- **Opción "Evitar Caminos"** para huidas
 
 ### P2 - Medio plazo
-- Consumo de Comida/Agua
-- Control de acceso por roles
+- Control de acceso por roles (Maestro, Admin, Jugador)
+- Refactorizar componentes grandes (EnhancedTravelSystem, MiddleEarthMap)
+
+### Backlog
+- Sistema completo de autenticación de usuarios
+- Backup/restauración de base de datos
+- Pantalla del DM e interfaz de juego online
 
 ---
 
