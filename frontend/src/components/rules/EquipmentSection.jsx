@@ -365,44 +365,49 @@ const EquipmentSection = ({
     const filtered = filterData(items, searchTerm);
     if (!filtered?.length) return null;
     
+    // Calculate if all items in category are available for creation
+    const allItemsAvailable = items.every(item => 
+      getItemCreationValue(cat.key, item.nombre, item.disponible_creacion)
+    );
+    const someItemsAvailable = items.some(item => 
+      getItemCreationValue(cat.key, item.nombre, item.disponible_creacion)
+    );
+    const isIndeterminate = someItemsAvailable && !allItemsAvailable;
+    
     return (
       <div key={cat.key} className="card-parchment rounded-lg p-4">
         <div className="flex items-center justify-between mb-3">
-          <h4 className="font-heading text-md text-[hsl(var(--magic-blue))]">{cat.name}</h4>
+          <div className="flex items-center gap-3">
+            {isAdmin && (
+              <Checkbox
+                checked={allItemsAvailable}
+                ref={(el) => {
+                  if (el) el.indeterminate = isIndeterminate;
+                }}
+                onCheckedChange={(checked) => toggleCategoryCreation(cat.key, cat.name, checked)}
+                className="h-5 w-5"
+                title={allItemsAvailable ? 'Desmarcar todos para creación' : 'Marcar todos para creación'}
+              />
+            )}
+            <h4 className="font-heading text-md text-[hsl(var(--magic-blue))]">{cat.name}</h4>
+            {isAdmin && (
+              <span className="text-xs text-muted-foreground">
+                ({items.filter(item => getItemCreationValue(cat.key, item.nombre, item.disponible_creacion)).length}/{items.length} en tienda)
+              </span>
+            )}
+          </div>
           <div className="flex gap-2">
             {isAdmin && (
-              <>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => toggleCategoryCreation(cat.key, cat.name, true)}
-                  className="h-7 text-xs border-green-500/50 hover:bg-green-500/10"
-                  title="Habilitar todos para creación de personaje"
-                >
-                  <UserPlus className="w-3 h-3 mr-1 text-green-500" />
-                  Todos
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => toggleCategoryCreation(cat.key, cat.name, false)}
-                  className="h-7 text-xs border-red-500/50 hover:bg-red-500/10"
-                  title="Deshabilitar todos para creación de personaje"
-                >
-                  <UserPlus className="w-3 h-3 mr-1 text-red-500" />
-                  Ninguno
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => openCategoryEditor(cat.key, cat.name)}
-                  className="h-7 text-xs border-[hsl(var(--torch-orange))]/50 hover:bg-[hsl(var(--torch-orange))]/10"
-                  title="Editar disponibilidad de toda la categoría"
-                >
-                  <MapPin className="w-3 h-3 mr-1 text-[hsl(var(--torch-orange))]" />
-                  Disp. ({items.length})
-                </Button>
-              </>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => openCategoryEditor(cat.key, cat.name)}
+                className="h-7 text-xs border-[hsl(var(--torch-orange))]/50 hover:bg-[hsl(var(--torch-orange))]/10"
+                title="Editar disponibilidad por región/asentamiento"
+              >
+                <MapPin className="w-3 h-3 mr-1 text-[hsl(var(--torch-orange))]" />
+                Regiones
+              </Button>
             )}
           </div>
         </div>
