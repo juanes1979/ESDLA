@@ -2,9 +2,57 @@
 
 ## Current State (2025-12-20)
 
-### ✅ COMPLETED This Session
+### ✅ COMPLETED This Session (2025-03-11)
 
-#### Correcciones en Ficha de Personaje PDF - COMPLETADO (2025-12-20)
+#### Corrección de Hoja de Personaje Interactiva - COMPLETADO
+
+**Problemas reportados:**
+1. Las columnas estaban desbalanceadas (una muy larga, otras cortas)
+2. El botón "Gestionar" en la sección Equipo no funcionaba
+
+**Soluciones implementadas en CharacterSheetPage.jsx:**
+
+1. **Arreglo del Modal de Gestión de Equipo:**
+   - Corregidas las props pasadas al componente `EquipmentManagerModal`
+   - Añadido `isOpen={showEquipmentModal}` (faltaba anteriormente)
+   - Cambiado `onUpdate` por `onCharacterUpdate` (prop esperada por el modal)
+   - El botón "Gestionar" ahora abre correctamente el modal
+
+2. **Nuevas Secciones Añadidas a la Columna Derecha:**
+   - **Apariencia Física:** Ojos, Piel, Pelo, Tamaño, Nivel de Vida
+   - **Rasgos de Personalidad:** rasgo_distintivo y rasgo_distintivo_2 con descripciones
+   - **Senda de Sombra:** Nombre y descripción completa
+   - **Virtud mejorada:** Ahora muestra descripción/rasgos junto al nombre
+
+3. **Balance de Columnas:**
+   - Las tres columnas ahora tienen altura similar (2044px cada una)
+   - Contenido distribuido de forma equilibrada
+
+**Columna Izquierda:** HP, Estadísticas de combate, Puntos de Sombra, Competencias
+**Columna Central:** Atributos, Habilidades (19), Ocupación, Equipo
+**Columna Derecha:** Apariencia Física, Rasgos de Personalidad, Trasfondo, Senda de Sombra, Cultura
+
+#### Cálculo de Peso de Montura Mejorado - COMPLETADO
+
+**Cambios en el endpoint `/api/characters/{id}/weight-summary`:**
+
+Nuevos campos añadidos:
+- `peso_corporal`: Peso físico del personaje (kg)
+- `peso_total_montura`: items en montura + peso corporal del jinete
+- `capacidad_montura_restante` ahora considera el peso del jinete
+
+**Archivos modificados:**
+- `/app/frontend/src/pages/CharacterSheetPage.jsx`
+- `/app/frontend/src/components/character-sheet/EquipmentManagerModal.jsx`
+- `/app/backend/routes/character_routes.py`
+
+**Testing:** 100% - Backend y Frontend verificados con testing agent
+
+---
+
+### ✅ COMPLETED Previous Session (2025-12-20)
+
+#### Correcciones en Ficha de Personaje PDF - COMPLETADO
 
 **Correcciones implementadas en SheetPage1.jsx y SheetPage2.jsx:**
 
