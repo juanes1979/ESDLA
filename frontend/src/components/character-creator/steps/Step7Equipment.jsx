@@ -6,7 +6,7 @@
  * + TIENDA para comprar equipo adicional con el dinero inicial (PRECIOS BASE)
  */
 import { useState, useMemo, useEffect } from 'react';
-import { Loader2, ChevronLeft, Package, Coins, ShoppingCart, Plus, Minus, Store, Sword, Shield, Scroll, Wrench, Apple, Search, X, Leaf, Skull, Horse, Gem, Ship, Building } from 'lucide-react';
+import { Loader2, ChevronLeft, Package, Coins, ShoppingCart, Plus, Minus, Store, Sword, Shield, Scroll, Wrench, Apple, Search, X, Leaf, Skull, Gem, Ship, Building, CircleDot } from 'lucide-react';
 import { updateDraftStep7 } from '@/services/api';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -128,7 +128,7 @@ const Step7Equipment = ({ draftId, draft, onComplete, onBack }) => {
     { key: 'tools', label: 'Herramientas', icon: Wrench, catalogKeys: ['herramientas', 'juegos', 'instrumentos_musicales'] },
     { key: 'general', label: 'General', icon: Scroll, catalogKeys: ['equipo_general'] },
     { key: 'consumables', label: 'Comida', icon: Apple, catalogKeys: ['consumibles', 'comida_posadas'] },
-    { key: 'mounts', label: 'Monturas', icon: Horse, catalogKeys: ['monturas', 'accesorios_monturas'] },
+    { key: 'mounts', label: 'Monturas', icon: CircleDot, catalogKeys: ['monturas', 'accesorios_monturas'] },
     { key: 'transport', label: 'Transporte', icon: Ship, catalogKeys: ['transporte_terrestre', 'transporte_maritimo'] },
     { key: 'herbs', label: 'Hierbas', icon: Leaf, catalogKeys: ['hierbas'] },
     { key: 'poisons', label: 'Venenos', icon: Skull, catalogKeys: ['venenos'] },

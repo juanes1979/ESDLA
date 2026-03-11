@@ -2,7 +2,7 @@
  * Equipment Section Component
  * Displays equipment tables by category with admin editing capabilities
  */
-import { useState, useCallback } from 'react';
+import { useState } from 'react';
 import { Plus, Edit, Trash2, Printer, MapPin, Package, Loader2, Check, AlertTriangle, UserPlus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -208,7 +208,7 @@ const EquipmentSection = ({
   };
 
   // Toggle creation availability for a single item
-  const toggleCreationAvailability = useCallback((categoria, nombre, currentValue) => {
+  const toggleCreationAvailability = (categoria, nombre, currentValue) => {
     const key = `${categoria}:${nombre}`;
     const newValue = currentValue === false ? true : (currentValue === true ? false : false);
     
@@ -216,17 +216,17 @@ const EquipmentSection = ({
       ...prev,
       [key]: { categoria, nombre, disponible_creacion: newValue }
     }));
-  }, []);
+  };
 
   // Check if item has pending change
-  const getItemCreationValue = useCallback((categoria, nombre, originalValue) => {
+  const getItemCreationValue = (categoria, nombre, originalValue) => {
     const key = `${categoria}:${nombre}`;
     if (pendingCreationChanges[key] !== undefined) {
       return pendingCreationChanges[key].disponible_creacion;
     }
     // Default to true if not set (retrocompatibility)
     return originalValue !== false;
-  }, [pendingCreationChanges]);
+  };
 
   // Save all pending creation changes
   const saveCreationChanges = async () => {
