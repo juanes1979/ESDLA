@@ -1319,6 +1319,46 @@ async def update_treasure_index(data: dict = Body(...)):
     return {"message": "Treasure index saved successfully"}
 
 
+# === TREASURE CONFIG (Editable treasure generation parameters) ===
+
+@router.get("/treasure-config")
+async def get_treasure_config():
+    """Get DM's custom treasure generation configuration"""
+    data = await db.treasure_config.find_one({"_id": "default"})
+    if not data:
+        return {"tiers": None, "coinTypes": None}
+    return {
+        "tiers": data.get("tiers"),
+        "coinTypes": data.get("coinTypes"),
+        "updated_at": data.get("updated_at")
+    }
+
+
+@router.put("/treasure-config")
+async def update_treasure_config(data: dict = Body(...)):
+    """Update DM's treasure generation configuration"""
+    tiers = data.get("tiers")
+    coin_types = data.get("coinTypes")
+    
+    await db.treasure_config.update_one(
+        {"_id": "default"},
+        {"$set": {
+            "tiers": tiers,
+            "coinTypes": coin_types,
+            "updated_at": now_utc()
+        }},
+        upsert=True
+    )
+    return {"message": "Treasure configuration saved successfully"}
+
+
+@router.delete("/treasure-config")
+async def reset_treasure_config():
+    """Reset treasure configuration to defaults"""
+    await db.treasure_config.delete_one({"_id": "default"})
+    return {"message": "Treasure configuration reset to defaults"}
+
+
 # === ARTES (Arts) ===
 
 @router.get("/artes")

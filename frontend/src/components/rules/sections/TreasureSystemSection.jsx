@@ -1,7 +1,8 @@
 /**
- * Treasure System Section - Complete Implementation
+ * Treasure System Section - Complete Implementation with Editable Configuration
  * Includes: treasure tiers, magic items, blessings, famous weapons/armor, 
  * perditions (banes), enchanted qualities, pricing system, DM treasure index
+ * NOW FULLY EDITABLE: coin types, dice rolls per tier, magic roll counts
  */
 import React, { useState, useCallback, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
@@ -17,17 +18,62 @@ import { Textarea } from '@/components/ui/textarea';
 import { 
   Gem, Crown, Sword, Shield, Sparkles, Skull, Coins, 
   Dice6, Gift, AlertTriangle, Star, Moon, Eye, RefreshCw,
-  Plus, Trash2, Save, BookOpen, Edit, Hammer, ChevronDown
+  Plus, Trash2, Save, BookOpen, Edit, Hammer, ChevronDown,
+  Settings, Loader2
 } from 'lucide-react';
 import { toast } from 'sonner';
 import api from '@/services/api';
 
-// =============== TREASURE TIERS ===============
-const TREASURE_TIERS = {
-  minor: { id: 'minor', nombre: 'Menor', valorBase: 9, valorDado: '2d8', tiradas: 1, cdSombra: 10, color: 'bg-green-600' },
-  major: { id: 'major', nombre: 'Mayor', valorBase: 16, valorDado: '3d10', cdSombra: 15, tiradas: 2, color: 'bg-blue-600' },
-  wondrous: { id: 'wondrous', nombre: 'Maravilloso', valorBase: 26, valorDado: '4d12', cdSombra: 20, tiradas: 3, color: 'bg-purple-600' }
+// =============== DEFAULT TREASURE TIERS ===============
+const DEFAULT_TREASURE_TIERS = {
+  minor: {
+    id: 'minor',
+    nombre: 'Menor',
+    tiradas: 1,
+    cdSombra: 10,
+    color: 'bg-green-600',
+    monedas: [
+      { id: 'tin', dado: '3d6', activo: true },
+      { id: 'copper', dado: '2d8', activo: true },
+      { id: 'silver', dado: '1d6', activo: true },
+      { id: 'gold', dado: '0', activo: false }
+    ]
+  },
+  major: {
+    id: 'major',
+    nombre: 'Mayor',
+    cdSombra: 15,
+    tiradas: 2,
+    color: 'bg-blue-600',
+    monedas: [
+      { id: 'tin', dado: '0', activo: false },
+      { id: 'copper', dado: '3d10', activo: true },
+      { id: 'silver', dado: '2d8', activo: true },
+      { id: 'gold', dado: '1d6', activo: true }
+    ]
+  },
+  wondrous: {
+    id: 'wondrous',
+    nombre: 'Maravilloso',
+    cdSombra: 20,
+    tiradas: 3,
+    color: 'bg-purple-600',
+    monedas: [
+      { id: 'tin', dado: '0', activo: false },
+      { id: 'copper', dado: '0', activo: false },
+      { id: 'silver', dado: '4d10', activo: true },
+      { id: 'gold', dado: '2d8', activo: true }
+    ]
+  }
 };
+
+// =============== DEFAULT COIN TYPES ===============
+const DEFAULT_COIN_TYPES = [
+  { id: 'tin', nombre: 'Estaño', abrev: 'me', color: 'bg-gray-500', valorEnOro: 0.001 },
+  { id: 'copper', nombre: 'Cobre', abrev: 'mc', color: 'bg-orange-700', valorEnOro: 0.01 },
+  { id: 'silver', nombre: 'Plata', abrev: 'mp', color: 'bg-slate-400', valorEnOro: 0.1 },
+  { id: 'gold', nombre: 'Oro', abrev: 'mo', color: 'bg-yellow-500', valorEnOro: 1 }
+];
 
 // =============== MAGIC TREASURE TABLE ===============
 const MAGIC_TREASURE_TABLE = [
@@ -91,7 +137,6 @@ const PERDITIONS = {
 
 // =============== WEAPON ENCHANTED QUALITIES ===============
 const WEAPON_QUALITIES = [
-  // Númenóreanas
   { id: 'afilada', nombre: 'Afilada', manufactura: ['numenorean'], multiplicador: 4, descripcion: '+1 ataque y daño' },
   { id: 'aplastante', nombre: 'Aplastante', manufactura: ['numenorean'], multiplicador: 4, descripcion: '+1 ataque/daño, TS Fue CD 8+PB+Fue o derribado' },
   { id: 'cruel', nombre: 'Cruel', manufactura: ['numenorean'], multiplicador: 4, descripcion: '+1 ataque y daño' },
@@ -100,14 +145,12 @@ const WEAPON_QUALITIES = [
   { id: 'cruel_mayor', nombre: 'Cruel Mayor', manufactura: ['numenorean'], multiplicador: 8, descripcion: '+1 ataque/daño, crítico +4 dados vs perdición' },
   { id: 'dolorosa_mayor', nombre: 'Dolorosa Mayor', manufactura: ['numenorean'], multiplicador: 8, descripcion: '+1 ataque/daño, +3 daño vs perdición' },
   { id: 'exterminadora', nombre: 'Exterminadora de Enemigos', manufactura: ['numenorean', 'elven_eregion', 'elven_beleriand'], multiplicador: 8, descripcion: '+2 dados de daño vs perdición' },
-  // Élficas
   { id: 'afilada_elfica', nombre: 'Afilada', manufactura: ['elven_eregion', 'elven_beleriand'], multiplicador: 4, descripcion: '+1 ataque y daño' },
   { id: 'cruel_elfica', nombre: 'Cruel', manufactura: ['elven_eregion', 'elven_beleriand'], multiplicador: 4, descripcion: '+1 ataque y daño' },
   { id: 'afilada_mayor', nombre: 'Afilada Mayor', manufactura: ['elven_eregion', 'elven_beleriand'], multiplicador: 8, descripcion: '+1 ataque/daño, crítico 18-20 vs perdición' },
   { id: 'cruel_mayor_elfica', nombre: 'Cruel Mayor', manufactura: ['elven_eregion', 'elven_beleriand'], multiplicador: 8, descripcion: '+1 ataque/daño, crítico +3 dados' },
   { id: 'dardo_hiriente', nombre: 'Dardo Hiriente', manufactura: ['elven_eregion', 'elven_beleriand'], multiplicador: 8, tipo: 'distancia', descripcion: '+1 ataque/daño, desventaja en ataques del objetivo vs perdición' },
   { id: 'luminiscencia', nombre: 'Luminiscencia', manufactura: ['elven_eregion', 'elven_beleriand'], multiplicador: 8, descripcion: '+1 ataque/daño, brilla cerca de perdición, ventaja iniciativa' },
-  // Enanas
   { id: 'afilada_enana', nombre: 'Afilada', manufactura: ['dwarven_khazad', 'dwarven_erebor', 'dwarven_beleriand'], multiplicador: 3, descripcion: '+1 ataque y daño' },
   { id: 'aplastante_enana', nombre: 'Aplastante', manufactura: ['dwarven_khazad', 'dwarven_erebor', 'dwarven_beleriand'], multiplicador: 3, descripcion: '+1 ataque/daño, TS Fue o derribado' },
   { id: 'cruel_enana', nombre: 'Cruel', manufactura: ['dwarven_khazad', 'dwarven_erebor', 'dwarven_beleriand'], multiplicador: 3, descripcion: '+1 ataque y daño' },
@@ -118,7 +161,6 @@ const WEAPON_QUALITIES = [
   { id: 'dolorosa_mayor_enana', nombre: 'Dolorosa Mayor', manufactura: ['dwarven_khazad', 'dwarven_erebor', 'dwarven_beleriand'], multiplicador: 6, descripcion: '+1 ataque/daño, +2 daño' },
   { id: 'llama_esperanza', nombre: 'Llama de Esperanza', manufactura: ['dwarven_khazad', 'dwarven_erebor', 'dwarven_beleriand'], multiplicador: 6, descripcion: 'Aura 10 pies, bonus Car a salvaciones en combate' },
   { id: 'resplandor_terror', nombre: 'Resplandor de Terror', manufactura: ['dwarven_khazad', 'dwarven_erebor', 'dwarven_beleriand'], multiplicador: 6, descripcion: '+1 ataque/daño, luz solar, daño radiante' },
-  // Distancia (cualquiera)
   { id: 'trayectoria_recta', nombre: 'Trayectoria Recta', manufactura: ['any'], multiplicador: 4, tipo: 'distancia', descripcion: '+1 ataque/daño, ignora cobertura' },
   { id: 'acero_hueco', nombre: 'Acero Hueco', manufactura: ['numenorean'], multiplicador: 8, tipo: 'distancia', descripcion: 'Ataque a distancia como acción adicional' }
 ];
@@ -178,35 +220,9 @@ const ART_OBJECTS = [
   'Cuerno de marfil con piedras preciosas'
 ];
 
-// =============== JEWELRY FORMS ===============
-const JEWELRY_FORMS = [
-  { d6: 1, nombre: 'Anillo', precioBase: 200 },
-  { d6: 2, nombre: 'Broche', precioBase: 600 },
-  { d6: 3, nombre: 'Collar', precioBase: 1200 },
-  { d6: 4, nombre: 'Diadema', precioBase: 3000 },
-  { d6: 5, nombre: 'Corona', precioBase: 12000 },
-  { d6: 6, nombre: 'Cinturón/Cadena/Brazalete', precioBase: 1000 }
-];
-
-const JEWELRY_MATERIALS = [
-  { nombre: 'Oro', multiplicador: 1 },
-  { nombre: 'Plata', multiplicador: 0.1 },
-  { nombre: 'Bronce', multiplicador: 0.05 },
-  { nombre: 'Platino', multiplicador: 2 },
-  { nombre: 'Mithril', multiplicador: 10 }
-];
-
-const GEMSTONES = [
-  { d6: 1, nombre: 'Perla', precioExtra: 240 },
-  { d6: 2, nombre: 'Zafiro', precioExtra: 480 },
-  { d6: 3, nombre: 'Rubí', precioExtra: 600 },
-  { d6: 4, nombre: 'Amatista', precioExtra: 360 },
-  { d6: 5, nombre: 'Diamante', precioExtra: 600 },
-  { d6: 6, nombre: 'Esmeralda', precioExtra: 400 }
-];
-
 // =============== HELPER FUNCTIONS ===============
 const rollDice = (notation) => {
+  if (!notation || notation === '0') return { total: 0, rolls: [], notation };
   const parts = notation.split(/([+-])/);
   let total = 0;
   let rolls = [];
@@ -230,8 +246,10 @@ const rollDice = (notation) => {
 };
 
 const rollD20 = () => Math.floor(Math.random() * 20) + 1;
-const rollD6 = () => Math.floor(Math.random() * 6) + 1;
 const generateId = () => Math.random().toString(36).substr(2, 9);
+
+// Deep clone helper
+const deepClone = (obj) => JSON.parse(JSON.stringify(obj));
 
 // =============== MAIN COMPONENT ===============
 const TreasureSystemSection = () => {
@@ -240,15 +258,21 @@ const TreasureSystemSection = () => {
   const [treasureLog, setTreasureLog] = useState([]);
   const [showCurseChance, setShowCurseChance] = useState(false);
   
+  // Editable configuration - CORE STATE
+  const [treasureTiers, setTreasureTiers] = useState(deepClone(DEFAULT_TREASURE_TIERS));
+  const [coinTypes, setCoinTypes] = useState(deepClone(DEFAULT_COIN_TYPES));
+  const [showAdvancedConfig, setShowAdvancedConfig] = useState(false);
+  const [configModified, setConfigModified] = useState(false);
+  const [savingConfig, setSavingConfig] = useState(false);
+  const [loadingConfig, setLoadingConfig] = useState(true);
+  
   // DM Treasure Index
   const [treasureIndex, setTreasureIndex] = useState([]);
-  const [showIndexEditor, setShowIndexEditor] = useState(false);
-  const [editingItem, setEditingItem] = useState(null);
   
   // Famous weapon builder
   const [weaponBuilder, setWeaponBuilder] = useState({
     nombre: '',
-    tipo: 'arma', // arma, armadura, escudo
+    tipo: 'arma',
     manufactura: 'dwarven_khazad',
     cualidades: [],
     perdiciones: [],
@@ -256,18 +280,67 @@ const TreasureSystemSection = () => {
     precioBase: 100
   });
   
-  // Load treasure index from backend
+  // Load configuration from backend on mount
   useEffect(() => {
-    const loadIndex = async () => {
+    const loadConfig = async () => {
       try {
-        const res = await api.get('/data/treasure-index');
-        if (res.data?.items) setTreasureIndex(res.data.items);
+        const [configRes, indexRes] = await Promise.all([
+          api.get('/data/treasure-config'),
+          api.get('/data/treasure-index')
+        ]);
+        
+        // Load custom config if exists
+        if (configRes.data?.tiers) {
+          setTreasureTiers(configRes.data.tiers);
+        }
+        if (configRes.data?.coinTypes) {
+          setCoinTypes(configRes.data.coinTypes);
+        }
+        
+        // Load treasure index
+        if (indexRes.data?.items) {
+          setTreasureIndex(indexRes.data.items);
+        }
       } catch (err) {
-        console.log('No treasure index found');
+        console.log('Loading default treasure config');
+      } finally {
+        setLoadingConfig(false);
       }
     };
-    loadIndex();
+    loadConfig();
   }, []);
+  
+  // Save configuration to backend
+  const saveConfig = async () => {
+    setSavingConfig(true);
+    try {
+      await api.put('/data/treasure-config', {
+        tiers: treasureTiers,
+        coinTypes: coinTypes
+      });
+      setConfigModified(false);
+      toast.success('Configuración de tesoros guardada');
+    } catch (err) {
+      toast.error('Error al guardar la configuración');
+    } finally {
+      setSavingConfig(false);
+    }
+  };
+  
+  // Reset configuration to defaults
+  const resetConfig = async () => {
+    if (!window.confirm('¿Restablecer toda la configuración de tesoros a los valores por defecto?')) return;
+    
+    try {
+      await api.delete('/data/treasure-config');
+      setTreasureTiers(deepClone(DEFAULT_TREASURE_TIERS));
+      setCoinTypes(deepClone(DEFAULT_COIN_TYPES));
+      setConfigModified(false);
+      toast.success('Configuración restablecida');
+    } catch (err) {
+      toast.error('Error al restablecer');
+    }
+  };
   
   // Save treasure index
   const saveIndex = async () => {
@@ -279,17 +352,97 @@ const TreasureSystemSection = () => {
     }
   };
   
+  // Update tier configuration
+  const updateTierConfig = (tierId, field, value) => {
+    setTreasureTiers(prev => ({
+      ...prev,
+      [tierId]: {
+        ...prev[tierId],
+        [field]: value
+      }
+    }));
+    setConfigModified(true);
+  };
+  
+  // Update coin config for a specific tier
+  const updateTierCoin = (tierId, coinId, field, value) => {
+    setTreasureTiers(prev => ({
+      ...prev,
+      [tierId]: {
+        ...prev[tierId],
+        monedas: prev[tierId].monedas.map(c => 
+          c.id === coinId ? { ...c, [field]: value } : c
+        )
+      }
+    }));
+    setConfigModified(true);
+  };
+  
+  // Update global coin type
+  const updateCoinType = (coinId, field, value) => {
+    setCoinTypes(prev => prev.map(c => 
+      c.id === coinId ? { ...c, [field]: value } : c
+    ));
+    setConfigModified(true);
+  };
+  
+  // Add new coin type
+  const addCoinType = () => {
+    const newId = `custom_${generateId()}`;
+    const newCoin = {
+      id: newId,
+      nombre: 'Nueva Moneda',
+      abrev: 'nm',
+      color: 'bg-purple-500',
+      valorEnOro: 0.5
+    };
+    setCoinTypes(prev => [...prev, newCoin]);
+    
+    // Add to all tiers
+    setTreasureTiers(prev => {
+      const updated = { ...prev };
+      Object.keys(updated).forEach(tierId => {
+        updated[tierId] = {
+          ...updated[tierId],
+          monedas: [...updated[tierId].monedas, { id: newId, dado: '0', activo: false }]
+        };
+      });
+      return updated;
+    });
+    setConfigModified(true);
+  };
+  
+  // Remove coin type
+  const removeCoinType = (coinId) => {
+    // Don't allow removing default coins
+    if (['tin', 'copper', 'silver', 'gold'].includes(coinId)) {
+      toast.error('No se pueden eliminar las monedas predefinidas');
+      return;
+    }
+    
+    setCoinTypes(prev => prev.filter(c => c.id !== coinId));
+    setTreasureTiers(prev => {
+      const updated = { ...prev };
+      Object.keys(updated).forEach(tierId => {
+        updated[tierId] = {
+          ...updated[tierId],
+          monedas: updated[tierId].monedas.filter(c => c.id !== coinId)
+        };
+      });
+      return updated;
+    });
+    setConfigModified(true);
+  };
+  
   // Calculate weapon price
   const calculateWeaponPrice = useCallback((weapon) => {
     let precio = weapon.precioBase || 100;
     
-    // Apply quality multipliers
     weapon.cualidades?.forEach(qualId => {
       const qual = WEAPON_QUALITIES.find(q => q.id === qualId);
       if (qual) precio *= (qual.multiplicador / 100);
     });
     
-    // Add perdition costs
     const manufactura = MANUFACTURES.find(m => m.id === weapon.manufactura);
     const perditionList = manufactura?.tipo === 'elfica' ? PERDITIONS.elven : PERDITIONS.numenorean;
     weapon.perdiciones?.forEach(perdId => {
@@ -297,7 +450,6 @@ const TreasureSystemSection = () => {
       if (perd) precio += perd.coste;
     });
     
-    // Apply manufacture multiplier
     if (manufactura) precio *= manufactura.multiplicadorPrecio;
     
     return Math.round(precio);
@@ -331,12 +483,36 @@ const TreasureSystemSection = () => {
     toast.info('Objeto eliminado del índice');
   };
   
-  // Generate treasure
+  // Generate treasure using current configuration
   const generateTreasure = useCallback(() => {
-    const tier = TREASURE_TIERS[selectedTier];
-    const valorRoll = rollDice(tier.valorDado);
-    const valorTotal = tier.valorBase + valorRoll.total;
+    const tier = treasureTiers[selectedTier];
+    if (!tier) return;
     
+    // Roll coins based on tier configuration
+    const coinResults = [];
+    let totalValue = 0;
+    
+    tier.monedas.forEach(coinConfig => {
+      if (coinConfig.activo && coinConfig.dado && coinConfig.dado !== '0') {
+        const roll = rollDice(coinConfig.dado);
+        const coinType = coinTypes.find(c => c.id === coinConfig.id);
+        
+        coinResults.push({
+          tipo: coinType?.nombre || coinConfig.id,
+          abrev: coinType?.abrev || coinConfig.id,
+          color: coinType?.color || 'bg-gray-500',
+          dado: coinConfig.dado,
+          rolls: roll.rolls,
+          total: roll.total
+        });
+        
+        // Convert to gold equivalent
+        const multiplier = coinType?.valorEnOro || 0.1;
+        totalValue += roll.total * multiplier;
+      }
+    });
+    
+    // Magic treasure rolls
     const magicRolls = [];
     let totalShadow = 0;
     const magicItems = [];
@@ -364,15 +540,24 @@ const TreasureSystemSection = () => {
     }
     
     const treasure = {
-      tier: tier.nombre, tierColor: tier.color, valorOro: valorTotal, valorRoll,
-      magicRolls, magicItems, totalShadow, cdSombra: tier.cdSombra,
-      artObject, artValue, curse, timestamp: new Date().toLocaleTimeString()
+      tier: tier.nombre, 
+      tierColor: tier.color, 
+      coinResults,
+      totalValueGold: Math.round(totalValue * 100) / 100,
+      magicRolls, 
+      magicItems, 
+      totalShadow, 
+      cdSombra: tier.cdSombra,
+      artObject, 
+      artValue, 
+      curse, 
+      timestamp: new Date().toLocaleTimeString()
     };
     
     setGeneratedTreasure(treasure);
     setTreasureLog(prev => [treasure, ...prev.slice(0, 9)]);
     toast.success(`¡Tesoro ${tier.nombre} generado!`);
-  }, [selectedTier, showCurseChance]);
+  }, [selectedTier, treasureTiers, coinTypes, showCurseChance, treasureIndex]);
   
   const generateMagicItem = (tipo) => {
     if (tipo === 'artefacto') {
@@ -390,7 +575,6 @@ const TreasureSystemSection = () => {
       }
       return { tipo: 'Objeto Extraordinario', bendiciones: blessings, descripcion: `Bendiciones de ${blessings.map(b => b.habilidad).join(' y ')}` };
     } else if (tipo === 'famoso') {
-      // Check if there's something in the DM index
       if (treasureIndex.length > 0 && Math.random() < 0.5) {
         const randomItem = treasureIndex[Math.floor(Math.random() * treasureIndex.length)];
         return { tipo: 'Del Índice del DM', ...randomItem };
@@ -417,6 +601,18 @@ const TreasureSystemSection = () => {
     return [];
   };
   
+  // Get current tier configuration
+  const currentTier = treasureTiers[selectedTier] || DEFAULT_TREASURE_TIERS[selectedTier];
+  
+  if (loadingConfig) {
+    return (
+      <div className="flex items-center justify-center p-12">
+        <Loader2 className="w-8 h-8 animate-spin text-[hsl(var(--gold))]" />
+        <span className="ml-3 text-muted-foreground">Cargando configuración...</span>
+      </div>
+    );
+  }
+  
   return (
     <div className="space-y-6">
       <div className="text-center mb-6">
@@ -424,13 +620,22 @@ const TreasureSystemSection = () => {
           <Gem className="w-6 h-6" /> Sistema de Tesoros
         </h2>
         <p className="text-sm text-muted-foreground mt-1">
-          Generador completo con armas famosas, bendiciones y precios
+          Generador completo con configuración editable
         </p>
+        {configModified && (
+          <Badge variant="destructive" className="mt-2">
+            Cambios sin guardar
+          </Badge>
+        )}
       </div>
       
       <Tabs defaultValue="generator" className="w-full">
-        <TabsList className="grid w-full grid-cols-5">
+        <TabsList className="grid w-full grid-cols-6">
           <TabsTrigger value="generator">Generador</TabsTrigger>
+          <TabsTrigger value="config" className="relative">
+            Configurar
+            {configModified && <span className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full" />}
+          </TabsTrigger>
           <TabsTrigger value="famous">Armas Famosas</TabsTrigger>
           <TabsTrigger value="index">Índice DM</TabsTrigger>
           <TabsTrigger value="prices">Precios</TabsTrigger>
@@ -447,10 +652,11 @@ const TreasureSystemSection = () => {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
+                {/* Tier Selection */}
                 <div>
                   <Label className="text-sm">Nivel de Tesoro</Label>
                   <div className="grid grid-cols-3 gap-2 mt-2">
-                    {Object.values(TREASURE_TIERS).map(tier => (
+                    {Object.values(treasureTiers).map(tier => (
                       <Button key={tier.id} variant={selectedTier === tier.id ? 'default' : 'outline'}
                         onClick={() => setSelectedTier(tier.id)} className={selectedTier === tier.id ? tier.color : ''}>
                         {tier.nombre}
@@ -459,11 +665,32 @@ const TreasureSystemSection = () => {
                   </div>
                 </div>
                 
+                {/* Current Configuration Summary */}
                 <div className="bg-black/20 p-3 rounded text-sm">
-                  <div className="grid grid-cols-3 gap-2">
-                    <div><span className="text-muted-foreground">Valor:</span> <strong>{TREASURE_TIERS[selectedTier].valorBase}+{TREASURE_TIERS[selectedTier].valorDado}</strong></div>
-                    <div><span className="text-muted-foreground">Tiradas:</span> <strong>{TREASURE_TIERS[selectedTier].tiradas}d20</strong></div>
-                    <div><span className="text-muted-foreground">CD:</span> <strong>{TREASURE_TIERS[selectedTier].cdSombra}</strong></div>
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="font-medium text-[hsl(var(--gold))]">Configuración Actual: {currentTier.nombre}</span>
+                    <Badge variant="outline">{currentTier.tiradas}d20</Badge>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <span className="text-muted-foreground">Monedas:</span>
+                      <div className="flex flex-wrap gap-1 mt-1">
+                        {currentTier.monedas.filter(c => c.activo && c.dado !== '0').map(c => {
+                          const coinType = coinTypes.find(ct => ct.id === c.id);
+                          return (
+                            <Badge key={c.id} className={`${coinType?.color} text-xs`}>
+                              {c.dado} {coinType?.abrev}
+                            </Badge>
+                          );
+                        })}
+                        {currentTier.monedas.filter(c => c.activo && c.dado !== '0').length === 0 && (
+                          <span className="text-muted-foreground text-xs">Ninguna</span>
+                        )}
+                      </div>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">CD Sombra:</span> <strong>{currentTier.cdSombra}</strong>
+                    </div>
                   </div>
                 </div>
                 
@@ -478,6 +705,7 @@ const TreasureSystemSection = () => {
               </CardContent>
             </Card>
             
+            {/* Result Card */}
             <Card className="card-parchment">
               <CardHeader className="pb-2"><CardTitle className="text-lg text-[hsl(var(--gold))]">Resultado</CardTitle></CardHeader>
               <CardContent>
@@ -488,12 +716,29 @@ const TreasureSystemSection = () => {
                       <span className="text-xs text-muted-foreground">{generatedTreasure.timestamp}</span>
                     </div>
                     
-                    <div className="bg-yellow-500/20 p-3 rounded border border-yellow-500/30">
-                      <div className="flex items-center gap-2">
-                        <Coins className="w-5 h-5 text-yellow-500" />
-                        <span className="text-xl font-bold">{generatedTreasure.valorOro} po</span>
+                    {/* Coin Results */}
+                    {generatedTreasure.coinResults?.length > 0 && (
+                      <div className="space-y-2">
+                        <p className="font-medium text-sm">Monedas encontradas:</p>
+                        {generatedTreasure.coinResults.map((coin, idx) => (
+                          <div key={idx} className="flex items-center justify-between p-2 bg-black/20 rounded">
+                            <div className="flex items-center gap-2">
+                              <Badge className={coin.color}>{coin.abrev}</Badge>
+                              <span className="text-sm">{coin.tipo}</span>
+                            </div>
+                            <div className="text-right">
+                              <span className="font-bold text-lg">{coin.total}</span>
+                              <span className="text-xs text-muted-foreground ml-2">
+                                ({coin.dado}: [{coin.rolls.join('+')}])
+                              </span>
+                            </div>
+                          </div>
+                        ))}
+                        <div className="text-right text-sm text-muted-foreground">
+                          ≈ <strong className="text-yellow-400">{generatedTreasure.totalValueGold} mo</strong> equivalente
+                        </div>
                       </div>
-                    </div>
+                    )}
                     
                     <div className="bg-purple-500/10 p-2 rounded text-sm">
                       <p className="text-muted-foreground">{generatedTreasure.artObject}</p>
@@ -534,6 +779,187 @@ const TreasureSystemSection = () => {
                     <p>Genera un tesoro para ver el resultado</p>
                   </div>
                 )}
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+        
+        {/* CONFIGURATION TAB - NEW! */}
+        <TabsContent value="config">
+          <div className="space-y-6">
+            {/* Save/Reset Buttons */}
+            <div className="flex justify-between items-center">
+              <div>
+                <h3 className="text-lg font-bold text-[hsl(var(--gold))] flex items-center gap-2">
+                  <Settings className="w-5 h-5" /> Configuración del Generador
+                </h3>
+                <p className="text-sm text-muted-foreground">
+                  Personaliza los tipos de moneda, dados y tiradas mágicas por nivel
+                </p>
+              </div>
+              <div className="flex gap-2">
+                <Button variant="outline" onClick={resetConfig} data-testid="reset-config-btn">
+                  <RefreshCw className="w-4 h-4 mr-2" /> Restablecer
+                </Button>
+                <Button 
+                  onClick={saveConfig} 
+                  disabled={!configModified || savingConfig}
+                  className="bg-[hsl(var(--gold))] text-black hover:bg-[hsl(var(--gold))]/90"
+                  data-testid="save-config-btn"
+                >
+                  {savingConfig ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
+                  Guardar Cambios
+                </Button>
+              </div>
+            </div>
+            
+            {/* Coin Types Editor */}
+            <Card className="card-parchment">
+              <CardHeader className="pb-2">
+                <div className="flex justify-between items-center">
+                  <CardTitle className="text-lg text-[hsl(var(--gold))] flex items-center gap-2">
+                    <Coins className="w-5 h-5" /> Tipos de Moneda
+                  </CardTitle>
+                  <Button variant="outline" size="sm" onClick={addCoinType}>
+                    <Plus className="w-4 h-4 mr-1" /> Añadir Moneda
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {coinTypes.map(coin => (
+                    <div key={coin.id} className="flex items-center gap-3 p-3 bg-black/20 rounded">
+                      <Badge className={coin.color}>{coin.abrev}</Badge>
+                      <Input 
+                        value={coin.nombre}
+                        onChange={(e) => updateCoinType(coin.id, 'nombre', e.target.value)}
+                        className="w-40"
+                        placeholder="Nombre"
+                      />
+                      <Input 
+                        value={coin.abrev}
+                        onChange={(e) => updateCoinType(coin.id, 'abrev', e.target.value)}
+                        className="w-20"
+                        placeholder="Abrev"
+                      />
+                      <div className="flex items-center gap-1">
+                        <Label className="text-xs text-muted-foreground">Valor (mo):</Label>
+                        <Input 
+                          type="number"
+                          step="0.001"
+                          value={coin.valorEnOro}
+                          onChange={(e) => updateCoinType(coin.id, 'valorEnOro', parseFloat(e.target.value) || 0)}
+                          className="w-24"
+                        />
+                      </div>
+                      <Select 
+                        value={coin.color} 
+                        onValueChange={(v) => updateCoinType(coin.id, 'color', v)}
+                      >
+                        <SelectTrigger className="w-32">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="bg-gray-500">Gris</SelectItem>
+                          <SelectItem value="bg-orange-700">Bronce</SelectItem>
+                          <SelectItem value="bg-slate-400">Plata</SelectItem>
+                          <SelectItem value="bg-yellow-500">Oro</SelectItem>
+                          <SelectItem value="bg-purple-500">Púrpura</SelectItem>
+                          <SelectItem value="bg-cyan-500">Cyan</SelectItem>
+                          <SelectItem value="bg-pink-500">Rosa</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      {!['tin', 'copper', 'silver', 'gold'].includes(coin.id) && (
+                        <Button variant="ghost" size="sm" onClick={() => removeCoinType(coin.id)}>
+                          <Trash2 className="w-4 h-4 text-red-400" />
+                        </Button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+            
+            {/* Tier Configuration */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+              {Object.entries(treasureTiers).map(([tierId, tier]) => (
+                <Card key={tierId} className="card-parchment">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-lg flex items-center gap-2">
+                      <Badge className={tier.color}>{tier.nombre}</Badge>
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    {/* Tier Settings */}
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <Label className="text-xs">Tiradas Mágicas (d20)</Label>
+                        <Input 
+                          type="number"
+                          min="0"
+                          max="10"
+                          value={tier.tiradas}
+                          onChange={(e) => updateTierConfig(tierId, 'tiradas', parseInt(e.target.value) || 0)}
+                        />
+                      </div>
+                      <div>
+                        <Label className="text-xs">CD Sombra</Label>
+                        <Input 
+                          type="number"
+                          min="5"
+                          max="30"
+                          value={tier.cdSombra}
+                          onChange={(e) => updateTierConfig(tierId, 'cdSombra', parseInt(e.target.value) || 10)}
+                        />
+                      </div>
+                    </div>
+                    
+                    {/* Coin Rolls for this Tier */}
+                    <div>
+                      <Label className="text-xs font-bold text-[hsl(var(--gold))]">Tiradas de Monedas</Label>
+                      <div className="space-y-2 mt-2">
+                        {tier.monedas.map(coinConfig => {
+                          const coinType = coinTypes.find(c => c.id === coinConfig.id);
+                          if (!coinType) return null;
+                          return (
+                            <div key={coinConfig.id} className="flex items-center gap-2">
+                              <Checkbox 
+                                checked={coinConfig.activo}
+                                onCheckedChange={(checked) => updateTierCoin(tierId, coinConfig.id, 'activo', checked)}
+                              />
+                              <Badge className={`${coinType.color} w-12 justify-center`}>
+                                {coinType.abrev}
+                              </Badge>
+                              <Input 
+                                value={coinConfig.dado}
+                                onChange={(e) => updateTierCoin(tierId, coinConfig.id, 'dado', e.target.value)}
+                                placeholder="ej: 2d8"
+                                className="flex-1 h-8"
+                                disabled={!coinConfig.activo}
+                              />
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+            
+            {/* Help Text */}
+            <Card className="bg-blue-500/10 border-blue-500/30">
+              <CardContent className="p-4">
+                <h4 className="font-medium text-blue-400 flex items-center gap-2">
+                  <AlertTriangle className="w-4 h-4" /> Ayuda
+                </h4>
+                <ul className="text-sm text-muted-foreground mt-2 space-y-1">
+                  <li>• <strong>Formato de dados:</strong> Usa notación estándar como <code>2d8</code>, <code>3d6+5</code>, <code>1d10-2</code></li>
+                  <li>• <strong>Valor en mo:</strong> Conversión a oro (1 mp = 0.1 mo, 1 mc = 0.01 mo)</li>
+                  <li>• <strong>Tiradas mágicas:</strong> Cuántas veces se tira en la tabla de tesoro mágico</li>
+                  <li>• <strong>CD Sombra:</strong> Dificultad de la prueba de Avaricia al encontrar el tesoro</li>
+                  <li>• Los cambios se guardan en la base de datos y persisten entre sesiones</li>
+                </ul>
               </CardContent>
             </Card>
           </div>
@@ -677,7 +1103,6 @@ const TreasureSystemSection = () => {
                   <Textarea value={weaponBuilder.historia} onChange={(e) => setWeaponBuilder({...weaponBuilder, historia: e.target.value})} placeholder="Historia del objeto, cómo fue forjado, quién lo empuñó..." className="h-20" />
                 </div>
                 
-                {/* Price Preview */}
                 <div className="bg-yellow-500/20 p-3 rounded border border-yellow-500/30">
                   <div className="flex justify-between items-center">
                     <span>Precio estimado:</span>
@@ -877,15 +1302,24 @@ const TreasureSystemSection = () => {
         <TabsContent value="reference">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <Card className="card-parchment">
-              <CardHeader className="pb-2"><CardTitle className="text-lg text-[hsl(var(--gold))]">Niveles de Tesoro</CardTitle></CardHeader>
+              <CardHeader className="pb-2"><CardTitle className="text-lg text-[hsl(var(--gold))]">Niveles de Tesoro (Actuales)</CardTitle></CardHeader>
               <CardContent>
-                {Object.values(TREASURE_TIERS).map(tier => (
+                {Object.values(treasureTiers).map(tier => (
                   <div key={tier.id} className="p-3 bg-black/10 rounded mb-2">
                     <Badge className={tier.color}>{tier.nombre}</Badge>
-                    <div className="grid grid-cols-3 gap-2 mt-2 text-sm">
-                      <span>Valor: {tier.valorBase}+{tier.valorDado}</span>
+                    <div className="grid grid-cols-2 gap-2 mt-2 text-sm">
                       <span>Tiradas: {tier.tiradas}d20</span>
                       <span>CD: {tier.cdSombra}</span>
+                    </div>
+                    <div className="mt-2 flex flex-wrap gap-1">
+                      {tier.monedas.filter(c => c.activo && c.dado !== '0').map(c => {
+                        const coinType = coinTypes.find(ct => ct.id === c.id);
+                        return (
+                          <Badge key={c.id} variant="outline" className="text-xs">
+                            {c.dado} {coinType?.abrev}
+                          </Badge>
+                        );
+                      })}
                     </div>
                   </div>
                 ))}
