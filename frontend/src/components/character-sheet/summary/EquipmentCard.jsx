@@ -1,41 +1,32 @@
 /**
  * Equipment Card - Equipment list with manage button
  * Shows ALL equipment without truncation
+ * Separates mount and mount accessories into their own section
  */
 import { Package, Settings, Landmark } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
-// Detect mount from inventory or equipment
-const detectMount = (character) => {
-  const mountNames = ['caballo', 'pony', 'mula', 'burro', 'corcel', 'yegua', 'potro', 'asno', 'montura'];
-  
-  // Check character.montura field
-  if (character.montura?.nombre) {
-    return character.montura.nombre;
-  }
-  
-  // Check all equipment sources for mount
-  const allItems = [
-    ...(character.inventario || []),
-    ...(character.equipo_nivel_vida || []),
-    ...(character.equipo_trasfondo || []),
-    ...(character.equipo_ocupacion || []),
-  ];
-  
-  for (const item of allItems) {
-    const nombre = (typeof item === 'string' ? item : item?.nombre || '').toLowerCase();
-    if (mountNames.some(m => nombre.includes(m))) {
-      return typeof item === 'string' ? item : item.nombre;
-    }
-  }
-  
-  return null;
+// Mount names for detection
+const MOUNT_NAMES = ['caballo', 'pony', 'mula', 'burro', 'corcel', 'yegua', 'potro', 'asno'];
+// Mount accessory names
+const MOUNT_ACCESSORY_NAMES = ['silla de monta', 'alforjas', 'bocado', 'bridas', 'bocado y bridas', 'arreos', 'barda', 'silla de montar', 'albarda', 'estribos', 'riendas', 'herradura', 'manta de montar'];
+
+// Check if an item is a mount
+const isMount = (nombre) => {
+  const lower = nombre.toLowerCase();
+  return MOUNT_NAMES.some(m => lower.includes(m));
 };
 
+// Check if an item is a mount accessory
+const isMountAccessory = (nombre) => {
+  const lower = nombre.toLowerCase();
+  return MOUNT_ACCESSORY_NAMES.some(m => lower.includes(m));
+};
+
+// Check if item is mount-related (mount or accessory)
+const isMountRelated = (nombre) => isMount(nombre) || isMountAccessory(nombre);
+
 const EquipmentCard = ({ character, onManageClick }) => {
-  // Collect ALL equipment items for display
-  const allEquipment = [];
-  
   // Weapons
   const weapons = [];
   (character.armas_elegidas || []).forEach(arma => {
@@ -55,44 +46,73 @@ const EquipmentCard = ({ character, onManageClick }) => {
   
   // Armor
   const armor = character.armadura_elegida || character.armadura?.nombre;
-  if (armor) {
-    allEquipment.push({ category: 'Armadura', items: [typeof armor === 'string' ? armor : armor] });
-  }
   
-  // Tools
-  const tools = (character.herramientas_elegidas_ocupacion || []).map(h => typeof h === 'string' ? h : h.nombre);
+  // Tools (excluding mount-related)
+  const tools = (character.herramientas_elegidas_ocupacion || [])
+    .map(h => typeof h === 'string' ? h : h.nombre)
+    .filter(t => !isMountRelated(t));
   
-  // Other equipment (occupation, background, lifestyle)
+  // Other equipment (occupation, background, lifestyle) - excluding mount-related
   const otherEquip = [];
+  const addIfNotMountRelated = (item) => {
+    const nombre = typeof item === 'string' ? item : item?.nombre || '';
+    if (!isMountRelated(nombre) && !otherEquip.includes(nombre)) {
+      otherEquip.push(nombre);
+    }
+  };
+  
   (character.equipo_ocupacion || []).forEach(item => {
     const nombre = typeof item === 'string' ? item : item?.nombre || '';
     if (!weapons.some(w => w.toLowerCase().includes(nombre.toLowerCase().split(' [')[0])) && !tools.includes(nombre)) {
-      otherEquip.push(nombre);
+      addIfNotMountRelated(item);
     }
   });
-  (character.equipo_trasfondo || []).forEach(item => {
-    const nombre = typeof item === 'string' ? item : item?.nombre || '';
-    if (!otherEquip.includes(nombre)) otherEquip.push(nombre);
-  });
-  (character.equipo_nivel_vida || []).forEach(item => {
-    const nombre = typeof item === 'string' ? item : item?.nombre || '';
-    if (!otherEquip.includes(nombre)) otherEquip.push(nombre);
-  });
-  (character.ropa_nivel_vida || []).forEach(item => {
-    const nombre = typeof item === 'string' ? item : item?.nombre || '';
-    if (!otherEquip.includes(nombre)) otherEquip.push(nombre);
-  });
+  (character.equipo_trasfondo || []).forEach(addIfNotMountRelated);
+  (character.equipo_nivel_vida || []).forEach(addIfNotMountRelated);
+  (character.ropa_nivel_vida || []).forEach(addIfNotMountRelated);
   
-  // Inventory items
-  const inventoryItems = (character.inventario || []).map(item => {
-    const nombre = item.nombre || item;
-    const cantidad = item.cantidad > 1 ? ` (x${item.cantidad})` : '';
-    const enMontura = item.portado_por === 'montura' ? ' (M)' : '';
-    return nombre + cantidad + enMontura;
-  });
+  // Collect mount and mount accessories from ALL sources
+  const mountItems = [];
+  const mountAccessories = [];
   
-  // Mount detection
-  const mountName = detectMount(character);
+  const collectMountItems = (items) => {
+    (items || []).forEach(item => {
+      const nombre = typeof item === 'string' ? item : item?.nombre || '';
+      const cantidad = typeof item === 'object' && item.cantidad > 1 ? ` (x${item.cantidad})` : '';
+      if (isMount(nombre)) {
+        if (!mountItems.includes(nombre)) mountItems.push(nombre);
+      } else if (isMountAccessory(nombre)) {
+        const full = nombre + cantidad;
+        if (!mountAccessories.includes(full)) mountAccessories.push(full);
+      }
+    });
+  };
+  
+  // Check character.montura field first
+  if (character.montura?.nombre) {
+    mountItems.push(character.montura.nombre);
+  }
+  
+  // Collect from all sources
+  collectMountItems(character.inventario);
+  collectMountItems(character.equipo_nivel_vida);
+  collectMountItems(character.equipo_trasfondo);
+  collectMountItems(character.equipo_ocupacion);
+  
+  const hasMount = mountItems.length > 0 || mountAccessories.length > 0;
+  
+  // Inventory items - excluding mount-related
+  const inventoryItems = (character.inventario || [])
+    .filter(item => {
+      const nombre = item.nombre || item;
+      return !isMountRelated(nombre);
+    })
+    .map(item => {
+      const nombre = item.nombre || item;
+      const cantidad = item.cantidad > 1 ? ` (x${item.cantidad})` : '';
+      const enMontura = item.portado_por === 'montura' ? ' (M)' : '';
+      return nombre + cantidad + enMontura;
+    });
 
   return (
     <div className="card-parchment rounded-lg p-4">
@@ -113,11 +133,21 @@ const EquipmentCard = ({ character, onManageClick }) => {
         </Button>
       </div>
       
-      {/* Mount indicator */}
-      {mountName && (
-        <div className="mb-3 bg-blue-900/30 rounded p-2 flex items-center gap-2 text-xs">
-          <Landmark className="w-4 h-4 text-blue-400" />
-          <span className="text-blue-400 font-medium">{mountName}</span>
+      {/* Mount & Accessories Section */}
+      {hasMount && (
+        <div className="mb-3 bg-blue-900/20 rounded p-3 border border-blue-500/30">
+          <p className="text-xs text-blue-400 font-medium mb-2 flex items-center gap-1">
+            <Landmark className="w-3 h-3" />
+            Montura y Accesorios
+          </p>
+          <div className="space-y-0.5 text-xs text-blue-300">
+            {mountItems.map((item, i) => (
+              <div key={`mount-${i}`} className="font-medium">• {item}</div>
+            ))}
+            {mountAccessories.map((item, i) => (
+              <div key={`acc-${i}`} className="text-blue-300/80">• {item}</div>
+            ))}
+          </div>
         </div>
       )}
       
@@ -130,6 +160,14 @@ const EquipmentCard = ({ character, onManageClick }) => {
               <div key={`arma-${i}`}>• {arma}</div>
             ))}
           </div>
+        </div>
+      )}
+      
+      {/* Armor */}
+      {armor && (
+        <div className="mb-2">
+          <p className="text-xs text-purple-400 font-medium mb-1">Armadura</p>
+          <div className="text-xs text-muted-foreground">• {armor}</div>
         </div>
       )}
       
@@ -157,7 +195,7 @@ const EquipmentCard = ({ character, onManageClick }) => {
         </div>
       )}
       
-      {/* Inventory - ALL items */}
+      {/* Inventory - excluding mount items */}
       {inventoryItems.length > 0 && (
         <div className="mb-2">
           <p className="text-xs text-[hsl(var(--magic-blue))] font-medium mb-1">Inventario</p>
