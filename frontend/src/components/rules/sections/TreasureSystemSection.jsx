@@ -36,7 +36,8 @@ const DEFAULT_TREASURE_TIERS = {
       { id: 'tin', dado: '3d6', activo: true },
       { id: 'copper', dado: '2d8', activo: true },
       { id: 'silver', dado: '1d6', activo: true },
-      { id: 'gold', dado: '0', activo: false }
+      { id: 'gold', dado: '0', activo: false },
+      { id: 'mithril', dado: '0', activo: false }
     ]
   },
   major: {
@@ -49,7 +50,8 @@ const DEFAULT_TREASURE_TIERS = {
       { id: 'tin', dado: '0', activo: false },
       { id: 'copper', dado: '3d10', activo: true },
       { id: 'silver', dado: '2d8', activo: true },
-      { id: 'gold', dado: '1d6', activo: true }
+      { id: 'gold', dado: '1d6', activo: true },
+      { id: 'mithril', dado: '0', activo: false }
     ]
   },
   wondrous: {
@@ -62,17 +64,21 @@ const DEFAULT_TREASURE_TIERS = {
       { id: 'tin', dado: '0', activo: false },
       { id: 'copper', dado: '0', activo: false },
       { id: 'silver', dado: '4d10', activo: true },
-      { id: 'gold', dado: '2d8', activo: true }
+      { id: 'gold', dado: '2d8', activo: true },
+      { id: 'mithril', dado: '1d4', activo: true }
     ]
   }
 };
 
 // =============== DEFAULT COIN TYPES ===============
+// Tasa de cambio estándar:
+// 10 estaño = 1 cobre | 10 cobre = 1 plata | 100 plata = 1 oro | 100 oro = 1 mithril
 const DEFAULT_COIN_TYPES = [
-  { id: 'tin', nombre: 'Estaño', abrev: 'me', color: 'bg-gray-500', valorEnOro: 0.001 },
-  { id: 'copper', nombre: 'Cobre', abrev: 'mc', color: 'bg-orange-700', valorEnOro: 0.01 },
-  { id: 'silver', nombre: 'Plata', abrev: 'mp', color: 'bg-slate-400', valorEnOro: 0.1 },
-  { id: 'gold', nombre: 'Oro', abrev: 'mo', color: 'bg-yellow-500', valorEnOro: 1 }
+  { id: 'tin', nombre: 'Estaño', abrev: 'me', color: 'bg-gray-500', valorEnOro: 0.0001 },
+  { id: 'copper', nombre: 'Cobre', abrev: 'mc', color: 'bg-orange-700', valorEnOro: 0.001 },
+  { id: 'silver', nombre: 'Plata', abrev: 'mp', color: 'bg-slate-400', valorEnOro: 0.01 },
+  { id: 'gold', nombre: 'Oro', abrev: 'mo', color: 'bg-yellow-500', valorEnOro: 1 },
+  { id: 'mithril', nombre: 'Mithril', abrev: 'mm', color: 'bg-cyan-400', valorEnOro: 100 }
 ];
 
 // =============== MAGIC TREASURE TABLE ===============
@@ -864,9 +870,11 @@ const TreasureSystemSection = () => {
                           <SelectItem value="bg-orange-700">Bronce</SelectItem>
                           <SelectItem value="bg-slate-400">Plata</SelectItem>
                           <SelectItem value="bg-yellow-500">Oro</SelectItem>
+                          <SelectItem value="bg-cyan-400">Cyan</SelectItem>
                           <SelectItem value="bg-purple-500">Púrpura</SelectItem>
-                          <SelectItem value="bg-cyan-500">Cyan</SelectItem>
+                          <SelectItem value="bg-cyan-500">Cyan Oscuro</SelectItem>
                           <SelectItem value="bg-pink-500">Rosa</SelectItem>
+                          <SelectItem value="bg-emerald-500">Esmeralda</SelectItem>
                         </SelectContent>
                       </Select>
                       {!['tin', 'copper', 'silver', 'gold'].includes(coin.id) && (
@@ -955,7 +963,7 @@ const TreasureSystemSection = () => {
                 </h4>
                 <ul className="text-sm text-muted-foreground mt-2 space-y-1">
                   <li>• <strong>Formato de dados:</strong> Usa notación estándar como <code>2d8</code>, <code>3d6+5</code>, <code>1d10-2</code></li>
-                  <li>• <strong>Valor en mo:</strong> Conversión a oro (1 mp = 0.1 mo, 1 mc = 0.01 mo)</li>
+                  <li>• <strong>Tasa de cambio:</strong> 10 me = 1 mc | 10 mc = 1 mp | 100 mp = 1 mo | 100 mo = 1 mm</li>
                   <li>• <strong>Tiradas mágicas:</strong> Cuántas veces se tira en la tabla de tesoro mágico</li>
                   <li>• <strong>CD Sombra:</strong> Dificultad de la prueba de Avaricia al encontrar el tesoro</li>
                   <li>• Los cambios se guardan en la base de datos y persisten entre sesiones</li>
