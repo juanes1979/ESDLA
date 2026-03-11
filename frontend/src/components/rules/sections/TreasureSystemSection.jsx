@@ -551,10 +551,12 @@ const TreasureSystemSection = () => {
       } else if (selectedItem.moneda === 'mo') {
         precioMp = precioMp * 100; // 1 mo = 100 mp
       }
+      // Keep at least 1 decimal for precision on cheap items
+      const precioFinal = precioMp < 1 ? Math.round(precioMp * 10) / 10 : Math.round(precioMp);
       setWeaponBuilder(prev => ({
         ...prev,
         itemSeleccionado: selectedItem,
-        precioBase: Math.round(precioMp)
+        precioBase: precioFinal
       }));
     }
   };

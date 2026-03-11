@@ -2,49 +2,40 @@
 
 ## Current State (2025-12-20)
 
-### ✅ COMPLETED This Session (Fork #45)
+### ✅ COMPLETED This Session
 
 #### P0: Generador de Tesoros Completamente Editable - COMPLETADO
 
-Se ha implementado un sistema de configuración completamente editable para el generador de tesoros, permitiendo al Game Master personalizar todos los parámetros.
+**1. Configuración de Generador (Pestaña "Configurar"):**
+- Editor de tipos de moneda: Estaño, Cobre, Plata, Oro, Mithril
+- Tasa de cambio: 10me=1mc, 10mc=1mp, 100mp=1mo, 100mo=1mm
+- Tiradas de dados configurables por nivel (Menor/Mayor/Maravilloso)
+- Persistencia en MongoDB
 
-**Nueva pestaña "Configurar" en Sistema de Tesoros:**
+**2. Selector de Equipo Base (Pestaña "Armas Famosas"):**
+- Categorías: Arma, Armadura, Escudo
+- Carga items desde `/api/data/weapons` y `/api/data/armors`
+- Autocompletado de precio base al seleccionar equipo
+- Conversión automática de moneda a mp
+- Muestra info adicional (Daño para armas, CA para armaduras)
 
-1. **Editor de Tipos de Moneda**
-   - 4 tipos predefinidos: Estaño (me), Cobre (mc), Plata (mp), Oro (mo)
-   - Campos editables: nombre, abreviatura, valor en oro, color
-   - Botón "+ Añadir Moneda" para crear tipos personalizados
-   - Selector de color para cada tipo de moneda
-
-2. **Configuración por Nivel de Tesoro (Menor, Mayor, Maravilloso)**
-   - Tiradas Mágicas (d20): número de tiradas en la tabla de tesoro mágico
-   - CD Sombra: dificultad de la prueba de Avaricia
-   - Tiradas de Monedas: checkbox para activar/desactivar + campo de dado (ej: 2d8, 3d6)
-   - Configuración independiente para cada nivel
-
-3. **Persistencia en Base de Datos**
-   - Nuevos endpoints: GET/PUT/DELETE `/api/data/treasure-config`
-   - Los cambios se guardan automáticamente en MongoDB
-   - Indicador visual de "Cambios sin guardar"
-
-4. **Botones de Acción**
-   - "Guardar Cambios": persiste la configuración en la base de datos
-   - "Restablecer": restaura los valores por defecto eliminando la configuración personalizada
-
-5. **Ayuda Integrada**
-   - Formato de dados: `2d8`, `3d6+5`, `1d10-2`
-   - Conversión de monedas a oro
-   - Explicación de tiradas mágicas y CD Sombra
+**3. Tablas de Precios Editables (Pestaña "Precios"):**
+- Bendiciones: costes por PB (+2, +3, +4)
+- Cualidades de Arma: multiplicadores de precio
+- Cualidades de Armadura: costes adicionales en mp
+- Cualidades de Escudo: multiplicadores de precio
+- Todas las tablas con campos editables
+- Persistencia junto con la configuración del generador
 
 **Archivos modificados:**
-- `/app/frontend/src/components/rules/sections/TreasureSystemSection.jsx` - Componente refactorizado
-- `/app/backend/routes/data_routes.py` - Endpoints de treasure-config (líneas 1322-1361)
+- `/app/frontend/src/components/rules/sections/TreasureSystemSection.jsx`
+- `/app/backend/routes/data_routes.py` (treasure-config incluye pricing tables)
 
-**Tests creados:** `/app/backend/tests/test_treasure_config.py` - 12 tests pasados (100%)
+**Tests:** 100% (13/13 backend + frontend verificado)
 
 ---
 
-## Previous State (2026-03-10)
+## Previous State (2025-12-20)
 
 ### ✅ COMPLETED This Session (Fork #39-41)
 
