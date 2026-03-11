@@ -19,7 +19,7 @@ import {
   Gem, Crown, Sword, Shield, Sparkles, Skull, Coins, 
   Dice6, Gift, AlertTriangle, Star, Moon, Eye, RefreshCw,
   Plus, Trash2, Save, BookOpen, Edit, Hammer, ChevronDown,
-  Settings, Loader2
+  Settings, Loader2, Wand2
 } from 'lucide-react';
 import { toast } from 'sonner';
 import api from '@/services/api';
@@ -115,12 +115,12 @@ const BLESSINGS = [
 
 // =============== MANUFACTURES ===============
 const MANUFACTURES = [
-  { id: 'numenorean', nombre: 'Númenóreana (Oesternesse)', tipo: 'humana', multiplicadorPrecio: 1.1 },
-  { id: 'elven_eregion', nombre: 'Élfica (Eregion)', tipo: 'elfica', multiplicadorPrecio: 1.05 },
-  { id: 'elven_beleriand', nombre: 'Élfica (Beleriand)', tipo: 'elfica', multiplicadorPrecio: 1.1 },
-  { id: 'dwarven_khazad', nombre: 'Enana (Khazad-dûm)', tipo: 'enana', multiplicadorPrecio: 1.1 },
-  { id: 'dwarven_erebor', nombre: 'Enana (Erebor)', tipo: 'enana', multiplicadorPrecio: 1.0 },
-  { id: 'dwarven_beleriand', nombre: 'Enana (Beleriand - Nogrod/Belegost)', tipo: 'enana', multiplicadorPrecio: 1.0 }
+  { id: 'numenorean', nombre: 'Númenóreana (Oesternesse)', tipo: 'humana', multiplicadorPrecio: 5 },
+  { id: 'elven_eregion', nombre: 'Élfica (Eregion)', tipo: 'elfica', multiplicadorPrecio: 4 },
+  { id: 'elven_beleriand', nombre: 'Élfica (Beleriand)', tipo: 'elfica', multiplicadorPrecio: 6 },
+  { id: 'dwarven_khazad', nombre: 'Enana (Khazad-dûm)', tipo: 'enana', multiplicadorPrecio: 3 },
+  { id: 'dwarven_erebor', nombre: 'Enana (Erebor)', tipo: 'enana', multiplicadorPrecio: 3 },
+  { id: 'dwarven_beleriand', nombre: 'Enana (Beleriand - Nogrod/Belegost)', tipo: 'enana', multiplicadorPrecio: 4 }
 ];
 
 // =============== PERDITIONS (BANES) ===============
@@ -143,52 +143,146 @@ const PERDITIONS = {
 
 // =============== WEAPON ENCHANTED QUALITIES ===============
 const WEAPON_QUALITIES = [
-  { id: 'afilada', nombre: 'Afilada', manufactura: ['numenorean'], multiplicador: 4, descripcion: '+1 ataque y daño' },
-  { id: 'aplastante', nombre: 'Aplastante', manufactura: ['numenorean'], multiplicador: 4, descripcion: '+1 ataque/daño, TS Fue CD 8+PB+Fue o derribado' },
-  { id: 'cruel', nombre: 'Cruel', manufactura: ['numenorean'], multiplicador: 4, descripcion: '+1 ataque y daño' },
-  { id: 'dolorosa', nombre: 'Dolorosa', manufactura: ['numenorean'], multiplicador: 4, descripcion: '+1 ataque y daño' },
-  { id: 'rasgadora', nombre: 'Rasgadora', manufactura: ['numenorean'], multiplicador: 8, descripcion: 'Ataque cuerpo a cuerpo como acción adicional' },
-  { id: 'cruel_mayor', nombre: 'Cruel Mayor', manufactura: ['numenorean'], multiplicador: 8, descripcion: '+1 ataque/daño, crítico +4 dados vs perdición' },
-  { id: 'dolorosa_mayor', nombre: 'Dolorosa Mayor', manufactura: ['numenorean'], multiplicador: 8, descripcion: '+1 ataque/daño, +3 daño vs perdición' },
-  { id: 'exterminadora', nombre: 'Exterminadora de Enemigos', manufactura: ['numenorean', 'elven_eregion', 'elven_beleriand'], multiplicador: 8, descripcion: '+2 dados de daño vs perdición' },
-  { id: 'afilada_elfica', nombre: 'Afilada', manufactura: ['elven_eregion', 'elven_beleriand'], multiplicador: 4, descripcion: '+1 ataque y daño' },
-  { id: 'cruel_elfica', nombre: 'Cruel', manufactura: ['elven_eregion', 'elven_beleriand'], multiplicador: 4, descripcion: '+1 ataque y daño' },
-  { id: 'afilada_mayor', nombre: 'Afilada Mayor', manufactura: ['elven_eregion', 'elven_beleriand'], multiplicador: 8, descripcion: '+1 ataque/daño, crítico 18-20 vs perdición' },
-  { id: 'cruel_mayor_elfica', nombre: 'Cruel Mayor', manufactura: ['elven_eregion', 'elven_beleriand'], multiplicador: 8, descripcion: '+1 ataque/daño, crítico +3 dados' },
-  { id: 'dardo_hiriente', nombre: 'Dardo Hiriente', manufactura: ['elven_eregion', 'elven_beleriand'], multiplicador: 8, tipo: 'distancia', descripcion: '+1 ataque/daño, desventaja en ataques del objetivo vs perdición' },
-  { id: 'luminiscencia', nombre: 'Luminiscencia', manufactura: ['elven_eregion', 'elven_beleriand'], multiplicador: 8, descripcion: '+1 ataque/daño, brilla cerca de perdición, ventaja iniciativa' },
-  { id: 'afilada_enana', nombre: 'Afilada', manufactura: ['dwarven_khazad', 'dwarven_erebor', 'dwarven_beleriand'], multiplicador: 3, descripcion: '+1 ataque y daño' },
-  { id: 'aplastante_enana', nombre: 'Aplastante', manufactura: ['dwarven_khazad', 'dwarven_erebor', 'dwarven_beleriand'], multiplicador: 3, descripcion: '+1 ataque/daño, TS Fue o derribado' },
-  { id: 'cruel_enana', nombre: 'Cruel', manufactura: ['dwarven_khazad', 'dwarven_erebor', 'dwarven_beleriand'], multiplicador: 3, descripcion: '+1 ataque y daño' },
-  { id: 'dolorosa_enana', nombre: 'Dolorosa', manufactura: ['dwarven_khazad', 'dwarven_erebor', 'dwarven_beleriand'], multiplicador: 3, descripcion: '+1 ataque y daño' },
-  { id: 'rasgadora_enana', nombre: 'Rasgadora', manufactura: ['dwarven_khazad', 'dwarven_erebor', 'dwarven_beleriand'], multiplicador: 3, descripcion: 'Ataque adicional cada turno' },
-  { id: 'afilada_mayor_enana', nombre: 'Afilada Mayor', manufactura: ['dwarven_khazad', 'dwarven_erebor', 'dwarven_beleriand'], multiplicador: 6, descripcion: '+1 ataque/daño, crítico 19-20' },
-  { id: 'arma_runica', nombre: 'Arma Rúnica', manufactura: ['dwarven_khazad', 'dwarven_erebor', 'dwarven_beleriand'], multiplicador: 6, descripcion: '+1 ataque/daño, +1 salvaciones' },
-  { id: 'dolorosa_mayor_enana', nombre: 'Dolorosa Mayor', manufactura: ['dwarven_khazad', 'dwarven_erebor', 'dwarven_beleriand'], multiplicador: 6, descripcion: '+1 ataque/daño, +2 daño' },
-  { id: 'llama_esperanza', nombre: 'Llama de Esperanza', manufactura: ['dwarven_khazad', 'dwarven_erebor', 'dwarven_beleriand'], multiplicador: 6, descripcion: 'Aura 10 pies, bonus Car a salvaciones en combate' },
-  { id: 'resplandor_terror', nombre: 'Resplandor de Terror', manufactura: ['dwarven_khazad', 'dwarven_erebor', 'dwarven_beleriand'], multiplicador: 6, descripcion: '+1 ataque/daño, luz solar, daño radiante' },
-  { id: 'trayectoria_recta', nombre: 'Trayectoria Recta', manufactura: ['any'], multiplicador: 4, tipo: 'distancia', descripcion: '+1 ataque/daño, ignora cobertura' },
-  { id: 'acero_hueco', nombre: 'Acero Hueco', manufactura: ['numenorean'], multiplicador: 8, tipo: 'distancia', descripcion: 'Ataque a distancia como acción adicional' }
+  { id: 'afilada', nombre: 'Afilada', manufactura: ['numenorean'], multiplicador: 4, 
+    descripcion: '+1 a las tiradas de ataque y daño realizadas con esta arma mágica.' },
+  { id: 'aplastante', nombre: 'Aplastante', manufactura: ['numenorean', 'dwarven_khazad', 'dwarven_erebor', 'dwarven_beleriand'], multiplicador: 4, 
+    descripcion: '+1 a las tiradas de ataque y daño. Además, cuando aciertas a una criatura, debe superar TS Fuerza (CD 8+PB+Fue) o cae derribada.' },
+  { id: 'cruel', nombre: 'Cruel', manufactura: ['numenorean'], multiplicador: 4, 
+    descripcion: '+1 a las tiradas de ataque y daño realizadas con esta arma mágica.' },
+  { id: 'dolorosa', nombre: 'Dolorosa', manufactura: ['numenorean'], multiplicador: 4, 
+    descripcion: '+1 a las tiradas de ataque y daño realizadas con esta arma mágica.' },
+  { id: 'rasgadora', nombre: 'Rasgadora', manufactura: ['numenorean', 'dwarven_khazad', 'dwarven_erebor', 'dwarven_beleriand'], multiplicador: 8, 
+    descripcion: 'Puedes realizar un ataque cuerpo a cuerpo con esta arma mágica como acción adicional en cada uno de tus turnos.' },
+  { id: 'cruel_mayor', nombre: 'Cruel Mayor', manufactura: ['numenorean', 'elven_eregion', 'elven_beleriand'], multiplicador: 8, 
+    descripcion: '+1 a las tiradas de ataque y daño. Puedes tirar dos dados de daño adicionales en crítico. +3 dados si es élfica, +4 dados contra perdición (númenóreana).' },
+  { id: 'dolorosa_mayor', nombre: 'Dolorosa Mayor', manufactura: ['numenorean', 'dwarven_khazad', 'dwarven_erebor', 'dwarven_beleriand'], multiplicador: 8, 
+    descripcion: '+1 a las tiradas de ataque y daño. La bonificación al daño aumenta a +2 (enana), o +3 contra perdición (númenóreana).' },
+  { id: 'exterminadora', nombre: 'Exterminadora de Enemigos', manufactura: ['numenorean', 'elven_eregion', 'elven_beleriand'], multiplicador: 8, 
+    descripcion: 'Cuando aciertas a una criatura sujeta a la perdición, puedes tirar un dado de daño adicional, o dos dados adicionales si es élfica.' },
+  { id: 'afilada_elfica', nombre: 'Afilada', manufactura: ['elven_eregion', 'elven_beleriand'], multiplicador: 4, 
+    descripcion: '+1 a las tiradas de ataque y daño realizadas con esta arma mágica.' },
+  { id: 'cruel_elfica', nombre: 'Cruel', manufactura: ['elven_eregion', 'elven_beleriand'], multiplicador: 4, 
+    descripcion: '+1 a las tiradas de ataque y daño realizadas con esta arma mágica.' },
+  { id: 'afilada_mayor', nombre: 'Afilada Mayor', manufactura: ['elven_eregion', 'elven_beleriand', 'dwarven_khazad', 'dwarven_erebor', 'dwarven_beleriand'], multiplicador: 8, 
+    descripcion: '+1 a las tiradas de ataque y daño. Crítico con 19-20. Si es élfica: crítico 18-20 contra perdición.' },
+  { id: 'dardo_hiriente', nombre: 'Dardo Hiriente', manufactura: ['elven_eregion', 'elven_beleriand'], multiplicador: 8, tipo: 'distancia', 
+    descripcion: '+1 a las tiradas de ataque y daño. Si aciertas a una criatura sujeta a la perdición, tiene desventaja en ataques hasta tu siguiente turno.' },
+  { id: 'luminiscencia', nombre: 'Luminiscencia', manufactura: ['elven_eregion', 'elven_beleriand'], multiplicador: 8, 
+    descripcion: '+1 ataque/daño. Brilla cuando la perdición está a menos de 500 pies. Tú y aliados a 30 pies no podéis ser sorprendidos y tenéis ventaja en iniciativa.' },
+  { id: 'afilada_enana', nombre: 'Afilada', manufactura: ['dwarven_khazad', 'dwarven_erebor', 'dwarven_beleriand'], multiplicador: 3, 
+    descripcion: '+1 a las tiradas de ataque y daño realizadas con esta arma mágica.' },
+  { id: 'cruel_enana', nombre: 'Cruel', manufactura: ['dwarven_khazad', 'dwarven_erebor', 'dwarven_beleriand'], multiplicador: 3, 
+    descripcion: '+1 a las tiradas de ataque y daño realizadas con esta arma mágica.' },
+  { id: 'dolorosa_enana', nombre: 'Dolorosa', manufactura: ['dwarven_khazad', 'dwarven_erebor', 'dwarven_beleriand'], multiplicador: 3, 
+    descripcion: '+1 a las tiradas de ataque y daño realizadas con esta arma mágica.' },
+  { id: 'arma_runica', nombre: 'Arma Rúnica', manufactura: ['dwarven_khazad', 'dwarven_erebor', 'dwarven_beleriand'], multiplicador: 6, 
+    descripcion: '+1 a las tiradas de ataque y daño. Mientras la llevas encima, también obtienes +1 a las tiradas de salvación.' },
+  { id: 'llama_esperanza', nombre: 'Llama de Esperanza', manufactura: ['dwarven_khazad', 'dwarven_erebor', 'dwarven_beleriand'], multiplicador: 6, 
+    descripcion: 'Con el arma desenfundada, crea un aura de 10 pies. En combate, tú y aliados en el aura obtenéis bonificación a TS igual a modificador de Carisma (mín +1).' },
+  { id: 'resplandor_terror', nombre: 'Resplandor de Terror', manufactura: ['dwarven_khazad', 'dwarven_erebor', 'dwarven_beleriand'], multiplicador: 6, 
+    descripcion: '+1 ataque/daño. Como acción adicional, emite luz tenue (solar) y el daño es radiante mientras brilla.' },
+  { id: 'trayectoria_recta', nombre: 'Trayectoria Recta', manufactura: ['any'], multiplicador: 4, tipo: 'distancia', 
+    descripcion: '+1 a las tiradas de ataque y daño. El objetivo no obtiene beneficio de cobertura (salvo total) y no sufres desventaja por alcance largo.' },
+  { id: 'acero_hueco', nombre: 'Acero Hueco', manufactura: ['numenorean'], multiplicador: 8, tipo: 'distancia', 
+    descripcion: 'Puedes realizar un ataque a distancia con esta arma mágica como acción adicional en cada uno de tus turnos.' }
 ];
 
 // =============== ARMOR QUALITIES ===============
 const ARMOR_QUALITIES = [
-  { id: 'ajustada', nombre: 'Ajustada', coste: 320, descripcion: 'Los críticos contra ti se convierten en normales' },
-  { id: 'habilmente_fabricada', nombre: 'Hábilmente Fabricada', coste: 320, descripcion: 'Pesa la mitad, no desventaja fatiga, +1 DEX máx a CA' },
-  { id: 'armadura_runica', nombre: 'Armadura Rúnica', coste: 400, descripcion: '+1 CA y +1 salvaciones' },
-  { id: 'ajustada_antiguos', nombre: 'Ajustada por los Antiguos', coste: 600, descripcion: '+1 CA, críticos contra ti se convierten en normales' },
-  { id: 'habilmente_antiguos', nombre: 'Hábilmente Fabricada por los Antiguos', coste: 1200, descripcion: '+1 CA, mitad peso, no desventaja, +1 DEX máx' },
-  { id: 'armadura_mithril', nombre: 'Armadura de Mithril', coste: 30, tipo: 'camisote', descripcion: 'Mitad peso, CA 14+DEX(máx 4), bajo ropa, competencia ligera' }
+  { id: 'ajustada', nombre: 'Ajustada', coste: 320, 
+    descripcion: 'Cualquier impacto crítico contra ti se convierte en un impacto normal.' },
+  { id: 'habilmente_fabricada', nombre: 'Hábilmente Fabricada', coste: 320, 
+    descripcion: 'Pesa la mitad de lo normal. Si normalmente impone desventaja en TS de fatiga, esta versión no lo hace. En caso contrario, el modificador por DEX máximo aumenta en 1.' },
+  { id: 'armadura_runica', nombre: 'Armadura Rúnica', coste: 400, 
+    descripcion: '+1 a la CA y a las tiradas de salvación mientras llevas puesta esta armadura.' },
+  { id: 'ajustada_antiguos', nombre: 'Ajustada por los Antiguos', coste: 600, 
+    descripcion: '+1 a la CA y cualquier impacto crítico contra ti se convierte en un impacto normal.' },
+  { id: 'habilmente_antiguos', nombre: 'Hábilmente Fabricada por los Antiguos', coste: 1200, 
+    descripcion: '+1 a la CA. Pesa la mitad. Sin desventaja en TS de fatiga o +1 DEX máximo. Manufactura élfica o enana.' },
+  { id: 'armadura_mithril', nombre: 'Armadura de Mithril', coste: 30, tipo: 'camisote', 
+    descripcion: 'Camisote de mallas que pesa la mitad, CA 14+DEX(máx 4), puede llevarse bajo la ropa. Competente si tienes competencia con armaduras ligeras.' }
 ];
 
 // =============== SHIELD QUALITIES ===============
 const SHIELD_QUALITIES = [
-  { id: 'reforzado', nombre: 'Reforzado', multiplicador: 3, descripcion: '+1 CA además del bonificador normal' },
-  { id: 'runico', nombre: 'Rúnico', multiplicador: 3.6, descripcion: '+1 CA y +1 salvaciones (además del escudo)' },
-  { id: 'reforzado_mayor_enano', nombre: 'Reforzado Mayor (Enano)', multiplicador: 9, descripcion: '+2 CA además del bonificador normal' },
-  { id: 'reforzado_mayor_elfico', nombre: 'Reforzado Mayor (Élfico)', multiplicador: 7.5, descripcion: '+2 CA (+2 contra perdición) además del bonificador' },
-  { id: 'reforzado_mayor_numenoreano', nombre: 'Reforzado Mayor (Númenóreano)', multiplicador: 8.5, descripcion: '+3 CA (+3 contra perdición) además del bonificador' }
+  { id: 'reforzado', nombre: 'Reforzado', multiplicador: 3, 
+    descripcion: '+1 a la CA además del bonificador normal del escudo.' },
+  { id: 'runico', nombre: 'Escudo Rúnico', multiplicador: 3.6, 
+    descripcion: '+1 a la CA (además del bonificador normal del escudo) y +1 a las tiradas de salvación. Manufactura enana.' },
+  { id: 'reforzado_mayor_enano', nombre: 'Reforzado Mayor (Enano)', multiplicador: 9, 
+    descripcion: '+2 a la CA además del bonificador normal del escudo. Manufactura enana.' },
+  { id: 'reforzado_mayor_elfico', nombre: 'Reforzado Mayor (Élfico)', multiplicador: 7.5, 
+    descripcion: '+2 a la CA (+2 adicional contra ataques de criaturas sujetas a la perdición) además del bonificador normal.' },
+  { id: 'reforzado_mayor_numenoreano', nombre: 'Reforzado Mayor (Númenóreano)', multiplicador: 8.5, 
+    descripcion: '+1 a la CA. Aumenta a +2 si es élfico o enano, o +3 contra ataques de perdición (númenóreano). Se añade al bonificador normal.' }
 ];
+
+// =============== NAME GENERATORS ===============
+const WEAPON_NAME_GENERATOR = {
+  "numenorean": {
+    prefix: ["anar","aran","cal","car","bel","bar","thor","tal","dur","el","fal","hal","mir","nor","ost","pel","roth","tar","val","vor"],
+    roots: ["ang","bar","dor","fal","gal","gond","lóm","mir","nar","rond","thal","thor","val","vor","tur"],
+    suffix: ["ion","or","ir","ur","ar","on","en","eth","os","as","ul","in","an","orn","ald"]
+  },
+  "elven_eregion": {
+    prefix: ["cele","cal","gal","gil","el","aer","fin","thal","lin","sil","mir","eth","fal","lóm","taur","anar","beleg","caran","mith","nár"],
+    roots: ["ang","fang","gil","grim","mir","rond","thal","los","dor","bar","cal","lóm","mith","nár","sil"],
+    suffix: ["il","el","ing","iel","eth","ion","or","ir","wen","dir","las","mir","ron","riel"]
+  },
+  "elven_beleriand": {
+    prefix: ["beleg","maeg","thal","gal","gwind","aeg","gel","dor","fal","lóm","bar","caran","fin","gild","aer","estel","sil","nár","taur","elin"],
+    roots: ["ang","thang","fang","gil","grim","bar","dor","gal","lóm","thal","beleg","roch","estel"],
+    suffix: ["il","el","eth","iel","dir","ion","or","ir","las","ron","mir","wen","nor"]
+  },
+  "dwarven_khazad": {
+    prefix: ["khaz","bal","bar","dur","gim","thra","thor","bif","bor","fund","gloin","nar","dwal","grim","thorin","bruni","zigil","bund","morn","khar"],
+    roots: ["grim","drum","rak","gund","bar","dur","bald","dorn","grom","khar","bund","zorn"],
+    suffix: ["in","ar","ur","or","ain","orn","rak","dun","grom","zin","bur","gar"]
+  },
+  "dwarven_erebor": {
+    prefix: ["thor","bal","bof","dwal","gloin","gim","bomb","nar","fund","bif","ori","nori","dori","bor","grim","bruni","zigil","bund","dur","bar"],
+    roots: ["grim","rak","dorn","bar","dur","gund","zorn","bund","grom","drum","bald"],
+    suffix: ["in","ar","ur","or","rak","dun","grom","zin","bur","gar","orn","dur"]
+  },
+  "dwarven_beleriand": {
+    prefix: ["azag","gamil","baruk","narag","beleg","gund","durin","khaz","breg","morn","zaram","bund","thrak","gabil","kibil","buz","rag","thorin","bald","grom"],
+    roots: ["grim","rak","dorn","gund","bar","dur","zorn","bund","grom","drum","bald"],
+    suffix: ["in","ar","ur","or","rak","dun","grom","zin","bur","gar","orn","dur"]
+  }
+};
+
+const ARMOR_NAME_GENERATOR = {
+  "numenorean": {
+    prefix: ["anar","aran","cal","car","bel","bar","thor","tal","dur","el","fal","hal","mir","nor","ost","pel","roth","tar","val","vor"],
+    roots: ["gond","bar","thal","tur","dor","fal","gal","nor","tir","cal","mir","val","tal","gorth"],
+    suffix: ["ion","or","ir","ur","ar","on","en","eth","os","as","ul","in","an","orn","ald"]
+  },
+  "elven_eregion": {
+    prefix: ["cele","cal","gal","gil","el","aer","fin","thal","lin","sil","mir","eth","fal","lóm","taur","anar","beleg","caran","mith","nár"],
+    roots: ["tir","bar","gond","cal","gal","sil","mir","nor","thal","fal","lóm","taur","eth"],
+    suffix: ["il","el","iel","eth","ion","or","ir","wen","dir","las","mir","ron","riel"]
+  },
+  "elven_beleriand": {
+    prefix: ["beleg","maeg","thal","gal","gwind","aeg","gel","dor","fal","lóm","bar","caran","fin","gild","aer","estel","sil","nár","taur","elin"],
+    roots: ["tir","bar","gond","cal","gal","lóm","thal","nor","roch","estel","fal"],
+    suffix: ["il","el","eth","iel","dir","ion","or","ir","las","ron","mir","wen","nor"]
+  },
+  "dwarven_khazad": {
+    prefix: ["khaz","bal","bar","dur","gim","thra","thor","bif","bor","fund","gloin","nar","dwal","grim","thorin","bruni","zigil","bund","morn","khar"],
+    roots: ["bar","dur","gund","rak","dorn","grim","grom","bund","khar","zorn","drum"],
+    suffix: ["in","ar","ur","or","ain","orn","rak","dun","grom","zin","bur","gar"]
+  },
+  "dwarven_erebor": {
+    prefix: ["thor","bal","bof","dwal","gloin","gim","bomb","nar","fund","bif","ori","nori","dori","bor","grim","bruni","zigil","bund","dur","bar"],
+    roots: ["bar","dur","rak","dorn","grim","grom","bund","zorn","drum"],
+    suffix: ["in","ar","ur","or","rak","dun","grom","zin","bur","gar","orn"]
+  },
+  "dwarven_beleriand": {
+    prefix: ["azag","gamil","baruk","narag","beleg","gund","durin","khaz","breg","morn","zaram","bund","thrak","gabil","kibil","buz","rag","thorin","bald","grom"],
+    roots: ["bar","dur","gund","rak","dorn","grom","bund","zorn","drum"],
+    suffix: ["in","ar","ur","or","rak","dun","grom","zin","bur","gar","orn"]
+  }
+};
 
 // =============== CURSES ===============
 const CURSES = [
@@ -256,6 +350,38 @@ const generateId = () => Math.random().toString(36).substr(2, 9);
 
 // Deep clone helper
 const deepClone = (obj) => JSON.parse(JSON.stringify(obj));
+
+// Name generator function
+const generateName = (manufacturaId, isArmor = false) => {
+  const generator = isArmor ? ARMOR_NAME_GENERATOR : WEAPON_NAME_GENERATOR;
+  const data = generator[manufacturaId];
+  if (!data) return 'Nombre';
+  
+  const randomFrom = (arr) => arr[Math.floor(Math.random() * arr.length)];
+  const structureRoll = Math.floor(Math.random() * 6) + 1; // 1d6
+  
+  let prefix = randomFrom(data.prefix);
+  const suffix = randomFrom(data.suffix);
+  
+  let name;
+  if (structureRoll <= 3) {
+    // Nombre corto: prefijo + sufijo
+    name = prefix + suffix;
+  } else {
+    // Nombre largo: prefijo + raíz + sufijo
+    const root = randomFrom(data.roots);
+    name = prefix + root + suffix;
+  }
+  
+  // 5% probabilidad de doble prefijo
+  if (Math.random() < 0.05) {
+    const extraPrefix = randomFrom(data.prefix);
+    name = extraPrefix + name;
+  }
+  
+  // Capitalizar primera letra
+  return name.charAt(0).toUpperCase() + name.slice(1);
+};
 
 // =============== MAIN COMPONENT ===============
 const TreasureSystemSection = () => {
@@ -497,11 +623,17 @@ const TreasureSystemSection = () => {
   const calculateWeaponPrice = useCallback((weapon) => {
     let precio = weapon.precioBase || 100;
     
+    // Apply manufacture multiplier first (x3, x4, x5, x6)
+    const manufactura = MANUFACTURES.find(m => m.id === weapon.manufactura);
+    if (manufactura) {
+      precio *= manufactura.multiplicadorPrecio;
+    }
+    
     // Use state-based qualities for price calculation
     if (weapon.categoria === 'arma') {
       weapon.cualidades?.forEach(qualId => {
         const qual = weaponQualities.find(q => q.id === qualId);
-        if (qual) precio *= (qual.multiplicador / 100);
+        if (qual) precio *= qual.multiplicador; // x3, x4, x6, x8, etc.
       });
     } else if (weapon.categoria === 'armadura') {
       weapon.cualidades?.forEach(qualId => {
@@ -511,18 +643,16 @@ const TreasureSystemSection = () => {
     } else if (weapon.categoria === 'escudo') {
       weapon.cualidades?.forEach(qualId => {
         const qual = shieldQualities.find(q => q.id === qualId);
-        if (qual) precio *= (qual.multiplicador);
+        if (qual) precio *= qual.multiplicador;
       });
     }
     
-    const manufactura = MANUFACTURES.find(m => m.id === weapon.manufactura);
+    // Add perdition costs
     const perditionList = manufactura?.tipo === 'elfica' ? PERDITIONS.elven : PERDITIONS.numenorean;
     weapon.perdiciones?.forEach(perdId => {
       const perd = perditionList?.find(p => p.id === perdId);
       if (perd) precio += perd.coste;
     });
-    
-    if (manufactura) precio *= manufactura.multiplicadorPrecio;
     
     return Math.round(precio);
   }, [weaponQualities, armorQualities, shieldQualities]);
@@ -1121,7 +1251,30 @@ const TreasureSystemSection = () => {
               <CardContent className="space-y-4">
                 <div>
                   <Label>Nombre</Label>
-                  <Input value={weaponBuilder.nombre} onChange={(e) => setWeaponBuilder({...weaponBuilder, nombre: e.target.value})} placeholder="Ej: Glamdring, Orcrist, Andúril" />
+                  <div className="flex gap-2">
+                    <Input 
+                      value={weaponBuilder.nombre} 
+                      onChange={(e) => setWeaponBuilder({...weaponBuilder, nombre: e.target.value})} 
+                      placeholder="Ej: Glamdring, Orcrist, Andúril"
+                      className="flex-1" 
+                    />
+                    <Button 
+                      variant="outline" 
+                      size="icon"
+                      onClick={() => {
+                        const isArmor = weaponBuilder.categoria !== 'arma';
+                        const newName = generateName(weaponBuilder.manufactura, isArmor);
+                        setWeaponBuilder({...weaponBuilder, nombre: newName});
+                      }}
+                      title="Generar nombre aleatorio"
+                      data-testid="generate-name-btn"
+                    >
+                      <Wand2 className="w-4 h-4" />
+                    </Button>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Usa el botón para generar un nombre según la manufactura
+                  </p>
                 </div>
                 
                 {/* Category Selection */}
@@ -1183,9 +1336,16 @@ const TreasureSystemSection = () => {
                   <Select value={weaponBuilder.manufactura} onValueChange={(v) => setWeaponBuilder({...weaponBuilder, manufactura: v, cualidades: [], perdiciones: []})}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      {MANUFACTURES.map(m => <SelectItem key={m.id} value={m.id}>{m.nombre}</SelectItem>)}
+                      {MANUFACTURES.map(m => (
+                        <SelectItem key={m.id} value={m.id}>
+                          {m.nombre} (×{m.multiplicadorPrecio})
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Multiplicador: ×{MANUFACTURES.find(m => m.id === weaponBuilder.manufactura)?.multiplicadorPrecio || 1}
+                  </p>
                 </div>
                 
                 {weaponBuilder.categoria === 'arma' && (
@@ -1204,7 +1364,7 @@ const TreasureSystemSection = () => {
                               }}
                             />
                             <span className="text-sm flex-1">{qual.nombre}</span>
-                            <Badge variant="outline" className="text-xs">×{qual.multiplicador}%</Badge>
+                            <Badge variant="outline" className="text-xs">×{qual.multiplicador}</Badge>
                           </div>
                         ))}
                       </ScrollArea>
@@ -1485,7 +1645,7 @@ const TreasureSystemSection = () => {
               <Card className="card-parchment">
                 <CardHeader className="pb-2">
                   <CardTitle className="text-lg text-[hsl(var(--gold))] flex items-center gap-2">
-                    <Edit className="w-4 h-4" /> Cualidades de Arma (×% precio base)
+                    <Edit className="w-4 h-4" /> Cualidades de Arma (× precio base)
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
@@ -1502,7 +1662,6 @@ const TreasureSystemSection = () => {
                               onChange={(e) => updateWeaponQuality(q.id, 'multiplicador', e.target.value)}
                               className="h-7 w-16 text-xs"
                             />
-                            <span className="text-xs text-muted-foreground">%</span>
                           </div>
                         </div>
                       ))}
