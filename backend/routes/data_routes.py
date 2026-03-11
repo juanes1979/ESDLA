@@ -1740,6 +1740,75 @@ async def batch_set_equipment_availability(updates: List[dict] = Body(...)):
     return {"message": f"Updated availability for {updated_count} items"}
 
 
+@router.post("/equipment/batch-set-creation-availability")
+async def batch_set_creation_availability(updates: List[dict] = Body(...)):
+    """
+    Set whether items are available for character creation.
+    Each update: { categoria, nombre, disponible_creacion: bool }
+    """
+    catalog = await db.equipment_catalog.find_one({"_id": "main"})
+    if not catalog:
+        raise HTTPException(status_code=404, detail="Equipment catalog not found")
+    
+    updated_count = 0
+    
+    for update in updates:
+        categoria = update.get("categoria")
+        nombre = update.get("nombre")
+        disponible_creacion = update.get("disponible_creacion", True)
+        
+        if not categoria or not nombre:
+            continue
+        
+        if categoria not in catalog:
+            continue
+        
+        for item in catalog[categoria]:
+            if item.get("nombre", "").lower() == nombre.lower():
+                item["disponible_creacion"] = disponible_creacion
+                updated_count += 1
+                break
+    
+    await db.equipment_catalog.update_one(
+        {"_id": "main"},
+        {"$set": catalog}
+    )
+    
+    return {"message": f"Updated creation availability for {updated_count} items", "updated_count": updated_count}
+
+
+@router.post("/equipment/category-set-creation-availability")
+async def category_set_creation_availability(data: dict = Body(...)):
+    """
+    Set creation availability for all items in a category at once.
+    data: { categoria: str, disponible_creacion: bool }
+    """
+    categoria = data.get("categoria")
+    disponible_creacion = data.get("disponible_creacion", True)
+    
+    if not categoria:
+        raise HTTPException(status_code=400, detail="categoria is required")
+    
+    catalog = await db.equipment_catalog.find_one({"_id": "main"})
+    if not catalog:
+        raise HTTPException(status_code=404, detail="Equipment catalog not found")
+    
+    if categoria not in catalog:
+        raise HTTPException(status_code=404, detail=f"Category '{categoria}' not found")
+    
+    updated_count = 0
+    for item in catalog[categoria]:
+        item["disponible_creacion"] = disponible_creacion
+        updated_count += 1
+    
+    await db.equipment_catalog.update_one(
+        {"_id": "main"},
+        {"$set": {categoria: catalog[categoria]}}
+    )
+    
+    return {"message": f"Updated {updated_count} items in '{categoria}'", "updated_count": updated_count}
+
+
 # === EQUIPMENT CATEGORIES METADATA ===
 
 @router.get("/equipment-categories")

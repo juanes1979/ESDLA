@@ -12,6 +12,7 @@
    - Botón "Comprar Equipo" abre/cierra la tienda
    - Usa precios base sin modificadores de región
    - Se accede desde el creador de personajes
+   - **Filtra automáticamente items no disponibles para creación**
 
 2. **11 Categorías de Equipo (717 items totales):**
    - **Armas (29):** Sencillas CC, Sencillas Distancia, Marciales CC, Marciales Distancia
@@ -29,6 +30,31 @@
 3. **UI de 2 Filas de Categorías:**
    - Fila 1: Armas, Armaduras, Herramientas, General, Comida, Monturas
    - Fila 2: Transporte, Hierbas, Venenos, Gemas, Construcción
+
+#### Control de Disponibilidad para Creación - COMPLETADO (2025-12-20)
+
+**Nueva funcionalidad en EquipmentSection.jsx (Reglas > Precios de Equipo):**
+
+1. **Checkbox por Item:**
+   - Columna con icono de persona (UserPlus) en la primera columna
+   - Click para marcar/desmarcar disponibilidad individual
+   - Items no disponibles aparecen con opacidad reducida
+
+2. **Botones de Categoría Completa:**
+   - "Todos": Habilita todos los items de la categoría para creación
+   - "Ninguno": Deshabilita todos los items de la categoría para creación
+   - Cambios se guardan inmediatamente en la base de datos
+
+3. **Nuevo campo `disponible_creacion`:**
+   - Campo booleano en cada item del catálogo
+   - Si es `false`, el item NO aparece en la tienda del creador
+   - Por defecto es `true` (retrocompatible)
+
+**Endpoints nuevos:**
+- `POST /api/data/equipment/batch-set-creation-availability` - Actualiza múltiples items
+- `POST /api/data/equipment/category-set-creation-availability` - Actualiza categoría completa
+
+**Caso de uso:** Items como "Estancia en posada" o "Noche en taberna" pueden deshabilitarse para que no aparezcan como opción de compra durante la creación de personajes.
 
 3. **Buscador de Items:**
    - Campo de búsqueda con filtrado en tiempo real

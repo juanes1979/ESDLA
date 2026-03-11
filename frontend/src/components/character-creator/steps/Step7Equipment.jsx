@@ -210,8 +210,14 @@ const Step7Equipment = ({ draftId, draft, onComplete, onBack }) => {
       }))];
     });
     
-    // Filter items with valid prices and apply search
-    items = items.filter(item => item.precio != null && item.precio > 0);
+    // Filter items:
+    // 1. Must have valid price > 0
+    // 2. Must be available for character creation (disponible_creacion !== false)
+    items = items.filter(item => 
+      item.precio != null && 
+      item.precio > 0 &&
+      item.disponible_creacion !== false
+    );
     
     if (searchTerm) {
       const term = searchTerm.toLowerCase();

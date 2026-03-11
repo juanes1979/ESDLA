@@ -2,8 +2,8 @@
  * Equipment Section Component
  * Displays equipment tables by category with admin editing capabilities
  */
-import { useState } from 'react';
-import { Plus, Edit, Trash2, Printer, MapPin, Package, Loader2, Check, AlertTriangle } from 'lucide-react';
+import { useState, useCallback } from 'react';
+import { Plus, Edit, Trash2, Printer, MapPin, Package, Loader2, Check, AlertTriangle, UserPlus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -120,6 +120,10 @@ const EquipmentSection = ({
   const [editingCategoryName, setEditingCategoryName] = useState('');
   const [categoryAvailability, setCategoryAvailability] = useState({ nivel_asentamiento: [], regiones_disponibles: [] });
   const [savingCategory, setSavingCategory] = useState(false);
+  
+  // Pending creation availability changes (batched)
+  const [pendingCreationChanges, setPendingCreationChanges] = useState({});
+  const [savingCreationChanges, setSavingCreationChanges] = useState(false);
 
   if (!data) return null;
 
@@ -200,6 +204,63 @@ const EquipmentSection = ({
       toast.error('Error al guardar: ' + (err.response?.data?.detail || err.message));
     } finally {
       setSavingCategory(false);
+    }
+  };
+
+  // Toggle creation availability for a single item
+  const toggleCreationAvailability = useCallback((categoria, nombre, currentValue) => {
+    const key = `${categoria}:${nombre}`;
+    const newValue = currentValue === false ? true : (currentValue === true ? false : false);
+    
+    setPendingCreationChanges(prev => ({
+      ...prev,
+      [key]: { categoria, nombre, disponible_creacion: newValue }
+    }));
+  }, []);
+
+  // Check if item has pending change
+  const getItemCreationValue = useCallback((categoria, nombre, originalValue) => {
+    const key = `${categoria}:${nombre}`;
+    if (pendingCreationChanges[key] !== undefined) {
+      return pendingCreationChanges[key].disponible_creacion;
+    }
+    // Default to true if not set (retrocompatibility)
+    return originalValue !== false;
+  }, [pendingCreationChanges]);
+
+  // Save all pending creation changes
+  const saveCreationChanges = async () => {
+    const changes = Object.values(pendingCreationChanges);
+    if (changes.length === 0) {
+      toast.info('No hay cambios pendientes');
+      return;
+    }
+    
+    setSavingCreationChanges(true);
+    try {
+      await api.post('/data/equipment/batch-set-creation-availability', changes);
+      toast.success(`Guardados ${changes.length} cambios`);
+      setPendingCreationChanges({});
+      onRefresh?.();
+    } catch (err) {
+      toast.error('Error al guardar: ' + (err.response?.data?.detail || err.message));
+    } finally {
+      setSavingCreationChanges(false);
+    }
+  };
+
+  // Toggle all items in a category for creation
+  const toggleCategoryCreation = async (categoryKey, categoryName, setToValue) => {
+    try {
+      await api.post('/data/equipment/category-set-creation-availability', {
+        categoria: categoryKey,
+        disponible_creacion: setToValue
+      });
+      toast.success(`${categoryName}: ${setToValue ? 'Habilitados' : 'Deshabilitados'} para creación`);
+      setPendingCreationChanges({});
+      onRefresh?.();
+    } catch (err) {
+      toast.error('Error: ' + (err.response?.data?.detail || err.message));
     }
   };
 
@@ -308,23 +369,52 @@ const EquipmentSection = ({
       <div key={cat.key} className="card-parchment rounded-lg p-4">
         <div className="flex items-center justify-between mb-3">
           <h4 className="font-heading text-md text-[hsl(var(--magic-blue))]">{cat.name}</h4>
-          {isAdmin && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => openCategoryEditor(cat.key, cat.name)}
-              className="h-7 text-xs border-[hsl(var(--torch-orange))]/50 hover:bg-[hsl(var(--torch-orange))]/10"
-              title="Editar disponibilidad de toda la categoría"
-            >
-              <MapPin className="w-3 h-3 mr-1 text-[hsl(var(--torch-orange))]" />
-              Disponibilidad ({items.length})
-            </Button>
-          )}
+          <div className="flex gap-2">
+            {isAdmin && (
+              <>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => toggleCategoryCreation(cat.key, cat.name, true)}
+                  className="h-7 text-xs border-green-500/50 hover:bg-green-500/10"
+                  title="Habilitar todos para creación de personaje"
+                >
+                  <UserPlus className="w-3 h-3 mr-1 text-green-500" />
+                  Todos
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => toggleCategoryCreation(cat.key, cat.name, false)}
+                  className="h-7 text-xs border-red-500/50 hover:bg-red-500/10"
+                  title="Deshabilitar todos para creación de personaje"
+                >
+                  <UserPlus className="w-3 h-3 mr-1 text-red-500" />
+                  Ninguno
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => openCategoryEditor(cat.key, cat.name)}
+                  className="h-7 text-xs border-[hsl(var(--torch-orange))]/50 hover:bg-[hsl(var(--torch-orange))]/10"
+                  title="Editar disponibilidad de toda la categoría"
+                >
+                  <MapPin className="w-3 h-3 mr-1 text-[hsl(var(--torch-orange))]" />
+                  Disp. ({items.length})
+                </Button>
+              </>
+            )}
+          </div>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-border/30">
+                {isAdmin && (
+                  <th className="text-center py-2 px-1 w-10" title="Disponible en creación de personaje">
+                    <UserPlus className="w-4 h-4 mx-auto text-green-500" />
+                  </th>
+                )}
                 <th className="text-left py-2 px-2">Nombre</th>
                 <th className="text-right py-2 px-2">Precio</th>
                 {cat.fields.includes('dano') && <th className="text-center py-2 px-2">Daño</th>}
@@ -348,8 +438,20 @@ const EquipmentSection = ({
               </tr>
             </thead>
             <tbody>
-              {filtered.map((item, i) => (
-                <tr key={i} className="border-b border-border/10 hover:bg-black/10 group">
+              {filtered.map((item, i) => {
+                const isAvailableForCreation = getItemCreationValue(cat.key, item.nombre, item.disponible_creacion);
+                return (
+                <tr key={i} className={`border-b border-border/10 hover:bg-black/10 group ${!isAvailableForCreation && isAdmin ? 'opacity-50' : ''}`}>
+                  {isAdmin && (
+                    <td className="text-center py-2 px-1">
+                      <Checkbox
+                        checked={isAvailableForCreation}
+                        onCheckedChange={() => toggleCreationAvailability(cat.key, item.nombre, isAvailableForCreation)}
+                        className="mx-auto"
+                        title={isAvailableForCreation ? 'Disponible en creación' : 'No disponible en creación'}
+                      />
+                    </td>
+                  )}
                   <td className="py-2 px-2">{item.nombre}</td>
                   <td className="text-right py-2 px-2 text-[hsl(var(--gold))]">{formatPrice(item.precio, item.moneda)}</td>
                   {cat.fields.includes('dano') && <td className="text-center py-2 px-2 text-[hsl(var(--torch-orange))]">{item.dano || '-'}</td>}
@@ -403,7 +505,7 @@ const EquipmentSection = ({
                     </td>
                   )}
                 </tr>
-              ))}
+              )})}
             </tbody>
           </table>
         </div>
@@ -427,6 +529,21 @@ const EquipmentSection = ({
           <Printer className="w-4 h-4 mr-2 text-[hsl(var(--gold))]" />
           Imprimir Listado PDF
         </Button>
+        
+        {isAdmin && Object.keys(pendingCreationChanges).length > 0 && (
+          <Button
+            onClick={saveCreationChanges}
+            disabled={savingCreationChanges}
+            className="bg-green-600 hover:bg-green-700"
+          >
+            {savingCreationChanges ? (
+              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+            ) : (
+              <Check className="w-4 h-4 mr-2" />
+            )}
+            Guardar Disp. Creación ({Object.keys(pendingCreationChanges).length})
+          </Button>
+        )}
         
         {isAdmin && (
           <Button
