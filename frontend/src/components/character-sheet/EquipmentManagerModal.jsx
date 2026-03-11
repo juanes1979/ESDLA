@@ -545,7 +545,14 @@ const EquipmentManagerModal = ({
             {hasMount && (
               <div className="flex items-center gap-2 bg-blue-900/30 px-3 py-1 rounded">
                 <Landmark className="w-4 h-4 text-blue-400" />
-                <span>{detectMount.nombre}: {weightSummary?.peso_montura || 0}/{detectMount.capacidad} kg</span>
+                <span>{detectMount.nombre}: {(() => {
+                  // Calculate mount load: equipment on mount + character weight + equipment on character
+                  const pesoEquipoMontura = parseFloat(weightSummary?.peso_montura) || 0;
+                  const pesoPersonaje = parseFloat(character.peso_kg) || parseFloat(character.peso) || 70;
+                  const pesoEquipoPersonaje = parseFloat(weightSummary?.peso_personaje) || 0;
+                  const pesoTotal = Math.round(pesoEquipoMontura + pesoPersonaje + pesoEquipoPersonaje);
+                  return `${pesoTotal}/${detectMount.capacidad} kg (jinete+equipo)`;
+                })()}</span>
               </div>
             )}
           </div>
