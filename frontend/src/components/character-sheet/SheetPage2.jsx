@@ -173,7 +173,7 @@ const SheetPage2 = ({ character, scale, fieldPositions = {} }) => {
       <DisplayField {...getPos('trasfondo')} value={character.trasfondo_nombre || ''} scale={scale} />
       <DisplayField 
         {...getPos('descripcion_trasfondo')} 
-        value={character.descripcion_trasfondo || ''} 
+        value={character.historia || character.descripcion_trasfondo || character.trasfondo_descripcion || ''} 
         scale={scale} 
       />
       

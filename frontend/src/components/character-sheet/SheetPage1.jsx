@@ -440,6 +440,7 @@ const SheetPage1 = ({ character, scale, weaponCatalog = [], equipmentCatalog = {
       return weaponItems.some(w => w.nombre?.toLowerCase() === normalized);
     };
     
+    // Check armas_elegidas first
     (character.armas_elegidas || []).forEach(arma => {
       const nombre = getName(arma);
       const mejoras = getMejoras(arma);
@@ -449,6 +450,8 @@ const SheetPage1 = ({ character, scale, weaponCatalog = [], equipmentCatalog = {
         weaponItems.push({ nombre, dano: stats.dano, herida: stats.herida, distancia: stats.distancia, mejoras: [] });
       }
     });
+    
+    // Check inventario for weapons
     (character.inventario || []).forEach(item => {
       const nombre = getName(item);
       const mejoras = getMejoras(item);
@@ -457,6 +460,8 @@ const SheetPage1 = ({ character, scale, weaponCatalog = [], equipmentCatalog = {
         weaponItems.push({ nombre, dano: item.dano || stats.dano, herida: item.herida || stats.herida, distancia: item.distancia || stats.distancia, mejoras: [] });
       }
     });
+    
+    // Check equipo_ocupacion for weapons
     (character.equipo_ocupacion || []).forEach(item => {
       const nombre = getName(item);
       const mejoras = getMejoras(item);
@@ -465,6 +470,27 @@ const SheetPage1 = ({ character, scale, weaponCatalog = [], equipmentCatalog = {
         weaponItems.push({ nombre, dano: stats.dano, herida: stats.herida, distancia: stats.distancia, mejoras: [] });
       }
     });
+    
+    // Check equipo_trasfondo for weapons (like Bastón)
+    (character.equipo_trasfondo || []).forEach(item => {
+      const nombre = getName(item);
+      const mejoras = getMejoras(item);
+      if (isWeapon(nombre) && !isDuplicate(nombre) && mejoras.length === 0) {
+        const stats = getWeaponStats(nombre);
+        weaponItems.push({ nombre, dano: stats.dano, herida: stats.herida, distancia: stats.distancia, mejoras: [] });
+      }
+    });
+    
+    // Check equipo_nivel_vida for weapons
+    (character.equipo_nivel_vida || []).forEach(item => {
+      const nombre = getName(item);
+      const mejoras = getMejoras(item);
+      if (isWeapon(nombre) && !isDuplicate(nombre) && mejoras.length === 0) {
+        const stats = getWeaponStats(nombre);
+        weaponItems.push({ nombre, dano: stats.dano, herida: stats.herida, distancia: stats.distancia, mejoras: [] });
+      }
+    });
+    
     return Array.from({ length: 5 }, (_, i) => weaponItems[i] || { nombre: '', dano: '', herida: '', distancia: '' });
   };
   
@@ -857,15 +883,6 @@ const SheetPage1 = ({ character, scale, weaponCatalog = [], equipmentCatalog = {
             const pesoTotal = Math.round(pesoEquipoMontura + pesoEquipoPersonaje + pesoPersonaje);
             return `${nombreMontura}, ${pesoTotal} Kg/${capacidadMax} Kg`;
           })()}
-          scale={scale} 
-        />
-      )}
-      
-      {/* Campo montura_peso siempre visible para posicionamiento (sin montura muestra texto de ejemplo) */}
-      {!character.montura?.nombre && (
-        <DisplayField 
-          {...PAGE1_FIELDS.montura_peso} 
-          value="Caballo de caminos, 55 Kg/150 Kg"
           scale={scale} 
         />
       )}

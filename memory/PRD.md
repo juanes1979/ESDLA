@@ -4,6 +4,27 @@
 
 ### ✅ COMPLETED This Session
 
+#### Correcciones en Ficha de Personaje PDF - EN PROGRESO (2025-12-20)
+
+**Correcciones implementadas en SheetPage1.jsx y SheetPage2.jsx:**
+
+1. **Eliminado texto de ejemplo "Caballo de caminos":**
+   - Ya no aparece cuando el personaje no tiene montura
+
+2. **Armas de trasfondo y nivel de vida:**
+   - Ahora se buscan armas también en `equipo_trasfondo` y `equipo_nivel_vida`
+   - El Bastón ahora aparece correctamente en la sección de armas
+
+3. **Trasfondo en página 2:**
+   - El campo `descripcion_trasfondo` ahora busca: `historia` → `descripcion_trasfondo` → `trasfondo_descripcion`
+   - Muestra la historia generada por IA durante la creación del personaje
+
+**Pendiente implementar:**
+- Sistema de checkboxes para "Carga Soportada" vs "Carga en Montura"
+- Calcular peso correcto sumando todo el equipo del personaje
+
+---
+
 #### Tienda de Equipo en Creador de Personajes - COMPLETADO (2025-12-20)
 
 **Funcionalidad implementada en Step7Equipment.jsx:**
