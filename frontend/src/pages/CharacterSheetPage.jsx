@@ -257,7 +257,7 @@ const CharacterSheetPage = () => {
         </div>
 
         <div className="grid lg:grid-cols-3 gap-6">
-          {/* Left Column - Combat Stats */}
+          {/* Left Column - Combat Stats & Competencies */}
           <div className="space-y-6">
             {/* HP */}
             <div className="card-parchment rounded-lg p-4">
@@ -385,9 +385,77 @@ const CharacterSheetPage = () => {
                 </Button>
               </div>
             </div>
+            
+            {/* Competencies - Moved from middle column */}
+            <div className="card-parchment rounded-lg p-4">
+              <h3 className="font-heading text-lg text-[hsl(var(--magic-blue))] mb-3">
+                Competencias
+              </h3>
+              {(() => {
+                // Get proficiencies from character or fallback to occupation data
+                const competencias = character.competencias || {};
+                
+                // Use occupation data as fallback for old characters
+                let armas = competencias.armas || [];
+                let armaduras = competencias.armaduras || [];
+                let tiradas = competencias.tiradas_salvacion || [];
+                const idiomas = competencias.idiomas || [];
+                
+                // Fallback to occupation if character data is empty
+                if (occupation && armas.length === 0) {
+                  armas = occupation.competencia_armas || [];
+                }
+                if (occupation && armaduras.length === 0) {
+                  armaduras = occupation.competencia_armaduras || [];
+                }
+                if (occupation && tiradas.length === 0) {
+                  tiradas = occupation.tiradas_salvacion || [];
+                }
+                
+                return (
+                  <div className="space-y-2 text-sm">
+                    {tiradas.length > 0 && (
+                      <div>
+                        <span className="text-muted-foreground">Tiradas de salvación: </span>
+                        <span className="text-foreground uppercase font-medium">
+                          {tiradas.join(', ')}
+                        </span>
+                      </div>
+                    )}
+                    {armaduras.length > 0 && (
+                      <div>
+                        <span className="text-muted-foreground">Armaduras: </span>
+                        <span className="text-foreground">
+                          {armaduras.join(', ')}
+                        </span>
+                      </div>
+                    )}
+                    {armas.length > 0 && (
+                      <div>
+                        <span className="text-muted-foreground">Armas: </span>
+                        <span className="text-foreground">
+                          {armas.join(', ')}
+                        </span>
+                      </div>
+                    )}
+                    {idiomas.length > 0 && (
+                      <div>
+                        <span className="text-muted-foreground">Idiomas: </span>
+                        <span className="text-foreground uppercase">
+                          {idiomas.join(', ')}
+                        </span>
+                      </div>
+                    )}
+                    {armas.length === 0 && armaduras.length === 0 && tiradas.length === 0 && (
+                      <p className="text-muted-foreground italic">Sin competencias registradas</p>
+                    )}
+                  </div>
+                );
+              })()}
+            </div>
           </div>
 
-          {/* Middle Column - Attributes */}
+          {/* Middle Column - Attributes & Skills */}
           <div className="space-y-6">
             {/* Attributes */}
             <div className="card-parchment rounded-lg p-4">
@@ -522,77 +590,9 @@ const CharacterSheetPage = () => {
                 );
               })()}
             </div>
-
-            {/* Competencies */}
-            <div className="card-parchment rounded-lg p-4">
-              <h3 className="font-heading text-lg text-[hsl(var(--magic-blue))] mb-3">
-                Competencias
-              </h3>
-              {(() => {
-                // Get proficiencies from character or fallback to occupation data
-                const competencias = character.competencias || {};
-                
-                // Use occupation data as fallback for old characters
-                let armas = competencias.armas || [];
-                let armaduras = competencias.armaduras || [];
-                let tiradas = competencias.tiradas_salvacion || [];
-                const idiomas = competencias.idiomas || [];
-                
-                // Fallback to occupation if character data is empty
-                if (occupation && armas.length === 0) {
-                  armas = occupation.competencia_armas || [];
-                }
-                if (occupation && armaduras.length === 0) {
-                  armaduras = occupation.competencia_armaduras || [];
-                }
-                if (occupation && tiradas.length === 0) {
-                  tiradas = occupation.tiradas_salvacion || [];
-                }
-                
-                return (
-                  <div className="space-y-2 text-sm">
-                    {tiradas.length > 0 && (
-                      <div>
-                        <span className="text-muted-foreground">Tiradas de salvación: </span>
-                        <span className="text-foreground uppercase font-medium">
-                          {tiradas.join(', ')}
-                        </span>
-                      </div>
-                    )}
-                    {armaduras.length > 0 && (
-                      <div>
-                        <span className="text-muted-foreground">Armaduras: </span>
-                        <span className="text-foreground">
-                          {armaduras.join(', ')}
-                        </span>
-                      </div>
-                    )}
-                    {armas.length > 0 && (
-                      <div>
-                        <span className="text-muted-foreground">Armas: </span>
-                        <span className="text-foreground">
-                          {armas.join(', ')}
-                        </span>
-                      </div>
-                    )}
-                    {idiomas.length > 0 && (
-                      <div>
-                        <span className="text-muted-foreground">Idiomas: </span>
-                        <span className="text-foreground uppercase">
-                          {idiomas.join(', ')}
-                        </span>
-                      </div>
-                    )}
-                    {armas.length === 0 && armaduras.length === 0 && tiradas.length === 0 && (
-                      <p className="text-muted-foreground italic">Sin competencias registradas</p>
-                    )}
-                  </div>
-                );
-              })()}
-            </div>
           </div>
 
-          {/* Right Column - Background & Equipment */}
+          {/* Right Column - Background, Culture, Occupation & Equipment */}
           <div className="space-y-6">
             {/* Background Info */}
             <div className="card-parchment rounded-lg p-4">
@@ -604,10 +604,18 @@ const CharacterSheetPage = () => {
                 <div className="bg-secondary rounded-lg p-3">
                   <p className="text-xs text-muted-foreground">Trasfondo</p>
                   <p className="text-foreground font-medium">{character.trasfondo_nombre}</p>
-                  {background?.descripcion && (
-                    <p className="text-muted-foreground text-xs mt-2 italic">{background.descripcion}</p>
-                  )}
                 </div>
+                
+                {/* Historia generada por IA o descripción del trasfondo */}
+                {(character.historia || background?.descripcion) && (
+                  <div className="bg-secondary/50 rounded-lg p-3 border-l-2 border-[hsl(var(--gold))/50]">
+                    <p className="text-xs text-[hsl(var(--gold))] mb-1">Historia Personal</p>
+                    <p className="text-muted-foreground text-sm italic leading-relaxed">
+                      {character.historia || background?.descripcion}
+                    </p>
+                  </div>
+                )}
+                
                 {character.virtud_nombre && (
                   <div className="bg-secondary rounded-lg p-3">
                     <p className="text-xs text-muted-foreground">Virtud</p>
@@ -767,10 +775,22 @@ const CharacterSheetPage = () => {
 
             {/* Equipment - Complete */}
             <div className="card-parchment rounded-lg p-4">
-              <h3 className="font-heading text-lg text-[hsl(var(--gold))] mb-3 flex items-center gap-2">
-                <Package className="w-5 h-5" />
-                Equipo
-              </h3>
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="font-heading text-lg text-[hsl(var(--gold))] flex items-center gap-2">
+                  <Package className="w-5 h-5" />
+                  Equipo
+                </h3>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => navigate(`/character/${characterId}/sheet`)}
+                  className="text-xs border-[hsl(var(--gold))/50] hover:bg-[hsl(var(--gold))/10]"
+                  data-testid="manage-equipment-btn"
+                >
+                  <Edit2 className="w-3 h-3 mr-1" />
+                  Gestionar
+                </Button>
+              </div>
               
               {/* Weapons */}
               {(character.armas_elegidas?.length > 0 || character.equipo_ocupacion?.some(e => 
