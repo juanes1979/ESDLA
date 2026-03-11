@@ -1,6 +1,50 @@
 # LOTR 5e RPG - Product Requirements Document
 
-## Current State (2026-03-10)
+## Current State (2025-12-20)
+
+### ✅ COMPLETED This Session (Fork #45)
+
+#### P0: Generador de Tesoros Completamente Editable - COMPLETADO
+
+Se ha implementado un sistema de configuración completamente editable para el generador de tesoros, permitiendo al Game Master personalizar todos los parámetros.
+
+**Nueva pestaña "Configurar" en Sistema de Tesoros:**
+
+1. **Editor de Tipos de Moneda**
+   - 4 tipos predefinidos: Estaño (me), Cobre (mc), Plata (mp), Oro (mo)
+   - Campos editables: nombre, abreviatura, valor en oro, color
+   - Botón "+ Añadir Moneda" para crear tipos personalizados
+   - Selector de color para cada tipo de moneda
+
+2. **Configuración por Nivel de Tesoro (Menor, Mayor, Maravilloso)**
+   - Tiradas Mágicas (d20): número de tiradas en la tabla de tesoro mágico
+   - CD Sombra: dificultad de la prueba de Avaricia
+   - Tiradas de Monedas: checkbox para activar/desactivar + campo de dado (ej: 2d8, 3d6)
+   - Configuración independiente para cada nivel
+
+3. **Persistencia en Base de Datos**
+   - Nuevos endpoints: GET/PUT/DELETE `/api/data/treasure-config`
+   - Los cambios se guardan automáticamente en MongoDB
+   - Indicador visual de "Cambios sin guardar"
+
+4. **Botones de Acción**
+   - "Guardar Cambios": persiste la configuración en la base de datos
+   - "Restablecer": restaura los valores por defecto eliminando la configuración personalizada
+
+5. **Ayuda Integrada**
+   - Formato de dados: `2d8`, `3d6+5`, `1d10-2`
+   - Conversión de monedas a oro
+   - Explicación de tiradas mágicas y CD Sombra
+
+**Archivos modificados:**
+- `/app/frontend/src/components/rules/sections/TreasureSystemSection.jsx` - Componente refactorizado
+- `/app/backend/routes/data_routes.py` - Endpoints de treasure-config (líneas 1322-1361)
+
+**Tests creados:** `/app/backend/tests/test_treasure_config.py` - 12 tests pasados (100%)
+
+---
+
+## Previous State (2026-03-10)
 
 ### ✅ COMPLETED This Session (Fork #39-41)
 
@@ -191,18 +235,24 @@ Fórmula: `PX final = PX base × diferencia × terreno × peligrosidad`
 ## 📋 PRÓXIMAS TAREAS
 
 ### P1 - Próximo
+- **Control de acceso por roles** - Restringir "Mapa del Maestro" y páginas de editor a Admin/Maestro
 - **Rellenado automático de agua** cerca de ríos/ciudades durante viaje
 - **Opción "Evitar Caminos"** para huidas
 
 ### P2 - Medio plazo
-- Control de acceso por roles (Maestro, Admin, Jugador)
-- Refactorizar componentes grandes (EnhancedTravelSystem, MiddleEarthMap)
+- Sistema completo de autenticación de usuarios (Maestro, Admin, Jugador)
+- Refactorizar componentes grandes (EnhancedTravelSystem, MiddleEarthMap, TreasureSystemSection)
 
 ### Backlog / Tareas Futuras
 - **Piezas móviles** en Editor de Terreno (pendiente definir requisitos)
-- Sistema completo de autenticación de usuarios
 - Backup/restauración de base de datos
 - Pantalla del DM e interfaz de juego online
+
+---
+
+## Bugs Conocidos (Baja Prioridad)
+- **Pathfinding debugger**: El algoritmo necesita mejorar el peso de la dirección final
+- **Zoom con rueda en Master Map**: Sensibilidad poco natural
 
 ---
 
