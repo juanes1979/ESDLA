@@ -404,6 +404,7 @@ const SheetPage1 = ({ character, scale, weaponCatalog = [], equipmentCatalog = {
       ...(character.equipo_ocupacion || []).map(i => typeof i === 'string' ? i : i.nombre),
       ...(character.equipo_trasfondo || []).map(i => typeof i === 'string' ? i : i.nombre),
       ...(character.equipo_nivel_vida || []).map(i => typeof i === 'string' ? i : i.nombre),
+      ...(character.ropa_nivel_vida || []).map(i => typeof i === 'string' ? i : i.nombre),
     ];
     // Add mount if exists
     const montura = character.montura;
@@ -645,16 +646,24 @@ const SheetPage1 = ({ character, scale, weaponCatalog = [], equipmentCatalog = {
     const name = typeof itemName === 'string' ? itemName : itemName?.nombre;
     if (!name) return 0;
     const normalizedName = name.toLowerCase().trim();
-    const allItems = [
-      ...(equipmentCatalog.equipo_general || []),
-      ...(equipmentCatalog.herramientas || []),
-      ...(equipmentCatalog.armas || []),
-      ...(equipmentCatalog.armaduras || []),
+    
+    // Search in all categories of the equipment catalog
+    const allCategories = [
+      'equipo_general', 'herramientas', 'juegos', 'instrumentos_musicales',
+      'consumibles', 'comida_posadas', 'hierbas', 'venenos',
+      'armas_sencillas_cc', 'armas_sencillas_distancia', 'armas_marciales_cc', 'armas_marciales_distancia',
+      'armaduras_ligeras', 'armaduras_medias', 'armaduras_pesadas', 'escudos',
+      'monturas', 'accesorios_monturas', 'transporte_terrestre', 'transporte_maritimo',
+      'gemas_preciosas', 'gemas_semipreciosas', 'construccion'
     ];
-    for (const item of allItems) {
-      const catalogName = (item.nombre || '').toLowerCase().trim();
-      if (catalogName === normalizedName || normalizedName.includes(catalogName) || catalogName.includes(normalizedName)) {
-        return item.peso_kg || 0;
+    
+    for (const category of allCategories) {
+      const items = equipmentCatalog[category] || [];
+      for (const item of items) {
+        const catalogName = (item.nombre || '').toLowerCase().trim();
+        if (catalogName === normalizedName || normalizedName.includes(catalogName) || catalogName.includes(normalizedName)) {
+          return item.peso_kg || 0;
+        }
       }
     }
     return 0;
@@ -663,6 +672,19 @@ const SheetPage1 = ({ character, scale, weaponCatalog = [], equipmentCatalog = {
   // Calculate peso carried by mount
   const calcularPesoMontura = () => {
     let pesoMontura = 0;
+    
+    // Helper to add weight if item is on mount
+    const addIfOnMount = (item, cantidad = 1) => {
+      if (typeof item === 'object' && item.portado_por === 'montura') {
+        const nombre = item.nombre;
+        if (item.peso_kg) {
+          pesoMontura += (parseFloat(item.peso_kg) || 0) * cantidad;
+        } else {
+          pesoMontura += getItemWeight(nombre) * cantidad;
+        }
+      }
+    };
+    
     // Check inventario for items carried by mount
     (character.inventario || []).forEach(item => {
       if (typeof item === 'object' && item.portado_por === 'montura') {
@@ -675,12 +697,24 @@ const SheetPage1 = ({ character, scale, weaponCatalog = [], equipmentCatalog = {
         }
       }
     });
+    
+    // Check equipo_ocupacion
+    (character.equipo_ocupacion || []).forEach(item => addIfOnMount(item));
+    
+    // Check equipo_trasfondo
+    (character.equipo_trasfondo || []).forEach(item => addIfOnMount(item));
+    
+    // Check equipo_nivel_vida
+    (character.equipo_nivel_vida || []).forEach(item => addIfOnMount(item));
+    
     return pesoMontura.toFixed(2);
   };
   
   // Calculate peso transportado (by character, excluding mount cargo)
   const calcularPesoTransportado = () => {
     let pesoTotal = 0;
+    
+    // Inventario (exclude items on mount)
     (character.inventario || []).forEach(item => {
       // Skip items carried by mount
       if (typeof item === 'object' && item.portado_por === 'montura') return;
@@ -693,23 +727,65 @@ const SheetPage1 = ({ character, scale, weaponCatalog = [], equipmentCatalog = {
         pesoTotal += getItemWeight(nombre) * cantidad;
       }
     });
+    
+    // Equipo de ocupación
     (character.equipo_ocupacion || []).forEach(item => {
+      if (typeof item === 'object' && item.portado_por === 'montura') return;
       pesoTotal += getItemWeight(typeof item === 'string' ? item : item.nombre);
     });
+    
+    // Equipo de trasfondo
+    (character.equipo_trasfondo || []).forEach(item => {
+      if (typeof item === 'object' && item.portado_por === 'montura') return;
+      pesoTotal += getItemWeight(typeof item === 'string' ? item : item.nombre);
+    });
+    
+    // Equipo de nivel de vida
+    (character.equipo_nivel_vida || []).forEach(item => {
+      if (typeof item === 'object' && item.portado_por === 'montura') return;
+      pesoTotal += getItemWeight(typeof item === 'string' ? item : item.nombre);
+    });
+    
+    // Ropa de nivel de vida
+    (character.ropa_nivel_vida || []).forEach(item => {
+      if (typeof item === 'object' && item.portado_por === 'montura') return;
+      pesoTotal += getItemWeight(typeof item === 'string' ? item : item.nombre);
+    });
+    
+    // Herramientas elegidas
     (character.herramientas_elegidas_ocupacion || []).forEach(item => {
       pesoTotal += getItemWeight(typeof item === 'string' ? item : item.nombre);
     });
+    
+    // Armas elegidas
     (character.armas_elegidas || []).forEach(item => {
       pesoTotal += getItemWeight(typeof item === 'string' ? item : item.nombre);
     });
+    
+    // Armadura elegida
     if (character.armadura_elegida) {
       (character.armadura_elegida || []).forEach(item => {
         pesoTotal += getItemWeight(typeof item === 'string' ? item : item.nombre);
       });
     }
+    
+    // Armadura actual
+    if (character.armadura) {
+      const armaduraNombre = typeof character.armadura === 'string' ? character.armadura : character.armadura.nombre;
+      pesoTotal += getItemWeight(armaduraNombre);
+    }
+    
+    // Escudo
+    if (character.escudo) {
+      const escudoNombre = typeof character.escudo === 'string' ? character.escudo : character.escudo.nombre;
+      pesoTotal += getItemWeight(escudoNombre);
+    }
+    
+    // Dinero (monedas)
     const dinero = character.dinero || {};
     const totalMonedas = (dinero.mp || 0) + (dinero.mo || 0) + (dinero.me || 0) + (dinero.mc || 0);
     pesoTotal += totalMonedas * 0.009;
+    
     return pesoTotal.toFixed(2);
   };
   

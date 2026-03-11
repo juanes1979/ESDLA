@@ -4,7 +4,7 @@
 
 ### ✅ COMPLETED This Session
 
-#### Correcciones en Ficha de Personaje PDF - EN PROGRESO (2025-12-20)
+#### Correcciones en Ficha de Personaje PDF - COMPLETADO (2025-12-20)
 
 **Correcciones implementadas en SheetPage1.jsx y SheetPage2.jsx:**
 
@@ -19,9 +19,18 @@
    - El campo `descripcion_trasfondo` ahora busca: `historia` → `descripcion_trasfondo` → `trasfondo_descripcion`
    - Muestra la historia generada por IA durante la creación del personaje
 
-**Pendiente implementar:**
-- Sistema de checkboxes para "Carga Soportada" vs "Carga en Montura"
-- Calcular peso correcto sumando todo el equipo del personaje
+4. **Cálculo de peso mejorado:**
+   - Ahora suma peso de TODOS los campos de equipo: `inventario`, `equipo_ocupacion`, `equipo_trasfondo`, `equipo_nivel_vida`, `ropa_nivel_vida`, `armas_elegidas`, `armadura_elegida`, `armadura`, `escudo`
+   - Busca pesos en TODAS las categorías del catálogo (23 categorías)
+   - Respeta el campo `portado_por: 'montura'` para excluir peso de items en la montura
+   
+5. **Peso de la montura:**
+   - Calcula correctamente el peso de items marcados como `portado_por: 'montura'`
+   - Busca en `inventario`, `equipo_ocupacion`, `equipo_trasfondo`, `equipo_nivel_vida`
+
+6. **Lista de equipo ampliada:**
+   - Ahora incluye `ropa_nivel_vida` en la lista de equipo mostrado
+   - Items en la montura se marcan con "(M)" en la lista
 
 ---
 
