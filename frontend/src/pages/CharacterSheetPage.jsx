@@ -6,7 +6,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { 
   Loader2, ArrowLeft, Heart, Shield, Footprints, Eye, 
   Swords, Star, Book, Crown, Package, Scroll, Edit2,
-  Plus, Minus, Save, FileText, Printer, FileDown
+  Plus, Minus, Save, FileText, Printer, FileDown, Settings
 } from 'lucide-react';
 import { getCharacter, deleteCharacter, getOccupations } from '@/services/api';
 import { Button } from '@/components/ui/button';
@@ -15,6 +15,7 @@ import { cn } from '@/lib/utils';
 import api from '@/services/api';
 import { LevelUpButton } from '@/components/LevelUpModal';
 import { downloadCharacterPDF } from '@/utils/characterPDF';
+import EquipmentManagerModal from '@/components/character-sheet/EquipmentManagerModal';
 
 const getModifier = (score) => Math.floor((score - 10) / 2);
 const formatModifier = (mod) => mod >= 0 ? `+${mod}` : `${mod}`;
@@ -41,6 +42,7 @@ const CharacterSheetPage = () => {
   const [hpChange, setHpChange] = useState(0);
   const [savingHp, setSavingHp] = useState(false);
   const [generatingPDF, setGeneratingPDF] = useState(false);
+  const [showEquipmentModal, setShowEquipmentModal] = useState(false);
 
   // Handle PDF download
   const handleDownloadPDF = async () => {
@@ -783,11 +785,11 @@ const CharacterSheetPage = () => {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => navigate(`/character/${characterId}/sheet`)}
+                  onClick={() => setShowEquipmentModal(true)}
                   className="text-xs border-[hsl(var(--gold))/50] hover:bg-[hsl(var(--gold))/10]"
                   data-testid="manage-equipment-btn"
                 >
-                  <Edit2 className="w-3 h-3 mr-1" />
+                  <Settings className="w-3 h-3 mr-1" />
                   Gestionar
                 </Button>
               </div>
@@ -953,6 +955,18 @@ const CharacterSheetPage = () => {
           </div>
         </div>
       </main>
+      
+      {/* Equipment Manager Modal */}
+      {showEquipmentModal && (
+        <EquipmentManagerModal
+          character={character}
+          onClose={() => setShowEquipmentModal(false)}
+          onUpdate={() => {
+            // Refresh character data
+            getCharacter(characterId).then(res => setCharacter(res.data));
+          }}
+        />
+      )}
     </div>
   );
 };

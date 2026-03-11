@@ -68,6 +68,11 @@ const EquipmentManagerModal = ({
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('equipo_general');
   const [expandedGroups, setExpandedGroups] = useState({ 'Equipo': true });
+  
+  // Toggle group expansion
+  const toggleGroup = (group) => {
+    setExpandedGroups(prev => ({ ...prev, [group]: !prev[group] }));
+  };
   const [weightSummary, setWeightSummary] = useState(null);
   
   // Add item form state
@@ -261,10 +266,58 @@ const EquipmentManagerModal = ({
     }
   };
 
-  // Toggle group expansion
-  const toggleGroup = (group) => {
-    setExpandedGroups(prev => ({ ...prev, [group]: !prev[group] }));
-  };
+  // Detect if character has a mount (either as character.montura or in inventory)
+  const detectMount = useMemo(() => {
+    // First check character.montura
+    if (character.montura?.nombre) {
+      return {
+        nombre: character.montura.nombre,
+        capacidad: character.montura.capacidad_carga || 150,
+        source: 'montura'
+      };
+    }
+    
+    // Check inventory for mount items
+    const mountNames = ['caballo', 'pony', 'mula', 'burro', 'corcel', 'yegua', 'potro', 'asno', 'montura'];
+    const inventario = character.inventario || [];
+    
+    for (const item of inventario) {
+      const nombre = (typeof item === 'string' ? item : item?.nombre || '').toLowerCase();
+      if (mountNames.some(m => nombre.includes(m))) {
+        // Try to get capacity from item or catalog
+        const itemData = typeof item === 'object' ? item : {};
+        return {
+          nombre: typeof item === 'string' ? item : item.nombre,
+          capacidad: itemData.capacidad_carga || 150,
+          source: 'inventario'
+        };
+      }
+    }
+    
+    // Also check equipo_nivel_vida and equipo_trasfondo
+    const otherSources = [
+      ...(character.equipo_nivel_vida || []),
+      ...(character.equipo_trasfondo || []),
+      ...(character.equipo_ocupacion || [])
+    ];
+    
+    for (const item of otherSources) {
+      const nombre = (typeof item === 'string' ? item : item?.nombre || '').toLowerCase();
+      if (mountNames.some(m => nombre.includes(m))) {
+        const itemData = typeof item === 'object' ? item : {};
+        return {
+          nombre: typeof item === 'string' ? item : item.nombre,
+          capacidad: itemData.capacidad_carga || 150,
+          source: 'equipo'
+        };
+      }
+    }
+    
+    return null;
+  }, [character]);
+
+  // Check if character has a mount available
+  const hasMount = detectMount !== null;
 
   if (!isOpen) return null;
 
@@ -470,7 +523,7 @@ const EquipmentManagerModal = ({
           </div>
           
           {/* Money and Weight Summary */}
-          <div className="flex gap-4 mt-3 text-sm">
+          <div className="flex flex-wrap gap-3 mt-3 text-sm">
             <div className="flex items-center gap-2 bg-yellow-900/30 px-3 py-1 rounded">
               <Coins className="w-4 h-4 text-yellow-400" />
               <span className="text-yellow-200">{getMoneyDisplay()}</span>
@@ -480,8 +533,8 @@ const EquipmentManagerModal = ({
                 weightSummary.estado_carga === 'muy_cargado' ? 'bg-red-900/30' :
                 weightSummary.estado_carga === 'cargado' ? 'bg-orange-900/30' : 'bg-green-900/30'
               }`}>
-                <Scale className="w-4 h-4" />
-                <span>{weightSummary.peso_personaje} / {weightSummary.limite_muy_cargado} kg</span>
+                <User className="w-4 h-4" />
+                <span>Personaje: {weightSummary.peso_personaje} / {weightSummary.limite_muy_cargado} kg</span>
                 {weightSummary.estado_carga !== 'normal' && (
                   <Badge variant="destructive" className="text-xs">
                     {weightSummary.estado_carga === 'muy_cargado' ? 'Muy Cargado' : 'Cargado'}
@@ -489,34 +542,12 @@ const EquipmentManagerModal = ({
                 )}
               </div>
             )}
-            {weightSummary?.tiene_montura && (
+            {hasMount && (
               <div className="flex items-center gap-2 bg-blue-900/30 px-3 py-1 rounded">
                 <Landmark className="w-4 h-4 text-blue-400" />
-                <span>{weightSummary.nombre_montura}: {weightSummary.peso_montura}/{weightSummary.capacidad_montura} kg</span>
+                <span>{detectMount.nombre}: {weightSummary?.peso_montura || 0}/{detectMount.capacidad} kg</span>
               </div>
             )}
-          </div>
-          
-          {/* Tabs */}
-          <div className="flex gap-2 mt-3">
-            <Button
-              variant={activeTab === 'add' ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => setActiveTab('add')}
-              className={activeTab === 'add' ? 'bg-[hsl(var(--gold))] text-black' : ''}
-            >
-              <Plus className="w-4 h-4 mr-1" />
-              Añadir Equipo
-            </Button>
-            <Button
-              variant={activeTab === 'manage' ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => setActiveTab('manage')}
-              className={activeTab === 'manage' ? 'bg-[hsl(var(--gold))] text-black' : ''}
-            >
-              <Package className="w-4 h-4 mr-1" />
-              Gestionar ({getAllEquipment().length})
-            </Button>
           </div>
         </CardHeader>
         
@@ -525,7 +556,7 @@ const EquipmentManagerModal = ({
             <div className="flex items-center justify-center py-12">
               <Loader2 className="w-8 h-8 animate-spin text-[hsl(var(--gold))]" />
             </div>
-          ) : activeTab === 'add' ? (
+          ) : false ? (
             /* ADD EQUIPMENT TAB */
             <div className="grid grid-cols-12 gap-4 h-[60vh]">
               {/* Category Selection */}
@@ -834,8 +865,8 @@ const EquipmentManagerModal = ({
                         </div>
                         
                         <div className="flex items-center gap-2">
-                          {/* Carrier toggle for moveable items */}
-                          {item.canMove && weightSummary?.tiene_montura && (
+                          {/* Carrier toggle for moveable items - show if has mount */}
+                          {item.canMove && hasMount && (
                             <div className="flex items-center gap-1 bg-secondary/50 rounded p-1">
                               <button
                                 onClick={() => handleUpdateCarrier(item.index, 'personaje')}
@@ -853,7 +884,7 @@ const EquipmentManagerModal = ({
                                 className={`p-1 rounded ${
                                   item.portadoPor === 'montura' ? 'bg-blue-600/30' : 'hover:bg-secondary'
                                 }`}
-                                title="Llevado por montura"
+                                title={`Llevado por ${detectMount?.nombre || 'montura'}`}
                               >
                                 <Landmark className="w-4 h-4" />
                               </button>
