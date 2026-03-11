@@ -947,21 +947,89 @@ const SheetPage1 = ({ character, scale, weaponCatalog = [], equipmentCatalog = {
       <DisplayField {...PAGE1_FIELDS.muy_cargado} value={estorbo.muy_cargado} scale={scale} />
       
       {/* Montura - "MONTURA, PesoCargado/PesoMax" */}
-      {character.montura?.nombre && (
-        <DisplayField 
-          {...PAGE1_FIELDS.montura_peso} 
-          value={(() => {
-            const nombreMontura = character.montura.nombre;
-            const capacidadMax = character.montura.capacidad_carga || 150;
-            const pesoEquipoMontura = parseFloat(pesoMontura) || 0;
-            const pesoEquipoPersonaje = parseFloat(pesoTransportado) || 0;
-            const pesoPersonaje = parseFloat(character.peso_kg) || parseFloat(character.peso) || 70;
-            const pesoTotal = Math.round(pesoEquipoMontura + pesoEquipoPersonaje + pesoPersonaje);
-            return `${nombreMontura}, ${pesoTotal} Kg/${capacidadMax} Kg`;
-          })()}
-          scale={scale} 
-        />
-      )}
+      {(() => {
+        // Detect mount from character.montura OR from inventory
+        const mountNames = ['caballo', 'pony', 'mula', 'burro', 'corcel', 'yegua', 'potro', 'asno'];
+        const mountAccessoryNames = ['silla de monta', 'alforjas', 'bocado', 'bridas', 'bocado y bridas', 
+                                     'arreos', 'barda', 'silla de montar', 'albarda', 'estribos', 'riendas', 
+                                     'herradura', 'manta de montar'];
+        
+        const isMountItem = (nombre) => {
+          const lower = (nombre || '').toLowerCase();
+          return mountNames.some(m => lower.includes(m));
+        };
+        
+        const isMountAccessory = (nombre) => {
+          const lower = (nombre || '').toLowerCase();
+          return mountAccessoryNames.some(a => lower.includes(a));
+        };
+        
+        let mountName = null;
+        let mountCapacity = 150;
+        
+        // Check character.montura first
+        if (character.montura?.nombre) {
+          mountName = character.montura.nombre;
+          mountCapacity = character.montura.capacidad_carga || 150;
+        } else {
+          // Check inventory for mount
+          const allSources = [
+            ...(character.inventario || []),
+            ...(character.equipo_nivel_vida || []),
+            ...(character.equipo_trasfondo || []),
+            ...(character.equipo_ocupacion || []),
+          ];
+          
+          for (const item of allSources) {
+            const nombre = typeof item === 'string' ? item : item?.nombre || '';
+            if (isMountItem(nombre)) {
+              mountName = nombre;
+              mountCapacity = (typeof item === 'object' && item.capacidad_carga) || 150;
+              break;
+            }
+          }
+        }
+        
+        if (!mountName) return null;
+        
+        // Calculate mount weight: items marked as on mount + mount accessories
+        let pesoEnMontura = parseFloat(pesoMontura) || 0;
+        
+        // Add weight of mount accessories that are always on mount
+        const allItems = [
+          ...(character.inventario || []),
+          ...(character.equipo_nivel_vida || []),
+          ...(character.equipo_trasfondo || []),
+          ...(character.equipo_ocupacion || []),
+        ];
+        
+        allItems.forEach(item => {
+          const nombre = typeof item === 'string' ? item : item?.nombre || '';
+          const cantidad = (typeof item === 'object' && item.cantidad) || 1;
+          // Mount accessories always count as on mount
+          if (isMountAccessory(nombre)) {
+            const peso = (typeof item === 'object' && item.peso_kg) || getItemWeight(nombre);
+            pesoEnMontura += (peso || 0) * cantidad;
+          }
+          // Items explicitly on mount (that aren't already mount accessories)
+          if (typeof item === 'object' && item.portado_por === 'montura' && !isMountAccessory(nombre) && !isMountItem(nombre)) {
+            // Already counted in calcularPesoMontura
+          }
+        });
+        
+        // Add character's body weight + equipment weight when mounted
+        const pesoEquipoPersonaje = parseFloat(pesoTransportado) || 0;
+        const pesoPersonaje = parseFloat(character.peso_kg) || parseFloat(character.peso) || 70;
+        const pesoTotal = Math.round(pesoEnMontura + pesoEquipoPersonaje + pesoPersonaje);
+        
+        return (
+          <DisplayField 
+            {...PAGE1_FIELDS.montura_peso} 
+            value={`${mountName}, ${pesoTotal}/${mountCapacity} Kg`}
+            scale={scale} 
+          />
+        );
+      })()}
       
       {/* Idiomas y Herramientas */}
       {idiomasRows.map((item, i) => (
