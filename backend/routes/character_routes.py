@@ -1080,7 +1080,7 @@ async def apply_equipment_reward(character_id: str, data: ApplyEquipmentReward):
                 'mejoras': [data.mejora_nombre]
             }
         else:
-            raise HTTPException(status_code=400, detail="Character has no armor")
+            raise HTTPException(status_code=400, detail="El personaje no tiene armadura")
             
     elif equipment_type == 'escudo':
         # Apply to shield in equipo array
@@ -1089,7 +1089,7 @@ async def apply_equipment_reward(character_id: str, data: ApplyEquipmentReward):
         
         equipo = character.get('equipo', [])
         if data.equipment_index < 0 or data.equipment_index >= len(equipo):
-            raise HTTPException(status_code=400, detail="Invalid equipment index")
+            raise HTTPException(status_code=400, detail="Índice de equipo inválido")
         
         item = equipo[data.equipment_index]
         if isinstance(item, dict):
@@ -1136,7 +1136,7 @@ async def remove_equipment_reward(
     if equipment_type == 'arma':
         armas = character.get('armas', [])
         if equipment_index < 0 or equipment_index >= len(armas):
-            raise HTTPException(status_code=400, detail="Invalid weapon index")
+            raise HTTPException(status_code=400, detail="Índice de arma inválido")
         
         arma = armas[equipment_index]
         if isinstance(arma, dict):
@@ -1159,7 +1159,7 @@ async def remove_equipment_reward(
     elif equipment_type == 'escudo':
         equipo = character.get('equipo', [])
         if equipment_index < 0 or equipment_index >= len(equipo):
-            raise HTTPException(status_code=400, detail="Invalid equipment index")
+            raise HTTPException(status_code=400, detail="Índice de equipo inválido")
         
         item = equipo[equipment_index]
         if isinstance(item, dict):
@@ -1447,14 +1447,37 @@ async def update_equipment_carrier(character_id: str, data: UpdateEquipmentCarry
     """
     character = await db.characters.find_one({"_id": character_id})
     if not character:
-        raise HTTPException(status_code=404, detail="Character not found")
+        raise HTTPException(status_code=404, detail="Personaje no encontrado")
     
-    if not character.get("montura", {}).get("nombre"):
-        raise HTTPException(status_code=400, detail="Character has no mount")
+    # Detect mount from character.montura field OR from inventory
+    has_mount = False
+    mount_names = ['caballo', 'pony', 'mula', 'burro', 'corcel', 'yegua', 'potro', 'asno']
+    
+    if character.get("montura", {}).get("nombre"):
+        has_mount = True
+    else:
+        # Check inventory for mount
+        inventario = character.get("inventario", [])
+        for item in inventario:
+            nombre = (item.get("nombre", "") if isinstance(item, dict) else str(item)).lower()
+            if any(m in nombre for m in mount_names):
+                has_mount = True
+                break
+        
+        # Also check equipo_nivel_vida, equipo_trasfondo, equipo_ocupacion
+        for source in ["equipo_nivel_vida", "equipo_trasfondo", "equipo_ocupacion"]:
+            for item in character.get(source, []):
+                nombre = (item.get("nombre", "") if isinstance(item, dict) else str(item)).lower()
+                if any(m in nombre for m in mount_names):
+                    has_mount = True
+                    break
+    
+    if not has_mount:
+        raise HTTPException(status_code=400, detail="El personaje no tiene montura")
     
     inventario = character.get("inventario", [])
     if data.item_index < 0 or data.item_index >= len(inventario):
-        raise HTTPException(status_code=400, detail="Invalid item index")
+        raise HTTPException(status_code=400, detail="Índice de objeto inválido")
     
     item = inventario[data.item_index]
     if isinstance(item, dict):
