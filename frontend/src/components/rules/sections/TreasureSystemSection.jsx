@@ -1352,19 +1352,24 @@ const TreasureSystemSection = () => {
                   <>
                     <div>
                       <Label className="text-sm">Cualidades Encantadas (máx. 3)</Label>
-                      <ScrollArea className="h-32 mt-2 border rounded p-2">
+                      <ScrollArea className="h-40 mt-2 border rounded p-2">
                         {getAvailableQualities().map(qual => (
-                          <div key={qual.id} className="flex items-center gap-2 py-1">
-                            <Checkbox 
-                              checked={weaponBuilder.cualidades.includes(qual.id)}
-                              disabled={!weaponBuilder.cualidades.includes(qual.id) && weaponBuilder.cualidades.length >= 3}
-                              onCheckedChange={(checked) => {
-                                if (checked) setWeaponBuilder({...weaponBuilder, cualidades: [...weaponBuilder.cualidades, qual.id]});
-                                else setWeaponBuilder({...weaponBuilder, cualidades: weaponBuilder.cualidades.filter(q => q !== qual.id)});
-                              }}
-                            />
-                            <span className="text-sm flex-1">{qual.nombre}</span>
-                            <Badge variant="outline" className="text-xs">×{qual.multiplicador}</Badge>
+                          <div key={qual.id} className="py-1.5 border-b border-white/5 last:border-0">
+                            <div className="flex items-center gap-2">
+                              <Checkbox 
+                                checked={weaponBuilder.cualidades.includes(qual.id)}
+                                disabled={!weaponBuilder.cualidades.includes(qual.id) && weaponBuilder.cualidades.length >= 3}
+                                onCheckedChange={(checked) => {
+                                  if (checked) setWeaponBuilder({...weaponBuilder, cualidades: [...weaponBuilder.cualidades, qual.id]});
+                                  else setWeaponBuilder({...weaponBuilder, cualidades: weaponBuilder.cualidades.filter(q => q !== qual.id)});
+                                }}
+                              />
+                              <span className="text-sm flex-1">{qual.nombre}</span>
+                              <Badge variant="outline" className="text-xs">×{qual.multiplicador}</Badge>
+                            </div>
+                            {weaponBuilder.cualidades.includes(qual.id) && (
+                              <p className="text-xs text-muted-foreground mt-1 ml-6 italic">{qual.descripcion}</p>
+                            )}
                           </div>
                         ))}
                       </ScrollArea>
@@ -1399,18 +1404,23 @@ const TreasureSystemSection = () => {
                 {weaponBuilder.categoria === 'armadura' && (
                   <div>
                     <Label className="text-sm">Cualidades de Armadura</Label>
-                    <ScrollArea className="h-32 mt-2 border rounded p-2">
+                    <ScrollArea className="h-40 mt-2 border rounded p-2">
                       {armorQualities.map(qual => (
-                        <div key={qual.id} className="flex items-center gap-2 py-1">
-                          <Checkbox 
-                            checked={weaponBuilder.cualidades.includes(qual.id)}
-                            onCheckedChange={(checked) => {
-                              if (checked) setWeaponBuilder({...weaponBuilder, cualidades: [...weaponBuilder.cualidades, qual.id]});
-                              else setWeaponBuilder({...weaponBuilder, cualidades: weaponBuilder.cualidades.filter(q => q !== qual.id)});
-                            }}
-                          />
-                          <span className="text-sm flex-1">{qual.nombre}</span>
-                          <Badge variant="outline" className="text-xs">+{qual.coste} mp</Badge>
+                        <div key={qual.id} className="py-1.5 border-b border-white/5 last:border-0">
+                          <div className="flex items-center gap-2">
+                            <Checkbox 
+                              checked={weaponBuilder.cualidades.includes(qual.id)}
+                              onCheckedChange={(checked) => {
+                                if (checked) setWeaponBuilder({...weaponBuilder, cualidades: [...weaponBuilder.cualidades, qual.id]});
+                                else setWeaponBuilder({...weaponBuilder, cualidades: weaponBuilder.cualidades.filter(q => q !== qual.id)});
+                              }}
+                            />
+                            <span className="text-sm flex-1">{qual.nombre}</span>
+                            <Badge variant="outline" className="text-xs">+{qual.coste} mp</Badge>
+                          </div>
+                          {weaponBuilder.cualidades.includes(qual.id) && (
+                            <p className="text-xs text-muted-foreground mt-1 ml-6 italic">{qual.descripcion}</p>
+                          )}
                         </div>
                       ))}
                     </ScrollArea>
@@ -1422,16 +1432,21 @@ const TreasureSystemSection = () => {
                     <Label className="text-sm">Cualidades de Escudo</Label>
                     <div className="space-y-1 mt-2">
                       {shieldQualities.map(qual => (
-                        <div key={qual.id} className="flex items-center gap-2 p-1 bg-black/10 rounded">
-                          <Checkbox 
-                            checked={weaponBuilder.cualidades.includes(qual.id)}
-                            onCheckedChange={(checked) => {
-                              if (checked) setWeaponBuilder({...weaponBuilder, cualidades: [qual.id]});
-                              else setWeaponBuilder({...weaponBuilder, cualidades: []});
-                            }}
-                          />
-                          <span className="text-sm flex-1">{qual.nombre}</span>
-                          <Badge variant="outline" className="text-xs">×{qual.multiplicador * 100}%</Badge>
+                        <div key={qual.id} className="p-2 bg-black/10 rounded">
+                          <div className="flex items-center gap-2">
+                            <Checkbox 
+                              checked={weaponBuilder.cualidades.includes(qual.id)}
+                              onCheckedChange={(checked) => {
+                                if (checked) setWeaponBuilder({...weaponBuilder, cualidades: [qual.id]});
+                                else setWeaponBuilder({...weaponBuilder, cualidades: []});
+                              }}
+                            />
+                            <span className="text-sm flex-1">{qual.nombre}</span>
+                            <Badge variant="outline" className="text-xs">×{qual.multiplicador * 100}%</Badge>
+                          </div>
+                          {weaponBuilder.cualidades.includes(qual.id) && (
+                            <p className="text-xs text-muted-foreground mt-1 ml-6 italic">{qual.descripcion}</p>
+                          )}
                         </div>
                       ))}
                     </div>

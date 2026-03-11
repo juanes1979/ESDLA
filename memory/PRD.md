@@ -4,34 +4,41 @@
 
 ### ✅ COMPLETED This Session
 
-#### P0: Generador de Tesoros Completamente Editable - COMPLETADO
+#### Sistema de Tesoros - Mejoras Completadas
 
-**1. Configuración de Generador (Pestaña "Configurar"):**
-- Editor de tipos de moneda: Estaño, Cobre, Plata, Oro, Mithril
-- Tasa de cambio: 10me=1mc, 10mc=1mp, 100mp=1mo, 100mo=1mm
-- Tiradas de dados configurables por nivel (Menor/Mayor/Maravilloso)
-- Persistencia en MongoDB
+**1. Multiplicadores de Manufactura Corregidos:**
+| Manufactura | Multiplicador |
+|-------------|---------------|
+| Númenóreana (Oesternesse) | ×5 |
+| Élfica (Eregion) | ×4 |
+| Élfica (Beleriand) | ×6 |
+| Enana (Khazad-dûm) | ×3 |
+| Enana (Erebor) | ×3 |
+| Enana (Nogrod/Belegost) | ×4 |
 
-**2. Selector de Equipo Base (Pestaña "Armas Famosas"):**
-- Categorías: Arma, Armadura, Escudo
-- Carga items desde `/api/data/weapons` y `/api/data/armors`
-- Autocompletado de precio base al seleccionar equipo
-- Conversión automática de moneda a mp
-- Muestra info adicional (Daño para armas, CA para armaduras)
+**2. Generador de Nombres:**
+- Botón con icono de varita (Wand2) junto al campo nombre
+- Genera nombres según manufactura usando prefijos/raíces/sufijos culturales
+- Estructura: 1-3 en d6 = prefijo+sufijo, 4-6 = prefijo+raíz+sufijo
+- 5% probabilidad de doble prefijo
+- Ejemplos: "Khazdurgundar" (enano), "Celebrondil" (élfico), "Arangaldor" (númenóreano)
 
-**3. Tablas de Precios Editables (Pestaña "Precios"):**
-- Bendiciones: costes por PB (+2, +3, +4)
-- Cualidades de Arma: multiplicadores de precio
-- Cualidades de Armadura: costes adicionales en mp
-- Cualidades de Escudo: multiplicadores de precio
-- Todas las tablas con campos editables
-- Persistencia junto con la configuración del generador
+**3. Cualidades Encantadas con Descripciones:**
+- Armas: Afilada, Aplastante, Cruel, Dolorosa, Rasgadora, Cruel Mayor, Dolorosa Mayor, Exterminadora, Afilada Mayor, Dardo Hiriente, Luminiscencia, Arma Rúnica, Llama de Esperanza, Resplandor de Terror, Trayectoria Recta, Acero Hueco
+- Armaduras: Ajustada, Hábilmente Fabricada, Armadura Rúnica, Ajustada por los Antiguos, Hábilmente Fabricada por los Antiguos, Armadura de Mithril
+- Escudos: Reforzado, Escudo Rúnico, Reforzado Mayor (Enano/Élfico/Númenóreano)
+- Cada cualidad muestra su descripción al seleccionarla
+
+**4. Fórmula de Cálculo de Precio:**
+```
+Precio = (Precio Base × Multiplicador Manufactura × Multiplicadores Cualidades) + Coste Perdiciones
+Ejemplo: Espada larga (20 mp) × Enana Khazad-dûm (×3) × Aplastante (×4) = 240 mp
+```
 
 **Archivos modificados:**
 - `/app/frontend/src/components/rules/sections/TreasureSystemSection.jsx`
-- `/app/backend/routes/data_routes.py` (treasure-config incluye pricing tables)
 
-**Tests:** 100% (13/13 backend + frontend verificado)
+**Testing:** 100% - Todas las funcionalidades verificadas
 
 ---
 
