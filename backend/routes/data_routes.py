@@ -1323,28 +1323,40 @@ async def update_treasure_index(data: dict = Body(...)):
 
 @router.get("/treasure-config")
 async def get_treasure_config():
-    """Get DM's custom treasure generation configuration"""
+    """Get DM's custom treasure generation configuration including pricing tables"""
     data = await db.treasure_config.find_one({"_id": "default"})
     if not data:
-        return {"tiers": None, "coinTypes": None}
+        return {"tiers": None, "coinTypes": None, "blessings": None, "weaponQualities": None, "armorQualities": None, "shieldQualities": None}
     return {
         "tiers": data.get("tiers"),
         "coinTypes": data.get("coinTypes"),
+        "blessings": data.get("blessings"),
+        "weaponQualities": data.get("weaponQualities"),
+        "armorQualities": data.get("armorQualities"),
+        "shieldQualities": data.get("shieldQualities"),
         "updated_at": data.get("updated_at")
     }
 
 
 @router.put("/treasure-config")
 async def update_treasure_config(data: dict = Body(...)):
-    """Update DM's treasure generation configuration"""
+    """Update DM's treasure generation configuration including pricing tables"""
     tiers = data.get("tiers")
     coin_types = data.get("coinTypes")
+    blessings = data.get("blessings")
+    weapon_qualities = data.get("weaponQualities")
+    armor_qualities = data.get("armorQualities")
+    shield_qualities = data.get("shieldQualities")
     
     await db.treasure_config.update_one(
         {"_id": "default"},
         {"$set": {
             "tiers": tiers,
             "coinTypes": coin_types,
+            "blessings": blessings,
+            "weaponQualities": weapon_qualities,
+            "armorQualities": armor_qualities,
+            "shieldQualities": shield_qualities,
             "updated_at": now_utc()
         }},
         upsert=True

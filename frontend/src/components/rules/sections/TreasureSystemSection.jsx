@@ -272,13 +272,25 @@ const TreasureSystemSection = () => {
   const [savingConfig, setSavingConfig] = useState(false);
   const [loadingConfig, setLoadingConfig] = useState(true);
   
+  // Equipment from database
+  const [weaponsList, setWeaponsList] = useState([]);
+  const [armorsList, setArmorsList] = useState([]);
+  
+  // Editable pricing tables
+  const [blessings, setBlessings] = useState(deepClone(BLESSINGS));
+  const [weaponQualities, setWeaponQualities] = useState(deepClone(WEAPON_QUALITIES));
+  const [armorQualities, setArmorQualities] = useState(deepClone(ARMOR_QUALITIES));
+  const [shieldQualities, setShieldQualities] = useState(deepClone(SHIELD_QUALITIES));
+  const [pricesModified, setPricesModified] = useState(false);
+  
   // DM Treasure Index
   const [treasureIndex, setTreasureIndex] = useState([]);
   
   // Famous weapon builder
   const [weaponBuilder, setWeaponBuilder] = useState({
     nombre: '',
-    tipo: 'arma',
+    categoria: 'arma', // arma, armadura, escudo
+    itemSeleccionado: null, // el item específico de la lista
     manufactura: 'dwarven_khazad',
     cualidades: [],
     perdiciones: [],
@@ -290,9 +302,11 @@ const TreasureSystemSection = () => {
   useEffect(() => {
     const loadConfig = async () => {
       try {
-        const [configRes, indexRes] = await Promise.all([
+        const [configRes, indexRes, weaponsRes, armorsRes] = await Promise.all([
           api.get('/data/treasure-config'),
-          api.get('/data/treasure-index')
+          api.get('/data/treasure-index'),
+          api.get('/data/weapons'),
+          api.get('/data/armors')
         ]);
         
         // Load custom config if exists
@@ -302,13 +316,42 @@ const TreasureSystemSection = () => {
         if (configRes.data?.coinTypes) {
           setCoinTypes(configRes.data.coinTypes);
         }
+        // Load custom pricing tables
+        if (configRes.data?.blessings) {
+          setBlessings(configRes.data.blessings);
+        }
+        if (configRes.data?.weaponQualities) {
+          setWeaponQualities(configRes.data.weaponQualities);
+        }
+        if (configRes.data?.armorQualities) {
+          setArmorQualities(configRes.data.armorQualities);
+        }
+        if (configRes.data?.shieldQualities) {
+          setShieldQualities(configRes.data.shieldQualities);
+        }
         
         // Load treasure index
         if (indexRes.data?.items) {
           setTreasureIndex(indexRes.data.items);
         }
+        
+        // Load weapons - filter out category headers
+        if (weaponsRes.data?.weapons) {
+          const validWeapons = weaponsRes.data.weapons.filter(w => 
+            w.precio !== null && w.dano !== null
+          );
+          setWeaponsList(validWeapons);
+        }
+        
+        // Load armors - filter out category headers
+        if (armorsRes.data?.armors) {
+          const validArmors = armorsRes.data.armors.filter(a => 
+            a.precio !== null && a.clase_armadura !== null
+          );
+          setArmorsList(validArmors);
+        }
       } catch (err) {
-        console.log('Loading default treasure config');
+        console.log('Loading default treasure config', err);
       } finally {
         setLoadingConfig(false);
       }
@@ -322,9 +365,14 @@ const TreasureSystemSection = () => {
     try {
       await api.put('/data/treasure-config', {
         tiers: treasureTiers,
-        coinTypes: coinTypes
+        coinTypes: coinTypes,
+        blessings: blessings,
+        weaponQualities: weaponQualities,
+        armorQualities: armorQualities,
+        shieldQualities: shieldQualities
       });
       setConfigModified(false);
+      setPricesModified(false);
       toast.success('Configuración de tesoros guardada');
     } catch (err) {
       toast.error('Error al guardar la configuración');
@@ -341,7 +389,12 @@ const TreasureSystemSection = () => {
       await api.delete('/data/treasure-config');
       setTreasureTiers(deepClone(DEFAULT_TREASURE_TIERS));
       setCoinTypes(deepClone(DEFAULT_COIN_TYPES));
+      setBlessings(deepClone(BLESSINGS));
+      setWeaponQualities(deepClone(WEAPON_QUALITIES));
+      setArmorQualities(deepClone(ARMOR_QUALITIES));
+      setShieldQualities(deepClone(SHIELD_QUALITIES));
       setConfigModified(false);
+      setPricesModified(false);
       toast.success('Configuración restablecida');
     } catch (err) {
       toast.error('Error al restablecer');
@@ -444,10 +497,23 @@ const TreasureSystemSection = () => {
   const calculateWeaponPrice = useCallback((weapon) => {
     let precio = weapon.precioBase || 100;
     
-    weapon.cualidades?.forEach(qualId => {
-      const qual = WEAPON_QUALITIES.find(q => q.id === qualId);
-      if (qual) precio *= (qual.multiplicador / 100);
-    });
+    // Use state-based qualities for price calculation
+    if (weapon.categoria === 'arma') {
+      weapon.cualidades?.forEach(qualId => {
+        const qual = weaponQualities.find(q => q.id === qualId);
+        if (qual) precio *= (qual.multiplicador / 100);
+      });
+    } else if (weapon.categoria === 'armadura') {
+      weapon.cualidades?.forEach(qualId => {
+        const qual = armorQualities.find(q => q.id === qualId);
+        if (qual) precio += qual.coste;
+      });
+    } else if (weapon.categoria === 'escudo') {
+      weapon.cualidades?.forEach(qualId => {
+        const qual = shieldQualities.find(q => q.id === qualId);
+        if (qual) precio *= (qual.multiplicador);
+      });
+    }
     
     const manufactura = MANUFACTURES.find(m => m.id === weapon.manufactura);
     const perditionList = manufactura?.tipo === 'elfica' ? PERDITIONS.elven : PERDITIONS.numenorean;
@@ -459,7 +525,39 @@ const TreasureSystemSection = () => {
     if (manufactura) precio *= manufactura.multiplicadorPrecio;
     
     return Math.round(precio);
-  }, []);
+  }, [weaponQualities, armorQualities, shieldQualities]);
+  
+  // Get filtered items by category
+  const getItemsByCategory = useCallback((categoria) => {
+    if (categoria === 'arma') {
+      return weaponsList;
+    } else if (categoria === 'armadura') {
+      return armorsList.filter(a => a.nombre !== 'Escudo' && !a.nombre?.toLowerCase().includes('escudo'));
+    } else if (categoria === 'escudo') {
+      return armorsList.filter(a => a.nombre === 'Escudo' || a.nombre?.toLowerCase().includes('escudo'));
+    }
+    return [];
+  }, [weaponsList, armorsList]);
+  
+  // Handle item selection
+  const handleItemSelect = (itemId) => {
+    const items = getItemsByCategory(weaponBuilder.categoria);
+    const selectedItem = items.find(i => i.id === itemId);
+    if (selectedItem) {
+      // Convert price to mp if needed
+      let precioMp = selectedItem.precio || 0;
+      if (selectedItem.moneda === 'mc') {
+        precioMp = precioMp / 10; // 10 mc = 1 mp
+      } else if (selectedItem.moneda === 'mo') {
+        precioMp = precioMp * 100; // 1 mo = 100 mp
+      }
+      setWeaponBuilder(prev => ({
+        ...prev,
+        itemSeleccionado: selectedItem,
+        precioBase: Math.round(precioMp)
+      }));
+    }
+  };
   
   // Add item to index
   const addToIndex = useCallback(() => {
@@ -477,7 +575,7 @@ const TreasureSystemSection = () => {
     
     setTreasureIndex(prev => [...prev, newItem]);
     setWeaponBuilder({
-      nombre: '', tipo: 'arma', manufactura: 'dwarven_khazad',
+      nombre: '', categoria: 'arma', itemSeleccionado: null, manufactura: 'dwarven_khazad',
       cualidades: [], perdiciones: [], historia: '', precioBase: 100
     });
     toast.success(`"${newItem.nombre}" añadido al índice`);
@@ -594,7 +692,7 @@ const TreasureSystemSection = () => {
   
   // Get available qualities for selected manufacture
   const getAvailableQualities = () => {
-    return WEAPON_QUALITIES.filter(q => 
+    return weaponQualities.filter(q => 
       q.manufactura.includes('any') || q.manufactura.includes(weaponBuilder.manufactura)
     );
   };
@@ -605,6 +703,42 @@ const TreasureSystemSection = () => {
     if (manufactura?.tipo === 'elfica') return PERDITIONS.elven;
     if (manufactura?.tipo === 'humana') return PERDITIONS.numenorean;
     return [];
+  };
+  
+  // Update blessing price
+  const updateBlessingPrice = (d20, pb, value) => {
+    setBlessings(prev => prev.map(b => 
+      b.d20 === d20 ? { ...b, coste: { ...b.coste, [pb]: parseInt(value) || 0 } } : b
+    ));
+    setPricesModified(true);
+    setConfigModified(true);
+  };
+  
+  // Update weapon quality
+  const updateWeaponQuality = (id, field, value) => {
+    setWeaponQualities(prev => prev.map(q => 
+      q.id === id ? { ...q, [field]: field === 'multiplicador' ? parseFloat(value) || 0 : value } : q
+    ));
+    setPricesModified(true);
+    setConfigModified(true);
+  };
+  
+  // Update armor quality
+  const updateArmorQuality = (id, field, value) => {
+    setArmorQualities(prev => prev.map(q => 
+      q.id === id ? { ...q, [field]: field === 'coste' ? parseFloat(value) || 0 : value } : q
+    ));
+    setPricesModified(true);
+    setConfigModified(true);
+  };
+  
+  // Update shield quality
+  const updateShieldQuality = (id, field, value) => {
+    setShieldQualities(prev => prev.map(q => 
+      q.id === id ? { ...q, [field]: field === 'multiplicador' ? parseFloat(value) || 0 : value } : q
+    ));
+    setPricesModified(true);
+    setConfigModified(true);
   };
   
   // Get current tier configuration
@@ -988,21 +1122,57 @@ const TreasureSystemSection = () => {
                   <Input value={weaponBuilder.nombre} onChange={(e) => setWeaponBuilder({...weaponBuilder, nombre: e.target.value})} placeholder="Ej: Glamdring, Orcrist, Andúril" />
                 </div>
                 
+                {/* Category Selection */}
+                <div>
+                  <Label>Categoría</Label>
+                  <Select 
+                    value={weaponBuilder.categoria} 
+                    onValueChange={(v) => setWeaponBuilder({...weaponBuilder, categoria: v, itemSeleccionado: null, cualidades: [], perdiciones: []})}
+                  >
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="arma">Arma</SelectItem>
+                      <SelectItem value="armadura">Armadura</SelectItem>
+                      <SelectItem value="escudo">Escudo</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                {/* Item Selection from Equipment List */}
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <Label>Tipo</Label>
-                    <Select value={weaponBuilder.tipo} onValueChange={(v) => setWeaponBuilder({...weaponBuilder, tipo: v})}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
+                    <Label>Equipo Base</Label>
+                    <Select 
+                      value={weaponBuilder.itemSeleccionado?.id || ''} 
+                      onValueChange={handleItemSelect}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Seleccionar equipo..." />
+                      </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="arma">Arma</SelectItem>
-                        <SelectItem value="armadura">Armadura</SelectItem>
-                        <SelectItem value="escudo">Escudo</SelectItem>
+                        {getItemsByCategory(weaponBuilder.categoria).map(item => (
+                          <SelectItem key={item.id} value={item.id}>
+                            {item.nombre} ({item.precio} {item.moneda})
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
+                    {weaponBuilder.itemSeleccionado && (
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {weaponBuilder.categoria === 'arma' 
+                          ? `Daño: ${weaponBuilder.itemSeleccionado.dano}` 
+                          : `CA: ${weaponBuilder.itemSeleccionado.clase_armadura}`}
+                      </p>
+                    )}
                   </div>
                   <div>
                     <Label>Precio Base (mp)</Label>
-                    <Input type="number" value={weaponBuilder.precioBase} onChange={(e) => setWeaponBuilder({...weaponBuilder, precioBase: parseInt(e.target.value) || 0})} />
+                    <Input 
+                      type="number" 
+                      value={weaponBuilder.precioBase} 
+                      onChange={(e) => setWeaponBuilder({...weaponBuilder, precioBase: parseInt(e.target.value) || 0})} 
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">Editable manualmente</p>
                   </div>
                 </div>
                 
@@ -1016,7 +1186,7 @@ const TreasureSystemSection = () => {
                   </Select>
                 </div>
                 
-                {weaponBuilder.tipo === 'arma' && (
+                {weaponBuilder.categoria === 'arma' && (
                   <>
                     <div>
                       <Label className="text-sm">Cualidades Encantadas (máx. 3)</Label>
@@ -1064,11 +1234,11 @@ const TreasureSystemSection = () => {
                   </>
                 )}
                 
-                {weaponBuilder.tipo === 'armadura' && (
+                {weaponBuilder.categoria === 'armadura' && (
                   <div>
                     <Label className="text-sm">Cualidades de Armadura</Label>
                     <ScrollArea className="h-32 mt-2 border rounded p-2">
-                      {ARMOR_QUALITIES.map(qual => (
+                      {armorQualities.map(qual => (
                         <div key={qual.id} className="flex items-center gap-2 py-1">
                           <Checkbox 
                             checked={weaponBuilder.cualidades.includes(qual.id)}
@@ -1085,11 +1255,11 @@ const TreasureSystemSection = () => {
                   </div>
                 )}
                 
-                {weaponBuilder.tipo === 'escudo' && (
+                {weaponBuilder.categoria === 'escudo' && (
                   <div>
                     <Label className="text-sm">Cualidades de Escudo</Label>
                     <div className="space-y-1 mt-2">
-                      {SHIELD_QUALITIES.map(qual => (
+                      {shieldQualities.map(qual => (
                         <div key={qual.id} className="flex items-center gap-2 p-1 bg-black/10 rounded">
                           <Checkbox 
                             checked={weaponBuilder.cualidades.includes(qual.id)}
@@ -1235,72 +1405,178 @@ const TreasureSystemSection = () => {
           </Card>
         </TabsContent>
         
-        {/* PRICES TAB */}
+        {/* PRICES TAB - EDITABLE */}
         <TabsContent value="prices">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <Card className="card-parchment">
-              <CardHeader className="pb-2"><CardTitle className="text-lg text-[hsl(var(--gold))]">Bendiciones (Coste en mp)</CardTitle></CardHeader>
-              <CardContent>
-                <div className="text-xs mb-2 text-muted-foreground">Según modificador PB (+2, +3, +4)</div>
-                <ScrollArea className="h-64">
-                  <table className="w-full text-sm">
-                    <thead><tr className="text-left"><th>Habilidad</th><th>+2</th><th>+3</th><th>+4</th></tr></thead>
-                    <tbody>
-                      {BLESSINGS.filter(b => b.d20 !== 20).map(b => (
-                        <tr key={b.d20} className="border-t border-white/10">
-                          <td>{b.habilidad}</td>
-                          <td>{b.coste[2]}</td>
-                          <td>{b.coste[3]}</td>
-                          <td>{b.coste[4]}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </ScrollArea>
-              </CardContent>
-            </Card>
+          <div className="space-y-4">
+            {/* Save/Reset buttons for prices */}
+            <div className="flex justify-between items-center">
+              <div>
+                <h3 className="text-lg font-bold text-[hsl(var(--gold))] flex items-center gap-2">
+                  <Coins className="w-5 h-5" /> Tablas de Precios Editables
+                </h3>
+                <p className="text-sm text-muted-foreground">
+                  Modifica los costes de bendiciones y cualidades
+                </p>
+              </div>
+              {pricesModified && (
+                <Badge variant="destructive">Cambios sin guardar</Badge>
+              )}
+            </div>
             
-            <Card className="card-parchment">
-              <CardHeader className="pb-2"><CardTitle className="text-lg text-[hsl(var(--gold))]">Cualidades de Arma (×% precio base)</CardTitle></CardHeader>
-              <CardContent>
-                <ScrollArea className="h-64">
-                  <div className="space-y-1 text-sm">
-                    {WEAPON_QUALITIES.slice(0, 15).map(q => (
-                      <div key={q.id} className="flex justify-between p-1 bg-black/10 rounded">
-                        <span>{q.nombre}</span>
-                        <Badge variant="outline">×{q.multiplicador * 100}%</Badge>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Blessings - Editable */}
+              <Card className="card-parchment">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-lg text-[hsl(var(--gold))] flex items-center gap-2">
+                    <Edit className="w-4 h-4" /> Bendiciones (Coste en mp)
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-xs mb-2 text-muted-foreground">Según modificador PB (+2, +3, +4)</div>
+                  <ScrollArea className="h-72">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="text-left">
+                          <th className="pb-2">Habilidad</th>
+                          <th className="pb-2 w-16">+2</th>
+                          <th className="pb-2 w-16">+3</th>
+                          <th className="pb-2 w-16">+4</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {blessings.filter(b => b.d20 !== 20).map(b => (
+                          <tr key={b.d20} className="border-t border-white/10">
+                            <td className="py-1">{b.habilidad}</td>
+                            <td className="py-1">
+                              <Input 
+                                type="number" 
+                                value={b.coste[2]} 
+                                onChange={(e) => updateBlessingPrice(b.d20, 2, e.target.value)}
+                                className="h-7 w-14 text-xs"
+                              />
+                            </td>
+                            <td className="py-1">
+                              <Input 
+                                type="number" 
+                                value={b.coste[3]} 
+                                onChange={(e) => updateBlessingPrice(b.d20, 3, e.target.value)}
+                                className="h-7 w-14 text-xs"
+                              />
+                            </td>
+                            <td className="py-1">
+                              <Input 
+                                type="number" 
+                                value={b.coste[4]} 
+                                onChange={(e) => updateBlessingPrice(b.d20, 4, e.target.value)}
+                                className="h-7 w-14 text-xs"
+                              />
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </ScrollArea>
+                </CardContent>
+              </Card>
+              
+              {/* Weapon Qualities - Editable */}
+              <Card className="card-parchment">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-lg text-[hsl(var(--gold))] flex items-center gap-2">
+                    <Edit className="w-4 h-4" /> Cualidades de Arma (×% precio base)
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <ScrollArea className="h-72">
+                    <div className="space-y-2">
+                      {weaponQualities.map(q => (
+                        <div key={q.id} className="flex items-center gap-2 p-2 bg-black/10 rounded">
+                          <span className="text-sm flex-1">{q.nombre}</span>
+                          <div className="flex items-center gap-1">
+                            <span className="text-xs text-muted-foreground">×</span>
+                            <Input 
+                              type="number" 
+                              value={q.multiplicador} 
+                              onChange={(e) => updateWeaponQuality(q.id, 'multiplicador', e.target.value)}
+                              className="h-7 w-16 text-xs"
+                            />
+                            <span className="text-xs text-muted-foreground">%</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </ScrollArea>
+                </CardContent>
+              </Card>
+              
+              {/* Armor Qualities - Editable */}
+              <Card className="card-parchment">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-lg text-[hsl(var(--gold))] flex items-center gap-2">
+                    <Edit className="w-4 h-4" /> Cualidades de Armadura (+ mp)
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2">
+                    {armorQualities.map(q => (
+                      <div key={q.id} className="flex items-center gap-2 p-2 bg-black/10 rounded">
+                        <span className="text-sm flex-1">{q.nombre}</span>
+                        <div className="flex items-center gap-1">
+                          <span className="text-xs text-muted-foreground">+</span>
+                          <Input 
+                            type="number" 
+                            value={q.coste} 
+                            onChange={(e) => updateArmorQuality(q.id, 'coste', e.target.value)}
+                            className="h-7 w-20 text-xs"
+                          />
+                          <span className="text-xs text-muted-foreground">mp</span>
+                        </div>
                       </div>
                     ))}
                   </div>
-                </ScrollArea>
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
+              
+              {/* Shield Qualities - Editable */}
+              <Card className="card-parchment">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-lg text-[hsl(var(--gold))] flex items-center gap-2">
+                    <Edit className="w-4 h-4" /> Cualidades de Escudo (×%)
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2">
+                    {shieldQualities.map(q => (
+                      <div key={q.id} className="flex items-center gap-2 p-2 bg-black/10 rounded">
+                        <span className="text-sm flex-1">{q.nombre}</span>
+                        <div className="flex items-center gap-1">
+                          <span className="text-xs text-muted-foreground">×</span>
+                          <Input 
+                            type="number" 
+                            step="0.1"
+                            value={q.multiplicador} 
+                            onChange={(e) => updateShieldQuality(q.id, 'multiplicador', e.target.value)}
+                            className="h-7 w-16 text-xs"
+                          />
+                          <span className="text-xs text-muted-foreground">(×100%)</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
             
-            <Card className="card-parchment">
-              <CardHeader className="pb-2"><CardTitle className="text-lg text-[hsl(var(--gold))]">Cualidades de Armadura (+ mp)</CardTitle></CardHeader>
-              <CardContent>
-                <div className="space-y-1 text-sm">
-                  {ARMOR_QUALITIES.map(q => (
-                    <div key={q.id} className="flex justify-between p-2 bg-black/10 rounded">
-                      <span>{q.nombre}</span>
-                      <Badge variant="outline">+{q.coste} mp</Badge>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-            
-            <Card className="card-parchment">
-              <CardHeader className="pb-2"><CardTitle className="text-lg text-[hsl(var(--gold))]">Cualidades de Escudo (×%)</CardTitle></CardHeader>
-              <CardContent>
-                <div className="space-y-1 text-sm">
-                  {SHIELD_QUALITIES.map(q => (
-                    <div key={q.id} className="flex justify-between p-2 bg-black/10 rounded">
-                      <span>{q.nombre}</span>
-                      <Badge variant="outline">×{q.multiplicador * 100}%</Badge>
-                    </div>
-                  ))}
-                </div>
+            {/* Help text */}
+            <Card className="bg-blue-500/10 border-blue-500/30">
+              <CardContent className="p-4">
+                <h4 className="font-medium text-blue-400 flex items-center gap-2">
+                  <AlertTriangle className="w-4 h-4" /> Nota
+                </h4>
+                <p className="text-sm text-muted-foreground mt-2">
+                  Los cambios en las tablas de precios se guardan junto con la configuración del generador. 
+                  Usa el botón "Guardar Cambios" en la pestaña "Configurar" para persistir todos los cambios.
+                </p>
               </CardContent>
             </Card>
           </div>
