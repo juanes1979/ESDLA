@@ -1055,7 +1055,7 @@ const TreasureSystemSection = () => {
                                 }
                               }}
                             >
-                              {perd.nombre} (+{perd.coste} mo)
+                              {perd.nombre} (+{perd.coste} mp)
                             </Badge>
                           ))}
                         </div>
@@ -1114,7 +1114,7 @@ const TreasureSystemSection = () => {
                 <div className="bg-yellow-500/20 p-3 rounded border border-yellow-500/30">
                   <div className="flex justify-between items-center">
                     <span>Precio estimado:</span>
-                    <span className="text-xl font-bold text-yellow-400">{calculateWeaponPrice(weaponBuilder)} mo</span>
+                    <span className="text-xl font-bold text-yellow-400">{calculateWeaponPrice(weaponBuilder)} mp</span>
                   </div>
                 </div>
                 
@@ -1200,7 +1200,7 @@ const TreasureSystemSection = () => {
                             </p>
                           </div>
                           <div className="flex items-center gap-2">
-                            <Badge className="bg-yellow-600">{item.precio} mo</Badge>
+                            <Badge className="bg-yellow-600">{item.precio} mp</Badge>
                             <Button variant="ghost" size="sm" onClick={() => removeFromIndex(item.id)} className="opacity-0 group-hover:opacity-100">
                               <Trash2 className="w-4 h-4 text-red-400" />
                             </Button>
@@ -1239,7 +1239,7 @@ const TreasureSystemSection = () => {
         <TabsContent value="prices">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <Card className="card-parchment">
-              <CardHeader className="pb-2"><CardTitle className="text-lg text-[hsl(var(--gold))]">Bendiciones (Coste en mo)</CardTitle></CardHeader>
+              <CardHeader className="pb-2"><CardTitle className="text-lg text-[hsl(var(--gold))]">Bendiciones (Coste en mp)</CardTitle></CardHeader>
               <CardContent>
                 <div className="text-xs mb-2 text-muted-foreground">Según modificador PB (+2, +3, +4)</div>
                 <ScrollArea className="h-64">
