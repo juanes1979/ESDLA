@@ -381,7 +381,8 @@ const Step7Equipment = ({ draftId, draft, onComplete, onBack }) => {
             {getItemDetails() && <span className="truncate max-w-[150px]">· {getItemDetails()}</span>}
           </div>
         </div>
-        <div className="flex items-center gap-1">{count > 0 && (
+        <div className="flex items-center gap-1">
+          {count > 0 && (
             <>
               <Button
                 size="icon"
