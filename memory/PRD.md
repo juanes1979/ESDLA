@@ -13,12 +13,22 @@
    - Usa precios base sin modificadores de región
    - Se accede desde el creador de personajes
 
-2. **5 Categorías de Equipo:**
-   - **Armas (29 items):** Sencillas CC, Sencillas Distancia, Marciales CC, Marciales Distancia
-   - **Armaduras (8 items):** Ligeras, Medias, Pesadas, Escudos  
-   - **Herramientas (35 items):** Herramientas, Juegos, Instrumentos musicales
-   - **Equipo General (108 items):** Equipo general
-   - **Consumibles (107 items):** Consumibles, Comida/Posadas
+2. **11 Categorías de Equipo (717 items totales):**
+   - **Armas (29):** Sencillas CC, Sencillas Distancia, Marciales CC, Marciales Distancia
+   - **Armaduras (8):** Ligeras, Medias, Pesadas, Escudos  
+   - **Herramientas (35):** Herramientas, Juegos, Instrumentos musicales
+   - **General (108):** Equipo general
+   - **Comida (107):** Consumibles, Comida/Posadas
+   - **Monturas (24):** Monturas, Accesorios de monturas
+   - **Transporte (20):** Terrestre, Marítimo
+   - **Hierbas (87):** Hierbas medicinales y especiales
+   - **Venenos (15):** Venenos y toxinas
+   - **Gemas (232):** Preciosas, Semipreciosas
+   - **Construcción (52):** Materiales de construcción
+
+3. **UI de 2 Filas de Categorías:**
+   - Fila 1: Armas, Armaduras, Herramientas, General, Comida, Monturas
+   - Fila 2: Transporte, Hierbas, Venenos, Gemas, Construcción
 
 3. **Buscador de Items:**
    - Campo de búsqueda con filtrado en tiempo real
@@ -42,7 +52,7 @@
 
 **Endpoint usado:** `/api/data/equipment-catalog` (precios base)
 
-**Testing:** 100% - 15 tests backend, todas las funcionalidades frontend verificadas
+**Testing:** Backend 100% verificado. Frontend código verificado.
 
 **Archivos modificados:**
 - `/app/frontend/src/components/character-creator/steps/Step7Equipment.jsx`
