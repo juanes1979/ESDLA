@@ -1,63 +1,48 @@
 /**
  * Character Sheet Page - Interactive character view
+ * Refactored to use modular sub-components
  */
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { 
-  Loader2, ArrowLeft, Heart, Shield, Footprints, Eye, 
-  Swords, Star, Book, Crown, Package, Scroll, Edit2,
-  Plus, Minus, Save, FileText, Printer, FileDown, Settings
-} from 'lucide-react';
-import { getCharacter, deleteCharacter, getOccupations } from '@/services/api';
+import { Loader2, ArrowLeft, FileText, FileDown } from 'lucide-react';
+import { getCharacter, deleteCharacter } from '@/services/api';
 import { Button } from '@/components/ui/button';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { cn } from '@/lib/utils';
 import api from '@/services/api';
-import { LevelUpButton } from '@/components/LevelUpModal';
 import { downloadCharacterPDF } from '@/utils/characterPDF';
 import EquipmentManagerModal from '@/components/character-sheet/EquipmentManagerModal';
 
-const getModifier = (score) => Math.floor((score - 10) / 2);
-const formatModifier = (mod) => mod >= 0 ? `+${mod}` : `${mod}`;
-
-const ATTRIBUTES = [
-  { key: 'fuerza', name: 'Fuerza', abbr: 'FUE' },
-  { key: 'destreza', name: 'Destreza', abbr: 'DES' },
-  { key: 'constitucion', name: 'Constitución', abbr: 'CON' },
-  { key: 'inteligencia', name: 'Inteligencia', abbr: 'INT' },
-  { key: 'sabiduria', name: 'Sabiduría', abbr: 'SAB' },
-  { key: 'carisma', name: 'Carisma', abbr: 'CAR' },
-];
+// Import modular components
+import {
+  CharacterHeader,
+  CombatStatsCard,
+  CompetenciesCard,
+  AttributesCard,
+  SkillsCard,
+  OccupationCard,
+  EquipmentCard,
+  AppearanceCard,
+  PersonalityCard,
+  BackgroundCard,
+  ShadowPathCard,
+  CultureCard,
+} from '@/components/character-sheet/summary';
 
 const CharacterSheetPage = () => {
   const { characterId } = useParams();
   const navigate = useNavigate();
+  
+  // State
   const [character, setCharacter] = useState(null);
   const [occupation, setOccupation] = useState(null);
   const [culture, setCulture] = useState(null);
   const [background, setBackground] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [editingHp, setEditingHp] = useState(false);
-  const [hpChange, setHpChange] = useState(0);
   const [savingHp, setSavingHp] = useState(false);
   const [generatingPDF, setGeneratingPDF] = useState(false);
   const [showEquipmentModal, setShowEquipmentModal] = useState(false);
 
-  // Handle PDF download
-  const handleDownloadPDF = async () => {
-    if (!character) return;
-    try {
-      setGeneratingPDF(true);
-      await downloadCharacterPDF(character);
-    } catch (err) {
-      console.error('Error generating PDF:', err);
-    } finally {
-      setGeneratingPDF(false);
-    }
-  };
-
-  // Load character and related data (culture, occupation, background)
+  // Load character and related data
   useEffect(() => {
     const loadCharacter = async () => {
       try {
@@ -96,6 +81,19 @@ const CharacterSheetPage = () => {
     };
     loadCharacter();
   }, [characterId]);
+
+  // Handle PDF download
+  const handleDownloadPDF = async () => {
+    if (!character) return;
+    try {
+      setGeneratingPDF(true);
+      await downloadCharacterPDF(character);
+    } catch (err) {
+      console.error('Error generating PDF:', err);
+    } finally {
+      setGeneratingPDF(false);
+    }
+  };
 
   // Handle HP change
   const handleHpChange = async (delta) => {
@@ -139,6 +137,7 @@ const CharacterSheetPage = () => {
     }
   };
 
+  // Loading state
   if (loading) {
     return (
       <div className="min-h-screen tavern-bg flex items-center justify-center">
@@ -147,6 +146,7 @@ const CharacterSheetPage = () => {
     );
   }
 
+  // Error state
   if (error || !character) {
     return (
       <div className="min-h-screen tavern-bg flex items-center justify-center p-4">
@@ -160,10 +160,6 @@ const CharacterSheetPage = () => {
       </div>
     );
   }
-
-  const attributes = character.atributos || {};
-  const hpPercent = (character.puntos_golpe_actual / character.puntos_golpe_max) * 100;
-  const ac = character.clase_armadura || (10 + getModifier(attributes.destreza || 10));
 
   return (
     <div className="min-h-screen tavern-bg" data-testid="character-sheet">
@@ -220,647 +216,41 @@ const CharacterSheetPage = () => {
 
       <main className="container mx-auto px-4 py-8 max-w-6xl">
         {/* Character Header */}
-        <div className="card-parchment rounded-lg p-6 mb-6">
-          <div className="flex items-center gap-6">
-            <div className="w-24 h-24 rounded-full bg-gradient-to-br from-[hsl(var(--gold))/30] to-[hsl(var(--gold))/10] flex items-center justify-center border-2 border-[hsl(var(--gold))]">
-              <span className="font-heading text-4xl text-[hsl(var(--gold))]">
-                {character.nombre?.[0]?.toUpperCase()}
-              </span>
-            </div>
-            <div className="flex-1">
-              <h1 className="font-heading text-3xl text-foreground mb-1">
-                {character.nombre}
-              </h1>
-              <p className="text-lg text-muted-foreground">
-                {character.cultura_nombre} {character.vocacion_nombre}
-              </p>
-              <div className="flex gap-4 mt-2 text-sm text-muted-foreground items-center">
-                <span>Nivel {character.nivel || 1}</span>
-                <LevelUpButton 
-                  character={character} 
-                  onLevelUp={(data) => setCharacter(prev => ({ ...prev, ...data }))}
-                  className="text-xs py-1 h-auto"
-                />
-                <span>·</span>
-                <span>{character.edad} años</span>
-                <span>·</span>
-                <span>{character.altura_cm} cm</span>
-                <span>·</span>
-                <span>{character.peso_kg} kg</span>
-              </div>
-            </div>
-            <div className="text-right">
-              <p className="text-xs text-muted-foreground">Experiencia</p>
-              <p className="font-heading text-2xl text-[hsl(var(--gold))]">
-                {character.experiencia || 0} XP
-              </p>
-            </div>
-          </div>
-        </div>
+        <CharacterHeader 
+          character={character} 
+          onLevelUp={(data) => setCharacter(prev => ({ ...prev, ...data }))}
+        />
 
         <div className="grid lg:grid-cols-3 gap-6">
           {/* Left Column - Combat Stats & Competencies */}
           <div className="space-y-6">
-            {/* HP */}
-            <div className="card-parchment rounded-lg p-4">
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="font-heading text-lg text-[hsl(var(--gold))] flex items-center gap-2">
-                  <Heart className="w-5 h-5 text-red-500" />
-                  Puntos de Golpe
-                </h3>
-              </div>
-              <div className="text-center mb-3">
-                <span className="font-heading text-4xl text-foreground">
-                  {character.puntos_golpe_actual}
-                </span>
-                <span className="text-muted-foreground text-xl"> / {character.puntos_golpe_max}</span>
-              </div>
-              {/* HP Bar */}
-              <div className="h-4 bg-secondary rounded-full overflow-hidden mb-3">
-                <div 
-                  className={cn(
-                    'h-full transition-all duration-300',
-                    hpPercent > 50 ? 'bg-green-600' : hpPercent > 25 ? 'bg-yellow-600' : 'bg-red-600'
-                  )}
-                  style={{ width: `${Math.max(0, hpPercent)}%` }}
-                />
-              </div>
-              {/* HP Controls */}
-              <div className="flex justify-center gap-2">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => handleHpChange(-1)}
-                  disabled={savingHp || character.puntos_golpe_actual <= 0}
-                  className="border-red-500/50 hover:bg-red-500/10"
-                  data-testid="hp-minus"
-                >
-                  <Minus className="w-4 h-4 text-red-500" />
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => handleHpChange(-5)}
-                  disabled={savingHp || character.puntos_golpe_actual <= 0}
-                  className="border-red-500/50 hover:bg-red-500/10"
-                >
-                  -5
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => handleHpChange(5)}
-                  disabled={savingHp || character.puntos_golpe_actual >= character.puntos_golpe_max}
-                  className="border-green-500/50 hover:bg-green-500/10"
-                >
-                  +5
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => handleHpChange(1)}
-                  disabled={savingHp || character.puntos_golpe_actual >= character.puntos_golpe_max}
-                  className="border-green-500/50 hover:bg-green-500/10"
-                  data-testid="hp-plus"
-                >
-                  <Plus className="w-4 h-4 text-green-500" />
-                </Button>
-              </div>
-            </div>
-
-            {/* Combat Stats Grid */}
-            <div className="grid grid-cols-3 gap-3">
-              <div className="card-parchment rounded-lg p-4 text-center">
-                <Shield className="w-6 h-6 mx-auto mb-2 text-[hsl(var(--magic-blue))]" />
-                <p className="text-xs text-muted-foreground">Clase Armadura</p>
-                <p className="font-heading text-2xl text-foreground">{ac}</p>
-              </div>
-              <div className="card-parchment rounded-lg p-4 text-center">
-                <Footprints className="w-6 h-6 mx-auto mb-2 text-[hsl(var(--gold))]" />
-                <p className="text-xs text-muted-foreground">Velocidad</p>
-                <p className="font-heading text-2xl text-foreground">{character.velocidad}m</p>
-              </div>
-              <div className="card-parchment rounded-lg p-4 text-center">
-                <Swords className="w-6 h-6 mx-auto mb-2 text-[hsl(var(--torch-orange))]" />
-                <p className="text-xs text-muted-foreground">Dado Golpe</p>
-                <p className="font-heading text-xl text-foreground">{character.dado_golpe}</p>
-              </div>
-            </div>
-
-            {/* Shadow Points */}
-            <div className="card-parchment rounded-lg p-4">
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="font-heading text-lg text-purple-400 flex items-center gap-2">
-                  <Eye className="w-5 h-5" />
-                  Puntos de Sombra
-                </h3>
-              </div>
-              <div className="text-center mb-3">
-                <span className="font-heading text-3xl text-purple-400">
-                  {character.puntos_sombra || 0}
-                </span>
-                {character.puntos_sombra_permanentes > 0 && (
-                  <span className="text-sm text-muted-foreground ml-2">
-                    ({character.puntos_sombra_permanentes} perm.)
-                  </span>
-                )}
-              </div>
-              <div className="flex justify-center gap-2">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => handleShadowChange(-1)}
-                  disabled={character.puntos_sombra <= 0}
-                  className="border-purple-500/50 hover:bg-purple-500/10"
-                  data-testid="shadow-minus"
-                >
-                  <Minus className="w-4 h-4 text-purple-400" />
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => handleShadowChange(1)}
-                  className="border-purple-500/50 hover:bg-purple-500/10"
-                  data-testid="shadow-plus"
-                >
-                  <Plus className="w-4 h-4 text-purple-400" />
-                </Button>
-              </div>
-            </div>
-            
-            {/* Competencies - Moved from middle column */}
-            <div className="card-parchment rounded-lg p-4">
-              <h3 className="font-heading text-lg text-[hsl(var(--magic-blue))] mb-3">
-                Competencias
-              </h3>
-              {(() => {
-                // Get proficiencies from character or fallback to occupation data
-                const competencias = character.competencias || {};
-                
-                // Use occupation data as fallback for old characters
-                let armas = competencias.armas || [];
-                let armaduras = competencias.armaduras || [];
-                let tiradas = competencias.tiradas_salvacion || [];
-                const idiomas = competencias.idiomas || [];
-                
-                // Fallback to occupation if character data is empty
-                if (occupation && armas.length === 0) {
-                  armas = occupation.competencia_armas || [];
-                }
-                if (occupation && armaduras.length === 0) {
-                  armaduras = occupation.competencia_armaduras || [];
-                }
-                if (occupation && tiradas.length === 0) {
-                  tiradas = occupation.tiradas_salvacion || [];
-                }
-                
-                return (
-                  <div className="space-y-2 text-sm">
-                    {tiradas.length > 0 && (
-                      <div>
-                        <span className="text-muted-foreground">Tiradas de salvación: </span>
-                        <span className="text-foreground uppercase font-medium">
-                          {tiradas.join(', ')}
-                        </span>
-                      </div>
-                    )}
-                    {armaduras.length > 0 && (
-                      <div>
-                        <span className="text-muted-foreground">Armaduras: </span>
-                        <span className="text-foreground">
-                          {armaduras.join(', ')}
-                        </span>
-                      </div>
-                    )}
-                    {armas.length > 0 && (
-                      <div>
-                        <span className="text-muted-foreground">Armas: </span>
-                        <span className="text-foreground">
-                          {armas.join(', ')}
-                        </span>
-                      </div>
-                    )}
-                    {idiomas.length > 0 && (
-                      <div>
-                        <span className="text-muted-foreground">Idiomas: </span>
-                        <span className="text-foreground uppercase">
-                          {idiomas.join(', ')}
-                        </span>
-                      </div>
-                    )}
-                    {armas.length === 0 && armaduras.length === 0 && tiradas.length === 0 && (
-                      <p className="text-muted-foreground italic">Sin competencias registradas</p>
-                    )}
-                  </div>
-                );
-              })()}
-            </div>
+            <CombatStatsCard
+              character={character}
+              onHpChange={handleHpChange}
+              onShadowChange={handleShadowChange}
+              savingHp={savingHp}
+            />
+            <CompetenciesCard character={character} occupation={occupation} />
           </div>
 
           {/* Middle Column - Attributes, Skills & Equipment */}
           <div className="space-y-6">
-            {/* Attributes */}
-            <div className="card-parchment rounded-lg p-4">
-              <h3 className="font-heading text-lg text-[hsl(var(--gold))] mb-4 flex items-center gap-2">
-                <Star className="w-5 h-5" />
-                Atributos
-              </h3>
-              <div className="grid grid-cols-2 gap-3">
-                {ATTRIBUTES.map(attr => {
-                  const value = attributes[attr.key] || 10;
-                  const mod = getModifier(value);
-                  return (
-                    <div key={attr.key} className="stat-box p-3 text-center">
-                      <p className="text-xs text-muted-foreground">{attr.name}</p>
-                      <p className="font-heading text-2xl text-[hsl(var(--gold))]">{value}</p>
-                      <p className="text-sm text-muted-foreground">({formatModifier(mod)})</p>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Skills - ALL 19 skills with scores */}
-            <div className="card-parchment rounded-lg p-4">
-              <h3 className="font-heading text-lg text-[hsl(var(--gold))] mb-3 flex items-center gap-2">
-                <Book className="w-5 h-5" />
-                Habilidades
-              </h3>
-              {(() => {
-                // All 19 skills in the game
-                const ALL_SKILLS = [
-                  { nombre: 'Acertijos', atributo: 'inteligencia' },
-                  { nombre: 'Acrobacias', atributo: 'destreza' },
-                  { nombre: 'Atletismo', atributo: 'fuerza' },
-                  { nombre: 'Cazar', atributo: 'sabiduria' },
-                  { nombre: 'Engaño', atributo: 'carisma' },
-                  { nombre: 'Explorar', atributo: 'sabiduria' },
-                  { nombre: 'Intimidación', atributo: 'carisma' },
-                  { nombre: 'Investigación', atributo: 'inteligencia' },
-                  { nombre: 'Juego de manos', atributo: 'destreza' },
-                  { nombre: 'Percepción', atributo: 'sabiduria' },
-                  { nombre: 'Perspicacia', atributo: 'sabiduria' },
-                  { nombre: 'Persuasión', atributo: 'carisma' },
-                  { nombre: 'Saber antiguo', atributo: 'inteligencia' },
-                  { nombre: 'Saber de la naturaleza', atributo: 'inteligencia' },
-                  { nombre: 'Sanación', atributo: 'sabiduria' },
-                  { nombre: 'Sigilo', atributo: 'destreza' },
-                  { nombre: 'Supervivencia', atributo: 'sabiduria' },
-                  { nombre: 'Tradiciones', atributo: 'inteligencia' },
-                  { nombre: 'Viajar', atributo: 'sabiduria' },
-                ];
-                
-                // Collect all competent skills
-                const cleanSkill = (s) => s?.split(' (')[0]?.trim()?.toLowerCase();
-                const competentSkillsRaw = [
-                  ...(character.habilidades || []),
-                  ...(character.habilidades_competencia || []),
-                  ...(character.habilidades_elegidas_ocupacion || []),
-                  ...(character.competencias?.habilidades_cultura || []),
-                  ...(character.competencias?.habilidades_trasfondo || []),
-                ];
-                const competentSkills = new Set(competentSkillsRaw.map(cleanSkill).filter(Boolean));
-                
-                // Expertise skills
-                const expertiseSkillsRaw = character.pericia_elegida || [];
-                const expertiseSkills = new Set(expertiseSkillsRaw.map(cleanSkill).filter(Boolean));
-                
-                // Level and proficiency bonus
-                const nivel = character.nivel || 1;
-                const profBonus = Math.ceil(nivel / 4) + 1;
-                
-                return (
-                  <div className="space-y-2">
-                    <div className="text-xs text-muted-foreground text-center mb-2">
-                      Nivel {nivel} · Bonificador de Competencia: +{profBonus}
-                    </div>
-                    {/* Legend */}
-                    <div className="flex justify-center gap-4 mb-3 text-xs">
-                      <div className="flex items-center gap-1">
-                        <div className="w-3 h-3 rounded bg-[hsl(var(--gold))/20] border border-[hsl(var(--gold))]"></div>
-                        <span className="text-[hsl(var(--gold))]">Competencia</span>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <div className="w-3 h-3 rounded bg-[hsl(var(--magic-blue))/20] border border-[hsl(var(--magic-blue))]"></div>
-                        <span className="text-[hsl(var(--magic-blue))]">★ Pericia</span>
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-2 gap-1">
-                      {ALL_SKILLS.map((skill) => {
-                        const attrValue = attributes[skill.atributo] || 10;
-                        const attrMod = getModifier(attrValue);
-                        const isCompetent = competentSkills.has(skill.nombre.toLowerCase());
-                        const hasExpertise = expertiseSkills.has(skill.nombre.toLowerCase());
-                        
-                        let totalMod = attrMod;
-                        if (isCompetent) totalMod += profBonus;
-                        if (hasExpertise) totalMod += profBonus;
-                        
-                        return (
-                          <div 
-                            key={skill.nombre}
-                            className={`p-1.5 rounded flex justify-between items-center text-xs ${
-                              hasExpertise 
-                                ? 'bg-[hsl(var(--magic-blue))/20] border border-[hsl(var(--magic-blue))]'
-                                : isCompetent 
-                                  ? 'bg-[hsl(var(--gold))/20] border border-[hsl(var(--gold))]'
-                                  : 'bg-black/10'
-                            }`}
-                          >
-                            <span className={isCompetent ? 'font-medium' : 'text-muted-foreground'}>
-                              {hasExpertise && '★ '}
-                              {skill.nombre}
-                            </span>
-                            <span className={`font-heading ${
-                              hasExpertise 
-                                ? 'text-[hsl(var(--magic-blue))]'
-                                : isCompetent 
-                                  ? 'text-[hsl(var(--gold))]'
-                                  : 'text-muted-foreground'
-                            }`}>
-                              {totalMod >= 0 ? '+' : ''}{totalMod}
-                            </span>
-                          </div>
-                        );
-                      })}
-                    </div>
-                    <div className="flex gap-3 text-xs text-muted-foreground justify-center mt-2">
-                      <span><span className="inline-block w-2 h-2 rounded bg-[hsl(var(--gold))/40] mr-1"></span>Competencia</span>
-                      <span><span className="inline-block w-2 h-2 rounded bg-[hsl(var(--magic-blue))/40] mr-1"></span>Pericia</span>
-                    </div>
-                  </div>
-                );
-              })()}
-            </div>
-
-            {/* Occupation - Moved here for better balance */}
-            {occupation && (
-              <div className="card-parchment rounded-lg p-4">
-                <h3 className="font-heading text-md text-amber-400 mb-2 flex items-center gap-2">
-                  <Swords className="w-4 h-4" />
-                  Ocupación: {occupation.vocacion}
-                </h3>
-                <div className="space-y-2 text-sm">
-                  {occupation.maldicion_nombre && (
-                    <div className="bg-red-500/10 rounded p-2 border border-red-500/30 text-xs">
-                      <span className="text-red-400 font-medium">
-                        Maldición: {occupation.maldicion_nombre}
-                      </span>
-                    </div>
-                  )}
-                  {character.habilidades_favorecidas && character.habilidades_favorecidas.length > 0 && (
-                    <div className="text-xs">
-                      <span className="text-muted-foreground">Hab. Favorecidas: </span>
-                      <span className="text-amber-400">{character.habilidades_favorecidas.join(', ')}</span>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {/* Equipment - Moved here for better balance */}
-            <div className="card-parchment rounded-lg p-4">
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="font-heading text-md text-[hsl(var(--gold))] flex items-center gap-2">
-                  <Package className="w-4 h-4" />
-                  Equipo
-                </h3>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setShowEquipmentModal(true)}
-                  className="text-xs border-[hsl(var(--gold))/50] hover:bg-[hsl(var(--gold))/10]"
-                  data-testid="manage-equipment-btn"
-                >
-                  <Settings className="w-3 h-3 mr-1" />
-                  Gestionar
-                </Button>
-              </div>
-              
-              {/* Weapons */}
-              {(character.armas_elegidas?.length > 0 || character.equipo_ocupacion?.some(e => 
-                ['daga', 'espada', 'arco', 'hacha', 'lanza', 'bastón', 'maza'].some(w => 
-                  (typeof e === 'string' ? e : e?.nombre || '').toLowerCase().includes(w)
-                )
-              )) && (
-                <div className="mb-2">
-                  <p className="text-xs text-red-400 font-medium mb-1">Armas</p>
-                  <div className="space-y-0.5 text-xs">
-                    {(character.armas_elegidas || []).map((arma, i) => (
-                      <div key={`arma-${i}`} className="text-muted-foreground">
-                        • {typeof arma === 'string' ? arma : arma.nombre}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-              
-              {/* Tools & Other Equipment - condensed */}
-              <div className="text-xs text-muted-foreground space-y-0.5">
-                {character.herramientas_elegidas_ocupacion?.map((herr, i) => (
-                  <div key={`herr-${i}`}>• {typeof herr === 'string' ? herr : herr.nombre}</div>
-                ))}
-                {character.inventario?.slice(0, 5).map((item, i) => (
-                  <div key={`inv-${i}`}>• {item.nombre} {item.cantidad > 1 && `(x${item.cantidad})`}</div>
-                ))}
-                {character.inventario?.length > 5 && (
-                  <div className="text-[hsl(var(--gold))]">... y {character.inventario.length - 5} más</div>
-                )}
-              </div>
-              
-              {/* Money - compact */}
-              <div className="mt-3 pt-2 border-t border-border/30 flex flex-wrap gap-2 text-xs">
-                <span className="text-yellow-500">{character.dinero?.mo || 0} mo</span>
-                <span className="text-gray-300">{character.dinero?.mp || 0} mp</span>
-                <span className="text-slate-400">{character.dinero?.me || 0} me</span>
-                <span className="text-amber-700">{character.dinero?.mc || 0} mc</span>
-              </div>
-            </div>
+            <AttributesCard character={character} />
+            <SkillsCard character={character} />
+            <OccupationCard character={character} occupation={occupation} />
+            <EquipmentCard 
+              character={character} 
+              onManageClick={() => setShowEquipmentModal(true)} 
+            />
           </div>
 
           {/* Right Column - Background, Culture & Personality */}
           <div className="space-y-6">
-            {/* Physical Appearance */}
-            <div className="card-parchment rounded-lg p-4">
-              <h3 className="font-heading text-lg text-[hsl(var(--gold))] mb-3 flex items-center gap-2">
-                <Eye className="w-5 h-5" />
-                Apariencia Física
-              </h3>
-              <div className="grid grid-cols-3 gap-2 text-sm">
-                <div className="bg-secondary rounded p-2 text-center">
-                  <p className="text-xs text-muted-foreground">Ojos</p>
-                  <p className="text-foreground">{character.ojos || '—'}</p>
-                </div>
-                <div className="bg-secondary rounded p-2 text-center">
-                  <p className="text-xs text-muted-foreground">Piel</p>
-                  <p className="text-foreground">{character.piel || '—'}</p>
-                </div>
-                <div className="bg-secondary rounded p-2 text-center">
-                  <p className="text-xs text-muted-foreground">Pelo</p>
-                  <p className="text-foreground">{character.pelo || '—'}</p>
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-2 mt-2 text-sm">
-                <div className="bg-secondary rounded p-2 text-center">
-                  <p className="text-xs text-muted-foreground">Tamaño</p>
-                  <p className="text-foreground">{character.tamano || character.tamanio || '—'}</p>
-                </div>
-                <div className="bg-secondary rounded p-2 text-center">
-                  <p className="text-xs text-muted-foreground">Nivel de Vida</p>
-                  <p className="text-foreground">{character.nivel_vida || '—'}</p>
-                </div>
-              </div>
-            </div>
-
-            {/* Distinctive Traits (Personality) */}
-            {(character.rasgo_distintivo || character.rasgo_distintivo_2) && (
-              <div className="card-parchment rounded-lg p-4">
-                <h3 className="font-heading text-lg text-amber-400 mb-3 flex items-center gap-2">
-                  <Star className="w-5 h-5" />
-                  Rasgos de Personalidad
-                </h3>
-                <div className="space-y-2">
-                  {character.rasgo_distintivo && (
-                    <div className="bg-amber-500/10 rounded p-3 border border-amber-500/30">
-                      <span className="text-amber-400 font-medium">
-                        {character.rasgo_distintivo.nombre || character.rasgo_distintivo}
-                      </span>
-                      {character.rasgo_distintivo.descripcion && (
-                        <p className="text-muted-foreground text-xs mt-1 italic">
-                          {character.rasgo_distintivo.descripcion}
-                        </p>
-                      )}
-                    </div>
-                  )}
-                  {character.rasgo_distintivo_2 && (
-                    <div className="bg-amber-500/10 rounded p-3 border border-amber-500/30">
-                      <span className="text-amber-400 font-medium">
-                        {character.rasgo_distintivo_2.nombre || character.rasgo_distintivo_2}
-                      </span>
-                      {character.rasgo_distintivo_2.descripcion && (
-                        <p className="text-muted-foreground text-xs mt-1 italic">
-                          {character.rasgo_distintivo_2.descripcion}
-                        </p>
-                      )}
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {/* Background Info */}
-            <div className="card-parchment rounded-lg p-4">
-              <h3 className="font-heading text-lg text-[hsl(var(--gold))] mb-3 flex items-center gap-2">
-                <Scroll className="w-5 h-5" />
-                Trasfondo
-              </h3>
-              <div className="space-y-2">
-                <div className="bg-secondary rounded-lg p-3">
-                  <p className="text-xs text-muted-foreground">Trasfondo</p>
-                  <p className="text-foreground font-medium">{character.trasfondo_nombre}</p>
-                </div>
-                
-                {/* Historia generada por IA o descripción del trasfondo */}
-                {(character.historia || character.descripcion_trasfondo || background?.descripcion) && (
-                  <div className="bg-secondary/50 rounded-lg p-3 border-l-2 border-[hsl(var(--gold))/50]">
-                    <p className="text-xs text-[hsl(var(--gold))] mb-1">Historia Personal</p>
-                    <p className="text-muted-foreground text-sm italic leading-relaxed">
-                      {character.historia || character.descripcion_trasfondo || background?.descripcion}
-                    </p>
-                  </div>
-                )}
-                
-                {character.virtud_nombre && (
-                  <div className="bg-secondary rounded-lg p-3">
-                    <p className="text-xs text-muted-foreground">Virtud</p>
-                    <p className="text-foreground font-medium">{character.virtud_nombre}</p>
-                    {(character.virtud_rasgos || character.virtud_descripcion) && (
-                      <p className="text-muted-foreground text-xs mt-1 italic">
-                        {character.virtud_rasgos || character.virtud_descripcion}
-                      </p>
-                    )}
-                  </div>
-                )}
-                {character.patron_nombre && (
-                  <div className="bg-secondary rounded-lg p-3">
-                    <p className="text-xs text-muted-foreground flex items-center gap-1">
-                      <Crown className="w-3 h-3" /> Mecenas
-                    </p>
-                    <p className="text-foreground">{character.patron_nombre}</p>
-                    <p className="text-xs text-[hsl(var(--magic-blue))]">
-                      Puntos de Comunidad: {character.puntos_comunidad || 0}
-                    </p>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Shadow Path */}
-            {character.senda_sombra && (
-              <div className="card-parchment rounded-lg p-4">
-                <h3 className="font-heading text-lg text-purple-400 mb-3 flex items-center gap-2">
-                  <Eye className="w-5 h-5" />
-                  Senda de Sombra
-                </h3>
-                <div className="bg-purple-500/10 rounded p-3 border border-purple-500/30">
-                  <span className="text-purple-400 font-medium block mb-1">
-                    {character.senda_sombra}
-                  </span>
-                  {character.senda_sombra_descripcion && (
-                    <p className="text-muted-foreground text-xs italic">
-                      {character.senda_sombra_descripcion}
-                    </p>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {/* Culture Description */}
-            {culture && (
-              <div className="card-parchment rounded-lg p-4">
-                <h3 className="font-heading text-lg text-emerald-400 mb-3 flex items-center gap-2">
-                  <Star className="w-5 h-5" />
-                  Cultura: {character.cultura_nombre}
-                </h3>
-                <div className="space-y-3 text-sm">
-                  {culture.descripcion && (
-                    <p className="text-muted-foreground italic">{culture.descripcion}</p>
-                  )}
-                  {culture.bendicion_nombre && (
-                    <div className="bg-emerald-500/10 rounded p-3 border border-emerald-500/30">
-                      <span className="text-emerald-400 font-heading block mb-1">
-                        Bendición: {culture.bendicion_nombre}
-                      </span>
-                      <span className="text-muted-foreground text-xs">
-                        {culture.bendicion_descripcion}
-                      </span>
-                    </div>
-                  )}
-                  
-                  {/* Cultural Traits */}
-                  {character.rasgos_culturales?.length > 0 && (
-                    <div className="bg-secondary/50 rounded p-3">
-                      <span className="text-emerald-400 font-medium block mb-2">Rasgos Culturales</span>
-                      {character.rasgos_culturales?.map((rasgo, i) => (
-                        <div key={i} className="text-muted-foreground text-xs mb-1">
-                          • {typeof rasgo === 'string' ? rasgo : rasgo.nombre}
-                          {typeof rasgo === 'object' && rasgo.descripcion && (
-                            <span className="block ml-3 text-muted-foreground/70 italic">{rasgo.descripcion}</span>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                  
-                  {culture.idiomas && culture.idiomas.length > 0 && (
-                    <div>
-                      <span className="text-muted-foreground">Idiomas: </span>
-                      <span className="text-foreground">{culture.idiomas.join(', ')}</span>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
+            <AppearanceCard character={character} />
+            <PersonalityCard character={character} />
+            <BackgroundCard character={character} background={background} />
+            <ShadowPathCard character={character} />
+            <CultureCard character={character} culture={culture} />
           </div>
         </div>
       </main>

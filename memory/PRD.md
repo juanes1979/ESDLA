@@ -41,6 +41,29 @@ Nuevos campos añadidos:
 - `peso_total_montura`: items en montura + peso corporal del jinete
 - `capacidad_montura_restante` ahora considera el peso del jinete
 
+#### Refactorización de CharacterSheetPage.jsx - COMPLETADO
+
+**Componentes creados en `/app/frontend/src/components/character-sheet/summary/`:**
+- `CharacterHeader.jsx` - Cabecera con nombre, nivel, XP
+- `CombatStatsCard.jsx` - HP, AC, Velocidad, Dado de Golpe, Puntos de Sombra
+- `CompetenciesCard.jsx` - Tiradas, armaduras, armas, idiomas
+- `AttributesCard.jsx` - Los 6 atributos
+- `SkillsCard.jsx` - Las 19 habilidades con indicadores de competencia/pericia
+- `OccupationCard.jsx` - Info de ocupación con maldición y habilidades favorecidas
+- `EquipmentCard.jsx` - Lista de equipo con botón "Gestionar"
+- `AppearanceCard.jsx` - Apariencia física (ojos, piel, pelo, tamaño)
+- `PersonalityCard.jsx` - Rasgos distintivos
+- `BackgroundCard.jsx` - Trasfondo con historia y virtud
+- `ShadowPathCard.jsx` - Senda de sombra
+- `CultureCard.jsx` - Cultura con bendición y rasgos culturales
+- `index.js` - Barrel export para importaciones limpias
+
+**Beneficios:**
+- Código más mantenible (de 880 líneas a 240 líneas en el componente principal)
+- Componentes reutilizables
+- Más fácil de testear y debuggear
+- Previene futuros problemas de código duplicado
+
 **Archivos modificados:**
 - `/app/frontend/src/pages/CharacterSheetPage.jsx`
 - `/app/frontend/src/components/character-sheet/EquipmentManagerModal.jsx`

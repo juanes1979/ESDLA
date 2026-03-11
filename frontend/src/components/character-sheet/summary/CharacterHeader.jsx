@@ -1,0 +1,48 @@
+/**
+ * Character Header - Name, level, culture, experience
+ */
+import { LevelUpButton } from '@/components/LevelUpModal';
+
+const CharacterHeader = ({ character, onLevelUp }) => {
+  return (
+    <div className="card-parchment rounded-lg p-6 mb-6">
+      <div className="flex items-center gap-6">
+        <div className="w-24 h-24 rounded-full bg-gradient-to-br from-[hsl(var(--gold))/30] to-[hsl(var(--gold))/10] flex items-center justify-center border-2 border-[hsl(var(--gold))]">
+          <span className="font-heading text-4xl text-[hsl(var(--gold))]">
+            {character.nombre?.[0]?.toUpperCase()}
+          </span>
+        </div>
+        <div className="flex-1">
+          <h1 className="font-heading text-3xl text-foreground mb-1">
+            {character.nombre}
+          </h1>
+          <p className="text-lg text-muted-foreground">
+            {character.cultura_nombre} {character.vocacion_nombre}
+          </p>
+          <div className="flex gap-4 mt-2 text-sm text-muted-foreground items-center">
+            <span>Nivel {character.nivel || 1}</span>
+            <LevelUpButton 
+              character={character} 
+              onLevelUp={onLevelUp}
+              className="text-xs py-1 h-auto"
+            />
+            <span>·</span>
+            <span>{character.edad} años</span>
+            <span>·</span>
+            <span>{character.altura_cm} cm</span>
+            <span>·</span>
+            <span>{character.peso_kg} kg</span>
+          </div>
+        </div>
+        <div className="text-right">
+          <p className="text-xs text-muted-foreground">Experiencia</p>
+          <p className="font-heading text-2xl text-[hsl(var(--gold))]">
+            {character.experiencia || 0} XP
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default CharacterHeader;
