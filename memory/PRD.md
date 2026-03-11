@@ -4,6 +4,51 @@
 
 ### ✅ COMPLETED This Session
 
+#### Tienda de Equipo en Creador de Personajes - COMPLETADO (2025-12-20)
+
+**Funcionalidad implementada en Step7Equipment.jsx:**
+
+1. **Tienda Integrada en Paso 5 (Equipo)**
+   - Botón "Comprar Equipo" abre/cierra la tienda
+   - Usa precios base sin modificadores de región
+   - Se accede desde el creador de personajes
+
+2. **5 Categorías de Equipo:**
+   - **Armas (29 items):** Sencillas CC, Sencillas Distancia, Marciales CC, Marciales Distancia
+   - **Armaduras (8 items):** Ligeras, Medias, Pesadas, Escudos  
+   - **Herramientas (35 items):** Herramientas, Juegos, Instrumentos musicales
+   - **Equipo General (108 items):** Equipo general
+   - **Consumibles (107 items):** Consumibles, Comida/Posadas
+
+3. **Buscador de Items:**
+   - Campo de búsqueda con filtrado en tiempo real
+   - Filtra por nombre y categoría
+
+4. **Sistema de Carrito:**
+   - Añadir/quitar items con botones +/-
+   - Badge muestra cantidad de cada item
+   - Resumen del carrito con precio total
+   - Toast de confirmación al añadir
+
+5. **Balance de Dinero:**
+   - Dinero inicial = Nivel de Vida + Ocupación
+   - Sistema de conversión: 10 me = 1 mc, 10 mc = 1 mp, 100 mp = 1 mo
+   - Balance actualizado en tiempo real
+   - Items deshabilitados si no hay suficiente dinero
+
+6. **Persistencia:**
+   - Equipo comprado se guarda con el borrador del personaje
+   - Se incluye en el inventario final al finalizar creación
+
+**Endpoint usado:** `/api/data/equipment-catalog` (precios base)
+
+**Testing:** 100% - 15 tests backend, todas las funcionalidades frontend verificadas
+
+**Archivos modificados:**
+- `/app/frontend/src/components/character-creator/steps/Step7Equipment.jsx`
+
+---
+
 #### Sistema de Tesoros - Mejoras Completadas
 
 **1. Multiplicadores de Manufactura Corregidos:**
@@ -240,17 +285,13 @@ Fórmula: `PX final = PX base × diferencia × terreno × peligrosidad`
 ### P2 - Medio plazo
 - Sistema completo de autenticación de usuarios (Maestro, Admin, Jugador)
 - Refactorizar componentes grandes (EnhancedTravelSystem, MiddleEarthMap, TreasureSystemSection)
+- Mejorar lógica de pathfinding en debugger
 
 ### Backlog / Tareas Futuras
 - **Piezas móviles** en Editor de Terreno (pendiente definir requisitos)
 - Backup/restauración de base de datos
 - Pantalla del DM e interfaz de juego online
-
----
-
-## Bugs Conocidos (Baja Prioridad)
-- **Pathfinding debugger**: El algoritmo necesita mejorar el peso de la dirección final
-- **Zoom con rueda en Master Map**: Sensibilidad poco natural
+- Ajustar sensibilidad del zoom con rueda en Master Map
 
 ---
 
