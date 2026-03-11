@@ -4,15 +4,23 @@
  * La historia viene de la descripción del trasfondo
  */
 import { useState, useEffect } from 'react';
-import { Loader2, ChevronLeft, Scroll, User, BookOpen, Star } from 'lucide-react';
+import { Loader2, ChevronLeft, Scroll, User, BookOpen, Star, Sparkles } from 'lucide-react';
 import { updateDraftStep9, getBackground } from '@/services/api';
 import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
+import api from '@/services/api';
+import { toast } from 'sonner';
 
 const Step8Details = ({ draftId, draft, onComplete, onBack }) => {
   const [backgroundData, setBackgroundData] = useState(null);
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  
+  // Custom history state
+  const [customHistoria, setCustomHistoria] = useState('');
+  const [generatingStory, setGeneratingStory] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
 
   // Cargar datos completos del trasfondo para obtener los rasgos
   useEffect(() => {
@@ -25,6 +33,8 @@ const Step8Details = ({ draftId, draft, onComplete, onBack }) => {
         setLoading(true);
         const bg = await getBackground(draft.trasfondo_id);
         setBackgroundData(bg);
+        // Initialize custom historia with the background description
+        setCustomHistoria(bg?.descripcion || '');
       } catch (err) {
         console.error('Error loading background:', err);
         setError('No se pudieron cargar los datos del trasfondo');
@@ -34,6 +44,34 @@ const Step8Details = ({ draftId, draft, onComplete, onBack }) => {
     };
     loadBackground();
   }, [draft?.trasfondo_id]);
+
+  // Generate personal history with AI
+  const generatePersonalHistory = async () => {
+    setGeneratingStory(true);
+    try {
+      const response = await api.post('/data/generate-personal-history', {
+        nombre_personaje: draft?.nombre,
+        cultura: draft?.cultura_nombre,
+        vocacion: draft?.vocacion_nombre,
+        trasfondo: draft?.trasfondo_nombre,
+        descripcion_trasfondo: backgroundData?.descripcion || '',
+        rasgos: backgroundData?.rasgos_descripciones || backgroundData?.rasgos || []
+      });
+      
+      if (response.data?.success && response.data?.historia) {
+        setCustomHistoria(response.data.historia);
+        setIsEditing(true);
+        toast.success('Historia personal generada');
+      } else {
+        toast.error('Error al generar la historia');
+      }
+    } catch (err) {
+      console.error('Error generating history:', err);
+      toast.error('Error al generar la historia');
+    } finally {
+      setGeneratingStory(false);
+    }
+  };
 
   // Handle submit
   const handleSubmit = async () => {
@@ -59,7 +97,7 @@ const Step8Details = ({ draftId, draft, onComplete, onBack }) => {
         rasgo_distintivo: getRasgoCompleto(0),
         rasgo_distintivo_2: getRasgoCompleto(1),
         motivacion: null,
-        historia: backgroundData?.descripcion || null,
+        historia: customHistoria || backgroundData?.descripcion || null,
       });
       onComplete(updatedDraft);
     } catch (err) {
@@ -173,20 +211,58 @@ const Step8Details = ({ draftId, draft, onComplete, onBack }) => {
 
       {/* Background Story - FROM TRASFONDO */}
       <div className="card-parchment rounded-lg p-6">
-        <div className="flex items-center gap-3 mb-4">
-          <BookOpen className="w-6 h-6 text-[hsl(var(--magic-blue))]" />
-          <h3 className="font-heading text-xl text-[hsl(var(--magic-blue))]">
-            Historia Personal
-          </h3>
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-3">
+            <BookOpen className="w-6 h-6 text-[hsl(var(--magic-blue))]" />
+            <h3 className="font-heading text-xl text-[hsl(var(--magic-blue))]">
+              Historia Personal
+            </h3>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={generatePersonalHistory}
+            disabled={generatingStory}
+            data-testid="generate-history-btn"
+          >
+            {generatingStory ? (
+              <>
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                Generando...
+              </>
+            ) : (
+              <>
+                <Sparkles className="w-4 h-4 mr-2" />
+                Generar con IA
+              </>
+            )}
+          </Button>
         </div>
         
         <div className="bg-[hsl(var(--secondary))] rounded-lg p-4">
           <p className="text-sm font-heading text-[hsl(var(--gold))] mb-2">
             Trasfondo: {draft?.trasfondo_nombre}
           </p>
-          <p className="text-foreground leading-relaxed">
-            {backgroundData?.descripcion || 'Sin descripción disponible'}
-          </p>
+          {isEditing ? (
+            <Textarea
+              value={customHistoria}
+              onChange={(e) => setCustomHistoria(e.target.value)}
+              className="min-h-[120px] bg-background/50"
+              placeholder="Escribe la historia personal de tu personaje..."
+            />
+          ) : (
+            <div 
+              className="cursor-pointer hover:bg-background/20 rounded p-2 -m-2 transition-colors"
+              onClick={() => setIsEditing(true)}
+            >
+              <p className="text-foreground leading-relaxed">
+                {customHistoria || backgroundData?.descripcion || 'Sin descripción disponible'}
+              </p>
+              <p className="text-xs text-muted-foreground mt-2 italic">
+                Haz clic para editar o usa el botón de IA
+              </p>
+            </div>
+          )}
         </div>
       </div>
 

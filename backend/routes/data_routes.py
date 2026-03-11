@@ -4620,3 +4620,72 @@ Inventas personajes menores y eventos secundarios que encajan en el mundo de Tol
     except Exception as e:
         print(f"Error generating story: {e}")
         return {"success": False, "error": str(e), "historia": ""}
+
+
+# === PERSONAL HISTORY GENERATOR ===
+
+class PersonalHistoryRequest(BaseModel):
+    nombre_personaje: str
+    cultura: Optional[str] = None
+    vocacion: Optional[str] = None
+    trasfondo: Optional[str] = None
+    descripcion_trasfondo: Optional[str] = None
+    rasgos: Optional[List] = []
+
+@router.post("/generate-personal-history")
+async def generate_personal_history(data: PersonalHistoryRequest):
+    """Generate a personal history for a character based on their background"""
+    try:
+        from emergentintegrations.llm.chat import LlmChat, UserMessage
+        import uuid
+        
+        # Build rasgos text
+        rasgos_text = ""
+        if data.rasgos:
+            rasgos_list = []
+            for r in data.rasgos:
+                if isinstance(r, dict):
+                    rasgos_list.append(r.get('nombre', str(r)))
+                else:
+                    rasgos_list.append(str(r))
+            rasgos_text = f"Rasgos de personalidad: {', '.join(rasgos_list)}. "
+        
+        prompt = f"""Genera una historia personal BREVE para un personaje de la Tierra Media.
+
+DATOS DEL PERSONAJE:
+- Nombre: {data.nombre_personaje}
+- Cultura: {data.cultura or 'Desconocida'}
+- Vocación: {data.vocacion or 'Aventurero'}
+- Trasfondo: {data.trasfondo or 'Común'}
+- {rasgos_text}
+
+DESCRIPCIÓN BASE DEL TRASFONDO:
+{data.descripcion_trasfondo or 'Sin descripción'}
+
+INSTRUCCIONES:
+1. Escribe un ÚNICO PÁRRAFO de máximo 100 palabras
+2. Personaliza la historia genérica del trasfondo para este personaje específico
+3. Menciona su nombre, cultura y algún detalle que lo haga único
+4. NO inventes eventos épicos ni conexiones con personajes famosos de Tolkien
+5. Mantén un tono cotidiano pero evocador de la Tierra Media
+6. El texto debe caber en un espacio pequeño de ficha de personaje
+
+Genera SOLO el párrafo de historia, sin títulos ni comentarios adicionales."""
+
+        api_key = os.environ.get('EMERGENT_LLM_KEY')
+        
+        chat = LlmChat(
+            api_key=api_key,
+            session_id=f"personal_history_{uuid.uuid4().hex[:8]}",
+            system_message="""Eres un narrador de la Tierra Media que crea historias personales breves para personajes de rol.
+Escribes textos concisos y evocadores que personalizan trasfondos genéricos sin añadir elementos épicos innecesarios."""
+        ).with_model("openai", "gpt-4o")
+        
+        user_message = UserMessage(text=prompt)
+        response = await chat.send_message(user_message)
+        
+        return {"success": True, "historia": response.strip() if response else ""}
+        
+    except Exception as e:
+        print(f"Error generating personal history: {e}")
+        return {"success": False, "error": str(e), "historia": ""}
