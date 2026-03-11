@@ -268,11 +268,24 @@ const EquipmentManagerModal = ({
 
   // Detect if character has a mount (either as character.montura or in inventory)
   const detectMount = useMemo(() => {
+    // Helper to get mount capacity from catalog
+    const getMountCapacityFromCatalog = (nombre) => {
+      const monturas = catalog.monturas || [];
+      const normalizedNombre = (nombre || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+      for (const mount of monturas) {
+        const catalogName = (mount.nombre || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+        if (catalogName === normalizedNombre || normalizedNombre.includes(catalogName) || catalogName.includes(normalizedNombre)) {
+          return mount.capacidad_carga || 150;
+        }
+      }
+      return 150; // Default fallback
+    };
+    
     // First check character.montura
     if (character.montura?.nombre) {
       return {
         nombre: character.montura.nombre,
-        capacidad: character.montura.capacidad_carga || 150,
+        capacidad: character.montura.capacidad_carga || getMountCapacityFromCatalog(character.montura.nombre),
         source: 'montura'
       };
     }
@@ -283,12 +296,13 @@ const EquipmentManagerModal = ({
     
     for (const item of inventario) {
       const nombre = (typeof item === 'string' ? item : item?.nombre || '').toLowerCase();
+      const nombreOriginal = typeof item === 'string' ? item : item?.nombre || '';
       if (mountNames.some(m => nombre.includes(m))) {
-        // Try to get capacity from item or catalog
+        // Get capacity from item data OR lookup in catalog
         const itemData = typeof item === 'object' ? item : {};
         return {
-          nombre: typeof item === 'string' ? item : item.nombre,
-          capacidad: itemData.capacidad_carga || 150,
+          nombre: nombreOriginal,
+          capacidad: itemData.capacidad_carga || getMountCapacityFromCatalog(nombreOriginal),
           source: 'inventario'
         };
       }
@@ -303,18 +317,19 @@ const EquipmentManagerModal = ({
     
     for (const item of otherSources) {
       const nombre = (typeof item === 'string' ? item : item?.nombre || '').toLowerCase();
+      const nombreOriginal = typeof item === 'string' ? item : item?.nombre || '';
       if (mountNames.some(m => nombre.includes(m))) {
         const itemData = typeof item === 'object' ? item : {};
         return {
-          nombre: typeof item === 'string' ? item : item.nombre,
-          capacidad: itemData.capacidad_carga || 150,
+          nombre: nombreOriginal,
+          capacidad: itemData.capacidad_carga || getMountCapacityFromCatalog(nombreOriginal),
           source: 'equipo'
         };
       }
     }
     
     return null;
-  }, [character]);
+  }, [character, catalog]);
 
   // Check if character has a mount available
   const hasMount = detectMount !== null;

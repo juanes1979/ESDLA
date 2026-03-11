@@ -967,10 +967,24 @@ const SheetPage1 = ({ character, scale, weaponCatalog = [], equipmentCatalog = {
         let mountName = null;
         let mountCapacity = 150;
         
+        // Helper to find mount capacity from catalog
+        const getMountCapacityFromCatalog = (nombre) => {
+          const monturasEnCatalogo = equipmentCatalog.monturas || [];
+          const normalizedNombre = (nombre || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+          for (const mount of monturasEnCatalogo) {
+            const catalogName = (mount.nombre || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+            if (catalogName === normalizedNombre || normalizedNombre.includes(catalogName) || catalogName.includes(normalizedNombre)) {
+              return mount.capacidad_carga || 150;
+            }
+          }
+          return 150; // Default fallback
+        };
+        
         // Check character.montura first
         if (character.montura?.nombre) {
           mountName = character.montura.nombre;
-          mountCapacity = character.montura.capacidad_carga || 150;
+          // First try character.montura.capacidad_carga, then catalog lookup
+          mountCapacity = character.montura.capacidad_carga || getMountCapacityFromCatalog(character.montura.nombre);
         } else {
           // Check inventory for mount
           const allSources = [
@@ -984,7 +998,8 @@ const SheetPage1 = ({ character, scale, weaponCatalog = [], equipmentCatalog = {
             const nombre = typeof item === 'string' ? item : item?.nombre || '';
             if (isMountItem(nombre)) {
               mountName = nombre;
-              mountCapacity = (typeof item === 'object' && item.capacidad_carga) || 150;
+              // Get capacity from item, or lookup in catalog
+              mountCapacity = (typeof item === 'object' && item.capacidad_carga) || getMountCapacityFromCatalog(nombre);
               break;
             }
           }
