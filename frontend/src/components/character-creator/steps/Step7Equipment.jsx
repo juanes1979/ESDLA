@@ -6,7 +6,7 @@
  * + TIENDA para comprar equipo adicional con el dinero inicial (PRECIOS BASE)
  */
 import { useState, useMemo, useEffect } from 'react';
-import { Loader2, ChevronLeft, Package, Coins, ShoppingCart, Plus, Minus, Store, Sword, Shield, Scroll, Wrench, Apple, Search, X } from 'lucide-react';
+import { Loader2, ChevronLeft, Package, Coins, ShoppingCart, Plus, Minus, Store, Sword, Shield, Scroll, Wrench, Apple, Search, X, Leaf, Skull, Horse, Gem, Ship, Building } from 'lucide-react';
 import { updateDraftStep7 } from '@/services/api';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -119,14 +119,21 @@ const Step7Equipment = ({ draftId, draft, onComplete, onBack }) => {
   
   // Shopping cart
   const [cart, setCart] = useState([]);
+  const [activeTab, setActiveTab] = useState('weapons');
   
-  // Category mapping for display
+  // Category mapping for display - ALL categories from equipment-catalog
   const SHOP_CATEGORIES = [
     { key: 'weapons', label: 'Armas', icon: Sword, catalogKeys: ['armas_sencillas_cc', 'armas_sencillas_distancia', 'armas_marciales_cc', 'armas_marciales_distancia'] },
     { key: 'armor', label: 'Armaduras', icon: Shield, catalogKeys: ['armaduras_ligeras', 'armaduras_medias', 'armaduras_pesadas', 'escudos'] },
     { key: 'tools', label: 'Herramientas', icon: Wrench, catalogKeys: ['herramientas', 'juegos', 'instrumentos_musicales'] },
-    { key: 'general', label: 'Equipo General', icon: Scroll, catalogKeys: ['equipo_general'] },
-    { key: 'consumables', label: 'Consumibles', icon: Apple, catalogKeys: ['consumibles', 'comida_posadas'] },
+    { key: 'general', label: 'General', icon: Scroll, catalogKeys: ['equipo_general'] },
+    { key: 'consumables', label: 'Comida', icon: Apple, catalogKeys: ['consumibles', 'comida_posadas'] },
+    { key: 'mounts', label: 'Monturas', icon: Horse, catalogKeys: ['monturas', 'accesorios_monturas'] },
+    { key: 'transport', label: 'Transporte', icon: Ship, catalogKeys: ['transporte_terrestre', 'transporte_maritimo'] },
+    { key: 'herbs', label: 'Hierbas', icon: Leaf, catalogKeys: ['hierbas'] },
+    { key: 'poisons', label: 'Venenos', icon: Skull, catalogKeys: ['venenos'] },
+    { key: 'gems', label: 'Gemas', icon: Gem, catalogKeys: ['gemas_preciosas', 'gemas_semipreciosas'] },
+    { key: 'construction', label: 'Construcción', icon: Building, catalogKeys: ['construccion'] },
   ];
 
   const nivelVida = draft?.nivel_vida || 'Común';
@@ -306,9 +313,9 @@ const Step7Equipment = ({ draftId, draft, onComplete, onBack }) => {
     const getCategoryLabel = (cat) => {
       const labels = {
         'armas_sencillas_cc': 'Sencilla CC',
-        'armas_sencillas_distancia': 'Sencilla Distancia',
+        'armas_sencillas_distancia': 'Sencilla Dist.',
         'armas_marciales_cc': 'Marcial CC',
-        'armas_marciales_distancia': 'Marcial Distancia',
+        'armas_marciales_distancia': 'Marcial Dist.',
         'armaduras_ligeras': 'Ligera',
         'armaduras_medias': 'Media',
         'armaduras_pesadas': 'Pesada',
@@ -318,9 +325,30 @@ const Step7Equipment = ({ draftId, draft, onComplete, onBack }) => {
         'instrumentos_musicales': 'Instrumento',
         'equipo_general': 'General',
         'consumibles': 'Consumible',
-        'comida_posadas': 'Comida/Posada'
+        'comida_posadas': 'Posada',
+        'monturas': 'Montura',
+        'accesorios_monturas': 'Accesorio',
+        'transporte_terrestre': 'Terrestre',
+        'transporte_maritimo': 'Marítimo',
+        'hierbas': 'Hierba',
+        'venenos': 'Veneno',
+        'gemas_preciosas': 'Preciosa',
+        'gemas_semipreciosas': 'Semipreciosa',
+        'construccion': 'Construcción'
       };
       return labels[cat] || cat;
+    };
+    
+    // Get additional item details based on category
+    const getItemDetails = () => {
+      const details = [];
+      if (item.dano) details.push(item.dano);
+      if (item.ca) details.push(`CA ${item.ca}`);
+      if (item.velocidad) details.push(`Vel. ${item.velocidad}m`);
+      if (item.capacidad_carga) details.push(`Carga ${item.capacidad_carga}kg`);
+      if (item.efecto) details.push(item.efecto.substring(0, 30) + (item.efecto.length > 30 ? '...' : ''));
+      if (item.peso_kg) details.push(`${item.peso_kg}kg`);
+      return details.join(' · ');
     };
     
     return (
@@ -337,20 +365,17 @@ const Step7Equipment = ({ draftId, draft, onComplete, onBack }) => {
       >
         <div className="flex-1 min-w-0 pr-2">
           <p className="font-medium text-sm truncate">{item.nombre}</p>
-          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+          <div className="flex flex-wrap items-center gap-1 text-xs text-muted-foreground">
             <span className="text-[hsl(var(--gold))] font-medium">{item.precio} {item.moneda || 'mc'}</span>
             {item.categoria && (
-              <Badge variant="outline" className="text-xs px-1 py-0">
+              <Badge variant="outline" className="text-[10px] px-1 py-0 h-4">
                 {getCategoryLabel(item.categoria)}
               </Badge>
             )}
-            {item.dano && <span>· {item.dano}</span>}
-            {item.ca && <span>· CA {item.ca}</span>}
-            {item.peso_kg && <span>· {item.peso_kg}kg</span>}
+            {getItemDetails() && <span className="truncate max-w-[150px]">· {getItemDetails()}</span>}
           </div>
         </div>
-        <div className="flex items-center gap-1">
-          {count > 0 && (
+        <div className="flex items-center gap-1">{count > 0 && (
             <>
               <Button
                 size="icon"
@@ -552,35 +577,63 @@ const Step7Equipment = ({ draftId, draft, onComplete, onBack }) => {
                 <span className="ml-2 text-muted-foreground">Cargando tienda...</span>
               </div>
             ) : (
-              <Tabs defaultValue="weapons" className="w-full">
-                <TabsList className="grid w-full grid-cols-5 h-auto">
-                  {SHOP_CATEGORIES.map(cat => {
-                    const Icon = cat.icon;
-                    const itemCount = getItemsForCategory(cat.key).length;
-                    return (
-                      <TabsTrigger 
-                        key={cat.key} 
-                        value={cat.key} 
-                        className="flex flex-col gap-1 py-2 text-xs"
-                        data-testid={`shop-tab-${cat.key}`}
-                      >
-                        <Icon className="w-4 h-4" />
-                        <span className="hidden sm:inline">{cat.label}</span>
-                        {itemCount > 0 && (
-                          <Badge variant="secondary" className="text-xs px-1 py-0 h-4">
-                            {itemCount}
-                          </Badge>
-                        )}
-                      </TabsTrigger>
-                    );
-                  })}
-                </TabsList>
+              <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+                {/* Two rows of category tabs for better organization */}
+                <div className="space-y-2 mb-4">
+                  {/* Row 1: Combat & Equipment */}
+                  <TabsList className="grid w-full grid-cols-6 h-auto">
+                    {SHOP_CATEGORIES.slice(0, 6).map(cat => {
+                      const Icon = cat.icon;
+                      const itemCount = getItemsForCategory(cat.key).length;
+                      return (
+                        <TabsTrigger 
+                          key={cat.key} 
+                          value={cat.key} 
+                          className="flex flex-col gap-0.5 py-1.5 px-1 text-xs"
+                          data-testid={`shop-tab-${cat.key}`}
+                        >
+                          <Icon className="w-4 h-4" />
+                          <span className="hidden sm:inline text-[10px]">{cat.label}</span>
+                          {itemCount > 0 && (
+                            <Badge variant="secondary" className="text-[9px] px-1 py-0 h-3.5">
+                              {itemCount}
+                            </Badge>
+                          )}
+                        </TabsTrigger>
+                      );
+                    })}
+                  </TabsList>
+                  
+                  {/* Row 2: Special & Resources */}
+                  <TabsList className="grid w-full grid-cols-5 h-auto">
+                    {SHOP_CATEGORIES.slice(6).map(cat => {
+                      const Icon = cat.icon;
+                      const itemCount = getItemsForCategory(cat.key).length;
+                      return (
+                        <TabsTrigger 
+                          key={cat.key} 
+                          value={cat.key} 
+                          className="flex flex-col gap-0.5 py-1.5 px-1 text-xs"
+                          data-testid={`shop-tab-${cat.key}`}
+                        >
+                          <Icon className="w-4 h-4" />
+                          <span className="hidden sm:inline text-[10px]">{cat.label}</span>
+                          {itemCount > 0 && (
+                            <Badge variant="secondary" className="text-[9px] px-1 py-0 h-3.5">
+                              {itemCount}
+                            </Badge>
+                          )}
+                        </TabsTrigger>
+                      );
+                    })}
+                  </TabsList>
+                </div>
 
                 {SHOP_CATEGORIES.map(cat => {
                   const items = getItemsForCategory(cat.key);
                   return (
                     <TabsContent key={cat.key} value={cat.key}>
-                      <ScrollArea className="h-72 mt-4">
+                      <ScrollArea className="h-72">
                         <div className="space-y-2 pr-4">
                           {items.map(item => renderShopItem(item))}
                           {items.length === 0 && (
