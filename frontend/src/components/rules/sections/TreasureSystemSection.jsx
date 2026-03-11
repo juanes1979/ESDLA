@@ -424,6 +424,9 @@ const TreasureSystemSection = () => {
     precioBase: 100
   });
   
+  // Story generation state
+  const [generatingStory, setGeneratingStory] = useState(false);
+  
   // Load configuration from backend on mount
   useEffect(() => {
     const loadConfig = async () => {
@@ -712,6 +715,38 @@ const TreasureSystemSection = () => {
     });
     toast.success(`"${newItem.nombre}" añadido al índice`);
   }, [weaponBuilder, calculateWeaponPrice]);
+  
+  // Generate story with AI
+  const generateStory = async () => {
+    if (!weaponBuilder.nombre) {
+      toast.error('Introduce un nombre primero');
+      return;
+    }
+    
+    setGeneratingStory(true);
+    try {
+      const response = await api.post('/data/generate-weapon-story', {
+        nombre: weaponBuilder.nombre,
+        categoria: weaponBuilder.categoria,
+        manufactura: weaponBuilder.manufactura,
+        equipo_base: weaponBuilder.itemSeleccionado?.nombre || null,
+        cualidades: weaponBuilder.cualidades,
+        perdiciones: weaponBuilder.perdiciones
+      });
+      
+      if (response.data?.success && response.data?.historia) {
+        setWeaponBuilder(prev => ({ ...prev, historia: response.data.historia }));
+        toast.success('Historia generada');
+      } else {
+        toast.error('Error al generar la historia');
+      }
+    } catch (err) {
+      console.error('Error generating story:', err);
+      toast.error('Error al generar la historia');
+    } finally {
+      setGeneratingStory(false);
+    }
+  };
   
   // Remove from index
   const removeFromIndex = (id) => {
@@ -1448,8 +1483,34 @@ const TreasureSystemSection = () => {
                 )}
                 
                 <div>
-                  <Label>Historia/Notas</Label>
-                  <Textarea value={weaponBuilder.historia} onChange={(e) => setWeaponBuilder({...weaponBuilder, historia: e.target.value})} placeholder="Historia del objeto, cómo fue forjado, quién lo empuñó..." className="h-20" />
+                  <div className="flex justify-between items-center mb-1">
+                    <Label>Historia/Notas</Label>
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={generateStory}
+                      disabled={generatingStory || !weaponBuilder.nombre}
+                      data-testid="generate-story-btn"
+                    >
+                      {generatingStory ? (
+                        <>
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          Generando...
+                        </>
+                      ) : (
+                        <>
+                          <Sparkles className="w-4 h-4 mr-2" />
+                          Generar con IA
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                  <Textarea 
+                    value={weaponBuilder.historia} 
+                    onChange={(e) => setWeaponBuilder({...weaponBuilder, historia: e.target.value})} 
+                    placeholder="Historia del objeto, cómo fue forjado, quién lo empuñó... Usa el botón para generar una historia automáticamente." 
+                    className="h-32" 
+                  />
                 </div>
                 
                 <div className="bg-yellow-500/20 p-3 rounded border border-yellow-500/30">

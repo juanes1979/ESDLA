@@ -4538,3 +4538,85 @@ async def get_custom_path_for_route(origin_id: str, destination_id: str):
     
     return {"found": True, "path": doc}
 
+
+
+# === WEAPON/ARMOR STORY GENERATOR ===
+
+class StoryGeneratorRequest(BaseModel):
+    nombre: str
+    categoria: str  # arma, armadura, escudo
+    manufactura: str  # numenorean, elven_eregion, etc.
+    equipo_base: Optional[str] = None  # espada, hacha, cota de malla, etc.
+    cualidades: Optional[List[str]] = []
+    perdiciones: Optional[List[str]] = []
+
+@router.post("/generate-weapon-story")
+async def generate_weapon_story(data: StoryGeneratorRequest):
+    """Generate an epic but moderate story for a weapon/armor using AI"""
+    try:
+        from emergentintegrations.llm.chat import LlmChat, UserMessage
+        import uuid
+        
+        # Build context based on manufacture
+        manufacture_context = {
+            "numenorean": "forjada en los reinos de los Dúnedain, herederos de Númenor, en las fraguas de Oesternesse",
+            "elven_eregion": "creada por los herreros élficos de Eregion, en los días de Celebrimbor, antes de la caída de Ost-in-Edhil",
+            "elven_beleriand": "una reliquia de la Primera Edad, forjada en las antiguas fraguas de los Noldor en Beleriand, quizás en Gondolin o Nargothrond",
+            "dwarven_khazad": "forjada en las profundidades de Khazad-dûm por los maestros herreros de Durin, cuando Moria aún brillaba con esplendor",
+            "dwarven_erebor": "creada bajo la Montaña Solitaria por los artesanos de Erebor, guardianes del tesoro del Rey bajo la Montaña",
+            "dwarven_beleriand": "una obra maestra de los enanos de Nogrod o Belegost, de los días antiguos cuando comerciaban con los elfos de Beleriand"
+        }
+        
+        categoria_text = {
+            "arma": "arma",
+            "armadura": "armadura",
+            "escudo": "escudo"
+        }
+        
+        context = manufacture_context.get(data.manufactura, "de origen misterioso")
+        tipo = categoria_text.get(data.categoria, "objeto")
+        equipo = data.equipo_base or tipo
+        
+        # Build qualities text
+        cualidades_text = ""
+        if data.cualidades:
+            cualidades_text = f"Posee cualidades encantadas: {', '.join(data.cualidades)}. "
+        
+        perdiciones_text = ""
+        if data.perdiciones:
+            perdiciones_text = f"Es especialmente temida por: {', '.join(data.perdiciones)}. "
+        
+        prompt = f"""Genera una historia BREVE (máximo 150 palabras) para un {tipo} llamado "{data.nombre}".
+
+CONTEXTO:
+- Es un/a {equipo} {context}
+- {cualidades_text}{perdiciones_text}
+
+INSTRUCCIONES IMPORTANTES:
+1. La historia debe ser épica pero MODERADA - NO al nivel de Andúril, Glamdring o artefactos legendarios
+2. NO menciones personajes principales de los libros (Aragorn, Gandalf, Frodo, etc.)
+3. Inventa un héroe o herrero MENOR y FICTICIO (un capitán olvidado, un herrero sin nombre famoso, un guerrero de una escaramuza)
+4. Menciona una batalla o evento MENOR, no las grandes guerras
+5. Escribe en español, con tono evocador pero sin exagerar
+6. La historia debe explicar cómo se forjó, quién la empuñó brevemente y cómo se perdió o pasó de mano
+
+Genera SOLO la historia, sin introducciones ni comentarios."""
+
+        api_key = os.environ.get('EMERGENT_LLM_KEY')
+        
+        chat = LlmChat(
+            api_key=api_key,
+            session_id=f"weapon_story_{uuid.uuid4().hex[:8]}",
+            system_message="""Eres un narrador de la Tierra Media especializado en crear historias de objetos mágicos.
+Escribes en español con un tono evocador pero moderado, evitando exageraciones épicas.
+Inventas personajes menores y eventos secundarios que encajan en el mundo de Tolkien sin alterar la historia principal."""
+        ).with_model("openai", "gpt-4o")
+        
+        user_message = UserMessage(text=prompt)
+        response = await chat.send_message(user_message)
+        
+        return {"success": True, "historia": response.strip() if response else ""}
+        
+    except Exception as e:
+        print(f"Error generating story: {e}")
+        return {"success": False, "error": str(e), "historia": ""}
