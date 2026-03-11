@@ -278,7 +278,7 @@ const EquipmentManagerModal = ({
     }
     
     // Check inventory for mount items
-    const mountNames = ['caballo', 'pony', 'mula', 'burro', 'corcel', 'yegua', 'potro', 'asno', 'montura'];
+    const mountNames = ['caballo', 'pony', 'mula', 'burro', 'corcel', 'yegua', 'potro', 'asno'];
     const inventario = character.inventario || [];
     
     for (const item of inventario) {
@@ -318,6 +318,16 @@ const EquipmentManagerModal = ({
 
   // Check if character has a mount available
   const hasMount = detectMount !== null;
+  
+  // Helper to check if an item is mount-related (mount or accessory)
+  const isMountRelatedItem = (nombre) => {
+    const lower = (nombre || '').toLowerCase();
+    const mountNames = ['caballo', 'pony', 'mula', 'burro', 'corcel', 'yegua', 'potro', 'asno'];
+    const accessoryNames = ['silla de monta', 'alforjas', 'bocado', 'bridas', 'bocado y bridas', 
+                           'arreos', 'barda', 'silla de montar', 'albarda', 'estribos', 'riendas', 
+                           'herradura', 'manta de montar'];
+    return mountNames.some(m => lower.includes(m)) || accessoryNames.some(a => lower.includes(a));
+  };
 
   if (!isOpen) return null;
 
@@ -478,19 +488,24 @@ const EquipmentManagerModal = ({
     (character.inventario || []).forEach((item, idx) => {
       const nombre = typeof item === 'object' ? item.nombre : item;
       const cantidad = typeof item === 'object' ? item.cantidad : 1;
+      const isMountItem = isMountRelatedItem(nombre);
+      
       items.push({
         nombre: cantidad > 1 ? `${nombre} (x${cantidad})` : nombre,
         nombreBase: nombre,
         categoria: item?.categoria || 'equipo_general',
-        tipo: 'Inventario',
+        tipo: isMountItem ? 'Montura/Accesorios' : 'Inventario',
         peso: (item?.peso_kg || 0) * cantidad,
-        canMove: true,
-        portadoPor: item?.portado_por || 'personaje',
+        // Mount items cannot be moved when character has a mount - they always stay on mount
+        canMove: isMountItem ? false : true,
+        // Mount items are ALWAYS on the mount if character has one, otherwise on character
+        portadoPor: isMountItem && hasMount ? 'montura' : (item?.portado_por || 'personaje'),
         index: idx,
+        isMountItem,
       });
     });
     
-    // Mount
+    // Mount from character.montura field (if exists separately)
     const montura = character.montura;
     if (montura && montura.nombre) {
       items.push({
@@ -501,6 +516,7 @@ const EquipmentManagerModal = ({
         peso: 0,
         canMove: false,
         isMontura: true,
+        isMountItem: true,
         capacidad: montura.capacidad_carga || 0,
       });
     }
@@ -877,8 +893,24 @@ const EquipmentManagerModal = ({
                         </div>
                         
                         <div className="flex items-center gap-2">
-                          {/* Carrier toggle for moveable items - show if has mount */}
-                          {item.canMove && hasMount && (
+                          {/* Mount items indicator - always on mount, no toggle */}
+                          {item.isMountItem && hasMount && (
+                            <div className="flex items-center gap-1 bg-blue-900/50 rounded p-1 px-2">
+                              <Landmark className="w-4 h-4 text-blue-400" />
+                              <span className="text-xs text-blue-400">En montura</span>
+                            </div>
+                          )}
+                          
+                          {/* Mount items without mount - show person indicator */}
+                          {item.isMountItem && !hasMount && (
+                            <div className="flex items-center gap-1 bg-amber-900/30 rounded p-1 px-2">
+                              <User className="w-4 h-4 text-amber-400" />
+                              <span className="text-xs text-amber-400">Sin montura</span>
+                            </div>
+                          )}
+                          
+                          {/* Carrier toggle for moveable items (NOT mount items) - show if has mount */}
+                          {item.canMove && !item.isMountItem && hasMount && (
                             <div className="flex items-center gap-1 bg-secondary/50 rounded p-1">
                               <button
                                 onClick={() => handleUpdateCarrier(item.index, 'personaje')}

@@ -1532,6 +1532,34 @@ async def get_character_weight_summary(character_id: str):
     peso_personaje = 0
     peso_montura = 0
     
+    # Mount-related item detection
+    mount_names = ['caballo', 'pony', 'mula', 'burro', 'corcel', 'yegua', 'potro', 'asno']
+    mount_accessory_names = ['silla de monta', 'alforjas', 'bocado', 'bridas', 'bocado y bridas', 
+                             'arreos', 'barda', 'silla de montar', 'albarda', 'estribos', 'riendas', 
+                             'herradura', 'manta de montar']
+    
+    def is_mount_related(nombre: str) -> bool:
+        lower = nombre.lower()
+        return any(m in lower for m in mount_names) or any(a in lower for a in mount_accessory_names)
+    
+    # Detect if character has a mount
+    has_mount = bool(character.get("montura", {}).get("nombre"))
+    if not has_mount:
+        # Check inventory for mount
+        for item in character.get("inventario", []):
+            nombre = item.get("nombre", "") if isinstance(item, dict) else str(item)
+            if any(m in nombre.lower() for m in mount_names):
+                has_mount = True
+                break
+        # Check other equipment sources
+        if not has_mount:
+            for source in ["equipo_nivel_vida", "equipo_trasfondo", "equipo_ocupacion"]:
+                for item in character.get(source, []):
+                    nombre = item.get("nombre", "") if isinstance(item, dict) else str(item)
+                    if any(m in nombre.lower() for m in mount_names):
+                        has_mount = True
+                        break
+    
     # Weapons (always on character)
     for arma in character.get("armas", []):
         nombre = arma.get("nombre") if isinstance(arma, dict) else arma
@@ -1549,13 +1577,17 @@ async def get_character_weight_summary(character_id: str):
         peso_personaje += get_weight(nombre, item if isinstance(item, dict) else None)
     
     # Inventory items - check who carries them
+    # Mount items ALWAYS go to mount if character has one
     for item in character.get("inventario", []):
         if isinstance(item, dict):
             nombre = item.get("nombre", "")
             cantidad = item.get("cantidad", 1)
             peso = get_weight(nombre, item) * cantidad
             
-            if item.get("portado_por") == "montura":
+            # Mount-related items always on mount (if has mount)
+            if is_mount_related(nombre) and has_mount:
+                peso_montura += peso
+            elif item.get("portado_por") == "montura":
                 peso_montura += peso
             else:
                 peso_personaje += peso
