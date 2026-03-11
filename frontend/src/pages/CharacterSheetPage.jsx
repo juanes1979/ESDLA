@@ -678,8 +678,76 @@ const CharacterSheetPage = () => {
             </div>
           </div>
 
-          {/* Right Column - Background & Culture only */}
+          {/* Right Column - Background, Culture & Personality */}
           <div className="space-y-6">
+            {/* Physical Appearance */}
+            <div className="card-parchment rounded-lg p-4">
+              <h3 className="font-heading text-lg text-[hsl(var(--gold))] mb-3 flex items-center gap-2">
+                <Eye className="w-5 h-5" />
+                Apariencia Física
+              </h3>
+              <div className="grid grid-cols-3 gap-2 text-sm">
+                <div className="bg-secondary rounded p-2 text-center">
+                  <p className="text-xs text-muted-foreground">Ojos</p>
+                  <p className="text-foreground">{character.ojos || '—'}</p>
+                </div>
+                <div className="bg-secondary rounded p-2 text-center">
+                  <p className="text-xs text-muted-foreground">Piel</p>
+                  <p className="text-foreground">{character.piel || '—'}</p>
+                </div>
+                <div className="bg-secondary rounded p-2 text-center">
+                  <p className="text-xs text-muted-foreground">Pelo</p>
+                  <p className="text-foreground">{character.pelo || '—'}</p>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-2 mt-2 text-sm">
+                <div className="bg-secondary rounded p-2 text-center">
+                  <p className="text-xs text-muted-foreground">Tamaño</p>
+                  <p className="text-foreground">{character.tamano || character.tamanio || '—'}</p>
+                </div>
+                <div className="bg-secondary rounded p-2 text-center">
+                  <p className="text-xs text-muted-foreground">Nivel de Vida</p>
+                  <p className="text-foreground">{character.nivel_vida || '—'}</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Distinctive Traits (Personality) */}
+            {(character.rasgo_distintivo || character.rasgo_distintivo_2) && (
+              <div className="card-parchment rounded-lg p-4">
+                <h3 className="font-heading text-lg text-amber-400 mb-3 flex items-center gap-2">
+                  <Star className="w-5 h-5" />
+                  Rasgos de Personalidad
+                </h3>
+                <div className="space-y-2">
+                  {character.rasgo_distintivo && (
+                    <div className="bg-amber-500/10 rounded p-3 border border-amber-500/30">
+                      <span className="text-amber-400 font-medium">
+                        {character.rasgo_distintivo.nombre || character.rasgo_distintivo}
+                      </span>
+                      {character.rasgo_distintivo.descripcion && (
+                        <p className="text-muted-foreground text-xs mt-1 italic">
+                          {character.rasgo_distintivo.descripcion}
+                        </p>
+                      )}
+                    </div>
+                  )}
+                  {character.rasgo_distintivo_2 && (
+                    <div className="bg-amber-500/10 rounded p-3 border border-amber-500/30">
+                      <span className="text-amber-400 font-medium">
+                        {character.rasgo_distintivo_2.nombre || character.rasgo_distintivo_2}
+                      </span>
+                      {character.rasgo_distintivo_2.descripcion && (
+                        <p className="text-muted-foreground text-xs mt-1 italic">
+                          {character.rasgo_distintivo_2.descripcion}
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
             {/* Background Info */}
             <div className="card-parchment rounded-lg p-4">
               <h3 className="font-heading text-lg text-[hsl(var(--gold))] mb-3 flex items-center gap-2">
@@ -693,11 +761,11 @@ const CharacterSheetPage = () => {
                 </div>
                 
                 {/* Historia generada por IA o descripción del trasfondo */}
-                {(character.historia || background?.descripcion) && (
+                {(character.historia || character.descripcion_trasfondo || background?.descripcion) && (
                   <div className="bg-secondary/50 rounded-lg p-3 border-l-2 border-[hsl(var(--gold))/50]">
                     <p className="text-xs text-[hsl(var(--gold))] mb-1">Historia Personal</p>
                     <p className="text-muted-foreground text-sm italic leading-relaxed">
-                      {character.historia || background?.descripcion}
+                      {character.historia || character.descripcion_trasfondo || background?.descripcion}
                     </p>
                   </div>
                 )}
@@ -705,7 +773,12 @@ const CharacterSheetPage = () => {
                 {character.virtud_nombre && (
                   <div className="bg-secondary rounded-lg p-3">
                     <p className="text-xs text-muted-foreground">Virtud</p>
-                    <p className="text-foreground">{character.virtud_nombre}</p>
+                    <p className="text-foreground font-medium">{character.virtud_nombre}</p>
+                    {(character.virtud_rasgos || character.virtud_descripcion) && (
+                      <p className="text-muted-foreground text-xs mt-1 italic">
+                        {character.virtud_rasgos || character.virtud_descripcion}
+                      </p>
+                    )}
                   </div>
                 )}
                 {character.patron_nombre && (
@@ -721,6 +794,26 @@ const CharacterSheetPage = () => {
                 )}
               </div>
             </div>
+
+            {/* Shadow Path */}
+            {character.senda_sombra && (
+              <div className="card-parchment rounded-lg p-4">
+                <h3 className="font-heading text-lg text-purple-400 mb-3 flex items-center gap-2">
+                  <Eye className="w-5 h-5" />
+                  Senda de Sombra
+                </h3>
+                <div className="bg-purple-500/10 rounded p-3 border border-purple-500/30">
+                  <span className="text-purple-400 font-medium block mb-1">
+                    {character.senda_sombra}
+                  </span>
+                  {character.senda_sombra_descripcion && (
+                    <p className="text-muted-foreground text-xs italic">
+                      {character.senda_sombra_descripcion}
+                    </p>
+                  )}
+                </div>
+              </div>
+            )}
 
             {/* Culture Description */}
             {culture && (
@@ -745,7 +838,7 @@ const CharacterSheetPage = () => {
                   )}
                   
                   {/* Cultural Traits */}
-                  {(character.rasgos_culturales?.length > 0 || character.rasgo_distintivo) && (
+                  {character.rasgos_culturales?.length > 0 && (
                     <div className="bg-secondary/50 rounded p-3">
                       <span className="text-emerald-400 font-medium block mb-2">Rasgos Culturales</span>
                       {character.rasgos_culturales?.map((rasgo, i) => (
@@ -756,14 +849,6 @@ const CharacterSheetPage = () => {
                           )}
                         </div>
                       ))}
-                      {character.rasgo_distintivo && (
-                        <div className="text-muted-foreground text-xs">
-                          • {character.rasgo_distintivo.nombre || character.rasgo_distintivo}
-                          {character.rasgo_distintivo.descripcion && (
-                            <span className="block ml-3 text-muted-foreground/70 italic">{character.rasgo_distintivo.descripcion}</span>
-                          )}
-                        </div>
-                      )}
                     </div>
                   )}
                   
@@ -776,281 +861,17 @@ const CharacterSheetPage = () => {
                 </div>
               </div>
             )}
-
-            {/* Occupation Description */}
-            {occupation && (
-              <div className="card-parchment rounded-lg p-4">
-                <h3 className="font-heading text-lg text-amber-400 mb-3 flex items-center gap-2">
-                  <Swords className="w-5 h-5" />
-                  Ocupación: {occupation.vocacion}
-                </h3>
-                <div className="space-y-3 text-sm">
-                  {occupation.descripcion_corta && (
-                    <p className="text-muted-foreground italic">{occupation.descripcion_corta}</p>
-                  )}
-                  {occupation.descripcion_larga && (
-                    <p className="text-muted-foreground text-xs">{occupation.descripcion_larga}</p>
-                  )}
-                  {occupation.maldicion_nombre && (
-                    <div className="bg-red-500/10 rounded p-3 border border-red-500/30">
-                      <span className="text-red-400 font-heading block mb-1">
-                        Maldición de Sombra: {occupation.maldicion_nombre}
-                      </span>
-                      <span className="text-muted-foreground text-xs">
-                        {occupation.maldicion_descripcion}
-                      </span>
-                    </div>
-                  )}
-                  {character.habilidades_favorecidas && character.habilidades_favorecidas.length > 0 && (
-                    <div>
-                      <span className="text-muted-foreground">Habilidades Favorecidas: </span>
-                      <span className="text-amber-400">{character.habilidades_favorecidas.join(', ')}</span>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {/* Personality */}
-            {(character.rasgo_distintivo || character.rasgo_distintivo_2 || character.defecto || character.motivacion) && (
-              <div className="card-parchment rounded-lg p-4">
-                <h3 className="font-heading text-lg text-[hsl(var(--gold))] mb-3">
-                  Rasgos de Personalidad
-                </h3>
-                <div className="space-y-3 text-sm">
-                  {character.rasgo_distintivo && (
-                    <div className="bg-secondary/50 rounded p-3">
-                      <span className="text-[hsl(var(--gold))] font-heading block mb-1">Rasgo Distintivo 1</span>
-                      <span className="text-foreground font-medium">
-                        {typeof character.rasgo_distintivo === 'object' 
-                          ? character.rasgo_distintivo.nombre 
-                          : character.rasgo_distintivo}
-                      </span>
-                      {typeof character.rasgo_distintivo === 'object' && character.rasgo_distintivo.descripcion && (
-                        <p className="text-muted-foreground text-xs mt-1 italic">
-                          {character.rasgo_distintivo.descripcion}
-                        </p>
-                      )}
-                    </div>
-                  )}
-                  {(character.rasgo_distintivo_2 || character.defecto) && (
-                    <div className="bg-secondary/50 rounded p-3">
-                      <span className="text-[hsl(var(--gold))] font-heading block mb-1">Rasgo Distintivo 2</span>
-                      <span className="text-foreground font-medium">
-                        {typeof (character.rasgo_distintivo_2 || character.defecto) === 'object' 
-                          ? (character.rasgo_distintivo_2 || character.defecto).nombre 
-                          : (character.rasgo_distintivo_2 || character.defecto)}
-                      </span>
-                      {typeof (character.rasgo_distintivo_2 || character.defecto) === 'object' && 
-                       (character.rasgo_distintivo_2 || character.defecto).descripcion && (
-                        <p className="text-muted-foreground text-xs mt-1 italic">
-                          {(character.rasgo_distintivo_2 || character.defecto).descripcion}
-                        </p>
-                      )}
-                    </div>
-                  )}
-                  {character.motivacion && (
-                    <div className="bg-secondary/50 rounded p-3">
-                      <span className="text-[hsl(var(--gold))] font-heading block mb-1">Motivación</span>
-                      <span className="text-muted-foreground">{character.motivacion}</span>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {/* Equipment - Complete */}
-            <div className="card-parchment rounded-lg p-4">
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="font-heading text-lg text-[hsl(var(--gold))] flex items-center gap-2">
-                  <Package className="w-5 h-5" />
-                  Equipo
-                </h3>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setShowEquipmentModal(true)}
-                  className="text-xs border-[hsl(var(--gold))/50] hover:bg-[hsl(var(--gold))/10]"
-                  data-testid="manage-equipment-btn"
-                >
-                  <Settings className="w-3 h-3 mr-1" />
-                  Gestionar
-                </Button>
-              </div>
-              
-              {/* Weapons */}
-              {(character.armas_elegidas?.length > 0 || character.equipo_ocupacion?.some(e => 
-                ['daga', 'espada', 'arco', 'hacha', 'lanza', 'bastón', 'maza'].some(w => 
-                  (typeof e === 'string' ? e : e?.nombre || '').toLowerCase().includes(w)
-                )
-              )) && (
-                <div className="mb-3">
-                  <p className="text-xs text-red-400 font-medium mb-1">Armas</p>
-                  <div className="space-y-1">
-                    {(character.armas_elegidas || []).map((arma, i) => (
-                      <div key={`arma-${i}`} className="text-sm text-muted-foreground">
-                        • {typeof arma === 'string' ? arma : arma.nombre}
-                      </div>
-                    ))}
-                    {(character.equipo_ocupacion || []).filter(e => 
-                      ['daga', 'espada', 'arco', 'hacha', 'lanza', 'bastón', 'maza', 'martillo'].some(w => 
-                        (typeof e === 'string' ? e : e?.nombre || '').toLowerCase().includes(w)
-                      )
-                    ).map((arma, i) => (
-                      <div key={`arma-occ-${i}`} className="text-sm text-muted-foreground">
-                        • {typeof arma === 'string' ? arma : arma.nombre}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-              
-              {/* Armor */}
-              {(character.armadura_elegida?.length > 0 || character.equipo_ocupacion?.some(e => 
-                ['armadura', 'cota', 'escudo', 'yelmo', 'casco'].some(w => 
-                  (typeof e === 'string' ? e : e?.nombre || '').toLowerCase().includes(w)
-                )
-              )) && (
-                <div className="mb-3">
-                  <p className="text-xs text-blue-400 font-medium mb-1">Armaduras</p>
-                  <div className="space-y-1">
-                    {(character.armadura_elegida || []).map((arm, i) => (
-                      <div key={`arm-${i}`} className="text-sm text-muted-foreground">
-                        • {typeof arm === 'string' ? arm : arm.nombre}
-                      </div>
-                    ))}
-                    {(character.equipo_ocupacion || []).filter(e => 
-                      ['armadura', 'cota', 'escudo', 'yelmo', 'casco', 'cuero'].some(w => 
-                        (typeof e === 'string' ? e : e?.nombre || '').toLowerCase().includes(w)
-                      )
-                    ).map((arm, i) => (
-                      <div key={`arm-occ-${i}`} className="text-sm text-muted-foreground">
-                        • {typeof arm === 'string' ? arm : arm.nombre}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-              
-              {/* Tools */}
-              {character.herramientas_elegidas_ocupacion?.length > 0 && (
-                <div className="mb-3">
-                  <p className="text-xs text-green-400 font-medium mb-1">Herramientas</p>
-                  <div className="space-y-1">
-                    {character.herramientas_elegidas_ocupacion.map((herr, i) => (
-                      <div key={`herr-${i}`} className="text-sm text-muted-foreground">
-                        • {typeof herr === 'string' ? herr : herr.nombre}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-              
-              {/* Inventory */}
-              {character.inventario?.length > 0 && (
-                <div className="mb-3">
-                  <p className="text-xs text-muted-foreground font-medium mb-1">Inventario</p>
-                  <div className="space-y-1">
-                    {character.inventario.map((item, i) => (
-                      <div key={`inv-${i}`} className="text-sm text-muted-foreground">
-                        • {item.nombre} {item.cantidad > 1 && `(x${item.cantidad})`}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-              
-              {/* Money - All 4 types */}
-              <div className="mt-4 pt-3 border-t border-border/50">
-                <p className="text-xs text-muted-foreground mb-2">Dinero</p>
-                {character.nivel_riqueza && (
-                  <div className="mb-2">
-                    <span className="text-xs text-[hsl(var(--gold))] font-medium">
-                      Nivel de Riqueza: {character.nivel_riqueza}
-                    </span>
-                  </div>
-                )}
-                <div className="flex flex-wrap gap-3 text-sm">
-                  <span className="text-yellow-500">{character.dinero?.mo || 0} mo</span>
-                  <span className="text-gray-300">{character.dinero?.mp || 0} mp</span>
-                  <span className="text-slate-400">{character.dinero?.me || 0} me</span>
-                  <span className="text-amber-700">{character.dinero?.mc || 0} mc</span>
-                </div>
-              </div>
-              
-              {/* Weight and Encumbrance */}
-              <div className="mt-4 pt-3 border-t border-border/50">
-                <p className="text-xs text-muted-foreground mb-2">Carga</p>
-                {(() => {
-                  // Calculate total weight (simplified - would need catalog lookup for accurate)
-                  const fuerza = character.atributos?.fuerza || 10;
-                  const limiteCargado = fuerza * 2.5;
-                  const limiteMuyCargado = fuerza * 4;
-                  
-                  // Estimate weight from inventory count (simplified)
-                  let pesoEstimado = 0;
-                  (character.inventario || []).forEach(item => {
-                    pesoEstimado += (item.cantidad || 1) * 0.5; // Estimate 0.5kg per item
-                  });
-                  // Add weapons/armor weight estimate
-                  pesoEstimado += (character.armas_elegidas?.length || 0) * 1.5;
-                  pesoEstimado += (character.armadura_elegida?.length || 0) * 5;
-                  pesoEstimado += (character.herramientas_elegidas_ocupacion?.length || 0) * 2;
-                  // Add coins
-                  const totalMonedas = (character.dinero?.mo || 0) + (character.dinero?.mp || 0) + 
-                                       (character.dinero?.me || 0) + (character.dinero?.mc || 0);
-                  pesoEstimado += totalMonedas * 0.009;
-                  
-                  const esCargado = pesoEstimado > limiteCargado;
-                  const esMuyCargado = pesoEstimado > limiteMuyCargado;
-                  
-                  return (
-                    <div className="space-y-2">
-                      <div className="flex items-center gap-2">
-                        <span className="text-muted-foreground text-sm">Peso:</span>
-                        <span className={cn(
-                          "font-medium",
-                          esMuyCargado ? "text-red-500" : esCargado ? "text-yellow-500" : "text-green-500"
-                        )}>
-                          ~{pesoEstimado.toFixed(1)} kg
-                        </span>
-                      </div>
-                      <div className="flex gap-4 text-xs">
-                        <span className="text-muted-foreground">
-                          Cargado: &gt;{limiteCargado.toFixed(1)} kg
-                        </span>
-                        <span className="text-muted-foreground">
-                          Muy cargado: &gt;{limiteMuyCargado.toFixed(1)} kg
-                        </span>
-                      </div>
-                      {(esCargado || esMuyCargado) && (
-                        <div className={cn(
-                          "text-xs font-medium px-2 py-1 rounded inline-block",
-                          esMuyCargado ? "bg-red-500/20 text-red-400" : "bg-yellow-500/20 text-yellow-400"
-                        )}>
-                          {esMuyCargado ? "MUY CARGADO" : "CARGADO"}
-                        </div>
-                      )}
-                    </div>
-                  );
-                })()}
-              </div>
-            </div>
           </div>
         </div>
       </main>
       
       {/* Equipment Manager Modal */}
-      {showEquipmentModal && (
-        <EquipmentManagerModal
-          character={character}
-          onClose={() => setShowEquipmentModal(false)}
-          onUpdate={() => {
-            // Refresh character data
-            getCharacter(characterId).then(res => setCharacter(res.data));
-          }}
-        />
-      )}
+      <EquipmentManagerModal
+        isOpen={showEquipmentModal}
+        character={character}
+        onClose={() => setShowEquipmentModal(false)}
+        onCharacterUpdate={(updatedChar) => setCharacter(updatedChar)}
+      />
     </div>
   );
 };
