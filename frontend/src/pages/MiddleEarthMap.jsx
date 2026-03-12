@@ -41,7 +41,8 @@ import {
   LocationInfoPanel, 
   RoutePanel,
   EditLocationPanel,
-  CreateLocationPanel 
+  CreateLocationPanel,
+  NameGeneratorPanel
 } from '../components/map';
 
 // Type categories for filtering (not in mapConstants - specific to this view)
@@ -143,6 +144,7 @@ const MiddleEarthMap = () => {
   const [isCreatingNewType, setIsCreatingNewType] = useState(false);
   const [newCustomType, setNewCustomType] = useState('');
   const [customTypes, setCustomTypes] = useState([]); // Store user-created types
+  const [showNameGenerator, setShowNameGenerator] = useState(false); // Name generator panel
   const [newLocationData, setNewLocationData] = useState({
     nombre: '',
     nombre_sindarin: '',
@@ -1571,13 +1573,23 @@ const MiddleEarthMap = () => {
                 Los cambios se marcan en <span className="text-orange-400">naranja</span>. 
                 Guarda cuando termines.
               </p>
-              <Button
-                size="sm"
-                onClick={startCreatingLocation}
-                className="bg-green-600 hover:bg-green-700 ml-4"
-              >
-                ➕ Crear Ubicación
-              </Button>
+              <div className="flex gap-2 ml-4">
+                <Button
+                  size="sm"
+                  onClick={() => setShowNameGenerator(true)}
+                  className="bg-purple-600 hover:bg-purple-700"
+                  title="Generar nombres para poblaciones"
+                >
+                  ✨ Generador de Nombres
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={startCreatingLocation}
+                  className="bg-green-600 hover:bg-green-700"
+                >
+                  ➕ Crear Ubicación
+                </Button>
+              </div>
             </div>
           )}
           
@@ -2507,6 +2519,19 @@ const MiddleEarthMap = () => {
               const mid = barrier.puntos[Math.floor(barrier.puntos.length / 2)];
               setViewBox(vb => ({...vb, x: mid.x - vb.width/2, y: mid.y - vb.height/2}));
             }
+          }}
+        />
+        
+        {/* Name Generator Panel */}
+        <NameGeneratorPanel
+          isVisible={showNameGenerator}
+          onClose={() => setShowNameGenerator(false)}
+          onSelectName={(name) => {
+            // If creating a location, use the name
+            if (isCreatingLocation) {
+              setNewLocationData(prev => ({ ...prev, nombre: name }));
+            }
+            setShowNameGenerator(false);
           }}
         />
         

@@ -17,3 +17,4 @@ export { default as MapFilters } from './MapFilters';
 export { default as EditLocationPanel } from './EditLocationPanel';
 export { default as CreateLocationPanel } from './CreateLocationPanel';
 export { default as RouteInfoPanel } from './RouteInfoPanel';
+export { default as NameGeneratorPanel } from './NameGeneratorPanel';
