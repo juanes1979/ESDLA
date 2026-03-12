@@ -2,14 +2,14 @@
  * Edit Location Panel Component
  * Form for editing existing location properties
  */
-import React from 'react';
+import React, { useState } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
-import { X, Save, Loader2, Trash2 } from 'lucide-react';
+import { X, Save, Loader2, Trash2, Plus } from 'lucide-react';
 
 const EditLocationPanel = ({
   location,
@@ -24,7 +24,12 @@ const EditLocationPanel = ({
   typeNames,
   locationIcons,
   staticRegionHierarchy,
+  customTypes = [],
+  onAddCustomType,
 }) => {
+  const [isCreatingNewType, setIsCreatingNewType] = useState(false);
+  const [newCustomType, setNewCustomType] = useState('');
+  
   if (!location) return null;
 
   const renderRegionOptions = () => {
@@ -107,16 +112,71 @@ const EditLocationPanel = ({
         {/* Type */}
         <div>
           <label className="text-xs text-muted-foreground">Tipo</label>
-          <Select value={formData.tipo} onValueChange={(v) => setFormData({ ...formData, tipo: v })}>
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {Object.entries(typeNames).map(([key, name]) => (
-                <SelectItem key={key} value={key}>{locationIcons[key]} {name}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          {!isCreatingNewType ? (
+            <div className="flex gap-2">
+              <Select 
+                value={formData.tipo} 
+                onValueChange={(v) => {
+                  if (v === '__new__') {
+                    setIsCreatingNewType(true);
+                  } else {
+                    setFormData({ ...formData, tipo: v });
+                  }
+                }}
+              >
+                <SelectTrigger className="flex-1">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {Object.entries(typeNames).map(([key, name]) => (
+                    <SelectItem key={key} value={key}>{locationIcons[key]} {name}</SelectItem>
+                  ))}
+                  {/* Custom types created by user */}
+                  {customTypes.map(ct => (
+                    <SelectItem key={ct} value={ct}>🏷️ {ct}</SelectItem>
+                  ))}
+                  {/* Show current type if it's not in the list (could be custom) */}
+                  {formData.tipo && !typeNames[formData.tipo] && !customTypes.includes(formData.tipo) && (
+                    <SelectItem value={formData.tipo}>🏷️ {formData.tipo}</SelectItem>
+                  )}
+                  <SelectItem value="__new__" className="text-green-400 border-t border-border/30 mt-1 pt-1">
+                    <Plus className="w-3 h-3 inline mr-1" /> Crear nuevo tipo...
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          ) : (
+            <div className="flex gap-2">
+              <Input
+                value={newCustomType}
+                onChange={(e) => setNewCustomType(e.target.value)}
+                placeholder="Nombre del tipo (ej: túmulos)"
+                className="flex-1"
+                autoFocus
+              />
+              <Button
+                size="sm"
+                onClick={() => {
+                  if (newCustomType.trim() && onAddCustomType) {
+                    onAddCustomType(newCustomType);
+                  }
+                  setNewCustomType('');
+                  setIsCreatingNewType(false);
+                }}
+                disabled={!newCustomType.trim()}
+                className="bg-green-600 hover:bg-green-700"
+              >
+                Añadir
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => { setIsCreatingNewType(false); setNewCustomType(''); }}
+              >
+                ✕
+              </Button>
+            </div>
+          )}
         </div>
         
         {/* Terrain Type */}

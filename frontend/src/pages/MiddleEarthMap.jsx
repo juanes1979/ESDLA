@@ -283,8 +283,22 @@ const MiddleEarthMap = () => {
           api.get('/data/locations'),
           api.get('/data/regions')
         ]);
-        setLocations(locRes.data.locations || []);
+        const loadedLocations = locRes.data.locations || [];
+        setLocations(loadedLocations);
         setRegionsHierarchy(regRes.data.regions || []);
+        
+        // Extract custom types from existing locations
+        // A type is custom if it's not in the predefined TYPE_NAMES
+        const predefinedTypes = Object.keys(TYPE_NAMES);
+        const customTypesFromLocations = new Set();
+        loadedLocations.forEach(loc => {
+          if (loc.tipo && !predefinedTypes.includes(loc.tipo)) {
+            customTypesFromLocations.add(loc.tipo);
+          }
+        });
+        if (customTypesFromLocations.size > 0) {
+          setCustomTypes(prev => [...new Set([...prev, ...customTypesFromLocations])]);
+        }
       } catch (err) {
         console.error('Error loading data:', err);
         toast.error('Error al cargar datos del mapa');
@@ -2392,6 +2406,17 @@ const MiddleEarthMap = () => {
           typeNames={TYPE_NAMES}
           locationIcons={LOCATION_ICONS}
           staticRegionHierarchy={REGION_HIERARCHY}
+          customTypes={customTypes}
+          onAddCustomType={(newType) => {
+            if (newType.trim()) {
+              const typeKey = newType.toLowerCase().replace(/\s+/g, '_');
+              if (!customTypes.includes(typeKey)) {
+                setCustomTypes(prev => [...prev, typeKey]);
+              }
+              setEditFormData(prev => ({ ...prev, tipo: typeKey }));
+              toast.success(`Tipo "${newType}" creado`);
+            }
+          }}
         />
         <CreateLocationPanel
           isVisible={isCreatingLocation}
