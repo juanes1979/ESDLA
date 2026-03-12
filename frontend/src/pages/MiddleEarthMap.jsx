@@ -2531,7 +2531,12 @@ const MiddleEarthMap = () => {
             if (isCreatingLocation) {
               setNewLocationData(prev => ({ ...prev, nombre: name }));
             }
-            setShowNameGenerator(false);
+          }}
+          onSelectHistory={(history) => {
+            // If creating a location, use the history as description
+            if (isCreatingLocation) {
+              setNewLocationData(prev => ({ ...prev, descripcion: history }));
+            }
           }}
         />
         

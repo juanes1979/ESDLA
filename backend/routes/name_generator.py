@@ -19,7 +19,7 @@ NAMING_DATA = {
         "humano": {
             "prefijos": ["Bram", "Dor", "Fen", "Thal", "Car", "Gal", "Ar", "Lin", "Harl", "Bree", "Stad", "Chet", "Arch"],
             "raices": ["win", "dor", "thal", "mar", "wen", "ric", "gan", "ald", "ford", "bur", "dal"],
-            "sufijos": ["ford", "hill", "ton", "dale", "brook", "mere", "stead", "keep", "bury", "ham", "worth"]
+            "sufijos": ["lond", "dôr", "mir", "thal", "gorn", "bar", "wen", "ion"]
         },
         "elfico": {
             "prefijos": ["Elen", "Lóm", "Sil", "Ar", "Fëa", "Cal", "Nár", "Ith", "Cel", "Gal", "Nim"],
@@ -286,4 +286,107 @@ async def generate_random_name():
         "region": REGION_NAMES.get(region, region),
         "raza": RACE_NAMES.get(raza, raza),
         "detalles": name.dict() if name else None
+    }
+
+
+class HistoryRequest(BaseModel):
+    nombre: str
+    region: str
+    raza: str
+
+
+@router.post("/generate-history")
+async def generate_history(request: HistoryRequest):
+    """Generate a brief AI-powered history for a settlement."""
+    try:
+        import os
+        from emergentintegrations.llm.chat import LlmChat, UserMessage
+        
+        # Build the prompt based on region and race
+        race_context = {
+            "humano": "una población de hombres del oeste",
+            "elfico": "un asentamiento élfico antiguo y misterioso",
+            "enano": "un bastión enano excavado en la roca",
+            "orco": "un campamento orco oscuro y amenazante",
+            "hobbit": "una acogedora aldea de hobbits"
+        }
+        
+        region_context = {
+            "eriador": "las tierras salvajes de Eriador, antaño parte del reino de Arnor",
+            "gondor": "el orgulloso reino de Gondor, heredero de Númenor",
+            "rohan": "las verdes llanuras de Rohan, tierra de los Señores de los Caballos",
+            "rhovanion": "las vastas tierras de Rhovanion, entre el Bosque Negro y las Montañas",
+            "mordor": "las oscuras tierras de Mordor, dominadas por la Sombra",
+            "rhun": "las lejanas tierras del Este, Rhûn, misteriosas y desconocidas",
+            "harad": "las cálidas tierras del Sur, Harad, tierra de pueblos guerreros",
+            "khand": "las estepas de Khand, hogar de jinetes nómadas",
+            "montanas_nubladas": "las peligrosas Montañas Nubladas, llenas de cuevas y pasadizos",
+            "bosque_negro": "el Bosque Negro, antes llamado Bosque Verde, ahora oscurecido",
+            "lindon": "Lindon, el último refugio de los Elfos en la Tierra Media occidental",
+            "shire": "La Comarca, el tranquilo hogar de los Hobbits"
+        }
+        
+        race_desc = race_context.get(request.raza.lower(), "un asentamiento")
+        region_desc = region_context.get(request.region.lower(), "la Tierra Media")
+        
+        prompt_text = f"""Escribe una historia BREVE (2-3 oraciones máximo) para {request.nombre}, {race_desc} ubicado en {region_desc}.
+
+La historia debe:
+- Ser evocadora y al estilo de Tolkien
+- Mencionar algún detalle único del lugar
+- Estar en español
+- NO usar más de 50 palabras
+
+Responde SOLO con la historia, sin introducción ni explicación."""
+
+        # Get API key from environment
+        api_key = os.environ.get('EMERGENT_LLM_KEY')
+        
+        # Initialize LlmChat with correct syntax per playbook
+        chat = LlmChat(
+            api_key=api_key,
+            session_id=f"name_gen_{request.nombre}",
+            system_message="Eres un experto en el universo de Tolkien y la Tierra Media. Generas descripciones breves y evocadoras de lugares."
+        ).with_model("openai", "gpt-4o-mini")
+        
+        # Create UserMessage object and send
+        user_message = UserMessage(text=prompt_text)
+        response = await chat.send_message(user_message)
+        
+        return {
+            "nombre": request.nombre,
+            "region": request.region,
+            "raza": request.raza,
+            "historia": response.strip() if response else None
+        }
+        
+    except Exception as e:
+        import traceback
+        print(f"Error generating history: {e}")
+        traceback.print_exc()
+        return {
+            "nombre": request.nombre,
+            "region": request.region,
+            "raza": request.raza,
+            "historia": None,
+            "error": str(e)
+        }
+
+
+@router.get("/generate-single/{region}/{raza}")
+async def generate_single_name(region: str, raza: str):
+    """Generate a single name for the given region and race."""
+    if region not in NAMING_DATA:
+        return {"error": f"Región '{region}' no encontrada", "nombre": None}
+    if raza not in NAMING_DATA[region]:
+        return {"error": f"Raza '{raza}' no disponible en {region}", "nombre": None}
+    
+    name = generate_name(region, raza)
+    return {
+        "nombre": name.nombre if name else None,
+        "prefijo": name.prefijo if name else None,
+        "raiz": name.raiz if name else None,
+        "sufijo": name.sufijo if name else None,
+        "region": REGION_NAMES.get(region, region),
+        "raza": RACE_NAMES.get(raza, raza)
     }
