@@ -184,19 +184,20 @@ const CreateLocationPanel = ({
           )}
         </div>
         
-        {/* Terrain */}
+        {/* Terrain Type */}
         <div>
-          <label className="text-xs text-muted-foreground">Terreno</label>
+          <label className="text-xs text-muted-foreground">Tipo de Terreno</label>
           <Select value={newLocationData.terreno} onValueChange={(v) => setNewLocationData({ ...newLocationData, terreno: v })}>
             <SelectTrigger>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="facil">Fácil</SelectItem>
-              <SelectItem value="moderado">Moderado</SelectItem>
-              <SelectItem value="dificil">Difícil</SelectItem>
-              <SelectItem value="severo">Severo</SelectItem>
-              <SelectItem value="peligroso">Peligroso</SelectItem>
+              <SelectItem value="facil">🟢 Fácil</SelectItem>
+              <SelectItem value="moderado">🟡 Moderado</SelectItem>
+              <SelectItem value="dificil">🟠 Difícil</SelectItem>
+              <SelectItem value="muy_dificil">🔴 Muy Difícil</SelectItem>
+              <SelectItem value="desalentador">🟣 Desalentador</SelectItem>
+              <SelectItem value="infranqueable">⬛ Infranqueable</SelectItem>
             </SelectContent>
           </Select>
         </div>

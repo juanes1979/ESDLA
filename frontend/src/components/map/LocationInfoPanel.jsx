@@ -6,7 +6,7 @@ import { X, MapPin, Shield, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { TERRAIN_COLORS, LAND_COLORS, LOCATION_ICONS } from './mapConstants';
+import { TERRAIN_COLORS, TERRAIN_NAMES, LAND_COLORS, LOCATION_ICONS } from './mapConstants';
 
 const LocationInfoPanel = ({
   location,
@@ -49,7 +49,7 @@ const LocationInfoPanel = ({
         <div className="flex flex-wrap gap-2">
           <Badge variant="outline">{loc.region}</Badge>
           <Badge style={{ backgroundColor: TERRAIN_COLORS[loc.terreno] + '40', color: '#fff' }}>
-            {loc.terreno}
+            {TERRAIN_NAMES[loc.terreno] || loc.terreno}
           </Badge>
           <Badge style={{ backgroundColor: LAND_COLORS[loc.tipo_tierra] + '40', color: '#fff' }}>
             {loc.tipo_tierra?.replace('_', ' ')}

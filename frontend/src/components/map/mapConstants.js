@@ -13,6 +13,16 @@ export const TERRAIN_COLORS = {
   infranqueable: '#4a3728',  // Dark brown
 };
 
+// Terrain type names for display
+export const TERRAIN_NAMES = {
+  facil: 'Fácil',
+  moderado: 'Moderado',
+  dificil: 'Difícil',
+  muy_dificil: 'Muy Difícil',
+  desalentador: 'Desalentador',
+  infranqueable: 'Infranqueable',
+};
+
 // Land type colors (danger level)
 export const LAND_COLORS = {
   tierras_libres: '#22c55e',    // Green
