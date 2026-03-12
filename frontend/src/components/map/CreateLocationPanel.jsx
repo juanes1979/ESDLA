@@ -1,15 +1,17 @@
 /**
  * Create Location Panel Component
- * Form for creating new locations on the map
+ * Form for creating new locations on the map with integrated name/history generator
  */
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
-import { X, Plus, Loader2, MapPin } from 'lucide-react';
+import { X, Plus, Loader2, MapPin, Sparkles, BookOpen, RefreshCw } from 'lucide-react';
+import { toast } from 'sonner';
+import api from '@/services/api';
 
 const CreateLocationPanel = ({
   newLocationData,
@@ -30,8 +32,107 @@ const CreateLocationPanel = ({
   setNewCustomType,
   onAddCustomType,
 }) => {
+  // Name generator state
+  const [nameGenRegions, setNameGenRegions] = useState({});
+  const [selectedGenRegion, setSelectedGenRegion] = useState('eriador');
+  const [selectedGenRace, setSelectedGenRace] = useState('humano');
+  const [isGeneratingName, setIsGeneratingName] = useState(false);
+  const [isGeneratingHistory, setIsGeneratingHistory] = useState(false);
+  const [lastGeneratedName, setLastGeneratedName] = useState(null);
+
+  // Race icons for display
+  const RACE_ICONS = {
+    humano: '👤',
+    elfico: '🧝',
+    enano: '⛏️',
+    orco: '👹',
+    hobbit: '🍃'
+  };
+
+  // Load name generator regions on mount
+  useEffect(() => {
+    const loadRegions = async () => {
+      try {
+        const res = await api.get('/names/regions');
+        setNameGenRegions(res.data);
+      } catch (err) {
+        console.error('Error loading name gen regions:', err);
+      }
+    };
+    if (isVisible) loadRegions();
+  }, [isVisible]);
+
+  // Update available races when region changes
+  useEffect(() => {
+    if (selectedGenRegion && nameGenRegions[selectedGenRegion]) {
+      const races = Object.keys(nameGenRegions[selectedGenRegion].razas);
+      if (races.length > 0 && !races.includes(selectedGenRace)) {
+        setSelectedGenRace(races[0]);
+      }
+    }
+  }, [selectedGenRegion, nameGenRegions, selectedGenRace]);
+
+  // Generate a name using AI
+  const generateName = async () => {
+    if (!selectedGenRegion || !selectedGenRace) return;
+    
+    setIsGeneratingName(true);
+    try {
+      const res = await api.get(`/names/generate-single/${selectedGenRegion}/${selectedGenRace}`);
+      if (res.data.nombre) {
+        setNewLocationData(prev => ({ ...prev, nombre: res.data.nombre }));
+        setLastGeneratedName({
+          nombre: res.data.nombre,
+          region: selectedGenRegion,
+          raza: selectedGenRace
+        });
+        toast.success(`Nombre generado: ${res.data.nombre}`);
+      } else {
+        toast.error(res.data.error || 'Error al generar nombre');
+      }
+    } catch (err) {
+      console.error('Error generating name:', err);
+      toast.error('Error al generar nombre');
+    } finally {
+      setIsGeneratingName(false);
+    }
+  };
+
+  // Generate history using AI
+  const generateHistory = async () => {
+    const nameToUse = newLocationData.nombre;
+    if (!nameToUse) {
+      toast.error('Primero genera o escribe un nombre');
+      return;
+    }
+    
+    setIsGeneratingHistory(true);
+    try {
+      const res = await api.post('/names/generate-history', {
+        nombre: nameToUse,
+        region: lastGeneratedName?.region || selectedGenRegion,
+        raza: lastGeneratedName?.raza || selectedGenRace
+      });
+      if (res.data.historia) {
+        setNewLocationData(prev => ({ ...prev, descripcion: res.data.historia }));
+        toast.success('Historia generada con IA');
+      } else {
+        toast.error(res.data.error || 'Error al generar historia');
+      }
+    } catch (err) {
+      console.error('Error generating history:', err);
+      toast.error('Error al generar historia');
+    } finally {
+      setIsGeneratingHistory(false);
+    }
+  };
+
   // Don't render if not visible
   if (!isVisible) return null;
+
+  const availableGenRaces = selectedGenRegion && nameGenRegions[selectedGenRegion] 
+    ? nameGenRegions[selectedGenRegion].razas 
+    : {};
   
   const renderRegionOptions = () => {
     if (regionsHierarchy && regionsHierarchy.length > 0) {
@@ -91,14 +192,61 @@ const CreateLocationPanel = ({
           </div>
         )}
         
-        {/* Name */}
-        <div>
+        {/* Name with Generator */}
+        <div className="space-y-2">
           <label className="text-xs text-muted-foreground">Nombre *</label>
           <Input
             value={newLocationData.nombre}
             onChange={(e) => setNewLocationData({ ...newLocationData, nombre: e.target.value })}
             placeholder="Nombre de la ubicación"
           />
+          
+          {/* Name Generator Section */}
+          <div className="p-2 bg-purple-900/20 border border-purple-500/30 rounded-md space-y-2">
+            <div className="flex items-center gap-1 text-xs text-purple-300">
+              <Sparkles className="w-3 h-3" />
+              <span>Generador de Nombres</span>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <Select value={selectedGenRegion} onValueChange={setSelectedGenRegion}>
+                <SelectTrigger className="h-8 text-xs">
+                  <SelectValue placeholder="Región" />
+                </SelectTrigger>
+                <SelectContent>
+                  {Object.entries(nameGenRegions).map(([key, data]) => (
+                    <SelectItem key={key} value={key} className="text-xs">
+                      {data.nombre}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select value={selectedGenRace} onValueChange={setSelectedGenRace}>
+                <SelectTrigger className="h-8 text-xs">
+                  <SelectValue placeholder="Raza" />
+                </SelectTrigger>
+                <SelectContent>
+                  {Object.entries(availableGenRaces).map(([key, name]) => (
+                    <SelectItem key={key} value={key} className="text-xs">
+                      {RACE_ICONS[key] || '🏷️'} {name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <Button
+              type="button"
+              size="sm"
+              onClick={generateName}
+              disabled={isGeneratingName}
+              className="w-full h-7 text-xs bg-purple-600 hover:bg-purple-700"
+            >
+              {isGeneratingName ? (
+                <><Loader2 className="w-3 h-3 mr-1 animate-spin" /> Generando...</>
+              ) : (
+                <><Sparkles className="w-3 h-3 mr-1" /> Generar Nombre</>
+              )}
+            </Button>
+          </div>
         </div>
         
         {/* Sindarin name */}
@@ -229,9 +377,26 @@ const CreateLocationPanel = ({
           <Label htmlFor="new-refugio">Es refugio seguro</Label>
         </div>
         
-        {/* Description */}
-        <div>
-          <label className="text-xs text-muted-foreground">Descripción</label>
+        {/* Description with AI Generator */}
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <label className="text-xs text-muted-foreground">Descripción</label>
+            <Button
+              type="button"
+              size="sm"
+              variant="ghost"
+              onClick={generateHistory}
+              disabled={isGeneratingHistory || !newLocationData.nombre}
+              className="h-6 text-xs text-purple-400 hover:text-purple-300 hover:bg-purple-900/30 px-2"
+              title={!newLocationData.nombre ? 'Primero escribe o genera un nombre' : 'Generar historia con IA'}
+            >
+              {isGeneratingHistory ? (
+                <><Loader2 className="w-3 h-3 mr-1 animate-spin" /> Generando...</>
+              ) : (
+                <><BookOpen className="w-3 h-3 mr-1" /> Generar con IA</>
+              )}
+            </Button>
+          </div>
           <textarea
             value={newLocationData.descripcion || ''}
             onChange={(e) => setNewLocationData({ ...newLocationData, descripcion: e.target.value })}
