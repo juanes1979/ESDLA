@@ -211,7 +211,8 @@ export const CharacterCreatorWizard = () => {
       <div className="min-h-screen tavern-bg">
         <div className="container mx-auto px-4 py-8 max-w-5xl">
           <CharacterSummary 
-            draft={draft} 
+            draft={draft}
+            draftId={draftId}
             onFinalize={handleFinalize} 
             onEdit={() => setIsComplete(false)}
             loading={loading}

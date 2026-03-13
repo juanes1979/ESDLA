@@ -1,441 +1,140 @@
 # LOTR 5e RPG - Product Requirements Document
 
-## Current State (2025-12-20)
+## Current State (2025-03-12)
 
-### ✅ COMPLETED This Session (2025-03-11)
+### ✅ COMPLETED This Session
 
-#### Corrección de Hoja de Personaje Interactiva - COMPLETADO
+#### 1. Integración IA para Generación de Historia - COMPLETADO
+- Corregido el endpoint `/api/names/generate-history` usando el playbook de integración
+- Implementación correcta de `emergentintegrations` con OpenAI gpt-4o-mini
+- Genera historias breves estilo Tolkien para ubicaciones del mapa
 
-**Problemas reportados:**
-1. Las columnas estaban desbalanceadas (una muy larga, otras cortas)
-2. El botón "Gestionar" en la sección Equipo no funcionaba
+#### 2. Generador de Nombres Integrado en "Crear Ubicación" - COMPLETADO
+- Integrado directamente en el panel "Crear Nueva Ubicación" del mapa
+- Selectores de Región y Raza para generar nombres
+- Botón "Generar Nombre" que llena automáticamente el campo
+- Botón "Generar con IA" para crear historia/descripción automática
+- Archivo modificado: `/app/frontend/src/components/map/CreateLocationPanel.jsx`
 
-**Soluciones implementadas en CharacterSheetPage.jsx:**
+#### 3. Generador de Retratos de Personajes con IA - COMPLETADO
+**Requisitos implementados:**
+- Nuevo endpoint `/api/portraits/generate` usando OpenAI GPT Image 1
+- Genera retratos en blanco y negro, estilo fotorealista medieval LOTR
+- Usa datos del personaje: raza, cultura, ocupación, trasfondo, edad, ojos, pelo, etc.
+- Botón "Generar Retrato IA" en el último paso del creador (Resumen)
+- Opción de regenerar si no gusta
+- La imagen se guarda en el personaje y se muestra en:
+  - Resumen del creador de personajes
+  - Hoja de personaje (CharacterHeader)
+  - Lista de personajes
 
-1. **Arreglo del Modal de Gestión de Equipo:**
-   - Corregidas las props pasadas al componente `EquipmentManagerModal`
-   - Añadido `isOpen={showEquipmentModal}` (faltaba anteriormente)
-   - Cambiado `onUpdate` por `onCharacterUpdate` (prop esperada por el modal)
-   - El botón "Gestionar" ahora abre correctamente el modal
-
-2. **Nuevas Secciones Añadidas a la Columna Derecha:**
-   - **Apariencia Física:** Ojos, Piel, Pelo, Tamaño, Nivel de Vida
-   - **Rasgos de Personalidad:** rasgo_distintivo y rasgo_distintivo_2 con descripciones
-   - **Senda de Sombra:** Nombre y descripción completa
-   - **Virtud mejorada:** Ahora muestra descripción/rasgos junto al nombre
-
-3. **Balance de Columnas:**
-   - Las tres columnas ahora tienen altura similar (2044px cada una)
-   - Contenido distribuido de forma equilibrada
-
-**Columna Izquierda:** HP, Estadísticas de combate, Puntos de Sombra, Competencias
-**Columna Central:** Atributos, Habilidades (19), Ocupación, Equipo
-**Columna Derecha:** Apariencia Física, Rasgos de Personalidad, Trasfondo, Senda de Sombra, Cultura
-
-#### Cálculo de Peso de Montura Mejorado - COMPLETADO
-
-**Cambios en el endpoint `/api/characters/{id}/weight-summary`:**
-
-Nuevos campos añadidos:
-- `peso_corporal`: Peso físico del personaje (kg)
-- `peso_total_montura`: items en montura + peso corporal del jinete
-- `capacidad_montura_restante` ahora considera el peso del jinete
-
-#### Refactorización de CharacterSheetPage.jsx - COMPLETADO
-
-**Componentes creados en `/app/frontend/src/components/character-sheet/summary/`:**
-- `CharacterHeader.jsx` - Cabecera con nombre, nivel, XP
-- `CombatStatsCard.jsx` - HP, AC, Velocidad, Dado de Golpe, Puntos de Sombra
-- `CompetenciesCard.jsx` - Tiradas, armaduras, armas, idiomas
-- `AttributesCard.jsx` - Los 6 atributos
-- `SkillsCard.jsx` - Las 19 habilidades con indicadores de competencia/pericia
-- `OccupationCard.jsx` - Info de ocupación con maldición y habilidades favorecidas
-- `EquipmentCard.jsx` - Lista de equipo con botón "Gestionar"
-- `AppearanceCard.jsx` - Apariencia física (ojos, piel, pelo, tamaño)
-- `PersonalityCard.jsx` - Rasgos distintivos
-- `BackgroundCard.jsx` - Trasfondo con historia y virtud
-- `ShadowPathCard.jsx` - Senda de sombra
-- `CultureCard.jsx` - Cultura con bendición y rasgos culturales
-- `index.js` - Barrel export para importaciones limpias
-
-**Beneficios:**
-- Código más mantenible (de 880 líneas a 240 líneas en el componente principal)
-- Componentes reutilizables
-- Más fácil de testear y debuggear
-- Previene futuros problemas de código duplicado
-
-**Archivos modificados:**
-- `/app/frontend/src/pages/CharacterSheetPage.jsx`
-- `/app/frontend/src/components/character-sheet/EquipmentManagerModal.jsx`
-- `/app/backend/routes/character_routes.py`
-
-**Testing:** 100% - Backend y Frontend verificados con testing agent
+**Archivos creados/modificados:**
+- `/app/backend/routes/portrait_routes.py` - Nuevo endpoint de generación
+- `/app/backend/routes/character_routes.py` - Campo portrait_image en finalize
+- `/app/frontend/src/components/character-creator/CharacterSummary.jsx` - UI de generación
+- `/app/frontend/src/components/character-sheet/summary/CharacterHeader.jsx` - Mostrar retrato
+- `/app/frontend/src/pages/CharactersListPage.jsx` - Mostrar retrato en lista
 
 ---
 
-### ✅ COMPLETED Previous Session (2025-12-20)
+## Core Features Implemented
 
-#### Correcciones en Ficha de Personaje PDF - COMPLETADO
+### Character Creation System
+- 9-step wizard for character creation
+- Culture, background, occupation, attributes, virtue selection
+- Equipment shop with starting funds
+- AI-generated character portraits (NEW)
 
-**Correcciones implementadas en SheetPage1.jsx y SheetPage2.jsx:**
+### Interactive Character Sheet
+- Modular components for easy maintenance
+- Equipment management with mount support
+- HP and Shadow point tracking
+- PDF export (3 pages)
+- Portrait display
 
-1. **Eliminado texto de ejemplo "Caballo de caminos":**
-   - Ya no aparece cuando el personaje no tiene montura
+### Map System (Mapa del Maestro)
+- Interactive Middle-earth map
+- Location creation/editing with terrain types
+- Name generator with prefix+root+suffix structure (by region/race)
+- AI history generation for locations (NEW)
+- Pathfinding and route planning
 
-2. **Armas de trasfondo y nivel de vida:**
-   - Ahora se buscan armas también en `equipo_trasfondo` y `equipo_nivel_vida`
-   - El Bastón ahora aparece correctamente en la sección de armas
+### Travel System
+- Resource consumption (food/water)
+- Fatigue mechanics
+- Foraging rules
+- Group speed calculations
 
-3. **Trasfondo en página 2:**
-   - El campo `descripcion_trasfondo` ahora busca: `historia` → `descripcion_trasfondo` → `trasfondo_descripcion`
-   - Muestra la historia generada por IA durante la creación del personaje
+### Treasure System
+- Configurable treasure generation
+- Famous weapons/armor creator
+- Magic item generation
 
-4. **Cálculo de peso mejorado:**
-   - Ahora suma peso de TODOS los campos de equipo: `inventario`, `equipo_ocupacion`, `equipo_trasfondo`, `equipo_nivel_vida`, `ropa_nivel_vida`, `armas_elegidas`, `armadura_elegida`, `armadura`, `escudo`
-   - Busca pesos en TODAS las categorías del catálogo (23 categorías)
-   - Respeta el campo `portado_por: 'montura'` para excluir peso de items en la montura
-   
-5. **Peso de la montura:**
-   - Calcula correctamente el peso de items marcados como `portado_por: 'montura'`
-   - Busca en `inventario`, `equipo_ocupacion`, `equipo_trasfondo`, `equipo_nivel_vida`
-
-6. **Lista de equipo ampliada:**
-   - Ahora incluye `ropa_nivel_vida` en la lista de equipo mostrado
-   - Items en la montura se marcan con "(M)" en la lista
-
----
-
-#### Tienda de Equipo en Creador de Personajes - COMPLETADO (2025-12-20)
-
-**Funcionalidad implementada en Step7Equipment.jsx:**
-
-1. **Tienda Integrada en Paso 5 (Equipo)**
-   - Botón "Comprar Equipo" abre/cierra la tienda
-   - Usa precios base sin modificadores de región
-   - Se accede desde el creador de personajes
-   - **Filtra automáticamente items no disponibles para creación**
-
-2. **11 Categorías de Equipo (717 items totales):**
-   - **Armas (29):** Sencillas CC, Sencillas Distancia, Marciales CC, Marciales Distancia
-   - **Armaduras (8):** Ligeras, Medias, Pesadas, Escudos  
-   - **Herramientas (35):** Herramientas, Juegos, Instrumentos musicales
-   - **General (108):** Equipo general
-   - **Comida (107):** Consumibles, Comida/Posadas
-   - **Monturas (24):** Monturas, Accesorios de monturas
-   - **Transporte (20):** Terrestre, Marítimo
-   - **Hierbas (87):** Hierbas medicinales y especiales
-   - **Venenos (15):** Venenos y toxinas
-   - **Gemas (232):** Preciosas, Semipreciosas
-   - **Construcción (52):** Materiales de construcción
-
-3. **UI de 2 Filas de Categorías:**
-   - Fila 1: Armas, Armaduras, Herramientas, General, Comida, Monturas
-   - Fila 2: Transporte, Hierbas, Venenos, Gemas, Construcción
-
-#### Control de Disponibilidad para Creación - COMPLETADO (2025-12-20)
-
-**Nueva funcionalidad en EquipmentSection.jsx (Reglas > Precios de Equipo):**
-
-1. **Checkbox por Item:**
-   - Columna con icono de persona (UserPlus) en la primera columna
-   - Click para marcar/desmarcar disponibilidad individual
-   - Items no disponibles aparecen con opacidad reducida
-
-2. **Botones de Categoría Completa:**
-   - "Todos": Habilita todos los items de la categoría para creación
-   - "Ninguno": Deshabilita todos los items de la categoría para creación
-   - Cambios se guardan inmediatamente en la base de datos
-
-3. **Nuevo campo `disponible_creacion`:**
-   - Campo booleano en cada item del catálogo
-   - Si es `false`, el item NO aparece en la tienda del creador
-   - Por defecto es `true` (retrocompatible)
-
-**Endpoints nuevos:**
-- `POST /api/data/equipment/batch-set-creation-availability` - Actualiza múltiples items
-- `POST /api/data/equipment/category-set-creation-availability` - Actualiza categoría completa
-
-**Caso de uso:** Items como "Estancia en posada" o "Noche en taberna" pueden deshabilitarse para que no aparezcan como opción de compra durante la creación de personajes.
-
-3. **Buscador de Items:**
-   - Campo de búsqueda con filtrado en tiempo real
-   - Filtra por nombre y categoría
-
-4. **Sistema de Carrito:**
-   - Añadir/quitar items con botones +/-
-   - Badge muestra cantidad de cada item
-   - Resumen del carrito con precio total
-   - Toast de confirmación al añadir
-
-5. **Balance de Dinero:**
-   - Dinero inicial = Nivel de Vida + Ocupación
-   - Sistema de conversión: 10 me = 1 mc, 10 mc = 1 mp, 100 mp = 1 mo
-   - Balance actualizado en tiempo real
-   - Items deshabilitados si no hay suficiente dinero
-
-6. **Persistencia:**
-   - Equipo comprado se guarda con el borrador del personaje
-   - Se incluye en el inventario final al finalizar creación
-
-**Endpoint usado:** `/api/data/equipment-catalog` (precios base)
-
-**Testing:** Backend 100% verificado. Frontend código verificado.
-
-**Archivos modificados:**
-- `/app/frontend/src/components/character-creator/steps/Step7Equipment.jsx`
+### GM Tools
+- Rules editor for all game parameters
+- NPC management
+- Trading system configuration
 
 ---
 
-#### Sistema de Tesoros - Mejoras Completadas
+## Pending Tasks
 
-**1. Multiplicadores de Manufactura Corregidos:**
-| Manufactura | Multiplicador |
-|-------------|---------------|
-| Númenóreana (Oesternesse) | ×5 |
-| Élfica (Eregion) | ×4 |
-| Élfica (Beleriand) | ×6 |
-| Enana (Khazad-dûm) | ×3 |
-| Enana (Erebor) | ×3 |
-| Enana (Nogrod/Belegost) | ×4 |
+### P1 - High Priority
+- Implement role-based access control (Admin/Maestro/Player)
+- Verify mount weight calculations edge cases
 
-**2. Generador de Nombres:**
-- Botón con icono de varita (Wand2) junto al campo nombre
-- Genera nombres según manufactura usando prefijos/raíces/sufijos culturales
-- Estructura: 1-3 en d6 = prefijo+sufijo, 4-6 = prefijo+raíz+sufijo
-- 5% probabilidad de doble prefijo
-- Ejemplos: "Khazdurgundar" (enano), "Celebrondil" (élfico), "Arangaldor" (númenóreano)
+### P2 - Medium Priority
+- Fix flawed pathfinding logic in debugger
+- Improve mouse wheel zoom on master map
 
-**3. Cualidades Encantadas con Descripciones:**
-- Armas: Afilada, Aplastante, Cruel, Dolorosa, Rasgadora, Cruel Mayor, Dolorosa Mayor, Exterminadora, Afilada Mayor, Dardo Hiriente, Luminiscencia, Arma Rúnica, Llama de Esperanza, Resplandor de Terror, Trayectoria Recta, Acero Hueco
-- Armaduras: Ajustada, Hábilmente Fabricada, Armadura Rúnica, Ajustada por los Antiguos, Hábilmente Fabricada por los Antiguos, Armadura de Mithril
-- Escudos: Reforzado, Escudo Rúnico, Reforzado Mayor (Enano/Élfico/Númenóreano)
-- Cada cualidad muestra su descripción al seleccionarla
+### Future Tasks
+- Moveable pieces in Terrain Editor
+- Refactor large components (EnhancedTravelSystem, MiddleEarthMap, TreasureSystem)
+- Database backup/restore feature
+- DM Screen and online gameplay interface
+- Full authentication system with roles
 
-**4. Fórmula de Cálculo de Precio:**
+---
+
+## Technical Architecture
+
 ```
-Precio = (Precio Base × Multiplicador Manufactura × Multiplicadores Cualidades) + Coste Perdiciones
-Ejemplo: Espada larga (20 mp) × Enana Khazad-dûm (×3) × Aplastante (×4) = 240 mp
+/app/
+├── backend/
+│   ├── routes/
+│   │   ├── character_routes.py   # Character CRUD, drafts, finalize
+│   │   ├── data_routes.py        # Game data (cultures, occupations, etc.)
+│   │   ├── name_generator.py     # Name generation with AI history
+│   │   ├── portrait_routes.py    # AI portrait generation (NEW)
+│   │   ├── storage_routes.py     # File storage
+│   │   ├── trading_routes.py     # Trading system
+│   │   └── travel_routes.py      # Travel calculations
+│   └── server.py
+└── frontend/
+    └── src/
+        ├── components/
+        │   ├── character-creator/  # Wizard steps
+        │   ├── character-sheet/    # Modular sheet components
+        │   ├── map/               # Map panels and controls
+        │   ├── rules/             # Rules editor sections
+        │   └── ui/                # Shadcn components
+        └── pages/
+            ├── CharacterSheetPage.jsx
+            ├── CharactersListPage.jsx
+            ├── MiddleEarthMap.jsx
+            └── ...
 ```
 
-**Archivos modificados:**
-- `/app/frontend/src/components/rules/sections/TreasureSystemSection.jsx`
+---
 
-**Testing:** 100% - Todas las funcionalidades verificadas
+## 3rd Party Integrations
+- **OpenAI GPT-4o-mini**: Location history generation
+- **OpenAI GPT Image 1**: Character portrait generation
+- **Emergent LLM Key**: Universal key for all AI integrations
+- **jspdf & html2canvas**: PDF generation
+- **lucide-react**: Icons
+- **shapely**: Geometric operations (backend)
 
 ---
 
-## Previous State (2025-12-20)
-
-### ✅ COMPLETED This Session (Fork #39-41)
-
-#### 1. P0: Sistema de Descanso, Fatiga, Comida y Agua - COMPLETADO
-
-**Funcionalidades implementadas:**
-
-1. **Pestaña "Comida" en CONFIG. VIAJES**
-   - Muestra items marcados como comida/agua
-   - Integración con FoodWaterEditor modal para edición en lote
-   - Muestra porcentaje de ración y litros por item
-
-2. **Editor de Comida/Agua (FoodWaterEditor)**
-   - Marcar items como comida/agua
-   - Configurar `porcentaje_racion` (cuánto de una ración representa)
-   - Configurar `litros` de agua por unidad
-   - Edición en lote por categoría
-
-3. **Verificación de Provisiones Pre-Viaje**
-   - Calcula provisiones necesarias según días y personas
-   - Muestra advertencia si hay insuficientes
-   - Detalles: raciones y litros disponibles vs necesarios
-
-4. **Panel de Provisiones Durante Viaje (Día a Día)**
-   - Indicadores de comida (raciones) y agua (litros) disponibles
-   - Días restantes de provisiones
-   - Código de colores: verde (suficiente), rojo (insuficiente)
-
-5. **Consumo Diario Automático**
-   - 1 ración de comida por persona/día
-   - 2 litros de agua por persona/día
-   - Advertencias cuando escasean las provisiones
-
-6. **Sistema de Forrajeo**
-   - Botón "Forrajear" en panel de provisiones
-   - Tirada de Supervivencia CD 15
-   - Éxito: encuentra 1d4 raciones + 1d4 litros
-   - Costo: 1 día adicional en la etapa
-
-7. **Sistema de Descanso (3 tipos)**
-   - **Corto (1 hora):** Recupera uso de habilidades
-   - **Largo (8 horas):** -1 fatiga con tirada CON exitosa (CD 10 + modificadores)
-   - **Santuario (1+ días):** Elimina toda fatiga sin tirada (requiere refugio)
-
-8. **Fatiga por Falta de Provisiones**
-   - Sin comida: +1 nivel de fatiga por día
-   - Sin agua: +2 niveles de fatiga por día
-   - Tracking por personaje
-
-9. **Endpoint de Fatiga**
-   - `PUT /api/characters/{id}/fatigue`
-   - Actualiza fatiga directamente (clamp 0-6)
-
-#### 2. Sistema de Interacciones con Objetos - COMPLETADO
-
-Sistema interactivo para romper puertas, cofres, cerrojos y otros objetos:
-
-**Clase de Armadura por Material:**
-| Material | CA |
-|----------|-----|
-| Tela, papel, cuerda | 11 |
-| Cristal, vidrio, hielo | 13 |
-| Madera, hueso | 15 |
-| Piedra | 17 |
-| Hierro, acero | 19 |
-| Mithril | 21 |
-| Adamantina | 23 |
-
-**Puntos de Golpe por Tamaño:**
-| Tamaño | Frágil | Resistente |
-|--------|--------|------------|
-| Diminuto | 1d4 (~2) | 2d4 (~5) |
-| Pequeño | 1d6 (~3) | 3d6 (~10) |
-| Mediano | 1d8 (~4) | 4d8 (~18) |
-| Grande | 1d10 (~5) | 5d10 (~27) |
-
-**Estados que modifican CA y PG:**
-- **Ruinoso:** -4 CA, ×0.5 PG
-- **Desgastado:** -2 CA, ×0.75 PG
-- **Normal:** +0 CA, ×1 PG
-- **Reforzado:** +2 CA, ×1.25 PG
-- **Obra maestra:** +4 CA, ×1.5 PG
-
-**Reglas especiales:**
-- **1 Natural (Pifia):** Fallo automático. 50% de dañar el arma.
-- **20 Natural (Crítico):** Impacto automático con daño doble.
-
-**Objetos predefinidos:** Cerrojo común, Cerrojo reforzado, Cofre de madera, Puerta vieja, Puerta de castillo, Portón de hierro, Cadenas, Ventana de vidrio, Barril, Estatua de piedra, Puerta de Mithril
-
-**Vulnerabilidades y Resistencias por Tipo de Daño:**
-| Material | Vulnerable (×2) | Resistente (×0.5) | Inmune (×0) |
-|----------|-----------------|-------------------|-------------|
-| Tela | Fuego, Cortante | - | - |
-| Cristal | Contundente, Trueno | - | Perforante |
-| Madera | Fuego | Contundente | - |
-| Piedra | Trueno | Cortante, Perforante, Fuego | - |
-| Hierro | Ácido | Cortante, Perforante | Fuego |
-| Mithril | - | Todos físicos + Fuego, Frío | Ácido |
-| Adamantina | - | Todos físicos + Fuego, Frío, Rayo | Ácido, Trueno |
-
-**Editor de Materiales:** Permite añadir/modificar materiales con sus vulnerabilidades y resistencias.
-
-#### 3. Sistema de Tesoros - COMPLETADO
-
-Sistema completo de generación de tesoros, objetos mágicos, joyas y arte:
-
-**Niveles de Tesoro:**
-| Nivel | Valor Base | Tiradas Mágicas | CD Sombra |
-|-------|------------|-----------------|-----------|
-| Menor | 9 + 2d8 po | 1d20 | 10 |
-| Mayor | 16 + 3d10 po | 2d20 | 15 |
-| Maravilloso | 26 + 4d12 po | 3d20 | 20 |
-
-**Tabla de Tesoro Mágico (d20):**
-- 1-14: Ningún tesoro mágico (Sombra: 1d4-2)
-- 15-17: Artefacto maravilloso con 1 bendición (Sombra: 1d6-3)
-- 18-19: Objeto extraordinario con 2 bendiciones (Sombra: 1d8-4)
-- 20: Arma o armadura famosa (Sombra: 1d8-4)
-
-**20 Bendiciones** (d20): Acertijos, Acrobacias, Atletismo, Cazar, Engaño, Explorar, Interpretación, Intimidación, Investigación, Juego de manos, Medicina, Naturaleza, Percepción, Perspicacia, Persuasión, Saber antiguo, Sigilo, Trato con animales, Viajar, Tira dos veces
-
-**9 Maldiciones:** Debilidad, Oscurecedor, Perseguido, Mala suerte, Mal augurio, Maligno, Adueñado, Marcado por la Sombra, Debilitante
-
-**Generador de Joyas:** Con formas (anillo, broche, collar, diadema, corona, cinturón), materiales (oro, plata, bronce, platino, mithril), gemas (perla, zafiro, rubí, amatista, diamante, esmeralda) y manufacturas.
-
-**~50 Objetos de Arte:** Gemas preciosas, máscaras, cálices, estatuillas, tapices, joyas decoradas, instrumentos, coronas, etc.
-
-#### 4. Armas y Armaduras Famosas - COMPLETADO
-
-Sistema completo para crear armas legendarias con cualidades encantadas:
-
-**Manufacturas (6 tipos):**
-- Númenóreana (Oesternesse) - 2 perdiciones, ×1.1 precio
-- Élfica (Eregion) - 1 perdición, ×1.05 precio
-- Élfica (Beleriand) - 1 perdición, ×1.1 precio
-- Enana (Khazad-dûm) - cualidades rúnicas, ×1.1 precio
-- Enana (Erebor/Beleriand) - cualidades rúnicas, ×1.0 precio
-
-**Perdiciones (Banes):**
-- **Élficas:** Destroza orcos (+3 mo), Perseguidora de lobos (+2 mo), Destripa arañas (+4 mo), Exterminadora de todos (+5 mo)
-- **Númenóreanas:** Letal contra orcos (+3 mo), Exterminadora de troles (+4 mo), Cazadora de lobos (+2 mo), Pesadilla de hombres malignos (+3 mo), Rompe espíritus impuros (+4 mo), Exterminadora de todos (+5 mo)
-
-**23 Cualidades de Arma:** Afilada, Aplastante, Cruel, Dolorosa, Rasgadora, Afilada Mayor, Cruel Mayor, Dolorosa Mayor, Exterminadora de Enemigos, Arma Rúnica, Dardo Hiriente, Luminiscencia, Llama de Esperanza, Resplandor de Terror, Trayectoria Recta, Acero Hueco, etc.
-
-**6 Cualidades de Armadura:** Ajustada (+320 mp), Hábilmente Fabricada (+320 mp), Armadura Rúnica (+400 mp), Ajustada por los Antiguos (+600 mp), Hábilmente Fabricada por los Antiguos (+1200 mp), Armadura de Mithril (+30 mp)
-
-**5 Cualidades de Escudo:** Reforzado (×300%), Rúnico (×360%), Reforzado Mayor enano (×900%), Reforzado Mayor élfico (×750%), Reforzado Mayor númenóreano (×850%)
-
-**Latencia por Nivel:** 
-- Nivel 1-4: 1 cualidad visible
-- Nivel 5-8: 2 cualidades visibles
-- Nivel 9+: 3 cualidades visibles
-
-#### 5. Índice de Tesoros del DM - COMPLETADO
-
-Sistema para pre-crear objetos mágicos específicos para la campaña:
-- CRUD completo (crear, ver, eliminar)
-- Persistencia en MongoDB vía `/api/data/treasure-index`
-- 50% probabilidad de aparecer cuando se genera "Arma/Armadura Famosa" en el generador
-- Muestra nombre, tipo, manufactura, cualidades, perdiciones, precio e historia
-
----
-
-### ✅ COMPLETED Previous Session (Fork #38)
-
-#### Mapa en PDF/Crónica - RESUELTO
-El mapa que aparecía como caja negra ahora renderiza correctamente.
-
-#### Modificadores de Habilidad - VERIFICADO
-Los modificadores de habilidad se calculan correctamente incluyendo competencia + pericia.
-
-#### Botón "Descargar PDF (3 hojas)" - MOVIDO
-- Quitado del creador de personajes
-- Añadido a la página de "HOJA DE PERSONAJE"
-
-#### Nombres de Caminos Actualizados
-- **Gran Camino** - CD 8, ×1.5 vel
-- **Camino Mayor** - CD 10, ×1.25 vel
-- **Camino Menor** - CD 12, ×1.1 vel
-- **Sendas** - CD 14, ×1 vel
-- **Campo Abierto** - CD 15, ×1 vel
-
-#### Sistema de Cálculo de PX - IMPLEMENTADO
-Fórmula: `PX final = PX base × diferencia × terreno × peligrosidad`
-
----
-
-## 📋 PRÓXIMAS TAREAS
-
-### P1 - Próximo
-- **Control de acceso por roles** - Restringir "Mapa del Maestro" y páginas de editor a Admin/Maestro
-- **Rellenado automático de agua** cerca de ríos/ciudades durante viaje
-- **Opción "Evitar Caminos"** para huidas
-
-### P2 - Medio plazo
-- Sistema completo de autenticación de usuarios (Maestro, Admin, Jugador)
-- Refactorizar componentes grandes (EnhancedTravelSystem, MiddleEarthMap, TreasureSystemSection)
-- Mejorar lógica de pathfinding en debugger
-
-### Backlog / Tareas Futuras
-- **Piezas móviles** en Editor de Terreno (pendiente definir requisitos)
-- Backup/restauración de base de datos
-- Pantalla del DM e interfaz de juego online
-- Ajustar sensibilidad del zoom con rueda en Master Map
-
----
-
-## Cálculo de Velocidad (Sistema Métrico)
-```
-Dúnedain:       10m = 40 km/día
-Elfos/Hombres:   9m = 36 km/día
-Enanos/Hobbits:  7m = 28 km/día
-Caballo:        18m = 72 km/día
-```
+## User's Preferred Language: Español

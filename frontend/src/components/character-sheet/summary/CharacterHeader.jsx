@@ -7,11 +7,20 @@ const CharacterHeader = ({ character, onLevelUp }) => {
   return (
     <div className="card-parchment rounded-lg p-6 mb-6">
       <div className="flex items-center gap-6">
-        <div className="w-24 h-24 rounded-full bg-gradient-to-br from-[hsl(var(--gold))/30] to-[hsl(var(--gold))/10] flex items-center justify-center border-2 border-[hsl(var(--gold))]">
-          <span className="font-heading text-4xl text-[hsl(var(--gold))]">
-            {character.nombre?.[0]?.toUpperCase()}
-          </span>
-        </div>
+        {/* Portrait - Show AI image or fallback to initial */}
+        {character.portrait_image ? (
+          <img 
+            src={`data:image/png;base64,${character.portrait_image}`}
+            alt={`Retrato de ${character.nombre}`}
+            className="w-24 h-24 rounded-full object-cover border-2 border-[hsl(var(--gold))]"
+          />
+        ) : (
+          <div className="w-24 h-24 rounded-full bg-gradient-to-br from-[hsl(var(--gold))/30] to-[hsl(var(--gold))/10] flex items-center justify-center border-2 border-[hsl(var(--gold))]">
+            <span className="font-heading text-4xl text-[hsl(var(--gold))]">
+              {character.nombre?.[0]?.toUpperCase()}
+            </span>
+          </div>
+        )}
         <div className="flex-1">
           <h1 className="font-heading text-3xl text-foreground mb-1">
             {character.nombre}

@@ -355,11 +355,20 @@ const CharactersListPage = () => {
                         className="flex items-center gap-4 w-full"
                         disabled={selectMode}
                       >
-                        <div className="w-14 h-14 rounded-full bg-orange-500/20 flex items-center justify-center border border-orange-500/50">
-                          <span className="font-heading text-xl text-orange-400">
-                            {char.nombre?.[0]?.toUpperCase()}
-                          </span>
-                        </div>
+                        {/* Portrait - Show AI image or fallback to initial */}
+                        {char.portrait_image ? (
+                          <img 
+                            src={`data:image/png;base64,${char.portrait_image}`}
+                            alt={char.nombre}
+                            className="w-14 h-14 rounded-full object-cover border border-orange-500/50"
+                          />
+                        ) : (
+                          <div className="w-14 h-14 rounded-full bg-orange-500/20 flex items-center justify-center border border-orange-500/50">
+                            <span className="font-heading text-xl text-orange-400">
+                              {char.nombre?.[0]?.toUpperCase()}
+                            </span>
+                          </div>
+                        )}
                         <div className="flex-1 text-left">
                           <h3 className="font-heading text-lg text-orange-300">{char.nombre}</h3>
                           <p className="text-sm text-gray-400">

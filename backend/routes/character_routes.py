@@ -659,6 +659,28 @@ async def update_draft_step9(draft_id: str, data: CharacterCreateStep9):
     return serialize_doc(draft)
 
 
+@router.patch("/draft/{draft_id}/portrait")
+async def update_draft_portrait(draft_id: str, data: dict):
+    """Update draft with AI-generated portrait image"""
+    portrait_image = data.get('portrait_image')
+    
+    if not portrait_image:
+        raise HTTPException(status_code=400, detail="portrait_image is required")
+    
+    result = await db.character_drafts.update_one(
+        {"_id": draft_id},
+        {"$set": {
+            "portrait_image": portrait_image,
+            "updated_at": now_utc(),
+        }}
+    )
+    
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Draft not found")
+    
+    return {"success": True, "message": "Portrait updated"}
+
+
 @router.post("/draft/{draft_id}/finalize")
 async def finalize_character(draft_id: str):
     """Convert a completed draft into a final character"""
@@ -845,6 +867,7 @@ async def finalize_character(draft_id: str):
         
         # Meta
         "estado": "activo",
+        "portrait_image": draft.get('portrait_image'),  # AI-generated portrait
         "created_at": now_utc(),
         "updated_at": now_utc(),
     }

@@ -1,16 +1,72 @@
 /**
  * Character Summary - Final review before creation
  */
-import { Loader2, Edit2, Check, User, Sword, Shield, Heart, Star, Crown } from 'lucide-react';
+import { useState } from 'react';
+import { Loader2, Edit2, Check, User, Sword, Shield, Heart, Star, Crown, ImageIcon, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { toast } from 'sonner';
+import api from '@/services/api';
 
 const getModifier = (score) => {
   const mod = Math.floor((score - 10) / 2);
   return mod >= 0 ? `+${mod}` : `${mod}`;
 };
 
-const CharacterSummary = ({ draft, onFinalize, onEdit, loading }) => {
+const CharacterSummary = ({ draft, onFinalize, onEdit, loading, draftId }) => {
+  const [portraitImage, setPortraitImage] = useState(draft?.portrait_image || null);
+  const [generatingPortrait, setGeneratingPortrait] = useState(false);
+
+  // Generate character portrait using AI
+  const generatePortrait = async () => {
+    setGeneratingPortrait(true);
+    try {
+      const response = await api.post('/portraits/generate', {
+        nombre: draft.nombre,
+        cultura: draft.cultura_nombre,
+        raza: draft.raza_nombre,
+        vocacion: draft.vocacion_nombre,
+        trasfondo: draft.trasfondo_nombre,
+        edad: draft.edad,
+        altura_cm: draft.altura_cm,
+        peso_kg: draft.peso_kg,
+        color_ojos: draft.color_ojos || draft.ojos,
+        color_pelo: draft.color_pelo || draft.pelo,
+        rasgos_fisicos: draft.rasgos_fisicos,
+        genero: draft.genero,
+      });
+      
+      if (response.data.success && response.data.image_base64) {
+        const imageBase64 = response.data.image_base64;
+        setPortraitImage(imageBase64);
+        
+        // Update draft with the portrait in the backend
+        if (draftId) {
+          try {
+            await api.patch(`/characters/draft/${draftId}/portrait`, {
+              portrait_image: imageBase64
+            });
+          } catch (saveError) {
+            console.error('Error saving portrait to draft:', saveError);
+          }
+        }
+        
+        // Update draft object locally
+        if (draft) {
+          draft.portrait_image = imageBase64;
+        }
+        toast.success('Retrato generado con éxito');
+      } else {
+        toast.error('Error al generar el retrato');
+      }
+    } catch (error) {
+      console.error('Error generating portrait:', error);
+      toast.error(error.response?.data?.detail || 'Error al generar el retrato');
+    } finally {
+      setGeneratingPortrait(false);
+    }
+  };
+
   if (!draft) return null;
 
   // Use 'caracteristicas' or 'atributos_finales' (whichever exists)
@@ -32,10 +88,59 @@ const CharacterSummary = ({ draft, onFinalize, onEdit, loading }) => {
       <div className="card-parchment rounded-lg p-6">
         {/* Character Header */}
         <div className="flex items-center gap-6 mb-6 pb-6 border-b border-border">
-          <div className="w-24 h-24 rounded-full bg-gradient-to-br from-[hsl(var(--gold))/30] to-[hsl(var(--gold))/10] flex items-center justify-center border-2 border-[hsl(var(--gold))]">
-            <span className="font-heading text-4xl text-[hsl(var(--gold))]">
-              {draft.nombre?.[0]?.toUpperCase()}
-            </span>
+          {/* Portrait Section */}
+          <div className="flex flex-col items-center gap-2">
+            {portraitImage ? (
+              <div className="relative group">
+                <img 
+                  src={`data:image/png;base64,${portraitImage}`}
+                  alt={`Retrato de ${draft.nombre}`}
+                  className="w-24 h-24 rounded-full object-cover border-2 border-[hsl(var(--gold))]"
+                />
+                <button
+                  onClick={generatePortrait}
+                  disabled={generatingPortrait}
+                  className="absolute inset-0 bg-black/60 rounded-full opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
+                  title="Regenerar retrato"
+                >
+                  {generatingPortrait ? (
+                    <Loader2 className="w-6 h-6 animate-spin text-white" />
+                  ) : (
+                    <RefreshCw className="w-6 h-6 text-white" />
+                  )}
+                </button>
+              </div>
+            ) : (
+              <div className="w-24 h-24 rounded-full bg-gradient-to-br from-[hsl(var(--gold))/30] to-[hsl(var(--gold))/10] flex items-center justify-center border-2 border-[hsl(var(--gold))]">
+                <span className="font-heading text-4xl text-[hsl(var(--gold))]">
+                  {draft.nombre?.[0]?.toUpperCase()}
+                </span>
+              </div>
+            )}
+            <Button
+              onClick={generatePortrait}
+              disabled={generatingPortrait}
+              size="sm"
+              variant="outline"
+              className="text-xs border-purple-500/50 text-purple-400 hover:bg-purple-500/10"
+            >
+              {generatingPortrait ? (
+                <>
+                  <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                  Generando...
+                </>
+              ) : portraitImage ? (
+                <>
+                  <RefreshCw className="w-3 h-3 mr-1" />
+                  Regenerar
+                </>
+              ) : (
+                <>
+                  <ImageIcon className="w-3 h-3 mr-1" />
+                  Generar Retrato IA
+                </>
+              )}
+            </Button>
           </div>
           <div>
             <h1 className="font-heading text-3xl text-foreground mb-1">
