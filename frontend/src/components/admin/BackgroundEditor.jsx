@@ -1,13 +1,14 @@
 /**
  * Background Editor Modal - Create/Edit backgrounds (admin only)
  */
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { X, Save, Copy, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import api from '@/services/api';
 
 // All available skills
@@ -33,16 +34,34 @@ const BackgroundEditor = ({ background, onSave, onClose, onCopy }) => {
   const isEditing = !!background;
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [cultures, setCultures] = useState([]);
+  const [loadingCultures, setLoadingCultures] = useState(true);
   
   const [formData, setFormData] = useState({
     nombre: background?.nombre || '',
     descripcion: background?.descripcion || '',
+    cultura: background?.cultura || '',
     competencias_habilidades_auto: background?.competencias_habilidades_auto || [],
     competencias_habilidades_elegir: background?.competencias_habilidades_elegir || [],
     competencias_herramientas_1: background?.competencias_herramientas_1 || [],
     competencias_herramientas_2: background?.competencias_herramientas_2 || [],
     rasgos_descripciones: background?.rasgos_descripciones || [],
   });
+
+  // Load available cultures
+  useEffect(() => {
+    const loadCultures = async () => {
+      try {
+        const res = await api.get('/data/cultures');
+        setCultures(res.data.cultures || []);
+      } catch (err) {
+        console.error('Error loading cultures:', err);
+      } finally {
+        setLoadingCultures(false);
+      }
+    };
+    loadCultures();
+  }, []);
 
   // Text areas for array fields
   const [rasgosText, setRasgosText] = useState((background?.rasgos_descripciones || []).join('\n'));
@@ -137,6 +156,42 @@ const BackgroundEditor = ({ background, onSave, onClose, onCopy }) => {
                 onChange={(e) => handleChange('descripcion', e.target.value)}
                 rows={3}
               />
+            </div>
+
+            {/* Culture Selection */}
+            <div className="border border-border/30 rounded-lg p-4 bg-[hsl(var(--gold))/5]">
+              <h3 className="font-heading text-[hsl(var(--gold))] mb-3">Subcultura Asociada *</h3>
+              <p className="text-xs text-muted-foreground mb-3">
+                Selecciona la subcultura a la que pertenece este trasfondo
+              </p>
+              {loadingCultures ? (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Cargando culturas...
+                </div>
+              ) : (
+                <Select 
+                  value={formData.cultura || ''} 
+                  onValueChange={(value) => handleChange('cultura', value)}
+                >
+                  <SelectTrigger className="w-full" data-testid="culture-select">
+                    <SelectValue placeholder="Selecciona una subcultura" />
+                  </SelectTrigger>
+                  <SelectContent className="max-h-80">
+                    {cultures.map(culture => (
+                      <SelectItem key={culture.id} value={culture.nombre}>
+                        <span className="flex items-center gap-2">
+                          <span className="text-muted-foreground text-xs">
+                            {culture.categoria || 'Sin categoría'}
+                          </span>
+                          <span>→</span>
+                          <span>{culture.nombre}</span>
+                        </span>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
             </div>
 
             {/* Automatic Skill Competencies */}

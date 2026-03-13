@@ -821,6 +821,70 @@ async def copy_background(background_id: str, new_name: str = Body(..., embed=Tr
     return serialize_doc(new_bg)
 
 
+class CopyBackgroundsRequest(BaseModel):
+    """Request model for copying backgrounds to another culture"""
+    background_ids: List[str]  # List of background IDs to copy
+    target_cultura: str  # Target culture name
+    source_cultura: Optional[str] = None  # Source culture (for "copy all from culture")
+
+
+@router.post("/backgrounds/copy-to-culture")
+async def copy_backgrounds_to_culture(data: CopyBackgroundsRequest):
+    """Copy one or more backgrounds to another culture (admin only)"""
+    if not data.background_ids and not data.source_cultura:
+        raise HTTPException(status_code=400, detail="Debes especificar trasfondos o una cultura origen")
+    
+    # If source culture is specified, get all backgrounds from that culture
+    backgrounds_to_copy = []
+    if data.source_cultura:
+        source_bgs = await db.backgrounds.find({"cultura": data.source_cultura}).to_list(100)
+        backgrounds_to_copy = source_bgs
+    else:
+        # Get specific backgrounds by ID
+        for bg_id in data.background_ids:
+            bg = await db.backgrounds.find_one({"_id": bg_id})
+            if bg:
+                backgrounds_to_copy.append(bg)
+    
+    if not backgrounds_to_copy:
+        raise HTTPException(status_code=404, detail="No se encontraron trasfondos para copiar")
+    
+    # Get existing backgrounds in target culture to avoid duplicates
+    existing_in_target = await db.backgrounds.find({"cultura": data.target_cultura}).to_list(100)
+    existing_names = set(bg["nombre"] for bg in existing_in_target)
+    
+    copied_count = 0
+    skipped_count = 0
+    copied_backgrounds = []
+    
+    for bg in backgrounds_to_copy:
+        # Check if a background with the same name already exists in target culture
+        if bg["nombre"] in existing_names:
+            skipped_count += 1
+            continue
+        
+        # Create a copy with new ID and target culture
+        new_bg = {**bg}
+        new_bg["_id"] = str(uuid.uuid4())
+        new_bg["cultura"] = data.target_cultura
+        new_bg["is_custom"] = True
+        new_bg["created_at"] = now_utc()
+        new_bg["updated_at"] = now_utc()
+        # Remove ObjectId if present
+        new_bg.pop("id", None)
+        
+        await db.backgrounds.insert_one(new_bg)
+        copied_backgrounds.append(serialize_doc(new_bg))
+        copied_count += 1
+    
+    return {
+        "message": f"Se copiaron {copied_count} trasfondos. {skipped_count} omitidos (ya existían).",
+        "copied_count": copied_count,
+        "skipped_count": skipped_count,
+        "copied_backgrounds": copied_backgrounds
+    }
+
+
 # === CRUD: OCCUPATIONS ===
 
 class OccupationCreate(BaseModel):

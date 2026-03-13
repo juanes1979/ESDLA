@@ -2,11 +2,12 @@
  * BackgroundsSection - Displays backgrounds organized by Race (tabs) and Culture (collapsible)
  */
 import { useState, useEffect } from 'react';
-import { ChevronDown, ChevronUp, Edit, Trash2, Plus, Loader2 } from 'lucide-react';
+import { ChevronDown, ChevronUp, Edit, Trash2, Plus, Loader2, Copy } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import api from '@/services/api';
 import { useUser } from '@/contexts/UserContext';
+import CopyBackgroundsModal from '@/components/admin/CopyBackgroundsModal';
 
 // Section helper
 const Section = ({ title, children, className = '' }) => (
@@ -32,6 +33,7 @@ const BackgroundsSection = ({ onEdit, onDelete, onRefresh }) => {
   const [selectedRace, setSelectedRace] = useState(null);
   const [expandedCultures, setExpandedCultures] = useState({});
   const [expandedBackground, setExpandedBackground] = useState(null);
+  const [showCopyModal, setShowCopyModal] = useState(false);
 
   useEffect(() => {
     loadGroupedBackgrounds();
@@ -232,7 +234,15 @@ const BackgroundsSection = ({ onEdit, onDelete, onRefresh }) => {
     <div className="space-y-4" data-testid="backgrounds-section">
       {/* Admin button to create new background */}
       {isAdmin && (
-        <div className="flex justify-end">
+        <div className="flex justify-end gap-2">
+          <Button
+            onClick={() => setShowCopyModal(true)}
+            variant="outline"
+            className="border-[hsl(var(--gold))/50] text-[hsl(var(--gold))]"
+          >
+            <Copy className="w-4 h-4 mr-2" />
+            Copiar Trasfondo/s
+          </Button>
           <Button
             onClick={() => onEdit && onEdit(null)}
             className="btn-fantasy"
@@ -241,6 +251,18 @@ const BackgroundsSection = ({ onEdit, onDelete, onRefresh }) => {
             Nuevo Trasfondo
           </Button>
         </div>
+      )}
+      
+      {/* Copy Backgrounds Modal */}
+      {showCopyModal && (
+        <CopyBackgroundsModal
+          groupedData={groupedData}
+          onClose={() => setShowCopyModal(false)}
+          onSuccess={() => {
+            loadGroupedBackgrounds();
+            onRefresh && onRefresh();
+          }}
+        />
       )}
       
       {/* Race Tabs */}
