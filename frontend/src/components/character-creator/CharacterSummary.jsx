@@ -157,6 +157,90 @@ const CharacterSummary = ({ draft, onFinalize, onEdit, loading, draftId }) => {
           </div>
         </div>
 
+        {/* Portrait Large View - Only shown when portrait exists */}
+        {portraitImage && (
+          <div className="mb-6 pb-6 border-b border-border">
+            <h3 className="font-heading text-lg text-[hsl(var(--gold))] mb-4 flex items-center gap-2">
+              <ImageIcon className="w-5 h-5" />
+              Retrato del Personaje
+            </h3>
+            <div className="flex flex-col md:flex-row items-center gap-6">
+              <div className="relative group">
+                <img 
+                  src={`data:image/png;base64,${portraitImage}`}
+                  alt={`Retrato de ${draft.nombre}`}
+                  className="w-64 h-64 md:w-80 md:h-80 object-cover rounded-lg border-2 border-[hsl(var(--gold))] shadow-lg"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent rounded-lg opacity-0 group-hover:opacity-100 transition-opacity" />
+              </div>
+              <div className="flex flex-col gap-3 text-center md:text-left">
+                <p className="text-sm text-muted-foreground italic">
+                  Retrato generado con IA basado en las características del personaje
+                </p>
+                <Button
+                  onClick={generatePortrait}
+                  disabled={generatingPortrait}
+                  variant="outline"
+                  className="border-purple-500/50 text-purple-400 hover:bg-purple-500/10"
+                >
+                  {generatingPortrait ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Generando nuevo retrato...
+                    </>
+                  ) : (
+                    <>
+                      <RefreshCw className="w-4 h-4 mr-2" />
+                      Regenerar Retrato
+                    </>
+                  )}
+                </Button>
+                <p className="text-xs text-muted-foreground">
+                  Si no te gusta el resultado, puedes generar otro
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Generate Portrait Section - Only shown when NO portrait exists */}
+        {!portraitImage && (
+          <div className="mb-6 pb-6 border-b border-border">
+            <h3 className="font-heading text-lg text-[hsl(var(--gold))] mb-4 flex items-center gap-2">
+              <ImageIcon className="w-5 h-5" />
+              Retrato del Personaje
+            </h3>
+            <div className="bg-purple-900/20 border border-purple-500/30 rounded-lg p-6 text-center">
+              <div className="w-32 h-32 mx-auto mb-4 rounded-lg bg-purple-500/10 border-2 border-dashed border-purple-500/30 flex items-center justify-center">
+                <ImageIcon className="w-12 h-12 text-purple-500/50" />
+              </div>
+              <p className="text-muted-foreground mb-4">
+                Genera un retrato único para tu personaje usando inteligencia artificial
+              </p>
+              <Button
+                onClick={generatePortrait}
+                disabled={generatingPortrait}
+                className="bg-purple-600 hover:bg-purple-700"
+              >
+                {generatingPortrait ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Generando retrato...
+                  </>
+                ) : (
+                  <>
+                    <ImageIcon className="w-4 h-4 mr-2" />
+                    Generar Retrato con IA
+                  </>
+                )}
+              </Button>
+              <p className="text-xs text-muted-foreground mt-3">
+                Dibujo fotorealista en blanco y negro, estilo Tolkien
+              </p>
+            </div>
+          </div>
+        )}
+
         {/* Attributes */}
         <div className="mb-6">
           <h3 className="font-heading text-lg text-[hsl(var(--gold))] mb-4 flex items-center gap-2">
