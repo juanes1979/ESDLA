@@ -2509,7 +2509,8 @@ async def camp_journey(journey_id: str, data: CampRequest = Body(default=CampReq
         raise HTTPException(status_code=404, detail="Viaje no encontrado")
 
     current_cd = float(journey.get('fatiga_cd_total', 10))
-    new_cd = max(10.0, round((current_cd - data.fatiga_cd_decrement) * 2) / 2)
+    decrement = max(0.0, float(data.fatiga_cd_decrement))
+    new_cd = max(10.0, round((current_cd - decrement) * 2) / 2)
 
     await db.active_journeys.update_one(
         {"id": journey_id},

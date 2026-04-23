@@ -1,98 +1,63 @@
 # LOTR 5e RPG - Product Requirements Document
 
-## Current State (2025-03-12)
+## Current State (2026-02-23)
 
 ### ✅ COMPLETED This Session
 
-#### 1. Integración IA para Generación de Historia - COMPLETADO
-- Corregido el endpoint `/api/names/generate-history` usando el playbook de integración
-- Implementación correcta de `emergentintegrations` con OpenAI gpt-4o-mini
-- Genera historias breves estilo Tolkien para ubicaciones del mapa
+#### 1. Sistema de Acampar + Fatiga Acumulativa - COMPLETADO (2026-02-23)
+**Backend:**
+- `/api/characters/{id}/fatigue` acepta valores decimales (0.5 steps), clamp 0-6
+- `ActiveJourney.fatiga_cd_total` ahora es `float` para soportar 11.5, 10.5, etc.
+- Nuevo endpoint `POST /api/travel/journey/{id}/camp` que reduce CD Fatiga por 0.5 (mínimo 10)
 
-#### 2. Generador de Nombres Integrado en "Crear Ubicación" - COMPLETADO
-- Integrado directamente en el panel "Crear Nueva Ubicación" del mapa
-- Selectores de Región y Raza para generar nombres
-- Botón "Generar Nombre" que llena automáticamente el campo
-- Botón "Generar con IA" para crear historia/descripción automática
-- Archivo modificado: `/app/frontend/src/components/map/CreateLocationPanel.jsx`
+**Frontend:**
+- Nuevo `PartyFatiguePanel.jsx` visible durante jornadas día-a-día con barra individual por personaje (0-6 niveles, colores progresivos, efectos 5e)
+- Nuevo `CampDialog.jsx` con reglas:
+  - Selección de centinela (recibe mitad de recuperación)
+  - Tirada CON CD10: -1 automático, nat20 → -2
+  - Consume 1 ración + 1 agua por miembro
+  - Eventos nocturnos según región (1 / 2 / 3)
+  - Tirada de Sabiduría (Percepción) CD12 del centinela
+  - Decrementa CD Fatiga del viaje en 0.5
+- Botón "Acampar" flotante junto a "Descansar" y "Forrajear"
+- Display CD Fatiga muestra decimales correctamente
 
-#### 3. Generador de Retratos de Personajes con IA - COMPLETADO
-**Requisitos implementados:**
-- Nuevo endpoint `/api/portraits/generate` usando OpenAI GPT Image 1
-- Genera retratos en blanco y negro, estilo fotorealista medieval LOTR
-- Usa datos del personaje: raza, cultura, ocupación, trasfondo, edad, ojos, pelo, etc.
-- Botón "Generar Retrato IA" en el último paso del creador (Resumen)
-- Opción de regenerar si no gusta
-- La imagen se guarda en el personaje y se muestra en:
-  - Resumen del creador de personajes
-  - Hoja de personaje (CharacterHeader)
-  - Lista de personajes
+**Testing:** 16/16 pytest pasaron (100% backend coverage). Ver `/app/backend/tests/test_camp_fatigue.py`.
 
-**Archivos creados/modificados:**
-- `/app/backend/routes/portrait_routes.py` - Nuevo endpoint de generación
-- `/app/backend/routes/character_routes.py` - Campo portrait_image en finalize
-- `/app/frontend/src/components/character-creator/CharacterSummary.jsx` - UI de generación
-- `/app/frontend/src/components/character-sheet/summary/CharacterHeader.jsx` - Mostrar retrato
-- `/app/frontend/src/pages/CharactersListPage.jsx` - Mostrar retrato en lista
+### ✅ Previous Sessions
+#### 2. Integración IA (Historias de Ubicación + Retratos de Personajes) - COMPLETADO
+- `/api/names/generate-history` — textos estilo Tolkien con gpt-4o-mini
+- `/api/portraits/generate` — retratos medievales con GPT Image 1
+- Integrados en Creador de Personajes (paso final) y Mapa (Crear Ubicación)
+- Visualización en Character Sheet, Character Summary, Characters List
 
----
-
-## Core Features Implemented
-
-### Character Creation System
-- 9-step wizard for character creation
-- Culture, background, occupation, attributes, virtue selection
-- Equipment shop with starting funds
-- AI-generated character portraits (NEW)
-
-### Interactive Character Sheet
-- Modular components for easy maintenance
-- Equipment management with mount support
-- HP and Shadow point tracking
-- PDF export (3 pages)
-- Portrait display
-
-### Map System (Mapa del Maestro)
-- Interactive Middle-earth map
-- Location creation/editing with terrain types
-- Name generator with prefix+root+suffix structure (by region/race)
-- AI history generation for locations (NEW)
-- Pathfinding and route planning
-
-### Travel System
-- Resource consumption (food/water)
-- Fatigue mechanics
-- Foraging rules
-- Group speed calculations
-
-### Treasure System
-- Configurable treasure generation
-- Famous weapons/armor creator
-- Magic item generation
-
-### GM Tools
-- Rules editor for all game parameters
-- NPC management
-- Trading system configuration
+#### 3. Editor de Trasfondos Mejorado - COMPLETADO
+- Selector de cultura al crear trasfondo
+- Modal "Copiar Trasfondos" para duplicar entre subculturas
 
 ---
 
 ## Pending Tasks
 
-### P1 - High Priority
-- Implement role-based access control (Admin/Maestro/Player)
-- Verify mount weight calculations edge cases
+### P0 - Próximo (decisiones del usuario confirmadas, esperando implementación)
+- **Sistema Auth + RBAC + Campañas (Copy-on-Write)**:
+  - JWT custom (email + password)
+  - Roles: Maestro / Director de Juego / Jugador
+  - "Solicitar Acceso" con captcha gratuito (hCaptcha o matemático)
+  - Aprobación del Maestro
+  - Recuperación de contraseña vía mensajes internos (chat Maestro/Director ↔ Jugador)
+  - Aislamiento de DB por Campaña: copy-on-write (lee de global, copia al editar)
 
-### P2 - Medium Priority
-- Fix flawed pathfinding logic in debugger
-- Improve mouse wheel zoom on master map
+### P1
+- Game Master Screen (dashboard en vivo: jugadores conectados, HP, fatiga, dados, encuentros)
+- Live Session Connectivity (códigos/links para unirse)
 
-### Future Tasks
+### P2
 - Moveable pieces in Terrain Editor
-- Refactor large components (EnhancedTravelSystem, MiddleEarthMap, TreasureSystem)
-- Database backup/restore feature
-- DM Screen and online gameplay interface
-- Full authentication system with roles
+- Pathfinding debugger fix
+- Mouse wheel zoom smoothing (Master Map)
+- Database backup/restore
+- Refactor: `EnhancedTravelSystem.jsx` (>5300 líneas), `MiddleEarthMap.jsx` (>2500), `TreasureSystemSection.jsx`
 
 ---
 
@@ -102,27 +67,32 @@
 /app/
 ├── backend/
 │   ├── routes/
-│   │   ├── character_routes.py   # Character CRUD, drafts, finalize
-│   │   ├── data_routes.py        # Game data (cultures, occupations, etc.)
-│   │   ├── name_generator.py     # Name generation with AI history
-│   │   ├── portrait_routes.py    # AI portrait generation (NEW)
-│   │   ├── storage_routes.py     # File storage
-│   │   ├── trading_routes.py     # Trading system
-│   │   └── travel_routes.py      # Travel calculations
+│   │   ├── character_routes.py    # Float fatigue support
+│   │   ├── data_routes.py
+│   │   ├── name_generator.py      # AI location histories
+│   │   ├── portrait_routes.py     # AI character portraits
+│   │   ├── storage_routes.py
+│   │   ├── trading_routes.py
+│   │   └── travel_routes.py       # + /journey/{id}/camp endpoint
+│   ├── tests/
+│   │   └── test_camp_fatigue.py   # 16/16 passing
 │   └── server.py
 └── frontend/
     └── src/
         ├── components/
-        │   ├── character-creator/  # Wizard steps
-        │   ├── character-sheet/    # Modular sheet components
-        │   ├── map/               # Map panels and controls
-        │   ├── rules/             # Rules editor sections
-        │   └── ui/                # Shadcn components
+        │   ├── character-creator/
+        │   ├── character-sheet/
+        │   ├── map/
+        │   ├── rules/
+        │   ├── travel/              # NEW
+        │   │   ├── CampDialog.jsx
+        │   │   └── PartyFatiguePanel.jsx
+        │   └── ui/
         └── pages/
+            ├── EnhancedTravelSystem.jsx   # + camp button, fatigue panel
             ├── CharacterSheetPage.jsx
             ├── CharactersListPage.jsx
-            ├── MiddleEarthMap.jsx
-            └── ...
+            └── MiddleEarthMap.jsx
 ```
 
 ---
@@ -130,11 +100,9 @@
 ## 3rd Party Integrations
 - **OpenAI GPT-4o-mini**: Location history generation
 - **OpenAI GPT Image 1**: Character portrait generation
-- **Emergent LLM Key**: Universal key for all AI integrations
-- **jspdf & html2canvas**: PDF generation
-- **lucide-react**: Icons
-- **shapely**: Geometric operations (backend)
+- **Emergent LLM Key**: Universal key
 
 ---
 
 ## User's Preferred Language: Español
+
