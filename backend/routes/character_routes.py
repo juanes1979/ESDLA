@@ -957,14 +957,14 @@ async def update_character_shadow(character_id: str, shadow_change: int = Body(.
 
 
 @router.put("/{character_id}/fatigue")
-async def update_character_fatigue(character_id: str, fatiga: int = Body(..., embed=True)):
-    """Update character's fatigue level directly"""
+async def update_character_fatigue(character_id: str, fatiga: float = Body(..., embed=True)):
+    """Update character's fatigue level directly (supports decimals like 0.5 for sentinel rule)"""
     character = await db.characters.find_one({"_id": character_id})
     if not character:
         raise HTTPException(status_code=404, detail="Character not found")
     
-    # Fatigue can be 0-6 (6 levels of exhaustion in 5e)
-    new_fatigue = max(0, min(6, fatiga))
+    # Fatigue can be 0-6 (6 levels of exhaustion in 5e). Supports 0.5 increments.
+    new_fatigue = max(0.0, min(6.0, round(fatiga * 2) / 2))
     
     await db.characters.update_one(
         {"_id": character_id},

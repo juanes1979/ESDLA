@@ -1,0 +1,37 @@
+{
+  "summary": "Backend-only testing for new Camp + decimal Fatigue features in LOTR 5e travel system. All 16 pytest tests passed (100%).",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_camp_fatigue.py",
+    "/app/test_reports/pytest/pytest_camp_fatigue.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "camp_journey endpoint relies only on fatiga_cd_decrement and never touches characters' fatiga. As documented, character fatigue changes are client-driven - main agent should ensure frontend CampDialog.jsx actually invokes PUT /api/characters/{id}/fatigue per member (auto -1 + CON save) otherwise accumulated fatigue won't be applied.",
+    "No validation on CampRequest.fatiga_cd_decrement: a negative decrement would increase the DC (still clamped at max 10 floor but could exceed original). Consider clamping to >=0.",
+    "ActiveJourney.fatiga_cd_total default 10.0; old journeys created before this change may have int values (e.g. 11). float() cast in camp_journey handles this safely.",
+    "character fatigue PUT endpoint: correct float handling, clamps 0-6 and rounds to 0.5 increments as per spec."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_camp_fatigue.py"
+  ],
+  "success_rate": {
+    "backend": "100%",
+    "frontend": "not tested (per request)"
+  },
+  "test_credentials": "none needed",
+  "seed_data_creation": "Tests insert TEST_-prefixed character and active_journey docs directly in MongoDB and clean them up in fixture teardown.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Test file backend/tests/test_camp_fatigue.py covers: PUT /api/characters/{id}/fatigue (decimal/clamp/round), POST /api/travel/journey/{id}/camp (decrement, floor at 10, custom decrement, preserves fields, 404), GET /api/travel/config/events, and ActiveJourney fatiga_cd_total float handling. Uses MongoClient directly for fixtures to avoid the 9-step wizard and journey start complexities.",
+  "tests_passed": 16,
+  "tests_failed": 0
+}

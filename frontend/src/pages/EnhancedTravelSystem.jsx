@@ -19,11 +19,13 @@ import {
   Sun, Moon, Snowflake, Leaf, ArrowLeft, ArrowRight, Plus, MapPin, 
   Route, AlertTriangle, Shield, Footprints, Dice6, Check, X,
   ChevronRight, SkipForward, Flag, Zap, Heart, Eye, Sparkles, Maximize2,
-  Printer, FileText, BookOpen, Package, ArrowLeftRight, Loader2, Droplets, Utensils
+  Printer, FileText, BookOpen, Package, ArrowLeftRight, Loader2, Droplets, Utensils, Tent
 } from 'lucide-react';
 import { toast } from 'sonner';
 import html2canvas from 'html2canvas';
 import api from '@/services/api';
+import PartyFatiguePanel from '@/components/travel/PartyFatiguePanel';
+import CampDialog from '@/components/travel/CampDialog';
 
 // Map URLs and coordinate system
 // Both maps have the same pixel dimensions (19791x15133)
@@ -672,19 +674,24 @@ const EnhancedTravelSystem = () => {
   // Fatigue from lack of provisions
   const [provisionFatigue, setProvisionFatigue] = useState({}); // { charId: { sinComida: days, sinAgua: days } }
   
+  // Camp dialog state
+  const [showCampDialog, setShowCampDialog] = useState(false);
+  const [travelEvents, setTravelEvents] = useState([]);
+  
   // =============== LOAD DATA ===============
   
   useEffect(() => {
     const loadData = async () => {
       try {
-        const [locRes, charRes, mountRes, rulesRes, landsRes, terrainsRes, foodWaterRes] = await Promise.all([
+        const [locRes, charRes, mountRes, rulesRes, landsRes, terrainsRes, foodWaterRes, eventsRes] = await Promise.all([
           api.get('/data/locations'),
           api.get('/characters/'),
           api.get('/data/monturas'),
           api.get('/travel/config/rules'),
           api.get('/travel/config/land-types'),
           api.get('/travel/config/terrains'),
-          api.get('/data/equipment-catalog/food-items')
+          api.get('/data/equipment-catalog/food-items'),
+          api.get('/travel/config/events')
         ]);
         
         // Process locations
@@ -709,6 +716,7 @@ const EnhancedTravelSystem = () => {
         setLandTypes(landsRes.data?.land_types || []);
         setTerrainTypes(terrainsRes.data?.terrains || []);
         setFoodWaterItems(foodWaterRes.data || { food_items: [], water_items: [] });
+        setTravelEvents(eventsRes.data?.events || []);
       } catch (err) {
         console.error('Error loading data:', err);
         toast.error('Error al cargar datos');
@@ -1289,6 +1297,7 @@ const EnhancedTravelSystem = () => {
         // Update character fatigue in database
         try {
           await api.put(`/characters/${miembro.id}/fatigue`, { fatiga: 0 });
+          setCharacters(prev => prev.map(c => c.id === miembro.id ? { ...c, fatiga: 0 } : c));
         } catch (err) {
           console.error('Error updating fatigue:', err);
         }
@@ -1309,6 +1318,7 @@ const EnhancedTravelSystem = () => {
           result.fatigaDespues = Math.max(0, (char.fatiga || 0) - 1);
           try {
             await api.put(`/characters/${miembro.id}/fatigue`, { fatiga: result.fatigaDespues });
+            setCharacters(prev => prev.map(c => c.id === miembro.id ? { ...c, fatiga: result.fatigaDespues } : c));
           } catch (err) {
             console.error('Error updating fatigue:', err);
           }
@@ -4195,6 +4205,16 @@ const EnhancedTravelSystem = () => {
                 <Button 
                   variant="ghost" 
                   size="sm"
+                  onClick={() => setShowCampDialog(true)}
+                  className="text-xs h-7 bg-[hsl(var(--gold))]/10 hover:bg-[hsl(var(--gold))]/20 border border-[hsl(var(--gold))]/40"
+                  data-testid="camp-btn"
+                >
+                  <Tent className="w-3 h-3 mr-1" />
+                  Acampar
+                </Button>
+                <Button 
+                  variant="ghost" 
+                  size="sm"
                   onClick={() => setShowRestDialog(true)}
                   className="text-xs h-7"
                   data-testid="rest-btn"
@@ -4326,6 +4346,9 @@ const EnhancedTravelSystem = () => {
           </Button>
         </CardContent>
       </Card>
+      
+      {/* Party Fatigue Panel - Acumulativa en tiempo real */}
+      <PartyFatiguePanel miembros={config.miembros} characters={characters} />
       
       {/* Party Roles - Quick View */}
       <Card className="card-parchment">
@@ -5343,8 +5366,24 @@ const EnhancedTravelSystem = () => {
       {mode === 'global' && renderGlobalJourney()}
       {mode === 'dayByDay' && renderDayByDay()}
       {mode === 'results' && renderResults()}
+      
+      {/* Camp Dialog */}
+      <CampDialog
+        open={showCampDialog}
+        onClose={() => setShowCampDialog(false)}
+        miembros={config.miembros}
+        characters={characters}
+        activeJourney={activeJourney}
+        region={journeyCalc?.ruta?.tipo_tierra || 'tierras_salvajes'}
+        partyProvisions={partyProvisions}
+        setPartyProvisions={setPartyProvisions}
+        setCharacters={setCharacters}
+        travelEvents={travelEvents}
+        onJourneyUpdate={(patch) => setActiveJourney((prev) => (prev ? { ...prev, ...patch } : prev))}
+      />
     </div>
   );
 };
 
 export default EnhancedTravelSystem;
+

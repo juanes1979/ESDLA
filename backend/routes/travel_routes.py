@@ -2,7 +2,7 @@
 Travel System Routes - LOTR 5e RPG
 Complete travel mechanics with editable rules and tables
 """
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Body
 from motor.motor_asyncio import AsyncIOMotorClient
 from pydantic import BaseModel, Field
 from typing import List, Optional, Dict, Any
@@ -146,7 +146,7 @@ class JourneyDay(BaseModel):
     tipo_tierra: str
     distancia_recorrida_km: float
     eventos: List[Dict[str, Any]] = []
-    fatiga_cd_acumulada: int = 0
+    fatiga_cd_acumulada: float = 0.0
     notas: str = ""
 
 class OrientationCheckRequest(BaseModel):
@@ -180,7 +180,7 @@ class ActiveJourney(BaseModel):
     dia_actual: int = 1
     casillas_totales: int = 0
     casillas_recorridas: int = 0
-    fatiga_cd_total: int = 10
+    fatiga_cd_total: float = 10.0
     dias_extra: int = 0
     dias_reducidos: int = 0
     px_acumulados: int = 0
@@ -2486,6 +2486,45 @@ async def delete_journey(journey_id: str):
     """Delete a journey"""
     result = await db.active_journeys.delete_one({"id": journey_id})
     return {"success": True, "deleted": result.deleted_count}
+
+
+# ============== CAMP (ACAMPAR) ==============
+
+class CampRequest(BaseModel):
+    """Request to camp overnight during journey"""
+    fatiga_cd_decrement: float = 0.5  # How much to reduce accumulated fatigue CD
+
+@router.post("/journey/{journey_id}/camp")
+async def camp_journey(journey_id: str, data: CampRequest = Body(default=CampRequest())):
+    """
+    Register a camping day for an active journey.
+    Reduces accumulated fatigue CD by a fixed decrement (default 0.5)
+    without going below the base of 10.
+    The rest of the camping mechanics (character fatigue recovery, rations,
+    sentinel, night events) are handled client-side and persisted via the
+    existing endpoints (character fatigue, provision consumption, events).
+    """
+    journey = await db.active_journeys.find_one({"id": journey_id}, {"_id": 0})
+    if not journey:
+        raise HTTPException(status_code=404, detail="Viaje no encontrado")
+
+    current_cd = float(journey.get('fatiga_cd_total', 10))
+    new_cd = max(10.0, round((current_cd - data.fatiga_cd_decrement) * 2) / 2)
+
+    await db.active_journeys.update_one(
+        {"id": journey_id},
+        {"$set": {
+            "fatiga_cd_total": new_cd,
+            "updated_at": datetime.now(timezone.utc).isoformat()
+        }}
+    )
+
+    return {
+        "success": True,
+        "fatiga_cd_anterior": current_cd,
+        "fatiga_cd_nueva": new_cd,
+        "decremento_aplicado": round(current_cd - new_cd, 2)
+    }
 
 
 # ============== P0: BULK PX UPDATE FOR JOURNEY COMPLETION ==============
