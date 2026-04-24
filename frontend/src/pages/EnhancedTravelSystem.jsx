@@ -685,6 +685,10 @@ const EnhancedTravelSystem = () => {
   const [showCampDialog, setShowCampDialog] = useState(false);
   const [travelEvents, setTravelEvents] = useState([]);
   
+  // Journey diary state (lifted here so it can be included in PDF export)
+  const [journeyDiary, setJourneyDiary] = useState({});
+  const [includeDiaryInPDF, setIncludeDiaryInPDF] = useState(true);
+  
   // =============== LOAD DATA ===============
   
   useEffect(() => {
@@ -2517,6 +2521,29 @@ const EnhancedTravelSystem = () => {
         ${journeyNarrative ? `
           <h2>Relato del Viaje</h2>
           <div class="narrative">${journeyNarrative}</div>
+        ` : ''}
+        
+        ${includeDiaryInPDF && Object.keys(journeyDiary).length > 0 ? `
+          <h2>Diario del Viaje</h2>
+          <p style="font-size: 10pt; color: #666; margin-bottom: 15px;">
+            Crónica detallada de cada jornada recorrida por la compañía.
+          </p>
+          ${Object.keys(journeyDiary)
+            .map(k => parseInt(k, 10))
+            .sort((a, b) => a - b)
+            .map(diaNum => {
+              const entry = journeyDiary[diaNum];
+              if (!entry || !entry.narrative) return '';
+              const climaHTML = entry.clima ? `<p style="font-size: 10pt; color: #6b4423; font-style: italic; margin: 0 0 8px 0;"><strong>Clima:</strong> ${entry.clima}</p>` : '';
+              const notasHTML = entry.notas_dia ? `<p style="font-size: 10pt; color: #6b4423; margin: 0 0 8px 0;"><strong>Notas del Maestro:</strong> ${entry.notas_dia}</p>` : '';
+              return `<div style="margin: 20px 0; padding: 16px 20px; background: rgba(139, 69, 19, 0.04); border-left: 3px solid #8B4513; page-break-inside: avoid;">
+                <h3 style="font-family: 'Cinzel', serif; font-size: 13pt; color: #5c4033; margin: 0 0 10px 0;">Jornada ${diaNum}</h3>
+                ${climaHTML}
+                ${notasHTML}
+                <p style="text-align: justify; margin: 0; line-height: 1.7;">${entry.narrative.replace(/\n/g, '<br>')}</p>
+              </div>`;
+            })
+            .join('')}
         ` : ''}
         
         <h2>La Compañía</h2>
@@ -4904,6 +4931,8 @@ const EnhancedTravelSystem = () => {
           terreno={journeyCalc?.ruta?.terreno || 'campo_abierto'}
           tipoTierra={journeyCalc?.ruta?.tipo_tierra || 'tierras_salvajes'}
           diasTotales={journeyCalc?.estimaciones?.dias_estimados || orientationChecks.length}
+          diary={journeyDiary}
+          setDiary={setJourneyDiary}
         />
         
         {/* Journey Summary */}
@@ -5379,10 +5408,28 @@ const EnhancedTravelSystem = () => {
               <Button 
                 onClick={printJourneyDocument}
                 className="flex-1 bg-[hsl(var(--gold))] text-black hover:bg-[hsl(var(--gold))]/80"
+                data-testid="print-chronicle-btn"
               >
                 <Printer className="w-4 h-4 mr-2" />
                 Imprimir Crónica
               </Button>
+              
+              <label className="flex items-center gap-2 px-3 py-2 border border-[hsl(var(--gold))]/30 rounded bg-black/20 cursor-pointer text-xs" data-testid="include-diary-pdf-toggle">
+                <input
+                  type="checkbox"
+                  checked={includeDiaryInPDF}
+                  onChange={(e) => setIncludeDiaryInPDF(e.target.checked)}
+                  className="accent-[hsl(var(--gold))]"
+                />
+                <span>
+                  Incluir Diario en PDF
+                  {Object.keys(journeyDiary).length > 0 && (
+                    <span className="ml-1 text-[hsl(var(--gold))] font-bold">
+                      ({Object.values(journeyDiary).filter(e => e?.narrative).length})
+                    </span>
+                  )}
+                </span>
+              </label>
               
               <Button 
                 onClick={() => {

@@ -48,13 +48,18 @@ export default function JourneyDiary({
   terreno,
   tipoTierra,
   diasTotales,
+  diary: externalDiary,
+  setDiary: externalSetDiary,
 }) {
   const dayBlocks = useMemo(
     () => buildDayBlocks({ orientationChecks, events, fatigueResults }),
     [orientationChecks, events, fatigueResults]
   );
 
-  const [diary, setDiary] = useState({}); // { [dia_numero]: { narrative, loading, clima, notas_dia } }
+  // Support both controlled (lifted state) and uncontrolled usage
+  const [localDiary, setLocalDiary] = useState({});
+  const diary = externalDiary !== undefined ? externalDiary : localDiary;
+  const setDiary = externalSetDiary || setLocalDiary;
   const [generatingAll, setGeneratingAll] = useState(false);
 
   const generateDayLog = useCallback(

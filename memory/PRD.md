@@ -4,6 +4,11 @@
 
 ### ✅ COMPLETED This Session
 
+#### 7. Iteración 55 — Diario integrado en PDF (2026-02-24)
+- Estado del diario **elevado al componente padre** `EnhancedTravelSystem` para que el exportador PDF pueda leerlo.
+- Nuevo toggle **"Incluir Diario en PDF"** junto a "Imprimir Crónica" (con contador de jornadas ya generadas).
+- `printJourneyDocument` inyecta una sección **"Diario del Viaje"** con un bloque por jornada (título, clima, notas del Maestro y narrativa IA). Salto de página adecuado (`page-break-inside: avoid`).
+
 #### 6. Iteración 54 — Diario del Viaje con IA (2026-02-24)
 **Backend (41/41 pytest passing):**
 - Nuevo endpoint `POST /api/travel/generate-day-log` que recibe datos agrupados por jornada (orientación, eventos, notas del Maestro, tiradas de fatiga, acampada, clima) y genera **un párrafo narrativo único** por día usando GPT-4o.
