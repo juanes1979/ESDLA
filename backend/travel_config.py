@@ -52,22 +52,41 @@ class ClaseRegion(str, Enum):
 # =============================================================================
 
 DISTANCIA_BASE_KM = {
-    Ritmo.LENTO: 24,    # 24 km/día
-    Ritmo.NORMAL: 36,   # 36 km/día
-    Ritmo.RAPIDO: 48,   # 48 km/día
+    Ritmo.LENTO: 17.5,    # 15-20 km/día → midpoint (a pie)
+    Ritmo.NORMAL: 22.5,   # 20-25 km/día → midpoint
+    Ritmo.RAPIDO: 27.5,   # 25-30 km/día → midpoint (forzado)
 }
+
+# Bonus a caballo sobre la velocidad a pie. Se aplica sólo en terrenos
+# donde se permite montar (ver `MONTURA_PERMITIDA` más abajo). En terrenos
+# como montañas, pantanos o ciénagas se desmonta y se usa la velocidad a pie.
+BONUS_MONTURA_PORCENTAJE = 0.40  # +40%
+
+# Modo especial "Mensajero a caballo" — 50-80 km/día, máximo 3 días sostenido.
+VELOCIDAD_MENSAJERO_KM = 65  # midpoint
+MENSAJERO_DIAS_MAX_SOSTENIDO = 3
 
 # Nombres para mostrar
 RITMO_NOMBRES = {
     Ritmo.LENTO: "Lento",
     Ritmo.NORMAL: "Normal",
-    Ritmo.RAPIDO: "Rápido",
+    Ritmo.RAPIDO: "Forzado",
 }
 
 RITMO_DESCRIPCIONES = {
-    Ritmo.LENTO: "Ritmo cauteloso, permite explorar y ser sigiloso. 24 km/día.",
-    Ritmo.NORMAL: "Ritmo estándar de viaje. 36 km/día.",
-    Ritmo.RAPIDO: "Ritmo acelerado, no permitido en regiones peligrosas. 48 km/día.",
+    Ritmo.LENTO: "Ritmo cauteloso. 15-20 km/día a pie (24-28 a caballo).",
+    Ritmo.NORMAL: "Ritmo estándar. 20-25 km/día a pie (28-35 a caballo).",
+    Ritmo.RAPIDO: "Marcha forzada. 25-30 km/día a pie (35-42 a caballo). Requiere TS CON extra.",
+}
+
+# Qué terrenos permiten ir a caballo (los demás obligan a desmontar)
+MONTURA_PERMITIDA = {
+    TipoTerreno.FACIL: True,
+    TipoTerreno.MODERADO: True,
+    TipoTerreno.DIFICIL: False,        # bosques densos, páramos → desmontar
+    TipoTerreno.MUY_DIFICIL: False,    # montañas, pantanos → desmontar
+    TipoTerreno.DESALENTADOR: False,
+    TipoTerreno.INFRANQUEABLE: False,
 }
 
 # =============================================================================

@@ -1,25 +1,22 @@
 /**
- * JourneyDiary — Diario de Viaje unificado.
+ * JourneyDiary — Crónica unificada del viaje.
  *
- * Toma los datos de orientación, eventos, fatiga, acampadas y clima para generar
- * un párrafo narrativo por jornada, usando /api/travel/generate-day-log.
+ * Genera UN ÚNICO texto narrativo continuo del viaje completo, hilvanando todas
+ * las jornadas ("al tercer día…", "en la quinta jornada…") a partir de los datos
+ * guardados durante el viaje (orientación, eventos, notas del maestro introducidas
+ * durante cada tirada, fatiga final). El Maestro no tiene que volver a introducir
+ * nada: las notas y el clima se heredan automáticamente.
  */
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { BookOpen, Sparkles, Loader2, Download, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
 import api from '@/services/api';
 
-/**
- * Agrupa los datos del viaje por jornada (una entrada por tirada de orientación).
- * Cada entrada incluye la orientación, los eventos que le siguieron y,
- * opcionalmente, la TS final de fatiga del último día.
- */
-function buildDayBlocks({ orientationChecks = [], events = [], fatigueResults = [] }) {
-  const blocks = [];
+function buildJornadas({ orientationChecks = [], events = [], fatigueResults = [] }) {
+  const jornadas = [];
   orientationChecks.forEach((oc, i) => {
     const nextOc = orientationChecks[i + 1];
     const dayCasilla = oc.casilla_actual || 0;
@@ -27,15 +24,28 @@ function buildDayBlocks({ orientationChecks = [], events = [], fatigueResults = 
     const dayEvents = events.filter(
       (e) => e.casilla && e.casilla > dayCasilla && e.casilla <= nextCasilla
     );
-    blocks.push({
+    jornadas.push({
       dia_numero: i + 1,
-      orientacion: oc,
-      eventos: dayEvents,
-      // TS de fatiga final solo se adjunta al último bloque (al final del viaje)
+      orientacion: {
+        d20: oc.d20,
+        total: oc.total,
+        exito: oc.exito,
+        detalle: oc.detalle,
+        gm_notes: oc.gm_notes || '',
+      },
+      eventos: dayEvents.map((e) => ({
+        nombre: e.evento?.nombre || e.nombre,
+        tirada: e.tirada,
+        cd: e.resolucion?.cd,
+        exito: e.exito,
+        personaje: e.objetivo?.papel,
+        gm_notes: e.gm_notes || '',
+        narrativa: e.narrativa || '',
+      })),
       tiradas_fatiga: i === orientationChecks.length - 1 ? fatigueResults : [],
     });
   });
-  return blocks;
+  return jornadas;
 }
 
 export default function JourneyDiary({
@@ -48,271 +58,132 @@ export default function JourneyDiary({
   terreno,
   tipoTierra,
   diasTotales,
-  diary: externalDiary,
-  setDiary: externalSetDiary,
+  kilometros,
+  fechaSalida,
+  chronicle: externalChronicle,
+  setChronicle: externalSetChronicle,
 }) {
-  const dayBlocks = useMemo(
-    () => buildDayBlocks({ orientationChecks, events, fatigueResults }),
+  const jornadas = useMemo(
+    () => buildJornadas({ orientationChecks, events, fatigueResults }),
     [orientationChecks, events, fatigueResults]
   );
 
-  // Support both controlled (lifted state) and uncontrolled usage
-  const [localDiary, setLocalDiary] = useState({});
-  const diary = externalDiary !== undefined ? externalDiary : localDiary;
-  const setDiary = externalSetDiary || setLocalDiary;
-  const [generatingAll, setGeneratingAll] = useState(false);
+  const [localChronicle, setLocalChronicle] = useState('');
+  const chronicle = externalChronicle !== undefined ? externalChronicle : localChronicle;
+  const setChronicle = externalSetChronicle || setLocalChronicle;
 
-  const generateDayLog = useCallback(
-    async (block) => {
-      const dia = block.dia_numero;
-      setDiary((prev) => ({
-        ...prev,
-        [dia]: { ...(prev[dia] || {}), loading: true },
-      }));
-      try {
-        const res = await api.post('/travel/generate-day-log', {
-          dia_numero: dia,
-          dias_totales: diasTotales || dayBlocks.length,
-          terreno: terreno || 'campo_abierto',
-          tipo_tierra: tipoTierra || 'tierras_salvajes',
-          origen,
-          destino,
-          personajes: (miembros || []).map((m) => ({
-            nombre: m.nombre,
-            papel: (m.papeles || []).join(', '),
-          })),
-          orientacion: block.orientacion
-            ? {
-                d20: block.orientacion.d20,
-                total: block.orientacion.total,
-                exito: block.orientacion.exito,
-                detalle: block.orientacion.detalle,
-                gm_notes: block.orientacion.gm_notes || '',
-              }
-            : null,
-          eventos: (block.eventos || []).map((e) => ({
-            nombre: e.evento?.nombre || e.nombre,
-            tirada: e.tirada,
-            cd: e.resolucion?.cd,
-            exito: e.exito,
-            personaje: e.objetivo?.papel,
-            gm_notes: e.gm_notes || '',
-            narrativa: e.narrativa || '',
-          })),
-          tiradas_fatiga: block.tiradas_fatiga || [],
-          clima: diary[dia]?.clima || '',
-          notas_maestro_dia: diary[dia]?.notas_dia || '',
-          dia_anterior_resumen: dia > 1 ? diary[dia - 1]?.narrative?.slice(0, 300) : null,
-        });
-        if (res.data.success) {
-          setDiary((prev) => ({
-            ...prev,
-            [dia]: { ...(prev[dia] || {}), narrative: res.data.narrative, loading: false },
-          }));
-        } else {
-          toast.error(`Error generando día ${dia}: ${res.data.error || 'desconocido'}`);
-          setDiary((prev) => ({ ...prev, [dia]: { ...(prev[dia] || {}), loading: false } }));
-        }
-      } catch (err) {
-        console.error(err);
-        toast.error(`Error generando día ${dia}`);
-        setDiary((prev) => ({ ...prev, [dia]: { ...(prev[dia] || {}), loading: false } }));
-      }
-    },
-    [
-      dayBlocks.length,
-      diasTotales,
-      terreno,
-      tipoTierra,
-      origen,
-      destino,
-      miembros,
-      diary,
-    ]
-  );
-
-  const generateAll = useCallback(async () => {
-    setGeneratingAll(true);
-    for (const block of dayBlocks) {
-      // eslint-disable-next-line no-await-in-loop
-      await generateDayLog(block);
-    }
-    setGeneratingAll(false);
-    toast.success(`Diario del viaje generado (${dayBlocks.length} jornadas).`);
-  }, [dayBlocks, generateDayLog]);
-
-  const downloadDiary = useCallback(() => {
-    const lines = [];
-    lines.push(`DIARIO DE VIAJE — ${origen || ''} → ${destino || ''}`);
-    lines.push('='.repeat(60));
-    lines.push('');
-    dayBlocks.forEach((b) => {
-      const entry = diary[b.dia_numero];
-      lines.push(`Jornada ${b.dia_numero}`);
-      lines.push('-'.repeat(20));
-      if (entry?.clima) lines.push(`Clima: ${entry.clima}`);
-      if (entry?.notas_dia) lines.push(`Notas del Maestro: ${entry.notas_dia}`);
-      lines.push(entry?.narrative || '(sin narrativa generada)');
-      lines.push('');
+  const [loading, setLoading] = useState(false);
+  
+  // Nº de notas heredadas (solo informativo)
+  const totalGmNotes = useMemo(() => {
+    let count = 0;
+    jornadas.forEach((j) => {
+      if (j.orientacion?.gm_notes) count++;
+      j.eventos.forEach((e) => { if (e.gm_notes) count++; });
     });
-    const blob = new Blob([lines.join('\n')], { type: 'text/plain;charset=utf-8' });
+    return count;
+  }, [jornadas]);
+
+  const generate = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await api.post('/travel/generate-full-chronicle', {
+        origen,
+        destino,
+        fecha_salida: fechaSalida,
+        kilometros,
+        dias_totales: diasTotales || jornadas.length,
+        personajes: (miembros || []).map((m) => ({
+          nombre: m.nombre,
+          papel: (m.papeles || []).join(', '),
+        })),
+        jornadas,
+      });
+      if (res.data.success) {
+        setChronicle(res.data.chronicle);
+        toast.success('Crónica del viaje generada.');
+      } else {
+        toast.error(`Error: ${res.data.error || 'desconocido'}`);
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error('Error generando crónica.');
+    } finally {
+      setLoading(false);
+    }
+  }, [origen, destino, fechaSalida, kilometros, diasTotales, jornadas, miembros, setChronicle]);
+
+  const download = useCallback(() => {
+    if (!chronicle) return;
+    const blob = new Blob([`CRÓNICA DEL VIAJE — ${origen || ''} → ${destino || ''}\n\n${chronicle}`], { type: 'text/plain;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `diario-viaje-${(origen || 'inicio').replace(/\s+/g, '_')}.txt`;
+    a.download = `cronica-viaje-${(destino || 'fin').replace(/\s+/g, '_')}.txt`;
     a.click();
     URL.revokeObjectURL(url);
-  }, [dayBlocks, diary, origen, destino]);
+  }, [chronicle, origen, destino]);
 
-  if (dayBlocks.length === 0) return null;
+  if (jornadas.length === 0) return null;
 
   return (
     <Card className="card-parchment" data-testid="journey-diary">
       <CardHeader>
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between flex-wrap gap-2">
           <CardTitle className="text-xl text-[hsl(var(--gold))] flex items-center gap-2">
             <BookOpen className="w-6 h-6" />
-            Diario del Viaje
-            <span className="text-xs text-muted-foreground font-normal ml-2">
-              ({dayBlocks.length} jornadas)
-            </span>
+            Crónica del Viaje
           </CardTitle>
-          <div className="flex gap-2">
+          <div className="flex gap-2 items-center">
+            <span className="text-[11px] text-muted-foreground">
+              {jornadas.length} jornadas · {totalGmNotes} notas del maestro heredadas
+            </span>
             <Button
               size="sm"
-              variant="outline"
-              onClick={generateAll}
-              disabled={generatingAll}
-              data-testid="diary-generate-all-btn"
+              onClick={generate}
+              disabled={loading}
+              className="bg-[hsl(var(--gold))] text-black hover:brightness-110"
+              data-testid="chronicle-generate-btn"
             >
-              {generatingAll ? (
+              {loading ? (
                 <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              ) : chronicle ? (
+                <RefreshCw className="w-4 h-4 mr-2" />
               ) : (
                 <Sparkles className="w-4 h-4 mr-2" />
               )}
-              Generar Diario Completo
+              {chronicle ? 'Regenerar Crónica' : 'Generar Crónica'}
             </Button>
-            {Object.keys(diary).length > 0 && (
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={downloadDiary}
-                data-testid="diary-download-btn"
-              >
+            {chronicle && (
+              <Button size="sm" variant="outline" onClick={download} data-testid="chronicle-download-btn">
                 <Download className="w-4 h-4 mr-1" />
-                Descargar
+                .txt
               </Button>
             )}
           </div>
         </div>
       </CardHeader>
       <CardContent>
-        <ScrollArea className="max-h-[600px] pr-3">
-          <div className="space-y-4">
-            {dayBlocks.map((b) => {
-              const entry = diary[b.dia_numero] || {};
-              const hasNarrative = !!entry.narrative;
-              return (
-                <div
-                  key={b.dia_numero}
-                  className="p-4 rounded border border-[hsl(var(--gold))]/30 bg-black/20 space-y-2"
-                  data-testid={`diary-day-${b.dia_numero}`}
-                >
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h4 className="font-bold text-[hsl(var(--gold))]">
-                        Jornada {b.dia_numero}
-                      </h4>
-                      <p className="text-[11px] text-muted-foreground">
-                        {b.orientacion
-                          ? `Orientación ${b.orientacion.total} vs CD 15 (${
-                              b.orientacion.exito ? 'éxito' : 'fallo'
-                            })`
-                          : ''}
-                        {b.eventos.length > 0 && ` · ${b.eventos.length} evento(s)`}
-                      </p>
-                    </div>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => generateDayLog(b)}
-                      disabled={entry.loading || generatingAll}
-                      data-testid={`diary-regenerate-${b.dia_numero}`}
-                    >
-                      {entry.loading ? (
-                        <Loader2 className="w-3 h-3 animate-spin" />
-                      ) : hasNarrative ? (
-                        <RefreshCw className="w-3 h-3" />
-                      ) : (
-                        <Sparkles className="w-3 h-3" />
-                      )}
-                    </Button>
-                  </div>
-
-                  {/* Inputs contextuales: clima + notas globales */}
-                  <div className="grid grid-cols-2 gap-2">
-                    <div>
-                      <label className="text-[10px] text-muted-foreground">Clima del día</label>
-                      <input
-                        type="text"
-                        value={entry.clima || ''}
-                        onChange={(e) =>
-                          setDiary((prev) => ({
-                            ...prev,
-                            [b.dia_numero]: { ...(prev[b.dia_numero] || {}), clima: e.target.value },
-                          }))
-                        }
-                        placeholder="Ej: Lluvia persistente desde el mediodía"
-                        className="w-full text-xs p-1 rounded bg-black/30 border border-muted"
-                        data-testid={`diary-clima-${b.dia_numero}`}
-                      />
-                    </div>
-                    <div>
-                      <label className="text-[10px] text-muted-foreground">Notas globales del día</label>
-                      <input
-                        type="text"
-                        value={entry.notas_dia || ''}
-                        onChange={(e) =>
-                          setDiary((prev) => ({
-                            ...prev,
-                            [b.dia_numero]: {
-                              ...(prev[b.dia_numero] || {}),
-                              notas_dia: e.target.value,
-                            },
-                          }))
-                        }
-                        placeholder="Ej: El grupo descansa junto al río Aguada Gris"
-                        className="w-full text-xs p-1 rounded bg-black/30 border border-muted"
-                      />
-                    </div>
-                  </div>
-
-                  {hasNarrative ? (
-                    <Textarea
-                      value={entry.narrative}
-                      onChange={(e) =>
-                        setDiary((prev) => ({
-                          ...prev,
-                          [b.dia_numero]: {
-                            ...(prev[b.dia_numero] || {}),
-                            narrative: e.target.value,
-                          },
-                        }))
-                      }
-                      rows={5}
-                      className="text-sm leading-relaxed bg-black/10"
-                      data-testid={`diary-narrative-${b.dia_numero}`}
-                    />
-                  ) : (
-                    <p className="text-xs text-muted-foreground italic">
-                      Aún sin narrativa — pulsa el icono ✨ para generar.
-                    </p>
-                  )}
-                </div>
-              );
-            })}
+        <p className="text-xs text-muted-foreground mb-3">
+          Un único texto continuo que teje todas las jornadas ("al tercer día...", "en la quinta jornada..."),
+          usando automáticamente las notas que el Maestro introdujo durante cada tirada de orientación y evento.
+          {fechaSalida && <> · Salida: <strong>{fechaSalida}</strong></>}
+          {kilometros && <> · {Math.round(kilometros)} km</>}
+        </p>
+        {chronicle ? (
+          <Textarea
+            value={chronicle}
+            onChange={(e) => setChronicle(e.target.value)}
+            rows={16}
+            className="text-sm leading-relaxed font-serif bg-black/20"
+            data-testid="chronicle-textarea"
+          />
+        ) : (
+          <div className="p-6 text-center text-sm text-muted-foreground italic bg-black/10 rounded border border-dashed border-[hsl(var(--gold))]/30">
+            Aún no hay crónica generada. Pulsa "Generar Crónica" para que la IA teja un único relato
+            continuo con todas las jornadas y las notas que ya introdujiste durante el viaje.
           </div>
-        </ScrollArea>
+        )}
       </CardContent>
     </Card>
   );

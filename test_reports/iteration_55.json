@@ -1,0 +1,35 @@
+{
+  "summary": "Iteration 55 travel backend tested: 16/16 new tests pass + 41/41 prior regression tests pass. Found and fixed a critical UnboundLocalError in POST /api/travel/calculate-journey (line 1637 — `casillas` referenced before assignment, causing 500 on every call including regression routes). All iteration-55 features verified: generate-full-chronicle (continuous Spanish narrative, gm_notes integration, transitions, 4+ paragraphs), partial fast-pace (no blocking error on tierras_salvajes, returns days estimate ~midpoint between normal and rapido), new speed table (BASE_KM_DAY=22.5, KM_PER_METER_SPEED=2.5, DISTANCIA_BASE_KM = 17.5/22.5/27.5), velocidad_efectiva (base*1.40 when mount_allowed=True, base otherwise).",
+  "backend_issues": {
+    "critical": [
+      {"endpoint": "POST /api/travel/calculate-journey", "issue": "UnboundLocalError: `casillas` referenced at line 1637 before assignment (introduced during iteration 55 refactor of PX section). Fixed by T1: extract `casillas` from `route_data.get('casillas', ...)` before its first use. All calculate-journey requests returned 500 prior to the fix — this broke the main travel calculator and the partial-fast-pace feature end-to-end.", "priority": "CRITICAL"}
+    ],
+    "minor": []
+  },
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_travel_it55.py",
+    "/app/test_reports/pytest/pytest_it55.xml"
+  ],
+  "action_items": [
+    "Review T1's fix at /app/backend/routes/travel_routes.py (just before line 1637) — simple scope fix extracting `casillas` from route_data. Main agent should confirm this aligns with intended behaviour and consider DRYing up the three places that compute num_casillas.",
+    "Partial fast-pace currently ~7% faster than normal on Hobbiton→Esgaroth (27 vs 25 days). Main agent may want a finer-grained per-segment adaptation rather than a single avg_factor — current implementation is the documented midpoint approximation, so acceptable."
+  ],
+  "critical_code_review_comments": [
+    "travel_routes.py is 3210 lines — exceeds 700-line guideline. calculate_journey() alone spans ~500 lines. Recommend splitting into submodules (pathfinding, px_calculator, chronicle, orientation).",
+    "Three separate places compute km→casillas (/16). DRY violation — extract helper `km_to_casillas(km)`.",
+    "`generate_full_chronicle` does not validate that `request.jornadas` is non-empty before calling the LLM; consider returning 400 when jornadas is empty.",
+    "Inside the inner `calculate_route_data` helper (~line 1820), `tiene_montura` / +40% bonus is not propagated; only outer calculate_journey uses velocidad_efectiva. Verify compare-routes endpoint uses the new 1.40 bonus."
+  ],
+  "updated_files": [
+    "/app/backend/routes/travel_routes.py",
+    "/app/backend/tests/test_travel_it55.py"
+  ],
+  "success_rate": {"backend": "100% (16/16 new + 41/41 regression)", "frontend": "not tested (backend only per request)"},
+  "test_credentials": "none required",
+  "seed_data_creation": "none — reused existing seeded locations (loc_002 Hobbiton, loc_031 Esgaroth)",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Iteration 55 travel features are fully green (57 tests). Fixed a pre-existing UnboundLocalError in calculate-journey. Chronicle endpoint is LLM-backed (~10-20s per call). Full travel regression: `pytest /app/backend/tests/test_travel_it55.py tests/test_travel_regression_it52.py tests/test_camp_fatigue.py tests/test_travel_rules_it53.py tests/test_day_log_it54.py`.",
+  "rca of the issue": "Root cause: iteration 55's refactor of PX calculation (segmented vs fallback) renamed `casillas` → `num_casillas` inside the else branch, but left the post-PX block using the old `casillas` identifier. Since `casillas` was only set inside inner route_builder helpers (different scope), Python raised UnboundLocalError at line 1637. Mitigation: read casillas from `route_data['casillas']` (every route builder populates it) before first use, with a fallback distance/16. Reproduction: POST /api/travel/calculate-journey with any origen_id/destino_id → 500. Post-fix: 200 with correct dias_estimados and PX."
+}

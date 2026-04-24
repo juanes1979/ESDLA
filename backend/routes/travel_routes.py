@@ -113,14 +113,15 @@ class TravelPartyMember(BaseModel):
     competencias: List[str] = []
     nivel: int = 1
     
-    def velocidad_efectiva(self) -> float:
+    def velocidad_efectiva(self, mount_allowed: bool = True) -> float:
         """
         Get effective travel speed for this member in METERS.
-        If mounted, use mount speed (if mount is faster).
-        Otherwise use character base speed.
+        New rule (Feb 2026): horse adds +40% on top of person's base speed,
+        but only if terrain allows riding. In montaña/pantano/ciénaga the
+        rider dismounts and uses their own base speed.
         """
-        if self.tiene_montura and self.montura_velocidad > 0:
-            return self.montura_velocidad
+        if self.tiene_montura and mount_allowed:
+            return self.velocidad_base * 1.40
         return self.velocidad_base
 
 class JourneyConfig(BaseModel):
@@ -1437,32 +1438,30 @@ async def calculate_journey(config: JourneyConfig):
             "ruta_alternativa_necesaria": True
         }
     
-    # Calculate base days
-    casillas = route_data['casillas']
+    # ============ CALCULATE GROUP SPEED (METRIC SYSTEM, NEW TABLE Feb 2026) ============
+    # New base speeds (midpoints of the ranges confirmed by user):
+    #   A pie — Lento: 17.5 | Normal: 22.5 | Forzado: 27.5 km/día
+    #   A caballo — +40% SOBRE la velocidad a pie (en terreno permitido)
+    # En terrenos que no permiten montar (difícil, muy difícil, desalentador) se
+    # desmonta y se aplica la velocidad del personaje sin bonificación.
+    # Speeds per race (metros): Dúnedain=10, Hombre/Elfo=9, Enano/Hobbit=7
+    # Conversion: 2.5 km/day per meter of speed → 9m = 22.5 km/día (Normal)
+    BASE_SPEED_METERS = 9  # Standard human
+    BASE_KM_DAY = 22.5     # Normal midpoint
+    KM_PER_METER_SPEED = 2.5  # 1m of speed = 2.5 km/día at Normal ritmo
     
-    # ============ CALCULATE GROUP SPEED (METRIC SYSTEM) ============
-    # The group travels at the speed of its slowest member
-    # Speed is in METERS (e.g., Dúnedain=10m, Elfos/Hombres=9m, Enanos/Hobbits=7m)
-    # Formula: km_por_dia = velocidad_metros * 4 (assuming 8h march at 0.5km/h per meter of speed)
-    # Examples:
-    #   - 9m (Elfos/Hombres) = 36 km/día
-    #   - 10m (Dúnedain) = 40 km/día
-    #   - 7m (Enanos/Hobbits) = 28 km/día
-    #   - 18m (Caballo) = 72 km/día
-    BASE_SPEED_METERS = 9  # Standard human speed
-    BASE_KM_DAY = 36  # Corresponds to 9m speed
-    KM_PER_METER_SPEED = 4  # 1m of speed = 4 km/day
+    # Whether riding is allowed in this overall terrain (affects default speed calc)
+    mount_allowed = terrain_config.get('permite_montura', True)
     
-    # Determine the slowest speed in the group
+    # Determine the slowest speed in the group (considering mount allowance)
     tiene_monturas = sum(1 for m in config.miembros if m.tiene_montura)
     total_miembros = len(config.miembros) if config.miembros else 1
     porcentaje_monturas = tiene_monturas / total_miembros if total_miembros > 0 else 0
     
     if config.miembros:
-        # Get effective speed for each member (considering mounts)
         velocidades = []
         for m in config.miembros:
-            vel_efectiva = m.velocidad_efectiva()
+            vel_efectiva = m.velocidad_efectiva(mount_allowed=mount_allowed)
             km_dia_miembro = vel_efectiva * KM_PER_METER_SPEED
             velocidades.append({
                 "nombre": m.nombre,
@@ -1472,58 +1471,62 @@ async def calculate_journey(config: JourneyConfig):
                 "velocidad_efectiva": vel_efectiva,
                 "km_por_dia": km_dia_miembro
             })
-        
-        # Group speed = slowest member
         velocidad_grupo = min(v["velocidad_efectiva"] for v in velocidades)
         miembro_mas_lento = next(v["nombre"] for v in velocidades if v["velocidad_efectiva"] == velocidad_grupo)
     else:
-        # No members specified, assume standard human speed (9m = 36 km/day)
         velocidad_grupo = BASE_SPEED_METERS
         velocidades = []
         miembro_mas_lento = None
     
-    # Calculate km/day for the group
     km_por_dia_grupo = velocidad_grupo * KM_PER_METER_SPEED
     
     # Check if mounts are allowed in this terrain
-    if not terrain_config.get('permite_montura', True):
-        # Force foot speed if mounts not allowed
-        if config.miembros:
-            velocidad_grupo = min(m.velocidad_base for m in config.miembros)
-        else:
-            velocidad_grupo = BASE_SPEED_METERS
-        km_por_dia_grupo = velocidad_grupo * KM_PER_METER_SPEED
+    # (Already handled via velocidad_efectiva(mount_allowed=...) above)
     
     # Use pathfinder's estimated days if available (already accounts for terrain costs)
     # The pathfinder uses BASE_SPEED_KM_DAY = 36 km/day and terrain multipliers
     # We need to adjust based on actual group speed
     
-    # Speed ratio: how much faster/slower is the group compared to base 36 km/day
-    ratio_velocidad = km_por_dia_grupo / BASE_KM_DAY  # e.g., 72/36 = 2.0 for mounted, 24/36 = 0.67 for slow
+    # Speed ratio: how much faster/slower is the group compared to base
+    ratio_velocidad = km_por_dia_grupo / BASE_KM_DAY  # e.g., 27.5/22.5 = 1.22 for forzado
+    
+    # Ritmo modifier factors (relative to Normal base)
+    RITMO_LENTO_FACTOR = 17.5 / 22.5   # ≈ 0.778 → slower (more days)
+    RITMO_RAPIDO_FACTOR = 27.5 / 22.5  # ≈ 1.222 → faster (fewer days)
+    
+    # Ritmo Rápido partial adaptation (Point 4 confirmed by user):
+    # Si el grupo elige Rápido pero el tipo de tierra no lo permite, el grupo
+    # baja a Normal en ese tramo en vez de bloquear el viaje. Usamos una
+    # aproximación global: si el ritmo es rápido y el tipo_tierra no lo permite,
+    # aplicamos un factor intermedio (promedio de rápido y normal) en vez de
+    # devolver error. La futura implementación segmentada permitirá un cálculo
+    # exacto por tramo.
+    rapido_no_permitido_global = False
+    if config.ritmo == 'rapido' and not land_config.get('permite_ritmo_rapido', True):
+        rapido_no_permitido_global = True
     
     if route_data.get('estimated_days_pathfinder'):
-        # Pathfinder already calculated days based on terrain costs at 36 km/day
-        # Adjust for actual group speed
         dias_base = route_data['estimated_days_pathfinder'] / ratio_velocidad
-        
-        # Apply rhythm modifier
         if config.ritmo == 'lento':
-            dias_base = dias_base * 1.5
+            dias_base = dias_base / RITMO_LENTO_FACTOR  # more days
         elif config.ritmo == 'rapido':
-            if not land_config.get('permite_ritmo_rapido', True):
-                return {"error": True, "message": f"Ritmo rápido no permitido en {land_config['nombre']}"}
-            dias_base = dias_base * 0.75
+            if rapido_no_permitido_global:
+                # Half the journey at fast, half at normal → midpoint factor
+                avg_factor = (RITMO_RAPIDO_FACTOR + 1.0) / 2
+                dias_base = dias_base / avg_factor
+            else:
+                dias_base = dias_base / RITMO_RAPIDO_FACTOR
     else:
         # Fallback to distance-based calculation (for direct line paths)
         distance_km = route_data['distance_km']
-        
-        # Days = distance / km_per_day (adjusted for rhythm)
         if config.ritmo == 'lento':
-            dias_base = distance_km / (km_por_dia_grupo * 0.67)  # Slow pace = 67% speed
+            dias_base = distance_km / (km_por_dia_grupo * RITMO_LENTO_FACTOR)
         elif config.ritmo == 'rapido':
-            if not land_config.get('permite_ritmo_rapido', True):
-                return {"error": True, "message": f"Ritmo rápido no permitido en {land_config['nombre']}"}
-            dias_base = distance_km / (km_por_dia_grupo * 1.33)  # Fast pace = 133% speed
+            if rapido_no_permitido_global:
+                avg_factor = (RITMO_RAPIDO_FACTOR + 1.0) / 2
+                dias_base = distance_km / (km_por_dia_grupo * avg_factor)
+            else:
+                dias_base = distance_km / (km_por_dia_grupo * RITMO_RAPIDO_FACTOR)
         else:
             dias_base = distance_km / km_por_dia_grupo
     
@@ -1630,6 +1633,11 @@ async def calculate_journey(config: JourneyConfig):
     # Round PX total
     px_total = round(px_total)
     
+    # Expose casillas at outer scope (previously only set inside inner route_data builders)
+    casillas = route_data.get('casillas') if isinstance(route_data, dict) else None
+    if not casillas or casillas <= 0:
+        casillas = max(1, round(route_data.get('distance_km', 0) / 16.0))
+
     # Calculate number of expected events
     num_eventos_esperados = max(1, casillas // rules.get('orientation_success_distance', 3))
     
@@ -2917,6 +2925,132 @@ async def generate_day_log(request: DayLogRequest):
             "success": False,
             "error": str(e),
             "narrative": "",
+        }
+
+
+# ============== FULL CHRONICLE — TEXTO NARRATIVO UNIFICADO ==============
+
+class FullChronicleRequest(BaseModel):
+    """Genera una crónica continua de todo el viaje como texto narrativo único."""
+    origen: Optional[str] = None
+    destino: Optional[str] = None
+    fecha_salida: Optional[str] = None  # ej: "1 de Cermië"
+    kilometros: Optional[float] = None
+    dias_totales: int = 1
+    personajes: List[Dict[str, Any]] = []
+    # Lista de jornadas con todo lo sucedido
+    jornadas: List[Dict[str, Any]] = []
+    # Clima general / clima por día (se integrará cuando exista el sistema de clima)
+    clima_por_dia: Optional[Dict[str, str]] = None
+
+
+@router.post("/generate-full-chronicle")
+async def generate_full_chronicle(request: FullChronicleRequest):
+    """
+    Crea un ÚNICO texto narrativo continuo que cuenta todo el viaje de forma
+    fluida, estilo crónica de aventura: introducción (quién viaja, de dónde a
+    dónde, fecha, kilómetros, jornadas), cuerpo (hilvanando jornadas clave con
+    frases como "al tercer día…", "en la quinta jornada…"), y cierre
+    (llegada al destino).
+    """
+    try:
+        from emergentintegrations.llm.chat import LlmChat, UserMessage
+
+        api_key = os.environ.get('EMERGENT_LLM_KEY')
+        if not api_key:
+            return {"success": False, "error": "No API key configured", "chronicle": ""}
+
+        personajes_txt = ", ".join([
+            f"{p.get('nombre','?')}" + (f" ({p.get('papel','')})" if p.get('papel') else '')
+            for p in request.personajes
+        ]) or "el grupo de aventureros"
+
+        jornadas_txt_parts = []
+        for j in request.jornadas:
+            dia = j.get('dia_numero', '?')
+            lineas = [f"JORNADA {dia}:"]
+            if j.get('orientacion'):
+                o = j['orientacion']
+                lineas.append(
+                    f"  Orientación: d20={o.get('d20','?')} total={o.get('total','?')} vs CD 15 "
+                    f"({'éxito' if o.get('exito') else 'fallo'}). {o.get('detalle','')}"
+                )
+                if o.get('gm_notes'):
+                    lineas.append(f"  Notas del maestro: {o['gm_notes']}")
+            for i, e in enumerate(j.get('eventos', []), 1):
+                ev_nombre = e.get('nombre') or '(evento)'
+                lineas.append(
+                    f"  Evento {i}: {ev_nombre} — tirada {e.get('tirada','?')} vs CD {e.get('cd','?')} "
+                    f"({'éxito' if e.get('exito') else 'fallo'})."
+                )
+                if e.get('gm_notes'):
+                    lineas.append(f"    Notas del maestro: {e['gm_notes']}")
+                if e.get('narrativa'):
+                    lineas.append(f"    Narrativa previa: {e['narrativa']}")
+            if j.get('tiradas_fatiga'):
+                for tf in j['tiradas_fatiga']:
+                    niveles = tf.get('niveles_cansancio', 0)
+                    if niveles > 0:
+                        lineas.append(f"  Fatiga: {tf.get('personaje','?')} gana +1 nivel de cansancio.")
+            if request.clima_por_dia and str(dia) in request.clima_por_dia:
+                lineas.append(f"  Clima: {request.clima_por_dia[str(dia)]}")
+            jornadas_txt_parts.append("\n".join(lineas))
+
+        jornadas_block = "\n\n".join(jornadas_txt_parts) if jornadas_txt_parts else "(Sin jornadas registradas.)"
+
+        system_msg = (
+            "Eres un cronista del grupo que escribe una CRÓNICA DE VIAJE completa y "
+            "continua, como narrativa única (no separada por días), en español, estilo "
+            "Tierra Media/Tolkien pero con lenguaje accesible y natural. "
+            "ESTRUCTURA que debes seguir:\n"
+            "1. PÁRRAFO INICIAL: presenta quiénes viajan (nombres y papeles), de dónde a "
+            "dónde, la fecha de salida si se indica, los kilómetros aproximados y las "
+            "jornadas previstas. Tono evocador, NO estadístico.\n"
+            "2. CUERPO: hila las jornadas con transiciones naturales tipo \"al tercer día…\", "
+            "\"en la quinta jornada, bajo un cielo encapotado…\", \"la mañana del séptimo día…\", "
+            "\"aquella noche el centinela oyó…\". Incluye los eventos significativos, las notas "
+            "del maestro como CONTEXTO real (nombres de lugares, condiciones), los éxitos y "
+            "fracasos importantes. NO enumeres todos los eventos, selecciona los que aporten "
+            "al relato. Integra el clima orgánicamente cuando esté presente.\n"
+            "3. PÁRRAFO FINAL: llegada al destino con una frase evocadora (\"por fin "
+            "vislumbramos las luces de…\", \"tras muchos días de marcha, divisaron…\").\n"
+            "REGLAS ESTRICTAS:\n"
+            "- No uses emojis.\n"
+            "- No menciones tiradas de dado ni números (d20, CD) en el texto final.\n"
+            "- No uses encabezados ni listas; solo párrafos en prosa.\n"
+            "- 4-8 párrafos en total. Extensión razonable, sin ser pesado.\n"
+            "- Si en los eventos hay notas del maestro como 'Bosque de los Trolls' o nombres "
+            "concretos, intégralos en el relato para que no suene genérico."
+        )
+
+        prompt = (
+            f"DATOS DEL VIAJE\n"
+            f"Viajeros: {personajes_txt}\n"
+            f"Trayecto: {request.origen or '?'} → {request.destino or '?'}\n"
+            + (f"Fecha de salida: {request.fecha_salida}\n" if request.fecha_salida else '')
+            + (f"Kilómetros aproximados: {int(request.kilometros)}\n" if request.kilometros else '')
+            + f"Jornadas previstas: {request.dias_totales}\n\n"
+            f"ACONTECIMIENTOS POR JORNADA:\n{jornadas_block}\n\n"
+            f"Escribe ahora la crónica unificada del viaje."
+        )
+
+        chat = LlmChat(
+            api_key=api_key,
+            session_id=f"chronicle_{uuid.uuid4().hex[:8]}",
+            system_message=system_msg,
+        ).with_model("openai", "gpt-4o")
+
+        response = await chat.send_message(UserMessage(text=prompt))
+
+        return {
+            "success": True,
+            "chronicle": response,
+        }
+    except Exception as e:
+        return {
+            "success": False,
+            "error": str(e),
+            "chronicle": "",
         }
 
 

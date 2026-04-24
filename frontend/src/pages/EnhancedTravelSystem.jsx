@@ -28,6 +28,7 @@ import api from '@/services/api';
 import PartyFatiguePanel from '@/components/travel/PartyFatiguePanel';
 import CampDialog from '@/components/travel/CampDialog';
 import JourneyDiary from '@/components/travel/JourneyDiary';
+import ProvisionsShopDialog from '@/components/travel/ProvisionsShopDialog';
 
 // Map URLs and coordinate system
 // Both maps have the same pixel dimensions (19791x15133)
@@ -685,9 +686,24 @@ const EnhancedTravelSystem = () => {
   const [showCampDialog, setShowCampDialog] = useState(false);
   const [travelEvents, setTravelEvents] = useState([]);
   
-  // Journey diary state (lifted here so it can be included in PDF export)
-  const [journeyDiary, setJourneyDiary] = useState({});
-  const [includeDiaryInPDF, setIncludeDiaryInPDF] = useState(true);
+  // Journey chronicle (single unified narrative) — lifted for PDF export
+  const [journeyChronicle, setJourneyChronicle] = useState('');
+  const [includeChronicleInPDF, setIncludeChronicleInPDF] = useState(true);
+  
+  // Provisions shop dialog
+  const [showProvisionsShop, setShowProvisionsShop] = useState(false);
+  
+  // Journey automation (Point 7)
+  const [autoRunning, setAutoRunning] = useState(false);
+  const autoStopRef = useRef(false);
+  
+  // Refs to access latest state inside the async automation loop (avoid stale closures)
+  const currentPositionRef = useRef(currentPosition);
+  const currentEventRef = useRef(currentEvent);
+  const charactersRef = useRef(characters);
+  useEffect(() => { currentPositionRef.current = currentPosition; }, [currentPosition]);
+  useEffect(() => { currentEventRef.current = currentEvent; }, [currentEvent]);
+  useEffect(() => { charactersRef.current = characters; }, [characters]);
   
   // =============== LOAD DATA ===============
   
@@ -1754,6 +1770,81 @@ const EnhancedTravelSystem = () => {
     }
   };
   
+  // =============== JOURNEY AUTOMATION (Point 7) ===============
+  const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+  
+  const automateJourney = async () => {
+    if (autoRunning) {
+      // Stop if already running
+      autoStopRef.current = true;
+      return;
+    }
+    setAutoRunning(true);
+    autoStopRef.current = false;
+    const logs = [];
+    let safety = 200;
+    toast.info('🚀 Automatizando el viaje...');
+
+    while (safety-- > 0 && !autoStopRef.current) {
+      // Safety: check if any character reached dangerous fatigue (≥5)
+      const dangerPj = config.miembros.find(m => {
+        const c = charactersRef.current?.find(ch => ch.id === m.id);
+        return (c?.fatiga || 0) >= 5;
+      });
+      if (dangerPj) {
+        toast.error(
+          `⚠️ PAUSA: ${dangerPj.nombre} alcanzó fatiga 5 (al borde de la muerte). ` +
+          `Decide: acampa varios días, continúa manualmente, o acorta yendo de refugio en refugio.`,
+          { duration: 10000 }
+        );
+        logs.push(`PAUSA: ${dangerPj.nombre} en fatiga 5.`);
+        break;
+      }
+      
+      // If journey already done, exit
+      if (currentPositionRef.current >= (journeyCalc?.ruta?.casillas || 0)) {
+        logs.push('Viaje completado.');
+        break;
+      }
+      
+      // If there is a current unresolved event, resolve it
+      if (currentEventRef.current && !currentEventRef.current.resuelto) {
+        // Roll dice (updates eventDiceRoll state)
+        rollEventDice();
+        await sleep(300);
+        // The rollEventDice sets eventDiceRoll; we need to read it via state reference.
+        // But we don't have a ref for it. Use a direct re-compute using the same logic:
+        const tr = currentEventRef.current.objetivo?.papel;
+        const mod = tr ? getRoleModifier(tr).modifier : 0;
+        const d20 = Math.floor(Math.random() * 20) + 1;
+        const total = d20 + mod;
+        try {
+          await resolveCurrentEvent(total);
+          logs.push(`Evento "${currentEventRef.current?.evento?.nombre || '?'}": ${total} vs CD ${currentEventRef.current?.resolucion?.cd || '?'}`);
+        } catch (e) {
+          logs.push(`Error al resolver evento: ${e?.message}`);
+          break;
+        }
+        await sleep(400);
+        continue;
+      }
+      
+      // Otherwise, do an orientation check
+      try {
+        await performOrientationCheck();
+        logs.push(`Orientación en casilla ${currentPositionRef.current}.`);
+      } catch (e) {
+        logs.push(`Error en orientación: ${e?.message}`);
+        break;
+      }
+      await sleep(500);
+    }
+    
+    setAutoRunning(false);
+    autoStopRef.current = false;
+    toast.success(`Automatización finalizada (${logs.length} eventos procesados).`);
+  };
+  
   // =============== DAY BY DAY FUNCTIONS ===============
   
   const advanceDay = async () => {
@@ -2523,27 +2614,11 @@ const EnhancedTravelSystem = () => {
           <div class="narrative">${journeyNarrative}</div>
         ` : ''}
         
-        ${includeDiaryInPDF && Object.keys(journeyDiary).length > 0 ? `
+        ${includeChronicleInPDF && journeyChronicle ? `
           <h2>Diario del Viaje</h2>
-          <p style="font-size: 10pt; color: #666; margin-bottom: 15px;">
-            Crónica detallada de cada jornada recorrida por la compañía.
-          </p>
-          ${Object.keys(journeyDiary)
-            .map(k => parseInt(k, 10))
-            .sort((a, b) => a - b)
-            .map(diaNum => {
-              const entry = journeyDiary[diaNum];
-              if (!entry || !entry.narrative) return '';
-              const climaHTML = entry.clima ? `<p style="font-size: 10pt; color: #6b4423; font-style: italic; margin: 0 0 8px 0;"><strong>Clima:</strong> ${entry.clima}</p>` : '';
-              const notasHTML = entry.notas_dia ? `<p style="font-size: 10pt; color: #6b4423; margin: 0 0 8px 0;"><strong>Notas del Maestro:</strong> ${entry.notas_dia}</p>` : '';
-              return `<div style="margin: 20px 0; padding: 16px 20px; background: rgba(139, 69, 19, 0.04); border-left: 3px solid #8B4513; page-break-inside: avoid;">
-                <h3 style="font-family: 'Cinzel', serif; font-size: 13pt; color: #5c4033; margin: 0 0 10px 0;">Jornada ${diaNum}</h3>
-                ${climaHTML}
-                ${notasHTML}
-                <p style="text-align: justify; margin: 0; line-height: 1.7;">${entry.narrative.replace(/\n/g, '<br>')}</p>
-              </div>`;
-            })
-            .join('')}
+          <div style="text-align: justify; line-height: 1.8; margin: 20px 0; padding: 20px 24px; background: rgba(139, 69, 19, 0.04); border-left: 4px solid #8B4513;">
+            ${journeyChronicle.split(/\n\n+/).map(p => `<p style="margin: 0 0 14px 0;">${p.replace(/\n/g, '<br>')}</p>`).join('')}
+          </div>
         ` : ''}
         
         <h2>La Compañía</h2>
@@ -2577,7 +2652,7 @@ const EnhancedTravelSystem = () => {
         
         ${journeyCalc?.px_desglose && journeyCalc.estimaciones?.px_total > 0 ? `
           <h2>Experiencia Ganada</h2>
-          <p style="margin-bottom: 10px;">El viaje a través de tierras peligrosas ha otorgado <strong>${journeyCalc.estimaciones.px_total} puntos de experiencia</strong> a cada miembro de la compañía.</p>
+          <p style="margin-bottom: 10px;">El viaje a través de tierras peligrosas ha otorgado <strong>${journeyCalc.estimaciones.px_total} puntos de experiencia</strong> al total de la compañía, a repartir entre los ${config.miembros.filter(m => m.papeles?.length).length || config.miembros.length} viajeros (${Math.floor((journeyCalc.estimaciones.px_total) / Math.max(1, config.miembros.filter(m => m.papeles?.length).length || config.miembros.length))} PX por cabeza, antes de bonificaciones individuales por tiradas).</p>
           ${journeyCalc.px_desglose.por_tipo_tierra ? `
             <div style="padding: 15px; background: rgba(34, 139, 34, 0.08); border: 1px solid #d4c4a8; margin-bottom: 15px;">
               <p style="margin: 0 0 10px 0; font-weight: bold;">Desglose por Tipo de Tierra:</p>
@@ -3380,9 +3455,9 @@ const EnhancedTravelSystem = () => {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="lento">🐢 Lento (24 km/día)</SelectItem>
-                  <SelectItem value="normal">🚶 Normal (36 km/día)</SelectItem>
-                  <SelectItem value="rapido">🏃 Rápido (48 km/día)</SelectItem>
+                  <SelectItem value="lento">🐢 Lento (15-20 km/día)</SelectItem>
+                  <SelectItem value="normal">🚶 Normal (20-25 km/día)</SelectItem>
+                  <SelectItem value="rapido">🏃 Forzado (25-30 km/día)</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -3931,13 +4006,36 @@ const EnhancedTravelSystem = () => {
                     />
                   </div>
                   
-                  <Button 
-                    className="w-full btn-gold"
-                    onClick={performOrientationCheck}
-                  >
-                    <Dice6 className="w-4 h-4 mr-2" />
-                    Realizar Tirada de Orientación
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button 
+                      className="flex-1 btn-gold"
+                      onClick={performOrientationCheck}
+                      disabled={autoRunning}
+                      data-testid="orientation-roll-btn"
+                    >
+                      <Dice6 className="w-4 h-4 mr-2" />
+                      Realizar Tirada de Orientación
+                    </Button>
+                    <Button
+                      variant={autoRunning ? 'destructive' : 'outline'}
+                      onClick={automateJourney}
+                      className="border-[hsl(var(--gold))]/50"
+                      data-testid="automate-journey-btn"
+                      title={autoRunning ? 'Detener automatización' : 'Simular todo el viaje automáticamente'}
+                    >
+                      {autoRunning ? (
+                        <>
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          Detener
+                        </>
+                      ) : (
+                        <>
+                          <ArrowLeftRight className="w-4 h-4 mr-2" />
+                          Automatizar viaje
+                        </>
+                      )}
+                    </Button>
+                  </div>
                   
                   {lastOrientationResult && (
                     <div className={`p-3 rounded ${lastOrientationResult.exito ? 'bg-green-900/30 border border-green-500/50' : 'bg-red-900/30 border border-red-500/50'}`}>
@@ -4315,6 +4413,16 @@ const EnhancedTravelSystem = () => {
                 Provisiones
               </h4>
               <div className="flex gap-2">
+                <Button 
+                  variant="ghost" 
+                  size="sm"
+                  onClick={() => setShowProvisionsShop(true)}
+                  className="text-xs h-7 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/40"
+                  data-testid="buy-provisions-btn"
+                >
+                  <Package className="w-3 h-3 mr-1" />
+                  Comprar
+                </Button>
                 <Button 
                   variant="ghost" 
                   size="sm"
@@ -4931,8 +5039,10 @@ const EnhancedTravelSystem = () => {
           terreno={journeyCalc?.ruta?.terreno || 'campo_abierto'}
           tipoTierra={journeyCalc?.ruta?.tipo_tierra || 'tierras_salvajes'}
           diasTotales={journeyCalc?.estimaciones?.dias_estimados || orientationChecks.length}
-          diary={journeyDiary}
-          setDiary={setJourneyDiary}
+          kilometros={journeyCalc?.ruta?.distance_km}
+          fechaSalida={`${config.diaMes} de ${MESES_ELFICOS.find(m => m.id === config.mes)?.nombre?.split(' ')[0] || config.mes}`}
+          chronicle={journeyChronicle}
+          setChronicle={setJourneyChronicle}
         />
         
         {/* Journey Summary */}
@@ -5417,16 +5527,14 @@ const EnhancedTravelSystem = () => {
               <label className="flex items-center gap-2 px-3 py-2 border border-[hsl(var(--gold))]/30 rounded bg-black/20 cursor-pointer text-xs" data-testid="include-diary-pdf-toggle">
                 <input
                   type="checkbox"
-                  checked={includeDiaryInPDF}
-                  onChange={(e) => setIncludeDiaryInPDF(e.target.checked)}
+                  checked={includeChronicleInPDF}
+                  onChange={(e) => setIncludeChronicleInPDF(e.target.checked)}
                   className="accent-[hsl(var(--gold))]"
                 />
                 <span>
-                  Incluir Diario en PDF
-                  {Object.keys(journeyDiary).length > 0 && (
-                    <span className="ml-1 text-[hsl(var(--gold))] font-bold">
-                      ({Object.values(journeyDiary).filter(e => e?.narrative).length})
-                    </span>
+                  Incluir Crónica en PDF
+                  {journeyChronicle && (
+                    <span className="ml-1 text-[hsl(var(--gold))] font-bold">✓</span>
                   )}
                 </span>
               </label>
@@ -5537,6 +5645,21 @@ const EnhancedTravelSystem = () => {
         setCharacters={setCharacters}
         travelEvents={travelEvents}
         onJourneyUpdate={(patch) => setActiveJourney((prev) => (prev ? { ...prev, ...patch } : prev))}
+      />
+      
+      {/* Provisions Shop Dialog */}
+      <ProvisionsShopDialog
+        open={showProvisionsShop}
+        onClose={() => setShowProvisionsShop(false)}
+        miembros={config.miembros}
+        characters={characters}
+        diasViaje={journeyCalc?.estimaciones?.dias_estimados || activeJourney?.config?.dias_estimados || 7}
+        onPurchaseComplete={() => {
+          // Reload characters to reflect new inventory/money
+          api.get('/characters/').then(res => {
+            if (res.data?.characters) setCharacters(res.data.characters);
+          }).catch(err => console.error(err));
+        }}
       />
     </div>
   );
