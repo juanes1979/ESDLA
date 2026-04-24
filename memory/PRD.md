@@ -4,7 +4,22 @@
 
 ### ✅ COMPLETED This Session
 
-#### 1. Sistema de Acampar + Fatiga Acumulativa - COMPLETADO (2026-02-23)
+#### 2. Fase A — Modificadores correctos en tiradas + PX en orientación (2026-02-24)
+- `rollEventDice` y las tarjetas pre-tirada ahora usan el modificador precalculado del miembro según su papel (`modViajar/modCaza/modPercepcion/modExplorar`). Fin del bug "+2 siempre".
+- Incluye penalización por múltiples papeles (-5) y muestra desglose (habilidad + atributo).
+- Tirada de orientación ahora muestra PX generados junto al resultado (`data-testid=orientation-xp-display`).
+
+#### 3. Fase B — Día del Mes en Configuración (2026-02-24)
+- Nuevo input `Día del Mes` (1-30, `data-testid=journey-day-input`) junto al selector de Mes.
+- Se guarda en `config.diaMes` listo para el futuro sistema de clima.
+
+#### 4. Fase C — Nueva Tabla de PX (2026-02-24)
+- Tabla 1: CD 5-10→2 | 11-14→5 | 15-19→10 | 20-24→20 | 25+→35. Crítico nat20: +20. Pifia nat1: -10.
+- Tabla 2 (multiplicador global): 0-20%→×1.0, 20-40%→×1.3/×0.7, >40%→×1.6/×0.4.
+- Redondeo hacia abajo. **PX mínimos por personaje = 0** (no negativos).
+- Aplicado tanto en el resumen de PX como en `applyPXToCharacters`.
+
+#### 1. Sistema de Acampar + Fatiga Acumulativa (2026-02-23)
 **Backend:**
 - `/api/characters/{id}/fatigue` acepta valores decimales (0.5 steps), clamp 0-6
 - `ActiveJourney.fatiga_cd_total` ahora es `float` para soportar 11.5, 10.5, etc.
@@ -39,14 +54,23 @@
 
 ## Pending Tasks
 
-### P0 - Próximo (decisiones del usuario confirmadas, esperando implementación)
+### 🟢 En Barbecho (dependen de otros sistemas)
+- **Texto narrativo IA al acampar** (depende de sistema de clima)
+- **Selector Campaña + Código en Papeles de Viaje** (depende de sistema de Campañas)
+- **Sistema de Clima por región + efectos en tiradas y narrativa** (tras Fase A concluida ✅)
+
+### P0 - Próximo
+- **Punto 7 — Automatizar todo el viaje**:
+  - Botón "Automatizar todo el viaje" al inicio de las tiradas de orientación
+  - Tira todo hasta destino aplicando reglas auto de acampada (por cada 2 niveles fatiga → 2 días descanso para recuperar 1, incluso vigía)
+  - Si fatiga ≥ 5 → acampa hasta recuperar 4 niveles
+  - Si algún PJ *pudiera morir* → **pausa + aviso al DJ** con opciones (repetir auto, convertir a manual, ir de posada en posada)
+  - Listado final completo (pifias, éxitos, acampadas)
 - **Sistema Auth + RBAC + Campañas (Copy-on-Write)**:
-  - JWT custom (email + password)
+  - JWT custom email+password + "Solicitar Acceso" con hCaptcha + aprobación del Maestro
   - Roles: Maestro / Director de Juego / Jugador
-  - "Solicitar Acceso" con captcha gratuito (hCaptcha o matemático)
-  - Aprobación del Maestro
-  - Recuperación de contraseña vía mensajes internos (chat Maestro/Director ↔ Jugador)
-  - Aislamiento de DB por Campaña: copy-on-write (lee de global, copia al editar)
+  - Recuperación de contraseña vía chat interno
+  - Aislamiento de DB por Campaña: copy-on-write
 
 ### P1
 - Game Master Screen (dashboard en vivo: jugadores conectados, HP, fatiga, dados, encuentros)
