@@ -2756,6 +2756,170 @@ INSTRUCCIONES: Describe qué sucedió de forma natural y sencilla, como si lo co
         }
 
 
+# ============== DAY LOG — DIARIO DE VIAJE UNIFICADO ==============
+
+class DayLogRequest(BaseModel):
+    """Solicita la narrativa unificada de una jornada de viaje."""
+    dia_numero: int
+    dias_totales: int = 1
+    terreno: str = "campo_abierto"
+    tipo_tierra: str = "tierras_salvajes"
+    origen: Optional[str] = None
+    destino: Optional[str] = None
+    # Personajes con papeles y sus niveles de fatiga del día
+    personajes: List[Dict[str, Any]] = []
+    # Tirada de orientación del día (opcional)
+    orientacion: Optional[Dict[str, Any]] = None
+    # Eventos resueltos ese día (con sus notas del maestro y narrativas individuales)
+    eventos: List[Dict[str, Any]] = []
+    # Resultados de TS de Fatiga de ese día (opcional)
+    tiradas_fatiga: List[Dict[str, Any]] = []
+    # Si el grupo acampó ese día
+    acampada: Optional[Dict[str, Any]] = None
+    # Clima del día (preparado para el sistema futuro)
+    clima: Optional[str] = None
+    # Continuidad: resumen del día anterior (opcional)
+    dia_anterior_resumen: Optional[str] = None
+    # Notas globales del maestro para el día (extra, si quiere añadir algo fuera de tiradas)
+    notas_maestro_dia: Optional[str] = None
+
+
+@router.post("/generate-day-log")
+async def generate_day_log(request: DayLogRequest):
+    """
+    Genera un párrafo narrativo unificado para una jornada concreta del viaje,
+    tejiendo orientación, eventos, notas del Maestro, tiradas de fatiga y clima.
+
+    El clima se integra de forma orgánica (p. ej. "la lluvia que lleva cayendo
+    desde el mediodía ha embarrado el camino…") no como mero enunciado.
+    """
+    try:
+        from emergentintegrations.llm.chat import LlmChat, UserMessage
+
+        api_key = os.environ.get('EMERGENT_LLM_KEY')
+        if not api_key:
+            return {"success": False, "error": "No API key configured", "narrative": ""}
+
+        # Construir contexto
+        fase = "al comienzo del viaje" if request.dia_numero <= request.dias_totales * 0.25 \
+            else "a media travesía" if request.dia_numero <= request.dias_totales * 0.5 \
+            else "avanzado el viaje" if request.dia_numero <= request.dias_totales * 0.75 \
+            else "cerca del final del viaje"
+
+        # Orientación
+        orientacion_txt = ""
+        if request.orientacion:
+            o = request.orientacion
+            exito_o = o.get('exito', False)
+            orientacion_txt = (
+                f"\n- Tirada de orientación del guía: d20={o.get('d20','?')} "
+                f"total={o.get('total','?')} vs CD 15 "
+                f"({'éxito' if exito_o else 'fallo'}). {o.get('detalle','')}"
+            )
+            if o.get('gm_notes'):
+                orientacion_txt += f"\n  Contexto del Maestro: {o['gm_notes']}"
+
+        # Eventos
+        eventos_txt = ""
+        for i, e in enumerate(request.eventos, 1):
+            nombre = e.get('nombre') or e.get('evento', {}).get('nombre') or 'evento sin nombre'
+            tirada = e.get('tirada', '?')
+            cd = e.get('cd') or e.get('resolucion', {}).get('cd', '?')
+            exito_e = e.get('exito', False)
+            personaje = e.get('personaje') or e.get('objetivo', {}).get('papel', '')
+            eventos_txt += (
+                f"\n- Evento {i}: {nombre} (tirada {tirada} vs CD {cd}, "
+                f"{'éxito' if exito_e else 'fallo'}{', responsable: '+personaje if personaje else ''})."
+            )
+            if e.get('gm_notes'):
+                eventos_txt += f"\n  Notas del Maestro: {e['gm_notes']}"
+            if e.get('narrativa'):
+                eventos_txt += f"\n  Narrativa previa: {e['narrativa']}"
+
+        # Fatiga
+        fatiga_txt = ""
+        for tf in request.tiradas_fatiga:
+            nombre = tf.get('personaje', '?')
+            d20 = tf.get('tirada', {}).get('d20') if isinstance(tf.get('tirada'), dict) else tf.get('d20', '?')
+            total = tf.get('tirada', {}).get('total') if isinstance(tf.get('tirada'), dict) else tf.get('total', '?')
+            cd_f = tf.get('cd', '?')
+            resultado = tf.get('resultado', '?')
+            niveles = tf.get('niveles_cansancio', 0)
+            fatiga_txt += (
+                f"\n- {nombre}: TS Fatiga d20={d20} total={total} vs CD {cd_f} → "
+                f"{resultado}"
+                f"{' (+1 cansancio)' if niveles > 0 else ''}."
+            )
+
+        # Acampada
+        acampada_txt = ""
+        if request.acampada:
+            a = request.acampada
+            acampada_txt = f"\n- El grupo acampa. Centinela: {a.get('centinela','ninguno')}. "
+            if a.get('resultados'):
+                for r in a['resultados']:
+                    acampada_txt += f" {r.get('nombre','')}: -{r.get('reduccion',0)} cansancio."
+            if a.get('eventos_nocturnos'):
+                acampada_txt += f" Eventos nocturnos: {len(a['eventos_nocturnos'])}."
+
+        personajes_txt = ", ".join([
+            f"{p.get('nombre','?')}" + (f" ({p.get('papel','')})" if p.get('papel') else '')
+            for p in request.personajes
+        ]) or "el grupo"
+
+        clima_txt = f"\n- Clima del día: {request.clima}" if request.clima else ""
+        notas_dia_txt = f"\n- Notas globales del Maestro: {request.notas_maestro_dia}" if request.notas_maestro_dia else ""
+        anterior_txt = f"\n- Continuación del día anterior: {request.dia_anterior_resumen}" if request.dia_anterior_resumen else ""
+
+        system_msg = (
+            "Eres el cronista del grupo que escribe un 'Diario de Viaje' estilo Tolkien/Tierra Media "
+            "en español, pero con lenguaje natural y accesible (nada arcaico ni épico exagerado). "
+            "Escribe un ÚNICO párrafo (4-7 frases) para la jornada concreta descrita, tejiendo los "
+            "hechos (orientación, eventos, notas del maestro, fatiga, acampada) en una prosa fluida. "
+            "IMPORTANTE sobre el CLIMA: NO te limites a mencionarlo, INTÉGRALO ORGÁNICAMENTE en el "
+            "relato para que afecte a la acción (p. ej. 'la lluvia que lleva cayendo desde el mediodía "
+            "ha embarrado el camino y complicado cada paso…', 'el frío muerde los dedos del cazador', "
+            "'la niebla confunde al guía y apenas distingue las marcas del sendero'). "
+            "Las Notas del Maestro son CONTEXTO real que debes usar (nombre del lugar, condiciones "
+            "específicas, detalles). No uses emojis. No menciones estadísticas de dado. "
+            "No repitas 'Día X' al principio, céntrate en lo narrativo."
+        )
+
+        prompt = (
+            f"JORNADA {request.dia_numero} de {request.dias_totales} ({fase})\n"
+            f"GRUPO: {personajes_txt}\n"
+            f"TERRENO: {request.terreno} — {request.tipo_tierra}"
+            f"{orientacion_txt}"
+            f"{eventos_txt}"
+            f"{fatiga_txt}"
+            f"{acampada_txt}"
+            f"{clima_txt}"
+            f"{notas_dia_txt}"
+            f"{anterior_txt}\n\n"
+            f"Escribe ahora el párrafo del diario para esta jornada."
+        )
+
+        chat = LlmChat(
+            api_key=api_key,
+            session_id=f"daylog_{uuid.uuid4().hex[:8]}",
+            system_message=system_msg,
+        ).with_model("openai", "gpt-4o")
+
+        response = await chat.send_message(UserMessage(text=prompt))
+
+        return {
+            "success": True,
+            "dia": request.dia_numero,
+            "narrative": response,
+        }
+    except Exception as e:
+        return {
+            "success": False,
+            "error": str(e),
+            "narrative": "",
+        }
+
+
 class JourneySummaryRequest(BaseModel):
     origen: str
     destino: str

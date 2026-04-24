@@ -27,6 +27,7 @@ import html2canvas from 'html2canvas';
 import api from '@/services/api';
 import PartyFatiguePanel from '@/components/travel/PartyFatiguePanel';
 import CampDialog from '@/components/travel/CampDialog';
+import JourneyDiary from '@/components/travel/JourneyDiary';
 
 // Map URLs and coordinate system
 // Both maps have the same pixel dimensions (19791x15133)
@@ -4891,6 +4892,19 @@ const EnhancedTravelSystem = () => {
             events={events}
           />
         </div>
+        
+        {/* Diario del Viaje (IA narrativa unificada por jornada) */}
+        <JourneyDiary
+          orientationChecks={orientationChecks}
+          events={events.filter(e => e.resuelto)}
+          fatigueResults={fatigueResults}
+          miembros={config.miembros}
+          origen={config.origenNombre}
+          destino={config.destinoNombre}
+          terreno={journeyCalc?.ruta?.terreno || 'campo_abierto'}
+          tipoTierra={journeyCalc?.ruta?.tipo_tierra || 'tierras_salvajes'}
+          diasTotales={journeyCalc?.estimaciones?.dias_estimados || orientationChecks.length}
+        />
         
         {/* Journey Summary */}
         <Card className="card-parchment">
