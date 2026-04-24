@@ -586,6 +586,7 @@ const EnhancedTravelSystem = () => {
     preferirCaminos: true,
     ritmo: 'normal',
     mes: 'Cermië',
+    diaMes: 1,
     estacion: 'verano',
     horasMarchaForzada: 0,
     miembros: []
@@ -897,75 +898,72 @@ const EnhancedTravelSystem = () => {
   // Formula: PX final = PX base × diferencia × terreno × peligrosidad
   // Limit: ±12 PX per roll
   
-  const calculateRollXP = useCallback((cd, tirada, exito, terreno, tipoTierra) => {
-    // 1. PX Base based on CD
+  const calculateRollXP = useCallback((cd, tirada, exito, terreno, tipoTierra, d20Nat) => {
+    // TABLA 1 — PX base por CD (confirmado por usuario)
+    // CD 5-10: 2 PX | 11-14: 5 PX | 15-19: 10 PX | 20-24: 20 PX | 25+: 35 PX
     let pxBase = 0;
-    if (exito) {
-      if (cd >= 20) pxBase = 6;
-      else if (cd >= 18) pxBase = 5;
-      else if (cd >= 16) pxBase = 4;
-      else if (cd >= 14) pxBase = 3;
-      else if (cd >= 12) pxBase = 2;
-      else pxBase = 1; // CD 10 or less
-    } else {
-      if (cd >= 20) pxBase = -3;
-      else if (cd >= 18) pxBase = -2;
-      else if (cd >= 16) pxBase = -2;
-      else if (cd >= 14) pxBase = -1;
-      else if (cd >= 12) pxBase = -1;
-      else pxBase = 0; // CD 10 or less
-    }
+    if (cd >= 25) pxBase = 35;
+    else if (cd >= 20) pxBase = 20;
+    else if (cd >= 15) pxBase = 10;
+    else if (cd >= 11) pxBase = 5;
+    else pxBase = 2;
     
-    // 2. Modifier based on difference
     const diferencia = tirada - cd;
-    let multDiferencia = 1;
+    let pxFinal;
+    
     if (exito) {
-      if (diferencia >= 10) multDiferencia = 2;
-      else if (diferencia >= 5) multDiferencia = 1.5;
-      else if (diferencia >= 1) multDiferencia = 1.2;
-      // 0 = ×1
+      pxFinal = pxBase;
     } else {
-      // In failures, multiplier increases the penalty
-      if (diferencia <= -7) multDiferencia = 1.5;
-      else if (diferencia <= -4) multDiferencia = 1.2;
-      // -1 to -3 = ×1
+      // Fallo: no gana PX base (sólo restaría por pifia natural)
+      pxFinal = 0;
     }
     
-    // 3. Terrain multiplier
-    const terrenoMults = {
-      'facil': 0.8,
-      'moderado': 1,
-      'dificil': 1.2,
-      'muy_dificil': 1.5,
-      'desalentador': 1.8
-    };
-    const multTerreno = terrenoMults[terreno?.toLowerCase()] || 1;
+    // Modificadores especiales por tirada natural
+    let critico = false;
+    let pifia = false;
+    if (d20Nat === 20) {
+      critico = true;
+      pxFinal += 20; // Crítico: +20 PX extra (se suma al base)
+    } else if (d20Nat === 1) {
+      pifia = true;
+      pxFinal -= 10; // Pifia: -10 PX
+    }
     
-    // 4. Land type multiplier
-    const tierraMults = {
-      'tierras_libres': 0.8,
-      'tierras_fronterizas': 1,
-      'tierras_salvajes': 1.2,
-      'tierras_sombra': 1.5,
-      'tierras_oscuras': 1.8
-    };
-    const multTierra = tierraMults[tipoTierra?.toLowerCase()] || 1;
-    
-    // Final calculation
-    let pxFinal = pxBase * multDiferencia * multTerreno * multTierra;
-    
-    // Round and apply limit ±12
-    pxFinal = Math.round(pxFinal);
-    pxFinal = Math.max(-12, Math.min(12, pxFinal));
+    // No hay multiplicadores de terreno/tierra individuales en la nueva tabla.
+    // El ajuste global del viaje se aplica al final (calculateGroupMultiplier).
     
     return {
       pxBase,
       diferencia,
-      multDiferencia,
-      multTerreno,
-      multTierra,
-      pxFinal
+      pxFinal: Math.round(pxFinal),
+      critico,
+      pifia,
+      // Mantener estos campos por compatibilidad con UI existente
+      multDiferencia: 1,
+      multTerreno: 1,
+      multTierra: 1,
     };
+  }, []);
+  
+  // TABLA 2 — Multiplicador global según aciertos/fallos del viaje
+  const calculateGroupMultiplier = useCallback((aciertos, fallos) => {
+    const total = aciertos + fallos;
+    if (total === 0) return { multiplicador: 1, diferencia: 0, tendencia: 'equilibrado' };
+    const diferencia = Math.abs(aciertos - fallos) / total * 100;
+    const masAciertos = aciertos >= fallos;
+    let multiplicador = 1;
+    let tendencia = 'equilibrado';
+    if (diferencia <= 20) {
+      multiplicador = 1.0;
+      tendencia = 'equilibrado';
+    } else if (diferencia <= 40) {
+      multiplicador = masAciertos ? 1.3 : 0.7;
+      tendencia = masAciertos ? 'aciertos_moderados' : 'fallos_moderados';
+    } else {
+      multiplicador = masAciertos ? 1.6 : 0.4;
+      tendencia = masAciertos ? 'aciertos_fuertes' : 'fallos_fuertes';
+    }
+    return { multiplicador, diferencia: Math.round(diferencia * 10) / 10, tendencia };
   }, []);
   
   // Add XP to a character
@@ -1038,12 +1036,6 @@ const EnhancedTravelSystem = () => {
       
       if (res.data.success) {
         const result = res.data;
-        setLastOrientationResult(result);
-        setOrientationChecks(prev => [...prev, {
-          ...result,
-          casilla_actual: currentPosition,
-          casillas_restantes: casillasRestantes
-        }]);
         
         // Calculate XP for the Guide's orientation check
         // CD for orientation is always 15, exito is tirada >= CD
@@ -1054,8 +1046,17 @@ const EnhancedTravelSystem = () => {
           result.total,
           exito,
           journeyCalc?.ruta?.terreno || 'moderado',
-          journeyCalc?.ruta?.tipo_tierra || 'tierras_salvajes'
+          journeyCalc?.ruta?.tipo_tierra || 'tierras_salvajes',
+          result.d20
         );
+        
+        const enrichedResult = { ...result, xpResult, guiaId: guia.id, guiaNombre: guia.nombre };
+        setLastOrientationResult(enrichedResult);
+        setOrientationChecks(prev => [...prev, {
+          ...enrichedResult,
+          casilla_actual: currentPosition,
+          casillas_restantes: casillasRestantes
+        }]);
         
         // Add XP to guide
         addCharacterXP(guia.id, {
@@ -1578,45 +1579,46 @@ const EnhancedTravelSystem = () => {
   
   // =============== EVENT RESOLUTION ===============
   
+  // Map travel role → precomputed member skill modifier key
+  const ROLE_MODIFIER_KEY = {
+    guia: 'modViajar',
+    cazador: 'modCaza',
+    vigia: 'modPercepcion',
+    explorador: 'modExplorar',
+  };
+
+  // Get the modifier + breakdown for a given target role using precomputed member values
+  const getRoleModifier = (targetRole) => {
+    const targetMember = config.miembros.find(m => m.papeles?.includes(targetRole));
+    const roleInfo = ROLE_INFO[targetRole];
+    if (!targetMember || !roleInfo) {
+      return { modifier: 0, breakdown: [], member: null, roleInfo };
+    }
+    const key = ROLE_MODIFIER_KEY[targetRole];
+    const baseMod = (key && typeof targetMember[key] === 'number') ? targetMember[key] : (targetMember.modSabiduria || 0);
+    const hasMultipleRoles = targetMember.papeles?.length > 1;
+    const modifier = baseMod + (hasMultipleRoles ? MULTI_ROLE_PENALTY : 0);
+    const breakdown = [
+      `${roleInfo.habilidad} (${roleInfo.atributo_nombre.slice(0, 3)}): ${baseMod >= 0 ? '+' : ''}${baseMod}`,
+    ];
+    if (hasMultipleRoles) breakdown.push(`Múltiples papeles: ${MULTI_ROLE_PENALTY}`);
+    return { modifier, breakdown, member: targetMember, roleInfo };
+  };
+
   // Roll dice for event resolution
   const rollEventDice = () => {
     if (!currentEvent) return;
-    
-    // Find the character with the target role
     const targetRole = currentEvent.objetivo.papel;
-    const targetMember = config.miembros.find(m => m.papeles?.includes(targetRole));
-    const targetChar = characters.find(c => c.id === targetMember?.id);
-    
-    // Calculate modifier based on role's skill
-    const roleInfo = ROLE_INFO[targetRole];
-    let modifier = 0;
-    
-    if (targetChar && roleInfo) {
-      // Get attribute modifier
-      const atributoVal = targetChar.atributos?.[roleInfo.atributo] || 10;
-      const atributoMod = Math.floor((atributoVal - 10) / 2);
-      
-      // Check proficiency
-      const competencias = targetChar.habilidades || [];
-      const esCompetente = competencias.some(h => 
-        h.toLowerCase().includes(roleInfo.habilidad_key) ||
-        roleInfo.habilidad_key.includes(h.toLowerCase())
-      );
-      const profBonus = esCompetente ? Math.ceil((targetChar.nivel || 1) / 4) + 1 : 0;
-      
-      modifier = atributoMod + profBonus;
-      
-      // Apply penalty if character has multiple roles
-      if (targetMember?.papeles?.length > 1) {
-        modifier += MULTI_ROLE_PENALTY;
-      }
-    }
-    
-    // Roll d20
+    const { modifier, member, roleInfo } = getRoleModifier(targetRole);
     const d20 = Math.floor(Math.random() * 20) + 1;
     const total = d20 + modifier;
-    
-    setEventDiceRoll({ d20, modifier, total });
+    setEventDiceRoll({
+      d20,
+      modifier,
+      total,
+      modifierSource: roleInfo?.habilidad || 'Sabiduría',
+      targetMemberId: member?.id,
+    });
   };
   
   // Clear dice roll when event changes
@@ -1643,7 +1645,8 @@ const EnhancedTravelSystem = () => {
         tirada,
         exito,
         journeyCalc?.ruta?.terreno || 'moderado',
-        journeyCalc?.ruta?.tipo_tierra || 'tierras_salvajes'
+        journeyCalc?.ruta?.tipo_tierra || 'tierras_salvajes',
+        eventDiceRoll?.d20
       );
       
       addCharacterXP(targetMember.id, {
@@ -2587,16 +2590,23 @@ const EnhancedTravelSystem = () => {
     setApplyingPX(true);
     
     try {
-      // Build array of {character_id, px_amount} with TOTAL = journey share + individual rolls
+      // Calcular multiplicador global por grupo (Tabla 2)
+      const allRolls = Object.values(characterXP).flatMap(c => c.rolls || []);
+      const aciertos = allRolls.filter(r => r.exito).length;
+      const fallos = allRolls.length - aciertos;
+      const groupMult = calculateGroupMultiplier(aciertos, fallos);
+      
+      // Build array of {character_id, px_amount} with TOTAL = journey share + individual rolls (ajustado) — mínimo 0 por PJ
       const characterPXList = membersWithRoles.map(m => {
         const rollsXP = characterXP[m.id]?.total || 0;
-        const totalXP = pxPerMemberFromJourney + rollsXP;
+        const rollsXPAjustado = Math.floor(rollsXP * groupMult.multiplicador);
+        const totalXP = Math.max(0, pxPerMemberFromJourney + rollsXPAjustado);
         return {
           character_id: m.id,
           character_name: m.nombre,
           px_amount: totalXP,
           px_journey: pxPerMemberFromJourney,
-          px_rolls: rollsXP
+          px_rolls: rollsXPAjustado
         };
       });
       
@@ -3292,7 +3302,7 @@ const EnhancedTravelSystem = () => {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid md:grid-cols-3 gap-4">
+          <div className="grid md:grid-cols-4 gap-4">
             <div>
               <Label>Ritmo de Viaje</Label>
               <Select value={config.ritmo} onValueChange={(v) => setConfig(prev => ({ ...prev, ritmo: v }))}>
@@ -3324,6 +3334,25 @@ const EnhancedTravelSystem = () => {
                   ))}
                 </SelectContent>
               </Select>
+            </div>
+            
+            <div>
+              <Label>Día del Mes</Label>
+              <Input
+                type="number"
+                min="1"
+                max="30"
+                value={config.diaMes}
+                onChange={(e) => {
+                  const v = parseInt(e.target.value, 10);
+                  const clamped = Number.isNaN(v) ? 1 : Math.max(1, Math.min(30, v));
+                  setConfig(prev => ({ ...prev, diaMes: clamped }));
+                }}
+                data-testid="journey-day-input"
+              />
+              <p className="text-[10px] text-muted-foreground mt-1">
+                Fecha de salida (1-30). Al terminar el viaje se calculará la fecha de llegada.
+              </p>
             </div>
             
             <div>
@@ -3828,9 +3857,18 @@ const EnhancedTravelSystem = () => {
                   {lastOrientationResult && (
                     <div className={`p-3 rounded ${lastOrientationResult.exito ? 'bg-green-900/30 border border-green-500/50' : 'bg-red-900/30 border border-red-500/50'}`}>
                       <p className="text-sm">
-                        <strong>Última tirada:</strong> {lastOrientationResult.d20} + {lastOrientationResult.modificador} = {lastOrientationResult.total} vs CD 15
+                        <strong>Última tirada ({lastOrientationResult.guiaNombre || 'Guía'}):</strong>{' '}
+                        {lastOrientationResult.d20} + {lastOrientationResult.modificador} = {lastOrientationResult.total} vs CD 15
                       </p>
                       <p className="text-xs mt-1">{lastOrientationResult.detalle}</p>
+                      {lastOrientationResult.xpResult && (
+                        <p className="text-xs mt-1" data-testid="orientation-xp-display">
+                          <span className="text-muted-foreground">PX generados:</span>{' '}
+                          <span className={`font-bold ${lastOrientationResult.xpResult.pxFinal >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                            {lastOrientationResult.xpResult.pxFinal >= 0 ? '+' : ''}{lastOrientationResult.xpResult.pxFinal} PX
+                          </span>
+                        </p>
+                      )}
                     </div>
                   )}
                 </>
@@ -3881,31 +3919,7 @@ const EnhancedTravelSystem = () => {
             {/* Target Character Info */}
             {(() => {
               const targetRole = currentEvent.objetivo.papel;
-              const targetMember = config.miembros.find(m => m.papeles?.includes(targetRole));
-              const targetChar = characters.find(c => c.id === targetMember?.id);
-              const roleInfo = ROLE_INFO[targetRole];
-              
-              // Calculate modifier
-              let modifier = 0;
-              let modifierBreakdown = [];
-              
-              if (targetChar && roleInfo) {
-                const atributoVal = targetChar.atributos?.[roleInfo.atributo] || 10;
-                const atributoMod = Math.floor((atributoVal - 10) / 2);
-                const competencias = targetChar.habilidades || [];
-                const esCompetente = competencias.some(h => 
-                  h.toLowerCase().includes(roleInfo.habilidad_key) ||
-                  roleInfo.habilidad_key.includes(h.toLowerCase())
-                );
-                const profBonus = esCompetente ? Math.ceil((targetChar.nivel || 1) / 4) + 1 : 0;
-                const hasMultipleRoles = targetMember?.papeles?.length > 1;
-                
-                modifier = atributoMod + profBonus + (hasMultipleRoles ? MULTI_ROLE_PENALTY : 0);
-                
-                modifierBreakdown.push(`${roleInfo.atributo_nombre}: ${atributoMod >= 0 ? '+' : ''}${atributoMod}`);
-                if (profBonus > 0) modifierBreakdown.push(`${roleInfo.habilidad}: +${profBonus}`);
-                if (hasMultipleRoles) modifierBreakdown.push(`Múltiples papeles: ${MULTI_ROLE_PENALTY}`);
-              }
+              const { modifier, breakdown, member: targetMember, roleInfo } = getRoleModifier(targetRole);
               
               return (
                 <div className="p-4 bg-blue-900/20 rounded border border-blue-500/30">
@@ -3921,12 +3935,12 @@ const EnhancedTravelSystem = () => {
                         {targetMember?.nombre || 'Sin asignar'}
                       </span>
                     </p>
-                    {targetChar && (
-                      <p className="text-xs text-muted-foreground mt-1">
+                    {targetMember && (
+                      <p className="text-xs text-muted-foreground mt-1" data-testid="event-modifier-breakdown">
                         Modificador total: <span className={`font-bold ${modifier >= 0 ? 'text-green-400' : 'text-red-400'}`}>
                           {modifier >= 0 ? '+' : ''}{modifier}
                         </span>
-                        <span className="ml-2">({modifierBreakdown.join(', ')})</span>
+                        <span className="ml-2">({breakdown.join(', ')})</span>
                       </p>
                     )}
                   </div>
@@ -4437,31 +4451,7 @@ const EnhancedTravelSystem = () => {
             {/* Target Character Info */}
             {(() => {
               const targetRole = currentEvent.objetivo.papel;
-              const targetMember = config.miembros.find(m => m.papeles?.includes(targetRole));
-              const targetChar = characters.find(c => c.id === targetMember?.id);
-              const roleInfo = ROLE_INFO[targetRole];
-              
-              // Calculate modifier
-              let modifier = 0;
-              let modifierBreakdown = [];
-              
-              if (targetChar && roleInfo) {
-                const atributoVal = targetChar.atributos?.[roleInfo.atributo] || 10;
-                const atributoMod = Math.floor((atributoVal - 10) / 2);
-                const competencias = targetChar.habilidades || [];
-                const esCompetente = competencias.some(h => 
-                  h.toLowerCase().includes(roleInfo.habilidad_key) ||
-                  roleInfo.habilidad_key.includes(h.toLowerCase())
-                );
-                const profBonus = esCompetente ? Math.ceil((targetChar.nivel || 1) / 4) + 1 : 0;
-                const hasMultipleRoles = targetMember?.papeles?.length > 1;
-                
-                modifier = atributoMod + profBonus + (hasMultipleRoles ? MULTI_ROLE_PENALTY : 0);
-                
-                modifierBreakdown.push(`${roleInfo.atributo_nombre}: ${atributoMod >= 0 ? '+' : ''}${atributoMod}`);
-                if (profBonus > 0) modifierBreakdown.push(`${roleInfo.habilidad}: +${profBonus}`);
-                if (hasMultipleRoles) modifierBreakdown.push(`Múltiples papeles: ${MULTI_ROLE_PENALTY}`);
-              }
+              const { modifier, breakdown, member: targetMember, roleInfo } = getRoleModifier(targetRole);
               
               return (
                 <div className="p-4 bg-blue-900/20 rounded border border-blue-500/30">
@@ -4477,12 +4467,12 @@ const EnhancedTravelSystem = () => {
                         {targetMember?.nombre || 'Sin asignar'}
                       </span>
                     </p>
-                    {targetChar && (
+                    {targetMember && (
                       <p className="text-xs text-muted-foreground mt-1">
                         Modificador total: <span className={`font-bold ${modifier >= 0 ? 'text-green-400' : 'text-red-400'}`}>
                           {modifier >= 0 ? '+' : ''}{modifier}
                         </span>
-                        <span className="ml-2">({modifierBreakdown.join(', ')})</span>
+                        <span className="ml-2">({breakdown.join(', ')})</span>
                       </p>
                     )}
                   </div>
@@ -4906,8 +4896,17 @@ const EnhancedTravelSystem = () => {
                       const successCount = memberXP.rolls?.filter(r => r.exito).length || 0;
                       const failCount = rollCount - successCount;
                       
-                      // Total = PX viaje (repartido) + PX tiradas (individual)
-                      const totalPXForMember = pxPerMemberFromJourney + (memberXP.total || 0);
+                      // Tabla 2: aplicar multiplicador global del viaje a los PX de tiradas
+                      const allRolls = Object.values(characterXP).flatMap(c => c.rolls || []);
+                      const aciertosTotales = allRolls.filter(r => r.exito).length;
+                      const fallosTotales = allRolls.length - aciertosTotales;
+                      const groupMult = calculateGroupMultiplier(aciertosTotales, fallosTotales);
+                      const pxTiradasBruto = memberXP.total || 0;
+                      const pxTiradasAjustado = Math.floor(pxTiradasBruto * groupMult.multiplicador);
+                      
+                      // Total = PX viaje (repartido) + PX tiradas ajustadas. Mínimo 0 por PJ.
+                      const totalPXBruto = pxPerMemberFromJourney + pxTiradasAjustado;
+                      const totalPXForMember = Math.max(0, totalPXBruto);
                       
                       return (
                         <Card key={member.id} className={`p-4 ${pxApplied ? 'bg-green-600/20 border-green-400' : 'bg-green-900/20 border-green-500/30'}`}>
@@ -4925,14 +4924,24 @@ const EnhancedTravelSystem = () => {
                                 <p className="text-[hsl(var(--magic-blue))]">
                                   Viaje: +{pxPerMemberFromJourney}
                                 </p>
-                                <p className={memberXP.total >= 0 ? 'text-green-400' : 'text-red-400'}>
-                                  Tiradas ({rollCount}): {memberXP.total >= 0 ? '+' : ''}{memberXP.total || 0}
+                                <p className={pxTiradasBruto >= 0 ? 'text-green-400' : 'text-red-400'}>
+                                  Tiradas ({rollCount}): {pxTiradasBruto >= 0 ? '+' : ''}{pxTiradasBruto}
                                   {rollCount > 0 && (
                                     <span className="text-muted-foreground ml-1">
                                       ({successCount}✓ {failCount}✗)
                                     </span>
                                   )}
                                 </p>
+                                {groupMult.multiplicador !== 1 && (
+                                  <p className="text-[hsl(var(--magic-blue))]">
+                                    × {groupMult.multiplicador} (grupo {groupMult.tendencia.replace('_', ' ')}) = {pxTiradasAjustado >= 0 ? '+' : ''}{pxTiradasAjustado}
+                                  </p>
+                                )}
+                                {totalPXBruto < 0 && (
+                                  <p className="text-yellow-400 text-[10px]">
+                                    Ajustado a 0 (mínimo)
+                                  </p>
+                                )}
                               </div>
                               {memberResult && pxApplied && (
                                 <p className="text-xs text-green-400 mt-1">
@@ -4942,7 +4951,7 @@ const EnhancedTravelSystem = () => {
                             </div>
                             <div className="text-right">
                               <p className={`text-3xl font-bold ${totalPXForMember >= 0 ? (pxApplied ? 'text-green-300' : 'text-green-400') : 'text-red-400'}`}>
-                                {pxApplied ? '✓' : (totalPXForMember >= 0 ? '+' : '')}{totalPXForMember}
+                                {pxApplied ? '✓' : '+'}{totalPXForMember}
                               </p>
                               <p className="text-xs text-muted-foreground">PX</p>
                             </div>
@@ -4959,6 +4968,8 @@ const EnhancedTravelSystem = () => {
                                     <span>
                                       {roll.type === 'orientacion' ? '🧭' : '⚔️'} 
                                       {roll.tirada} vs CD{roll.cd}
+                                      {roll.critico && ' 🎉'}
+                                      {roll.pifia && ' 💀'}
                                     </span>
                                     <span className="font-bold">
                                       {roll.pxFinal >= 0 ? '+' : ''}{roll.pxFinal}
