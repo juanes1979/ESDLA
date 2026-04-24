@@ -4,7 +4,18 @@
 
 ### ✅ COMPLETED This Session
 
-#### 2. Fase A — Modificadores correctos en tiradas + PX en orientación (2026-02-24)
+#### 5. Iteración 53 — Fatiga corregida, PX ajustados, Notas del Maestro (2026-02-24)
+**Backend (37/37 pytest passing):**
+- `/travel/fatigue-save` reescrito: ahora +1 nivel exacto en fallo (no escala por margen). Acepta `penalizacion_multiples_papeles` (-5 a la tirada).
+- `/travel/journey/start` inicializa `fatiga_cd_total` según terreno: 10 (caminos/fácil), 15 (campo abierto/moderado), 20 (terreno difícil/montaña/pantano).
+- `/travel/generate-narrative` acepta `notas_maestro` y `clima` opcionales; si vienen datos, la IA los integra en la narrativa.
+
+**Frontend:**
+- Tabla PX reducida a **0/2/5/10/15** (CD 5-10/11-14/15-19/20-24/25+).
+- `calculateFatigueResults` usa CD base por terreno, pasa penalización de múltiples papeles, aplica automáticamente +1 a `fatiga` del personaje en BD si falla.
+- Nuevo textarea **"Notas del Maestro"** en la tirada de orientación y en la resolución de eventos. Se guarda con la tirada y se envía al endpoint de narrativa.
+
+#### 4. Fase A — Modificadores correctos + Día del Mes (2026-02-24)
 - `rollEventDice` y las tarjetas pre-tirada ahora usan el modificador precalculado del miembro según su papel (`modViajar/modCaza/modPercepcion/modExplorar`). Fin del bug "+2 siempre".
 - Incluye penalización por múltiples papeles (-5) y muestra desglose (habilidad + atributo).
 - Tirada de orientación ahora muestra PX generados junto al resultado (`data-testid=orientation-xp-display`).
@@ -60,17 +71,12 @@
 - **Sistema de Clima por región + efectos en tiradas y narrativa** (tras Fase A concluida ✅)
 
 ### P0 - Próximo
-- **Punto 7 — Automatizar todo el viaje**:
-  - Botón "Automatizar todo el viaje" al inicio de las tiradas de orientación
-  - Tira todo hasta destino aplicando reglas auto de acampada (por cada 2 niveles fatiga → 2 días descanso para recuperar 1, incluso vigía)
-  - Si fatiga ≥ 5 → acampa hasta recuperar 4 niveles
-  - Si algún PJ *pudiera morir* → **pausa + aviso al DJ** con opciones (repetir auto, convertir a manual, ir de posada en posada)
-  - Listado final completo (pifias, éxitos, acampadas)
-- **Sistema Auth + RBAC + Campañas (Copy-on-Write)**:
-  - JWT custom email+password + "Solicitar Acceso" con hCaptcha + aprobación del Maestro
-  - Roles: Maestro / Director de Juego / Jugador
-  - Recuperación de contraseña vía chat interno
-  - Aislamiento de DB por Campaña: copy-on-write
+- **Punto 1 (velocidades)** — Nueva tabla de km/día (pie: 17.5/22.5/27.5; caballo: 27.5/35/45; mensajero 50-80 máx 3 días) y ritmo por personaje (el más lento marca la velocidad del grupo; los lentos al forzar sufren TS Fatiga).
+- **Punto 4 (ritmo parcial)** — Si el grupo elige Rápido pero atraviesa regiones donde no se permite, bajar a Normal/Lento solo en esos tramos en vez de bloquear el viaje.
+- **Punto 2 (comprar provisiones)** — Pack "ración+agua" con precio regional, deducir de monedas del PJ, añadir peso a inventario (0.45 kg + 3.79 L por día para humanoide mediano), CD forrajear 10/15/20 según abundancia, opción de acampar para forrajear.
+- **Punto 7 — Automatizar todo el viaje** (aún pendiente).
+- **Sistema de Clima por región** (destraba narrativa+notas del Maestro y texto IA de acampada).
+- **Auth + RBAC + Campañas (Copy-on-Write)** con JWT, hCaptcha y chat interno.
 
 ### P1
 - Game Master Screen (dashboard en vivo: jugadores conectados, HP, fatiga, dados, encuentros)
