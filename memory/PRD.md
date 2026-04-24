@@ -4,12 +4,24 @@
 
 ### ✅ COMPLETED This Session
 
-#### 7. Iteración 55 — Diario integrado en PDF (2026-02-24)
-- Estado del diario **elevado al componente padre** `EnhancedTravelSystem` para que el exportador PDF pueda leerlo.
-- Nuevo toggle **"Incluir Diario en PDF"** junto a "Imprimir Crónica" (con contador de jornadas ya generadas).
-- `printJourneyDocument` inyecta una sección **"Diario del Viaje"** con un bloque por jornada (título, clima, notas del Maestro y narrativa IA). Salto de página adecuado (`page-break-inside: avoid`).
+#### 8. Iteración 55 — Crónica unificada + velocidades nuevas + compra provisiones + auto-viaje (2026-02-24)
+**Backend (57/57 pytest passing):**
+- `POST /api/travel/generate-full-chronicle` nuevo: genera **un único texto narrativo continuo** del viaje, con transiciones ("al tercer día…", "en la quinta jornada…", "por fin vislumbramos…"). Integra orgánicamente las notas del Maestro ya introducidas durante cada tirada.
+- Nueva tabla de velocidades (2026): `BASE_KM_DAY=22.5`, `KM_PER_METER_SPEED=2.5`, `DISTANCIA_BASE_KM = 17.5/22.5/27.5` (a pie).
+- `velocidad_efectiva(mount_allowed)` aplica **+40%** a la velocidad del personaje cuando va montado Y el terreno lo permite (no en montaña/pantano/ciénaga). Antes sustituía por la velocidad del caballo.
+- **Ritmo Rápido parcial**: ya no se rechaza en tierras_salvajes/sombra/oscuras; se aplica un factor intermedio (promedio de Normal y Rápido) — documentado en el código como aproximación MVP.
+- Fix crítico del testing agent: `UnboundLocalError` en `casillas` resuelto.
 
-#### 6. Iteración 54 — Diario del Viaje con IA (2026-02-24)
+**Frontend:**
+- `JourneyDiary.jsx` **reescrito** a modo "crónica unificada": un solo botón "Generar Crónica" → textarea editable → descarga .txt. Auto-hereda notas del Maestro de cada tirada (sin input manual duplicado).
+- PDF Crónica: **reemplazada la sección por-día** con el texto narrativo único continuo.
+- Bug fix: PDF "a cada miembro" → "al total de la compañía, a repartir entre los N viajeros (M PX por cabeza antes de bonificaciones)".
+- `ProvisionsShopDialog.jsx` nuevo — compra pack ración + agua por día (0.45 kg + 3.79 L), precio configurable por región (pp/día), descuenta monedas del PJ, añade peso al inventario vía `/characters/{id}/equipment/add`.
+- Botón "Comprar" nuevo en la sección Provisiones del viaje.
+- Botón **"Automatizar viaje"** junto a "Realizar Tirada de Orientación": simula tiradas de orientación + eventos en bucle hasta destino; **pausa automáticamente si algún PJ alcanza fatiga 5** con aviso al DJ.
+- Selector de ritmo actualiza labels: 15-20 / 20-25 / 25-30 km/día.
+
+#### 7. Iteración 54 — Diario del Viaje con IA (2026-02-24)
 **Backend (41/41 pytest passing):**
 - Nuevo endpoint `POST /api/travel/generate-day-log` que recibe datos agrupados por jornada (orientación, eventos, notas del Maestro, tiradas de fatiga, acampada, clima) y genera **un párrafo narrativo único** por día usando GPT-4o.
 - Clima **integrado orgánicamente** en la narrativa (no "llueve" a secas; sino "la lluvia que lleva cayendo desde el mediodía ha embarrado el camino…").
@@ -90,12 +102,8 @@
 - **Sistema de Clima por región + efectos en tiradas y narrativa** (tras Fase A concluida ✅)
 
 ### P0 - Próximo
-- **Punto 1 (velocidades)** — Nueva tabla de km/día (pie: 17.5/22.5/27.5; caballo: 27.5/35/45; mensajero 50-80 máx 3 días) y ritmo por personaje (el más lento marca la velocidad del grupo; los lentos al forzar sufren TS Fatiga).
-- **Punto 4 (ritmo parcial)** — Si el grupo elige Rápido pero atraviesa regiones donde no se permite, bajar a Normal/Lento solo en esos tramos en vez de bloquear el viaje.
-- **Punto 2 (comprar provisiones)** — Pack "ración+agua" con precio regional, deducir de monedas del PJ, añadir peso a inventario (0.45 kg + 3.79 L por día para humanoide mediano), CD forrajear 10/15/20 según abundancia, opción de acampar para forrajear.
-- **Punto 7 — Automatizar todo el viaje** (aún pendiente).
-- **Sistema de Clima por región** (destraba narrativa+notas del Maestro y texto IA de acampada).
-- **Auth + RBAC + Campañas (Copy-on-Write)** con JWT, hCaptcha y chat interno.
+- **Sistema de Clima por región** (destraba narrativa de acampada + integración automática en crónica).
+- **Auth + RBAC + Campañas (Copy-on-Write)** con JWT, hCaptcha y chat interno para reset de contraseña.
 
 ### P1
 - Game Master Screen (dashboard en vivo: jugadores conectados, HP, fatiga, dados, encuentros)
