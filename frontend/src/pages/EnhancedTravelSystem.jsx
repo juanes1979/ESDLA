@@ -14,6 +14,7 @@ import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Progress } from '@/components/ui/progress';
+import { Textarea } from '@/components/ui/textarea';
 import { 
   Map, Users, Compass, Play, Save, Clock, Mountain,
   Sun, Moon, Snowflake, Leaf, ArrowLeft, ArrowRight, Plus, MapPin, 
@@ -625,6 +626,10 @@ const EnhancedTravelSystem = () => {
   // Dice roll state for event resolution
   const [eventDiceRoll, setEventDiceRoll] = useState(null); // { d20: number, modifier: number, total: number }
   
+  // GM notes for AI narrative context (saved with each roll for later AI processing)
+  const [gmNotesOrientation, setGmNotesOrientation] = useState('');
+  const [gmNotesEvent, setGmNotesEvent] = useState('');
+  
   // Final results
   const [fatigueResults, setFatigueResults] = useState([]);
   
@@ -899,14 +904,14 @@ const EnhancedTravelSystem = () => {
   // Limit: ±12 PX per roll
   
   const calculateRollXP = useCallback((cd, tirada, exito, terreno, tipoTierra, d20Nat) => {
-    // TABLA 1 — PX base por CD (confirmado por usuario)
-    // CD 5-10: 2 PX | 11-14: 5 PX | 15-19: 10 PX | 20-24: 20 PX | 25+: 35 PX
+    // TABLA 1 — PX base por CD (actualizada 2026-02-24)
+    // CD 5-10: 0 PX | 11-14: 2 PX | 15-19: 5 PX | 20-24: 10 PX | 25+: 15 PX
     let pxBase = 0;
-    if (cd >= 25) pxBase = 35;
-    else if (cd >= 20) pxBase = 20;
-    else if (cd >= 15) pxBase = 10;
-    else if (cd >= 11) pxBase = 5;
-    else pxBase = 2;
+    if (cd >= 25) pxBase = 15;
+    else if (cd >= 20) pxBase = 10;
+    else if (cd >= 15) pxBase = 5;
+    else if (cd >= 11) pxBase = 2;
+    else pxBase = 0;
     
     const diferencia = tirada - cd;
     let pxFinal;
@@ -1050,13 +1055,16 @@ const EnhancedTravelSystem = () => {
           result.d20
         );
         
-        const enrichedResult = { ...result, xpResult, guiaId: guia.id, guiaNombre: guia.nombre };
+        const enrichedResult = { ...result, xpResult, guiaId: guia.id, guiaNombre: guia.nombre, gm_notes: gmNotesOrientation };
         setLastOrientationResult(enrichedResult);
         setOrientationChecks(prev => [...prev, {
           ...enrichedResult,
           casilla_actual: currentPosition,
           casillas_restantes: casillasRestantes
         }]);
+        
+        // Clear GM notes for next roll
+        setGmNotesOrientation('');
         
         // Add XP to guide
         addCharacterXP(guia.id, {
@@ -1621,9 +1629,10 @@ const EnhancedTravelSystem = () => {
     });
   };
   
-  // Clear dice roll when event changes
+  // Clear dice roll + GM notes when event changes
   useEffect(() => {
     setEventDiceRoll(null);
+    setGmNotesEvent('');
   }, [currentEvent]);
   
   const resolveCurrentEvent = async (tirada) => {
@@ -1695,7 +1704,8 @@ const EnhancedTravelSystem = () => {
             evento_numero: resolvedEvents + 1,
             total_eventos: totalEvents,
             dia_actual: currentEvent.casilla || 1,
-            dias_totales: journeyCalc?.estimaciones?.dias_estimados || 1
+            dias_totales: journeyCalc?.estimaciones?.dias_estimados || 1,
+            notas_maestro: gmNotesEvent || ''
           }
         });
         if (narrativeRes.data.success) {
@@ -1714,7 +1724,8 @@ const EnhancedTravelSystem = () => {
             resultado: res.data,
             tirada: tirada,
             exito: exito,
-            narrativa: narrativa
+            narrativa: narrativa,
+            gm_notes: gmNotesEvent || ''
           };
         }
         return e;
@@ -1806,28 +1817,44 @@ const EnhancedTravelSystem = () => {
   };
   
   // =============== FATIGUE CALCULATION ===============
-  
+
+  // CD base de Fatiga según terreno (reglas LOTR 5e):
+  //   camino/fácil/moderado → 10
+  //   campo abierto/colinas/bosque → 15
+  //   terreno difícil/montañas/pantano/desalentador/muy_dificil → 20
+  const getFatigueBaseCD = (terrain) => {
+    const t = (terrain || '').toLowerCase();
+    if (['muy_dificil', 'desalentador', 'montanas', 'pantano', 'pantanos', 'dificil'].includes(t)) return 20;
+    if (['facil', 'camino', 'caminos'].includes(t)) return 10;
+    // campo abierto, colinas, bosque, moderado → 15
+    return 15;
+  };
+
   const calculateFatigueResults = async (resolvedEvents) => {
     const results = [];
     
-    // Calculate total fatigue CD
-    let fatigueCd = travelRules?.fatigue_base_cd || 10;
+    // CD base por terreno del viaje actual
+    const terrenoViaje = journeyCalc?.ruta?.terreno || 'moderado';
+    let fatigueCd = getFatigueBaseCD(terrenoViaje);
+    
+    // Sumar modificadores acumulados de los eventos (terrible desgracia +3, desesperanza +2, etc.)
     resolvedEvents.forEach(e => {
       if (e.resultado?.modificadores?.fatiga_cd_increase) {
         fatigueCd += e.resultado.modificadores.fatiga_cd_increase;
+      } else if (e.evento?.fatigue_cd_increase) {
+        // Algunos eventos guardan el modificador directamente en el objeto evento
+        fatigueCd += e.evento.fatigue_cd_increase;
       }
     });
     
-    // Calculate for each party member
+    // Tirada individual de CON por cada miembro (regla: fallo = +1 nivel exacto)
     for (const member of config.miembros) {
       const char = characters.find(c => c.id === member.id);
       if (!char) continue;
       
-      // Get constitution modifier
       const conMod = Math.floor(((char.atributos?.constitucion || 10) - 10) / 2);
-      
-      // Mount bonus
       const mountBonus = member.tieneMontura ? (member.monturaConBonus || 0) : 0;
+      const tieneMultiplesPapeles = (member.papeles?.length || 0) > 1;
       
       try {
         const res = await api.post('/travel/fatigue-save', null, {
@@ -1837,13 +1864,28 @@ const EnhancedTravelSystem = () => {
             cd_acumulada: fatigueCd,
             dias_con_montura: member.tieneMontura ? journeyCalc?.estimaciones?.dias_estimados || 1 : 0,
             dias_totales: journeyCalc?.estimaciones?.dias_estimados || 1,
-            bonus_montura_con: mountBonus
+            bonus_montura_con: mountBonus,
+            penalizacion_multiples_papeles: tieneMultiplesPapeles
           }
         });
         
+        // Aplicar el nivel al personaje en BD y en estado local
+        const nivelesGanados = res.data.niveles_cansancio || 0;
+        if (nivelesGanados > 0) {
+          const fatigaActual = Number(char.fatiga || 0);
+          const nuevaFatiga = Math.min(6, fatigaActual + nivelesGanados);
+          try {
+            await api.put(`/characters/${member.id}/fatigue`, { fatiga: nuevaFatiga });
+            setCharacters(prev => prev.map(c => c.id === member.id ? { ...c, fatiga: nuevaFatiga } : c));
+          } catch (e) {
+            console.error('Error aplicando fatiga al personaje:', e);
+          }
+        }
+        
         results.push({
           personaje: member.nombre,
-          papel: member.papel,
+          papel: member.papeles?.join(', ') || '',
+          cd_base: getFatigueBaseCD(terrenoViaje),
           ...res.data
         });
       } catch (err) {
@@ -3846,6 +3888,21 @@ const EnhancedTravelSystem = () => {
                     </div>
                   </div>
                   
+                  <div className="mt-3">
+                    <Label className="text-xs text-muted-foreground flex items-center gap-1">
+                      <BookOpen className="w-3 h-3" />
+                      Notas del Maestro (opcional, para IA narrativa)
+                    </Label>
+                    <Textarea
+                      value={gmNotesOrientation}
+                      onChange={(e) => setGmNotesOrientation(e.target.value)}
+                      placeholder="Ej: Cruzan el Bosque de los Trolls al amanecer. Terreno embarrado, niebla espesa..."
+                      rows={2}
+                      className="text-xs mt-1"
+                      data-testid="gm-notes-orientation"
+                    />
+                  </div>
+                  
                   <Button 
                     className="w-full btn-gold"
                     onClick={performOrientationCheck}
@@ -3976,6 +4033,20 @@ const EnhancedTravelSystem = () => {
             
             {/* Dice Rolling Section */}
             <div className="pt-4 border-t border-border/30 space-y-4">
+              <div>
+                <Label className="text-xs text-muted-foreground flex items-center gap-1">
+                  <BookOpen className="w-3 h-3" />
+                  Notas del Maestro (opcional, para IA narrativa)
+                </Label>
+                <Textarea
+                  value={gmNotesEvent}
+                  onChange={(e) => setGmNotesEvent(e.target.value)}
+                  placeholder="Ej: Acampando en la región del Bosque de los Trolls. Terreno resguardado, barro..."
+                  rows={2}
+                  className="text-xs mt-1"
+                  data-testid="gm-notes-event"
+                />
+              </div>
               <div className="text-center">
                 <p className="text-sm text-muted-foreground mb-2">
                   El personaje debe tirar 1d20 + modificador y superar la CD
@@ -4505,6 +4576,20 @@ const EnhancedTravelSystem = () => {
             
             {/* Dice Rolling Section */}
             <div className="pt-4 border-t border-border/30 space-y-4">
+              <div>
+                <Label className="text-xs text-muted-foreground flex items-center gap-1">
+                  <BookOpen className="w-3 h-3" />
+                  Notas del Maestro (opcional, para IA narrativa)
+                </Label>
+                <Textarea
+                  value={gmNotesEvent}
+                  onChange={(e) => setGmNotesEvent(e.target.value)}
+                  placeholder="Ej: Acampando en la región del Bosque de los Trolls. Terreno resguardado, barro..."
+                  rows={2}
+                  className="text-xs mt-1"
+                  data-testid="gm-notes-event"
+                />
+              </div>
               <div className="text-center">
                 <p className="text-sm text-muted-foreground mb-2">
                   El personaje debe tirar 1d20 + modificador y superar la CD

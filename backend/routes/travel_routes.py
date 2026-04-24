@@ -2255,43 +2255,44 @@ async def calculate_fatigue_save(
     cd_acumulada: int,
     dias_con_montura: int = 0,
     dias_totales: int = 1,
-    bonus_montura_con: int = 0
+    bonus_montura_con: int = 0,
+    penalizacion_multiples_papeles: bool = False
 ):
     """
-    Calculate fatigue save for a character at end of journey.
+    Calcula la tirada de salvación de Constitución contra Fatiga.
+
+    Según reglas confirmadas (LOTR 5e):
+    - 1 TS de CON al final de cada jornada (y cuando haya exigencias extra).
+    - CD base por terreno: 10 caminos / 15 campo abierto / 20 terreno difícil
+      (se espera recibida ya calculada y acumulada en `cd_acumulada`).
+    - Si el personaje tiene múltiples papeles asumidos: -5 a la tirada.
+    - Si falla la TS → el personaje gana EXACTAMENTE +1 nivel de cansancio,
+      independientemente del margen de fallo.
+    - Si supera la CD → no gana cansancio, sin importar cuánta CD haya acumulada.
     """
-    rules = await get_travel_rules()
-    
-    # Calculate mount bonus (if used for 50%+ of journey)
+    # Bonus de montura (si se usa 50%+ del viaje)
     porcentaje_montura = dias_con_montura / dias_totales if dias_totales > 0 else 0
     bonus_montura = bonus_montura_con if porcentaje_montura >= 0.5 else 0
-    
-    # Roll the save
+
+    penalizacion_papeles = -5 if penalizacion_multiples_papeles else 0
+
     tirada = roll_d20()
-    total = tirada + modificador_constitucion + bonus_montura
-    
-    # Determine result
-    diferencia = cd_acumulada - total
-    
+    total = tirada + modificador_constitucion + bonus_montura + penalizacion_papeles
+
     if total >= cd_acumulada:
         niveles_cansancio = 0
         resultado = "éxito"
-    elif diferencia < 5:
+    else:
         niveles_cansancio = 1
         resultado = "fracaso"
-    elif diferencia < 10:
-        niveles_cansancio = rules.get('fatigue_fail_by_5_levels', 2)
-        resultado = "fracaso_grave"
-    else:
-        niveles_cansancio = rules.get('fatigue_fail_by_10_levels', 3)
-        resultado = "fracaso_critico"
-    
+
     return {
         "personaje": personaje_nombre,
         "tirada": {
             "d20": tirada,
             "modificador_con": modificador_constitucion,
             "bonus_montura": bonus_montura,
+            "penalizacion_multiples_papeles": penalizacion_papeles,
             "total": total
         },
         "cd": cd_acumulada,
@@ -2299,7 +2300,8 @@ async def calculate_fatigue_save(
         "niveles_cansancio": niveles_cansancio,
         "detalles": {
             "porcentaje_montura": round(porcentaje_montura * 100),
-            "montura_aplicada": porcentaje_montura >= 0.5
+            "montura_aplicada": porcentaje_montura >= 0.5,
+            "regla": "Fallo = +1 nivel de cansancio (exacto). Éxito = 0."
         }
     }
 
@@ -2314,10 +2316,19 @@ async def start_journey(config: JourneyConfig):
     if calc_result.get('error'):
         return calc_result
     
+    # CD base de Fatiga según terreno (LOTR 5e: 10 caminos / 15 campo abierto / 20 terreno difícil)
+    terreno_viaje = (calc_result.get('ruta', {}).get('terreno') or 'moderado').lower()
+    if terreno_viaje in ('muy_dificil', 'desalentador', 'montanas', 'pantano', 'pantanos', 'dificil'):
+        cd_base = 20
+    elif terreno_viaje in ('facil', 'camino', 'caminos'):
+        cd_base = 10
+    else:
+        cd_base = 15
+    
     journey = ActiveJourney(
         config=config,
         casillas_totales=calc_result['ruta']['casillas'],
-        fatiga_cd_total=calc_result['reglas']['fatigue_base_cd']
+        fatiga_cd_total=float(cd_base)
     )
     
     journey_dict = journey.model_dump()
@@ -2639,7 +2650,9 @@ async def generate_event_narrative(
     evento_numero: int = 1,
     total_eventos: int = 1,
     dia_actual: int = 1,
-    dias_totales: int = 1
+    dias_totales: int = 1,
+    notas_maestro: str = "",
+    clima: str = ""
 ):
     """
     Generate a Tolkien-style narrative for a travel event outcome.
@@ -2719,8 +2732,10 @@ EVENTO: {evento_nombre}
 RESULTADO: {"El grupo tuvo éxito" if exito else "Las cosas no salieron bien"}
 PERSONAJE RESPONSABLE: {personaje_nombre} ({papel_name})
 CONSECUENCIA: {consecuencia}
+{f"NOTAS DEL MAESTRO (contexto que debes usar): {notas_maestro}" if notas_maestro else ""}
+{f"CLIMA: {clima}" if clima else ""}
 
-INSTRUCCIONES: Describe qué sucedió de forma natural y sencilla, como si lo contaras a un amigo. Evita el tono épico."""
+INSTRUCCIONES: Describe qué sucedió de forma natural y sencilla, como si lo contaras a un amigo. Evita el tono épico. Si el maestro ha proporcionado notas o hay información de clima, intégralas de forma natural en la narrativa para que no suene genérica."""
         
         user_message = UserMessage(text=prompt)
         response = await chat.send_message(user_message)
