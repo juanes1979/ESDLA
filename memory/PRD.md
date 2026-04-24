@@ -4,6 +4,20 @@
 
 ### ✅ COMPLETED This Session
 
+#### 6. Iteración 54 — Diario del Viaje con IA (2026-02-24)
+**Backend (41/41 pytest passing):**
+- Nuevo endpoint `POST /api/travel/generate-day-log` que recibe datos agrupados por jornada (orientación, eventos, notas del Maestro, tiradas de fatiga, acampada, clima) y genera **un párrafo narrativo único** por día usando GPT-4o.
+- Clima **integrado orgánicamente** en la narrativa (no "llueve" a secas; sino "la lluvia que lleva cayendo desde el mediodía ha embarrado el camino…").
+- Preparado para conectar con el futuro sistema de clima: acepta `clima` y `notas_maestro_dia` opcionales.
+
+**Frontend:**
+- Nuevo componente `/app/frontend/src/components/travel/JourneyDiary.jsx`.
+- Aparece en la pantalla de Resultados, agrupa datos por jornada (1 entrada por tirada de orientación).
+- Botones: "Generar Diario Completo" (todas las jornadas) y regenerar individual por día.
+- Cada jornada permite añadir **clima manual** y **notas globales del día** antes de generar.
+- Narrativa editable en `<Textarea>` — el DM puede retocar el texto.
+- Botón "Descargar" exporta el diario a `.txt` (listo para integrar en el PDF existente).
+
 #### 5. Iteración 53 — Fatiga corregida, PX ajustados, Notas del Maestro (2026-02-24)
 **Backend (37/37 pytest passing):**
 - `/travel/fatigue-save` reescrito: ahora +1 nivel exacto en fallo (no escala por margen). Acepta `penalizacion_multiples_papeles` (-5 a la tirada).
