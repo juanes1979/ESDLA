@@ -1,0 +1,36 @@
+{
+  "summary": "Iteración 57 — Validated weather backend (8/8 passing) and the critical Automatizar Viaje bug fix end-to-end on the public preview URL. The Sauron-eye overlay renders correctly, shows rotating eye + 0% progress bar + dynamic message ('Resolviendo PERCANCE — Casilla 1 · objetivo: vigía') + 'Detener automatización' button, and most importantly: NO hang at 200 iterations. The new stuck-detection logic (8 iterations without position advance) fires cleanly with the user-facing toast 'Automatización interrumpida: el viaje no avanza. Continúa manualmente.' The journey did not transition to mode='results' in this run because the seeded event required a Vígía character which only had a Guía assigned, so position stayed at 0 and the safety abort kicked in correctly — this is the expected, designed behaviour, not a bug. Provisions shop dialog, full chronicle generation (Generar Crónica + weather log section), and Modificadores de Precio editing on /rules were NOT exercised due to token budget; recommend a follow-up validation pass on those three flows.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Travel — Jornada a Jornada (per-day view)", "issues": ["The automate-journey-btn is intentionally NOT rendered in dayByDay mode (only orientation/event flows in global mode). The user request implied the button is also reachable from dayByDay; if that was the intent, the button needs to be added to renderDayByDay() too. Currently visible testids in dayByDay are: buy-provisions-btn, camp-btn, rest-btn, forage-btn, advance-day-btn, finish-journey-btn — no automate."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_weather.py",
+    "/app/test_reports/pytest/iter57_weather.xml"
+  ],
+  "action_items": [
+    "(Verify intent) Confirm whether 'Automatizar viaje' button should ALSO appear in dayByDay mode or only in Viaje Global. The review request implies dayByDay, but the implementation only places it inside renderGlobalJourney() at line ~4112.",
+    "(Follow-up testing) Re-run a validation pass for: (1) ProvisionsShopDialog opening from inside the journey + region/settlement/relation/context selectors + animal food/water logic in difficult/sombra terrain; (2) Generar Crónica end-to-end on /travel results screen — verify weather-log-section data-testid renders with line-format 'Día 1 — Eriador ☀️ Despejado · 4°→11° · viento 13km/h · sol 7h'; (3) /rules Modificadores de Precio inline edit + save toast + persist on reload + add/delete row.",
+    "(Optional) For the bug-fix completeness, consider also covering the case where ALL roles are filled so the auto loop can actually progress to mode='results' and the weather banner renders — in this run the stuck-detection path was exercised (correctly) but the happy-path 'reach destination → results' branch was not."
+  ],
+  "critical_code_review_comments": [
+    "EnhancedTravelSystem.jsx is now 5793 lines — keeps growing every iteration. Strongly recommend extracting the auto-journey block (1784–1980), the renderGlobalJourney block, and the renderDayByDay block into separate modules. The file size makes review/regression risky.",
+    "automateJourney() correctly uses modeRef + currentPositionRef + autoStopRef refs to read fresh state inside the async loop — good pattern. The maxIterations cap (Math.min(200, totalCasillas*3+10)) and the 8-iteration stuck counter are both sound.",
+    "weather_routes.py / simulate is clean and well-bounded (1..365 days, month validation 400). No issues found in the Markov implementation. test_weather.py exercises seed reproducibility, eldarin month, region change and continuation-with-prev-state — good coverage."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "100% (8/8 weather tests pass)", "frontend": "60% (Automatizar Viaje bug-fix overlay + stuck-detection verified end-to-end; Provisions shop, JourneyDiary chronicle + weather log, Price Modifiers /rules editing — not exercised due to token budget)"},
+  "test_credentials": "none required (app is auth-less)",
+  "seed_data_creation": "none — only ephemeral state in browser session",
+  "retest_needed": true,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Bug-fix flow confirmed: navigate /travel → fill origin Bree, dest Tharbad → leave 'Viaje Global' selected (default) → assign Guía via the first 'Seleccionar personaje' dropdown (radix [role=option] items, skip index 0 which is the placeholder) → click [data-testid=calculate-route-btn] then [data-testid=start-journey-btn]. Initial active-journey testids are ['gm-notes-orientation','orientation-roll-btn','automate-journey-btn']. Clicking automate-journey-btn renders [data-testid=sauron-eye-overlay] with progress bar + 'Detener automatización'. To exercise the happy-path-to-results branch you must assign characters to Vígía/Cazador/Explorador too, otherwise event resolution stalls and the 8-iter stuck detector aborts (working as designed). For the dayByDay flow, automate-journey-btn does NOT exist — only buy-provisions-btn / camp-btn / rest-btn / forage-btn / advance-day-btn / finish-journey-btn.",
+  "rca of the issue": "The original 200-iteration hang has been fixed via three layers: (1) maxIterations = min(200, casillas*3+10), (2) modeRef.current === 'results' early-exit, (3) stuck-counter aborting after 8 iterations without position advance. All three were observed working in this run (the third path was the one exercised). No regression detected."
+}

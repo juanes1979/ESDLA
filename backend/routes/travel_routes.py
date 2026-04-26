@@ -2942,6 +2942,8 @@ class FullChronicleRequest(BaseModel):
     jornadas: List[Dict[str, Any]] = []
     # Clima general / clima por día (se integrará cuando exista el sistema de clima)
     clima_por_dia: Optional[Dict[str, str]] = None
+    # Sistema de clima vivo (Iteración 57+): día por día, ya rodado
+    weather_log: Optional[List[Dict[str, Any]]] = None
 
 
 @router.post("/generate-full-chronicle")
@@ -2998,6 +3000,31 @@ async def generate_full_chronicle(request: FullChronicleRequest):
 
         jornadas_block = "\n\n".join(jornadas_txt_parts) if jornadas_txt_parts else "(Sin jornadas registradas.)"
 
+        # ── Bloque de clima detallado (sistema de clima vivo) ──
+        weather_block = ""
+        weather_log_block = ""
+        if request.weather_log:
+            weather_lines = []
+            log_lines_compact = []
+            for w in request.weather_log:
+                # Línea compacta para el LOG técnico (PDF)
+                log_lines_compact.append(w.get("log_line") or
+                    f"Día {w.get('dia','?')} — {w.get('region','')} {w.get('icon','')} {w.get('estado_label','')} · "
+                    f"{w.get('temp_min','?')}°→{w.get('temp_max','?')}° · viento {w.get('viento_kmh','?')}km/h"
+                )
+                # Línea expandida para alimentar a la IA con contexto
+                anomalo = " (día anómalo)" if w.get("anomalo") else ""
+                weather_lines.append(
+                    f"  Día {w.get('dia','?')}: {w.get('region','?')} — "
+                    f"{w.get('estado_label','?')}{anomalo}, "
+                    f"{w.get('temp_min','?')}° a {w.get('temp_max','?')}° (media {w.get('temp_dia','?')}°), "
+                    f"viento {w.get('viento_kmh','?')}km/h {w.get('dir_viento','') or ''}, "
+                    f"sol {w.get('horas_sol_efectivas','?')}h"
+                    + (f", {w.get('precipitacion_mm','?')}mm precip." if (w.get('precipitacion_mm') or 0) > 0 else '')
+                )
+            weather_block = "CLIMA POR DÍA (referencia para la narrativa):\n" + "\n".join(weather_lines) + "\n\n"
+            weather_log_block = "\n".join(log_lines_compact)
+
         system_msg = (
             "Eres un cronista del grupo que escribe una CRÓNICA DE VIAJE completa y "
             "continua, como narrativa única (no separada por días), en español, estilo "
@@ -3011,12 +3038,20 @@ async def generate_full_chronicle(request: FullChronicleRequest):
             "\"aquella noche el centinela oyó…\". Incluye los eventos significativos, las notas "
             "del maestro como CONTEXTO real (nombres de lugares, condiciones), los éxitos y "
             "fracasos importantes. NO enumeres todos los eventos, selecciona los que aporten "
-            "al relato. Integra el clima orgánicamente cuando esté presente.\n"
+            "al relato. Integra el clima ORGÁNICAMENTE — el clima NO es protagonista, es "
+            "AMBIENTACIÓN de fondo. Menciónalo solo cuando aporte: para abrir una jornada "
+            "(\"el frío de la noche se prolongó hasta el alba…\"), para reflejar una transición "
+            "(\"la lluvia fina que nos había acompañado dio paso al sol…\") o para subrayar un "
+            "momento difícil (\"con la ventisca arreciando, apenas distinguíamos el sendero\"). "
+            "NO uses cifras ni datos meteorológicos en la narrativa: 'lluvia fina', "
+            "'cielo encapotado', 'viento del oeste', 'noche helada' — sí. '15mm de precipitación', "
+            "'12°C', '45km/h' — NO.\n"
             "3. PÁRRAFO FINAL: llegada al destino con una frase evocadora (\"por fin "
             "vislumbramos las luces de…\", \"tras muchos días de marcha, divisaron…\").\n"
             "REGLAS ESTRICTAS:\n"
             "- No uses emojis.\n"
             "- No menciones tiradas de dado ni números (d20, CD) en el texto final.\n"
+            "- No menciones cifras de temperatura, mm, km/h, % en la narrativa.\n"
             "- No uses encabezados ni listas; solo párrafos en prosa.\n"
             "- 4-8 párrafos en total. Extensión razonable, sin ser pesado.\n"
             "- Si en los eventos hay notas del maestro como 'Bosque de los Trolls' o nombres "
@@ -3030,7 +3065,8 @@ async def generate_full_chronicle(request: FullChronicleRequest):
             + (f"Fecha de salida: {request.fecha_salida}\n" if request.fecha_salida else '')
             + (f"Kilómetros aproximados: {int(request.kilometros)}\n" if request.kilometros else '')
             + f"Jornadas previstas: {request.dias_totales}\n\n"
-            f"ACONTECIMIENTOS POR JORNADA:\n{jornadas_block}\n\n"
+            + weather_block
+            + f"ACONTECIMIENTOS POR JORNADA:\n{jornadas_block}\n\n"
             f"Escribe ahora la crónica unificada del viaje."
         )
 
@@ -3045,6 +3081,7 @@ async def generate_full_chronicle(request: FullChronicleRequest):
         return {
             "success": True,
             "chronicle": response,
+            "weather_log": weather_log_block,
         }
     except Exception as e:
         return {

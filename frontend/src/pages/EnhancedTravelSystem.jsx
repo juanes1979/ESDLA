@@ -30,6 +30,7 @@ import CampDialog from '@/components/travel/CampDialog';
 import JourneyDiary from '@/components/travel/JourneyDiary';
 import ProvisionsShopDialog from '@/components/travel/ProvisionsShopDialog';
 import WeatherIndicator from '@/components/travel/WeatherIndicator';
+import SauronEyeOverlay from '@/components/travel/SauronEyeOverlay';
 
 // Map URLs and coordinate system
 // Both maps have the same pixel dimensions (19791x15133)
@@ -568,6 +569,8 @@ const EnhancedTravelSystem = () => {
   
   // Mode: 'config' | 'global' | 'dayByDay' | 'results'
   const [mode, setMode] = useState('config');
+  // Sync mode to ref so async automation loop can see immediate changes
+  useEffect(() => { modeRef.current = mode; }, [mode]);
   const [travelMode, setTravelMode] = useState('global'); // 'global' or 'dayByDay'
   
   // Data from API
@@ -696,12 +699,16 @@ const EnhancedTravelSystem = () => {
   
   // Journey automation (Point 7)
   const [autoRunning, setAutoRunning] = useState(false);
+  const [autoProgress, setAutoProgress] = useState(0); // 0-100
+  const [autoMessage, setAutoMessage] = useState('');
+  const [autoSubtitle, setAutoSubtitle] = useState('');
   const autoStopRef = useRef(false);
   
   // Refs to access latest state inside the async automation loop (avoid stale closures)
   const currentPositionRef = useRef(currentPosition);
   const currentEventRef = useRef(currentEvent);
   const charactersRef = useRef(characters);
+  const modeRef = useRef('config');
   useEffect(() => { currentPositionRef.current = currentPosition; }, [currentPosition]);
   useEffect(() => { currentEventRef.current = currentEvent; }, [currentEvent]);
   useEffect(() => { charactersRef.current = characters; }, [characters]);
@@ -1782,68 +1789,132 @@ const EnhancedTravelSystem = () => {
     }
     setAutoRunning(true);
     autoStopRef.current = false;
-    const logs = [];
-    let safety = 200;
-    toast.info('🚀 Automatizando el viaje...');
+    setAutoProgress(0);
+    setAutoMessage('Iniciando automatización del viaje…');
+    setAutoSubtitle('');
 
-    while (safety-- > 0 && !autoStopRef.current) {
-      // Safety: check if any character reached dangerous fatigue (≥5)
-      const dangerPj = config.miembros.find(m => {
-        const c = charactersRef.current?.find(ch => ch.id === m.id);
-        return (c?.fatiga || 0) >= 5;
-      });
-      if (dangerPj) {
-        toast.error(
-          `⚠️ PAUSA: ${dangerPj.nombre} alcanzó fatiga 5 (al borde de la muerte). ` +
-          `Decide: acampa varios días, continúa manualmente, o acorta yendo de refugio en refugio.`,
-          { duration: 10000 }
-        );
-        logs.push(`PAUSA: ${dangerPj.nombre} en fatiga 5.`);
-        break;
-      }
-      
-      // If journey already done, exit
-      if (currentPositionRef.current >= (journeyCalc?.ruta?.casillas || 0)) {
-        logs.push('Viaje completado.');
-        break;
-      }
-      
-      // If there is a current unresolved event, resolve it
-      if (currentEventRef.current && !currentEventRef.current.resuelto) {
-        // Roll dice (updates eventDiceRoll state)
-        rollEventDice();
-        await sleep(300);
-        // The rollEventDice sets eventDiceRoll; we need to read it via state reference.
-        // But we don't have a ref for it. Use a direct re-compute using the same logic:
-        const tr = currentEventRef.current.objetivo?.papel;
-        const mod = tr ? getRoleModifier(tr).modifier : 0;
-        const d20 = Math.floor(Math.random() * 20) + 1;
-        const total = d20 + mod;
-        try {
-          await resolveCurrentEvent(total);
-          logs.push(`Evento "${currentEventRef.current?.evento?.nombre || '?'}": ${total} vs CD ${currentEventRef.current?.resolucion?.cd || '?'}`);
-        } catch (e) {
-          logs.push(`Error al resolver evento: ${e?.message}`);
+    const totalCasillas = journeyCalc?.ruta?.casillas || 1;
+    // Hard upper bound: each casilla can spawn at most one event + one orientation,
+    // plus some margin for camp/refuge insertions. casillas*3 + 5 is plenty.
+    const maxIterations = Math.min(200, totalCasillas * 3 + 10);
+    let iterations = 0;
+    let prevPosition = currentPositionRef.current;
+    let stuckCounter = 0;
+    const eventsBefore = events.filter(e => e.resuelto).length;
+
+    try {
+      while (iterations < maxIterations && !autoStopRef.current) {
+        iterations++;
+
+        // ── EXIT 1: mode switched to results (journey completed via state update) ──
+        if (modeRef.current === 'results') {
+          setAutoProgress(100);
           break;
         }
-        await sleep(400);
-        continue;
+
+        // ── Update progress (driven by current casilla position) ──
+        const pos = currentPositionRef.current;
+        const pct = Math.min(99, Math.round((pos / totalCasillas) * 100));
+        setAutoProgress(pct);
+
+        // Safety: any character at fatigue >= 5 → pause
+        const dangerPj = config.miembros.find(m => {
+          const c = charactersRef.current?.find(ch => ch.id === m.id);
+          return (c?.fatiga || 0) >= 5;
+        });
+        if (dangerPj) {
+          setAutoMessage('⚠️ Automatización pausada');
+          setAutoSubtitle(`${dangerPj.nombre} ha alcanzado fatiga 5 (al borde de la muerte). Decide manualmente cómo continuar.`);
+          await sleep(2500);
+          toast.error(`⚠️ PAUSA: ${dangerPj.nombre} alcanzó fatiga 5.`, { duration: 8000 });
+          break;
+        }
+
+        // ── EXIT 2: journey reached destination (position covered all casillas) ──
+        if (pos >= totalCasillas) {
+          setAutoMessage('Llegando al destino…');
+          setAutoSubtitle('Compilando crónica del viaje');
+          // Try to gracefully transition to results if mode hasn't changed yet
+          if (modeRef.current !== 'results') {
+            try {
+              await calculateFatigueResults(events);
+            } catch { /* non-blocking */ }
+            setMode('results');
+          }
+          setAutoProgress(100);
+          await sleep(800);
+          break;
+        }
+
+        // ── Detect stuck state (position not advancing) ──
+        if (pos === prevPosition) {
+          stuckCounter++;
+          if (stuckCounter >= 8) {
+            // After 8 iterations without progress, abort
+            setAutoMessage('Atasco detectado');
+            setAutoSubtitle(`Tras ${stuckCounter} intentos sin avance, interrumpo la automatización.`);
+            await sleep(2000);
+            toast.error('⚠️ Automatización interrumpida: el viaje no avanza. Continúa manualmente.', { duration: 8000 });
+            break;
+          }
+        } else {
+          stuckCounter = 0;
+          prevPosition = pos;
+        }
+
+        // ── Resolve a pending event ──
+        if (currentEventRef.current && !currentEventRef.current.resuelto) {
+          const ev = currentEventRef.current;
+          setAutoMessage(`Resolviendo "${ev.evento?.nombre || 'acontecimiento'}"`);
+          setAutoSubtitle(`Casilla ${ev.casilla || pos} · objetivo: ${ev.objetivo?.papel || '?'}`);
+          const tr = ev.objetivo?.papel;
+          const mod = tr ? getRoleModifier(tr).modifier : 0;
+          const d20 = Math.floor(Math.random() * 20) + 1;
+          const total = d20 + mod;
+          try {
+            await resolveCurrentEvent(total);
+          } catch (e) {
+            console.error('Error resolving event in auto:', e);
+            // Skip this event and break to avoid infinite loop
+            break;
+          }
+          await sleep(250);
+          continue;
+        }
+
+        // ── Otherwise, do an orientation check ──
+        setAutoMessage(`Tirada de orientación`);
+        setAutoSubtitle(`Casilla ${pos} de ${totalCasillas}`);
+        try {
+          await performOrientationCheck();
+        } catch (e) {
+          console.error('Error in orientation in auto:', e);
+          break;
+        }
+        await sleep(300);
       }
-      
-      // Otherwise, do an orientation check
-      try {
-        await performOrientationCheck();
-        logs.push(`Orientación en casilla ${currentPositionRef.current}.`);
-      } catch (e) {
-        logs.push(`Error en orientación: ${e?.message}`);
-        break;
+
+      // ── Final wrap-up ──
+      const eventsAfter = events.filter(e => e.resuelto).length;
+      const eventsProcessed = Math.max(0, eventsAfter - eventsBefore);
+
+      if (modeRef.current === 'results') {
+        toast.success(`Viaje automatizado: ${eventsProcessed} eventos resueltos en ${currentPositionRef.current} casillas.`);
+      } else if (iterations >= maxIterations) {
+        setAutoSubtitle('Límite de iteraciones alcanzado');
+        await sleep(1500);
+        toast.warning(`Automatización detenida tras ${iterations} iteraciones. Continúa manualmente.`);
       }
-      await sleep(500);
+    } finally {
+      setAutoRunning(false);
+      autoStopRef.current = false;
+      // Tiny delay so the user sees 100% before the overlay disappears
+      setTimeout(() => {
+        setAutoProgress(0);
+        setAutoMessage('');
+        setAutoSubtitle('');
+      }, 600);
     }
-    
-    setAutoRunning(false);
-    autoStopRef.current = false;
-    toast.success(`Automatización finalizada (${logs.length} eventos procesados).`);
   };
   
   // =============== DAY BY DAY FUNCTIONS ===============
@@ -5061,6 +5132,11 @@ const EnhancedTravelSystem = () => {
           diasTotales={journeyCalc?.estimaciones?.dias_estimados || orientationChecks.length}
           kilometros={journeyCalc?.ruta?.distance_km}
           fechaSalida={`${config.diaMes} de ${MESES_ELFICOS.find(m => m.id === config.mes)?.nombre?.split(' ')[0] || config.mes}`}
+          mes={config.mes}
+          diaMes={config.diaMes}
+          origenRegion={(locations || []).find(l => l.id === config.origenId)?.region}
+          destinoRegion={(locations || []).find(l => l.id === config.destinoId)?.region}
+          pathRegions={journeyCalc?.ruta?.casillas_detalle?.map(c => c.region) || journeyCalc?.ruta?.regiones_por_casilla}
           chronicle={journeyChronicle}
           setChronicle={setJourneyChronicle}
         />
@@ -5688,12 +5764,25 @@ const EnhancedTravelSystem = () => {
         miembros={config.miembros}
         characters={characters}
         diasViaje={journeyCalc?.estimaciones?.dias_estimados || activeJourney?.config?.dias_estimados || 7}
+        origenRegionName={(locations || []).find(l => l.id === config.origenId)?.region || ''}
+        terreno={journeyCalc?.ruta?.terreno || ''}
+        tipoTierra={journeyCalc?.ruta?.tipo_tierra || ''}
+        numeroAnimales={config.miembros.filter(m => (m.montura || m.tieneCaballo || m.tienePoni)).length}
         onPurchaseComplete={() => {
           // Reload characters to reflect new inventory/money
           api.get('/characters/').then(res => {
             if (res.data?.characters) setCharacters(res.data.characters);
           }).catch(err => console.error(err));
         }}
+      />
+
+      {/* Sauron's Eye overlay during automated journey */}
+      <SauronEyeOverlay
+        visible={autoRunning}
+        percent={autoProgress}
+        message={autoMessage}
+        subtitle={autoSubtitle}
+        onCancel={() => { autoStopRef.current = true; }}
       />
     </div>
   );
