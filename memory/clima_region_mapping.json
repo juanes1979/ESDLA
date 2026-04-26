@@ -10,7 +10,11 @@
     "ERED LUIN (MONTAÑAS AZULES)": "ERIADOR",
     "GAER RHÚNEN (MAR DE RHÜN)": "RHUN",
     "NEN BELFALAS (BAHÍA DE BELFALAS)": "GONDOR",
-    "ERED NIMRAIS (MONTAÑAS BLANCAS)": "PENDIENTE_CONFIRMAR"
+    "ERED NIMRAIS (MONTAÑAS BLANCAS)": {
+      "parent": "GONDOR",
+      "has_own_climate": true,
+      "note": "Pertenece a Gondor pero al ser zona montañosa tiene clima propio diferenciado. Las ubicaciones dentro de Ered Nimrais heredan del clima de Ered Nimrais (no del de Gondor)."
+    }
   },
   "direct_match_with_bd_locations": {
     "ERIADOR": ["Eriador", "Comarca", "La Comarca", "Arthedain", "Rhudaur", "Angmar"],
