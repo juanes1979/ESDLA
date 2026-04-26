@@ -4,7 +4,37 @@
 
 ### ✅ COMPLETED This Session
 
-#### 9. Iteración 56 — Sistema de Clima + Visor meteorológico en Viaje (2026-02-25)
+#### 10. Iteración 57 — Sistema de Clima Vivo + Bug-fix Automatización + Provisiones avanzadas + Modificadores editables (2026-02-25)
+
+**Bug crítico arreglado — Automatizar Viaje:**
+- Antes: 200 iteraciones, no llegaba al final, sin feedback. Ahora: `safety = min(200, casillas*3+10)`, `modeRef === 'results'` → break inmediato, `stuck-counter` aborta tras 8 iter sin avance.
+- Nuevo `SauronEyeOverlay.jsx`: Ojo de Sauron rotando + barra de progreso porcentual + mensaje dinámico (`"Tirada de orientación – Casilla 3 de 13"`, `"Resolviendo Bandidos al amanecer…"`) + botón "Detener automatización".
+- Verificado end-to-end por testing agent: render correcto, sin cuelgues, stuck-detection con toast claro al usuario.
+
+**Sistema de Clima Vivo (POST /api/weather/simulate):**
+- Cadena de Markov con inercia α=0.65 + matriz de transición fija (10 estados) + probabilidades base derivadas de los % de la región/mes.
+- 5% prob. de día anómalo (usa `ext_min/ext_max`).
+- Región del día = secuencia explícita por casilla/día (con fallback lineal origen→destino).
+- Output: estado, icono, temp_min/max/dia, viento, precipitación mm, horas_sol_efectivas, efectos automáticos (fatiga_extra, ventaja/desventaja, vel_modificador), `log_line` compacto y `aviso` legible.
+- Integración con la crónica IA (`generate-full-chronicle` recibe `weather_log`):
+  - Prompt actualizado: el clima es **ambientación de fondo, no protagonista**, sin cifras (✅ "lluvia fina", ❌ "15mm").
+  - Response incluye `weather_log` (líneas técnicas compactas para mostrar bajo la crónica).
+- 8 tests pytest pasando (`test_weather.py`).
+
+**Compra de Provisiones avanzada (`ProvisionsShopDialog.jsx` reescrito):**
+- 4 selects: Región (auto desde origen) / Asentamiento / Relación con vendedor / Contexto histórico.
+- Precio efectivo = (ración + agua) × Mes × Reg × Asent × Relac × Contexto, multiplicado por días de viaje.
+- Bloque de animales con lógica:
+  - Terreno difícil → necesitan comida.
+  - Terreno muy difícil / tierras de sombra / oscuras → comida + agua siempre.
+  - Resto → no es necesario comprar nada para los animales (pastan/beben por el camino).
+- Calculadora visual del modificador total (`115% × 100% × 95% × 110% = 120%`), con flecha ↑ caro / ↓ barato.
+
+**Modificadores de Precio editables:**
+- `PriceModifiersSection.jsx` reescrito con edición inline (nombre, %, descripción), Save/Delete por fila, Add row por categoría, todo bajo `isAdmin`.
+- Verificado vía curl: PUT `/api/data/modificadores-precio/region/0` actualiza correctamente y persiste.
+
+#### 9. Iteración 56 — Sistema de Clima estático (regiones × meses × campos) (2026-02-25)
 **Backend (15/15 nuevos pytest pasando):**
 - `/api/climate/seed` carga las **18 regiones × 12 meses × 16 campos** desde `/app/memory/clima_data.json` con jerarquía (KHAND→HARAD, ERED NIMRAIS→GONDOR, etc.).
 - CRUD completo: `GET/POST/PUT/DELETE /api/climate/regions[/{id}]`, `PUT /api/climate/regions/{id}/months/{mes}` (parcial por mes).
@@ -116,26 +146,21 @@
 
 ## Pending Tasks
 
-### 🟢 En Barbecho (dependen de otros sistemas)
-- **Texto narrativo IA al acampar** (ahora ya disponible: integración con clima resuelto vía `/api/climate/effective`)
-- **Selector Campaña + Código en Papeles de Viaje** (depende de sistema de Campañas)
-
 ### P0 - Próximo
-- **Comprar Provisiones desde Travel Config (Punto 2 pendiente):** integrar el botón Comprar con cantidad de raciones/agua y deducción de monedas según región.
+- **Verificación manual del usuario**: el bug del Automatizar Viaje + el flujo Provisions + el log meteorológico bajo la crónica del Diario.
 - **Auth + RBAC + Campañas (Copy-on-Write)** con JWT, hCaptcha y chat interno para reset de contraseña.
-- **Integración del clima en la narrativa IA del Diario** (consumir `/api/climate/effective/{loc}` en `generate-full-chronicle`).
 
 ### P1
-- Exportar Diario en Markdown (Obsidian/Notion)
-- Game Master Screen (dashboard en vivo: jugadores conectados, HP, fatiga, dados, encuentros)
-- Live Session Connectivity (códigos/links para unirse)
+- Aplicar los `efectos.fatiga_extra` y `efectos.vel_modificador` del clima al motor del viaje (hoy se proponen, pero la lógica de aplicación pendiente).
+- Aplicar el clima del día concreto al evento que se rueda en esa casilla (la cadena ya está; falta consumirla).
+- Exportar Diario en Markdown (Obsidian/Notion).
+- Game Master Screen (dashboard en vivo).
 
 ### P2
-- Moveable pieces in Terrain Editor
-- Pathfinding debugger fix
-- Mouse wheel zoom smoothing (Master Map)
-- Database backup/restore
-- Refactor: `EnhancedTravelSystem.jsx` (>5700 líneas), `MiddleEarthMap.jsx` (>2500), `TreasureSystemSection.jsx`
+- **REFACTOR URGENTE**: `EnhancedTravelSystem.jsx` ya en 5793 líneas — extraer `automateJourney`, `renderGlobalJourney`, `renderDayByDay` a módulos.
+- Pathfinding debugger fix.
+- Mouse wheel zoom smoothing (Master Map).
+- Database backup/restore.
 
 ---
 
