@@ -181,6 +181,25 @@ def test_icon_endpoint(api, test_location_id):
     assert d["climate_region"] == "Eriador"  # display name
 
 
+def test_icon_varies_by_day(api, test_location_id):
+    """Different days for the same location/month should not always produce the same icon."""
+    icons = set()
+    for dia in range(1, 21):
+        r = api.get(f"{API}/climate/icon/location/{test_location_id}?mes=Cermi%C3%AB&dia={dia}")
+        assert r.status_code == 200
+        icons.add(r.json()["icon"])
+    # In summer Eriador we expect at least 2 different states across 20 days
+    assert len(icons) >= 2, f"Expected variability in icons, got only {icons}"
+
+
+def test_icon_deterministic_same_day(api, test_location_id):
+    """Same day must yield the same icon (deterministic seed)."""
+    r1 = api.get(f"{API}/climate/icon/location/{test_location_id}?mes=Cermi%C3%AB&dia=5").json()
+    r2 = api.get(f"{API}/climate/icon/location/{test_location_id}?mes=Cermi%C3%AB&dia=5").json()
+    assert r1["icon"] == r2["icon"]
+    assert r1["label"] == r2["label"]
+
+
 def test_icon_invalid_month(api, test_location_id):
     r = api.get(f"{API}/climate/icon/location/{test_location_id}?mes=XXX")
     assert r.status_code == 400

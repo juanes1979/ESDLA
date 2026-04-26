@@ -25,16 +25,16 @@ const SauronEyeOverlay = ({ visible, percent = 0, message = '', subtitle = '', o
       <div className="flex flex-col items-center gap-6 max-w-lg px-6">
         <div className="relative w-72 h-72 sauron-pulse">
           <img
-            src="/ojo_sauron.jpg"
+            src="/ojo_sauron.png"
             alt="Ojo de Sauron"
-            className="w-full h-full object-cover rounded-full shadow-2xl sauron-spin"
+            className="w-full h-full object-cover sauron-spin"
             style={{
-              boxShadow: '0 0 80px 20px rgba(255, 90, 0, 0.6), 0 0 200px 40px rgba(180, 30, 0, 0.3)',
+              filter: 'drop-shadow(0 0 60px rgba(255, 90, 0, 0.7)) drop-shadow(0 0 120px rgba(180, 30, 0, 0.4))',
+              mixBlendMode: 'screen',
+              clipPath: 'circle(50% at 50% 50%)',
+              WebkitClipPath: 'circle(50% at 50% 50%)',
             }}
           />
-          <div className="absolute inset-0 rounded-full pointer-events-none" style={{
-            boxShadow: 'inset 0 0 60px 10px rgba(0,0,0,0.5)',
-          }} />
         </div>
 
         <div className="w-full">

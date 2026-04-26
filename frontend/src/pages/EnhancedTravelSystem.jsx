@@ -510,24 +510,56 @@ const JourneyMiniMap = ({ origenCoords, destinoCoords, origenNombre, destinoNomb
               
               {/* Event markers along the path */}
               {events && events.length > 0 && events.map((event, idx) => {
-                // Calculate position along the path based on event position
-                const totalCasillas = pathInPixelCoords.length - 1;
-                const eventProgress = Math.min(1, (event.casilla || idx + 1) / (totalCasillas + 1));
-                const pathIndex = Math.floor(eventProgress * (pathInPixelCoords.length - 1));
-                const point = pathInPixelCoords[Math.min(pathIndex, pathInPixelCoords.length - 1)];
+                // Compute the event's progress along the journey [0..1]
+                const casillaTotal = (events[events.length - 1]?.casilla) ||
+                                     (pathInPixelCoords.length - 1) || 1;
+                const eventProgress = Math.min(1, Math.max(0, (event.casilla || idx + 1) / Math.max(1, casillaTotal)));
+                
+                // Two ways to place: along detailed path, or interpolated on the straight line
+                let point;
+                if (pathInPixelCoords.length > 2) {
+                  const pathIndex = Math.floor(eventProgress * (pathInPixelCoords.length - 1));
+                  point = pathInPixelCoords[Math.min(pathIndex, pathInPixelCoords.length - 1)];
+                } else {
+                  // Linear interpolation between origin and destination
+                  point = {
+                    x: origen.x + (destino.x - origen.x) * eventProgress,
+                    y: origen.y + (destino.y - origen.y) * eventProgress,
+                  };
+                }
                 if (!point) return null;
                 
-                const eventMarkerRadius = markerRadius * 0.6;
+                // Small offset so multiple events at same casilla don't overlap completely
+                const sameCasillaCount = events.filter(e => e.casilla === event.casilla).length;
+                const sameCasillaIndex = events.filter((e, i) => e.casilla === event.casilla && i < idx).length;
+                const offsetAngle = sameCasillaCount > 1 ? (sameCasillaIndex / sameCasillaCount) * Math.PI * 2 : 0;
+                const offsetRadius = sameCasillaCount > 1 ? markerRadius * 0.9 : 0;
+                const cx = point.x + Math.cos(offsetAngle) * offsetRadius;
+                const cy = point.y + Math.sin(offsetAngle) * offsetRadius;
+                
+                const eventMarkerRadius = markerRadius * 0.55;
                 return (
-                  <circle
-                    key={`event-${idx}`}
-                    cx={point.x}
-                    cy={point.y}
-                    r={eventMarkerRadius}
-                    fill={event.exito ? 'rgba(144, 238, 144, 0.9)' : 'rgba(255, 182, 193, 0.9)'}
-                    stroke={event.exito ? '#228B22' : '#8B0000'}
-                    strokeWidth={lineWidth * 0.4}
-                  />
+                  <g key={`event-${idx}`}>
+                    <circle
+                      cx={cx}
+                      cy={cy}
+                      r={eventMarkerRadius}
+                      fill={event.exito ? 'rgba(144, 238, 144, 0.92)' : 'rgba(255, 120, 120, 0.92)'}
+                      stroke={event.exito ? '#228B22' : '#8B0000'}
+                      strokeWidth={lineWidth * 0.4}
+                    />
+                    <text
+                      x={cx}
+                      y={cy + eventMarkerRadius * 0.4}
+                      fill={event.exito ? '#0a3a0a' : '#3a0a0a'}
+                      fontSize={fontSize * 0.7}
+                      fontWeight="bold"
+                      textAnchor="middle"
+                      style={{ pointerEvents: 'none' }}
+                    >
+                      {idx + 1}
+                    </text>
+                  </g>
                 );
               })}
             </svg>
@@ -702,6 +734,8 @@ const EnhancedTravelSystem = () => {
   const [autoProgress, setAutoProgress] = useState(0); // 0-100
   const [autoMessage, setAutoMessage] = useState('');
   const [autoSubtitle, setAutoSubtitle] = useState('');
+  // Weather rolled for the entire journey at startGlobalJourney (Markov chain)
+  const [journeyWeather, setJourneyWeather] = useState([]);
   const autoStopRef = useRef(false);
   
   // Refs to access latest state inside the async automation loop (avoid stale closures)
@@ -1035,6 +1069,29 @@ const EnhancedTravelSystem = () => {
     setNextEventPosition(0);
     setLastOrientationResult(null);
     setCharacterXP({}); // Reset individual XP tracking
+    
+    // Roll weather chain for the entire journey so narrative endpoints can look up
+    // the climate for each event/day later. (Markov chain, region per day.)
+    try {
+      const numDays = Math.max(1, Math.ceil(journeyCalc?.estimaciones?.dias_estimados || journeyCalc?.ruta?.casillas || 7));
+      const origRegion = (locations || []).find(l => l.id === config.origenId)?.region || '';
+      const destRegion = (locations || []).find(l => l.id === config.destinoId)?.region || '';
+      const regionsByDay = [];
+      for (let i = 0; i < numDays; i++) {
+        const ratio = numDays > 1 ? i / (numDays - 1) : 0;
+        regionsByDay.push(ratio < 0.5 ? origRegion : destRegion);
+      }
+      const wRes = await api.post('/weather/simulate', {
+        mes: config.mes,
+        dia_inicio: config.diaMes || 1,
+        num_dias: numDays,
+        regiones_por_dia: regionsByDay,
+      });
+      setJourneyWeather(wRes.data?.dias || []);
+    } catch (err) {
+      console.warn('No se pudo rodar el clima del viaje al inicio:', err);
+      setJourneyWeather([]);
+    }
     
     // Check if guide has multiple roles (penalty -5)
     const guiaTieneMultiplesRoles = guia.papeles && guia.papeles.length > 1;
@@ -1718,6 +1775,13 @@ const EnhancedTravelSystem = () => {
         const resolvedEvents = events.filter(e => e.resuelto).length;
         const totalEvents = events.length;
         
+        // Look up the climate for the day where this event is happening
+        const eventDay = Math.max(1, currentEvent.casilla || 1);
+        const wDay = journeyWeather[Math.min(eventDay - 1, journeyWeather.length - 1)];
+        const climaTxt = wDay
+          ? `${wDay.estado_label}${wDay.region ? ' en ' + wDay.region : ''}`
+          : '';
+        
         const narrativeRes = await api.post('/travel/generate-narrative', null, {
           params: {
             evento_nombre: currentEvent.evento.nombre,
@@ -1734,7 +1798,8 @@ const EnhancedTravelSystem = () => {
             total_eventos: totalEvents,
             dia_actual: currentEvent.casilla || 1,
             dias_totales: journeyCalc?.estimaciones?.dias_estimados || 1,
-            notas_maestro: gmNotesEvent || ''
+            notas_maestro: gmNotesEvent || '',
+            clima: climaTxt,
           }
         });
         if (narrativeRes.data.success) {
@@ -1743,6 +1808,10 @@ const EnhancedTravelSystem = () => {
       } catch (err) {
         console.log('Narrative generation skipped:', err);
       }
+      
+      // Capture the weather snapshot for this event's day
+      const eventDayN = Math.max(1, currentEvent.casilla || 1);
+      const eventWeather = journeyWeather[Math.min(eventDayN - 1, journeyWeather.length - 1)] || null;
       
       // Update event with result
       const updatedEvents = events.map(e => {
@@ -1754,7 +1823,8 @@ const EnhancedTravelSystem = () => {
             tirada: tirada,
             exito: exito,
             narrativa: narrativa,
-            gm_notes: gmNotesEvent || ''
+            gm_notes: gmNotesEvent || '',
+            clima_dia: eventWeather,
           };
         }
         return e;
@@ -2748,6 +2818,14 @@ const EnhancedTravelSystem = () => {
             <div class="event ${e.exito ? 'event-success' : 'event-failure'}">
               <strong>Casilla ${e.casilla}: ${e.evento?.nombre || 'Acontecimiento'}</strong>
               <span style="float: right;">${e.exito ? '✓ Éxito' : '✗ Fracaso'} (${e.tirada} vs CD ${e.resolucion?.cd || '?'})</span>
+              ${e.clima_dia ? `
+                <div style="font-size:11px; color:#6b5b3a; margin:6px 0; padding:4px 8px; background:rgba(212,196,168,0.25); border-left:3px solid #c8b88a; font-family:monospace;">
+                  ${e.clima_dia.icon || ''} ${e.clima_dia.estado_label || ''}
+                  ${e.clima_dia.temp_min !== undefined ? ` · ${e.clima_dia.temp_min}°→${e.clima_dia.temp_max}°` : ''}
+                  ${e.clima_dia.viento_kmh !== undefined ? ` · viento ${e.clima_dia.viento_kmh}km/h${e.clima_dia.dir_viento ? ' ' + e.clima_dia.dir_viento : ''}` : ''}
+                  ${e.clima_dia.pct_lluvia !== undefined && e.clima_dia.pct_lluvia > 0 ? ` · lluvia ${Math.round(e.clima_dia.pct_lluvia)}%` : ''}
+                </div>
+              ` : ''}
               <p style="margin: 8px 0 0 0; font-style: italic;">
                 ${e.narrativa || (e.exito ? e.evento?.consecuencias_exito : e.evento?.consecuencias_fracaso) || ''}
               </p>
@@ -3962,14 +4040,25 @@ const EnhancedTravelSystem = () => {
                     Sin provisiones: +1 fatiga/día sin comida, +2 fatiga/día sin agua.
                     Puedes forrajear durante el viaje (Supervivencia CD 15).
                   </p>
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
-                    onClick={() => setShowProvisionsWarning(false)}
-                    className="mt-2 text-xs"
-                  >
-                    Continuar de todos modos
-                  </Button>
+                  <div className="flex gap-2 mt-2 flex-wrap">
+                    <Button 
+                      size="sm" 
+                      onClick={() => setShowProvisionsShop(true)}
+                      className="text-xs bg-[hsl(var(--gold))] text-black hover:brightness-110"
+                      data-testid="provisions-warning-buy-btn"
+                    >
+                      <Coins className="w-3.5 h-3.5 mr-1" />
+                      Comprar provisiones
+                    </Button>
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      onClick={() => setShowProvisionsWarning(false)}
+                      className="text-xs"
+                    >
+                      Continuar de todos modos
+                    </Button>
+                  </div>
                 </div>
               </div>
             </Card>

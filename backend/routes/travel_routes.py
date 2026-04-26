@@ -2723,14 +2723,28 @@ async def generate_event_narrative(
         chat = LlmChat(
             api_key=api_key,
             session_id=f"narrative_{uuid.uuid4().hex[:8]}",
-            system_message="""Eres un narrador para un juego de rol ambientado en la Tierra Media. 
-            Genera narrativas cortas (2-3 frases) en español con un tono natural y cálido.
-            Escribe como si fuera un diario de viaje o una conversación junto al fuego.
-            NO uses lenguaje arcaico ni épico. Evita palabras como "épico", "glorioso", "valeroso".
-            NO menciones origen ni destino. Céntrate SOLO en el momento presente del viaje.
-            Describe la escena de forma sencilla pero evocadora, como lo haría un hobbit contando una historia.
-            No uses emojis."""
+            system_message="""Eres el narrador del grupo. Escribes notas cortas (2-3 frases) en español, en tono cercano tipo Tolkien pero NATURAL — como un compañero de viaje contando lo sucedido al volver. NUNCA pedante.
+
+REGLAS DE PERSONAJES:
+- Refiérete al personaje SOLO por su NOMBRE DE PILA. NUNCA uses apellido.
+- NO repitas el papel ('nuestro vigía', 'el atento explorador'). Su papel se sobrentiende del contexto del viaje.
+- Ejemplos: 'Folgo se adelantó al sendero' (SÍ). 'Folgo Rizocastaño, nuestro vigía de ojos avizores' (NO).
+
+REGLAS DE AMBIENTACIÓN (Tolkien):
+- Si la región es reconocible (Comarca, Bree, Eriador, Cardolan, Bosque Negro, Rhovanion, Rohan, Gondor, etc.), describe el paisaje COMO LO ES en la obra de Tolkien. La Comarca = praderas, smials, ríos serenos. El camino entre Bree y Tharbad = brezales yermos, ruinas del antiguo Reino del Norte. NO inventes paisajes genéricos.
+
+REGLAS DE CLIMA:
+- Si se proporciona un clima, INTÉGRALO en una pincelada breve — sin cifras. 'la lluvia ligera', 'el cielo despejado', 'una bruma helada' — sí. '15mm', '12°C' — no.
+
+PROHIBIDO:
+- 'épico', 'glorioso', 'valeroso', 'magnánimo'.
+- Emojis.
+- Mencionar tiradas, dados, CDs.
+- Mencionar origen ni destino del viaje completo (céntrate en el momento)."""
         ).with_model("openai", "gpt-4o")
+        
+        # Use only first name in the narrative
+        primer_nombre = (personaje_nombre or "").split()[0] if personaje_nombre else "el compañero"
         
         prompt = f"""Genera una breve narrativa (2-3 frases) para este evento de viaje:
 
@@ -2738,12 +2752,12 @@ FASE DEL VIAJE: {fase_viaje} (día {dia_actual} de {dias_totales})
 TERRENO ACTUAL: {terreno_desc}
 EVENTO: {evento_nombre}
 RESULTADO: {"El grupo tuvo éxito" if exito else "Las cosas no salieron bien"}
-PERSONAJE RESPONSABLE: {personaje_nombre} ({papel_name})
+PERSONAJE RESPONSABLE: {primer_nombre} (papel: {papel_name} — NO menciones el papel en el texto)
 CONSECUENCIA: {consecuencia}
-{f"NOTAS DEL MAESTRO (contexto que debes usar): {notas_maestro}" if notas_maestro else ""}
-{f"CLIMA: {clima}" if clima else ""}
+{f"NOTAS DEL MAESTRO (contexto real, intégralas): {notas_maestro}" if notas_maestro else ""}
+{f"CLIMA DE ESE DÍA (mencionar de pasada, sin números): {clima}" if clima else ""}
 
-INSTRUCCIONES: Describe qué sucedió de forma natural y sencilla, como si lo contaras a un amigo. Evita el tono épico. Si el maestro ha proporcionado notas o hay información de clima, intégralas de forma natural en la narrativa para que no suene genérica."""
+Describe qué sucedió de forma natural y sencilla, como si lo contaras junto al fuego. Usa SOLO el nombre de pila '{primer_nombre}'."""
         
         user_message = UserMessage(text=prompt)
         response = await chat.send_message(user_message)
@@ -3026,36 +3040,43 @@ async def generate_full_chronicle(request: FullChronicleRequest):
             weather_log_block = "\n".join(log_lines_compact)
 
         system_msg = (
-            "Eres un cronista del grupo que escribe una CRÓNICA DE VIAJE completa y "
-            "continua, como narrativa única (no separada por días), en español, estilo "
-            "Tierra Media/Tolkien pero con lenguaje accesible y natural. "
-            "ESTRUCTURA que debes seguir:\n"
-            "1. PÁRRAFO INICIAL: presenta quiénes viajan (nombres y papeles), de dónde a "
-            "dónde, la fecha de salida si se indica, los kilómetros aproximados y las "
-            "jornadas previstas. Tono evocador, NO estadístico.\n"
-            "2. CUERPO: hila las jornadas con transiciones naturales tipo \"al tercer día…\", "
-            "\"en la quinta jornada, bajo un cielo encapotado…\", \"la mañana del séptimo día…\", "
-            "\"aquella noche el centinela oyó…\". Incluye los eventos significativos, las notas "
-            "del maestro como CONTEXTO real (nombres de lugares, condiciones), los éxitos y "
-            "fracasos importantes. NO enumeres todos los eventos, selecciona los que aporten "
-            "al relato. Integra el clima ORGÁNICAMENTE — el clima NO es protagonista, es "
-            "AMBIENTACIÓN de fondo. Menciónalo solo cuando aporte: para abrir una jornada "
-            "(\"el frío de la noche se prolongó hasta el alba…\"), para reflejar una transición "
-            "(\"la lluvia fina que nos había acompañado dio paso al sol…\") o para subrayar un "
-            "momento difícil (\"con la ventisca arreciando, apenas distinguíamos el sendero\"). "
-            "NO uses cifras ni datos meteorológicos en la narrativa: 'lluvia fina', "
-            "'cielo encapotado', 'viento del oeste', 'noche helada' — sí. '15mm de precipitación', "
-            "'12°C', '45km/h' — NO.\n"
-            "3. PÁRRAFO FINAL: llegada al destino con una frase evocadora (\"por fin "
-            "vislumbramos las luces de…\", \"tras muchos días de marcha, divisaron…\").\n"
+            "Eres un narrador del grupo que escribe una crónica de viaje continua, en español, "
+            "como si fuese el diario de uno de los viajeros, escrito al volver. El tono debe ser "
+            "tipo Tolkien pero NATURAL Y CERCANO, NO pedante ni recargado. Evita palabras "
+            "rebuscadas, latiguillos épicos y adornos innecesarios. Imagina a Sam Gamyi contando "
+            "el viaje a sus hijos: hermoso pero claro.\n\n"
+            "PERSONAJES — IMPORTANTE:\n"
+            "- En el PRIMER párrafo, presenta a los viajeros con nombre+papel UNA sola vez "
+            "(ej. 'Aragorn, el guía; Folgo, el vigía; …'). \n"
+            "- A partir de ahí, refiérete a ellos SOLO POR SU NOMBRE DE PILA (sin apellidos, "
+            "sin volver a indicar su papel). 'Folgo se adelantó al sendero' — SÍ. "
+            "'Folgo Rizocastaño, nuestro atento vigía, se adelantó…' — NO.\n\n"
+            "AMBIENTACIÓN BASADA EN TOLKIEN:\n"
+            "- Si el viaje pasa por regiones reconocibles (Comarca, Eriador, Bree, Tharbad, "
+            "Rhovanion, Rohan, Gondor, Mordor, Bosque Negro, Lothlórien, etc.), describe el "
+            "paisaje TAL COMO ES en la obra de Tolkien. NO inventes paisajes genéricos. "
+            "Ejemplo: 'la Comarca' = praderas verdes, smials hobbit, ríos serenos. "
+            "'Camino del Norte hacia Tharbad' = ruina de un viejo Reino del Norte, brezales "
+            "yermos, rastros del Camino Norte. NO conviertas la Comarca en un páramo.\n\n"
+            "ESTRUCTURA:\n"
+            "1. PÁRRAFO INICIAL: presenta brevemente quiénes viajan (nombre+papel UNA vez), "
+            "el origen, el destino y la fecha si se indica. Sin estadísticas.\n"
+            "2. CUERPO: hila las jornadas con transiciones suaves ('al tercer día…', "
+            "'aquella tarde…', 'la noche del séptimo día…'). Selecciona los eventos "
+            "significativos, integra las notas del Maestro como contexto real (lugares, "
+            "circunstancias) y haz que el clima asome SUAVE Y BREVE — no como protagonista. "
+            "Una mención por jornada basta ('el frío se hizo más áspero', 'la lluvia fina daba "
+            "tregua a ratos'). NO uses cifras ni tecnicismos meteorológicos.\n"
+            "3. PÁRRAFO FINAL: la llegada, en una o dos frases evocadoras.\n\n"
             "REGLAS ESTRICTAS:\n"
-            "- No uses emojis.\n"
-            "- No menciones tiradas de dado ni números (d20, CD) en el texto final.\n"
-            "- No menciones cifras de temperatura, mm, km/h, % en la narrativa.\n"
-            "- No uses encabezados ni listas; solo párrafos en prosa.\n"
-            "- 4-8 párrafos en total. Extensión razonable, sin ser pesado.\n"
-            "- Si en los eventos hay notas del maestro como 'Bosque de los Trolls' o nombres "
-            "concretos, intégralos en el relato para que no suene genérico."
+            "- No emojis.\n"
+            "- No números (d20, CD, °C, mm, km/h, %).\n"
+            "- No encabezados ni listas; solo prosa en párrafos.\n"
+            "- 4–7 párrafos. Lenguaje accesible.\n"
+            "- Evita 'glorioso', 'épico', 'valeroso', 'magnánimo'. Mejor: 'cansados pero firmes', "
+            "'el corazón un poco más ligero', 'sin más prisa que la del camino'.\n"
+            "- Si en las notas aparecen nombres concretos (Bosque de los Trolls, El Vado, etc.), "
+            "úsalos.\n"
         )
 
         prompt = (

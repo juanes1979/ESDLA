@@ -456,6 +456,66 @@ def _icon_for_month(month_data: dict) -> Dict[str, str]:
     return {"icon": "☁️", "label": "Nublado"}
 
 
+def _sample_icon_from_distribution(month_data: dict, location_id: str = "", mes: str = "", dia: Optional[int] = None) -> Dict[str, str]:
+    """Sample a weather state from the region/month base probability distribution.
+
+    This avoids the deterministic-collapse problem where most regions in winter
+    always show 'Nublado' / 'Lluvia'. Uses a deterministic seed based on
+    (location_id + mes + dia) so the same location+day always shows the same
+    icon, but varies across days and locations.
+    """
+    if not month_data:
+        return {"icon": "❓", "label": "Sin datos"}
+
+    import random as _r
+    pct_lluvia = float(month_data.get("pct_lluvia") or 0)
+    pct_tormenta = float(month_data.get("pct_tormenta") or 0)
+    pct_nieve = float(month_data.get("pct_nieve_helada") or 0)
+    pct_niebla = float(month_data.get("pct_niebla") or 0)
+    pct_calima = float(month_data.get("pct_calima") or 0)
+    horas_sol = float(month_data.get("horas_sol") or 8)
+    temp_max = month_data.get("temp_max")
+    temp_max_v = float(temp_max) if temp_max is not None else 99
+
+    # Build distribution
+    used = pct_lluvia + pct_tormenta + pct_nieve + pct_niebla + pct_calima
+    remaining = max(0.0, 100.0 - used)
+    horas_factor = max(0.0, min(1.0, horas_sol / 12.0))
+    despejado = remaining * horas_factor
+    nublado = remaining * (1.0 - horas_factor)
+
+    # If too cold, rain becomes snow
+    if temp_max_v <= 0:
+        pct_nieve = pct_nieve + pct_lluvia + pct_tormenta
+        pct_lluvia = 0
+        pct_tormenta = 0
+
+    candidates = [
+        ("☀️", "Despejado", despejado),
+        ("⛅", "Nublado", nublado),
+        ("🌫️", "Niebla", pct_niebla),
+        ("🌫️", "Calima", pct_calima),
+        ("🌦️", "Lluvia", pct_lluvia),
+        ("⛈️", "Tormenta", pct_tormenta),
+        ("❄️", "Nieve", pct_nieve),
+    ]
+    total = sum(c[2] for c in candidates)
+    if total <= 0:
+        return {"icon": "⛅", "label": "Nublado"}
+
+    # Deterministic seed
+    seed_str = f"{location_id}|{mes}|{dia or 0}"
+    seed = sum(ord(c) for c in seed_str)
+    rng = _r.Random(seed)
+    r = rng.random() * total
+    cum = 0.0
+    for icon, label, w in candidates:
+        cum += w
+        if r <= cum:
+            return {"icon": icon, "label": label}
+    return {"icon": "⛅", "label": "Nublado"}
+
+
 @router.get("/effective/{location_id}")
 async def get_effective_climate_for_location(location_id: str, mes: Optional[str] = None):
     """
@@ -528,6 +588,11 @@ async def get_icon_for_location_month(location_id: str, mes: str, dia: Optional[
     """Lightweight endpoint for the travel UI: returns just the icon + key stats for a given month.
     `dia` is accepted for future per-day variation (currently uses month aggregate).
     Accepts both abbreviated ('Ene') and Eldarin ('Nénimë') month forms.
+
+    The icon is sampled probabilistically from the region/month base distribution,
+    so different locations / different days don't always show the dominant 'nublado'.
+    A deterministic seed (location_id + mes + dia) keeps the result stable across
+    reloads while showing variety across days/locations.
     """
     mes_norm = _normalize_month(mes)
     if not mes_norm:
@@ -542,7 +607,10 @@ async def get_icon_for_location_month(location_id: str, mes: str, dia: Optional[
     overrides = ((override_doc or {}).get("overrides") or {}).get(mes) or {}
     base = ((cr or {}).get("meses") or {}).get(mes) or {}
     merged = {**base, **overrides}
-    icon = _icon_for_month(merged)
+
+    # Sample a representative state (instead of always picking the dominant one).
+    # Uses a deterministic seed so reloads are stable; varies across location/day.
+    icon = _sample_icon_from_distribution(merged, location_id, mes, dia)
 
     return {
         "location_id": location_id,

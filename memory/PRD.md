@@ -4,6 +4,20 @@
 
 ### ✅ COMPLETED This Session
 
+#### 11. Iteración 58 — Polish round (Ojo correcto, mapa con eventos, narrativa natural, clima previsto realista, botón comprar) (2026-02-25)
+- **Imagen del Ojo de Sauron corregida** (`ojo_sauron.png`) con `clip-path: circle(50%)` + `mix-blend-mode: screen` para fundir el fondo gris.
+- **Mapa del Diario muestra TODOS los eventos**: ahora interpola posición sobre la línea recta cuando no hay path detallado, con offset radial cuando varios eventos caen en la misma casilla y numeración 1..N para verlos claros (verde/rojo según éxito/fracaso).
+- **Narrativa IA mejorada**:
+  - Solo nombre de pila ("Folgo se adelantó", no "Folgo Rizocastaño, nuestro vigía…").
+  - Tono cercano tipo Tolkien pero NATURAL — sin "épico", "glorioso", "valeroso".
+  - Descripciones de regiones BASADAS en la obra de Tolkien (Comarca = praderas+smials, Cardolan = ruinas del antiguo Reino del Norte, etc.). Prompt explícito.
+  - Cada evento en el PDF muestra el clima del día concreto (icono, temp, viento) en una pequeña tarjeta antes de la narrativa.
+  - El clima usado es el rodado por la cadena de Markov al iniciar el viaje (almacenado en `journeyWeather`), no inventado.
+- **Bug del "Clima previsto" siempre lluvia/nublado**: el endpoint `/api/climate/icon/location/{loc}` ahora **muestrea probabilísticamente** desde la distribución de la región/mes con seed determinista (location+mes+dia). Esto da variedad realista (☀️ algunos días, ⛅ otros, 🌦️ ocasional) en lugar de colapsar siempre al estado más probable.
+- **Mensaje de provisiones insuficientes** ahora muestra el botón "Comprar provisiones" al lado de "Continuar de todos modos".
+
+**Testing**: 25/25 pytest backend (3 nuevos: variabilidad, determinismo, regression). Verificado vía curl: día 1=☀️, día 5=☀️, día 10=🌦️, día 15=☀️, día 20=☀️, día 25=🌦️ en Cermië/Eriador. Crónica ejemplo con Aragorn/Folgo/Theodric: tono natural, solo nombres, mención breve del clima, referencias a Cardolan ("ecos de viejos reyes que alguna vez habitaron esas tierras").
+
 #### 10. Iteración 57 — Sistema de Clima Vivo + Bug-fix Automatización + Provisiones avanzadas + Modificadores editables (2026-02-25)
 
 **Bug crítico arreglado — Automatizar Viaje:**
