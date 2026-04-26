@@ -2810,6 +2810,66 @@ const EnhancedTravelSystem = () => {
               }).join('')}
             </div>
           ` : ''}
+          ${(() => {
+            // Tabla de PX desglosados por jugador
+            const membersWithRoles = config.miembros.filter(m => m.papeles?.length);
+            if (membersWithRoles.length === 0) return '';
+            const journeyBasePX = journeyCalc.estimaciones.px_total;
+            const pxPerMemberFromJourney = Math.floor(journeyBasePX / membersWithRoles.length);
+            const allRolls = Object.values(characterXP || {}).flatMap(c => c.rolls || []);
+            const aciertos = allRolls.filter(r => r.exito).length;
+            const fallos = allRolls.length - aciertos;
+            const totalRolls = aciertos + fallos;
+            // Mismo cálculo que calculateGroupMultiplier (Tabla 2)
+            let groupMult = 1.0;
+            if (totalRolls > 0) {
+              const ratio = aciertos / totalRolls;
+              if (ratio >= 0.85) groupMult = 1.5;
+              else if (ratio >= 0.7) groupMult = 1.25;
+              else if (ratio >= 0.5) groupMult = 1.0;
+              else if (ratio >= 0.3) groupMult = 0.75;
+              else groupMult = 0.5;
+            }
+            const groupMultLabel = `×${groupMult.toFixed(2)} (grupo: ${aciertos} éxitos / ${fallos} fracasos)`;
+            return `
+              <div style="margin-top: 15px;">
+                <p style="font-weight: bold; margin-bottom: 8px;">PX por jugador (multiplicador del grupo: ${groupMultLabel}):</p>
+                <table style="width: 100%; border-collapse: collapse; font-size: 12px; margin-bottom: 10px;">
+                  <thead>
+                    <tr style="background: rgba(212, 196, 168, 0.3);">
+                      <th style="padding: 6px 8px; text-align: left; border-bottom: 2px solid #c8b88a;">Personaje</th>
+                      <th style="padding: 6px 8px; text-align: left; border-bottom: 2px solid #c8b88a;">Papel</th>
+                      <th style="padding: 6px 8px; text-align: center; border-bottom: 2px solid #c8b88a;">PX viaje</th>
+                      <th style="padding: 6px 8px; text-align: center; border-bottom: 2px solid #c8b88a;">PX tiradas</th>
+                      <th style="padding: 6px 8px; text-align: center; border-bottom: 2px solid #c8b88a;">PX ajustados</th>
+                      <th style="padding: 6px 8px; text-align: center; border-bottom: 2px solid #c8b88a; color: #1d4ed8;">TOTAL</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    ${membersWithRoles.map(m => {
+                      const rollsXP = characterXP[m.id]?.total || 0;
+                      const rollsXPAjustado = Math.floor(rollsXP * groupMult);
+                      const totalXP = Math.max(0, pxPerMemberFromJourney + rollsXPAjustado);
+                      const papeles = (m.papeles || []).join(', ');
+                      return `
+                        <tr style="border-bottom: 1px solid rgba(0,0,0,0.1);">
+                          <td style="padding: 5px 8px; font-weight: 600;">${m.nombre}</td>
+                          <td style="padding: 5px 8px; font-style: italic; color: #6b5b3a;">${papeles}</td>
+                          <td style="padding: 5px 8px; text-align: center;">${pxPerMemberFromJourney}</td>
+                          <td style="padding: 5px 8px; text-align: center;">${rollsXP}</td>
+                          <td style="padding: 5px 8px; text-align: center;">${rollsXPAjustado}</td>
+                          <td style="padding: 5px 8px; text-align: center; font-weight: bold; color: #1d4ed8; font-size: 14px;">${totalXP} PX</td>
+                        </tr>
+                      `;
+                    }).join('')}
+                  </tbody>
+                </table>
+                <p style="font-size: 11px; color: #6b5b3a; margin-top: 6px; font-style: italic;">
+                  PX viaje = base del trayecto dividida entre los miembros con papeles. PX tiradas = bonificaciones por tiradas individuales (por CD y resultado). PX ajustados = PX tiradas multiplicados por el rendimiento del grupo. TOTAL = PX viaje + PX ajustados (mínimo 0).
+                </p>
+              </div>
+            `;
+          })()}
         ` : ''}
         
         ${events.length > 0 ? `
