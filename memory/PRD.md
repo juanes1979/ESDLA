@@ -4,6 +4,22 @@
 
 ### ✅ COMPLETED This Session
 
+#### 14. Iteración 61 — Refactor fase 2 COMPLETO de EnhancedTravelSystem.jsx (2026-02-26)
+- **🟢 Refactor monolito completado**: el archivo principal pasó de **5942 → 2108 líneas** (~3834 líneas / **64.5% reducción**) y se distribuyó en 8 módulos auto-contenidos en `components/travel/`.
+- **Nuevos módulos creados en esta fase**:
+  - `travelPrint.js` (402 lns) — `printJourneyDocument`, `exportDebugJson`, `captureMapImage`, `generateMapPlaceholder`. Genera el HTML completo de la crónica del viaje y abre la ventana de impresión.
+  - `views/ConfigView.jsx` (1148 lns) — Vista inicial: Origen/Destino, configuración del viaje, papeles, miembros, montura, mapa preview, comparador de rutas, inicio del viaje.
+  - `views/GlobalJourneyView.jsx` (462 lns) — Modo Global: progreso, tirada de orientación, evento actual, tiradas d20, automatización del viaje.
+  - `views/DayByDayView.jsx` (663 lns) — Modo Jornada a Jornada: cabecera, progreso, provisiones (comprar/acampar/descansar/forrajear), evento actual, registro diario, diálogo de descanso.
+  - `views/ResultsView.jsx` (649 lns) — Vista final: mapa, diario IA, resumen, distribución de PX, fatiga, provisiones consumidas, registro de eventos, crónica narrativa, impresión y exportación.
+- **Bugs colaterales del refactor (resueltos sobre la marcha)**:
+  - `Compass is not defined`, `Users is not defined`, `Play is not defined` → faltaban imports de lucide-react en cada vista nueva. Añadidos.
+  - `calcModHabilidad is not defined` → faltaba el import desde `travelHelpers` en ConfigView. Añadido.
+- Lint frontend: ✅ 0 issues en los 9 archivos. La página `/travel` carga correctamente y muestra los 244 ubicaciones, los 4 papeles y todos los controles. Verificado por screenshot.
+- **Resultado**: arquitectura modular, mantenible y mucho más fácil de testear/extender. Cada vista vive en su propio archivo y recibe el estado vía props explícitas.
+
+**⚠️ Nota para el usuario**: el refactor tocó MUCHO código JSX. Recomendado un test manual del flujo completo (calcular ruta → iniciar viaje global → resolver eventos → finalizar → ver resultados) o llamar al testing agent antes de cerrar definitivamente.
+
 #### 13. Iteración 60 — Refactor parcial de EnhancedTravelSystem.jsx (2026-02-26)
 - **🟢 Refactor P0 (fase 1)**: el archivo monolítico `pages/EnhancedTravelSystem.jsx` pasó de **5942 → 5221 líneas** (~720 líneas extraídas, ~12% de reducción). Arquitectura más limpia y reutilizable.
 - **Nuevos módulos creados**:
