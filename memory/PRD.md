@@ -1,8 +1,20 @@
 # LOTR 5e RPG - Product Requirements Document
 
-## Current State (2026-02-25)
+## Current State (2026-02-26)
 
 ### ✅ COMPLETED This Session
+
+#### 13. Iteración 60 — Refactor parcial de EnhancedTravelSystem.jsx (2026-02-26)
+- **🟢 Refactor P0 (fase 1)**: el archivo monolítico `pages/EnhancedTravelSystem.jsx` pasó de **5942 → 5221 líneas** (~720 líneas extraídas, ~12% de reducción). Arquitectura más limpia y reutilizable.
+- **Nuevos módulos creados**:
+  - `components/travel/travelConstants.jsx` (~110 líneas): `MESES_ELFICOS`, `SeasonIcon`, `ROLE_ICONS`, `ROLE_INFO`, `hasMultipleRoles`, `hasPenalty`, `MULTI_ROLE_PENALTY`, `MAX_ROLES_PER_CHARACTER`, `PLAYER_MAP_URL`, `MAP_PIXEL_WIDTH/HEIGHT`.
+  - `components/travel/travelHelpers.js` (~190 líneas): puro JS sin React. `REST_TYPES`, `ROLE_MODIFIER_KEY`, `SKILL_ATTRIBUTES`, `calcBonusCompetencia`, `tieneCompetenciaEn`, `tienePericia`, `getModAtributo`, `calcModHabilidad`, `getFatigueBaseCD`, `calculateRollXP`, `calculateGroupMultiplier`.
+  - `components/travel/JourneyMiniMap.jsx` (~430 líneas): componente SVG del mini-mapa de viaje con `createNaturalPath` / `createSmoothPath` internos.
+- **Bug colateral resuelto**: tras limpiar imports de lucide-react quedaron `<Compass>` y `<Leaf>` referenciados sin importar → `ReferenceError: Compass is not defined`. Corregido restaurando ambos en el import.
+- Lint frontend: ✅ 0 issues. Página `/travel` carga estable con 244 ubicaciones, papeles de viaje y sistema completo.
+- **Lo que NO se extrajo (pendiente fase 2)**: `printJourneyDocument` (~430 líneas), las 4 vistas de render (`renderConfig` ~1100 lns, `renderGlobalJourney` ~440 lns, `renderDayByDay` ~650 lns, `renderResults` ~625 lns). Son extraíbles pero requieren paso de muchas props/handlers — mejor en una iteración dedicada.
+
+**Testing**: ✅ Lint pasa. ✅ Smoke test visual: home + `/travel` cargan sin errores tras el refactor.
 
 #### 12. Iteración 59 — Hot-fix crítico de Calcular Ruta + clima dominante (2026-02-25)
 - **🔴 BUG CRÍTICO arreglado**: la pantalla se quedaba en negro / "0 ubicaciones" al pulsar "Calcular Ruta". Causa: un `useEffect(() => { modeRef.current = mode; }, [mode])` declarado ANTES de `const modeRef = useRef('config')`. Aunque la closure capturaba el binding tarde, en algunos paths de re-render React detectaba el problema y desmontaba el árbol. Movido al lugar correcto (junto a los demás refs sync). Verificado: la app carga 244 ubicaciones y permanece estable tras editar campos.
