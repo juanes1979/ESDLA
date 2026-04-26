@@ -1,0 +1,36 @@
+{
+  "_comment": "Mapeo de regiones del Excel de clima a la estructura de la app. Confirmado por el usuario el 2026-02-24. Para usar en el seed del próximo fork (sistema de Clima).",
+  "regions_to_create": [
+    "FORODWAITH"
+  ],
+  "subregion_inheritance": {
+    "COLINAS DE HIERRO": "RHOVANION",
+    "KHAND": "HARAD",
+    "ERED LITHUI (MONTAÑAS DE LA CENIZA)": "MORDOR",
+    "ERED LUIN (MONTAÑAS AZULES)": "ERIADOR",
+    "GAER RHÚNEN (MAR DE RHÜN)": "RHUN",
+    "NEN BELFALAS (BAHÍA DE BELFALAS)": "GONDOR",
+    "ERED NIMRAIS (MONTAÑAS BLANCAS)": "PENDIENTE_CONFIRMAR"
+  },
+  "direct_match_with_bd_locations": {
+    "ERIADOR": ["Eriador", "Comarca", "La Comarca", "Arthedain", "Rhudaur", "Angmar"],
+    "LINDON": ["Lindon"],
+    "RHOVANION": ["Rhovanion", "Brezal seco", "El páramo"],
+    "ROHAN": ["Rohan"],
+    "GONDOR": ["Gondor"],
+    "MORDOR": ["Mordor"],
+    "HARAD": ["Harad"],
+    "BOSQUE NEGRO": ["Bosque Negro"],
+    "RHUN": ["Rhûn"],
+    "NAN ANDUIN (VALLES DEL ANDUIN)": [
+      "Valles occidentales del Anduin",
+      "Valles orientales del Anduin",
+      "Valles medios occidentales del Anduin",
+      "Valles medios orientales del Anduin",
+      "Valle inferiores occidentales del Anduin",
+      "Valle inferiores orientales del Anduin"
+    ]
+  },
+  "data_source_file": "/app/memory/clima_data.json",
+  "data_source_summary": "18 regiones × 12 meses × 16 campos numéricos extraídos del Excel del usuario."
+}
