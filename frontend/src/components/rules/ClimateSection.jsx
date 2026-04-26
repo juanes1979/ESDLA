@@ -582,7 +582,9 @@ const ClimateSection = () => {
                   </table>
                 </div>
                 <p className="mt-3 text-[11px] text-muted-foreground">
-                  Vacío = hereda de la región (placeholder muestra el valor base). En azul = override activo. La × elimina ese override puntualmente.
+                  {effective.climate_region
+                    ? 'Vacío = hereda de la región (placeholder muestra el valor base). En azul = override activo. La × elimina ese override puntualmente.'
+                    : 'Esta ubicación no tiene clima padre — sin valores base para heredar. Configura las keywords del clima en la pestaña anterior, o introduce los valores manualmente.'}
                 </p>
               </>
             )}

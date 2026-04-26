@@ -1,8 +1,28 @@
 # LOTR 5e RPG - Product Requirements Document
 
-## Current State (2026-02-23)
+## Current State (2026-02-25)
 
 ### ✅ COMPLETED This Session
+
+#### 9. Iteración 56 — Sistema de Clima + Visor meteorológico en Viaje (2026-02-25)
+**Backend (15/15 nuevos pytest pasando):**
+- `/api/climate/seed` carga las **18 regiones × 12 meses × 16 campos** desde `/app/memory/clima_data.json` con jerarquía (KHAND→HARAD, ERED NIMRAIS→GONDOR, etc.).
+- CRUD completo: `GET/POST/PUT/DELETE /api/climate/regions[/{id}]`, `PUT /api/climate/regions/{id}/months/{mes}` (parcial por mes).
+- Overrides granulares por ubicación: `GET/PUT/DELETE /api/climate/locations/{loc}/override` y por celda `DELETE /…/override/{mes}/{field}`.
+- Resolución con herencia: `GET /api/climate/effective/{loc}?mes=…` devuelve base+override merged + icono auto-calculado.
+- Endpoint ligero `GET /api/climate/icon/location/{loc}?mes=…` para el visor del viaje. Acepta meses tanto en formato élfico ("Súlimë") como abreviado ("Feb").
+- Iconos meteorológicos (☀️ ☁️ 🌧 ❄️ 🌫️ ⛈️) calculados desde porcentajes de nieve/lluvia/tormenta/calima/niebla/horas-sol + temp_max.
+
+**Frontend:**
+- Nueva pestaña **"Clima"** en Reglas con 2 sub-tabs:
+  - **Regiones (Plantillas)**: Sidebar jerárquico (parent→child indentado), matriz central editable 12×16 por región, vista en vivo del icono que cambia con los % al editar, edición de keywords (qué `region` de las ubicaciones se mapean aquí), botón "Recargar datos del Excel" para re-seedear.
+  - **Overrides por Ubicación**: Buscador, lista de ubicaciones, matriz override granular (campo a campo). Las celdas con override se ven en azul y permiten "×" para revertir solo esa celda. Botón "Limpiar todos" para revertir 100% de la herencia.
+- Nuevo `WeatherIndicator.jsx` reutilizable: muestra icono + temp + viento + tooltip. Mapea meses élficos→abreviados.
+- Integración en `EnhancedTravelSystem.jsx`:
+  - **Vista previa del clima** en la configuración: panel "Clima previsto" con icono+stats para origen y destino del mes elegido.
+  - **Banner meteorológico** en la pantalla de Resultados: 2 indicadores grandes con clima de origen y destino.
+
+**Testing:** 15/15 pytest backend (`/app/backend/tests/test_climate.py`) + 7/7 flujos frontend (Iteration 56 testing agent — todas las celdas, tabs, overrides, búsqueda, integración con viaje verificadas).
 
 #### 8. Iteración 55 — Crónica unificada + velocidades nuevas + compra provisiones + auto-viaje (2026-02-24)
 **Backend (57/57 pytest passing):**
@@ -97,15 +117,16 @@
 ## Pending Tasks
 
 ### 🟢 En Barbecho (dependen de otros sistemas)
-- **Texto narrativo IA al acampar** (depende de sistema de clima)
+- **Texto narrativo IA al acampar** (ahora ya disponible: integración con clima resuelto vía `/api/climate/effective`)
 - **Selector Campaña + Código en Papeles de Viaje** (depende de sistema de Campañas)
-- **Sistema de Clima por región + efectos en tiradas y narrativa** (tras Fase A concluida ✅)
 
 ### P0 - Próximo
-- **Sistema de Clima por región** (destraba narrativa de acampada + integración automática en crónica).
+- **Comprar Provisiones desde Travel Config (Punto 2 pendiente):** integrar el botón Comprar con cantidad de raciones/agua y deducción de monedas según región.
 - **Auth + RBAC + Campañas (Copy-on-Write)** con JWT, hCaptcha y chat interno para reset de contraseña.
+- **Integración del clima en la narrativa IA del Diario** (consumir `/api/climate/effective/{loc}` en `generate-full-chronicle`).
 
 ### P1
+- Exportar Diario en Markdown (Obsidian/Notion)
 - Game Master Screen (dashboard en vivo: jugadores conectados, HP, fatiga, dados, encuentros)
 - Live Session Connectivity (códigos/links para unirse)
 
@@ -114,7 +135,7 @@
 - Pathfinding debugger fix
 - Mouse wheel zoom smoothing (Master Map)
 - Database backup/restore
-- Refactor: `EnhancedTravelSystem.jsx` (>5300 líneas), `MiddleEarthMap.jsx` (>2500), `TreasureSystemSection.jsx`
+- Refactor: `EnhancedTravelSystem.jsx` (>5700 líneas), `MiddleEarthMap.jsx` (>2500), `TreasureSystemSection.jsx`
 
 ---
 

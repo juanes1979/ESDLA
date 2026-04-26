@@ -49,6 +49,27 @@ def now_utc() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
+# Map Eldarin month names to abbreviated keys (accepted for symmetry)
+ELDARIN_TO_ABBREV = {
+    "Nénimë": "Ene", "Súlimë": "Feb", "Coiviennë": "Mar", "Víressë": "Abr",
+    "Lótessë": "May", "Nárië": "Jun", "Cermië": "Jul", "Urimë": "Ago",
+    "Yavannië": "Sep", "Narquelië": "Oct", "Hísimë": "Nov", "Ringarë": "Dic",
+}
+
+
+def _normalize_month(mes: Optional[str]) -> Optional[str]:
+    """Accept either abbreviated ('Ene') or Eldarin ('Nénimë') forms."""
+    if not mes:
+        return None
+    if mes in MONTH_KEYS:
+        return mes
+    if mes in ELDARIN_TO_ABBREV:
+        return ELDARIN_TO_ABBREV[mes]
+    # Fallback: first 3 chars
+    candidate = mes[:3]
+    return candidate if candidate in MONTH_KEYS else None
+
+
 def serialize_doc(doc: dict) -> dict:
     if doc is None:
         return None
@@ -473,10 +494,11 @@ async def get_effective_climate_for_location(location_id: str, mes: Optional[str
     }
 
     if mes:
-        if mes not in MONTH_KEYS:
+        mes_norm = _normalize_month(mes)
+        if not mes_norm:
             raise HTTPException(status_code=400, detail=f"Invalid month '{mes}'")
-        response["mes_actual"] = mes
-        response["clima_mes"] = effective_meses.get(mes)
+        response["mes_actual"] = mes_norm
+        response["clima_mes"] = effective_meses.get(mes_norm)
 
     return response
 
@@ -503,12 +525,14 @@ async def get_effective_for_region(region_id: str, mes: Optional[str] = None):
 
 @router.get("/icon/location/{location_id}")
 async def get_icon_for_location_month(location_id: str, mes: str, dia: Optional[int] = None):
-    """
-    Lightweight endpoint for the travel UI: returns just the icon + key stats for a given month.
+    """Lightweight endpoint for the travel UI: returns just the icon + key stats for a given month.
     `dia` is accepted for future per-day variation (currently uses month aggregate).
+    Accepts both abbreviated ('Ene') and Eldarin ('Nénimë') month forms.
     """
-    if mes not in MONTH_KEYS:
+    mes_norm = _normalize_month(mes)
+    if not mes_norm:
         raise HTTPException(status_code=400, detail=f"Invalid month '{mes}'")
+    mes = mes_norm
     loc = await db.locations.find_one({"id": location_id})
     if not loc:
         raise HTTPException(status_code=404, detail="Location not found")
