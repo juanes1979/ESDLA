@@ -12,6 +12,7 @@ import InteractiveCharacterSheet from "@/pages/InteractiveCharacterSheet";
 import SheetPositionEditor from "@/pages/SheetPositionEditor";
 import TravelGenerator from "@/pages/TravelGenerator";
 import EnhancedTravelSystem from "@/pages/EnhancedTravelSystem";
+import TravelErrorBoundary from "@/components/travel/TravelErrorBoundary";
 import MiddleEarthMap from "@/pages/MiddleEarthMap";
 import MapSelectionPage from "@/pages/MapSelectionPage";
 import PlayerMap from "@/pages/PlayerMap";
@@ -34,7 +35,7 @@ function App() {
             <Route path="/characters" element={<CharactersListPage />} />
             <Route path="/rules" element={<RulesPage />} />
             <Route path="/sheet-editor" element={<SheetPositionEditor />} />
-            <Route path="/travel" element={<EnhancedTravelSystem />} />
+            <Route path="/travel" element={<TravelErrorBoundary><EnhancedTravelSystem /></TravelErrorBoundary>} />
             <Route path="/travel/legacy" element={<TravelGenerator />} />
             <Route path="/map" element={<MapSelectionPage />} />
             <Route path="/map/master" element={<MiddleEarthMap />} />
