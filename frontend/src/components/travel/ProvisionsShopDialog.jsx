@@ -32,11 +32,13 @@ import api from '@/services/api';
 const PESO_COMIDA_DIA_KG = 0.45;
 const PESO_AGUA_DIA_KG = 3.79;
 
-// Precios base (en piezas de plata, pp), se pueden ajustar
-const PRECIO_BASE_RACION_PP = 2.5;   // por día de ración por persona
-const PRECIO_BASE_AGUA_PP = 2.5;     // por día de odre por persona
-const PRECIO_BASE_FORRAJE_PP = 5.0;  // por día por animal (caballo/poni)
-const PRECIO_BASE_AGUA_ANIMAL_PP = 4.0; // por día por animal
+// Precios base en MONEDAS DE COBRE (mc) — los del catálogo del juego.
+// Una ración cuesta 5 mc/día y un odre/jarra de agua 1 me (50 mc).
+// Para el viaje de varios días usamos un PROMEDIO razonable diario.
+const PRECIO_BASE_RACION_MC = 5;       // mc por día por persona (catálogo)
+const PRECIO_BASE_AGUA_MC = 50;        // mc por día por persona (= 1 me)
+const PRECIO_BASE_FORRAJE_MC = 20;     // mc/día por animal (pienso seco, intermedio)
+const PRECIO_BASE_AGUA_ANIMAL_MC = 50; // mc/día por animal
 
 // --- Helpers ---
 // Modelo de monedas del personaje: mo (oro), mp (plata), me (electrum), mc (cobre).
@@ -77,10 +79,10 @@ export default function ProvisionsShopDialog({
   onPurchaseComplete,
 }) {
   const [modifiers, setModifiers] = useState(null);
-  const [precioRacion, setPrecioRacion] = useState(PRECIO_BASE_RACION_PP);
-  const [precioAgua, setPrecioAgua] = useState(PRECIO_BASE_AGUA_PP);
-  const [precioForraje, setPrecioForraje] = useState(PRECIO_BASE_FORRAJE_PP);
-  const [precioAguaAnimal, setPrecioAguaAnimal] = useState(PRECIO_BASE_AGUA_ANIMAL_PP);
+  const [precioRacion, setPrecioRacion] = useState(PRECIO_BASE_RACION_MC);
+  const [precioAgua, setPrecioAgua] = useState(PRECIO_BASE_AGUA_MC);
+  const [precioForraje, setPrecioForraje] = useState(PRECIO_BASE_FORRAJE_MC);
+  const [precioAguaAnimal, setPrecioAguaAnimal] = useState(PRECIO_BASE_AGUA_ANIMAL_MC);
   const [animales, setAnimales] = useState(numeroAnimales);
   const [selRegion, setSelRegion] = useState('');
   const [selAsentamiento, setSelAsentamiento] = useState('');
@@ -120,12 +122,12 @@ export default function ProvisionsShopDialog({
 
   const needs = useMemo(() => animalNeeds(terreno, tipoTierra), [terreno, tipoTierra]);
 
-  // Precio final por miembro (humanos) y por animal
-  const precioFinalPersonaPP = useMemo(() => {
+  // Precio final por miembro (humanos) y por animal — TODO en piezas de cobre (mc)
+  const precioFinalPersonaMC = useMemo(() => {
     return (precioRacion + precioAgua) * diasViaje * totalMod.total;
   }, [precioRacion, precioAgua, diasViaje, totalMod.total]);
 
-  const precioFinalAnimalPP = useMemo(() => {
+  const precioFinalAnimalMC = useMemo(() => {
     if (animales <= 0) return 0;
     let perAnimal = 0;
     if (needs.needsFood) perAnimal += precioForraje;
@@ -133,43 +135,65 @@ export default function ProvisionsShopDialog({
     return perAnimal * diasViaje * animales * totalMod.total;
   }, [animales, needs, precioForraje, precioAguaAnimal, diasViaje, totalMod.total]);
 
-  const precioGrupoAnimalesPP = precioFinalAnimalPP; // total para todo el grupo
-  const precioGrupoAnimalesPC = precioGrupoAnimalesPP * 10;
+  const precioGrupoAnimalesMC = precioFinalAnimalMC; // total para todo el grupo
+
+  // Helper: formatea un precio en mc como string compacto con la moneda más alta razonable
+  const formatPrice = (mc) => {
+    const total = Math.round(mc);
+    if (total >= 100) {
+      const oro = Math.floor(total / 100);
+      const resto = total % 100;
+      return resto > 0 ? `${oro} mo ${resto} mc` : `${oro} mo`;
+    }
+    if (total >= 50) {
+      const electrum = Math.floor(total / 50);
+      const resto = total % 50;
+      return resto > 0 ? `${electrum} me ${resto} mc` : `${electrum} me`;
+    }
+    if (total >= 10) {
+      const plata = Math.floor(total / 10);
+      const resto = total % 10;
+      return resto > 0 ? `${plata} mp ${resto} mc` : `${plata} mp`;
+    }
+    return `${total} mc`;
+  };
 
   const rows = useMemo(() => {
     return miembros.map((m) => {
       const char = characters.find((c) => c.id === m.id);
       const dinero = char?.dinero || {};
-      const pcDisp = coinsToPC(dinero);
-      const precioPCMiembro = precioFinalPersonaPP * 10;
-      const puedeComprar = pcDisp >= precioPCMiembro;
+      const mcDisp = coinsToPC(dinero);
+      const puedeComprar = mcDisp >= precioFinalPersonaMC;
       return {
         id: m.id,
         nombre: m.nombre,
         char,
         dinero,
-        pcDisp,
-        precioPP: precioFinalPersonaPP,
+        mcDisp,
+        precioMC: precioFinalPersonaMC,
+        precioFmt: formatPrice(precioFinalPersonaMC),
         puedeComprar,
       };
     });
-  }, [miembros, characters, precioFinalPersonaPP]);
+  }, [miembros, characters, precioFinalPersonaMC]);
 
   const comprarPara = async (row) => {
     if (!row.puedeComprar) {
-      toast.error(`${row.nombre} no tiene suficientes monedas (necesita ${row.precioPP.toFixed(2)} mp).`);
+      toast.error(`${row.nombre} no tiene suficientes monedas (necesita ${row.precioFmt}).`);
       return;
     }
     setProcessing(true);
     try {
       const desc = `Pack viaje ${diasViaje}d (×${totalMod.total.toFixed(2)})`;
+      // Convertimos el precio en mc al formato más cercano
+      const halfMC = row.precioMC / 2;
       await api.post(`/characters/${row.id}/equipment/add`, {
         item_name: `Ración de viaje (${diasViaje} días) — ${desc}`,
         item_category: 'equipo_general',
         cantidad: diasViaje,
         is_purchase: true,
-        precio: row.precioPP / 2,
-        moneda: 'mp',
+        precio: halfMC,
+        moneda: 'mc',
         peso_kg: PESO_COMIDA_DIA_KG,
       });
       await api.post(`/characters/${row.id}/equipment/add`, {
@@ -177,12 +201,12 @@ export default function ProvisionsShopDialog({
         item_category: 'equipo_general',
         cantidad: 1,
         is_purchase: true,
-        precio: row.precioPP / 2,
-        moneda: 'mp',
+        precio: halfMC,
+        moneda: 'mc',
         peso_kg: diasViaje * PESO_AGUA_DIA_KG,
       });
       setResultados((prev) => ({ ...prev, [row.id]: 'ok' }));
-      toast.success(`${row.nombre} compró por ${row.precioPP.toFixed(2)} mp.`);
+      toast.success(`${row.nombre} compró por ${row.precioFmt}.`);
       if (onPurchaseComplete) onPurchaseComplete(row.id);
     } catch (err) {
       console.error(err);
@@ -285,25 +309,28 @@ export default function ProvisionsShopDialog({
 
           {/* Precios base configurables */}
           <details className="bg-black/20 rounded p-2 text-xs">
-            <summary className="cursor-pointer text-muted-foreground">Precios base (mp/día, configurables)</summary>
+            <summary className="cursor-pointer text-muted-foreground">Precios base (mc/día, configurables)</summary>
             <div className="grid grid-cols-4 gap-2 mt-2">
               <div>
-                <Label className="text-[10px]">Ración / día</Label>
-                <Input type="number" step="0.5" value={precioRacion} onChange={(e) => setPrecioRacion(parseFloat(e.target.value) || 0)} className="h-7 text-xs" data-testid="provisions-base-racion" />
+                <Label className="text-[10px]">Ración / día (mc)</Label>
+                <Input type="number" step="1" value={precioRacion} onChange={(e) => setPrecioRacion(parseFloat(e.target.value) || 0)} className="h-7 text-xs" data-testid="provisions-base-racion" />
               </div>
               <div>
-                <Label className="text-[10px]">Agua / día</Label>
-                <Input type="number" step="0.5" value={precioAgua} onChange={(e) => setPrecioAgua(parseFloat(e.target.value) || 0)} className="h-7 text-xs" data-testid="provisions-base-agua" />
+                <Label className="text-[10px]">Agua / día (mc)</Label>
+                <Input type="number" step="1" value={precioAgua} onChange={(e) => setPrecioAgua(parseFloat(e.target.value) || 0)} className="h-7 text-xs" data-testid="provisions-base-agua" />
               </div>
               <div>
-                <Label className="text-[10px]">Forraje animal / día</Label>
-                <Input type="number" step="0.5" value={precioForraje} onChange={(e) => setPrecioForraje(parseFloat(e.target.value) || 0)} className="h-7 text-xs" />
+                <Label className="text-[10px]">Forraje animal / día (mc)</Label>
+                <Input type="number" step="1" value={precioForraje} onChange={(e) => setPrecioForraje(parseFloat(e.target.value) || 0)} className="h-7 text-xs" />
               </div>
               <div>
-                <Label className="text-[10px]">Agua animal / día</Label>
-                <Input type="number" step="0.5" value={precioAguaAnimal} onChange={(e) => setPrecioAguaAnimal(parseFloat(e.target.value) || 0)} className="h-7 text-xs" />
+                <Label className="text-[10px]">Agua animal / día (mc)</Label>
+                <Input type="number" step="1" value={precioAguaAnimal} onChange={(e) => setPrecioAguaAnimal(parseFloat(e.target.value) || 0)} className="h-7 text-xs" />
               </div>
             </div>
+            <p className="text-[10px] text-muted-foreground mt-2 italic">
+              Catálogo: Ración 5 mc/día · Agua (jarra) 1 me = 50 mc. Por defecto usamos un promedio razonable.
+            </p>
           </details>
 
           {/* Animales */}
@@ -339,7 +366,7 @@ export default function ProvisionsShopDialog({
                 )}
                 {(needs.needsFood || needs.needsWater) && (
                   <p className="mt-1 font-mono text-[hsl(var(--torch-orange))]">
-                    Coste animales (todo el grupo): <strong>{precioGrupoAnimalesPP.toFixed(2)} mp</strong>
+                    Coste animales (todo el grupo): <strong>{formatPrice(precioGrupoAnimalesMC)}</strong>
                   </p>
                 )}
               </div>
@@ -364,12 +391,12 @@ export default function ProvisionsShopDialog({
                     <div className="flex-1">
                       <p className="font-medium">{row.nombre}</p>
                       <p className="text-[11px] text-muted-foreground">
-                        Monedas: {row.dinero.mo || 0} mo · {row.dinero.mp || 0} mp · {row.dinero.me || 0} me · {row.dinero.mc || 0} mc
-                        <span className="ml-2 text-[hsl(var(--gold))]">(= {row.pcDisp} mc total)</span>
+                        Monedas: {row.dinero.mo || 0} mo · {row.dinero.me || 0} me · {row.dinero.mp || 0} mp · {row.dinero.mc || 0} mc
+                        <span className="ml-2 text-[hsl(var(--gold))]">(= {row.mcDisp} mc total)</span>
                       </p>
                     </div>
                     <div className="text-right">
-                      <p className="text-xs font-mono text-[hsl(var(--gold))]">{row.precioPP.toFixed(2)} mp</p>
+                      <p className="text-xs font-mono text-[hsl(var(--gold))]">{row.precioFmt}</p>
                       {estado === 'ok' ? (
                         <Badge className="bg-green-600">
                           <CheckCircle2 className="w-3 h-3 mr-1" />Comprado
