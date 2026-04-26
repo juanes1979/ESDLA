@@ -601,8 +601,6 @@ const EnhancedTravelSystem = () => {
   
   // Mode: 'config' | 'global' | 'dayByDay' | 'results'
   const [mode, setMode] = useState('config');
-  // Sync mode to ref so async automation loop can see immediate changes
-  useEffect(() => { modeRef.current = mode; }, [mode]);
   const [travelMode, setTravelMode] = useState('global'); // 'global' or 'dayByDay'
   
   // Data from API
@@ -746,6 +744,8 @@ const EnhancedTravelSystem = () => {
   useEffect(() => { currentPositionRef.current = currentPosition; }, [currentPosition]);
   useEffect(() => { currentEventRef.current = currentEvent; }, [currentEvent]);
   useEffect(() => { charactersRef.current = characters; }, [characters]);
+  // Sync mode to ref so async automation loop can see immediate changes
+  useEffect(() => { modeRef.current = mode; }, [mode]);
   
   // =============== LOAD DATA ===============
   

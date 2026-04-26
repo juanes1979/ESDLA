@@ -428,32 +428,52 @@ async def _find_climate_region_for_location(location: dict) -> Optional[dict]:
 
 
 def _icon_for_month(month_data: dict) -> Dict[str, str]:
-    """Pick a single representative weather icon for a month based on percentages."""
+    """Pick the DOMINANT weather state for the month based on percentages.
+
+    Returns the single most likely weather of that region/month — useful as a
+    quick 'forecast' of typical weather (not a per-day roll). Compares all
+    weather components (lluvia, tormenta, nieve, niebla, calima, despejado,
+    nublado) and picks the one with the highest weighted score.
+    """
     if not month_data:
         return {"icon": "❓", "label": "Sin datos"}
-    nieve = float(month_data.get("pct_nieve_helada") or 0)
-    lluvia = float(month_data.get("pct_lluvia") or 0)
-    tormenta = float(month_data.get("pct_tormenta") or 0)
-    calima = float(month_data.get("pct_calima") or 0)
-    niebla = float(month_data.get("pct_niebla") or 0)
+
+    pct_lluvia = float(month_data.get("pct_lluvia") or 0)
+    pct_tormenta = float(month_data.get("pct_tormenta") or 0)
+    pct_nieve = float(month_data.get("pct_nieve_helada") or 0)
+    pct_niebla = float(month_data.get("pct_niebla") or 0)
+    pct_calima = float(month_data.get("pct_calima") or 0)
     horas_sol = float(month_data.get("horas_sol") or 0)
     temp_max = month_data.get("temp_max")
     temp_max_v = float(temp_max) if temp_max is not None else 99
 
-    # Priorities: nieve > tormenta > lluvia > calima > niebla > sol > nubes
-    if nieve >= 30 or temp_max_v < 0:
-        return {"icon": "❄️", "label": "Nieve"}
-    if tormenta >= 25:
-        return {"icon": "⛈️", "label": "Tormenta"}
-    if (lluvia + tormenta) >= 40:
-        return {"icon": "🌧️", "label": "Lluvia"}
-    if calima >= 30:
-        return {"icon": "🌫️", "label": "Calima"}
-    if niebla >= 35:
-        return {"icon": "🌫️", "label": "Niebla"}
-    if horas_sol >= 9 and lluvia < 25 and niebla < 20:
-        return {"icon": "☀️", "label": "Despejado"}
-    return {"icon": "☁️", "label": "Nublado"}
+    # If too cold, rain converts to snow
+    if temp_max_v <= 0:
+        pct_nieve = pct_nieve + pct_lluvia + pct_tormenta
+        pct_lluvia = 0
+        pct_tormenta = 0
+
+    # Estimate "remaining" non-precip days and split between despejado and nublado
+    used = pct_lluvia + pct_tormenta + pct_nieve + pct_niebla + pct_calima
+    remaining = max(0.0, 100.0 - used)
+    horas_factor = max(0.0, min(1.0, horas_sol / 12.0))
+    pct_despejado = remaining * horas_factor
+    pct_nublado = remaining * (1.0 - horas_factor)
+
+    candidates = [
+        ("☀️", "Despejado", pct_despejado),
+        ("⛅", "Nublado", pct_nublado),
+        ("🌫️", "Niebla", pct_niebla),
+        ("🌫️", "Calima", pct_calima),
+        ("🌦️", "Lluvia", pct_lluvia),
+        ("⛈️", "Tormenta", pct_tormenta),
+        ("❄️", "Nieve", pct_nieve),
+    ]
+    # Pick the dominant
+    best = max(candidates, key=lambda c: c[2])
+    if best[2] <= 0:
+        return {"icon": "⛅", "label": "Nublado"}
+    return {"icon": best[0], "label": best[1]}
 
 
 def _sample_icon_from_distribution(month_data: dict, location_id: str = "", mes: str = "", dia: Optional[int] = None) -> Dict[str, str]:
@@ -607,10 +627,8 @@ async def get_icon_for_location_month(location_id: str, mes: str, dia: Optional[
     overrides = ((override_doc or {}).get("overrides") or {}).get(mes) or {}
     base = ((cr or {}).get("meses") or {}).get(mes) or {}
     merged = {**base, **overrides}
-
-    # Sample a representative state (instead of always picking the dominant one).
-    # Uses a deterministic seed so reloads are stable; varies across location/day.
-    icon = _sample_icon_from_distribution(merged, location_id, mes, dia)
+    # Show the DOMINANT weather of that month for the location (most representative).
+    icon = _icon_for_month(merged)
 
     return {
         "location_id": location_id,

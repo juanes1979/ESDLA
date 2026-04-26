@@ -4,6 +4,13 @@
 
 ### ✅ COMPLETED This Session
 
+#### 12. Iteración 59 — Hot-fix crítico de Calcular Ruta + clima dominante (2026-02-25)
+- **🔴 BUG CRÍTICO arreglado**: la pantalla se quedaba en negro / "0 ubicaciones" al pulsar "Calcular Ruta". Causa: un `useEffect(() => { modeRef.current = mode; }, [mode])` declarado ANTES de `const modeRef = useRef('config')`. Aunque la closure capturaba el binding tarde, en algunos paths de re-render React detectaba el problema y desmontaba el árbol. Movido al lugar correcto (junto a los demás refs sync). Verificado: la app carga 244 ubicaciones y permanece estable tras editar campos.
+- **🟢 Clima previsto realista**: revertido el muestreo aleatorio. Ahora `_icon_for_month` calcula el estado **dominante** del mes ponderando los % de la región (lluvia, tormenta, nieve, niebla, calima, despejado, nublado) y elige el de mayor peso. Verificado: Eriador en julio → Despejado, en marzo → Lluvia, sin nieve falsa. Eriador todo el año coherente con el clima atlántico templado de la tradición tolkien.
+- **🟢 Imagen del Ojo de Sauron** sigue en `/app/frontend/public/ojo_sauron.png`. El componente `SauronEyeOverlay.jsx` es **reutilizable** — cualquier flujo de automatización futuro (compra masiva, generación batch, etc.) lo puede invocar pasando `visible`, `percent`, `message`, `subtitle`.
+
+**Testing**: 25/25 pytest backend (todos pasando incluido los nuevos del comportamiento dominante). Frontend verificado por screenshot tool: app render estable, 244 ubicaciones cargadas.
+
 #### 11. Iteración 58 — Polish round (Ojo correcto, mapa con eventos, narrativa natural, clima previsto realista, botón comprar) (2026-02-25)
 - **Imagen del Ojo de Sauron corregida** (`ojo_sauron.png`) con `clip-path: circle(50%)` + `mix-blend-mode: screen` para fundir el fondo gris.
 - **Mapa del Diario muestra TODOS los eventos**: ahora interpola posición sobre la línea recta cuando no hay path detallado, con offset radial cuando varios eventos caen en la misma casilla y numeración 1..N para verlos claros (verde/rojo según éxito/fracaso).
