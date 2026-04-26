@@ -4,7 +4,7 @@
  */
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Users, Swords, Shield, BookOpen, Sparkles, Moon, Map, Loader2, Package, Search, ChevronDown, ChevronUp, Plus, Copy, Edit, User, Scroll, Trash2, Crown, Skull, MapPin, FileText, Printer, Check, AlertTriangle, Coins, Settings } from 'lucide-react';
+import { ArrowLeft, Users, Swords, Shield, BookOpen, Sparkles, Moon, Map, Loader2, Package, Search, ChevronDown, ChevronUp, Plus, Copy, Edit, User, Scroll, Trash2, Crown, Skull, MapPin, FileText, Printer, Check, AlertTriangle, Coins, Settings, CloudSun } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -20,7 +20,7 @@ import BackgroundEditor from '@/components/admin/BackgroundEditor';
 import OccupationEditor from '@/components/admin/OccupationEditor';
 import EquipmentEditor from '@/components/admin/EquipmentEditor';
 // Refactored rule section components
-import { SombraSection, CombateSection, SalariosSection, VariosSection, ViajeSection, ComunidadSection, NPCsSection, CriaturasSinNombreSection, BackgroundsSection, CharacterCreationSection, TerrainCorrectionTool, TradingSystemSection, VirtuesSection, ArtesSection, RecompensasSection, EquipmentSection, PriceModifiersSection, RegionsSection, CulturesSection, OccupationsSection, TravelRulesSection } from '@/components/rules';
+import { SombraSection, CombateSection, SalariosSection, VariosSection, ViajeSection, ComunidadSection, NPCsSection, CriaturasSinNombreSection, BackgroundsSection, CharacterCreationSection, TerrainCorrectionTool, TradingSystemSection, VirtuesSection, ArtesSection, RecompensasSection, EquipmentSection, PriceModifiersSection, RegionsSection, CulturesSection, OccupationsSection, TravelRulesSection, ClimateSection } from '@/components/rules';
 import ObjectInteractionSection from '@/components/rules/sections/ObjectInteractionSection';
 import TreasureSystemSection from '@/components/rules/sections/TreasureSystemSection';
 
@@ -48,6 +48,7 @@ const RULE_CATEGORIES = [
   { id: 'npcs', name: 'Bestiario', icon: Moon, color: 'destructive', description: 'Enemigos, PNJ, Animales y Especiales' },
   { id: 'nameless', name: 'Criaturas sin Nombre', icon: Skull, color: 'destructive', description: 'Reglas y generador de criaturas ancestrales' },
   { id: 'regions', name: 'Regiones', icon: MapPin, color: 'magic-blue', description: 'Gestión de regiones y sub-regiones del mapa' },
+  { id: 'climate', name: 'Clima', icon: CloudSun, color: 'magic-blue', description: 'Sistema climático por región y mes, con overrides por ubicación' },
 ];
 
 // Currency display helper
@@ -212,6 +213,10 @@ const RulesPage = () => {
             break;
           case 'travel-rules':
             // Travel rules section loads its own data
+            setData(null);
+            break;
+          case 'climate':
+            // Climate section loads its own data
             setData(null);
             break;
           case 'community':
@@ -3048,6 +3053,9 @@ const RulesPage = () => {
           isAdmin={isAdmin}
           onRefresh={reloadData}
         />;
+      
+      case 'climate':
+        return <ClimateSection />;
       
       default:
         return null;

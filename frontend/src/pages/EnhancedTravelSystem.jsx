@@ -29,6 +29,7 @@ import PartyFatiguePanel from '@/components/travel/PartyFatiguePanel';
 import CampDialog from '@/components/travel/CampDialog';
 import JourneyDiary from '@/components/travel/JourneyDiary';
 import ProvisionsShopDialog from '@/components/travel/ProvisionsShopDialog';
+import WeatherIndicator from '@/components/travel/WeatherIndicator';
 
 // Map URLs and coordinate system
 // Both maps have the same pixel dimensions (19791x15133)
@@ -3500,6 +3501,25 @@ const EnhancedTravelSystem = () => {
               </p>
             </div>
             
+            {/* Vista previa del clima en origen y destino para el mes elegido */}
+            {(config.origenId || config.destinoId) && (
+              <div className="md:col-span-2 lg:col-span-3 flex flex-wrap gap-3 items-center bg-black/20 rounded p-2" data-testid="weather-preview-config">
+                <span className="text-xs text-muted-foreground">Clima previsto:</span>
+                {config.origenId && (
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-muted-foreground">{config.origenNombre}:</span>
+                    <WeatherIndicator locationId={config.origenId} mes={config.mes} dia={config.diaMes} compact />
+                  </div>
+                )}
+                {config.destinoId && (
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-muted-foreground">→ {config.destinoNombre}:</span>
+                    <WeatherIndicator locationId={config.destinoId} mes={config.mes} dia={config.diaMes} compact />
+                  </div>
+                )}
+              </div>
+            )}
+            
             <div>
               <Label>Marcha Forzada (horas extra)</Label>
               <Select 
@@ -5056,6 +5076,20 @@ const EnhancedTravelSystem = () => {
           <CardContent>
             <div className="text-center mb-6">
               <h2 className="text-2xl font-bold">{config.origenNombre} → {config.destinoNombre}</h2>
+              <div className="mt-3 flex justify-center gap-4 flex-wrap" data-testid="weather-results-banner">
+                {config.origenId && (
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-muted-foreground">{config.origenNombre}</span>
+                    <WeatherIndicator locationId={config.origenId} mes={config.mes} dia={config.diaMes} />
+                  </div>
+                )}
+                {config.destinoId && (
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-muted-foreground">{config.destinoNombre}</span>
+                    <WeatherIndicator locationId={config.destinoId} mes={config.mes} dia={config.diaMes} />
+                  </div>
+                )}
+              </div>
             </div>
             
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">

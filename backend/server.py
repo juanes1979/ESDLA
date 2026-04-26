@@ -18,6 +18,7 @@ from routes.storage_routes import router as storage_router
 from routes.travel_routes import router as travel_router
 from routes.name_generator import router as name_router
 from routes.portrait_routes import router as portrait_router
+from routes.climate_routes import router as climate_router
 
 
 ROOT_DIR = Path(__file__).parent
@@ -94,6 +95,7 @@ api_router.include_router(storage_router)
 api_router.include_router(travel_router)
 api_router.include_router(name_router)
 api_router.include_router(portrait_router)
+api_router.include_router(climate_router)
 
 # Include the main router in the app
 app.include_router(api_router)
