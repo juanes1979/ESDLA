@@ -20,7 +20,7 @@ import {
   Sun, Moon, Snowflake, Leaf, ArrowLeft, ArrowRight, Plus, MapPin, 
   Route, AlertTriangle, Shield, Footprints, Dice6, Check, X,
   ChevronRight, SkipForward, Flag, Zap, Heart, Eye, Sparkles, Maximize2,
-  Printer, FileText, BookOpen, Package, ArrowLeftRight, Loader2, Droplets, Utensils, Tent
+  Printer, FileText, BookOpen, Package, ArrowLeftRight, Loader2, Droplets, Utensils, Tent, Coins
 } from 'lucide-react';
 import { toast } from 'sonner';
 import html2canvas from 'html2canvas';
