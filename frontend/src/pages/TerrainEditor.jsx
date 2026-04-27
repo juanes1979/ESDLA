@@ -80,6 +80,50 @@ const TerrainEditor = () => {
   const [movingPolygonId, setMovingPolygonId] = useState(null);
   const [moveStartCoords, setMoveStartCoords] = useState(null);
 
+  // === Undo / Redo history of drawnPolygons (Iter 68) ===
+  const HISTORY_MAX = 50;
+  const [history, setHistory] = useState([]);     // array of polygon snapshots
+  const [historyIndex, setHistoryIndex] = useState(-1);
+
+  // Push the CURRENT drawnPolygons onto history. Call BEFORE applying a change.
+  const pushHistory = (snapshot) => {
+    const snap = JSON.parse(JSON.stringify(snapshot || []));
+    setHistory(prev => {
+      // Drop everything after the cursor (redo branch is invalidated)
+      const trimmed = prev.slice(0, historyIndex + 1);
+      const next = [...trimmed, snap];
+      // Cap size — drop oldest entries
+      if (next.length > HISTORY_MAX) next.shift();
+      // Adjust the cursor to the new tail
+      setHistoryIndex(next.length - 1);
+      return next;
+    });
+  };
+
+  const undo = () => {
+    if (historyIndex < 0) {
+      toast.info('Nada que deshacer.');
+      return;
+    }
+    const snap = history[historyIndex];
+    setDrawnPolygons(JSON.parse(JSON.stringify(snap || [])));
+    setHistoryIndex(historyIndex - 1);
+    toast.success('Deshecho.');
+  };
+
+  const redo = () => {
+    if (historyIndex >= history.length - 1) {
+      toast.info('Nada que rehacer.');
+      return;
+    }
+    const snap = history[historyIndex + 2]; // +2 because pushHistory stored the BEFORE state
+    if (snap) {
+      setDrawnPolygons(JSON.parse(JSON.stringify(snap)));
+      setHistoryIndex(historyIndex + 1);
+      toast.success('Rehecho.');
+    }
+  };
+
 
   // Load data
   useEffect(() => {
@@ -374,6 +418,7 @@ const TerrainEditor = () => {
       points: [...currentPolygon]
     };
     
+    pushHistory(drawnPolygons);
     setDrawnPolygons(prev => [...prev, newPolygon]);
     setCurrentPolygon([]);
     toast.success(`Polígono creado con ${newPolygon.points.length} puntos`);
@@ -394,6 +439,7 @@ const TerrainEditor = () => {
 
   // Delete a drawn polygon
   const deletePolygon = (polygonId) => {
+    pushHistory(drawnPolygons);
     setDrawnPolygons(prev => prev.filter(p => p.id !== polygonId));
     toast.info('Polígono eliminado');
   };
