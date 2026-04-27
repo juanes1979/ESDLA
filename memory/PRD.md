@@ -4,6 +4,26 @@
 
 ### ✅ COMPLETED This Session
 
+#### 18. Iteración 65 — Backup / Restore de la base de datos (2026-02-26)
+
+**🎯 Objetivo**: que el Maestro pueda exportar TODA la base de datos a un archivo JSON antes de un cambio importante, y poder restaurar en caso de error.
+
+**Backend** (`/app/backend/routes/admin_routes.py`):
+- `GET /api/admin/backup` → snapshot completo (59 colecciones, ~970 docs en BD actual). Sanitiza ObjectId / datetime para JSON. Incluye `counts` por colección.
+- `POST /api/admin/restore?mode=replace|merge` → restaura un JSON. `replace` borra cada colección antes de insertar; `merge` upsertea por `_id`.
+- `POST /api/admin/verify-token` → endpoint ligero para que la UI compruebe el token sin acción destructiva.
+- Protegido por `X-Admin-Token` header. Token configurable en `backend/.env` como `ADMIN_BACKUP_TOKEN`.
+
+**Frontend** (`/app/frontend/src/pages/AdminBackupPage.jsx` en `/admin/backup`):
+- Login con token (persistido en localStorage tras verificación).
+- Card de descarga: botón "Descargar copia ahora" → genera y baja `lotr5e_backup_{timestamp}.json`. Muestra resumen con contadores por colección.
+- Card de restauración: input file + selector modo (replace / merge) + confirmación + tabla de resumen (insertados / actualizados por colección).
+- Card de recomendaciones (consejos de uso).
+
+**Token actual** (test): `lotr5e_admin_2026` — guardado en `/app/memory/test_credentials.md`.
+
+Lint ✅ backend y frontend. Verificado por screenshot: login con token correcto, panel completo, descarga funciona (devuelve 59 colecciones × 970 docs).
+
 #### 17. Iteración 64 — Zoom natural en el Mapa del Maestro (2026-02-26)
 
 **🎯 Bug**: el zoom con la rueda saltaba abruptamente (10% por click) y el zoom no se centraba donde apuntaba el ratón.
