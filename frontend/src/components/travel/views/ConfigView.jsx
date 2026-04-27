@@ -36,6 +36,8 @@ const ConfigView = ({
   setTravelMode,
   filterLocations, triggerCalculateJourney, compareRoutes,
   addMemberWithRole, removeRoleFromMember, updateMemberMount,
+  // Companions
+  addAcompanante, removeAcompanante, toggleAcompananteMount,
   startGlobalJourney, startDayByDayJourney,
 }) => (
     <div className="space-y-6">
@@ -1039,7 +1041,112 @@ const ConfigView = ({
           )}
         </CardContent>
       </Card>
-      
+
+      {/* Acompañantes (sin papel de viaje) */}
+      <Card className="card-parchment">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-lg text-[hsl(var(--gold))] flex items-center gap-2">
+            <Users className="w-5 h-5" />
+            Acompañantes
+            <Badge variant="outline" className="ml-2">
+              {(config.acompanantes || []).length} / 10
+            </Badge>
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <p className="text-xs text-muted-foreground">
+            Personajes que viajan con el grupo pero <strong>no</strong> tienen un papel asignado. No
+            hacen tiradas de eventos, orientación ni fatiga, pero <strong>sí</strong> consumen
+            comida y agua, y <strong>sí</strong> influyen en la velocidad del grupo (la del más
+            lento). Si tienen montura propia, su velocidad es la de la montura.
+          </p>
+
+          {/* Add companion selector */}
+          {(config.acompanantes || []).length < 10 && (
+            <div className="flex gap-2 items-end">
+              <div className="flex-1">
+                <Label className="text-xs">Añadir personaje como acompañante</Label>
+                <Select
+                  value=""
+                  onValueChange={(v) => v && addAcompanante && addAcompanante(v)}
+                >
+                  <SelectTrigger data-testid="add-acompanante-select">
+                    <SelectValue placeholder="Selecciona un personaje..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {characters
+                      .filter(c =>
+                        !config.miembros.some(m => m.id === c.id) &&
+                        !(config.acompanantes || []).some(a => a.id === c.id)
+                      )
+                      .map(c => (
+                        <SelectItem key={c.id} value={c.id}>
+                          {c.nombre}
+                          {c.montura ? ` 🐎 (${c.montura.nombre || 'Montura'})` : ''}
+                          {c.cultura_nombre ? ` — ${c.cultura_nombre}` : ''}
+                        </SelectItem>
+                      ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          )}
+
+          {/* List of companions */}
+          {(config.acompanantes || []).length > 0 && (
+            <div className="space-y-2">
+              {(config.acompanantes || []).map(a => (
+                <div
+                  key={a.id}
+                  className="flex items-center justify-between gap-3 p-2 rounded border border-border/40 bg-black/20"
+                  data-testid={`acompanante-item-${a.id}`}
+                >
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium truncate">
+                      {a.nombre}
+                      <span className="text-xs text-muted-foreground ml-2">
+                        ({a.raza})
+                      </span>
+                    </p>
+                    <p className="text-[11px] text-muted-foreground">
+                      Velocidad base: {a.velocidadBase}m
+                      {a.tieneMontura && a.monturaPropia && (
+                        <span className="ml-2 text-emerald-400">
+                          🐎 Montado en {a.monturaNombre} ({a.monturaPropia.velocidad}m)
+                        </span>
+                      )}
+                    </p>
+                  </div>
+                  {a.monturaPropia && (
+                    <div className="flex items-center gap-2">
+                      <Switch
+                        checked={!!a.tieneMontura}
+                        onCheckedChange={(checked) =>
+                          toggleAcompananteMount && toggleAcompananteMount(a.id, checked)
+                        }
+                        data-testid={`acompanante-mount-toggle-${a.id}`}
+                      />
+                      <span className="text-[11px] text-muted-foreground">A caballo</span>
+                    </div>
+                  )}
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => removeAcompanante && removeAcompanante(a.id)}
+                    className="text-red-400 hover:bg-red-500/10 h-7 w-7 p-0"
+                    data-testid={`remove-acompanante-${a.id}`}
+                    title="Quitar acompañante"
+                  >
+                    <X className="w-4 h-4" />
+                  </Button>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
       {/* Travel Mode Selection */}
       <Card className="card-parchment">
         <CardHeader className="pb-2">

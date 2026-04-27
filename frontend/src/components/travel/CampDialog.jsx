@@ -21,9 +21,10 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Tent, Eye, Moon, Flame, Dice6, Droplets, Utensils, AlertTriangle, CheckCircle2, XCircle } from 'lucide-react';
+import { Tent, Eye, Moon, Flame, Dice6, Droplets, Utensils, AlertTriangle, CheckCircle2, XCircle, Leaf } from 'lucide-react';
 import { toast } from 'sonner';
 import api from '@/services/api';
+import { getForageCD } from './travelHelpers';
 
 const NIGHT_EVENTS_BY_REGION = {
   tierras_libres: 1,
@@ -56,8 +57,15 @@ export default function CampDialog({
   setCharacters,
   onJourneyUpdate,
   travelEvents = [],
+  terrenoViaje = '',
+  onForage,
 }) {
   const [sentinelId, setSentinelId] = useState(miembros?.[0]?.id || '');
+  const [foragerId, setForagerId] = useState(
+    miembros?.find((m) => m.papeles?.includes('cazador'))?.id || miembros?.[0]?.id || ''
+  );
+  const [foragingResult, setForagingResult] = useState(null);
+  const [foragingBusy, setForagingBusy] = useState(false);
   const [results, setResults] = useState(null);
   const [processing, setProcessing] = useState(false);
 
@@ -357,6 +365,72 @@ export default function CampDialog({
                   Si no eliges centinela, todos recuperan completamente pero la tirada de
                   Sabiduría (Percepción) se hace en desventaja.
                 </p>
+              </div>
+
+              {/* Forrajear durante la acampada */}
+              <div className="space-y-2 p-3 rounded border border-emerald-500/30 bg-emerald-500/5">
+                <p className="text-sm font-bold flex items-center gap-2 text-emerald-400">
+                  <Leaf className="w-4 h-4" />
+                  Forrajear (opcional)
+                </p>
+                <p className="text-[11px] text-muted-foreground">
+                  Un personaje busca alimento y agua en la naturaleza. Tirada de
+                  <strong> Sabiduría </strong>vs CD según terreno
+                  ({getForageCD(terrenoViaje)} en {terrenoViaje || 'desconocido'}).
+                  Éxito: <strong>2d4 raciones</strong> y <strong>3d4 L</strong> de agua.
+                </p>
+                <div className="flex gap-2 items-end">
+                  <div className="flex-1">
+                    <Label className="text-xs">Forrajeador</Label>
+                    <Select value={foragerId} onValueChange={setForagerId}>
+                      <SelectTrigger data-testid="camp-forager-select">
+                        <SelectValue placeholder="Elegir forrajeador" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {miembros.map((m) => (
+                          <SelectItem key={m.id} value={m.id}>
+                            {m.nombre}
+                            {m.papeles?.includes('cazador') ? ' (Cazador)' : ''}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={async () => {
+                      if (!foragerId || !onForage) {
+                        toast.error('Selecciona un forrajeador.');
+                        return;
+                      }
+                      setForagingBusy(true);
+                      try {
+                        const r = await onForage(foragerId);
+                        setForagingResult(r || null);
+                      } finally {
+                        setForagingBusy(false);
+                      }
+                    }}
+                    disabled={foragingBusy || !foragerId}
+                    className="border-emerald-500/40 hover:bg-emerald-500/10"
+                    data-testid="camp-forage-btn"
+                  >
+                    <Leaf className="w-4 h-4 mr-2" />
+                    {foragingBusy ? 'Buscando...' : 'Forrajear'}
+                  </Button>
+                </div>
+                {foragingResult && (
+                  <p
+                    className={`text-xs ${
+                      foragingResult.exito ? 'text-emerald-400' : 'text-red-400'
+                    }`}
+                    data-testid="camp-forage-result"
+                  >
+                    Tirada {foragingResult.tirada} vs CD {foragingResult.cd} →{' '}
+                    {foragingResult.exito ? '¡Éxito!' : 'Sin hallazgos'}
+                  </p>
+                )}
               </div>
             </div>
           )}

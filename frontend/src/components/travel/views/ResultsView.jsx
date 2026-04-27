@@ -426,7 +426,7 @@ const ResultsView = ({
         </CardHeader>
         <CardContent>
           {(() => {
-            const numPersonajes = config.miembros.filter(m => m.papeles?.length > 0).length || 1;
+            const numPersonajes = (config.miembros.filter(m => m.papeles?.length > 0).length + (config.acompanantes || []).length) || 1;
             const diasViaje = diasFinales || 1;
             const comidaTotal = numPersonajes * diasViaje * 0.5;
             const aguaTotal = numPersonajes * diasViaje * 4;

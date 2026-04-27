@@ -144,7 +144,7 @@ const DayByDayView = ({
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className={`p-2 rounded border ${
-              (partyProvisions.comidaTotal - partyProvisions.comidaConsumida) > config.miembros.length
+              (partyProvisions.comidaTotal - partyProvisions.comidaConsumida) > (config.miembros.length + (config.acompanantes || []).length)
                 ? 'border-green-500/30 bg-green-500/10'
                 : 'border-red-500/30 bg-red-500/10'
             }`}>
@@ -157,11 +157,11 @@ const DayByDayView = ({
                 <span className="text-xs text-muted-foreground ml-1">raciones</span>
               </p>
               <p className="text-xs text-muted-foreground">
-                ~{Math.floor(Math.max(0, partyProvisions.comidaTotal - partyProvisions.comidaConsumida) / config.miembros.length)} días
+                ~{Math.floor(Math.max(0, partyProvisions.comidaTotal - partyProvisions.comidaConsumida) / Math.max(1, config.miembros.length + (config.acompanantes || []).length))} días
               </p>
             </div>
             <div className={`p-2 rounded border ${
-              (partyProvisions.aguaTotal - partyProvisions.aguaConsumida) > config.miembros.length * 2
+              (partyProvisions.aguaTotal - partyProvisions.aguaConsumida) > (config.miembros.length + (config.acompanantes || []).length) * 2
                 ? 'border-blue-500/30 bg-blue-500/10'
                 : 'border-red-500/30 bg-red-500/10'
             }`}>
@@ -174,7 +174,7 @@ const DayByDayView = ({
                 <span className="text-xs text-muted-foreground ml-1">litros</span>
               </p>
               <p className="text-xs text-muted-foreground">
-                ~{Math.floor(Math.max(0, partyProvisions.aguaTotal - partyProvisions.aguaConsumida) / (config.miembros.length * 2))} días
+                ~{Math.floor(Math.max(0, partyProvisions.aguaTotal - partyProvisions.aguaConsumida) / Math.max(1, (config.miembros.length + (config.acompanantes || []).length) * 2))} días
               </p>
             </div>
           </div>

@@ -49,7 +49,8 @@ import {
   calcModHabilidad,
   getFatigueBaseCD,
   calculateRollXP,
-  calculateGroupMultiplier
+  calculateGroupMultiplier,
+  getForageCD
 } from '@/components/travel/travelHelpers';
 import { printJourneyDocument as printJourneyDocumentHelper } from '@/components/travel/travelPrint';
 import ResultsView from '@/components/travel/views/ResultsView';
@@ -88,7 +89,10 @@ const EnhancedTravelSystem = () => {
     diaMes: 1,
     estacion: 'verano',
     horasMarchaForzada: 0,
-    miembros: []
+    miembros: [],
+    // Acompañantes: viajan con el grupo, NO tienen papel ni hacen tiradas de
+    // eventos/orientación/fatiga, pero SÍ cuentan para velocidad y provisiones.
+    acompanantes: []
   });
   
   // Search filters for origin/destination
@@ -271,6 +275,25 @@ const EnhancedTravelSystem = () => {
     
     setLoadingCalc(true);
     try {
+      // Combine miembros (with travel role) + acompañantes (without role) so the
+      // backend can compute the slowest speed of the WHOLE group.
+      const todosViajeros = [
+        ...config.miembros,
+        ...((config.acompanantes || []).map(a => ({
+          id: a.id,
+          nombre: a.nombre,
+          papel: null,
+          tieneMontura: a.tieneMontura,
+          monturaNombre: a.monturaNombre,
+          monturaPropia: a.monturaPropia,
+          monturaConBonus: 0,
+          velocidadBase: a.velocidadBase || 9,
+          modSabiduria: a.modSabiduria || 0,
+          competencias: [],
+          nivel: 1,
+        }))),
+      ];
+
       const payload = {
         origen_id: config.origenId,
         origen_nombre: config.origenNombre,
@@ -283,7 +306,7 @@ const EnhancedTravelSystem = () => {
         mes: config.mes,
         estacion: config.estacion,
         horas_marcha_forzada: config.horasMarchaForzada,
-        miembros: config.miembros.map(m => ({
+        miembros: todosViajeros.map(m => ({
           personaje_id: m.id,
           nombre: m.nombre,
           papel: m.papel,
@@ -358,8 +381,9 @@ const EnhancedTravelSystem = () => {
   // Check if party has enough food and water for the journey
   const checkProvisionsForJourney = useCallback((diasViaje) => {
     if (!config.miembros.length || !diasViaje) return null;
-    
-    const numPersonajes = config.miembros.length;
+
+    // Acompañantes also need food/water (same daily intake)
+    const numPersonajes = config.miembros.length + (config.acompanantes || []).length;
     // Requirements: 1 ration/day per person, 2L water/day per person
     const comidaNecesaria = numPersonajes * diasViaje; // in rations
     const aguaNecesaria = numPersonajes * diasViaje * 2; // in liters
@@ -369,8 +393,9 @@ const EnhancedTravelSystem = () => {
     let comidaDisponible = 0;
     let aguaDisponible = 0;
     
-    // For each member, check their character's inventory for food/water items
-    config.miembros.forEach(miembro => {
+    // For each viajero (miembros + acompañantes), check their character's inventory
+    const todosViajeros = [...config.miembros, ...(config.acompanantes || [])];
+    todosViajeros.forEach(miembro => {
       const char = characters.find(c => c.id === miembro.id);
       if (!char?.inventario) return;
       
@@ -628,15 +653,18 @@ const EnhancedTravelSystem = () => {
   // =============== DAILY CONSUMPTION ===============
   // Consume food and water for each party member, apply fatigue if supplies run out
   const consumeDailyProvisions = useCallback(() => {
-    const numPersonajes = config.miembros.length;
+    // Acompañantes consume the same as miembros
+    const todosViajeros = [...config.miembros, ...(config.acompanantes || [])];
+    const numPersonajes = todosViajeros.length;
     const comidaConsumidaHoy = numPersonajes; // 1 ration per person
     const aguaConsumidaHoy = numPersonajes * 2; // 2L per person
-    
+
     setPartyProvisions(prev => {
       const nuevaComidaDisponible = prev.comidaTotal - prev.comidaConsumida - comidaConsumidaHoy;
       const nuevaAguaDisponible = prev.aguaTotal - prev.aguaConsumida - aguaConsumidaHoy;
       
-      // Track provision fatigue per character
+      // Track provision fatigue per character (only miembros con papel acumulan fatiga
+      // efectiva en el sistema; los acompañantes pasan hambre pero no se gestionan).
       const newProvisionFatigue = { ...provisionFatigue };
       
       config.miembros.forEach(miembro => {
@@ -676,7 +704,7 @@ const EnhancedTravelSystem = () => {
         aguaConsumida: prev.aguaConsumida + aguaConsumidaHoy
       };
     });
-  }, [config.miembros, provisionFatigue]);
+  }, [config.miembros, config.acompanantes, provisionFatigue]);
   
   // Refill water near towns/rivers
   const refillWaterNearTown = useCallback((townName) => {
@@ -1714,7 +1742,74 @@ const EnhancedTravelSystem = () => {
       })
     }));
   };
-  
+
+  // =============== COMPANIONS / ACOMPAÑANTES ===============
+  // Pasajeros del viaje sin papel asignado.
+  // Sí cuentan para velocidad y provisiones; NO hacen tiradas de eventos.
+  const MAX_ACOMPANANTES = 10;
+
+  const addAcompanante = (charId) => {
+    const char = characters.find(c => c.id === charId);
+    if (!char) return;
+    if (config.miembros.some(m => m.id === charId)) {
+      toast.error('Este personaje ya tiene un papel de viaje asignado.');
+      return;
+    }
+    if ((config.acompanantes || []).some(a => a.id === charId)) {
+      toast.error('Este personaje ya está como acompañante.');
+      return;
+    }
+    if ((config.acompanantes || []).length >= MAX_ACOMPANANTES) {
+      toast.error(`Máximo ${MAX_ACOMPANANTES} acompañantes.`);
+      return;
+    }
+
+    const monturaPropia = char.montura ? {
+      nombre: char.montura.nombre,
+      capacidad: char.montura.capacidad_carga,
+      velocidad: char.montura.velocidad || 18,
+      constitucion: char.montura.constitucion
+    } : null;
+
+    setConfig(prev => ({
+      ...prev,
+      acompanantes: [
+        ...(prev.acompanantes || []),
+        {
+          id: char.id,
+          nombre: char.nombre,
+          raza: char.cultura_nombre || char.cultura || char.raza || 'Desconocida',
+          velocidadBase: char.velocidad || 9,
+          monturaPropia,
+          // Si tiene montura propia, por defecto la usa
+          tieneMontura: !!monturaPropia,
+          monturaNombre: monturaPropia?.nombre || null,
+          modSabiduria: getModAtributo(char, 'sabiduria'),
+        }
+      ]
+    }));
+  };
+
+  const removeAcompanante = (charId) => {
+    setConfig(prev => ({
+      ...prev,
+      acompanantes: (prev.acompanantes || []).filter(a => a.id !== charId)
+    }));
+  };
+
+  const toggleAcompananteMount = (charId, useMount) => {
+    setConfig(prev => ({
+      ...prev,
+      acompanantes: (prev.acompanantes || []).map(a => {
+        if (a.id !== charId) return a;
+        if (useMount && a.monturaPropia) {
+          return { ...a, tieneMontura: true, monturaNombre: a.monturaPropia.nombre };
+        }
+        return { ...a, tieneMontura: false, monturaNombre: null };
+      })
+    }));
+  };
+
   // =============== RESET ===============
   
   const resetJourney = () => {
@@ -1964,6 +2059,9 @@ const EnhancedTravelSystem = () => {
           addMemberWithRole={addMemberWithRole}
           removeRoleFromMember={removeRoleFromMember}
           updateMemberMount={updateMemberMount}
+          addAcompanante={addAcompanante}
+          removeAcompanante={removeAcompanante}
+          toggleAcompananteMount={toggleAcompananteMount}
           startGlobalJourney={startGlobalJourney}
           startDayByDayJourney={startDayByDayJourney}
         />
@@ -2071,6 +2169,8 @@ const EnhancedTravelSystem = () => {
         setCharacters={setCharacters}
         travelEvents={travelEvents}
         onJourneyUpdate={(patch) => setActiveJourney((prev) => (prev ? { ...prev, ...patch } : prev))}
+        terrenoViaje={journeyCalc?.ruta?.terreno || 'moderado'}
+        onForage={performForaging}
       />
       
       {/* Provisions Shop Dialog */}
@@ -2078,12 +2178,12 @@ const EnhancedTravelSystem = () => {
         open={showProvisionsShop}
         onClose={() => setShowProvisionsShop(false)}
         miembros={config.miembros}
+        acompanantes={config.acompanantes || []}
         characters={characters}
         diasViaje={journeyCalc?.estimaciones?.dias_estimados || activeJourney?.config?.dias_estimados || 7}
         origenRegionName={(locations || []).find(l => l.id === config.origenId)?.region || ''}
         terreno={journeyCalc?.ruta?.terreno || ''}
         tipoTierra={journeyCalc?.ruta?.tipo_tierra || ''}
-        numeroAnimales={config.miembros.filter(m => (m.montura || m.tieneCaballo || m.tienePoni)).length}
         onPurchaseComplete={() => {
           // Reload characters to reflect new inventory/money
           api.get('/characters/').then(res => {

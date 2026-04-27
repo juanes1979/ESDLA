@@ -171,6 +171,21 @@ export const calculateRollXP = (cd, tirada, exito, terreno, tipoTierra, d20Nat) 
   };
 };
 
+// =============== FORAGING ===============
+// Foraging DC depends on terrain difficulty.
+//   camino/fácil → 10
+//   moderado/colinas/bosque (default) → 15
+//   difícil → 20
+//   muy_difícil/desalentador/pantano/montañas → 25
+export const getForageCD = (terrain) => {
+  const t = (terrain || '').toLowerCase();
+  if (['muy_dificil', 'desalentador', 'montanas', 'montaña', 'pantano', 'pantanos'].includes(t)) return 25;
+  if (['dificil', 'difícil'].includes(t)) return 20;
+  if (['facil', 'camino', 'caminos'].includes(t)) return 10;
+  // moderado, colinas, bosque, campo_abierto → 15
+  return 15;
+};
+
 // TABLA 2 — Multiplicador global según aciertos/fallos del viaje
 export const calculateGroupMultiplier = (aciertos, fallos) => {
   const total = aciertos + fallos;

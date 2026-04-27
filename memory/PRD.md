@@ -4,6 +4,40 @@
 
 ### ✅ COMPLETED This Session
 
+#### 15. Iteración 62 — Sistema de packs + Acompañantes + Forrajear extendido (2026-02-26)
+
+**Tienda de provisiones — sistema por packs (reemplaza el cobro día×persona):**
+- **Pack Raciones de viaje**: 5 mc → 10 raciones (10 días/persona). Sobrante visible.
+- **Odre lleno**: 2 mc → 10 L (5 días/persona, a 2 L/día). Sobrante visible.
+- **Forraje montura**: 1 me/día/animal (antes 1 mp/día → ajustado al catálogo del usuario).
+- **Agua animal**: 5 me/día (sólo en sombra/oscuras o muy difícil).
+- Cada miembro/acompañante compra automáticamente `ceil(días/10)` packs y `ceil((días×2)/10)` odres. El dueño de la montura paga el forraje y agua animal si el terreno lo exige.
+- Modificadores Región × Asentamiento × Relación × Contexto se aplican al total final.
+- Soporta acompañantes en el mismo flujo (compran su propio pack + odre).
+- Mostrado por separado: "Persona: X · Montura: Y" y total grupo abajo.
+
+**Forrajear ampliado:**
+- Cambiado a **2d4 raciones + 3d4 L** (antes 1d4 + 1d4).
+- CD según terreno (helper `getForageCD`):
+  - Camino/fácil: 10 · Moderado/colinas/bosque: 15 · Difícil: 20 · Muy difícil/desalentador/pantano/montañas: 25
+- **Añadido botón "Forrajear" dentro del CampDialog** (selector de forrajeador, muestra resultado en línea). El usuario puede acampar Y forrajear en la misma acción.
+- Sigue disponible como botón aparte en la barra de "Provisiones" del modo Jornada a Jornada.
+
+**Acompañantes (NUEVO):**
+- Bloque dedicado en la preparación del viaje: hasta **10 personajes** sin papel asignado.
+- Selector excluye automáticamente a quien ya tiene papel de viaje (y viceversa).
+- Cada acompañante se carga con velocidad base, montura del equipo (si la tiene), modificador Sab.
+- Switch "A caballo" si tiene montura propia. Botón quitar individual.
+- **Influyen en el cálculo del backend**: se añaden al payload de `miembros` (con `papel: null`) para que `min(velocidad)` los considere y se aplique la velocidad de su montura si la tiene.
+- **Influyen en el consumo diario**: `consumeDailyProvisions` y `checkProvisionsForJourney` ahora suman `miembros + acompanantes`.
+- **NO** participan en eventos, orientación ni fatiga (siguen siendo sólo `miembros`).
+- **DayByDayView** y **ResultsView** actualizados para mostrar provisiones de TODO el grupo (miembros + acompañantes).
+
+**Otros:**
+- `numeroAnimales` ya no se pasa manualmente: se deriva de los miembros + acompañantes que tengan `tieneMontura` activo. Eliminado del API pública del dialog.
+
+Lint ✅ en los 9 archivos modificados. Verificado por screenshot: la nueva sección "Acompañantes 0/10" se muestra entre "Papeles de Viaje" y "Modo de Viaje".
+
 #### 14. Iteración 61 — Refactor fase 2 COMPLETO de EnhancedTravelSystem.jsx (2026-02-26)
 - **🟢 Refactor monolito completado**: el archivo principal pasó de **5942 → 2108 líneas** (~3834 líneas / **64.5% reducción**) y se distribuyó en 8 módulos auto-contenidos en `components/travel/`.
 - **Nuevos módulos creados en esta fase**:
