@@ -28,6 +28,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { ShoppingBag, CheckCircle2, XCircle, Loader2, Calculator, Package, Droplets } from 'lucide-react';
 import { toast } from 'sonner';
 import api from '@/services/api';
+import { computeShortfall, summarizeProvisions } from './inventoryProvisions';
 
 // --- Sistema monetario (jerarquía):
 //   1 mo (oro)    = 100 mp = 1.000 mc = 10.000 me
@@ -159,15 +160,9 @@ export default function ProvisionsShopDialog({
 
   const needs = useMemo(() => animalNeeds(terreno, tipoTierra), [terreno, tipoTierra]);
 
-  // Cuántos packs/odres necesita 1 persona para diasViaje
-  const packsRacionesPorPersona = Math.ceil(diasViaje / RACIONES_POR_PACK);
-  const racionesSobrantes = packsRacionesPorPersona * RACIONES_POR_PACK - diasViaje;
-  const odresPorPersona = Math.ceil((diasViaje * LITROS_AGUA_POR_DIA) / LITROS_POR_ODRE);
-  const litrosSobrantes = odresPorPersona * LITROS_POR_ODRE - diasViaje * LITROS_AGUA_POR_DIA;
-
-  const precioPersonaME = useMemo(() => {
-    return (packsRacionesPorPersona * precioPack + odresPorPersona * precioOdre) * totalMod.total;
-  }, [packsRacionesPorPersona, odresPorPersona, precioPack, precioOdre, totalMod.total]);
+  // Default packs/odres that ONE person would need (no inventory considered)
+  const packsRacionesPorPersonaDefault = Math.ceil(diasViaje / RACIONES_POR_PACK);
+  const odresPorPersonaDefault = Math.ceil((diasViaje * LITROS_AGUA_POR_DIA) / LITROS_POR_ODRE);
 
   // Personas a alimentar/dar de beber
   const todasPersonas = useMemo(() => {
@@ -176,12 +171,39 @@ export default function ProvisionsShopDialog({
     return [...ms, ...as];
   }, [miembros, acompanantes]);
 
+  // Filas — cada persona ya cuenta con lo que tiene en su inventario.
+  // Por defecto solo compra lo que le FALTA (rounded up to packs).
+  // El maestro/jugador puede aumentar la cantidad si quiere llevar más.
+  const [overrides, setOverrides] = useState({}); // {charId: {packs, odres}}
+  const setRowOverride = (id, patch) =>
+    setOverrides((prev) => ({ ...prev, [id]: { ...(prev[id] || {}), ...patch } }));
+
   // Filas de personas — cada una compra su pack + sus odres
   const rows = useMemo(() => {
     return todasPersonas.map((p) => {
       const char = characters.find((c) => c.id === p.id);
       const dinero = char?.dinero || {};
       const meDisp = coinsToME(dinero);
+
+      // Lectura del inventario actual
+      const inv = char?.inventario || [];
+      const summary = summarizeProvisions(inv);
+      const shortfall = computeShortfall(inv, diasViaje);
+
+      // Compra propuesta = lo que le falta (rounded a packs/odres). El usuario
+      // puede sobreescribir por arriba (no por debajo de 0).
+      const ov = overrides[p.id] || {};
+      const packsACompra = Math.max(
+        0,
+        ov.packs != null ? ov.packs : shortfall.packsRaciones
+      );
+      const odresACompra = Math.max(
+        0,
+        ov.odres != null ? ov.odres : shortfall.odres
+      );
+
+      const precioPersonaME =
+        (packsACompra * precioPack + odresACompra * precioOdre) * totalMod.total;
 
       // Forraje/agua animal si tiene montura propia y la usa
       const tieneMonturaActiva = !!(p.tieneMontura && p.monturaPropia);
@@ -202,28 +224,50 @@ export default function ProvisionsShopDialog({
 
       const precioTotalME = precioPersonaME + precioAnimalME;
       const puedeComprar = meDisp >= precioTotalME;
+      const yaTieneTodo =
+        shortfall.racionesFaltantes === 0 && shortfall.litrosFaltantes === 0;
+
       return {
         id: p.id,
         nombre: p.nombre,
         tipo: p._tipo,
         dinero,
         meDisp,
+        // Inventario actual
+        invRaciones: summary.raciones,
+        invLitros: summary.totalLitros,
+        // Lo que falta (en raciones/litros, no en packs)
+        racionesFaltantes: shortfall.racionesFaltantes,
+        litrosFaltantes: shortfall.litrosFaltantes,
+        // Compra a realizar
+        packsACompra,
+        odresACompra,
+        // Sugerido (lo que faltaba al inicio)
+        packsSugeridos: shortfall.packsRaciones,
+        odresSugeridos: shortfall.odres,
+        // Precios
         precioPersonaME,
         precioAnimalME,
         precioTotalME,
         precioFmt: formatPrice(precioTotalME),
         puedeComprar,
+        yaTieneTodo,
         tieneMonturaActiva,
         monturaNombre: p.monturaNombre,
         animalDetalles,
       };
     });
-  }, [todasPersonas, characters, precioPersonaME, needs, precioForraje, precioAguaAnimal,
-      diasViaje, totalMod.total]);
+  }, [todasPersonas, characters, diasViaje, overrides, precioPack, precioOdre,
+      needs, precioForraje, precioAguaAnimal, totalMod.total]);
 
   const totalGrupoME = rows.reduce((sum, r) => sum + r.precioTotalME, 0);
 
   const comprarPara = async (row) => {
+    if (row.packsACompra === 0 && row.odresACompra === 0 && row.precioAnimalME === 0) {
+      toast.info(`${row.nombre} ya tiene provisiones suficientes.`);
+      setResultados((prev) => ({ ...prev, [row.id]: 'ok' }));
+      return;
+    }
     if (!row.puedeComprar) {
       toast.error(`${row.nombre} no tiene suficientes monedas (necesita ${row.precioFmt}).`);
       return;
@@ -233,12 +277,12 @@ export default function ProvisionsShopDialog({
       const modPct = Math.round(totalMod.total * 100);
       const desc = `Mod. ${modPct}%`;
 
-      // 1) Packs de raciones (uno por pack)
-      if (packsRacionesPorPersona > 0) {
+      // 1) Packs de raciones
+      if (row.packsACompra > 0) {
         await api.post(`/characters/${row.id}/equipment/add`, {
           item_name: `Pack de Raciones de viaje (${RACIONES_POR_PACK} raciones) — ${desc}`,
           item_category: 'equipo_general',
-          cantidad: packsRacionesPorPersona,
+          cantidad: row.packsACompra,
           is_purchase: true,
           precio: precioPack * totalMod.total,
           moneda: 'me',
@@ -247,11 +291,11 @@ export default function ProvisionsShopDialog({
       }
 
       // 2) Odres llenos
-      if (odresPorPersona > 0) {
+      if (row.odresACompra > 0) {
         await api.post(`/characters/${row.id}/equipment/add`, {
           item_name: `Odre lleno (${LITROS_POR_ODRE} L) — ${desc}`,
           item_category: 'equipo_general',
-          cantidad: odresPorPersona,
+          cantidad: row.odresACompra,
           is_purchase: true,
           precio: precioOdre * totalMod.total,
           moneda: 'me',
@@ -329,35 +373,45 @@ export default function ProvisionsShopDialog({
         </DialogHeader>
 
         <div className="space-y-3">
-          {/* Cálculo de packs */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 p-3 rounded bg-[hsl(var(--gold))]/5 border border-[hsl(var(--gold))]/30">
-            <div className="flex items-start gap-2">
-              <Package className="w-4 h-4 text-amber-400 mt-1" />
-              <div className="text-xs">
-                <p className="font-bold text-amber-300">
-                  {packsRacionesPorPersona} pack(s) de Raciones por persona
-                </p>
-                <p className="text-muted-foreground">
-                  {RACIONES_POR_PACK} raciones / pack ·{' '}
-                  {racionesSobrantes > 0
-                    ? `sobran ${racionesSobrantes} raciones`
-                    : 'justo para el viaje'}
-                </p>
+          {/* Resumen del grupo */}
+          {(() => {
+            const totalRaciones = rows.reduce((s, r) => s + r.invRaciones, 0);
+            const totalLitros = rows.reduce((s, r) => s + r.invLitros, 0);
+            const racionesNec = todasPersonas.length * diasViaje;
+            const litrosNec = todasPersonas.length * diasViaje * LITROS_AGUA_POR_DIA;
+            return (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 p-3 rounded bg-[hsl(var(--gold))]/5 border border-[hsl(var(--gold))]/30">
+                <div className="flex items-start gap-2">
+                  <Package className="w-4 h-4 text-amber-400 mt-1" />
+                  <div className="text-xs">
+                    <p className="font-bold text-amber-300">
+                      Comida: {totalRaciones} / {racionesNec} raciones necesarias
+                    </p>
+                    <p className="text-muted-foreground">
+                      {totalRaciones >= racionesNec
+                        ? `✓ Suficiente (sobran ${totalRaciones - racionesNec})`
+                        : `✗ Faltan ${racionesNec - totalRaciones} raciones`}
+                      {' · '} {todasPersonas.length} viajero(s) × {diasViaje} días
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-2">
+                  <Droplets className="w-4 h-4 text-blue-400 mt-1" />
+                  <div className="text-xs">
+                    <p className="font-bold text-blue-300">
+                      Agua: {totalLitros} / {litrosNec} L necesarios
+                    </p>
+                    <p className="text-muted-foreground">
+                      {totalLitros >= litrosNec
+                        ? `✓ Suficiente (sobran ${totalLitros - litrosNec} L)`
+                        : `✗ Faltan ${litrosNec - totalLitros} L`}
+                      {' · '} {LITROS_AGUA_POR_DIA} L/día/persona
+                    </p>
+                  </div>
+                </div>
               </div>
-            </div>
-            <div className="flex items-start gap-2">
-              <Droplets className="w-4 h-4 text-blue-400 mt-1" />
-              <div className="text-xs">
-                <p className="font-bold text-blue-300">
-                  {odresPorPersona} odre(s) llenos por persona
-                </p>
-                <p className="text-muted-foreground">
-                  {LITROS_POR_ODRE} L / odre · {LITROS_AGUA_POR_DIA} L/día ·{' '}
-                  {litrosSobrantes > 0 ? `sobran ${litrosSobrantes} L` : 'justo para el viaje'}
-                </p>
-              </div>
-            </div>
-          </div>
+            );
+          })()}
 
           {/* Selectores de modificadores */}
           <div className="grid grid-cols-2 gap-3 p-3 rounded bg-black/20 border border-[hsl(var(--gold))]/30">
@@ -531,68 +585,110 @@ export default function ProvisionsShopDialog({
                 return (
                   <div
                     key={row.id}
-                    className={`p-3 rounded border flex items-center justify-between gap-3 ${
+                    className={`p-3 rounded border ${
                       estado === 'ok'
                         ? 'border-green-500/50 bg-green-500/10'
                         : !row.puedeComprar
                         ? 'border-red-500/40 bg-red-500/10'
+                        : row.yaTieneTodo && row.precioAnimalME === 0
+                        ? 'border-emerald-500/40 bg-emerald-500/5'
                         : 'border-muted bg-black/20'
                     }`}
                     data-testid={`provisions-row-${row.id}`}
                   >
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium">
-                        {row.nombre}
-                        {row.tipo === 'acompanante' && (
-                          <Badge variant="outline" className="ml-2 text-[10px]">
-                            Acompañante
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium">
+                          {row.nombre}
+                          {row.tipo === 'acompanante' && (
+                            <Badge variant="outline" className="ml-2 text-[10px]">Acompañante</Badge>
+                          )}
+                          {row.tieneMonturaActiva && (
+                            <Badge variant="outline" className="ml-2 text-[10px] text-emerald-400 border-emerald-500/40">
+                              🐎 {row.monturaNombre || 'Montura'}
+                            </Badge>
+                          )}
+                        </p>
+                        <p className="text-[11px] text-muted-foreground">
+                          Monedas: {row.dinero.mo || 0} mo · {row.dinero.mp || 0} mp ·{' '}
+                          {row.dinero.mc || 0} mc · {row.dinero.me || 0} me
+                          <span className="ml-2 text-[hsl(var(--gold))]">(= {row.meDisp} me)</span>
+                        </p>
+                        <p className="text-[11px]">
+                          <span className="text-muted-foreground">Inventario actual:</span>{' '}
+                          <span className="text-amber-300">{row.invRaciones} raciones</span>
+                          {' · '}
+                          <span className="text-blue-300">{row.invLitros} L de agua</span>
+                          {row.yaTieneTodo && (
+                            <span className="ml-2 text-emerald-400">✓ Suficiente</span>
+                          )}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-xs font-mono text-[hsl(var(--gold))]">{row.precioFmt}</p>
+                        {estado === 'ok' ? (
+                          <Badge className="bg-green-600">
+                            <CheckCircle2 className="w-3 h-3 mr-1" />Comprado
                           </Badge>
-                        )}
-                        {row.tieneMonturaActiva && (
-                          <Badge variant="outline" className="ml-2 text-[10px] text-emerald-400 border-emerald-500/40">
-                            🐎 {row.monturaNombre || 'Montura'}
+                        ) : !row.puedeComprar ? (
+                          <Badge variant="outline" className="text-red-400">
+                            <XCircle className="w-3 h-3 mr-1" />Sin fondos
                           </Badge>
+                        ) : (
+                          <Button
+                            size="sm"
+                            onClick={() => comprarPara(row)}
+                            disabled={processing}
+                            data-testid={`provisions-buy-${row.id}`}
+                          >
+                            {row.yaTieneTodo && row.precioAnimalME === 0
+                              ? 'No necesita'
+                              : 'Comprar'}
+                          </Button>
                         )}
-                      </p>
-                      <p className="text-[11px] text-muted-foreground">
-                        Monedas: {row.dinero.mo || 0} mo · {row.dinero.mp || 0} mp ·{' '}
-                        {row.dinero.mc || 0} mc · {row.dinero.me || 0} me
-                        <span className="ml-2 text-[hsl(var(--gold))]">
-                          (= {row.meDisp} me)
+                      </div>
+                    </div>
+
+                    {/* Override de cantidades */}
+                    <div className="mt-2 grid grid-cols-2 gap-2 text-xs">
+                      <div className="flex items-center gap-2">
+                        <Label className="text-[10px] text-muted-foreground">Packs raciones</Label>
+                        <Input
+                          type="number"
+                          min="0"
+                          value={row.packsACompra}
+                          onChange={(e) =>
+                            setRowOverride(row.id, { packs: Math.max(0, parseInt(e.target.value, 10) || 0) })
+                          }
+                          className="h-6 w-16 text-xs"
+                          data-testid={`provisions-packs-${row.id}`}
+                        />
+                        <span className="text-[10px] text-muted-foreground">
+                          (sugerido: {row.packsSugeridos})
                         </span>
-                      </p>
-                      <p className="text-[11px] text-muted-foreground">
-                        Persona: {formatPrice(row.precioPersonaME)}
-                        {row.precioAnimalME > 0 && (
-                          <span className="ml-2">
-                            + Montura: {formatPrice(row.precioAnimalME)}
-                          </span>
-                        )}
-                      </p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Label className="text-[10px] text-muted-foreground">Odres llenos</Label>
+                        <Input
+                          type="number"
+                          min="0"
+                          value={row.odresACompra}
+                          onChange={(e) =>
+                            setRowOverride(row.id, { odres: Math.max(0, parseInt(e.target.value, 10) || 0) })
+                          }
+                          className="h-6 w-16 text-xs"
+                          data-testid={`provisions-odres-${row.id}`}
+                        />
+                        <span className="text-[10px] text-muted-foreground">
+                          (sugerido: {row.odresSugeridos})
+                        </span>
+                      </div>
                     </div>
-                    <div className="text-right">
-                      <p className="text-xs font-mono text-[hsl(var(--gold))]">{row.precioFmt}</p>
-                      {estado === 'ok' ? (
-                        <Badge className="bg-green-600">
-                          <CheckCircle2 className="w-3 h-3 mr-1" />
-                          Comprado
-                        </Badge>
-                      ) : !row.puedeComprar ? (
-                        <Badge variant="outline" className="text-red-400">
-                          <XCircle className="w-3 h-3 mr-1" />
-                          Sin fondos
-                        </Badge>
-                      ) : (
-                        <Button
-                          size="sm"
-                          onClick={() => comprarPara(row)}
-                          disabled={processing}
-                          data-testid={`provisions-buy-${row.id}`}
-                        >
-                          Comprar
-                        </Button>
-                      )}
-                    </div>
+                    {row.precioAnimalME > 0 && (
+                      <p className="mt-1 text-[11px] text-emerald-300">
+                        + Montura ({diasViaje}d): {formatPrice(row.precioAnimalME)}
+                      </p>
+                    )}
                   </div>
                 );
               })}

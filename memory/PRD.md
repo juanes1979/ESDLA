@@ -4,6 +4,43 @@
 
 ### ✅ COMPLETED This Session
 
+#### 16. Iteración 63 — Inventario real para provisiones (2026-02-26)
+
+**🎯 Objetivo del usuario**: que las raciones/agua se descuenten directamente del inventario de cada personaje, en lugar de un pool global. Que la tienda detecte lo que ya tienen y solo proponga comprar lo que falta.
+
+**Cambios:**
+
+1. **Nuevo helper `inventoryProvisions.js`** — detecta raciones (incluyendo packs `(N raciones)`), odres llenos/vacíos/parciales (`litros_actuales`) y agua suelta del inventario. Funciones:
+   - `summarizeProvisions(inventario)` → `{raciones, odres[], aguaSuelta, totalLitros}`
+   - `computeShortfall(inventario, dias)` → `{packsRaciones, odres, racionesFaltantes, litrosFaltantes}`
+   - `consumeOneDay(prov)`, `refillAllOdres(prov)` para gestión por jornada
+
+2. **Tienda (ProvisionsShopDialog) — totalmente revisada:**
+   - Ahora muestra el **inventario actual** de cada viajero (raciones, litros).
+   - Calcula **lo que le falta** y propone comprar solo eso (con sobrantes en packs/odres).
+   - Inputs editables por persona (`packs raciones` / `odres llenos`) — el jugador puede comprar más si quiere.
+   - Botón "Comprar" muestra **"No necesita"** cuando el inventario ya cubre el viaje.
+   - Banner del grupo: `Comida: X / Y necesarias` con ✓/✗.
+
+3. **`checkProvisionsForJourney`**: ahora usa `summarizeProvisions` (en vez del catálogo `foodWaterItems`). Detecta packs por nombre. Soporta acompañantes.
+
+4. **Auto-rellenado de odres**: si el origen del viaje es una **ubicación conocida** (aldea/pueblo/ciudad/refugio/santuario/asentamiento/fortaleza/castillo/hostal/posada o ubicaciones sin tipo declarado), todos los odres del grupo parten **llenos a 10 L** sin coste. Toast informativo "Odres rellenados gratis en X".
+
+5. **Persistencia al final del viaje (`persistProvisionsToInventory`)**:
+   - Al pulsar "Finalizar Viaje y Repartir PX", se actualiza el inventario **REAL** de cada viajero.
+   - Reduce raciones (gestionando packs: si se consume parcialmente un pack, el resto se guarda como "Raciones sueltas").
+   - Vacía odres (los completamente vacíos quedan como "Odre vacío" en el inventario; los parciales como "Odre semilleno (X L)").
+   - Llamada `PATCH /characters/{id}` con el nuevo `inventario`.
+   - Toast: "Inventarios actualizados: raciones consumidas restadas a N viajero(s)".
+
+6. **Acompañantes**: incluidos en todos los cálculos y en la persistencia (igual que miembros).
+
+**Lint** ✅ en todos los archivos. **Captura de prueba**: la página `/travel` carga estable.
+
+**⚠️ Limitaciones honestas (no implementadas en esta iteración):**
+- El consumo durante el viaje sigue siendo un POOL global (`partyProvisions`), no individualizado. La descomposición individual por personaje en tiempo real sería un cambio mayor de arquitectura. Como compromiso, al **finalizar** el viaje se reparte el consumo total de forma uniforme entre los viajeros y se persiste a sus inventarios. Esto produce el resultado pedido por el usuario (cada uno termina con lo que le sobra) sin reescribir el motor de fatiga.
+- El rellenado de odres parciales mid-journey (al pasar por aldea) **no** se hace automáticamente — solo en el origen al iniciar.
+
 #### 15. Iteración 62 — Sistema de packs + Acompañantes + Forrajear extendido (2026-02-26)
 
 **Tienda de provisiones — sistema por packs (reemplaza el cobro día×persona):**

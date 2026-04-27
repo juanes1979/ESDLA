@@ -53,6 +53,7 @@ import {
   getForageCD
 } from '@/components/travel/travelHelpers';
 import { printJourneyDocument as printJourneyDocumentHelper } from '@/components/travel/travelPrint';
+import { summarizeProvisions } from '@/components/travel/inventoryProvisions';
 import ResultsView from '@/components/travel/views/ResultsView';
 import GlobalJourneyView from '@/components/travel/views/GlobalJourneyView';
 import DayByDayView from '@/components/travel/views/DayByDayView';
@@ -398,29 +399,10 @@ const EnhancedTravelSystem = () => {
     todosViajeros.forEach(miembro => {
       const char = characters.find(c => c.id === miembro.id);
       if (!char?.inventario) return;
-      
-      // Check inventory items against foodWaterItems
-      char.inventario.forEach(item => {
-        // Check if this item is marked as food
-        const foodItem = foodWaterItems.food_items?.find(f => 
-          f.nombre?.toLowerCase() === item.nombre?.toLowerCase()
-        );
-        if (foodItem) {
-          const porcentaje = foodItem.porcentaje_racion || 100;
-          const cantidad = item.cantidad || 1;
-          comidaDisponible += (cantidad * porcentaje) / 100;
-        }
-        
-        // Check if this item is marked as water
-        const waterItem = foodWaterItems.water_items?.find(w => 
-          w.nombre?.toLowerCase() === item.nombre?.toLowerCase()
-        );
-        if (waterItem) {
-          const litros = waterItem.litros || 0;
-          const cantidad = item.cantidad || 1;
-          aguaDisponible += cantidad * litros;
-        }
-      });
+      // Detect rations (incl. packs) and odres in the character's inventory.
+      const summary = summarizeProvisions(char.inventario);
+      comidaDisponible += summary.raciones;
+      aguaDisponible += summary.totalLitros;
     });
     
     return {
@@ -429,13 +411,13 @@ const EnhancedTravelSystem = () => {
       comidaDisponible,
       aguaDisponible,
       comidaSuficiente: comidaDisponible >= comidaNecesaria,
-      aguaSuficiente: aguaDisponible >= comidaNecesaria,
-      diasComida: comidaDisponible / numPersonajes,
-      diasAgua: aguaDisponible / (numPersonajes * 2),
+      aguaSuficiente: aguaDisponible >= aguaNecesaria,
+      diasComida: numPersonajes > 0 ? comidaDisponible / numPersonajes : 0,
+      diasAgua: numPersonajes > 0 ? aguaDisponible / (numPersonajes * 2) : 0,
       faltaComida: Math.max(0, comidaNecesaria - comidaDisponible),
       faltaAgua: Math.max(0, aguaNecesaria - aguaDisponible)
     };
-  }, [config.miembros, characters, foodWaterItems]);
+  }, [config.miembros, config.acompanantes, characters]);
   
   // Check provisions when journey is calculated
   useEffect(() => {
@@ -990,35 +972,37 @@ const EnhancedTravelSystem = () => {
     }
     
     // *** INITIALIZE PROVISIONS ***
-    // Calculate initial provisions from party inventory
+    // Calcula provisiones iniciales leyendo inventarios reales (raciones + odres).
+    // Si el origen es una ubicación conocida, los odres se rellenan gratis al salir.
+    const origenLoc = (locations || []).find(l => l.id === config.origenId);
+    const tipoOrigen = (origenLoc?.tipo || origenLoc?.tipo_lugar || '').toLowerCase();
+    const esAsentamientoConocido = !!origenLoc && (
+      tipoOrigen.includes('aldea') || tipoOrigen.includes('pueblo') ||
+      tipoOrigen.includes('ciudad') || tipoOrigen.includes('refugio') ||
+      tipoOrigen.includes('santuario') || tipoOrigen.includes('asentamiento') ||
+      tipoOrigen.includes('fortal') || tipoOrigen.includes('castillo') ||
+      tipoOrigen.includes('hostal') || tipoOrigen.includes('posada') || !tipoOrigen
+    );
+
     let comidaInicial = 0;
     let aguaInicial = 0;
-    
-    config.miembros.forEach(miembro => {
+    const todosViajerosInicio = [...config.miembros, ...(config.acompanantes || [])];
+    todosViajerosInicio.forEach(miembro => {
       const char = characters.find(c => c.id === miembro.id);
       if (!char?.inventario) return;
-      
-      char.inventario.forEach(item => {
-        const foodItem = foodWaterItems.food_items?.find(f => 
-          f.nombre?.toLowerCase() === item.nombre?.toLowerCase()
-        );
-        if (foodItem) {
-          const porcentaje = foodItem.porcentaje_racion || 100;
-          const cantidad = item.cantidad || 1;
-          comidaInicial += (cantidad * porcentaje) / 100;
-        }
-        
-        const waterItem = foodWaterItems.water_items?.find(w => 
-          w.nombre?.toLowerCase() === item.nombre?.toLowerCase()
-        );
-        if (waterItem) {
-          const litros = waterItem.litros || 0;
-          const cantidad = item.cantidad || 1;
-          aguaInicial += cantidad * litros;
-        }
-      });
+      const summary = summarizeProvisions(char.inventario);
+      comidaInicial += summary.raciones;
+      // Si origen es asentamiento conocido, todos los odres parten LLENOS (10 L c/u).
+      const litrosCharacter = esAsentamientoConocido
+        ? summary.odres.length * 10 + summary.aguaSuelta
+        : summary.totalLitros;
+      aguaInicial += litrosCharacter;
     });
-    
+
+    if (esAsentamientoConocido && (config.acompanantes || []).length + config.miembros.length > 0) {
+      toast.success(`Odres rellenados gratis en ${config.origenNombre}.`);
+    }
+
     setPartyProvisions({
       comidaTotal: comidaInicial,
       aguaTotal: aguaInicial,
@@ -1895,6 +1879,141 @@ const EnhancedTravelSystem = () => {
     fatigueResults
   });
 
+  // Helper: persistir el consumo de provisiones al inventario de cada viajero.
+  // Reparte el consumo total uniformemente entre miembros + acompañantes.
+  // Reduce raciones (incl. packs) y vacía los odres del inventario.
+  const persistProvisionsToInventory = useCallback(async () => {
+    const todosViajeros = [
+      ...config.miembros,
+      ...((config.acompanantes || [])),
+    ];
+    if (todosViajeros.length === 0) return { ok: 0, fail: 0 };
+
+    const racionesPorViajero = Math.ceil(
+      (partyProvisions.comidaConsumida || 0) / todosViajeros.length
+    );
+    const litrosPorViajero = Math.ceil(
+      (partyProvisions.aguaConsumida || 0) / todosViajeros.length
+    );
+
+    let ok = 0;
+    let fail = 0;
+
+    for (const m of todosViajeros) {
+      const char = characters.find((c) => c.id === m.id);
+      if (!char || !char.inventario) continue;
+
+      const newInventario = JSON.parse(JSON.stringify(char.inventario));
+
+      // 1) Restar raciones
+      let racionesPorRestar = racionesPorViajero;
+      for (const item of newInventario) {
+        if (racionesPorRestar <= 0) break;
+        if (!item || !item.nombre) continue;
+        const n = (item.nombre || '').toLowerCase();
+        if (!n.includes('raci')) continue;
+        const packMatch = n.match(/\((\d+)\s*raciones?\)/);
+        const packSize = packMatch ? parseInt(packMatch[1], 10) : 1;
+        const rEnEsteItem = (item.cantidad || 1) * packSize;
+        if (rEnEsteItem <= racionesPorRestar) {
+          racionesPorRestar -= rEnEsteItem;
+          item.cantidad = 0; // se elimina después
+        } else {
+          // Solo gastamos lo necesario: si es pack y queda parcial, lo dejamos
+          // como ración suelta restante (best effort). Aproximación: si packSize=1,
+          // restamos cantidad. Si packSize>1, abrimos un pack y dejamos sueltos.
+          if (packSize === 1) {
+            item.cantidad -= racionesPorRestar;
+            racionesPorRestar = 0;
+          } else {
+            // Abrir un pack: rebajar cantidad en 1 y guardar las que sobran como ración suelta
+            const packsAUsar = Math.ceil(racionesPorRestar / packSize);
+            const racionesUsadasReales = packsAUsar * packSize;
+            const sobrantes = racionesUsadasReales - racionesPorRestar;
+            item.cantidad = Math.max(0, (item.cantidad || 1) - packsAUsar);
+            if (sobrantes > 0) {
+              newInventario.push({
+                nombre: 'Raciones sueltas',
+                cantidad: sobrantes,
+                categoria: 'equipo_general',
+                peso_kg: 0.45 * sobrantes,
+              });
+            }
+            racionesPorRestar = 0;
+          }
+        }
+      }
+
+      // 2) Vaciar odres por orden (uno se vacía a la vez)
+      let litrosPorRestar = litrosPorViajero;
+      for (const item of newInventario) {
+        if (litrosPorRestar <= 0) break;
+        if (!item || !item.nombre) continue;
+        const n = (item.nombre || '').toLowerCase();
+        if (!n.includes('odre')) continue;
+        // capacidad: si tiene "lleno" o "(N L)" → 10 L por defecto
+        const litrosActuales = item.litros_actuales != null
+          ? Number(item.litros_actuales)
+          : 10;
+        const cantidad = Number(item.cantidad || 1);
+        // Vaciar uno a uno
+        let restantes = cantidad;
+        let litrosThisItem = litrosActuales;
+        const odresVaciados = [];
+        while (restantes > 0 && litrosPorRestar > 0) {
+          const take = Math.min(litrosThisItem, litrosPorRestar);
+          litrosThisItem -= take;
+          litrosPorRestar -= take;
+          if (litrosThisItem <= 0) {
+            odresVaciados.push(1);
+            litrosThisItem = litrosActuales; // siguiente odre lleno
+            restantes -= 1;
+          }
+        }
+        // Aplicar cambios: cantidad de odres vaciados → conviértelos a "Odre vacío"
+        const nVaciados = odresVaciados.length;
+        if (nVaciados > 0) {
+          item.cantidad = (item.cantidad || 1) - nVaciados;
+          newInventario.push({
+            nombre: 'Odre vacío',
+            cantidad: nVaciados,
+            categoria: 'equipo_general',
+            peso_kg: 0.5,
+            litros_actuales: 0,
+          });
+        }
+        // Si todavía hay litros parciales en el último odre activo, anotarlos
+        if (restantes > 0 && litrosThisItem !== litrosActuales) {
+          // Renombrar el item: actualizar litros_actuales para los que queden
+          // Best-effort: si había varios odres en el item, separamos uno parcial.
+          item.cantidad = (item.cantidad || 1) - 1;
+          newInventario.push({
+            nombre: `Odre semilleno (${litrosThisItem} L)`,
+            cantidad: 1,
+            categoria: 'equipo_general',
+            peso_kg: 0.5 + litrosThisItem,
+            litros_actuales: litrosThisItem,
+          });
+        }
+      }
+
+      // 3) Limpiar items con cantidad 0
+      const cleaned = newInventario.filter(
+        (it) => it && (it.cantidad == null || Number(it.cantidad) > 0)
+      );
+
+      try {
+        await api.patch(`/characters/${m.id}`, { inventario: cleaned });
+        ok += 1;
+      } catch (err) {
+        console.error(`Error guardando inventario de ${m.nombre}:`, err);
+        fail += 1;
+      }
+    }
+
+    return { ok, fail };
+  }, [config.miembros, config.acompanantes, characters, partyProvisions]);
+
   // =============== APPLY PX TO CHARACTERS ===============
   
   const applyPXToCharacters = async () => {
@@ -1941,6 +2060,20 @@ const EnhancedTravelSystem = () => {
         setPxApplied(true);
         setPxResults(response.data);
         toast.success(`¡PX aplicados a ${response.data.exitosos} personajes!`);
+        // Persist provisions consumption to each character's inventory.
+        try {
+          const persisted = await persistProvisionsToInventory();
+          if (persisted.ok > 0) {
+            toast.success(
+              `Inventarios actualizados: raciones consumidas restadas a ${persisted.ok} viajero(s).`
+            );
+          }
+          if (persisted.fail > 0) {
+            toast.error(`No se pudieron actualizar ${persisted.fail} inventario(s).`);
+          }
+        } catch (provErr) {
+          console.error('Error persisting provisions:', provErr);
+        }
       } else {
         toast.error(response.data.message || 'Error al aplicar PX');
       }
