@@ -4,6 +4,21 @@
 
 ### ✅ COMPLETED This Session
 
+#### 17. Iteración 64 — Zoom natural en el Mapa del Maestro (2026-02-26)
+
+**🎯 Bug**: el zoom con la rueda saltaba abruptamente (10% por click) y el zoom no se centraba donde apuntaba el ratón.
+
+**Causa raíz**:
+1. `transformOrigin: 'center center'` en el `<svg>` no encajaba con la matemática del handler (que asume origen `(0,0)`).
+2. Factor de zoom discreto (0.9/1.1) → muy brusco, especialmente en trackpad.
+
+**Fix** (`MiddleEarthMap.jsx`):
+- `transformOrigin: '0 0'` (top-left) — coherente con el cálculo `mapX = (mouseX - panX) / zoom`.
+- Factor exponencial `Math.exp(-deltaY * 0.0015)` con clamp `[0.5, 2]` por evento — suave en trackpad y rueda.
+- Mantiene el "zoom-to-cursor" correctamente: el punto del mapa bajo el cursor permanece fijo al hacer zoom.
+
+**Verificado por screenshot**: el zoom subió a 125% tras 3 wheel events suaves sin saltos visibles.
+
 #### 16. Iteración 63 — Inventario real para provisiones (2026-02-26)
 
 **🎯 Objetivo del usuario**: que las raciones/agua se descuenten directamente del inventario de cada personaje, en lugar de un pool global. Que la tienda detecte lo que ya tienen y solo proponga comprar lo que falta.

@@ -904,33 +904,40 @@ const MiddleEarthMap = () => {
     setIsDragging(false);
   };
   
-  // Handle mouse wheel for zoom
+  // Handle mouse wheel for zoom (smooth + centered on mouse pointer)
   const handleWheel = (e) => {
     e.preventDefault();
-    
-    // Calculate zoom direction and new zoom level
-    const zoomFactor = e.deltaY > 0 ? 0.9 : 1.1; // 10% zoom in/out
+
+    // Smooth proportional zoom: small deltaY → small zoom step.
+    // Most browsers send |deltaY| ≈ 100 per notch on a wheel; trackpads send
+    // much smaller values (~1-5) per event.
+    const sensitivity = 0.0015;
+    // Clamp factor to [0.5, 2] per single event so a fast trackpad burst does
+    // not blow up the zoom in one tick.
+    const rawFactor = Math.exp(-e.deltaY * sensitivity);
+    const zoomFactor = Math.min(2, Math.max(0.5, rawFactor));
     const newZoom = Math.min(20, Math.max(0.05, zoom * zoomFactor));
-    
+
     // Get mouse position relative to container
     const container = containerRef.current;
     if (!container) {
       setZoom(newZoom);
       return;
     }
-    
+
     const rect = container.getBoundingClientRect();
     const mouseX = e.clientX - rect.left;
     const mouseY = e.clientY - rect.top;
-    
-    // Calculate the point on the map under the mouse
+
+    // Calculate the point on the map under the mouse (using top-left origin
+    // — must match `transformOrigin: '0 0'` in the SVG style below).
     const mapX = (mouseX - pan.x) / zoom;
     const mapY = (mouseY - pan.y) / zoom;
-    
-    // Calculate new pan to keep mouse position fixed
+
+    // Calculate new pan to keep the same map point under the mouse.
     const newPanX = mouseX - mapX * newZoom;
     const newPanY = mouseY - mapY * newZoom;
-    
+
     setZoom(newZoom);
     setPan({ x: newPanX, y: newPanY });
   };
@@ -2049,7 +2056,7 @@ const MiddleEarthMap = () => {
           viewBox={`0 0 ${MAP_PIXEL_WIDTH} ${MAP_PIXEL_HEIGHT}`}
           style={{
             transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
-            transformOrigin: 'center center',
+            transformOrigin: '0 0',
           }}
         >
           {/* SVG Definitions */}
