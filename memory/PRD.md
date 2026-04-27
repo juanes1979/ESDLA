@@ -4,6 +4,24 @@
 
 ### ✅ COMPLETED This Session
 
+#### 19. Iteración 66 — Pathfinding Debugger arreglado + Piezas movibles en Editor de Terrenos (2026-02-26)
+
+**🔍 #3 — Pathfinding Debugger** (`/path-debugger`):
+- **Bug**: el endpoint `/api/travel/debug-pathfinding` implementaba una heurística greedy paso-a-paso totalmente distinta del A* del sistema real → los caminos visualizados nunca coincidían con la ruta calculada.
+- **Fix** (`/app/backend/routes/travel_routes.py`): el endpoint ahora usa el mismo `MiddleEarthPathfinder.find_path()` que `/calculate-journey`. Cada segmento del path resultado se anota con terreno, tipo de tierra, road, river_crossing y coste, y se devuelve en la misma estructura `{configuracion, resumen, pasos}` que ya consume el frontend (sin cambios en la UI).
+- Verificado por curl: Hobbiton → Bree devuelve 8 pasos, 136.6 km, exito=true, con coste y road info correctos.
+
+**🎯 #4 — Piezas movibles en Editor de Terrenos** (`/terrain-editor`):
+- **Nuevo modo "Mover"**: botón en la toolbar (junto a Dibujar Zona / Borrar) con icono `Move`.
+- Al activarlo: arrastra cualquier polígono pintado para reposicionarlo. El polígono que se mueve se resalta con borde dorado.
+- Toda la geometría del polígono se traslada por el delta del cursor (todos los puntos se desplazan junto al drag).
+- Los modos polígono / borrar / mover son mutuamente excluyentes — al activar uno, los otros se apagan.
+- Toast informativo al activar y al soltar; recordatorio "Recuerda Guardar para persistirlo".
+- Pan con click izquierdo se desactiva en modo mover (sí sigue activo con clic derecho/medio).
+- `data-testid="terrain-move-mode-btn"` y `data-testid="terrain-polygon-{id}"` añadidos para testing.
+
+Lint ✅ Python y JS. Verificado por screenshot del editor (191 polígonos cargados).
+
 #### 18. Iteración 65 — Backup / Restore de la base de datos (2026-02-26)
 
 **🎯 Objetivo**: que el Maestro pueda exportar TODA la base de datos a un archivo JSON antes de un cambio importante, y poder restaurar en caso de error.

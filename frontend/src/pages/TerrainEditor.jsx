@@ -75,6 +75,12 @@ const TerrainEditor = () => {
   const [editPieceMode, setEditPieceMode] = useState(null); // 'roads', 'barriers', 'rivers'
   const [selectedPiece, setSelectedPiece] = useState(null);
 
+  // === Move polygons (Iter 67) ===
+  const [movePolygonMode, setMovePolygonMode] = useState(false);
+  const [movingPolygonId, setMovingPolygonId] = useState(null);
+  const [moveStartCoords, setMoveStartCoords] = useState(null);
+
+
   // Load data
   useEffect(() => {
     const fetchData = async () => {
@@ -124,8 +130,8 @@ const TerrainEditor = () => {
 
   // Mouse handlers for pan
   const handleMouseDown = (e) => {
-    // Allow pan with left click when NOT in polygon or erase mode
-    if (e.button === 0 && !polygonMode && !eraseMode) {
+    // Allow pan with left click when NOT in polygon, erase or move mode
+    if (e.button === 0 && !polygonMode && !eraseMode && !movePolygonMode) {
       setIsDragging(true);
       setLastMousePos({ x: e.clientX, y: e.clientY });
     } else if (e.button === 2) {
@@ -142,6 +148,21 @@ const TerrainEditor = () => {
   };
 
   const handleMouseMove = (e) => {
+    // Move polygon dragging takes precedence over pan
+    if (movingPolygonId && moveStartCoords) {
+      const coords = screenToMap(e.clientX, e.clientY);
+      const dx = coords.x - moveStartCoords.x;
+      const dy = coords.y - moveStartCoords.y;
+      setDrawnPolygons(prev => prev.map(p => {
+        if (p.id !== movingPolygonId) return p;
+        return {
+          ...p,
+          points: p.points.map(pt => ({ x: pt.x + dx, y: pt.y + dy })),
+        };
+      }));
+      setMoveStartCoords(coords);
+      return;
+    }
     if (isDragging) {
       const dx = e.clientX - lastMousePos.x;
       const dy = e.clientY - lastMousePos.y;
@@ -152,6 +173,11 @@ const TerrainEditor = () => {
 
   const handleMouseUp = () => {
     setIsDragging(false);
+    if (movingPolygonId) {
+      toast.success('Polígono movido — recuerda Guardar para persistirlo.');
+      setMovingPolygonId(null);
+      setMoveStartCoords(null);
+    }
   };
 
   // Wheel zoom - only when zoomMode is active
@@ -472,18 +498,35 @@ const TerrainEditor = () => {
           key={polygon.id}
           points={pointsStr}
           fill={config.color}
-          fillOpacity={0.6}
-          stroke={config.color}
-          strokeWidth={15}
+          fillOpacity={movingPolygonId === polygon.id ? 0.85 : 0.6}
+          stroke={movingPolygonId === polygon.id ? '#ffd166' : config.color}
+          strokeWidth={movingPolygonId === polygon.id ? 30 : 15}
           strokeOpacity={0.9}
-          onClick={() => {
+          onMouseDown={(e) => {
+            if (movePolygonMode) {
+              e.stopPropagation();
+              const coords = screenToMap(e.clientX, e.clientY);
+              setMovingPolygonId(polygon.id);
+              setMoveStartCoords(coords);
+            }
+          }}
+          onClick={(e) => {
             if (eraseMode) {
               if (window.confirm('¿Eliminar este polígono?')) {
                 deletePolygon(polygon.id);
               }
+            } else if (movePolygonMode) {
+              e.stopPropagation();
             }
           }}
-          style={{ cursor: eraseMode ? 'pointer' : 'default' }}
+          style={{
+            cursor: movePolygonMode
+              ? 'move'
+              : eraseMode
+              ? 'pointer'
+              : 'default'
+          }}
+          data-testid={`terrain-polygon-${polygon.id}`}
         />
       );
     });
@@ -868,6 +911,7 @@ const TerrainEditor = () => {
               onClick={() => {
                 setPolygonMode(!polygonMode);
                 setEraseMode(false);
+                setMovePolygonMode(false);
                 if (!polygonMode) {
                   toast.info('Modo polígono activado. Haz clic para poner puntos. Cierra haciendo clic cerca del primer punto (verde).');
                 }
@@ -884,6 +928,7 @@ const TerrainEditor = () => {
               onClick={() => {
                 setEraseMode(!eraseMode);
                 setPolygonMode(false);
+                setMovePolygonMode(false);
                 if (!eraseMode) {
                   toast.info('Modo borrar activado. Haz clic en un polígono para eliminarlo.');
                 }
@@ -892,6 +937,24 @@ const TerrainEditor = () => {
             >
               <Eraser className="w-4 h-4 mr-1" />
               Borrar
+            </Button>
+
+            <Button
+              variant={movePolygonMode ? "default" : "outline"}
+              size="sm"
+              onClick={() => {
+                setMovePolygonMode(!movePolygonMode);
+                setEraseMode(false);
+                setPolygonMode(false);
+                if (!movePolygonMode) {
+                  toast.info('Modo mover activado. Arrastra un polígono para reposicionarlo.');
+                }
+              }}
+              className={movePolygonMode ? 'bg-amber-600' : ''}
+              data-testid="terrain-move-mode-btn"
+            >
+              <Move className="w-4 h-4 mr-1" />
+              Mover
             </Button>
             
             {/* Info display */}

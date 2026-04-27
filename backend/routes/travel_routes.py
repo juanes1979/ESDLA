@@ -849,359 +849,161 @@ class PathDebugConfig(BaseModel):
 async def debug_pathfinding(config: PathDebugConfig):
     """
     Debug pathfinding step by step.
-    Returns detailed explanation of each decision made.
+
+    Uses the SAME `MiddleEarthPathfinder` (A*) the real journey calculation
+    uses, so the visualised path matches what the system actually walks.
+    Each step is annotated with terrain, land type, road and river info.
     """
     import math
-    
-    # Find origin and destination locations
-    all_locations = await db.locations.find({}, {"_id": 0}).to_list(length=1000)
-    
-    origen = None
-    destino = None
-    
-    for loc in all_locations:
-        nombre = loc.get('nombre', '').lower()
-        if config.origen_nombre.lower() in nombre or nombre in config.origen_nombre.lower():
-            if not origen:
-                origen = loc
-        if config.destino_nombre.lower() in nombre or nombre in config.destino_nombre.lower():
-            if not destino:
-                destino = loc
-    
-    if not origen:
-        return {"error": f"No se encontró ubicación de origen: {config.origen_nombre}", "sugerencias": [l['nombre'] for l in all_locations[:10]]}
-    if not destino:
-        return {"error": f"No se encontró ubicación de destino: {config.destino_nombre}", "sugerencias": [l['nombre'] for l in all_locations[:10]]}
-    
-    # Load roads
-    roads = await db.roads.find({}, {"_id": 0}).to_list(length=500)
-    
-    # Load terrain polygons
-    terrain_polygons = await get_terrain_polygons()
-    
-    # Start position
-    current_x = origen.get('x', 0)
-    current_y = origen.get('y', 0)
-    dest_x = destino.get('x', 0)
-    dest_y = destino.get('y', 0)
-    
-    # Constants
-    KM_PER_PERCENT = 20  # Approximate km per 1% of map
-    STEP_PERCENT = config.paso_km / KM_PER_PERCENT
-    
-    # Results
-    pasos = []
-    total_distance = 0
-    
+    from utils.pathfinding import MiddleEarthPathfinder
+
+    KM_PER_PERCENT = 1.974
+
     def distance(x1, y1, x2, y2):
-        return math.sqrt((x2-x1)**2 + (y2-y1)**2)
-    
-    def point_in_polygon(px, py, polygon_points):
-        n = len(polygon_points)
-        if n < 3:
-            return False
-        inside = False
-        j = n - 1
-        for i in range(n):
-            xi = polygon_points[i].get("x", 0)
-            yi = polygon_points[i].get("y", 0)
-            xj = polygon_points[j].get("x", 0)
-            yj = polygon_points[j].get("y", 0)
-            if ((yi > py) != (yj > py)) and (px < (xj - xi) * (py - yi) / (yj - yi) + xi):
-                inside = not inside
-            j = i
-        return inside
-    
-    def get_terrain_at(x, y):
-        for poly in terrain_polygons:
-            if poly.get("type") in TERRAIN_PRIORITY:
-                if point_in_polygon(x, y, poly.get("points", [])):
-                    return poly.get("type")
-        return "moderado"
-    
-    def get_land_type_at(x, y):
-        for poly in terrain_polygons:
-            if poly.get("type") in LAND_TYPE_PRIORITY:
-                if point_in_polygon(x, y, poly.get("points", [])):
-                    return poly.get("type")
-        return "tierras_salvajes"
-    
-    def find_nearest_road_point(x, y, max_dist=10):
-        """Find nearest point on any road"""
-        nearest = None
-        min_dist = max_dist
-        road_name = None
-        road_type = None
-        
-        for road in roads:
-            # Support both 'path' and 'puntos' field names
-            path = road.get('puntos', road.get('path', []))
-            for i, point in enumerate(path):
-                px = point[0] if isinstance(point, list) else point.get('x', 0)
-                py = point[1] if isinstance(point, list) else point.get('y', 0)
-                d = distance(x, y, px, py)
-                if d < min_dist:
-                    min_dist = d
-                    nearest = (px, py)
-                    road_name = road.get('nombre', 'Desconocido')
-                    road_type = road.get('tipo', 'sendero')
-        
-        return nearest, min_dist, road_name, road_type
-    
-    def is_on_road(x, y, tolerance=0.5):
-        """Check if point is on or very close to a road"""
-        _, dist, name, road_type = find_nearest_road_point(x, y, max_dist=tolerance)
-        return dist < tolerance, name, road_type
-    
-    def get_next_road_point_towards_dest(current_road_name, x, y, dest_x, dest_y):
-        """Get next point on current road that's closer to destination"""
-        for road in roads:
-            if road.get('nombre') == current_road_name:
-                # Support both 'path' and 'puntos' field names
-                path = road.get('puntos', road.get('path', []))
-                current_dist_to_dest = distance(x, y, dest_x, dest_y)
-                
-                # Find point on road that's closer to destination
-                best_point = None
-                best_improvement = 0
-                
-                for point in path:
-                    px = point[0] if isinstance(point, list) else point.get('x', 0)
-                    py = point[1] if isinstance(point, list) else point.get('y', 0)
-                    
-                    # Must be reachable (within step distance)
-                    dist_from_current = distance(x, y, px, py)
-                    if dist_from_current < 0.1 or dist_from_current > STEP_PERCENT * 2:
-                        continue
-                    
-                    # Check if closer to destination
-                    dist_to_dest = distance(px, py, dest_x, dest_y)
-                    improvement = current_dist_to_dest - dist_to_dest
-                    
-                    if improvement > best_improvement:
-                        best_improvement = improvement
-                        best_point = (px, py)
-                
-                return best_point
-        return None
-    
-    # Initial step
-    pasos.append({
-        "paso": 0,
-        "posicion": {"x": round(current_x, 2), "y": round(current_y, 2)},
-        "ubicacion": origen.get('nombre'),
-        "terreno": get_terrain_at(current_x, current_y),
-        "tipo_tierra": get_land_type_at(current_x, current_y),
-        "distancia_destino_km": round(distance(current_x, current_y, dest_x, dest_y) * KM_PER_PERCENT, 1),
-        "decision": "INICIO",
-        "razon": f"Partimos de {origen.get('nombre')}"
-    })
-    
-    # Track last road we were on to avoid oscillation
-    last_road_exited = None
-    steps_since_road_exit = 0
-    
-    # ANTI-LOOP: Track visited positions to detect and break loops
-    visited_positions = set()
-    visited_positions.add((round(current_x, 1), round(current_y, 1)))
-    loop_detected = False
-    
-    for step in range(1, config.max_pasos + 1):
-        dist_to_dest = distance(current_x, current_y, dest_x, dest_y)
-        
-        # Check if arrived
-        if dist_to_dest * KM_PER_PERCENT < config.paso_km:
+        return math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2)
+
+    # Locate origen / destino
+    locations = await db.locations.find({}).to_list(length=None)
+    for loc in locations:
+        if '_id' in loc:
+            loc['id'] = str(loc.pop('_id'))
+
+    origen = next((l for l in locations if l.get('nombre') == config.origen_nombre), None)
+    destino = next((l for l in locations if l.get('nombre') == config.destino_nombre), None)
+    if not origen or not destino:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Origen o destino no encontrado: {config.origen_nombre} → {config.destino_nombre}",
+        )
+
+    # Load roads/rivers/barriers/regions/polygons (same as calculate-journey)
+    roads = await db.roads.find({}).to_list(length=None)
+    rivers = await db.rivers.find({}).to_list(length=None)
+    barriers = await db.barriers.find({}).to_list(length=None)
+    regions = await db.regions.find({}).to_list(length=None)
+    terrain_polygons = await get_terrain_polygons()
+    for col in (roads, rivers, barriers, regions):
+        for c in col:
+            if '_id' in c:
+                c['id'] = str(c.pop('_id'))
+
+    pathfinder = MiddleEarthPathfinder(
+        roads=roads,
+        rivers=rivers,
+        barriers=barriers,
+        locations=locations,
+        regions=regions,
+        terrain_polygons=terrain_polygons,
+        prefer_roads=config.preferir_caminos,
+        avoid_shadow_lands=config.evitar_tierras_sombra,
+        avoid_dark_lands=config.evitar_tierras_oscuras,
+    )
+
+    start_coords = (origen.get('x', 0), origen.get('y', 0))
+    end_coords = (destino.get('x', 0), destino.get('y', 0))
+
+    path_result = pathfinder.find_path(start_coords, end_coords)
+
+    # Helper: nearest location land type for a point
+    def land_at(x, y):
+        min_d = float('inf')
+        land = 'tierras_salvajes'
+        for loc in locations:
+            d = (x - loc.get('x', 0)) ** 2 + (y - loc.get('y', 0)) ** 2
+            if d < min_d:
+                min_d = d
+                land = loc.get('clase_region') or loc.get('tipo_tierra') or 'tierras_salvajes'
+        return land
+
+    # Build the step-by-step path narrative from the segments returned by A*
+    pasos = []
+    if path_result.success:
+        prev = start_coords
+        cum_km = 0.0
+        # First step = origin
+        pasos.append({
+            "paso": 0,
+            "nombre": f"Origen — {config.origen_nombre}",
+            "x": prev[0],
+            "y": prev[1],
+            "terreno": pathfinder.get_terrain_from_polygons(prev[0], prev[1]),
+            "tipo_tierra": land_at(prev[0], prev[1]),
+            "road_name": pathfinder._get_road_at_point(prev[0], prev[1]).get('name')
+                if pathfinder._get_road_at_point(prev[0], prev[1]) else None,
+            "decision": "Punto de partida",
+            "distancia_acumulada_km": 0.0,
+        })
+
+        for i, seg in enumerate(path_result.segments, start=1):
+            seg_d_km = distance(seg.start[0], seg.start[1], seg.end[0], seg.end[1]) * KM_PER_PERCENT
+            cum_km += seg_d_km
+            terreno = pathfinder.get_terrain_from_polygons(seg.end[0], seg.end[1])
+            tipo_tierra = land_at(seg.end[0], seg.end[1])
+            road_at = pathfinder._get_road_at_point(seg.end[0], seg.end[1])
+            road_name = road_at.get('name') if road_at else None
+            decision_parts = []
+            if seg.road_type and seg.road_type not in ('ninguno', '', None):
+                decision_parts.append(f"Por {seg.road_type}")
+            else:
+                decision_parts.append(f"A campo través ({terreno})")
+            if seg.river_crossing:
+                decision_parts.append(f"Cruce de río ({seg.river_crossing})")
+            decision_parts.append(f"+{seg_d_km:.1f} km · coste {seg.travel_cost:.2f}")
             pasos.append({
-                "paso": step,
-                "posicion": {"x": round(dest_x, 2), "y": round(dest_y, 2)},
-                "ubicacion": destino.get('nombre'),
-                "terreno": get_terrain_at(dest_x, dest_y),
-                "tipo_tierra": get_land_type_at(dest_x, dest_y),
-                "distancia_destino_km": 0,
-                "decision": "LLEGADA",
-                "razon": f"Hemos llegado a {destino.get('nombre')}"
+                "paso": i,
+                "x": seg.end[0],
+                "y": seg.end[1],
+                "terreno": terreno,
+                "tipo_tierra": tipo_tierra,
+                "road_name": road_name,
+                "river_crossing": seg.river_crossing,
+                "travel_cost": round(seg.travel_cost, 3),
+                "decision": " · ".join(decision_parts),
+                "distancia_acumulada_km": round(cum_km, 1),
             })
-            break
-        
-        # Get current terrain info
-        current_terrain = get_terrain_at(current_x, current_y)
-        current_land = get_land_type_at(current_x, current_y)
-        on_road, current_road, current_road_type = is_on_road(current_x, current_y)
-        
-        # Track road exit for anti-oscillation
-        if on_road:
-            last_road_exited = None
-            steps_since_road_exit = 0
-        elif last_road_exited:
-            steps_since_road_exit += 1
-        
-        # Decision logic
-        decision = None
-        next_x, next_y = None, None
-        razon = ""
-        alternativas = []  # Track alternatives considered
-        
-        # ANTI-LOOP: Check if we're about to enter a loop
-        # Only check after step 10 to allow initial movement
-        pos_key = (round(current_x, 1), round(current_y, 1))
-        if step > 10 and pos_key in visited_positions:
-            loop_detected = True
-            alternativas.append(f"¡BUCLE DETECTADO! Posición ({current_x:.1f}, {current_y:.1f}) ya visitada")
-        
-        # If loop detected, ignore road preferences and go directly to destination
-        if loop_detected:
-            direction_x = (dest_x - current_x)
-            direction_y = (dest_y - current_y)
-            length = math.sqrt(direction_x**2 + direction_y**2)
-            if length > 0:
-                next_x = current_x + (direction_x / length) * STEP_PERCENT
-                next_y = current_y + (direction_y / length) * STEP_PERCENT
-            decision = "DIRECTO_FORZADO"
-            razon = f"Bucle detectado: ignoramos preferencias y vamos directo al destino"
-        
-        # Normal logic (only if not in loop mode)
-        if decision is None:
-            # Option 1: If on a road, try to continue on it
-            if on_road and config.preferir_caminos:
-                next_point = get_next_road_point_towards_dest(current_road, current_x, current_y, dest_x, dest_y)
-                if next_point:
-                    next_x, next_y = next_point
-                    decision = "SEGUIR_CAMINO"
-                    razon = f"Continuamos por {current_road} que nos acerca al destino"
-                else:
-                    # Road doesn't help, mark that we're leaving it
-                    last_road_exited = current_road
-                    steps_since_road_exit = 0
-                    alternativas.append(f"El camino {current_road} no nos acerca más al destino")
-            
-            # Option 2: If not on road, look for nearest road (but avoid recently exited road)
-            if decision is None and config.preferir_caminos:
-                nearest_road, road_dist, road_name, road_type = find_nearest_road_point(current_x, current_y)
-                
-                # Avoid going back to a road we just exited (for 3 steps)
-                should_avoid_road = (road_name == last_road_exited and steps_since_road_exit < 3)
-                
-                # Check if going to road is worth it
-                if nearest_road and road_dist < 5 and not should_avoid_road:  # Within 5% (~100km)
-                    # Check if road goes towards destination
-                    road_x, road_y = nearest_road
-                    current_dist_to_dest = distance(current_x, current_y, dest_x, dest_y)
-                    road_dist_to_dest = distance(road_x, road_y, dest_x, dest_y)
-                    
-                    # Road is worth it if it doesn't add too much distance
-                    detour = road_dist - (current_dist_to_dest - road_dist_to_dest)
-                    
-                    if detour < current_dist_to_dest * 0.3:  # Less than 30% detour
-                        # Move towards road
-                        direction_x = (road_x - current_x)
-                        direction_y = (road_y - current_y)
-                        length = math.sqrt(direction_x**2 + direction_y**2)
-                        if length > 0:
-                            next_x = current_x + (direction_x / length) * STEP_PERCENT
-                            next_y = current_y + (direction_y / length) * STEP_PERCENT
-                            decision = "IR_A_CAMINO"
-                            razon = f"Nos desviamos hacia {road_name} (a {round(road_dist * KM_PER_PERCENT, 1)}km) porque nos beneficia"
-                    else:
-                        alternativas.append(f"Camino {road_name} descartado: desvío de {round(detour * KM_PER_PERCENT, 1)}km ({round(detour/current_dist_to_dest*100)}%)")
-                elif should_avoid_road:
-                    alternativas.append(f"Evitamos {road_name} (salimos hace {steps_since_road_exit} pasos)")
-        
-            # Option 3: Check for dangerous lands to avoid
-            if decision is None:
-                # Direct path towards destination
-                direction_x = (dest_x - current_x)
-                direction_y = (dest_y - current_y)
-                length = math.sqrt(direction_x**2 + direction_y**2)
-                
-                if length > 0:
-                    test_x = current_x + (direction_x / length) * STEP_PERCENT
-                    test_y = current_y + (direction_y / length) * STEP_PERCENT
-                    test_land = get_land_type_at(test_x, test_y)
-                    test_terrain = get_terrain_at(test_x, test_y)
-                    
-                    # Check if we should avoid this terrain
-                    avoid = False
-                    avoid_reason = ""
-                    
-                    if config.evitar_tierras_oscuras and test_land == "tierras_oscuras":
-                        avoid = True
-                        avoid_reason = "Tierras Oscuras (muy peligrosas)"
-                    elif config.evitar_tierras_sombra and test_land == "tierras_sombra":
-                        avoid = True
-                        avoid_reason = "Tierras de la Sombra (peligrosas)"
-                    elif test_terrain in ["infranqueable", "agua"]:
-                        avoid = True
-                        avoid_reason = f"Terreno {test_terrain} (no se puede atravesar)"
-                    
-                    if avoid:
-                        # Try to go around
-                        # TODO: Implement avoidance logic
-                        decision = "EVITAR"
-                        razon = f"El camino directo pasa por {avoid_reason}, buscamos alternativa"
-                        # For now, just go direct but note the issue
-                        next_x, next_y = test_x, test_y
-                    else:
-                        next_x, next_y = test_x, test_y
-                        decision = "CAMPO_TRAVES"
-                        razon = f"Avanzamos campo a través hacia el destino (terreno: {test_terrain})"
-        
-        # Default: go direct
-        if next_x is None:
-            direction_x = (dest_x - current_x)
-            direction_y = (dest_y - current_y)
-            length = math.sqrt(direction_x**2 + direction_y**2)
-            if length > 0:
-                next_x = current_x + (direction_x / length) * STEP_PERCENT
-                next_y = current_y + (direction_y / length) * STEP_PERCENT
-            decision = decision or "DIRECTO"
-            razon = razon or "Avanzamos en línea recta hacia el destino"
-        
-        # Calculate step distance
-        step_dist = distance(current_x, current_y, next_x, next_y) * KM_PER_PERCENT
-        total_distance += step_dist
-        
-        # Move
-        current_x, current_y = next_x, next_y
-        
-        # ANTI-LOOP: Add new position to visited set
-        new_pos_key = (round(current_x, 1), round(current_y, 1))
-        visited_positions.add(new_pos_key)
-        
-        # Record step
-        new_on_road, new_road_name, new_road_type = is_on_road(current_x, current_y)
-        paso_data = {
-            "paso": step,
-            "posicion": {"x": round(current_x, 2), "y": round(current_y, 2)},
-            "terreno": get_terrain_at(current_x, current_y),
-            "tipo_tierra": get_land_type_at(current_x, current_y),
-            "en_camino": new_road_name if new_on_road else None,
-            "tipo_camino": new_road_type if new_on_road else None,
-            "distancia_paso_km": round(step_dist, 1),
-            "distancia_destino_km": round(distance(current_x, current_y, dest_x, dest_y) * KM_PER_PERCENT, 1),
-            "distancia_total_km": round(total_distance, 1),
-            "decision": decision,
-            "razon": razon
-        }
-        if alternativas:
-            paso_data["alternativas_descartadas"] = alternativas
-        pasos.append(paso_data)
-    
+            prev = seg.end
+
+        # Final step = destino
+        pasos.append({
+            "paso": len(pasos),
+            "nombre": f"Destino — {config.destino_nombre}",
+            "x": end_coords[0],
+            "y": end_coords[1],
+            "terreno": pathfinder.get_terrain_from_polygons(end_coords[0], end_coords[1]),
+            "tipo_tierra": land_at(end_coords[0], end_coords[1]),
+            "decision": "Llegada al destino",
+            "distancia_acumulada_km": round(path_result.total_distance_km, 1),
+        })
+
+    straight_km = distance(
+        origen.get('x', 0), origen.get('y', 0),
+        destino.get('x', 0), destino.get('y', 0),
+    ) * KM_PER_PERCENT
+
     return {
-        "origen": origen.get('nombre'),
-        "destino": destino.get('nombre'),
         "configuracion": {
-            "paso_km": config.paso_km,
+            "origen": config.origen_nombre,
+            "destino": config.destino_nombre,
             "preferir_caminos": config.preferir_caminos,
             "evitar_tierras_oscuras": config.evitar_tierras_oscuras,
-            "evitar_tierras_sombra": config.evitar_tierras_sombra
+            "evitar_tierras_sombra": config.evitar_tierras_sombra,
         },
         "resumen": {
+            "exito": path_result.success,
             "total_pasos": len(pasos),
-            "distancia_total_km": round(total_distance, 1),
-            "distancia_linea_recta_km": round(distance(origen.get('x',0), origen.get('y',0), dest_x, dest_y) * KM_PER_PERCENT, 1)
+            "segmentos_pathfinder": len(path_result.segments),
+            "distancia_total_km": round(path_result.total_distance_km, 1) if path_result.success else 0,
+            "coste_total": round(path_result.total_travel_cost, 2) if path_result.success else 0,
+            "dias_estimados": round(path_result.estimated_days, 1) if path_result.success else 0,
+            "distancia_linea_recta_km": round(straight_km, 1),
+            "warnings": path_result.warnings,
+            "rivers_crossed": getattr(path_result, 'rivers_crossed', []),
+            "roads_used": getattr(path_result, 'roads_used', []),
+            "terrain_summary": getattr(path_result, 'terrain_summary', {}),
         },
-        "pasos": pasos
+        "pasos": pasos,
     }
+
 
 # ============== JOURNEY CALCULATION ENDPOINTS ==============
 
