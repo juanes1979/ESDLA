@@ -3076,6 +3076,60 @@ Narra el viaje de forma natural, como si se lo contaras a alguien. Respeta el cl
         }
 
 
+# ─── TTS narrador clásico ──────────────────────────────────────────────
+class TTSNarrativeRequest(BaseModel):
+    text: str
+    voice: Optional[str] = 'onyx'  # narrador clásico, grave
+    model: Optional[str] = 'tts-1-hd'  # alta calidad para audiolibro
+    speed: Optional[float] = 0.95  # ligeramente más lento, tono epopeya
+
+
+@router.post("/tts/narrative")
+async def tts_narrative(request: TTSNarrativeRequest):
+    """
+    Convierte una crónica de viaje a audio MP3 (base64) usando OpenAI TTS
+    a través de la Universal Key. Modelo por defecto: tts-1-hd, voz onyx
+    (grave, autoritaria — estilo "narrador clásico").
+    """
+    try:
+        from emergentintegrations.llm.openai import OpenAITextToSpeech
+        from dotenv import load_dotenv
+        load_dotenv()
+
+        api_key = os.environ.get('EMERGENT_LLM_KEY')
+        if not api_key:
+            return {"success": False, "error": "No API key configured"}
+
+        # OpenAI TTS limita a 4096 caracteres por petición. Si el texto es
+        # más largo, lo truncamos al límite cortando por la última frase.
+        text = (request.text or '').strip()
+        if not text:
+            return {"success": False, "error": "Texto vacío"}
+        max_chars = 4000
+        if len(text) > max_chars:
+            cut = text.rfind('.', 0, max_chars)
+            text = text[:cut + 1] if cut > 0 else text[:max_chars]
+
+        tts = OpenAITextToSpeech(api_key=api_key)
+        audio_b64 = await tts.generate_speech_base64(
+            text=text,
+            model=request.model,
+            voice=request.voice,
+            speed=request.speed,
+            response_format='mp3',
+        )
+        return {
+            "success": True,
+            "audio_base64": audio_b64,
+            "mime": "audio/mp3",
+            "voice": request.voice,
+            "model": request.model,
+            "chars": len(text),
+        }
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
 
 # New endpoint to apply individual PX amounts per character
 class ApplyPXIndividualRequest(BaseModel):

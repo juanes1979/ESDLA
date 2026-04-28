@@ -17,6 +17,7 @@ import { toast } from 'sonner';
 import JourneyMiniMap from '../JourneyMiniMap';
 import JourneyDiary from '../JourneyDiary';
 import WeatherIndicator from '../WeatherIndicator';
+import NarrativeTTSPlayer from '../NarrativeTTSPlayer';
 import { MESES_ELFICOS, ROLE_INFO } from '../travelConstants';
 import { calculateGroupMultiplier } from '../travelHelpers';
 
@@ -528,6 +529,9 @@ const ResultsView = ({
               <p className="italic text-muted-foreground leading-relaxed text-justify border-l-4 border-[hsl(var(--gold))]/30 pl-4">
                 {journeyNarrative}
               </p>
+              <div className="mt-4">
+                <NarrativeTTSPlayer text={journeyNarrative} />
+              </div>
             </div>
           ) : (
             <p className="text-sm text-muted-foreground">

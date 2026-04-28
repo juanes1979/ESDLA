@@ -20,6 +20,7 @@ import {
   Activity, Bed
 } from 'lucide-react';
 import { Textarea } from '@/components/ui/textarea';
+import JourneyForecastCard from '../JourneyForecastCard';
 import JourneyMiniMap from '../JourneyMiniMap';
 import WeatherIndicator from '../WeatherIndicator';
 import {
@@ -41,6 +42,7 @@ const ConfigView = ({
   // Companions
   addAcompanante, removeAcompanante, toggleAcompananteMount,
   startGlobalJourney, startDayByDayJourney,
+  journeyWeather = [],
 }) => (
     <div className="space-y-6">
       {/* Origin & Destination */}
@@ -1408,6 +1410,14 @@ const ConfigView = ({
             <Compass className="w-5 h-5 mr-2" />
             Iniciar Viaje (Jornada a Jornada)
           </Button>
+
+          {/* Alerta predictiva — sólo cuando hay ruta válida + miembros con papel */}
+          <JourneyForecastCard
+            config={config}
+            journeyCalc={journeyCalc}
+            journeyWeather={journeyWeather}
+            characters={characters}
+          />
         </CardContent>
       </Card>
     </div>

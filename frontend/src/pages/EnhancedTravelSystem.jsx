@@ -413,7 +413,31 @@ const EnhancedTravelSystem = () => {
       return;
     }
     await calculateJourney();
-  }, [config.origenId, config.destinoId, calculateJourney]);
+    // Pre-cargar clima día a día para que la "Alerta predictiva" pueda
+    // mostrar el día más duro sin esperar a iniciar el viaje.
+    try {
+      // Usamos un valor temporal de días (10) si aún no se ha actualizado
+      // el state — la alerta sólo necesita una primera estimación.
+      const tentativeDays = 10;
+      const orig = (locations || []).find(l => l.id === config.origenId);
+      const dest = (locations || []).find(l => l.id === config.destinoId);
+      const regions = [];
+      for (let i = 0; i < tentativeDays; i++) {
+        const ratio = tentativeDays > 1 ? i / (tentativeDays - 1) : 0;
+        regions.push(ratio < 0.5 ? (orig?.region || '') : (dest?.region || ''));
+      }
+      const wRes = await api.post('/weather/simulate', {
+        mes: config.mes,
+        dia_inicio: config.diaMes || 1,
+        num_dias: tentativeDays,
+        regiones_por_dia: regions,
+      });
+      setJourneyWeather(wRes.data?.dias || []);
+    } catch (e) {
+      // No bloqueante: la alerta funciona sin clima.
+      console.warn('No se pudo pre-rodar el clima para la alerta predictiva:', e);
+    }
+  }, [config.origenId, config.destinoId, config.mes, config.diaMes, locations, calculateJourney]);
   
   // =============== PROVISIONS CHECK ===============
   // Check if party has enough food and water for the journey
@@ -2612,6 +2636,7 @@ const EnhancedTravelSystem = () => {
           travelMode={travelMode}
           initialFatigueOverrides={initialFatigueOverrides}
           setInitialFatigueOverrides={setInitialFatigueOverrides}
+          journeyWeather={journeyWeather}
           setConfig={setConfig}
           setOrigenSearch={setOrigenSearch}
           setDestinoSearch={setDestinoSearch}

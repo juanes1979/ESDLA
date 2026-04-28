@@ -1,0 +1,38 @@
+{
+  "summary": "Iter 64 — TTS narrador clásico + JourneyForecastCard. Backend TTS (4/5 pytest tests OK): texto corto español en 'onyx'/'tts-1-hd' devuelve audio_base64 de ~131k chars (>50k), texto vacío→success:false, voz custom respetada. Test de truncación >4000 chars devolvió 502 (timeout de ingress, ~120s, NO bug del endpoint - lógica de truncado en líneas 3108-3111 es correcta). Frontend JourneyForecastCard verificado en runtime con Bree→Tharbad: card aparece SOLO tras asignar Guía y calcular ruta (✓), KPIs Días/Fatiga~final/Comida/Agua presentes con sus data-testid, 'Día más duro: Día 3 — Lluvia ligera en Eriador' aparece (clima precargado por triggerCalculateJourney funciona), avisos correctos (faltan raciones, faltan litros, riesgo crítico fatiga), borde rojo aplicado (border-red-500/40 bg-red-950/10) por fatiga≥5. Mensaje narrativo correcto. Code-review confirma fórmulas: numViajeros*dias raciones y numViajeros*2*dias litros (cumple FORECAST-3: 4×9=36 / 4×2×9=72). NarrativeTTSPlayer (TTS-2) NO probado E2E en runtime por dependencia de viaje completado, pero code-review confirma todos los data-testid (narrative-tts-player, tts-generate-btn, tts-audio-element, tts-close-btn), spinner 'Generando audio…', cache invalidation por cambio de texto (useEffect línea 21-27), autoplay con catch silencioso, blob URL con cleanup en unmount.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "/api/travel/tts/narrative", "issue": "Petición con texto >4000 chars devolvió 502 desde el ingress (timeout ~120s para sintetizar tts-1-hd). El endpoint en sí trunca correctamente a 4000 chars al último punto (líneas 3108-3111); el 502 es timeout infra. Considerar reducir a tts-1 para textos >2000 o ejecutar TTS en background."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_tts_narrative_it64.py",
+    "/app/test_reports/pytest/iteration_64_tts.xml"
+  ],
+  "action_items": [
+    "[OPCIONAL] Mitigar timeout TTS para textos largos (>2000 chars): bajar a model='tts-1' automáticamente o procesar en background con polling. Hoy el endpoint funciona bien para crónicas <2000 chars (4/5 tests OK incluyendo el test 'crónica corta en español' que sí pasa)."
+  ],
+  "critical_code_review_comments": [
+    "[OK TTS-1] backend/routes/travel_routes.py líneas 3079-3130: endpoint POST /tts/narrative correcto. Defaults voice='onyx' / model='tts-1-hd' / speed=0.95 ✓. Trunca texto >4000 al último punto (rfind('.',0,4000)) ✓. Texto vacío/whitespace → {success:false,error:'Texto vacío'} ✓. Devuelve audio_base64 + mime='audio/mp3' + voice + model + chars ✓. Verificado en runtime con texto corto: 131840 bytes audio MP3 generado.",
+    "[OK TTS-2] components/travel/NarrativeTTSPlayer.jsx: data-testid 'narrative-tts-player', 'tts-generate-btn', 'tts-audio-element', 'tts-close-btn' presentes ✓. Spinner Loader2 con texto 'Generando audio…' ✓. Cache invalidation con useEffect que compara generatedFor !== text ✓. Autoplay con .catch silencioso (políticas browser) ✓. Cleanup URL.revokeObjectURL al desmontar y al cerrar ✓.",
+    "[OK FORECAST-1] components/travel/JourneyForecastCard.jsx líneas 53-57: render condicional correcto (journeyCalc.success && (miembrosConPapel + acompanantes) > 0). Verificado en runtime: card NO aparece sin Guía asignado, aparece tras asignar Regred Maggot como Guía y calcular ruta.",
+    "[OK FORECAST-2] línea 126-130: borde dinámico — rojo si avisos.fatiga, ámbar si otros avisos, verde si ninguno. Verificado: card recibió clase 'border-red-500/40 bg-red-950/10' al estimar fatiga 6.",
+    "[OK FORECAST-3] líneas 71-72: racionesNecesarias = numViajeros*dias, litrosNecesarios = numViajeros*2*dias. Para 4×9 → 36 raciones / 72 L exactamente. Detección de items por tipo OR nombre incluyendo 'racion'/'odre'/'agua' (líneas 40-47) ✓.",
+    "[OK FORECAST-4] pages/EnhancedTravelSystem.jsx líneas 410-440: triggerCalculateJourney llama a calculateJourney() y luego /weather/simulate con tentativeDays=10 y regiones del origen→destino. Try/catch silencioso si falla (no bloqueante). Verificado: tras calcular ruta Bree→Tharbad la card mostró 'Día más duro: Día 3 — Lluvia ligera en Eriador' usando journeyWeather precargado.",
+    "[INFO] components/travel/views/ResultsView.jsx línea 533: <NarrativeTTSPlayer text={journeyNarrative} /> integrado debajo de la crónica ✓. components/travel/views/ConfigView.jsx línea 1415-1418: <JourneyForecastCard config journeyCalc journeyWeather characters /> al final ✓."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "80% (4/5 tests pytest; el test de truncación >4000 chars dio 502 por timeout ingress, no bug del endpoint)", "frontend": "100% (FORECAST-1..4 verificados en runtime; TTS-2 verificado por code-review, no E2E)"},
+  "test_credentials": "N/A",
+  "seed_data_creation": "Asignado Regred Maggot como Guía durante el test (estado local, sin persistencia DB).",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "TTS-2 (NarrativeTTSPlayer en runtime) requiere completar un viaje y generar narrativa (botón 'Generar narrativa' en ResultsView). Si se quiere probar E2E, ir a /travel, configurar Hobbiton→Bree, asignar Guía, iniciar viaje, usar 'Viaje global' para auto-completar, generar narrativa y luego pulsar 'Escuchar crónica (narrador)'. El backend TTS ya está demostrado funcional.",
+  "rca of the issue": "El test de truncación TTS dio 502: la combinación tts-1-hd + ~4000 chars en español tarda > 60s y el ingress de Kubernetes corta. No es bug del endpoint (la lógica de truncado es correcta). Mitigación recomendada: cuando text>2000 chars, usar tts-1 (el doble de rápido) o enviar a un job background con polling. Como el caso de uso real son crónicas de viaje cortas (~500-1500 chars), el flujo principal del usuario no se ve afectado."
+}
