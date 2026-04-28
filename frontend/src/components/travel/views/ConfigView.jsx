@@ -13,7 +13,6 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Route, Compass, Mountain, MapPin, Plus, X, Check, Shield,
   Footprints, AlertTriangle, Sparkles, Save, Users,

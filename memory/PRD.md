@@ -2,27 +2,29 @@
 
 ## Current State (2026-02-28)
 
-### ✅ Travel System Logic Overhaul (Batch 2) — Iniciado
-- **Viaje global** (antes "Automatizar viaje"): bucle reescrito en
-  `EnhancedTravelSystem.jsx` para no depender de refs de React. Ya no aparece
-  el "Atasco detectado" tras 8 iteraciones; el bucle hace
-  orientación → genera evento → resuelve evento → avanza posición localmente,
-  hasta llegar al destino o ser detenido por el usuario. Verificado E2E
-  (Bree → Tharbad, 0%→100% en ~15 s).
-- **Ojo de Sauron**: rediseñado en `SauronEyeOverlay.jsx`. Máscara radial sobre
-  el PNG (sin recorte rectangular) + 3 capas de fuego animadas
-  (outer glow, inner core, ascuas) imitando la portada. Botón "Detener viaje global".
-- **Fatiga inicial heredada + override con justificación**: nueva sección en
-  ConfigView. Cada miembro con papel muestra su fatiga de ficha y un input
-  numérico (0–6). Si se ajusta, aparece un Textarea de justificación obligatoria;
-  iniciar viaje sin justificarlo bloquea con toast de error. Al iniciar, se
-  persiste vía `PUT /api/characters/{id}/fatigue`.
+### ✅ Travel System Logic Overhaul (Batch 2) — COMPLETO
+- **Modo único interactivo "Jornada a Jornada"**: eliminado el toggle entre
+  "Viaje Global" y "Día a Día" en ConfigView. El botón "Iniciar Viaje" siempre
+  arranca el modo interactivo (orientación → días vacíos resumidos en bitácora
+  → parada en evento → resolución → siguiente orientación).
+- **Bitácora del viaje** (`dailySummaries`): nueva tarjeta en GlobalJourneyView
+  que registra cada día con icono y color según tipo (partida, antecedente,
+  orientación, marcha, evento, campamento, forrajeo, descanso). Incluye clima
+  por día.
+- **Acciones de parada**: nueva tarjeta visible solo cuando hay parada
+  (orientación pendiente o evento activo) con botones Acampar / Forrajear /
+  Comprar provisiones. Se oculta durante la animación del Viaje global.
+- **Tirada de orientación al inicio del día 1**: ya garantizada
+  (`awaitingOrientationCheck=true` tras `startGlobalJourney`).
+- **Viaje global (auto-run)**: sigue como botón dentro del modo interactivo;
+  reescrito en iteración 58 (sin atasco). Ahora también acumula bitácora.
+- Validado E2E al 100% por el agente de testing (7/7 criterios,
+  `/app/test_reports/iteration_59.json`).
 
-### 🟡 Pendiente del Travel Overhaul (Batch 2)
-- "Jornada a jornada" como modo interactivo por defecto que **avanza días
-  vacíos automáticamente** y se detiene **solo en eventos** o tirada de
-  orientación. Botones Acampar/Forrajear visibles solo durante esas paradas.
-- Mostrar tirada de orientación al inicio del primer día (en modo Día a Día).
+### ✅ Iteración anterior (58)
+- Fix "Atasco detectado" en automateJourney.
+- Rediseño visual del Ojo de Sauron (máscara radial + 3 capas de fuego).
+- Fatiga inicial heredada de la ficha + override con justificación obligatoria.
 
 ### 🏗️ NEXT MAJOR PHASE — Sistema de Campañas (post-fork)
 
