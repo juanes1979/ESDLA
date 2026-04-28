@@ -906,6 +906,11 @@ const MiddleEarthMap = () => {
   
   // Handle mouse wheel for zoom (smooth + centered on mouse pointer)
   const handleWheel = (e) => {
+    // Sólo aplicar zoom si el ratón está sobre el SVG del mapa (no sobre
+    // paneles/diálogos/legendas/sidebars superpuestos al contenedor).
+    if (!mapRef.current || !mapRef.current.contains(e.target)) {
+      return; // deja que el scroll natural funcione en el otro elemento
+    }
     e.preventDefault();
 
     // Smooth proportional zoom: small deltaY → small zoom step.
