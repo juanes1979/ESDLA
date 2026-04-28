@@ -555,6 +555,11 @@ const EnhancedTravelSystem = () => {
     setNextEventPosition(0);
     setLastOrientationResult(null);
     setCharacterXP({}); // Reset individual XP tracking
+    setConsecutiveCampDays(0);
+    setDiasSinComida(0);
+    setDiasSinAgua(0);
+    setLastFatigueSaves({});
+    setFatigueChanges({});
     // Bitácora: día 1 — la compañía parte. Si hubo overrides de fatiga, se anotan.
     const partidaSummaries = [{
       dia: 1,
@@ -838,6 +843,19 @@ const EnhancedTravelSystem = () => {
       });
       
       setProvisionFatigue(newProvisionFatigue);
+
+      // Contadores a NIVEL GRUPO (suben la CD de la salvación contra
+      // cansancio en CampDialog). Días consecutivos sin comida y sin agua.
+      if (nuevaComidaDisponible < 0) {
+        setDiasSinComida(prev => prev + 1);
+      } else {
+        setDiasSinComida(0);
+      }
+      if (nuevaAguaDisponible < 0) {
+        setDiasSinAgua(prev => prev + 1);
+      } else {
+        setDiasSinAgua(0);
+      }
       
       // Show warnings if running low
       if (nuevaComidaDisponible < numPersonajes && nuevaComidaDisponible >= 0) {

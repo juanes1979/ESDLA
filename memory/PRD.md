@@ -2,7 +2,35 @@
 
 ## Current State (2026-02-28)
 
-### ✅ Iteración 62 — Oleada 3 (ficha completa) + integración estorbo en viaje
+### ✅ Iteración 63 — Reglas de fatiga implementadas
+Reglas finales (consensuadas con el usuario):
+
+  1. **Salvación contra cansancio CD 10** al pulsar Acampar.
+  2. CD aumenta **+1 por día consecutivo sin comida** y **+2 por día sin
+     agua** (contadores `diasSinComida` / `diasSinAgua` a nivel grupo,
+     reseteados cuando hay provisiones de nuevo).
+  3. **Bonus +5** a la salvación para los miembros sin estorbo cuando
+     el grupo va lento por culpa de otro (ya validado en iter 62).
+  4. **Skip de la salvación en la 2.ª acampada consecutiva** (`consecutiveCampDays >= 1`):
+     recuperación automática de -1 fatiga sin tirada.
+  5. **Salvación EXTRA** si el clima del día es extremo (tormenta, nieve
+     fuerte, vendaval, helada) o si se atraviesan tierras de la sombra:
+     fallar suma +1 fatiga adicional.
+  6. **Banner de descanso obligatorio** (`forced-rest-banner`) en
+     GlobalJourneyView cuando algún miembro tiene fatiga ≥ 5: desactiva
+     el botón de orientación, fuerza acampar 2 días seguidos.
+  7. **Fatiga 6 = inconsciente**: el banner muestra "☠ Personaje al
+     borde de la muerte" con texto explicativo (1 semana de descanso,
+     transporte solo en carro/montura, mínimo 2 días en refugio antes
+     de aventura).
+  8. **Reset del contador consecutivo en cada marcha**: tras avanzar
+     posición (`continueAfterEvent`), `consecutiveCampDays=0` para que
+     la siguiente acampada vuelva a rodar salvación.
+
+Validado por testing agent (iter 63 + retest del fix F-4 conectando los
+contadores de grupo a `consumeDailyProvisions`).
+
+### Iteración 62 — Oleada 3 (ficha completa) + integración estorbo en viaje
 - **Reorganización en pestañas** de la ficha (`CharacterSheetPage`):
   Resumen · Atributos · Combate · Equipo · Comunidad · Sombra · Trasfondo
   · Historia.
