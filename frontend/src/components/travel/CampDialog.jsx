@@ -80,11 +80,8 @@ export default function CampDialog({
   }, [partyProvisions, miembros]);
 
   const performCamp = useCallback(async () => {
-    if (!activeJourney?.id) {
-      toast.error('No hay un viaje activo.');
-      return;
-    }
     setProcessing(true);
+    const hasBackendJourney = !!activeJourney?.id;
 
     try {
       // 1) Consumir provisiones: 1 ración y 1 litro por miembro
@@ -188,33 +185,46 @@ export default function CampDialog({
       }
 
       // 5) Llamar al backend para decrementar 0,5 la CD y sumar los incrementos de eventos
-      let fatigaCdNueva = activeJourney.fatiga_cd_total || 10;
-      try {
-        const res = await api.post(`/travel/journey/${activeJourney.id}/camp`);
-        fatigaCdNueva = res.data?.fatiga_cd_nueva ?? fatigaCdNueva;
+      let fatigaCdNueva = activeJourney?.fatiga_cd_total || 10;
+      if (hasBackendJourney) {
+        try {
+          const res = await api.post(`/travel/journey/${activeJourney.id}/camp`);
+          fatigaCdNueva = res.data?.fatiga_cd_nueva ?? fatigaCdNueva;
 
-        // Si hubo eventos nocturnos con incremento, registrarlos en el viaje.
-        for (const ne of nightEvents) {
-          if (ne.fatigue_cd_increase > 0) {
-            try {
-              await api.post(`/travel/journey/${activeJourney.id}/add-event`, {
-                nombre: `[Acampada] ${ne.nombre}`,
-                fatiga_cd_increase: ne.fatigue_cd_increase,
-                d20: ne.d20,
-              });
-              fatigaCdNueva += ne.fatigue_cd_increase;
-            } catch (e) {
-              console.error('Error registrando evento nocturno:', e);
+          // Si hubo eventos nocturnos con incremento, registrarlos en el viaje.
+          for (const ne of nightEvents) {
+            if (ne.fatigue_cd_increase > 0) {
+              try {
+                await api.post(`/travel/journey/${activeJourney.id}/add-event`, {
+                  nombre: `[Acampada] ${ne.nombre}`,
+                  fatiga_cd_increase: ne.fatigue_cd_increase,
+                  d20: ne.d20,
+                });
+                fatigaCdNueva += ne.fatigue_cd_increase;
+              } catch (e) {
+                console.error('Error registrando evento nocturno:', e);
+              }
             }
           }
-        }
 
+          if (onJourneyUpdate) {
+            onJourneyUpdate({ fatiga_cd_total: fatigaCdNueva });
+          }
+        } catch (err) {
+          console.error('Error al acampar:', err);
+          toast.error('No se pudo aplicar la reducción de CD Fatiga.');
+        }
+      } else {
+        // Modo Jornada a Jornada (sin viaje en BD): aplicamos efectos
+        // localmente. -0,5 a la CD acumulada + suma de incrementos por
+        // eventos nocturnos. El estado vive en EnhancedTravelSystem.
+        fatigaCdNueva = Math.max(0, fatigaCdNueva - 0.5);
+        for (const ne of nightEvents) {
+          fatigaCdNueva += ne.fatigue_cd_increase || 0;
+        }
         if (onJourneyUpdate) {
           onJourneyUpdate({ fatiga_cd_total: fatigaCdNueva });
         }
-      } catch (err) {
-        console.error('Error al acampar:', err);
-        toast.error('No se pudo aplicar la reducción de CD Fatiga.');
       }
 
       setResults({

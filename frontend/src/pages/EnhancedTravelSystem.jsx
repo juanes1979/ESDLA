@@ -209,6 +209,13 @@ const EnhancedTravelSystem = () => {
   // Forma: { dia, casilla, tipo: 'orientacion'|'marcha'|'evento'|'campamento'|'forrajeo'|'descanso',
   //          clima, marchaType, message, success, eventName, narrativa }
   const [dailySummaries, setDailySummaries] = useState([]);
+
+  // CD acumulada de fatiga durante la jornada interactiva (modo global sin
+  // viaje en BD). Se actualiza con eventos fallidos, acampadas, etc.
+  const [globalFatigaCD, setGlobalFatigaCD] = useState(10);
+  // Última tirada de salvación contra cansancio (panel del grupo).
+  // Forma: { [charId]: { d20, mod, total, cd, exito } }
+  const [lastFatigueSaves, setLastFatigueSaves] = useState({});
   // Weather rolled for the entire journey at startGlobalJourney (Markov chain)
   const [journeyWeather, setJourneyWeather] = useState([]);
   const autoStopRef = useRef(false);
@@ -464,23 +471,17 @@ const EnhancedTravelSystem = () => {
 
   // Aplica los overrides de fatiga inicial: actualiza el personaje en la BD
   // y en el estado local. Devuelve un array con los cambios efectuados (para
-  // poder anotarlos en la crónica del viaje). Lanza error si hay algún override
-  // sin justificación textual.
+  // poder anotarlos en la crónica del viaje). La justificación es opcional;
+  // si está vacía, se anota "Ajustado por el DJ" como nota neutra.
   const applyInitialFatigueOverrides = async () => {
     const aplicados = [];
     const entries = Object.entries(initialFatigueOverrides || {});
     if (entries.length === 0) return aplicados;
     for (const [charId, data] of entries) {
-      const just = (data?.justificacion || '').trim();
+      const just = (data?.justificacion || '').trim() || 'Ajuste del DJ antes del viaje.';
       const nueva = Number(data?.fatiga ?? 0);
       const original = Number(data?.original ?? 0);
       if (nueva === original) continue; // sin cambio
-      if (!just) {
-        const ch = characters.find(c => c.id === charId);
-        throw new Error(
-          `Falta justificación para el ajuste de fatiga de ${ch?.nombre || 'un personaje'}.`
-        );
-      }
       try {
         await api.put(`/characters/${charId}/fatigue`, { fatiga: Math.max(0, Math.min(6, nueva)) });
         setCharacters(prev => prev.map(c => c.id === charId
@@ -552,6 +553,44 @@ const EnhancedTravelSystem = () => {
       });
     }
     setDailySummaries(partidaSummaries);
+
+    // *** INICIALIZAR PROVISIONES leyendo inventarios reales ***
+    // Si el origen es asentamiento conocido, los odres parten LLENOS.
+    const origenLoc = (locations || []).find(l => l.id === config.origenId);
+    const tipoOrigen = (origenLoc?.tipo || origenLoc?.tipo_lugar || '').toLowerCase();
+    const esAsentamientoConocido = !!origenLoc && (
+      tipoOrigen.includes('aldea') || tipoOrigen.includes('pueblo') ||
+      tipoOrigen.includes('ciudad') || tipoOrigen.includes('refugio') ||
+      tipoOrigen.includes('santuario') || tipoOrigen.includes('asentamiento') ||
+      tipoOrigen.includes('fortal') || tipoOrigen.includes('castillo') ||
+      tipoOrigen.includes('hostal') || tipoOrigen.includes('posada') || !tipoOrigen
+    );
+    let comidaInicial = 0;
+    let aguaInicial = 0;
+    const todosViajerosInicio = [
+      ...config.miembros.filter(m => m.papeles?.length > 0),
+      ...(config.acompanantes || []),
+    ];
+    todosViajerosInicio.forEach(miembro => {
+      const char = characters.find(c => c.id === miembro.id);
+      if (!char?.inventario) return;
+      const summary = summarizeProvisions(char.inventario);
+      comidaInicial += summary.raciones;
+      const litrosCharacter = esAsentamientoConocido
+        ? summary.odres.length * 10 + summary.aguaSuelta
+        : summary.totalLitros;
+      aguaInicial += litrosCharacter;
+    });
+    if (esAsentamientoConocido && todosViajerosInicio.length > 0) {
+      toast.success(`Odres rellenados gratis en ${config.origenNombre}.`);
+    }
+    setPartyProvisions({
+      comidaTotal: comidaInicial,
+      aguaTotal: aguaInicial,
+      comidaConsumida: 0,
+      aguaConsumida: 0,
+    });
+    setProvisionFatigue({});
     
     // Roll weather chain for the entire journey so narrative endpoints can look up
     // the climate for each event/day later. (Markov chain, region per day.)
@@ -827,16 +866,20 @@ const EnhancedTravelSystem = () => {
     const exito = total >= cd;
     
     if (exito) {
-      // Success: find 1d4 rations and 1d4 liters of water
-      const comidaEncontrada = Math.floor(Math.random() * 4) + 1;
-      const aguaEncontrada = Math.floor(Math.random() * 4) + 1;
-      
+      // 2d4 raciones y 3d4 litros de agua según las reglas (texto del diálogo).
+      const comidaEncontrada =
+        (Math.floor(Math.random() * 4) + 1) + (Math.floor(Math.random() * 4) + 1);
+      const aguaEncontrada =
+        (Math.floor(Math.random() * 4) + 1) +
+        (Math.floor(Math.random() * 4) + 1) +
+        (Math.floor(Math.random() * 4) + 1);
+
       setPartyProvisions(prev => ({
         ...prev,
         comidaTotal: prev.comidaTotal + comidaEncontrada,
         aguaTotal: prev.aguaTotal + aguaEncontrada
       }));
-      
+
       toast.success(`¡${char.nombre} encontró ${comidaEncontrada} raciones y ${aguaEncontrada}L de agua! (Tirada: ${total} vs CD ${cd})`);
     } else {
       toast.error(`${char.nombre} no encontró nada comestible. (Tirada: ${total} vs CD ${cd})`);
@@ -2165,10 +2208,28 @@ const EnhancedTravelSystem = () => {
         origen: config.origenNombre,
         destino: config.destinoNombre,
         dias: journeyCalc?.estimaciones?.dias_estimados || 1,
+        // Pasamos el clima REAL del día de cada evento + la narrativa
+        // individual ya generada para que la crónica final encaje con cada
+        // entrada en lugar de inventar tiempo de paso.
         eventos: events.map(e => ({
           dia: e.casilla,
           nombre: e.evento?.nombre,
-          exito: e.exito
+          exito: e.exito,
+          tirada: e.tirada,
+          cd: e.resolucion?.cd,
+          consecuencia: e.exito
+            ? e.evento?.consecuencias_exito
+            : e.evento?.consecuencias_fracaso,
+          narrativa_individual: e.narrativa || '',
+          clima: e.clima_dia
+            ? `${e.clima_dia.estado_label || ''}${e.clima_dia.region ? ' (' + e.clima_dia.region + ')' : ''}`.trim()
+            : '',
+        })),
+        // Resumen del clima día a día por si la IA lo necesita.
+        clima_por_dia: (journeyWeather || []).map((w, i) => ({
+          dia: i + 1,
+          estado: w?.estado_label || '',
+          region: w?.region || '',
         })),
         personajes: config.miembros.map(m => ({
           nombre: m.nombre,
@@ -2622,13 +2683,18 @@ const EnhancedTravelSystem = () => {
         onClose={() => setShowCampDialog(false)}
         miembros={config.miembros}
         characters={characters}
-        activeJourney={activeJourney}
+        activeJourney={activeJourney || (mode === 'global' ? { fatiga_cd_total: globalFatigaCD, config: { tipo_tierra: journeyCalc?.ruta?.tipo_tierra } } : null)}
         region={journeyCalc?.ruta?.tipo_tierra || 'tierras_salvajes'}
         partyProvisions={partyProvisions}
         setPartyProvisions={setPartyProvisions}
         setCharacters={setCharacters}
         travelEvents={travelEvents}
-        onJourneyUpdate={(patch) => setActiveJourney((prev) => (prev ? { ...prev, ...patch } : prev))}
+        onJourneyUpdate={(patch) => {
+          if (patch?.fatiga_cd_total != null) {
+            setGlobalFatigaCD(patch.fatiga_cd_total);
+          }
+          setActiveJourney((prev) => (prev ? { ...prev, ...patch } : prev));
+        }}
         terrenoViaje={journeyCalc?.ruta?.terreno || 'moderado'}
         onForage={performForaging}
       />

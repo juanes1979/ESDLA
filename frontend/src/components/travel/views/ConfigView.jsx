@@ -1244,14 +1244,42 @@ const ConfigView = ({
             <Card className="mt-3 p-3 border border-orange-500/30 bg-orange-900/10">
               <div className="flex items-start gap-2 mb-3">
                 <Activity className="w-5 h-5 text-orange-400 flex-shrink-0 mt-0.5" />
-                <div>
+                <div className="flex-1">
                   <p className="font-bold text-orange-300 text-sm">Fatiga inicial</p>
                   <p className="text-xs text-muted-foreground">
-                    Por defecto se hereda de la ficha del personaje. Si el DJ desea ajustarla
-                    (p. ej., descansaron en una posada los últimos 3 días), debe escribir una
-                    justificación obligatoria.
+                    Por defecto se hereda de la ficha del personaje. El DJ puede
+                    ajustarla y, opcionalmente, anotar una justificación que se
+                    incluirá en la crónica del viaje.
                   </p>
                 </div>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  className="text-xs h-8 border-orange-500/40 hover:bg-orange-500/10"
+                  data-testid="clear-group-fatigue-btn"
+                  onClick={() => {
+                    const overrides = {};
+                    config.miembros
+                      .filter(m => m.papeles?.length > 0)
+                      .forEach(m => {
+                        const ch = characters.find(c => c.id === m.id);
+                        const fichaFat = Number(ch?.fatiga ?? 0);
+                        if (fichaFat !== 0) {
+                          overrides[m.id] = {
+                            fatiga: 0,
+                            justificacion: 'Eliminado por el DJ antes de iniciar el viaje.',
+                            original: fichaFat,
+                          };
+                        }
+                      });
+                    setInitialFatigueOverrides(prev => ({ ...prev, ...overrides }));
+                  }}
+                  title="Pone la fatiga inicial a 0 para todos los miembros con papel"
+                >
+                  <X className="w-3.5 h-3.5 mr-1" />
+                  Eliminar cansancio del grupo
+                </Button>
               </div>
               <div className="space-y-2">
                 {config.miembros.filter(m => m.papeles?.length > 0).map(m => {
@@ -1267,14 +1295,55 @@ const ConfigView = ({
                       className={`p-2 rounded border ${cambiada ? 'border-orange-500/40 bg-black/30' : 'border-transparent bg-black/20'}`}
                       data-testid={`initial-fatigue-row-${m.id}`}
                     >
-                      <div className="flex items-center gap-3 flex-wrap">
-                        <Bed className="w-4 h-4 text-orange-400/70" />
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <Bed className="w-4 h-4 text-orange-400/70 flex-shrink-0" />
+                        {/* Reset (a la izquierda de Ficha:) — solo si cambiada */}
+                        {cambiada ? (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                              setInitialFatigueOverrides(prev => {
+                                const next = { ...prev };
+                                delete next[m.id];
+                                return next;
+                              });
+                            }}
+                            className="h-7 px-2 text-xs"
+                            title="Restablecer al valor de ficha"
+                          >
+                            <X className="w-3 h-3 mr-1" /> Reset
+                          </Button>
+                        ) : (
+                          <span className="w-[60px]" aria-hidden="true" />
+                        )}
+                        <span className="text-xs text-muted-foreground whitespace-nowrap">
+                          Ficha: <span className="font-mono text-orange-200">{fatigaFicha}</span>
+                        </span>
                         <span className="font-medium text-sm flex-1 truncate text-[hsl(var(--gold))]">
                           {m.nombre}
                         </span>
-                        <span className="text-xs text-muted-foreground">
-                          Ficha: <span className="font-mono text-orange-200">{fatigaFicha}</span>
-                        </span>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setInitialFatigueOverrides(prev => ({
+                              ...prev,
+                              [m.id]: {
+                                fatiga: 0,
+                                justificacion: prev[m.id]?.justificacion || '',
+                                original: fatigaFicha,
+                              },
+                            }));
+                          }}
+                          className="h-7 px-2 text-xs border-orange-500/30 hover:bg-orange-500/10"
+                          data-testid={`set-fatigue-zero-${m.id}`}
+                          title="Pone la fatiga inicial a 0 para este personaje"
+                        >
+                          Poner a 0
+                        </Button>
                         <div className="flex items-center gap-1">
                           <Label className="text-xs text-muted-foreground">Inicial:</Label>
                           <Input
@@ -1297,29 +1366,11 @@ const ConfigView = ({
                             data-testid={`initial-fatigue-input-${m.id}`}
                           />
                         </div>
-                        {cambiada && (
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => {
-                              setInitialFatigueOverrides(prev => {
-                                const next = { ...prev };
-                                delete next[m.id];
-                                return next;
-                              });
-                            }}
-                            className="h-7 px-2 text-xs"
-                            title="Restablecer al valor de ficha"
-                          >
-                            <X className="w-3 h-3 mr-1" /> Reset
-                          </Button>
-                        )}
                       </div>
                       {cambiada && (
                         <div className="mt-2">
                           <Label className="text-xs text-orange-300">
-                            Justificación obligatoria del DJ:
+                            Justificación (opcional, se incluye en la crónica):
                           </Label>
                           <Textarea
                             value={justificacion}
@@ -1339,11 +1390,6 @@ const ConfigView = ({
                             className="text-xs mt-1"
                             data-testid={`initial-fatigue-justification-${m.id}`}
                           />
-                          {!justificacion.trim() && (
-                            <p className="text-xs text-red-400 mt-1">
-                              Debes justificar el cambio antes de iniciar el viaje.
-                            </p>
-                          )}
                         </div>
                       )}
                     </div>

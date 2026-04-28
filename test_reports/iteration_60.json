@@ -1,0 +1,38 @@
+{
+  "summary": "Iteración 60 — backend (6/6 pytest pass) + frontend Playwright e2e validados sobre la URL pública. BUG-1 (cálculo de días) y BUG-5 (crónica con clima) confirmados por API. UX-1 (UI fatiga inicial) y UX-1b (justificación opcional) confirmados por Playwright contra la app real. BUG-2 y BUG-4 confirmados por inspección de código (CampDialog ahora maneja hasBackendJourney=false; performForaging usa 2d4 raciones + 3d4 agua y suma a partyProvisions).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "verified_acceptance_criteria": [
+    "[BUG-1 calc-journey] POST /api/travel/calculate-journey con Bree(loc_131)→Rivendel(loc_142), ritmo normal, miembro velocidad_base=9 → estimaciones.dias_estimados=13 (antes 8). PASSED.",
+    "[BUG-1 calc-journey] POST /api/travel/calculate-journey con Bree→Tharbad(loc_163) ritmo normal → estimaciones.dias_estimados=9 (antes 4). PASSED.",
+    "[BUG-1 sanity] dias_estimados respeta el suelo físico floor(distancia/22.5). PASSED.",
+    "[BUG-1b compare-routes] POST /api/travel/compare-routes Bree→Rivendel devuelve estructura de comparación sin error. PASSED.",
+    "[BUG-5 chronicle] POST /api/travel/generate-journey-summary acepta `eventos` con narrativa_individual+clima y `clima_por_dia` (lista de dicts), responde 200 con narrative no vacío (success=true en ambas pruebas, AI gpt-4o devolvió relato). PASSED.",
+    "[UX-1.2 justificación opcional] El label muestra 'Justificación (opcional, se incluye en la crónica):' y NO aparece el aviso rojo 'Debes justificar...' tras editar la fatiga inicial. PASSED.",
+    "[UX-1.3 set-fatigue-zero] Botón data-testid=set-fatigue-zero-<charId> presente con texto 'Poner a 0'; click pone el input 'Inicial' a 0. PASSED.",
+    "[UX-1.4 clear-group-fatigue] Botón data-testid=clear-group-fatigue-btn presente en la cabecera con texto 'Eliminar cansancio del grupo'; tras click todos los inputs Iniciales pasan a 0. PASSED.",
+    "[UX-1b backend/frontend] Iniciar viaje con override de fatiga sin justificación NO muestra toast 'Falta justificación' y la app entra en GlobalJourneyView (Bitácora visible). PASSED.",
+    "[BUG-1 UI integración] La UI de configuración muestra '13 días estimados' tras calcular Bree→Rivendel — coincide con el backend. PASSED.",
+    "[BUG-2 CampDialog code] CampDialog.jsx usa `const hasBackendJourney = !!activeJourney?.id;` y solo hace POST /travel/journey/{id}/camp si hasBackendJourney; sin journey en BD aplica fatigaCdNueva = (activeJourney?.fatiga_cd_total||10) localmente. Verificado por inspección de código (líneas 84-198). NO se renderiza ya 'No hay un viaje activo'. CONFIRMED.",
+    "[BUG-4 forage code] performForaging (EnhancedTravelSystem.jsx L857-892) en éxito: comida = 2d4, agua = 3d4 (ahora sumando 3 d4), y actualiza partyProvisions.comidaTotal/aguaTotal con setPartyProvisions. Coincide con el texto del diálogo. CONFIRMED."
+  ],
+  "test_report_links": [
+    "/app/backend/tests/test_travel_it60.py",
+    "/app/test_reports/pytest/it60_results.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "EnhancedTravelSystem.jsx sigue siendo gigantesco (~2735 líneas) — recomendado seguir extrayendo (useForaging, useCamp, useFatigueOverrides) tras esta iteración estable.",
+    "calculate-journey expone dias_estimados dentro de `estimaciones` (no en root). Bien encapsulado, pero documentar el shape ayudaría al frontend (actualmente lee data.estimaciones.dias_estimados — verificado).",
+    "performForaging no consulta competencia 'survival/forajear' del personaje en el modificador (solo modSabiduria). Si en el futuro debe sumar competencia +bonus, considerar parámetro adicional. No bloqueante para iter 60.",
+    "Backend chronicle (generate-journey-summary) ya respeta clima_por_dia en el prompt. Bien estructurado; el system_message instruye explícitamente a respetar clima exacto."
+  ],
+  "updated_files": ["/app/backend/tests/test_travel_it60.py"],
+  "success_rate": {"backend": "100% (6/6 pytest)", "frontend": "100% (UX-1, UX-1b, BUG-1 integración verificados)"},
+  "test_credentials": "n/a — app pública sin auth en /travel",
+  "seed_data_creation": "Ninguna — usadas locaciones existentes loc_131 (Bree), loc_142 (Rivendel), loc_163 (Tharbad) y personaje 'Regred Maggot' ya seeded.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Para BUG-2/BUG-3/BUG-4 e2e completo en Playwright: tras iniciar viaje en modo Jornada a Jornada (que es ahora el único modo) los botones data-testid=global-camp-btn / global-forage-btn / global-buy-provisions-btn aparecen en la card 'Acciones de parada'. ATENCIÓN al asignar Guía: hay 8 comboboxes en ConfigView (Ritmo, Mes, Marcha forzada, etc.) — NO uses .first; itera y busca el que contiene 'Seleccionar personaje'. Las 11 opciones del dropdown empiezan en index 0 con un placeholder, usar index 1 para el primer personaje real. Para abrir CampDialog tras iniciar viaje, click [data-testid=global-camp-btn]. Confirmar visualmente que NO aparece el texto 'No hay un viaje activo' y que sí aparece 'Coste de la acampada' con raciones>0 si el personaje tenía inventario. Para BUG-3 (provisiones inicializadas), startGlobalJourney en EnhancedTravelSystem.jsx ahora lee inventario miembro/acompañante y rellena partyProvisions; verificable en CampDialog tras iniciar viaje desde Bree (asentamiento) — los odres deben partir LLENOS.",
+  "rca_iteration_60": "BUG-1: el bug raíz era que el cálculo dividía pathfinder_days entre el ratio km_grupo/22.5, pero el pathfinder usaba 36 km/día como base (no 22.5). Fix correcto: dias_terreno = pathfinder_days * 36 / km_grupo, y dias_base = max(dias_terreno, distancia_fisica/km_grupo) (suelo físico). Verificado matemáticamente: para Bree→Rivendel ~285 km / 22.5 = 12.67 → round(12.67)=13. Para Bree→Tharbad ~205 km / 22.5 = 9.11 → round=9. UX-1b: applyInitialFatigueOverrides en frontend ahora usa default 'Ajuste del DJ antes del viaje.' si justificación vacía y no bloquea startGlobalJourney."
+}

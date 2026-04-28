@@ -1328,7 +1328,19 @@ async def calculate_journey(config: JourneyConfig):
         rapido_no_permitido_global = True
     
     if route_data.get('estimated_days_pathfinder'):
-        dias_base = route_data['estimated_days_pathfinder'] / ratio_velocidad
+        # El pathfinder calcula "días" usando BASE_SPEED_KM_DAY=36 (5e RAW).
+        # Hay que renormalizarlos a la velocidad real del grupo para obtener
+        # los días que realmente tarda esta compañía. Además, los días no
+        # pueden ser menos que distancia_física / velocidad_grupo (suelo
+        # mínimo físico aunque la ruta sea casi todo carretera).
+        PATHFINDER_BASE_KM_DAY = 36.0
+        dias_terreno = (
+            route_data['estimated_days_pathfinder'] * PATHFINDER_BASE_KM_DAY
+        ) / max(0.1, km_por_dia_grupo)
+        dias_distancia_fisica = (
+            route_data.get('distance_km', 0) / max(0.1, km_por_dia_grupo)
+        )
+        dias_base = max(dias_terreno, dias_distancia_fisica)
         if config.ritmo == 'lento':
             dias_base = dias_base / RITMO_LENTO_FACTOR  # more days
         elif config.ritmo == 'rapido':
@@ -1702,8 +1714,15 @@ async def compare_routes(request: RouteComparisonRequest):
             lt = seg.get('land_type', 'tierras_salvajes')
             land_type_distances[lt] = land_type_distances.get(lt, 0) + seg['distance_km']
         
-        # Calculate days based on rhythm
-        dias_base = path_result.estimated_days
+        # Calculate days based on rhythm. El pathfinder calcula los días con
+        # BASE_SPEED_KM_DAY=36 (5e RAW), pero para una compañía humana normal
+        # la velocidad media son ~22.5 km/día. Renormalizamos y aplicamos un
+        # mínimo basado en la distancia física.
+        PATHFINDER_BASE_KM_DAY = 36.0
+        GROUP_BASE_KM_DAY = 22.5  # ritmo Normal humano
+        dias_terreno = path_result.estimated_days * PATHFINDER_BASE_KM_DAY / GROUP_BASE_KM_DAY
+        dias_fisicos = path_result.total_distance_km / GROUP_BASE_KM_DAY
+        dias_base = max(dias_terreno, dias_fisicos)
         if request.ritmo == 'lento':
             dias_base *= 1.5
         elif request.ritmo == 'rapido':
@@ -2939,6 +2958,7 @@ class JourneySummaryRequest(BaseModel):
     destino: str
     dias: int
     eventos: List[Dict[str, Any]] = []
+    clima_por_dia: List[Dict[str, Any]] = []
     personajes: List[Dict[str, Any]] = []
     px_total: int = 0
     terrenos: Dict[str, float] = None
@@ -2957,11 +2977,26 @@ async def generate_journey_summary(request: JourneySummaryRequest):
         if not api_key:
             return {"success": False, "error": "No API key configured"}
         
-        # Build event summary
+        # Build event summary — incluye clima del día y narrativa individual
+        # ya generada para que la crónica final encaje 100% con cada evento.
         eventos_text = ""
         for i, e in enumerate(request.eventos, 1):
             resultado = "ÉXITO" if e.get('exito') else "FRACASO"
+            clima = e.get('clima') or ''
+            consecuencia = e.get('consecuencia') or ''
+            narrativa = e.get('narrativa_individual') or ''
             eventos_text += f"\n  - Día {e.get('dia', i)}: {e.get('nombre', 'Evento')} - {resultado}"
+            if clima:
+                eventos_text += f" [Clima: {clima}]"
+            if consecuencia:
+                eventos_text += f"\n      Consecuencia: {consecuencia}"
+            if narrativa:
+                eventos_text += f"\n      Narrativa breve: \"{narrativa}\""
+        
+        # Build day-by-day weather summary
+        clima_text = ""
+        for c in request.clima_por_dia or []:
+            clima_text += f"\n  - Día {c.get('dia')}: {c.get('estado', '')} ({c.get('region', '')})"
         
         # Build party summary
         grupo_text = ", ".join([f"{p.get('nombre')} ({p.get('papel', 'viajero')})" for p in request.personajes])
@@ -2979,8 +3014,11 @@ async def generate_journey_summary(request: JourneySummaryRequest):
             Escribe en español con un tono cálido y natural, como si contaras la historia junto a una chimenea.
             Evita el lenguaje arcaico y épico excesivo. Sé descriptivo pero accesible.
             NO menciones puntos de experiencia, tiradas, ni mecánicas de juego.
+            DEBES respetar EXACTAMENTE el clima de cada día indicado y los acontecimientos en el orden y desenlace dados.
+            Cuando referencias un evento, usa el mismo clima que ya consta para ese día (no inventes otro tiempo).
+            Reutiliza las narrativas individuales si están disponibles, integrándolas con cohesión.
             Estructura tu relato con naturalidad: cómo empezó el viaje, qué pasó en el camino, y cómo llegaron.
-            Máximo 250 palabras. No uses emojis."""
+            Máximo 350 palabras. No uses emojis."""
         ).with_model("openai", "gpt-4o")
         
         prompt = f"""Escribe el relato de este viaje:
@@ -2989,9 +3027,10 @@ VIAJE: De {request.origen} a {request.destino}
 DURACIÓN: {request.dias} días
 COMPAÑÍA: {grupo_text if grupo_text else "Un grupo de viajeros"}
 TERRENOS: {terreno_text if terreno_text else "Caminos y sendas de la Tierra Media"}
+CLIMA POR DÍA: {clima_text if clima_text else "(no disponible)"}
 ACONTECIMIENTOS: {eventos_text if eventos_text else "El viaje fue tranquilo"}
 
-Narra el viaje de forma natural, como si se lo contaras a alguien. Describe el paisaje, el clima, los momentos importantes. NO menciones puntos de experiencia ni mecánicas de juego."""
+Narra el viaje de forma natural, como si se lo contaras a alguien. Respeta el clima exacto de cada día (NO inventes otro), describe el paisaje y los momentos importantes. Si hay narrativas individuales arriba, intégralas. NO menciones puntos de experiencia ni mecánicas de juego."""
         
         user_message = UserMessage(text=prompt)
         response = await chat.send_message(user_message)
