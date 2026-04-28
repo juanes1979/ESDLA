@@ -1,12 +1,12 @@
 /**
- * Character Sheet Page - Interactive character view
- * Refactored to use modular sub-components
+ * Character Sheet Page - Interactive character view (tabbed layout)
  */
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Loader2, ArrowLeft, FileText, FileDown } from 'lucide-react';
 import { getCharacter, deleteCharacter } from '@/services/api';
 import { Button } from '@/components/ui/button';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import api from '@/services/api';
 import { downloadCharacterPDF } from '@/utils/characterPDF';
 import EquipmentManagerModal from '@/components/character-sheet/EquipmentManagerModal';
@@ -27,6 +27,17 @@ import {
   CultureCard,
   PrivateNotesCard,
 } from '@/components/character-sheet/summary';
+import {
+  HeaderInfoCard,
+  SavingThrowsCard,
+  DeathSavesCard,
+  WeightEncumbranceCard,
+  ToolsProficiencyCard,
+  ShadowExtendedCard,
+  PatronCard,
+  ProfessionSpecialsCard,
+  HistoryCard,
+} from '@/components/character-sheet/summary/ExtendedCards';
 
 const CharacterSheetPage = () => {
   const { characterId } = useParams();
@@ -216,48 +227,140 @@ const CharacterSheetPage = () => {
       </header>
 
       <main className="container mx-auto px-4 py-8 max-w-6xl">
-        {/* Character Header */}
+        {/* Character Header (shared) */}
         <CharacterHeader 
           character={character} 
           onLevelUp={(data) => setCharacter(prev => ({ ...prev, ...data }))}
         />
 
-        <div className="grid lg:grid-cols-3 gap-6">
-          {/* Left Column - Combat Stats & Competencies */}
-          <div className="space-y-6">
-            <CombatStatsCard
+        <Tabs defaultValue="resumen" className="w-full" data-testid="character-tabs">
+          <TabsList className="grid grid-cols-4 lg:grid-cols-8 mb-6 w-full">
+            <TabsTrigger value="resumen" data-testid="tab-resumen">Resumen</TabsTrigger>
+            <TabsTrigger value="atributos" data-testid="tab-atributos">Atributos</TabsTrigger>
+            <TabsTrigger value="combate" data-testid="tab-combate">Combate</TabsTrigger>
+            <TabsTrigger value="equipo" data-testid="tab-equipo">Equipo</TabsTrigger>
+            <TabsTrigger value="comunidad" data-testid="tab-comunidad">Comunidad</TabsTrigger>
+            <TabsTrigger value="sombra" data-testid="tab-sombra">Sombra</TabsTrigger>
+            <TabsTrigger value="trasfondo" data-testid="tab-trasfondo">Trasfondo</TabsTrigger>
+            <TabsTrigger value="historia" data-testid="tab-historia">Historia</TabsTrigger>
+          </TabsList>
+
+          {/* RESUMEN — vista global rápida */}
+          <TabsContent value="resumen" className="space-y-6">
+            <HeaderInfoCard
               character={character}
-              onHpChange={handleHpChange}
-              onShadowChange={handleShadowChange}
-              savingHp={savingHp}
+              onUpdate={(data) => setCharacter(prev => ({ ...prev, ...data }))}
             />
-            <CompetenciesCard character={character} occupation={occupation} />
-          </div>
+            <div className="grid lg:grid-cols-3 gap-6">
+              <div className="space-y-6">
+                <CombatStatsCard
+                  character={character}
+                  onHpChange={handleHpChange}
+                  onShadowChange={handleShadowChange}
+                  savingHp={savingHp}
+                />
+                <AppearanceCard character={character} />
+              </div>
+              <div className="space-y-6">
+                <AttributesCard character={character} />
+                <PersonalityCard character={character} />
+              </div>
+              <div className="space-y-6">
+                <CultureCard character={character} culture={culture} />
+                <OccupationCard character={character} occupation={occupation} />
+              </div>
+            </div>
+          </TabsContent>
 
-          {/* Middle Column - Attributes, Skills & Equipment */}
-          <div className="space-y-6">
-            <AttributesCard character={character} />
+          {/* ATRIBUTOS — atributos, salvaciones, habilidades, herramientas */}
+          <TabsContent value="atributos" className="space-y-6">
+            <div className="grid lg:grid-cols-2 gap-6">
+              <AttributesCard character={character} />
+              <SavingThrowsCard
+                character={character}
+                onUpdate={(data) => setCharacter(prev => ({ ...prev, ...data }))}
+              />
+            </div>
             <SkillsCard character={character} />
-            <OccupationCard character={character} occupation={occupation} />
-            <EquipmentCard 
-              character={character} 
-              onManageClick={() => setShowEquipmentModal(true)} 
+            <CompetenciesCard character={character} occupation={occupation} />
+            <ToolsProficiencyCard
+              character={character}
+              onUpdate={(data) => setCharacter(prev => ({ ...prev, ...data }))}
             />
-          </div>
+          </TabsContent>
 
-          {/* Right Column - Background, Culture & Personality */}
-          <div className="space-y-6">
-            <AppearanceCard character={character} />
-            <PersonalityCard character={character} />
-            <BackgroundCard character={character} background={background} />
+          {/* COMBATE — HP, AC, iniciativa, dado golpe, salv. muerte */}
+          <TabsContent value="combate" className="space-y-6">
+            <div className="grid lg:grid-cols-2 gap-6">
+              <CombatStatsCard
+                character={character}
+                onHpChange={handleHpChange}
+                onShadowChange={handleShadowChange}
+                savingHp={savingHp}
+              />
+              <DeathSavesCard
+                character={character}
+                onUpdate={(data) => setCharacter(prev => ({ ...prev, ...data }))}
+              />
+            </div>
+            <HeaderInfoCard
+              character={character}
+              onUpdate={(data) => setCharacter(prev => ({ ...prev, ...data }))}
+            />
+          </TabsContent>
+
+          {/* EQUIPO — inventario y peso/carga */}
+          <TabsContent value="equipo" className="space-y-6">
+            <EquipmentCard
+              character={character}
+              onManageClick={() => setShowEquipmentModal(true)}
+            />
+            <WeightEncumbranceCard
+              character={character}
+              onUpdate={(data) => setCharacter(prev => ({ ...prev, ...data }))}
+            />
+          </TabsContent>
+
+          {/* COMUNIDAD — puntos comunidad, mecenas, heredero, virtudes, recompensas */}
+          <TabsContent value="comunidad" className="space-y-6">
+            <PatronCard
+              character={character}
+              onUpdate={(data) => setCharacter(prev => ({ ...prev, ...data }))}
+            />
+            <ProfessionSpecialsCard
+              character={character}
+              onUpdate={(data) => setCharacter(prev => ({ ...prev, ...data }))}
+            />
+          </TabsContent>
+
+          {/* SOMBRA — puntos sombra, estados, cicatrices, maldición */}
+          <TabsContent value="sombra" className="space-y-6">
             <ShadowPathCard character={character} />
+            <ShadowExtendedCard
+              character={character}
+              onUpdate={(data) => setCharacter(prev => ({ ...prev, ...data }))}
+            />
+          </TabsContent>
+
+          {/* TRASFONDO — cultura, vocación, trasfondo, especiales */}
+          <TabsContent value="trasfondo" className="space-y-6">
+            <BackgroundCard character={character} background={background} />
             <CultureCard character={character} culture={culture} />
+            <OccupationCard character={character} occupation={occupation} />
+          </TabsContent>
+
+          {/* HISTORIA — historia narrativa + notas + notas privadas */}
+          <TabsContent value="historia" className="space-y-6">
+            <HistoryCard
+              character={character}
+              onUpdate={(data) => setCharacter(prev => ({ ...prev, ...data }))}
+            />
             <PrivateNotesCard
               character={character}
               onUpdate={(updated) => setCharacter(prev => ({ ...prev, ...updated }))}
             />
-          </div>
-        </div>
+          </TabsContent>
+        </Tabs>
       </main>
       
       {/* Equipment Manager Modal */}

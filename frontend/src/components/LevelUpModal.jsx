@@ -534,12 +534,32 @@ const LevelUpModal = ({
   );
 };
 
+// Tabla de PX requeridos para alcanzar cada nivel (D&D 5e estándar).
+// Índice = nivel. xpThresholds[N] = experiencia mínima para SER nivel N.
+export const XP_THRESHOLDS = [
+  0,        // 1
+  300,      // 2
+  900,      // 3
+  2700,     // 4
+  6500,     // 5
+  14000,    // 6
+  23000,    // 7
+  34000,    // 8
+  48000,    // 9
+  64000,    // 10
+];
+
 // Button component to trigger level up
 export const LevelUpButton = ({ character, onLevelUp, className }) => {
   const [isOpen, setIsOpen] = useState(false);
-  
+
   const currentLevel = character?.nivel || 1;
-  
+  const currentXP = character?.experiencia || 0;
+  const nextLevel = currentLevel + 1;
+  const xpNeeded = XP_THRESHOLDS[nextLevel - 1] ?? Infinity;
+  const canLevelUp = currentXP >= xpNeeded;
+  const xpRestante = Math.max(0, xpNeeded - currentXP);
+
   if (currentLevel >= 10) {
     return (
       <Badge variant="outline" className={cn("text-muted-foreground", className)}>
@@ -547,18 +567,29 @@ export const LevelUpButton = ({ character, onLevelUp, className }) => {
       </Badge>
     );
   }
-  
+
   return (
     <>
-      <Button 
+      <Button
         onClick={() => setIsOpen(true)}
-        className={cn("bg-[hsl(var(--gold))] hover:bg-[hsl(var(--gold))]/80 text-black", className)}
+        disabled={!canLevelUp}
+        className={cn(
+          canLevelUp
+            ? "bg-[hsl(var(--gold))] hover:bg-[hsl(var(--gold))]/80 text-black"
+            : "bg-muted text-muted-foreground cursor-not-allowed opacity-70",
+          className
+        )}
+        title={canLevelUp
+          ? `Pasa al nivel ${nextLevel}`
+          : `Faltan ${xpRestante} PX para alcanzar el nivel ${nextLevel} (${xpNeeded} requeridos).`}
         data-testid="level-up-btn"
       >
         <ArrowUp className="w-4 h-4 mr-2" />
-        Subir al Nivel {currentLevel + 1}
+        {canLevelUp
+          ? `Subir al Nivel ${nextLevel}`
+          : `Nivel ${nextLevel}: faltan ${xpRestante} PX`}
       </Button>
-      
+
       <LevelUpModal
         isOpen={isOpen}
         onClose={() => setIsOpen(false)}

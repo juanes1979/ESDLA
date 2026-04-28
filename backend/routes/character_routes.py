@@ -1012,10 +1012,34 @@ async def update_character(character_id: str, data: dict = Body(...)):
         'desanimado', 'angustiado', 'descripcion_sombra',
         # Other editable
         'heredero', 'inversion',
-        # Notas privadas que el DJ escribe y SOLO el jugador en cuestión
-        # puede ver dentro de su ficha. Sin RBAC todavía, las exponemos en
-        # la ficha siempre con un aviso visual.
+        # Notas privadas (DJ → jugador)
         'notas_privadas_jugador',
+        # Campos de la Oleada 3
+        'sexo',
+        'nombre_jugador',
+        'iniciativa_bonus',  # bonificador adicional manual a la iniciativa
+        'competencias_herramientas',
+        # Tiradas de salvación de los 6 atributos (lista de strings con
+        # los atributos en los que el personaje tiene competencia, p.ej.
+        # ['fuerza', 'destreza']).
+        'salvaciones_competencia',
+        # Salvaciones contra la muerte: { exitos: int (0-3), fracasos: int (0-3) }
+        'salvaciones_muerte',
+        # Sombra extendida
+        'cicatrices_sombra',  # lista de strings
+        'maldicion_sombra',   # string libre
+        # Mecenas: { nombre, tipo, descripcion, beneficios }
+        'mecenas',
+        # Especiales de la profesión (lista de strings o textos)
+        'especiales_profesion',
+        # Historia narrativa (string largo). Se va rellenando con campañas/viajes.
+        'historia',
+        # Estorbo en metros (negativo si está estorbado, ej: -3 m). Lo
+        # calcula la ficha automáticamente y lo persiste para que el
+        # sistema de viaje pueda leerlo y aplicarlo al cálculo de velocidad.
+        'estorbo_metros',
+        # Montura completa (incluye flag transporta_equipo)
+        'montura',
     ]
     
     update = {"updated_at": now_utc()}

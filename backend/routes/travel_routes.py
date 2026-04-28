@@ -112,17 +112,28 @@ class TravelPartyMember(BaseModel):
     modificador_sabiduria: int = 0
     competencias: List[str] = []
     nivel: int = 1
+    # Penalización en metros por estorbo (carga > capacidad). Se resta de
+    # la velocidad efectiva. Negativo: -3 (estorbado), -6 (muy estorbado).
+    estorbo_metros: int = 0
+    # Si el jinete (con montura) deja la carga sobre el animal, se cancela el
+    # estorbo del personaje a efectos de velocidad.
+    montura_carga_equipo: bool = False
     
     def velocidad_efectiva(self, mount_allowed: bool = True) -> float:
         """
-        Get effective travel speed for this member in METERS.
-        New rule (Feb 2026): horse adds +40% on top of person's base speed,
-        but only if terrain allows riding. In montaña/pantano/ciénaga the
-        rider dismounts and uses their own base speed.
+        Get effective travel speed for this member in METERS, applying:
+          • Mount bonus (+40%) if terrain allows riding.
+          • Encumbrance penalty in meters (estorbo_metros, e.g. -3).
+        Si la montura transporta el equipo, el jinete no sufre estorbo.
         """
+        # Si lleva montura y la montura carga el equipo, el estorbo se ignora.
+        carries_gear = bool(getattr(self, 'montura_carga_equipo', False))
+        estorbo_efectivo = 0 if (self.tiene_montura and carries_gear) else self.estorbo_metros
+        base = self.velocidad_base + estorbo_efectivo
+        base = max(1.0, base)  # nunca menos de 1 m
         if self.tiene_montura and mount_allowed:
-            return self.velocidad_base * 1.40
-        return self.velocidad_base
+            return base * 1.40
+        return base
 
 class JourneyConfig(BaseModel):
     """Configuration for a journey"""
@@ -1285,16 +1296,28 @@ async def calculate_journey(config: JourneyConfig):
         for m in config.miembros:
             vel_efectiva = m.velocidad_efectiva(mount_allowed=mount_allowed)
             km_dia_miembro = vel_efectiva * KM_PER_METER_SPEED
+            # Velocidad sin estorbo (para detectar miembros que podrían ir
+            # más rápido y, por tanto, reciben +5 a salvaciones contra fatiga
+            # cuando el grupo va lento por culpa de otro).
+            vel_sin_estorbo = m.velocidad_base
+            if m.tiene_montura and mount_allowed:
+                vel_sin_estorbo = m.velocidad_base * 1.40
             velocidades.append({
                 "nombre": m.nombre,
                 "velocidad_base": m.velocidad_base,
                 "tiene_montura": m.tiene_montura,
                 "montura_velocidad": m.montura_velocidad,
+                "estorbo_metros": m.estorbo_metros,
                 "velocidad_efectiva": vel_efectiva,
-                "km_por_dia": km_dia_miembro
+                "velocidad_sin_estorbo": vel_sin_estorbo,
+                "km_por_dia": km_dia_miembro,
             })
         velocidad_grupo = min(v["velocidad_efectiva"] for v in velocidades)
         miembro_mas_lento = next(v["nombre"] for v in velocidades if v["velocidad_efectiva"] == velocidad_grupo)
+        # Marca quién recibe +5 al cansancio: aquellos cuya velocidad SIN
+        # estorbo es estrictamente mayor que la velocidad del grupo.
+        for v in velocidades:
+            v["bonus_fatiga"] = 5 if v["velocidad_sin_estorbo"] > velocidad_grupo else 0
     else:
         velocidad_grupo = BASE_SPEED_METERS
         velocidades = []

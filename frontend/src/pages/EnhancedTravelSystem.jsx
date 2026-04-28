@@ -327,19 +327,29 @@ const EnhancedTravelSystem = () => {
         mes: config.mes,
         estacion: config.estacion,
         horas_marcha_forzada: config.horasMarchaForzada,
-        miembros: todosViajeros.map(m => ({
-          personaje_id: m.id,
-          nombre: m.nombre,
-          papel: m.papel,
-          tiene_montura: m.tieneMontura,
-          montura_nombre: m.monturaNombre,
-          montura_velocidad: m.tieneMontura && m.monturaPropia ? (m.monturaPropia.velocidad || 60) : 0,
-          montura_con_bonus: m.monturaConBonus || 0,
-          velocidad_base: m.velocidadBase || 30,
-          modificador_sabiduria: m.modSabiduria || 0,
-          competencias: m.competencias || [],
-          nivel: m.nivel || 1
-        }))
+        miembros: todosViajeros.map(m => {
+          // Enriquecer con estorbo y bandera de montura cargando equipo
+          // a partir de la ficha del personaje (persistido por la
+          // WeightEncumbranceCard de la ficha).
+          const char = characters.find(c => c.id === m.id);
+          const estorbo = Number(char?.estorbo_metros ?? 0);
+          const monturaCarga = !!char?.montura?.transporta_equipo;
+          return {
+            personaje_id: m.id,
+            nombre: m.nombre,
+            papel: m.papel,
+            tiene_montura: m.tieneMontura,
+            montura_nombre: m.monturaNombre,
+            montura_velocidad: m.tieneMontura && m.monturaPropia ? (m.monturaPropia.velocidad || 60) : 0,
+            montura_con_bonus: m.monturaConBonus || 0,
+            velocidad_base: m.velocidadBase || 9,
+            modificador_sabiduria: m.modSabiduria || 0,
+            competencias: m.competencias || [],
+            nivel: m.nivel || 1,
+            estorbo_metros: estorbo,
+            montura_carga_equipo: monturaCarga,
+          };
+        })
       };
       
       const res = await api.post('/travel/calculate-journey', payload);
@@ -2714,6 +2724,7 @@ const EnhancedTravelSystem = () => {
         }}
         terrenoViaje={journeyCalc?.ruta?.terreno || 'moderado'}
         onForage={performForaging}
+        desgloseVelocidades={journeyCalc?.velocidad_grupo?.desglose_velocidades || []}
         onFatigueSave={(charId, save) => {
           setLastFatigueSaves(prev => ({ ...prev, [charId]: save }));
         }}

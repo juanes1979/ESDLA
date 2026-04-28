@@ -1,0 +1,45 @@
+{
+  "summary": "Iter 62 (Oleada 3): probadas las 14 sub-tareas. Backend: PATCH allowed_fields persiste TODOS los nuevos campos (OL3-12 PASS); travel encumbrance reduce velocidad_grupo a 6 m correctamente (OL3-13 parcial). UI: las 8 pestañas renderizan, todas las cards nuevas presentes con sus data-testid (OL3-1..11 + OL3-14 PASS). LevelUpButton muestra 'Nivel 2: faltan 5 PX' y está disabled con 295 XP (OL3-2 PASS). 1 bug crítico encontrado en travel: bonus_fatiga se asigna también al miembro estorbado.",
+  "backend_issues": {
+    "critical": [
+      {
+        "endpoint": "POST /api/travel/calculate-journey",
+        "issue": "BUG OL3-13: velocidad_grupo.desglose_velocidades asigna bonus_fatiga=5 al miembro ESTORBADO (Bob, estorbo_metros=-3, vel_efectiva=6) además de a Alice. Spec exige solo a los NO estorbados que podrían ir más rápido. Causa raíz: en /app/backend/routes/travel_routes.py línea ~1320 la condición es `if v[\"velocidad_sin_estorbo\"] > velocidad_grupo` — el estorbado también cumple porque su sin_estorbo=9 > grupo=6. Falta excluir cuando estorbo_metros < 0. Fix: `5 if (v[\"velocidad_sin_estorbo\"] > velocidad_grupo and v[\"estorbo_metros\"] >= 0) else 0`.",
+        "priority": "HIGH"
+      }
+    ],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_ol3_iter62.py",
+    "/app/test_reports/pytest/it62.xml"
+  ],
+  "action_items": [
+    "FIX BACKEND OL3-13: en /app/backend/routes/travel_routes.py (~línea 1320), añadir `and v['estorbo_metros'] >= 0` al cálculo de bonus_fatiga para que el miembro estorbado NO reciba el +5. Verificación: con A(vel9, est0) + B(vel9, est-3) → A.bonus_fatiga=5, B.bonus_fatiga=0, velocidad_grupo.velocidad_metros=6. Sin este fix, CampDialog.jsx aplicará +5 a la salvación de fatiga del propio personaje estorbado, contradiciendo la regla de que el +5 es una compensación a los no estorbados que se ven obligados a ir lento por culpa de otro.",
+    "Datos de test residuales en personaje Regred Maggot (id c16a362d-...): nombre_jugador='TEST_jugador', sexo='varón', mecenas/historia/cicatrices/maldicion con 'TEST_*'. Limpiar tras retest si molestan."
+  ],
+  "critical_code_review_comments": [
+    "[BUG OL3-13] travel_routes.py: condición bonus_fatiga incorrecta — el propio personaje estorbado recibe el +5 que debería ser SOLO para los compañeros que se ven frenados por él. Falta clausula `and estorbo_metros >= 0`.",
+    "[OK OL3-12] character_routes.py allowed_fields lista completa con los 13 campos nuevos (sexo, nombre_jugador, iniciativa_bonus, salvaciones_competencia, salvaciones_muerte, competencias_herramientas, cicatrices_sombra, maldicion_sombra, mecenas, especiales_profesion, historia, estorbo_metros, montura). PATCH/GET round-trip verificado para los 13.",
+    "[OK OL3-1..11+14] CharacterSheetPage usa Tabs con 8 trigger (resumen/atributos/combate/equipo/comunidad/sombra/trasfondo/historia). Todas las cards extendidas (HeaderInfo, SavingThrows, DeathSaves, Weight, Tools, ShadowExtended, Patron, ProfessionSpecials, History, PrivateNotes) renderizan y los data-testid de inputs/botones existen.",
+    "[OK OL3-2] LevelUpButton: con experiencia=295 y nivel=1, el botón muestra 'Nivel 2: faltan 5 PX' (300-295=5) y is_disabled()=true. Gate de XP_THRESHOLDS funcional."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_ol3_iter62.py (nuevo, 3 tests; 2 PASS / 1 FAIL = bug confirmado)"
+  ],
+  "success_rate": {
+    "backend": "67% (2/3 tests; OL3-12 OK, OL3-13 bug confirmado)",
+    "frontend": "100% (12/12 sub-tareas UI: tabs + 9 cards + level-up gate + private notes)"
+  },
+  "test_credentials": "N/A (la app no usa auth)",
+  "seed_data_creation": "Ninguna nueva. Personaje Regred Maggot (c16a362d-9841-4954-8f70-0dfe02dfe303) ahora contiene valores TEST_* en los campos OL3 + experiencia=295 + nivel=1 (reseteado por el test).",
+  "retest_needed": true,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "El único bug abierto es OL3-13 backend (bonus_fatiga al estorbado). Tras el fix, basta re-ejecutar /app/backend/tests/test_ol3_iter62.py::test_travel_encumbrance_bonus_fatiga; debe pasar. Toda la UI de la Oleada 3 está OK; no hace falta retest visual de las cards a menos que se modifique CharacterSheetPage o ExtendedCards. El gate de XP funciona — para validar el flujo positivo, hacer PATCH {experiencia: 300} al personaje y recargar: el botón debe pasar a 'Subir al Nivel 2' habilitado.",
+  "rca of the issue": "BUG OL3-13 bonus_fatiga: en travel_routes.py la lógica calcula `velocidad_sin_estorbo` (la velocidad que tendría el miembro si no estuviera cargado) y compara contra `velocidad_grupo` (mínima del grupo). Para Alice (no estorbada): sin_estorbo=9 > grupo=6 → bonus=5 ✓. Para Bob (estorbado): sin_estorbo=9 > grupo=6 → bonus=5 ✗ (Bob es el causante del estorbo, no la víctima). La intención del diseño es compensar a quienes podrían ir más rápido pero no pueden por ir con el grupo; Bob no entra en esa categoría porque su velocidad_efectiva=grupo. Mitigación 1-línea: cambiar `5 if v[\"velocidad_sin_estorbo\"] > velocidad_grupo else 0` por `5 if (v[\"velocidad_sin_estorbo\"] > velocidad_grupo and v[\"estorbo_metros\"] >= 0) else 0`. Reproducción: POST /api/travel/calculate-journey con miembros A(vel9,est0) y B(vel9,est-3), origen loc_131, destino loc_142 → response.velocidad_grupo.desglose_velocidades muestra ambos con bonus_fatiga=5 (esperado A=5, B=0)."
+}

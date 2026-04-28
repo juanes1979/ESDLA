@@ -61,6 +61,7 @@ export default function CampDialog({
   onForage,
   onFatigueSave,
   onFatigueChange,
+  desgloseVelocidades = [],
 }) {
   const [sentinelId, setSentinelId] = useState(miembros?.[0]?.id || '');
   const [foragerId, setForagerId] = useState(
@@ -100,8 +101,13 @@ export default function CampDialog({
       for (const m of miembros) {
         const char = characters.find((c) => c.id === m.id);
         const conMod = modFromScore(char?.atributos?.constitucion);
+        // Bonus +5 a salvación contra cansancio si el grupo va más lento
+        // por culpa de OTRO miembro (este personaje podría ir más rápido).
+        const bonusFatiga = Number(
+          desgloseVelocidades.find((v) => v.nombre === m.nombre)?.bonus_fatiga || 0
+        );
         const d20 = rollDie(20);
-        const total = d20 + conMod;
+        const total = d20 + conMod + bonusFatiga;
         const cd = 10;
         const pasa = total >= cd;
         const nat20 = d20 === 20;
@@ -128,7 +134,7 @@ export default function CampDialog({
 
         // Notifica al panel del grupo (modo interactivo).
         if (onFatigueSave) {
-          onFatigueSave(m.id, { d20, mod: conMod, total, cd, exito: pasa });
+          onFatigueSave(m.id, { d20, mod: conMod + bonusFatiga, total, cd, exito: pasa });
         }
         if (onFatigueChange && reduccion > 0) {
           onFatigueChange(m.id, -reduccion);
