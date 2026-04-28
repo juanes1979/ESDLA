@@ -1,6 +1,28 @@
 # LOTR 5e RPG - Product Requirements Document
 
-## Current State (2026-02-26)
+## Current State (2026-02-28)
+
+### ✅ Travel System Logic Overhaul (Batch 2) — Iniciado
+- **Viaje global** (antes "Automatizar viaje"): bucle reescrito en
+  `EnhancedTravelSystem.jsx` para no depender de refs de React. Ya no aparece
+  el "Atasco detectado" tras 8 iteraciones; el bucle hace
+  orientación → genera evento → resuelve evento → avanza posición localmente,
+  hasta llegar al destino o ser detenido por el usuario. Verificado E2E
+  (Bree → Tharbad, 0%→100% en ~15 s).
+- **Ojo de Sauron**: rediseñado en `SauronEyeOverlay.jsx`. Máscara radial sobre
+  el PNG (sin recorte rectangular) + 3 capas de fuego animadas
+  (outer glow, inner core, ascuas) imitando la portada. Botón "Detener viaje global".
+- **Fatiga inicial heredada + override con justificación**: nueva sección en
+  ConfigView. Cada miembro con papel muestra su fatiga de ficha y un input
+  numérico (0–6). Si se ajusta, aparece un Textarea de justificación obligatoria;
+  iniciar viaje sin justificarlo bloquea con toast de error. Al iniciar, se
+  persiste vía `PUT /api/characters/{id}/fatigue`.
+
+### 🟡 Pendiente del Travel Overhaul (Batch 2)
+- "Jornada a jornada" como modo interactivo por defecto que **avanza días
+  vacíos automáticamente** y se detiene **solo en eventos** o tirada de
+  orientación. Botones Acampar/Forrajear visibles solo durante esas paradas.
+- Mostrar tirada de orientación al inicio del primer día (en modo Día a Día).
 
 ### 🏗️ NEXT MAJOR PHASE — Sistema de Campañas (post-fork)
 
