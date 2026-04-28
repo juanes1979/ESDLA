@@ -219,6 +219,13 @@ const EnhancedTravelSystem = () => {
   // Último cambio de fatiga registrado por personaje (para mostrar +1/-1 en el panel).
   // Forma: { [charId]: { delta: number, casilla: number } }
   const [fatigueChanges, setFatigueChanges] = useState({});
+
+  // Contador de días consecutivos en campamento (sin marcha entre medias).
+  // La salvación contra cansancio se OMITE en la 2.ª acampada consecutiva.
+  const [consecutiveCampDays, setConsecutiveCampDays] = useState(0);
+  // Días consecutivos sin comida/agua a nivel grupo (suben la CD).
+  const [diasSinComida, setDiasSinComida] = useState(0);
+  const [diasSinAgua, setDiasSinAgua] = useState(0);
   // Weather rolled for the entire journey at startGlobalJourney (Markov chain)
   const [journeyWeather, setJourneyWeather] = useState([]);
   const autoStopRef = useRef(false);
@@ -1015,7 +1022,11 @@ const EnhancedTravelSystem = () => {
     // Update current position to event position
     setCurrentPosition(nextEventPosition);
     setStageDays(prev => prev + 1);
-    
+
+    // Cada avance es una nueva jornada de marcha → resetear contador de
+    // acampadas consecutivas (la próxima acampada SÍ rodará salvación).
+    setConsecutiveCampDays(0);
+
     // *** CONSUME DAILY PROVISIONS ***
     consumeDailyProvisions();
     
@@ -2725,6 +2736,14 @@ const EnhancedTravelSystem = () => {
         terrenoViaje={journeyCalc?.ruta?.terreno || 'moderado'}
         onForage={performForaging}
         desgloseVelocidades={journeyCalc?.velocidad_grupo?.desglose_velocidades || []}
+        consecutiveCampDays={consecutiveCampDays}
+        diasSinComida={diasSinComida}
+        diasSinAgua={diasSinAgua}
+        currentClima={
+          (journeyWeather || [])[Math.min(currentPosition, (journeyWeather || []).length - 1)] || null
+        }
+        currentTerreno={journeyCalc?.ruta?.tipo_tierra || ''}
+        onCampDayCompleted={() => setConsecutiveCampDays(d => d + 1)}
         onFatigueSave={(charId, save) => {
           setLastFatigueSaves(prev => ({ ...prev, [charId]: save }));
         }}

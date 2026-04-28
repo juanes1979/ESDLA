@@ -55,6 +55,10 @@ const GlobalJourneyView = ({
   rollEventDice, resolveCurrentEvent,
 }) => {
   const isPaused = awaitingOrientationCheck || !!currentEvent;
+  // Hay miembros exhaustos (fatiga 5+) → el grupo está obligado a descansar.
+  const grupoExhausto = (config?.miembros || [])
+    .filter(m => m.papeles?.length > 0)
+    .some(m => Number((characters || []).find(c => c.id === m.id)?.fatiga ?? 0) >= 5);
   return (
   <div className="space-y-6">
     {/* Journey Progress with Orientation Info */}
@@ -107,6 +111,54 @@ const GlobalJourneyView = ({
       lastFatigueSaves={lastFatigueSaves}
       fatigueChanges={fatigueChanges}
     />
+
+    {/* Banner de descanso obligatorio: si alguien llega a fatiga 5+ */}
+    {(() => {
+      const exhaustos = config.miembros
+        .filter(m => m.papeles?.length > 0)
+        .map(m => ({ m, ch: characters.find(c => c.id === m.id) }))
+        .filter(x => Number(x.ch?.fatiga ?? 0) >= 5);
+      if (exhaustos.length === 0) return null;
+      const fatigaSeis = exhaustos.find(x => Number(x.ch?.fatiga ?? 0) >= 6);
+      return (
+        <Card className="card-parchment border-red-500/60 bg-red-950/20" data-testid="forced-rest-banner">
+          <CardContent className="p-4">
+            <div className="flex items-start gap-3">
+              <Tent className="w-6 h-6 text-red-400 flex-shrink-0 mt-1" />
+              <div className="flex-1">
+                <p className="font-bold text-red-300 text-base mb-1">
+                  {fatigaSeis ? '☠ Personaje al borde de la muerte' : '⚠ Descanso obligatorio'}
+                </p>
+                {fatigaSeis ? (
+                  <p className="text-xs text-red-200/90">
+                    <strong>{fatigaSeis.m.nombre}</strong> ha alcanzado fatiga 6 — queda{' '}
+                    <strong>inconsciente</strong>. No puede viajar a pie en una semana.
+                    Solo puede ser transportado en carro o montura. Mínimo 2 días en
+                    refugio o descanso largo antes de volver a aventura.
+                  </p>
+                ) : (
+                  <p className="text-xs text-red-200/90">
+                    {exhaustos.map(x => x.m.nombre).join(', ')} ha(n) alcanzado fatiga 5+.
+                    El grupo está obligado a acampar{' '}
+                    <strong>al menos 2 días completos seguidos</strong> para reducir
+                    la fatiga al menos 2 puntos. Pulsa "Acampar" dos veces.
+                  </p>
+                )}
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="mt-2 border-red-500/40 hover:bg-red-500/10"
+                  onClick={() => setShowCampDialog?.(true)}
+                  data-testid="forced-rest-camp-btn"
+                >
+                  <Tent className="w-3.5 h-3.5 mr-1" /> Acampar ahora
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      );
+    })()}
 
     {/* Acciones disponibles durante una parada (orientación o evento). */}
     {isPaused && !autoRunning && (
@@ -233,11 +285,12 @@ const GlobalJourneyView = ({
                   <Button
                     className="flex-1 btn-gold"
                     onClick={performOrientationCheck}
-                    disabled={autoRunning}
+                    disabled={autoRunning || grupoExhausto}
                     data-testid="orientation-roll-btn"
+                    title={grupoExhausto ? 'Grupo exhausto: hay que descansar antes de avanzar' : ''}
                   >
                     <Dice6 className="w-4 h-4 mr-2" />
-                    Realizar Tirada de Orientación
+                    {grupoExhausto ? 'Descanso obligatorio' : 'Realizar Tirada de Orientación'}
                   </Button>
                   <Button
                     variant={autoRunning ? 'destructive' : 'outline'}

@@ -1,0 +1,37 @@
+{
+  "summary": "Iter 63 (Reglas de Fatiga). Verificadas en UI viva F-1 (save normal con CD 10), F-2 (skip 2.ª acampada consecutiva), F-5 (banner forced-rest fatiga≥5 + orient disabled) y F-6 (banner '☠ borde de la muerte' fatiga 6). Code-review confirma F-7 (reset consecutivo en continueAfterEvent línea 1028). Bug crítico encontrado en F-4: los contadores diasSinComida/diasSinAgua se pasan al CampDialog desde EnhancedTravelSystem pero NUNCA se incrementan ni decrementan; los setters setDiasSinComida/setDiasSinAgua no son llamados en ningún sitio, por lo que la CD de la salvación contra cansancio queda fijada a 10 aunque el grupo se quede sin provisiones. F-3 (extra save por clima/sombra) verificada por código (lógica presente en CampDialog líneas 115-152) pero no probada en UI por requerir clima extremo o terreno tierras_oscuras/sombra.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {
+        "flow": "F-4 CD provisiones",
+        "issue": "EnhancedTravelSystem.jsx declara estados `diasSinComida` y `diasSinAgua` (líneas 227-228) y los pasa como props a CampDialog (líneas 2740-2741), pero NUNCA llama a `setDiasSinComida` / `setDiasSinAgua`. El estado per-character `provisionFatigue` SÍ se incrementa en `consumeDailyProvisions` (líneas 822-838), pero los contadores a NIVEL GRUPO permanecen siempre en 0. Resultado: CampDialog calcula `cd = 10 + 0*1 + 0*2 = 10` siempre, contradiciendo la regla F-4 que exige escalado por días sin provisiones.",
+        "affected_selectors": ["camp-result-*"]
+      }
+    ],
+    "design_issues": []
+  },
+  "test_report_links": [],
+  "action_items": [
+    "FIX F-4: en /app/frontend/src/pages/EnhancedTravelSystem.jsx dentro de `consumeDailyProvisions` (~líneas 815-860), añadir llamadas a nivel grupo: `if (nuevaComidaDisponible < 0) setDiasSinComida(d => d + 1); else setDiasSinComida(0);` y análogo para agua con `setDiasSinAgua`. Sin esto la CD de cansancio nunca subirá por desnutrición/sed. Sugerencia: hacerlo dentro del `setPartyProvisions` para coherencia, o como `useEffect` que observe partyProvisions.",
+    "Reset opcional: tras el test la fatiga del personaje Regred Maggot (c16a362d-9841-4954-8f70-0dfe02dfe303) quedó en 5 (lo dejé así para facilitar retest del banner). Si molesta, hacer PUT /api/characters/{id}/fatigue body {fatiga:0}."
+  ],
+  "critical_code_review_comments": [
+    "[BUG F-4] EnhancedTravelSystem.jsx: setDiasSinComida y setDiasSinAgua nunca se invocan; los valores 0/0 hacen que la regla 'CD = 10 + diasSinComida*1 + diasSinAgua*2' nunca incremente. provisionFatigue per-character sí se actualiza pero no se usa para la CD de fatiga.",
+    "[OK F-1] CampDialog.performCamp (líneas 137-153) calcula correctamente d20+conMod+bonusFatiga vs CD; UI línea 591-592 imprime 'CON: d20 (N) + M = T vs CD ✓/✗'.",
+    "[OK F-2] CampDialog: `skipSave = consecutiveCampDays >= 1` (línea 114) y UI línea 590-591 imprime literal 'Recuperación automática (2.ª acampada consecutiva, sin tirada).' aplicando -1 fatiga sin tirada. Verificado en runtime (6→5).",
+    "[OK F-3] CampDialog: detecta clima extremo (tormenta/nieve fuerte/vendaval/extremo/helada) y terreno con 'sombra'/'oscur' (líneas 115-122); rueda salvación extra y suma +1 fatiga si falla. UI línea 594-598 imprime 'Salv. extra (Clima extremo|Tierras de la Sombra)' verde/rojo. NO PROBADO en runtime (Hobbiton-Bree es tierras_libres y clima default).",
+    "[OK F-5] GlobalJourneyView.jsx líneas 117-160: filtra exhaustos con fatiga≥5, render forced-rest-banner con texto '⚠ Descanso obligatorio' y forced-rest-camp-btn. Botón orientation-roll-btn disabled + texto 'Descanso obligatorio' (líneas 285-294). Verificado en runtime.",
+    "[OK F-6] GlobalJourneyView línea 122-138: si algún miembro tiene fatiga≥6, banner muestra '☠ Personaje al borde de la muerte' con texto completo (inconsciente, 1 semana, transportable carro/montura, 2 días refugio). Verificado en runtime.",
+    "[OK F-7] EnhancedTravelSystem.jsx línea 1028 dentro de continueAfterEvent: `setConsecutiveCampDays(0)`. Cada avance reinicia el contador, por lo que tras un evento la siguiente acampada vuelve a rodar salvación normal."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A (no backend testing requested)", "frontend": "85% (6/7 reglas verificadas: F-1✓ F-2✓ F-3⚠código F-4✗BUG F-5✓ F-6✓ F-7✓código)"},
+  "test_credentials": "N/A",
+  "seed_data_creation": "Personaje Regred Maggot fatiga puesta a 5 (dejada así para facilitar reapertura del banner).",
+  "retest_needed": true,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Tras fix de F-4, validar: con fatiga inicial baja, dejar agotar provisiones (saltar varios eventos sin reabastecer) y luego acampar — la CD del save de cansancio debe subir (10 + diasSinComida + diasSinAgua*2). También probar F-3 forzando clima extremo o ruta por tierras_oscuras/sombra para confirmar la salvación extra. Resto de reglas (F-1, F-2, F-5, F-6, F-7) ya verificadas.",
+  "rca of the issue": "BUG F-4: en /app/frontend/src/pages/EnhancedTravelSystem.jsx la función consumeDailyProvisions (líneas 809-861) actualiza únicamente el objeto `provisionFatigue[miembro.id].sinComida/sinAgua` (per-character) pero los estados de grupo `diasSinComida` y `diasSinAgua` declarados en líneas 227-228 carecen de cualquier setter. CampDialog recibe esos props (líneas 2740-2741), calcula `cdProvisiones = diasSinComida*1 + diasSinAgua*2` (CampDialog línea 123) y por tanto `cd = 10 + 0 = 10` siempre. Mitigación: añadir dentro del callback de setPartyProvisions: `if (nuevaComidaDisponible < 0) setDiasSinComida(prev => prev + 1); else setDiasSinComida(0);` y análogo para agua (compara contra numPersonajes*2). Reproducción: imposible reproducir en UI sin gastar provisiones primero (Hobbiton-Bree son 9 casillas y arrancan con 10 raciones / 10L, el grupo no se queda sin provisiones en 1 día). Verificación post-fix: forzar partyProvisions.comidaTotal=0 antes de continueAfterEvent y comprobar que tras el avance, al abrir CampDialog, la cabecera del save imprima 'vs CD 11' (o similar) en lugar de '10'."
+}

@@ -62,6 +62,12 @@ export default function CampDialog({
   onFatigueSave,
   onFatigueChange,
   desgloseVelocidades = [],
+  consecutiveCampDays = 0,
+  diasSinComida = 0,
+  diasSinAgua = 0,
+  currentClima = null,
+  currentTerreno = '',
+  onCampDayCompleted,
 }) {
   const [sentinelId, setSentinelId] = useState(miembros?.[0]?.id || '');
   const [foragerId, setForagerId] = useState(
@@ -97,29 +103,75 @@ export default function CampDialog({
       }
 
       // 2) Tirada de recuperación de fatiga para cada personaje
+      // Reglas (Feb 2026):
+      //   • Salvación contra cansancio CD 10 + diasSinComida×1 + diasSinAgua×2.
+      //   • Bonus +5 si el personaje no es el causante del estorbo del grupo.
+      //   • Si se trata de la 2.ª acampada consecutiva (sin marcha entre
+      //     medias), se OMITE la tirada y se aplica recuperación automática.
+      //   • Si el clima del día es extremo (tormenta/nieve fuerte) o se
+      //     atraviesan tierras de la sombra, se rueda una tirada EXTRA;
+      //     fallar cualquiera de las dos suma +1 fatiga.
+      const skipSave = consecutiveCampDays >= 1; // 2nd+ consecutive camp
+      const climaExtremo = (() => {
+        const lab = (currentClima?.estado_label || '').toLowerCase();
+        return lab.includes('tormenta') || lab.includes('nieve fuerte') ||
+               lab.includes('vendaval') || lab.includes('extremo') || lab.includes('helada');
+      })();
+      const enSombra = (currentTerreno || '').toLowerCase().includes('sombra') ||
+                       (currentTerreno || '').toLowerCase().includes('oscur');
+      const necesitaSalvExtra = climaExtremo || enSombra;
+      const cdProvisiones = (Number(diasSinComida) || 0) * 1 + (Number(diasSinAgua) || 0) * 2;
+
       const charResults = [];
       for (const m of miembros) {
         const char = characters.find((c) => c.id === m.id);
         const conMod = modFromScore(char?.atributos?.constitucion);
-        // Bonus +5 a salvación contra cansancio si el grupo va más lento
-        // por culpa de OTRO miembro (este personaje podría ir más rápido).
         const bonusFatiga = Number(
           desgloseVelocidades.find((v) => v.nombre === m.nombre)?.bonus_fatiga || 0
         );
-        const d20 = rollDie(20);
-        const total = d20 + conMod + bonusFatiga;
-        const cd = 10;
-        const pasa = total >= cd;
-        const nat20 = d20 === 20;
+        const cd = 10 + cdProvisiones;
+        let d20 = 0, total = 0, pasa = true, nat20 = false;
+        let saveExtra = null;
+        let pasoSavExtra = true;
+
+        if (!skipSave) {
+          d20 = rollDie(20);
+          total = d20 + conMod + bonusFatiga;
+          pasa = total >= cd;
+          nat20 = d20 === 20;
+
+          if (necesitaSalvExtra) {
+            const d20e = rollDie(20);
+            const totalE = d20e + conMod + bonusFatiga;
+            pasoSavExtra = totalE >= cd;
+            saveExtra = {
+              motivo: climaExtremo ? 'Clima extremo' : 'Tierras de la Sombra',
+              d20: d20e, mod: conMod + bonusFatiga, total: totalE, cd,
+              exito: pasoSavExtra,
+            };
+          }
+        }
+
         const isSentinel = m.id === sentinelId;
 
         // Base: -1 auto. Con nat20 -> -2. Centinela recibe la mitad.
+        // Si la tirada principal falla → +1 fatiga. Si la tirada extra
+        // (clima/sombra) falla → +1 fatiga adicional. Si es la 2.ª
+        // acampada consecutiva: recuperación automática sin tiradas.
         let reduccion = 1;
-        if (nat20) reduccion = 2;
-        if (isSentinel) reduccion = reduccion / 2;
+        if (skipSave) {
+          reduccion = 1;
+        } else {
+          if (!pasa) reduccion = -1;          // falla → +1 fatiga
+          else if (nat20) reduccion = 2;
+          if (saveExtra && !pasoSavExtra) {
+            reduccion -= 1; // suma fatiga adicional (resta a la reducción)
+          }
+        }
+        if (isSentinel && reduccion > 0) reduccion = reduccion / 2;
 
         const fatigaAntes = Number(char?.fatiga || 0);
-        const fatigaDespues = Math.max(0, Math.round((fatigaAntes - reduccion) * 2) / 2);
+        const fatigaDespues = Math.max(0, Math.min(6, Math.round((fatigaAntes - reduccion) * 2) / 2));
 
         try {
           await api.put(`/characters/${m.id}/fatigue`, { fatiga: fatigaDespues });
@@ -133,10 +185,10 @@ export default function CampDialog({
         }
 
         // Notifica al panel del grupo (modo interactivo).
-        if (onFatigueSave) {
+        if (onFatigueSave && !skipSave) {
           onFatigueSave(m.id, { d20, mod: conMod + bonusFatiga, total, cd, exito: pasa });
         }
-        if (onFatigueChange && reduccion > 0) {
+        if (onFatigueChange && reduccion !== 0) {
           onFatigueChange(m.id, -reduccion);
         }
 
@@ -153,7 +205,14 @@ export default function CampDialog({
           reduccion,
           fatigaAntes,
           fatigaDespues,
+          skipSave,
+          saveExtra,
         });
+      }
+
+      // Notifica al estado superior que se ha completado un día de campamento.
+      if (onCampDayCompleted) {
+        onCampDayCompleted();
       }
 
       // 3) Tirada del centinela (Sabiduría/Percepción CD 12)
@@ -528,21 +587,30 @@ export default function CampDialog({
                           )}
                         </p>
                         <p className="text-[11px] text-muted-foreground">
-                          CON: d20 ({r.d20}) + {r.conMod} = {r.total} vs CD {r.cd}
+                          {r.skipSave
+                            ? <span className="italic">Recuperación automática (2.ª acampada consecutiva, sin tirada).</span>
+                            : <>CON: d20 ({r.d20}) + {r.conMod} = {r.total} vs CD {r.cd} {r.pasa ? '✓' : '✗'}</>}
                         </p>
+                        {r.saveExtra && (
+                          <p className={`text-[11px] ${r.saveExtra.exito ? 'text-emerald-300' : 'text-red-300'}`}>
+                            Salv. extra ({r.saveExtra.motivo}): d20 ({r.saveExtra.d20}) + {r.saveExtra.mod} = {r.saveExtra.total} vs CD {r.saveExtra.cd} {r.saveExtra.exito ? '✓' : '✗'}
+                          </p>
+                        )}
                       </div>
                       <div className="text-right">
                         <p className="text-[11px] text-muted-foreground">Cansancio</p>
                         <p className="text-sm font-bold">
                           {r.fatigaAntes % 1 === 0 ? r.fatigaAntes : r.fatigaAntes.toFixed(1)}
                           {' → '}
-                          <span className="text-green-400">
+                          <span className={r.fatigaDespues > r.fatigaAntes ? 'text-red-400' : 'text-green-400'}>
                             {r.fatigaDespues % 1 === 0
                               ? r.fatigaDespues
                               : r.fatigaDespues.toFixed(1)}
                           </span>
                         </p>
-                        <p className="text-[10px] text-green-400">-{r.reduccion}</p>
+                        <p className={`text-[10px] ${r.reduccion >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                          {r.reduccion >= 0 ? `-${r.reduccion}` : `+${Math.abs(r.reduccion)}`}
+                        </p>
                       </div>
                     </div>
                   </div>
