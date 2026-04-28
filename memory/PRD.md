@@ -7,20 +7,65 @@
 Decisiones de arquitectura ya acordadas con el usuario (ver detalle completo en
 `/app/memory/CAMPAIGN_ARCHITECTURE.md`):
 
-- **Roles**: Maestro (admin global único editor de reglas), Director de Juego (consulta
-  reglas, edita personajes, crea ubicaciones/mapas locales a su campaña, crea campañas),
-  Jugador (TBD).
-- **Aislamiento**: híbrido "branching" — BD principal global con reglas (sólo Maestro
-  edita) + **una BD por campaña** (`lotr5e_campaign_{id}`) con datos de juego (personajes
-  asignados, viajes activos, ubicaciones locales, mapas subidos, polígonos extra,
-  overrides de clima, inventario/dinero/PX consumidos).
-- **Selector de campaña** dentro del panel del DJ — todo lo que se haga dentro queda
-  ligado a esa campaña. Un personaje no puede estar en dos campañas a la vez.
+- **Roles**: Maestro (admin global ÚNICO — el usuario), Director de Juego,
+  Maestro del saber (consulta + crea campañas), Jugador.
+- **Aislamiento**: híbrido "branching" — BD global con reglas (sólo Maestro
+  edita) + **una BD por campaña** (`lotr5e_campaign_{id}`) con datos de juego.
+- **Reglas globales**: cambios del Maestro **se propagan en vivo** a todas las
+  campañas (decisión técnica del agente, a confirmar). DJs pueden hacer overrides
+  locales si necesitan congelar algo.
+- **Mapas/aventuras**: JPEG y PDF únicamente, en object storage.
+- **Selector de campaña** dentro del panel del DJ. Un personaje no puede estar
+  en dos campañas a la vez.
 - **Bloqueador previo**: implementar primero **P0 Auth + Roles** antes de campañas.
-- 26 puntos abiertos pendientes de definir antes de empezar a programar (ver
-  `CAMPAIGN_ARCHITECTURE.md` sección "Puntos abiertos").
+- 28 puntos abiertos restantes en `CAMPAIGN_ARCHITECTURE.md`.
+
+### 📊 Tamaño actual de la BD (baseline para estimaciones)
+- **Total: 20.23 MB** (970 docs / 59 colecciones).
+- Mapa/terreno: ~13.7 MB (68% — `terrain_zones` 13.4 MB es el grande).
+- Personajes: ~5.5 MB (50 fichas, ≈110 KB cada una con retratos base64).
+- Reglas: ~750 KB. Datos de juego activos: <30 KB.
+- Estimación campaña típica: 50 KB vacía → 700 KB media → 2-5 MB con mapas si
+  los mapas viven en object storage. **Object storage es prácticamente obligatorio**.
 
 ### ✅ COMPLETED This Session
+
+#### 20. Iteración 67 — Sistema de Moderación Inteligente IA + Métricas BD (2026-02-26)
+
+**Backend** (`/app/backend/routes/moderation_routes.py`):
+- `POST /api/moderation/check-name` → IA valida texto (nombre personaje, apellido,
+  jugador, ubicación, campaña). Filtro duro local (banlist + heurísticos) corta sin
+  coste IA; lo sutil va a GPT-4o-mini con prompt estricto en JSON.
+- `GET /api/moderation/alerts` (token Maestro) → listado + stats por categoría/contexto.
+- `DELETE /api/moderation/alerts` → limpiar log.
+- Categorías: profanity, sexual, political, insult, nonsense, other.
+- Fail-open si la IA cae (no bloquea flujo de usuario).
+- Verificado por curl: 8 casos (Tolkien-style en personaje OK, Tolkien en jugador KO,
+  palabrota dura, sexual con banlist, política contemporánea, vacío, spam, normales).
+
+**Frontend** (`/app/frontend/src/components/character-creator/steps/Step1Culture.jsx`):
+- Validación on-blur en los campos Nombre / Apellido / Jugador.
+- Indicadores visuales: spinner mientras valida, ✅ verde si OK, ⚠ rojo si bloqueado.
+- Contador de intentos por campo: a los 2 intentos inapropiados consecutivos →
+  campo se **bloquea**, se rellena con un nombre clásico generado (excepto el del
+  jugador, que se vacía y obliga a admin).
+- Reconoce los nombres auto-generados por subcultura como "baseline" — no los
+  valida si el usuario no los modifica (cero coste IA en flujo normal).
+- Validación final también en `handleSubmit` antes de avanzar a Step 2.
+
+**Helpers**: `/app/frontend/src/utils/moderation.js` (cliente axios reutilizable).
+
+Lint ✅ Python y JS. Backend probado con 8 casos curl.
+
+### 📌 Pendientes para próxima sesión (post-fork campañas)
+- 26 puntos abiertos en `CAMPAIGN_ARCHITECTURE.md` (auth, sincronización, etc.).
+- P0 Auth + Roles → P0 Modelo Campaña → P0 Enrutado de queries → P0 Object Storage.
+- P1 Cola de aprobación de ubicaciones del DJ (checkbox "solicitar al Maestro").
+- P1 Panel del Maestro para incidentes de moderación (la colección `moderation_alerts`
+  ya almacena los datos, solo falta la UI).
+- P2 Terminar Undo/Redo en TerrainEditor.
+
+### ✅ COMPLETED Earlier This Session
 
 #### 19. Iteración 66 — Pathfinding Debugger arreglado + Piezas movibles en Editor de Terrenos (2026-02-26)
 

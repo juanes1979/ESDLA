@@ -8,8 +8,10 @@
  * 4. Si tiene virtud inicial → marcar para después de cultura
  */
 import { useState, useEffect } from 'react';
-import { Loader2, Shuffle, ChevronRight, ChevronDown, Check } from 'lucide-react';
+import { Loader2, Shuffle, ChevronRight, ChevronDown, Check, ShieldAlert, ShieldCheck } from 'lucide-react';
 import { getCultures, getCultureNames, updateDraftStep1, generateRandomName } from '@/services/api';
+import { checkName } from '@/utils/moderation';
+import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -138,6 +140,83 @@ const Step1Culture = ({ draftId, draft, onComplete, onBack }) => {
   const [selectedTool1, setSelectedTool1] = useState(null);
   const [selectedTools2, setSelectedTools2] = useState([]);
 
+  // ─── Moderación inteligente IA (Iter 67) ────────────────────────────────
+  // Por cada campo de texto editable: contador de intentos inapropiados,
+  // estado de bloqueo, último valor validado, y resultado.
+  const [modState, setModState] = useState({
+    name:    { attempts: 0, locked: false, validating: false, lastValidated: '', error: null, ok: false, baseline: '' },
+    surname: { attempts: 0, locked: false, validating: false, lastValidated: '', error: null, ok: false, baseline: '' },
+    player:  { attempts: 0, locked: false, validating: false, lastValidated: '', error: null, ok: false, baseline: '' },
+  });
+
+  // Helper: actualiza un campo del modState
+  const updateMod = (field, patch) => setModState(prev => ({ ...prev, [field]: { ...prev[field], ...patch } }));
+
+  // Generar un nombre clásico de respaldo (si la IA bloquea el campo).
+  const fallbackName = () => {
+    if (!nameData) return 'Aldwin';
+    const genderData = nameData[gender] || nameData.hombre;
+    const prefix = randomFrom(genderData?.prefijos || ['Al']);
+    const suffix = randomFrom(genderData?.sufijos || ['win']);
+    return prefix + suffix;
+  };
+  const fallbackSurname = () => randomFrom(nameData?.apellidos || ['del Bosque']);
+
+  // Valida un texto contra la IA. Devuelve true si pasó, false si fue bloqueado.
+  // Cuando se acumulan 2 intentos inapropiados en el mismo campo, lo bloquea
+  // y rellena con un valor seguro generado por el sistema.
+  const validateField = async (field, value, context) => {
+    const cur = modState[field];
+    if (cur.locked) return true; // ya bloqueado: no revalidar
+    const val = (value || '').trim();
+    // Si coincide con un nombre auto-generado por el sistema, asumir OK (no llamar IA)
+    if (val && cur.baseline && val === cur.baseline) {
+      updateMod(field, { ok: true, error: null, lastValidated: val });
+      return true;
+    }
+    if (val === cur.lastValidated && cur.ok) return true; // ya validado antes con OK
+    if (!val) {
+      updateMod(field, { ok: false, error: 'Campo vacío.', lastValidated: '' });
+      return false;
+    }
+    updateMod(field, { validating: true, error: null });
+    const res = await checkName(val, context, { draft_id: draftId, user_label: playerName });
+    if (res.appropriate) {
+      updateMod(field, { validating: false, ok: true, error: null, lastValidated: val });
+      return true;
+    }
+    // Inapropiado: incrementar intento
+    const attempts = cur.attempts + 1;
+    if (attempts >= 2) {
+      // Bloquear: rellenar con valor seguro
+      let safe = '';
+      if (field === 'name') {
+        safe = fallbackName();
+        setCharacterName(safe);
+      } else if (field === 'surname') {
+        safe = fallbackSurname();
+        setSurname(safe);
+      } else if (field === 'player') {
+        safe = '';
+        setPlayerName('');
+      }
+      updateMod(field, {
+        attempts, locked: true, validating: false, ok: field !== 'player',
+        error: `Bloqueado tras 2 intentos. ${field === 'player' ? 'Indica al jugador que use un nombre real.' : 'Se ha asignado un nombre clásico.'}`,
+        lastValidated: safe,
+      });
+      toast.error(`Campo bloqueado: ${res.reason}`);
+      return field !== 'player';
+    }
+    updateMod(field, {
+      validating: false, ok: false, attempts,
+      error: `${res.reason} (intento ${attempts}/2)`,
+      lastValidated: val,
+    });
+    toast.warning(`No permitido: ${res.reason}`);
+    return false;
+  };
+
   // Load cultures on mount
   useEffect(() => {
     const loadCultures = async () => {
@@ -177,12 +256,18 @@ const Step1Culture = ({ draftId, draft, onComplete, onBack }) => {
       // Generate name
       if (names) {
         const genderData = names[gender] || names.hombre;
+        let genName = '';
         if (genderData) {
           const prefix = randomFrom(genderData.prefijos);
           const suffix = randomFrom(genderData.sufijos);
-          setCharacterName(prefix + suffix);
+          genName = prefix + suffix;
+          setCharacterName(genName);
         }
-        setSurname(randomFrom(names.apellidos));
+        const genSurname = randomFrom(names.apellidos);
+        setSurname(genSurname);
+        // Registrar como baseline confiable (no se valida si el usuario no lo cambia)
+        updateMod('name',    { baseline: genName, lastValidated: genName, ok: true, error: null });
+        updateMod('surname', { baseline: genSurname, lastValidated: genSurname, ok: true, error: null });
       }
     } catch (err) {
       console.error('Error loading names:', err);
@@ -216,12 +301,17 @@ const Step1Culture = ({ draftId, draft, onComplete, onBack }) => {
   const handleRegenerateName = () => {
     if (nameData) {
       const genderData = nameData[gender] || nameData.hombre;
+      let genName = '';
       if (genderData) {
         const prefix = randomFrom(genderData.prefijos);
         const suffix = randomFrom(genderData.sufijos);
-        setCharacterName(prefix + suffix);
+        genName = prefix + suffix;
+        setCharacterName(genName);
       }
-      setSurname(randomFrom(nameData.apellidos));
+      const genSurname = randomFrom(nameData.apellidos);
+      setSurname(genSurname);
+      updateMod('name',    { baseline: genName,    lastValidated: genName,    ok: true, error: null });
+      updateMod('surname', { baseline: genSurname, lastValidated: genSurname, ok: true, error: null });
     }
   };
 
@@ -233,7 +323,9 @@ const Step1Culture = ({ draftId, draft, onComplete, onBack }) => {
       if (genderData) {
         const prefix = randomFrom(genderData.prefijos);
         const suffix = randomFrom(genderData.sufijos);
-        setCharacterName(prefix + suffix);
+        const genName = prefix + suffix;
+        setCharacterName(genName);
+        updateMod('name', { baseline: genName, lastValidated: genName, ok: true, error: null });
       }
     }
   };
@@ -363,9 +455,18 @@ const Step1Culture = ({ draftId, draft, onComplete, onBack }) => {
       setError('Debes elegir una característica para la mejora extra');
       return;
     }
-    
+
+    // Moderación inteligente: revalidar nombres antes de guardar
     setSaving(true);
     setError(null);
+    const okName    = await validateField('name',    characterName, 'character_name');
+    const okSurname = await validateField('surname', surname,       'character_surname');
+    const okPlayer  = await validateField('player',  playerName,    'player_name');
+    if (!okName || !okSurname || !okPlayer) {
+      setSaving(false);
+      setError('Hay nombres no permitidos. Corrígelos antes de continuar.');
+      return;
+    }
     
     try {
       // Calculate final characteristics with bonuses
@@ -678,34 +779,67 @@ const Step1Culture = ({ draftId, draft, onComplete, onBack }) => {
         
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <Label className="text-sm text-muted-foreground">Nombre</Label>
+            <Label className="text-sm text-muted-foreground flex items-center gap-2">
+              Nombre
+              {modState.name.validating && <Loader2 className="w-3 h-3 animate-spin text-amber-400" />}
+              {modState.name.ok && !modState.name.validating && <ShieldCheck className="w-3 h-3 text-green-500" />}
+              {modState.name.error && !modState.name.locked && <ShieldAlert className="w-3 h-3 text-red-500" />}
+              {modState.name.locked && <span className="text-[10px] uppercase text-red-500 font-bold">Bloqueado</span>}
+            </Label>
             <Input
               value={characterName}
-              onChange={(e) => setCharacterName(e.target.value)}
-              className="mt-1"
+              onChange={(e) => { setCharacterName(e.target.value); if (modState.name.error) updateMod('name', { error: null, ok: false }); }}
+              onBlur={(e) => validateField('name', e.target.value, 'character_name')}
+              disabled={modState.name.locked}
+              className={cn('mt-1', modState.name.error && 'border-red-500')}
               data-testid="character-name-input"
             />
+            {modState.name.error && (
+              <p className="text-[11px] text-red-500 mt-1" data-testid="name-mod-error">{modState.name.error}</p>
+            )}
           </div>
           <div>
-            <Label className="text-sm text-muted-foreground">Apellido</Label>
+            <Label className="text-sm text-muted-foreground flex items-center gap-2">
+              Apellido
+              {modState.surname.validating && <Loader2 className="w-3 h-3 animate-spin text-amber-400" />}
+              {modState.surname.ok && !modState.surname.validating && <ShieldCheck className="w-3 h-3 text-green-500" />}
+              {modState.surname.error && !modState.surname.locked && <ShieldAlert className="w-3 h-3 text-red-500" />}
+              {modState.surname.locked && <span className="text-[10px] uppercase text-red-500 font-bold">Bloqueado</span>}
+            </Label>
             <Input
               value={surname}
-              onChange={(e) => setSurname(e.target.value)}
-              className="mt-1"
+              onChange={(e) => { setSurname(e.target.value); if (modState.surname.error) updateMod('surname', { error: null, ok: false }); }}
+              onBlur={(e) => validateField('surname', e.target.value, 'character_surname')}
+              disabled={modState.surname.locked}
+              className={cn('mt-1', modState.surname.error && 'border-red-500')}
               data-testid="character-surname-input"
             />
+            {modState.surname.error && (
+              <p className="text-[11px] text-red-500 mt-1" data-testid="surname-mod-error">{modState.surname.error}</p>
+            )}
           </div>
         </div>
         
         <div className="mt-4">
-          <Label className="text-sm text-muted-foreground">Nombre del Jugador</Label>
+          <Label className="text-sm text-muted-foreground flex items-center gap-2">
+            Nombre del Jugador
+            {modState.player.validating && <Loader2 className="w-3 h-3 animate-spin text-amber-400" />}
+            {modState.player.ok && !modState.player.validating && <ShieldCheck className="w-3 h-3 text-green-500" />}
+            {modState.player.error && !modState.player.locked && <ShieldAlert className="w-3 h-3 text-red-500" />}
+            {modState.player.locked && <span className="text-[10px] uppercase text-red-500 font-bold">Bloqueado</span>}
+          </Label>
           <Input
             value={playerName}
-            onChange={(e) => setPlayerName(e.target.value)}
+            onChange={(e) => { setPlayerName(e.target.value); if (modState.player.error) updateMod('player', { error: null, ok: false }); }}
+            onBlur={(e) => validateField('player', e.target.value, 'player_name')}
+            disabled={modState.player.locked}
             placeholder="Tu nombre real"
-            className="mt-1"
+            className={cn('mt-1', modState.player.error && 'border-red-500')}
             data-testid="player-name-input"
           />
+          {modState.player.error && (
+            <p className="text-[11px] text-red-500 mt-1" data-testid="player-mod-error">{modState.player.error}</p>
+          )}
         </div>
       </div>
 

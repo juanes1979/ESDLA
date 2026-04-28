@@ -21,6 +21,7 @@ from routes.portrait_routes import router as portrait_router
 from routes.climate_routes import router as climate_router
 from routes.weather_routes import router as weather_router
 from routes.admin_routes import router as admin_router
+from routes.moderation_routes import router as moderation_router
 
 
 ROOT_DIR = Path(__file__).parent
@@ -100,6 +101,7 @@ api_router.include_router(portrait_router)
 api_router.include_router(climate_router)
 api_router.include_router(weather_router)
 api_router.include_router(admin_router)
+api_router.include_router(moderation_router)
 
 # Include the main router in the app
 app.include_router(api_router)
