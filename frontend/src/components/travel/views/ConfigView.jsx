@@ -1159,24 +1159,23 @@ const ConfigView = ({
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <Tabs value={travelMode} onValueChange={setTravelMode}>
-            <TabsList className="grid w-full grid-cols-2 mb-4">
-              <TabsTrigger value="global">
-                <SkipForward className="w-4 h-4 mr-2" /> Viaje Global
-              </TabsTrigger>
-              <TabsTrigger value="dayByDay">
-                <ChevronRight className="w-4 h-4 mr-2" /> Jornada a Jornada
-              </TabsTrigger>
-            </TabsList>
-            
-            <TabsContent value="global" className="text-sm text-muted-foreground">
-              <p>Ejecuta todo el viaje de una vez. Genera todos los acontecimientos y calcula el resultado final automáticamente.</p>
-            </TabsContent>
-            
-            <TabsContent value="dayByDay" className="text-sm text-muted-foreground">
-              <p>Avanza día a día. Permite cambiar el ritmo, los papeles y tomar decisiones cada jornada.</p>
-            </TabsContent>
-          </Tabs>
+          <div className="p-4 bg-black/20 rounded border border-[hsl(var(--gold))]/20 mb-4">
+            <div className="flex items-start gap-3">
+              <ChevronRight className="w-5 h-5 text-[hsl(var(--gold))] flex-shrink-0 mt-0.5" />
+              <div className="flex-1 text-sm text-muted-foreground">
+                <p className="font-bold text-[hsl(var(--gold))] mb-1">Jornada a Jornada (interactivo)</p>
+                <p>
+                  El viaje avanza de evento a evento: los días sin incidentes se
+                  resumen automáticamente y la marcha solo se detiene en una
+                  tirada de orientación o un acontecimiento. Durante esas paradas
+                  podrás <strong>acampar</strong>, <strong>forrajear</strong> o
+                  <strong> comprar provisiones</strong>. También dispones de un
+                  botón <em>"Viaje global"</em> dentro del viaje para resolverlo
+                  todo automáticamente con narrativa al final.
+                </p>
+              </div>
+            </div>
+          </div>
           
           <Button 
             onClick={triggerCalculateJourney}
@@ -1356,13 +1355,13 @@ const ConfigView = ({
           )}
 
           <Button
-            onClick={travelMode === 'global' ? startGlobalJourney : startDayByDayJourney}
+            onClick={startGlobalJourney}
             disabled={!journeyCalc?.success || config.miembros.length === 0 || !config.miembros.some(m => m.papeles?.includes('guia'))}
             className="w-full h-12 text-lg mt-2"
             data-testid="start-journey-btn"
           >
             <Compass className="w-5 h-5 mr-2" />
-            Iniciar Viaje ({travelMode === 'global' ? 'Global' : 'Jornada a Jornada'})
+            Iniciar Viaje (Jornada a Jornada)
           </Button>
         </CardContent>
       </Card>

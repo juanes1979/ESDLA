@@ -203,6 +203,12 @@ const EnhancedTravelSystem = () => {
   // Initial fatigue overrides set by the DJ before starting the journey.
   // Format: { [charId]: { fatiga: number, justificacion: string, original: number } }
   const [initialFatigueOverrides, setInitialFatigueOverrides] = useState({});
+
+  // Bitácora día-a-día de la jornada interactiva. Cada entrada describe un
+  // día concreto del viaje: marcha, clima, evento, campamento, etc.
+  // Forma: { dia, casilla, tipo: 'orientacion'|'marcha'|'evento'|'campamento'|'forrajeo'|'descanso',
+  //          clima, marchaType, message, success, eventName, narrativa }
+  const [dailySummaries, setDailySummaries] = useState([]);
   // Weather rolled for the entire journey at startGlobalJourney (Markov chain)
   const [journeyWeather, setJourneyWeather] = useState([]);
   const autoStopRef = useRef(false);
@@ -528,6 +534,24 @@ const EnhancedTravelSystem = () => {
     setNextEventPosition(0);
     setLastOrientationResult(null);
     setCharacterXP({}); // Reset individual XP tracking
+    // Bitácora: día 1 — la compañía parte. Si hubo overrides de fatiga, se anotan.
+    const partidaSummaries = [{
+      dia: 1,
+      casilla: 0,
+      tipo: 'partida',
+      message: `La compañía parte de ${config.origenNombre} hacia ${config.destinoNombre}.`,
+    }];
+    if (fatigaInicialLog.length > 0) {
+      fatigaInicialLog.forEach(l => {
+        partidaSummaries.push({
+          dia: 1,
+          casilla: 0,
+          tipo: 'antecedente',
+          message: `${l.nombre} comienza con fatiga ${l.a} (de ${l.de}). Justificación: "${l.justificacion}"`,
+        });
+      });
+    }
+    setDailySummaries(partidaSummaries);
     
     // Roll weather chain for the entire journey so narrative endpoints can look up
     // the climate for each event/day later. (Markov chain, region per day.)
@@ -620,7 +644,18 @@ const EnhancedTravelSystem = () => {
           ...xpResult,
           casilla: currentPosition
         });
-        
+
+        // Bitácora: anota la tirada de orientación realizada en este día.
+        const diaOrientacion = currentPosition + 1;
+        setDailySummaries(prev => [...prev, {
+          dia: diaOrientacion,
+          casilla: currentPosition,
+          tipo: 'orientacion',
+          success: exito,
+          message: `${guia.nombre} estudia el horizonte: tirada ${result.total} vs CD 15 → ${exito ? 'éxito' : 'fracaso'}. ${result.detalle || ''}`,
+          clima: (journeyWeather || [])[Math.min(currentPosition, (journeyWeather || []).length - 1)] || null,
+        }]);
+
         if (result.viaje_completado) {
           // Journey is complete!
           toast.success(result.detalle);
@@ -632,7 +667,26 @@ const EnhancedTravelSystem = () => {
           // Calculate next event position
           const nuevaPosicionEvento = currentPosition + result.casillas_hasta_evento;
           setNextEventPosition(nuevaPosicionEvento);
-          
+
+          // Bitácora: anota los días intermedios sin incidentes (entre la
+          // orientación y el evento). Cada casilla = 1 día.
+          const marchaEntries = [];
+          for (let d = currentPosition + 1; d < nuevaPosicionEvento; d++) {
+            const dia = d + 1;
+            const w = (journeyWeather || [])[Math.min(d, (journeyWeather || []).length - 1)];
+            marchaEntries.push({
+              dia,
+              casilla: d,
+              tipo: 'marcha',
+              clima: w || null,
+              marchaType: config.ritmo,
+              message: `Día ${dia}: marcha ${config.ritmo} sin incidentes${w?.estado_label ? ` (${w.estado_label})` : ''}.`,
+            });
+          }
+          if (marchaEntries.length > 0) {
+            setDailySummaries(prev => [...prev, ...marchaEntries]);
+          }
+
           // Generate the event at that position
           await generateEventAtPosition(nuevaPosicionEvento, result);
         }
@@ -1272,7 +1326,20 @@ const EnhancedTravelSystem = () => {
       });
       
       setEvents(updatedEvents);
-      
+
+      // Bitácora: anota la entrada de evento del día
+      const diaEvento = (currentEvent.casilla || 1);
+      setDailySummaries(prev => [...prev, {
+        dia: diaEvento,
+        casilla: currentEvent.casilla,
+        tipo: 'evento',
+        success: exito,
+        eventName: currentEvent.evento?.nombre,
+        clima: eventWeather,
+        narrativa: narrativa,
+        message: `Día ${diaEvento}: ¡${currentEvent.evento?.nombre || 'Acontecimiento'}! ${targetMember?.nombre || 'El grupo'} tira ${tirada} vs CD ${cd} → ${exito ? 'éxito' : 'fracaso'}.`,
+      }]);
+
       // In the new orientation system, after resolving an event we continue journey
       // No longer looking for "next unresolved" since events are generated one by one
       setCurrentEvent(null);
@@ -1325,6 +1392,7 @@ const EnhancedTravelSystem = () => {
     const localEvents = [];
     const localOrientationChecks = [];
     const localCharacterXP = { ...characterXP }; // copia para acumular
+    const localSummaries = [...dailySummaries];
     const guiaTieneMultiplesRoles = guia.papeles && guia.papeles.length > 1;
 
     // Asegúrate de que la página esté en modo "global" para que el overlay
@@ -1412,6 +1480,17 @@ const EnhancedTravelSystem = () => {
           guiaId: guia.id, guiaNombre: guia.nombre,
         });
 
+        // Bitácora: orientación
+        const diaOri = localPos + 1;
+        localSummaries.push({
+          dia: diaOri,
+          casilla: localPos,
+          tipo: 'orientacion',
+          success: exitoOri,
+          message: `${guia.nombre} estudia el horizonte: tirada ${oData.total} vs CD 15 → ${exitoOri ? 'éxito' : 'fracaso'}. ${oData.detalle || ''}`,
+          clima: (journeyWeather || [])[Math.min(localPos, (journeyWeather || []).length - 1)] || null,
+        });
+
         // 2) ¿VIAJE COMPLETADO? ──────────────────────────────────────────────
         if (oData.viaje_completado) {
           localPos = totalCasillas;
@@ -1426,6 +1505,20 @@ const EnhancedTravelSystem = () => {
         // 3) POSICIÓN DEL PRÓXIMO EVENTO ─────────────────────────────────────
         const casillasHasta = Math.max(1, oData.casillas_hasta_evento || 1);
         const eventPos = Math.min(localPos + casillasHasta, totalCasillas);
+
+        // Bitácora: días intermedios sin incidentes
+        for (let d = localPos + 1; d < eventPos; d++) {
+          const dia = d + 1;
+          const w = (journeyWeather || [])[Math.min(d, (journeyWeather || []).length - 1)];
+          localSummaries.push({
+            dia,
+            casilla: d,
+            tipo: 'marcha',
+            clima: w || null,
+            marchaType: config.ritmo,
+            message: `Día ${dia}: marcha ${config.ritmo} sin incidentes${w?.estado_label ? ` (${w.estado_label})` : ''}.`,
+          });
+        }
 
         // 4) GENERAR EVENTO EN ESA POSICIÓN ──────────────────────────────────
         setAutoMessage('Generando acontecimiento');
@@ -1526,6 +1619,18 @@ const EnhancedTravelSystem = () => {
           clima_dia: wDay,
         });
 
+        // Bitácora: entrada de evento
+        localSummaries.push({
+          dia: eventPos,
+          casilla: eventPos,
+          tipo: 'evento',
+          success: exitoEv,
+          eventName: evData.evento?.nombre,
+          clima: wDay,
+          narrativa,
+          message: `Día ${eventPos}: ¡${evData.evento?.nombre || 'Acontecimiento'}! ${targetMember?.nombre || 'El grupo'} tira ${tirada} vs CD ${cd} → ${exitoEv ? 'éxito' : 'fracaso'}.`,
+        });
+
         // 6) AVANZA POSICIÓN ────────────────────────────────────────────────
         localPos = eventPos;
         setCurrentPosition(localPos);
@@ -1540,6 +1645,7 @@ const EnhancedTravelSystem = () => {
       setOrientationChecks(localOrientationChecks);
       setCharacterXP(localCharacterXP);
       setCurrentPosition(localPos);
+      setDailySummaries(localSummaries);
 
       if (autoStopRef.current) {
         toast.warning('Viaje global detenido por el usuario.');
@@ -2021,6 +2127,7 @@ const EnhancedTravelSystem = () => {
     setPxResults(null);
     setJourneyNarrative(null);
     setSavedMapImage(null); // Reset saved map image on new journey
+    setDailySummaries([]); // Reset chronicle
   };
   
   // Capture map image when journeyCalc is available and we have coordinates
@@ -2367,7 +2474,7 @@ const EnhancedTravelSystem = () => {
         </div>
         {mode !== 'config' && (
           <Badge variant="outline" className="text-lg">
-            {mode === 'global' ? 'Modo Global' : mode === 'dayByDay' ? 'Jornada a Jornada' : 'Resultados'}
+            {mode === 'global' ? 'Jornada a Jornada' : mode === 'dayByDay' ? 'Jornada a Jornada' : 'Resultados'}
           </Badge>
         )}
       </div>
@@ -2430,9 +2537,13 @@ const EnhancedTravelSystem = () => {
           gmNotesEvent={gmNotesEvent}
           eventDiceRoll={eventDiceRoll}
           resolvingEvent={resolvingEvent}
+          dailySummaries={dailySummaries}
           setMode={setMode}
           setGmNotesOrientation={setGmNotesOrientation}
           setGmNotesEvent={setGmNotesEvent}
+          setShowCampDialog={setShowCampDialog}
+          setShowProvisionsShop={setShowProvisionsShop}
+          performForaging={performForaging}
           getRoleModifier={getRoleModifier}
           performOrientationCheck={performOrientationCheck}
           automateJourney={automateJourney}

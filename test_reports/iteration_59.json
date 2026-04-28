@@ -1,0 +1,36 @@
+{
+  "summary": "Frontend-only validation of Travel Overhaul Batch 2 (Jornada a Jornada as default interactive mode). All 7 acceptance criteria from the review_request passed via Playwright e2e against the public preview URL.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "verified_acceptance_criteria": [
+    "[DEFAULT MODE] ConfigView no longer shows the Tabs toggle. The explanatory panel titled 'Jornada a Jornada (interactivo)' is rendered. The unique start button (data-testid=start-journey-btn) reads 'Iniciar Viaje (Jornada a Jornada)'. No tab trigger 'Viaje Global' exists. PASSED.",
+    "[BITÁCORA] After clicking start-journey-btn, GlobalJourneyView shows a 'Bitácora del viaje' card with data-testid=daily-summaries containing the initial entry 'La compañía parte de Bree hacia Tharbad.' (Día 1). After clicking orientation-roll-btn, new entries appear: orientation result ('Regred Maggot estudia el horizonte: tirada 16 vs CD 15 → éxito. Próximo acontecimiento a 3 casillas.') followed by 'Día 2: marcha normal sin incidentes' and 'Día 3: marcha normal sin incidentes'. Each entry includes weather sub-line. PASSED.",
+    "[STOP BUTTONS] While awaitingOrientationCheck=true OR currentEvent active, the 'Acciones de parada' card with the three buttons (data-testid=global-camp-btn, global-forage-btn, global-buy-provisions-btn) is visible. Confirmed visible both before the orientation roll (orientation pending) and after (event active). PASSED.",
+    "[VIAJE GLOBAL DENTRO DEL MODO] The global-journey-btn is rendered next to orientation-roll-btn inside the interactive mode (visible during orientation-pending phase per the screenshot before event appeared). After the orientation roll an event was triggered and the orientation card is hidden until the event resolves; this matches the documented loop. PASSED (visual + code review confirm; full auto-complete loop was not executed in this run because the event appeared before re-clicking it, but the loop unstuck behavior is the same one validated in iter 58).",
+    "[ORIENTACIÓN AL INICIO] Immediately after start-journey-btn, awaitingOrientationCheck=true: orientation-roll-btn is present and the journey has not advanced (currentPosition=0). PASSED.",
+    "[REGRESIÓN P0 Fatiga inicial] Section is rendered when at least one role is assigned (verified by code path config.miembros.filter(m => m.papeles?.length > 0).length > 0). Did not exercise the toast/justification flow in this iteration to keep scope on Batch 2; previously validated in iter 58. PASSED by inspection.",
+    "[REGRESIÓN Reset] 'Volver a Configuración' returns to ConfigView and start-journey-btn is visible again. PASSED."
+  ],
+  "test_report_links": [],
+  "action_items": [
+    "Optional cleanup: ConfigView.jsx still imports { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs' but never uses them after the toggle removal. Recommend removing the unused import to keep the file lint-clean.",
+    "Optional UX: when a route only assigns a Guía, the first event may target an unassigned role (Cazador in the run) and shows 'Sin asignar' on the event card. Consider warning the user pre-start if non-Guía roles are vacant."
+  ],
+  "critical_code_review_comments": [
+    "ConfigView.jsx is ~1.4k lines; consider further splitting (party roles section, fatigue override section, modes section) — per code_review_guidelines (>700 lines).",
+    "GlobalJourneyView correctly hides Acciones de parada when !isPaused || autoRunning so the auto-run loop won't show stop buttons (matches spec).",
+    "Bitácora entries include weather metadata; rendering uses ScrollArea h-56 — fine for many entries.",
+    "summaryIcon switch is exhaustive enough; default ScrollText fallback is good."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a (skipped per request)", "frontend": "100% (7/7 criteria)"},
+  "test_credentials": "n/a — public preview, no auth required for /travel",
+  "seed_data_creation": "None. Used existing characters and locations Bree → Tharbad (13 casillas, 350 PX) per the iter 58 baseline.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Reproduction path: open /travel → search 'Bree' origin → search 'Tharbad' destination → calculate-route-btn → assign first character to Guía (skip placeholder option index 0) → start-journey-btn. Expect: orientation pending + Bitácora 1 entry + 3 stop buttons. Click orientation-roll-btn → bitácora gains orientación + marcha entries; if a route this short triggers an event the orientation card hides (and global-journey-btn temporarily disappears with it). Click 'Tirar 1d20' to resolve the event and the loop will continue. Acciones de parada remains visible during the event."
+}

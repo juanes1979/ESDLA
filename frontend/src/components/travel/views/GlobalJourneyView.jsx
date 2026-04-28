@@ -1,6 +1,9 @@
 /**
  * GlobalJourneyView
- * Global mode: route progress, orientation checks, current event resolution.
+ * Modo "Jornada a Jornada" interactivo: orientación → días sin incidentes
+ * resumidos en bitácora → parada en evento → resolución → siguiente
+ * orientación. Durante las paradas (orientación o evento activo) se muestran
+ * botones de Acampar / Forrajear / Comprar provisiones.
  * Extracted from EnhancedTravelSystem.jsx.
  */
 import React from 'react';
@@ -13,9 +16,24 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import {
-  Route, Compass, Dice6, Loader2, ArrowLeftRight, BookOpen, ArrowLeft
+  Route, Compass, Dice6, Loader2, ArrowLeftRight, BookOpen, ArrowLeft,
+  Tent, Leaf, Package, ScrollText, CloudSun, Footprints, Sparkles, Flag,
 } from 'lucide-react';
 import { toast } from 'sonner';
+
+const summaryIcon = (tipo) => {
+  switch (tipo) {
+    case 'partida':     return <Flag className="w-3.5 h-3.5 text-amber-300" />;
+    case 'antecedente': return <Sparkles className="w-3.5 h-3.5 text-purple-300" />;
+    case 'orientacion': return <Compass className="w-3.5 h-3.5 text-blue-300" />;
+    case 'marcha':      return <Footprints className="w-3.5 h-3.5 text-emerald-300" />;
+    case 'evento':      return <Dice6 className="w-3.5 h-3.5 text-orange-300" />;
+    case 'campamento':  return <Tent className="w-3.5 h-3.5 text-amber-300" />;
+    case 'forrajeo':    return <Leaf className="w-3.5 h-3.5 text-green-300" />;
+    case 'descanso':    return <CloudSun className="w-3.5 h-3.5 text-sky-300" />;
+    default:            return <ScrollText className="w-3.5 h-3.5 text-zinc-300" />;
+  }
+};
 
 const GlobalJourneyView = ({
   // state
@@ -23,12 +41,16 @@ const GlobalJourneyView = ({
   awaitingOrientationCheck, characters, gmNotesOrientation,
   autoRunning, lastOrientationResult,
   currentEvent, gmNotesEvent, eventDiceRoll, resolvingEvent,
+  dailySummaries = [],
   // setters
   setMode, setGmNotesOrientation, setGmNotesEvent,
+  setShowCampDialog, setShowProvisionsShop,
   // handlers
-  getRoleModifier, performOrientationCheck, automateJourney,
+  performForaging, getRoleModifier, performOrientationCheck, automateJourney,
   rollEventDice, resolveCurrentEvent,
-}) => (
+}) => {
+  const isPaused = awaitingOrientationCheck || !!currentEvent;
+  return (
   <div className="space-y-6">
     {/* Journey Progress with Orientation Info */}
     <Card className="card-parchment">
@@ -70,6 +92,62 @@ const GlobalJourneyView = ({
         </div>
       </CardContent>
     </Card>
+
+    {/* Acciones disponibles durante una parada (orientación o evento). */}
+    {isPaused && !autoRunning && (
+      <Card className="card-parchment border border-amber-500/30">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm text-amber-300 flex items-center gap-2">
+            <Tent className="w-4 h-4" />
+            Acciones de parada
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-xs text-muted-foreground mb-3">
+            La compañía se ha detenido. Puedes acampar, forrajear o reabastecerte
+            antes de continuar la marcha.
+          </p>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowCampDialog?.(true)}
+              className="text-xs bg-[hsl(var(--gold))]/10 hover:bg-[hsl(var(--gold))]/20 border border-[hsl(var(--gold))]/40"
+              data-testid="global-camp-btn"
+            >
+              <Tent className="w-3.5 h-3.5 mr-1" /> Acampar
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                const explorador = config.miembros.find(m => m.papeles?.includes('explorador'));
+                const cazador = config.miembros.find(m => m.papeles?.includes('cazador'));
+                const target = explorador || cazador || config.miembros[0];
+                if (!target) {
+                  toast.error('No hay personajes para forrajear.');
+                  return;
+                }
+                performForaging?.(target.id);
+              }}
+              className="text-xs"
+              data-testid="global-forage-btn"
+            >
+              <Leaf className="w-3.5 h-3.5 mr-1" /> Forrajear
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowProvisionsShop?.(true)}
+              className="text-xs bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/40"
+              data-testid="global-buy-provisions-btn"
+            >
+              <Package className="w-3.5 h-3.5 mr-1" /> Comprar provisiones
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    )}
 
     {/* Orientation Check UI */}
     {awaitingOrientationCheck && (
@@ -453,10 +531,54 @@ const GlobalJourneyView = ({
       </Card>
     )}
 
+    {/* Bitácora día a día (resumen automático de jornadas). */}
+    {dailySummaries.length > 0 && (
+      <Card className="card-parchment">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-lg text-[hsl(var(--gold))] flex items-center gap-2">
+            <ScrollText className="w-5 h-5" /> Bitácora del viaje
+            <Badge variant="outline" className="ml-1">{dailySummaries.length} entradas</Badge>
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <ScrollArea className="h-56">
+            <div className="space-y-1.5 pr-2" data-testid="daily-summaries">
+              {dailySummaries.map((s, i) => (
+                <div
+                  key={i}
+                  className={`flex items-start gap-2 px-2 py-1.5 rounded text-xs ${
+                    s.tipo === 'evento'
+                      ? (s.success === false ? 'bg-red-900/20 border border-red-500/30' : 'bg-green-900/20 border border-green-500/30')
+                      : s.tipo === 'orientacion'
+                      ? 'bg-blue-900/15 border border-blue-500/20'
+                      : 'bg-black/15'
+                  }`}
+                >
+                  <div className="flex-shrink-0 mt-0.5">{summaryIcon(s.tipo)}</div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-foreground/90">{s.message}</p>
+                    {s.clima?.estado_label && (
+                      <p className="text-[10px] text-sky-200/70 mt-0.5">
+                        Clima: {s.clima.estado_label}{s.clima.region ? ` · ${s.clima.region}` : ''}
+                      </p>
+                    )}
+                  </div>
+                  <Badge variant="outline" className="text-[10px] px-1.5 py-0 flex-shrink-0">
+                    Día {s.dia}
+                  </Badge>
+                </div>
+              ))}
+            </div>
+          </ScrollArea>
+        </CardContent>
+      </Card>
+    )}
+
     <Button variant="outline" onClick={() => setMode('config')}>
       <ArrowLeft className="w-4 h-4 mr-2" /> Volver a Configuración
     </Button>
   </div>
-);
+  );
+};
 
 export default GlobalJourneyView;
