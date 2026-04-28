@@ -13,3 +13,4 @@ export { default as PersonalityCard } from './PersonalityCard';
 export { default as BackgroundCard } from './BackgroundCard';
 export { default as ShadowPathCard } from './ShadowPathCard';
 export { default as CultureCard } from './CultureCard';
+export { default as PrivateNotesCard } from './PrivateNotesCard';

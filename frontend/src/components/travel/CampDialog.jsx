@@ -59,6 +59,8 @@ export default function CampDialog({
   travelEvents = [],
   terrenoViaje = '',
   onForage,
+  onFatigueSave,
+  onFatigueChange,
 }) {
   const [sentinelId, setSentinelId] = useState(miembros?.[0]?.id || '');
   const [foragerId, setForagerId] = useState(
@@ -122,6 +124,14 @@ export default function CampDialog({
           }
         } catch (err) {
           console.error('Error actualizando fatiga:', err);
+        }
+
+        // Notifica al panel del grupo (modo interactivo).
+        if (onFatigueSave) {
+          onFatigueSave(m.id, { d20, mod: conMod, total, cd, exito: pasa });
+        }
+        if (onFatigueChange && reduccion > 0) {
+          onFatigueChange(m.id, -reduccion);
         }
 
         charResults.push({

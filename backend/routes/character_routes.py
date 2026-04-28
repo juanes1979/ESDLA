@@ -1011,7 +1011,11 @@ async def update_character(character_id: str, data: dict = Body(...)):
         # Shadow state
         'desanimado', 'angustiado', 'descripcion_sombra',
         # Other editable
-        'heredero', 'inversion'
+        'heredero', 'inversion',
+        # Notas privadas que el DJ escribe y SOLO el jugador en cuestión
+        # puede ver dentro de su ficha. Sin RBAC todavía, las exponemos en
+        # la ficha siempre con un aviso visual.
+        'notas_privadas_jugador',
     ]
     
     update = {"updated_at": now_utc()}

@@ -246,7 +246,12 @@ const JourneyMiniMap = ({ origenCoords, destinoCoords, origenNombre, destinoNomb
   height = Math.min(height, MAP_PIXEL_HEIGHT);
 
   const viewBox = `${minX} ${minY} ${width} ${height}`;
-  const containerHeight = expanded ? 'h-[500px]' : 'h-72';
+  // Por defecto mostramos un mapa más grande para que origen y destino
+  // siempre quepan con holgura. Usamos preserveAspectRatio="xMidYMid meet"
+  // (en lugar de "slice") y fondo negro en el contenedor → si el viaje es
+  // corto o vertical, aparecen franjas negras tipo letterbox sin recortar
+  // los marcadores de origen/destino.
+  const containerHeight = expanded ? 'h-[640px]' : 'h-[480px]';
 
   // Create smooth SVG path
   const smoothPathD = createSmoothPath(naturalPath);
@@ -277,7 +282,7 @@ const JourneyMiniMap = ({ origenCoords, destinoCoords, origenNombre, destinoNomb
       <CardContent className="p-2">
         <div
           ref={containerRef}
-          className={`relative ${containerHeight} rounded overflow-hidden border border-border/30`}
+          className={`relative ${containerHeight} rounded overflow-hidden border border-border/30 bg-black`}
           data-testid="journey-minimap-container"
         >
           {!imageLoaded ? (
@@ -288,7 +293,7 @@ const JourneyMiniMap = ({ origenCoords, destinoCoords, origenNombre, destinoNomb
             <svg
               viewBox={viewBox}
               className="w-full h-full"
-              preserveAspectRatio="xMidYMid slice"
+              preserveAspectRatio="xMidYMid meet"
             >
               {/* Player map as background - use base64 for html2canvas compatibility */}
               <image

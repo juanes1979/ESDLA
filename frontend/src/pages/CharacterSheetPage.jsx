@@ -25,6 +25,7 @@ import {
   BackgroundCard,
   ShadowPathCard,
   CultureCard,
+  PrivateNotesCard,
 } from '@/components/character-sheet/summary';
 
 const CharacterSheetPage = () => {
@@ -251,6 +252,10 @@ const CharacterSheetPage = () => {
             <BackgroundCard character={character} background={background} />
             <ShadowPathCard character={character} />
             <CultureCard character={character} culture={culture} />
+            <PrivateNotesCard
+              character={character}
+              onUpdate={(updated) => setCharacter(prev => ({ ...prev, ...updated }))}
+            />
           </div>
         </div>
       </main>

@@ -216,6 +216,9 @@ const EnhancedTravelSystem = () => {
   // Última tirada de salvación contra cansancio (panel del grupo).
   // Forma: { [charId]: { d20, mod, total, cd, exito } }
   const [lastFatigueSaves, setLastFatigueSaves] = useState({});
+  // Último cambio de fatiga registrado por personaje (para mostrar +1/-1 en el panel).
+  // Forma: { [charId]: { delta: number, casilla: number } }
+  const [fatigueChanges, setFatigueChanges] = useState({});
   // Weather rolled for the entire journey at startGlobalJourney (Markov chain)
   const [journeyWeather, setJourneyWeather] = useState([]);
   const autoStopRef = useRef(false);
@@ -941,12 +944,22 @@ const EnhancedTravelSystem = () => {
         result.tirada = total;
         result.cd = cd;
         result.exito = total >= cd;
+
+        // Registra la salvación en el panel del grupo.
+        setLastFatigueSaves(prev => ({
+          ...prev,
+          [miembro.id]: { d20, mod: modCON, total, cd, exito: result.exito },
+        }));
         
         if (result.exito) {
           result.fatigaDespues = Math.max(0, (char.fatiga || 0) - 1);
           try {
             await api.put(`/characters/${miembro.id}/fatigue`, { fatiga: result.fatigaDespues });
             setCharacters(prev => prev.map(c => c.id === miembro.id ? { ...c, fatiga: result.fatigaDespues } : c));
+            setFatigueChanges(prev => ({
+              ...prev,
+              [miembro.id]: { delta: -1, casilla: currentPosition },
+            }));
           } catch (err) {
             console.error('Error updating fatigue:', err);
           }
@@ -2599,6 +2612,10 @@ const EnhancedTravelSystem = () => {
           eventDiceRoll={eventDiceRoll}
           resolvingEvent={resolvingEvent}
           dailySummaries={dailySummaries}
+          partyProvisions={partyProvisions}
+          globalFatigaCD={globalFatigaCD}
+          lastFatigueSaves={lastFatigueSaves}
+          fatigueChanges={fatigueChanges}
           setMode={setMode}
           setGmNotesOrientation={setGmNotesOrientation}
           setGmNotesEvent={setGmNotesEvent}
@@ -2697,6 +2714,12 @@ const EnhancedTravelSystem = () => {
         }}
         terrenoViaje={journeyCalc?.ruta?.terreno || 'moderado'}
         onForage={performForaging}
+        onFatigueSave={(charId, save) => {
+          setLastFatigueSaves(prev => ({ ...prev, [charId]: save }));
+        }}
+        onFatigueChange={(charId, delta) => {
+          setFatigueChanges(prev => ({ ...prev, [charId]: { delta, casilla: currentPosition } }));
+        }}
       />
       
       {/* Provisions Shop Dialog */}

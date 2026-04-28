@@ -118,19 +118,24 @@ const InteractiveCharacterSheet = () => {
         });
         
         const imgData = canvas.toDataURL('image/jpeg', 0.95);
-        
+
         if (pageNum > 1) {
           pdf.addPage();
         }
-        
-        // Add image to PDF maintaining aspect ratio
-        const imgWidth = pdfWidth;
-        const imgHeight = (canvas.height * pdfWidth) / canvas.width;
-        
-        // Center vertically if needed
-        const yOffset = imgHeight < pdfHeight ? (pdfHeight - imgHeight) / 2 : 0;
-        
-        pdf.addImage(imgData, 'JPEG', 0, yOffset, imgWidth, imgHeight);
+
+        // Escala la imagen para que quepa ENTERA dentro de la página A4
+        // sin desbordar hacia abajo (preserva relación de aspecto y centra).
+        const ratio = canvas.width / canvas.height;
+        let imgWidth = pdfWidth;
+        let imgHeight = pdfWidth / ratio;
+        if (imgHeight > pdfHeight) {
+          imgHeight = pdfHeight;
+          imgWidth = pdfHeight * ratio;
+        }
+        const xOffset = (pdfWidth - imgWidth) / 2;
+        const yOffset = (pdfHeight - imgHeight) / 2;
+
+        pdf.addImage(imgData, 'JPEG', xOffset, yOffset, imgWidth, imgHeight);
       }
       
       // Generate filename
@@ -214,12 +219,12 @@ const InteractiveCharacterSheet = () => {
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => navigate(`/characters`)}
+              onClick={() => navigate(`/characters/${characterId}`)}
               className="text-muted-foreground hover:text-foreground"
               data-testid="back-button"
             >
               <ArrowLeft className="w-4 h-4 mr-2" />
-              Volver
+              Volver a la ficha
             </Button>
             <h1 className="font-heading text-xl text-[hsl(var(--gold))]">
               {character.nombre}

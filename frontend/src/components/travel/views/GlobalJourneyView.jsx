@@ -20,6 +20,7 @@ import {
   Tent, Leaf, Package, ScrollText, CloudSun, Footprints, Sparkles, Flag,
 } from 'lucide-react';
 import { toast } from 'sonner';
+import JourneyPartyPanel from '../JourneyPartyPanel';
 
 const summaryIcon = (tipo) => {
   switch (tipo) {
@@ -42,6 +43,10 @@ const GlobalJourneyView = ({
   autoRunning, lastOrientationResult,
   currentEvent, gmNotesEvent, eventDiceRoll, resolvingEvent,
   dailySummaries = [],
+  partyProvisions = { comidaTotal: 0, aguaTotal: 0, comidaConsumida: 0, aguaConsumida: 0 },
+  globalFatigaCD = 10,
+  lastFatigueSaves = {},
+  fatigueChanges = {},
   // setters
   setMode, setGmNotesOrientation, setGmNotesEvent,
   setShowCampDialog, setShowProvisionsShop,
@@ -92,6 +97,16 @@ const GlobalJourneyView = ({
         </div>
       </CardContent>
     </Card>
+
+    {/* Panel del grupo durante el viaje */}
+    <JourneyPartyPanel
+      miembros={config.miembros}
+      characters={characters}
+      partyProvisions={partyProvisions}
+      globalFatigaCD={globalFatigaCD}
+      lastFatigueSaves={lastFatigueSaves}
+      fatigueChanges={fatigueChanges}
+    />
 
     {/* Acciones disponibles durante una parada (orientación o evento). */}
     {isPaused && !autoRunning && (

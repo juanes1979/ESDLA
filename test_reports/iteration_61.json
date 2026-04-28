@@ -1,0 +1,48 @@
+{
+  "summary": "Iteración 61 — Probadas las 5 áreas: PDF lógica de centrado (code review only), botón Volver de Ficha Oficial (BUG CRÍTICO confirmado), JourneyMiniMap altura/aspecto (code review only — requiere viaje completo en vivo), JourneyPartyPanel (componente compila y renderiza condicionalmente), Notas privadas (✅ backend persiste + ✅ UI funcional end-to-end). Backend 100% PASS (4/4). Frontend: notas privadas OK, navegación back-button ROTA.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "InteractiveCharacterSheet (back-button)",
+        "issue": "BUG CRÍTICO de navegación. El botón 'Volver a la ficha' (data-testid=back-button) llama a navigate(`/characters/${characterId}`) (PLURAL), pero la única ruta registrada en /app/frontend/src/App.js línea 34 es '/character/:characterId' (SINGULAR, sin 's'). Resultado verificado en vivo: tras click se navega a /characters/<id> y la página queda EN BLANCO (no hay route match, no hay 404 handler). Esto es exactamente lo OPUESTO al fix solicitado en el review.",
+        "selector": "[data-testid='back-button']",
+        "priority": "CRITICAL"
+      }
+    ],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_private_notes_it61.py",
+    "/app/test_reports/pytest/it61_private_notes.xml"
+  ],
+  "action_items": [
+    "FIX URGENTE: en /app/frontend/src/pages/InteractiveCharacterSheet.jsx línea ~222, cambiar `navigate(`/characters/${characterId}`)` por `navigate(`/character/${characterId}`)` (singular). O alternativamente añadir una ruta `/characters/:characterId` en App.js que redirija/renderice CharacterSheetPage. Verificado en vivo: el click actual deja al usuario en pantalla negra.",
+    "Verificar que la lógica de centrado del PDF (fórmula ratio=w/h, branch por altura/anchura) se renderiza correctamente con un personaje real cargando los 3 PNGs de fondo — el código es correcto algebraicamente pero no se ha ejecutado físicamente la descarga del PDF en este test (requiere descarga binaria desde browser headless).",
+    "Verificar JourneyMiniMap altura 480px y JourneyPartyPanel con un viaje real: requiere flujo completo (asignar Guía + Cazador + Vigía + Explorador → seleccionar origen/destino → iniciar viaje → completar/llegar a results), lo cual es muy largo para auto-script. Los componentes están bien escritos (lint OK, JSX correcto, h-[480px], preserveAspectRatio='xMidYMid meet', bg-black confirmados en el código)."
+  ],
+  "critical_code_review_comments": [
+    "[BUG NAV] Mismatch ruta singular vs plural — ver action item #1. Es la causa del 'bug de navegación en Ficha Oficial' que el statement decía haber arreglado, pero el fix introdujo el problema opuesto.",
+    "[OK PDF] Lógica de centrado en InteractiveCharacterSheet.jsx 128-138 es correcta: ajusta por anchura, si imgHeight excede pdfHeight reajusta por altura, calcula offsets. Sin desbordes posibles dado que tras la corrección imgWidth ≤ pdfWidth y imgHeight ≤ pdfHeight.",
+    "[OK MiniMap] JourneyMiniMap.jsx: containerHeight default h-[480px] ✓, preserveAspectRatio='xMidYMid meet' ✓, bg-black ✓. allX/allY incluyen origen y destino siempre, así que ambos marcadores se garantizan dentro del viewBox.",
+    "[OK PartyPanel] JourneyPartyPanel.jsx: filtra por miembros con papeles, muestra fatiga con color escalonado, badge de cambio +/-, salvación d20 vs CD, raciones/agua proporcionales. data-testid presentes (journey-party-panel, party-cd-fatiga, party-row-{id}). Lint limpio.",
+    "[OK PrivateNotes] PrivateNotesCard.jsx: estado controlado correctamente, save deshabilitado cuando notas === character.notas_privadas_jugador, useEffect resincroniza al cambiar character.id. Backend allowed_fields incluye el campo en línea 1018. Persistencia probada end-to-end (PATCH→GET reload→valor visible)."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_private_notes_it61.py (nuevo)"
+  ],
+  "success_rate": {
+    "backend": "100% (4/4)",
+    "frontend": "60% (3 de 5 features OK; back-button BUG; PDF y minimap solo code review)"
+  },
+  "test_credentials": "/app/memory/test_credentials.md no leído (no hay flujos de auth requeridos para este iter; la app no usa login).",
+  "seed_data_creation": "Ninguna; usado el personaje existente 'Regred Maggot' (id c16a362d-9841-4954-8f70-0dfe02dfe303). Las notas privadas quedaron escritas con texto 'TEST_it61_ui_notes secreto del DJ' — el main agent puede limpiarlas si quiere.",
+  "retest_needed": true,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "El bug del back-button es trivial de reproducir: ir a /character/<id>/sheet → click 'Volver a la ficha' → pantalla negra. La causa raíz es la ruta plural vs singular en App.js. Tras el fix del main agent, retestear esa navegación + idealmente lanzar un viaje completo Bree→Tharbad para validar visualmente la altura del minimap (480px) y el render del JourneyPartyPanel con datos reales. Notas privadas quedaron 100% verificadas backend+UI; no hace falta retestear ese flujo a menos que cambie.",
+  "rca of the issue": "BUG-NAV ficha oficial: InteractiveCharacterSheet.jsx línea 222 hace `navigate(`/characters/${characterId}`)` (plural 'characters'), pero App.js sólo declara la ruta `/character/:characterId` (singular). React Router no encuentra match → componente vacío → fondo negro. Reproducción: visitar https://aventura-arda.preview.emergentagent.com/character/c16a362d-9841-4954-8f70-0dfe02dfe303/sheet, click [data-testid='back-button'], URL cambia a /characters/c16a362d-... y la página queda en blanco (verificado por screenshot y por ausencia de 'Hoja de personaje' / 'Mis Personajes' en el body). Mitigación: cambiar plural→singular en el navigate (1 carácter)."
+}
