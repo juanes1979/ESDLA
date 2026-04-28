@@ -150,8 +150,8 @@ const GlobalJourneyView = ({
                     variant={autoRunning ? 'destructive' : 'outline'}
                     onClick={automateJourney}
                     className="border-[hsl(var(--gold))]/50"
-                    data-testid="automate-journey-btn"
-                    title={autoRunning ? 'Detener automatización' : 'Simular todo el viaje automáticamente'}
+                    data-testid="global-journey-btn"
+                    title={autoRunning ? 'Detener viaje global' : 'Ejecutar el viaje completo automáticamente'}
                   >
                     {autoRunning ? (
                       <>
@@ -161,7 +161,7 @@ const GlobalJourneyView = ({
                     ) : (
                       <>
                         <ArrowLeftRight className="w-4 h-4 mr-2" />
-                        Automatizar viaje
+                        Viaje global
                       </>
                     )}
                   </Button>

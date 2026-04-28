@@ -199,6 +199,10 @@ const EnhancedTravelSystem = () => {
   const [autoProgress, setAutoProgress] = useState(0); // 0-100
   const [autoMessage, setAutoMessage] = useState('');
   const [autoSubtitle, setAutoSubtitle] = useState('');
+
+  // Initial fatigue overrides set by the DJ before starting the journey.
+  // Format: { [charId]: { fatiga: number, justificacion: string, original: number } }
+  const [initialFatigueOverrides, setInitialFatigueOverrides] = useState({});
   // Weather rolled for the entire journey at startGlobalJourney (Markov chain)
   const [journeyWeather, setJourneyWeather] = useState([]);
   const autoStopRef = useRef(false);
@@ -451,7 +455,48 @@ const EnhancedTravelSystem = () => {
   }, []);
 
   // =============== START JOURNEY ===============
-  
+
+  // Aplica los overrides de fatiga inicial: actualiza el personaje en la BD
+  // y en el estado local. Devuelve un array con los cambios efectuados (para
+  // poder anotarlos en la crónica del viaje). Lanza error si hay algún override
+  // sin justificación textual.
+  const applyInitialFatigueOverrides = async () => {
+    const aplicados = [];
+    const entries = Object.entries(initialFatigueOverrides || {});
+    if (entries.length === 0) return aplicados;
+    for (const [charId, data] of entries) {
+      const just = (data?.justificacion || '').trim();
+      const nueva = Number(data?.fatiga ?? 0);
+      const original = Number(data?.original ?? 0);
+      if (nueva === original) continue; // sin cambio
+      if (!just) {
+        const ch = characters.find(c => c.id === charId);
+        throw new Error(
+          `Falta justificación para el ajuste de fatiga de ${ch?.nombre || 'un personaje'}.`
+        );
+      }
+      try {
+        await api.put(`/characters/${charId}/fatigue`, { fatiga: Math.max(0, Math.min(6, nueva)) });
+        setCharacters(prev => prev.map(c => c.id === charId
+          ? { ...c, fatiga: Math.max(0, Math.min(6, nueva)) }
+          : c
+        ));
+        const ch = characters.find(c => c.id === charId);
+        aplicados.push({
+          charId,
+          nombre: ch?.nombre || 'Desconocido',
+          de: original,
+          a: nueva,
+          justificacion: just,
+        });
+      } catch (err) {
+        console.error('Error aplicando override de fatiga:', err);
+        throw new Error(`No se pudo guardar la fatiga inicial de ${charId}.`);
+      }
+    }
+    return aplicados;
+  };
+
   const startGlobalJourney = async () => {
     if (!journeyCalc?.success) {
       toast.error('Calcula primero una ruta válida');
@@ -463,7 +508,19 @@ const EnhancedTravelSystem = () => {
       toast.error('Debe haber al menos un Guía asignado');
       return;
     }
-    
+
+    // Aplica overrides de fatiga inicial (con justificación obligatoria).
+    let fatigaInicialLog = [];
+    try {
+      fatigaInicialLog = await applyInitialFatigueOverrides();
+      if (fatigaInicialLog.length > 0) {
+        toast.success(`Fatiga inicial ajustada para ${fatigaInicialLog.length} personaje(s).`);
+      }
+    } catch (err) {
+      toast.error(err.message || 'Error aplicando ajuste de fatiga inicial.');
+      return;
+    }
+
     setMode('global');
     setEvents([]);
     setOrientationChecks([]);
@@ -972,7 +1029,18 @@ const EnhancedTravelSystem = () => {
       toast.error('Debe haber al menos un Guía asignado');
       return;
     }
-    
+
+    // Aplica overrides de fatiga inicial (con justificación obligatoria).
+    try {
+      const aplicados = await applyInitialFatigueOverrides();
+      if (aplicados.length > 0) {
+        toast.success(`Fatiga inicial ajustada para ${aplicados.length} personaje(s).`);
+      }
+    } catch (err) {
+      toast.error(err.message || 'Error aplicando ajuste de fatiga inicial.');
+      return;
+    }
+
     // *** INITIALIZE PROVISIONS ***
     // Calcula provisiones iniciales leyendo inventarios reales (raciones + odres).
     // Si el origen es una ubicación conocida, los odres se rellenan gratis al salir.
@@ -1221,137 +1289,281 @@ const EnhancedTravelSystem = () => {
     }
   };
   
-  // =============== JOURNEY AUTOMATION (Point 7) ===============
+  // =============== VIAJE GLOBAL (automated end-to-end journey) ===============
+  // Bucle independiente que NO depende del estado de React entre iteraciones:
+  // tira orientación → calcula posición de evento → genera evento → resuelve →
+  // acumula localmente → al final sincroniza estado y muestra resultados.
   const sleep = (ms) => new Promise(r => setTimeout(r, ms));
-  
+
   const automateJourney = async () => {
     if (autoRunning) {
-      // Stop if already running
       autoStopRef.current = true;
       return;
     }
+    if (!journeyCalc?.success) {
+      toast.error('Calcula primero una ruta válida');
+      return;
+    }
+    const guia = config.miembros.find(m => m.papeles?.includes('guia'));
+    if (!guia) {
+      toast.error('Debe haber al menos un Guía asignado');
+      return;
+    }
+
     setAutoRunning(true);
     autoStopRef.current = false;
     setAutoProgress(0);
-    setAutoMessage('Iniciando automatización del viaje…');
-    setAutoSubtitle('');
+    setAutoMessage('Iniciando viaje global…');
+    setAutoSubtitle('Rodando tirada de orientación inicial');
 
-    const totalCasillas = journeyCalc?.ruta?.casillas || 1;
-    // Hard upper bound: each casilla can spawn at most one event + one orientation,
-    // plus some margin for camp/refuge insertions. casillas*3 + 5 is plenty.
-    const maxIterations = Math.min(200, totalCasillas * 3 + 10);
-    let iterations = 0;
-    let prevPosition = currentPositionRef.current;
-    let stuckCounter = 0;
-    const eventsBefore = events.filter(e => e.resuelto).length;
+    const totalCasillas = journeyCalc.ruta.casillas || 1;
+    const terreno = journeyCalc?.ruta?.terreno || 'moderado';
+    const tipoTierra = journeyCalc?.ruta?.tipo_tierra || 'tierras_salvajes';
+
+    // Estado local que vive sólo dentro del bucle
+    let localPos = 0;
+    const localEvents = [];
+    const localOrientationChecks = [];
+    const localCharacterXP = { ...characterXP }; // copia para acumular
+    const guiaTieneMultiplesRoles = guia.papeles && guia.papeles.length > 1;
+
+    // Asegúrate de que la página esté en modo "global" para que el overlay
+    // lo cubra todo (header se mantiene por z-index).
+    if (modeRef.current === 'config') {
+      setEvents([]);
+      setOrientationChecks([]);
+      setCurrentPosition(0);
+      setMode('global');
+    }
 
     try {
-      while (iterations < maxIterations && !autoStopRef.current) {
-        iterations++;
-
-        // ── EXIT 1: mode switched to results (journey completed via state update) ──
-        if (modeRef.current === 'results') {
-          setAutoProgress(100);
-          break;
-        }
-
-        // ── Update progress (driven by current casilla position) ──
-        const pos = currentPositionRef.current;
-        const pct = Math.min(99, Math.round((pos / totalCasillas) * 100));
-        setAutoProgress(pct);
-
-        // Safety: any character at fatigue >= 5 → pause
-        const dangerPj = config.miembros.find(m => {
-          const c = charactersRef.current?.find(ch => ch.id === m.id);
-          return (c?.fatiga || 0) >= 5;
-        });
-        if (dangerPj) {
-          setAutoMessage('⚠️ Automatización pausada');
-          setAutoSubtitle(`${dangerPj.nombre} ha alcanzado fatiga 5 (al borde de la muerte). Decide manualmente cómo continuar.`);
-          await sleep(2500);
-          toast.error(`⚠️ PAUSA: ${dangerPj.nombre} alcanzó fatiga 5.`, { duration: 8000 });
-          break;
-        }
-
-        // ── EXIT 2: journey reached destination (position covered all casillas) ──
-        if (pos >= totalCasillas) {
-          setAutoMessage('Llegando al destino…');
-          setAutoSubtitle('Compilando crónica del viaje');
-          // Try to gracefully transition to results if mode hasn't changed yet
-          if (modeRef.current !== 'results') {
-            try {
-              await calculateFatigueResults(events);
-            } catch { /* non-blocking */ }
-            setMode('results');
+      // Pre-tira el clima (Markov) si todavía no se hizo
+      if (!journeyWeather || journeyWeather.length === 0) {
+        try {
+          const numDays = Math.max(1, Math.ceil(journeyCalc?.estimaciones?.dias_estimados || totalCasillas));
+          const origRegion = (locations || []).find(l => l.id === config.origenId)?.region || '';
+          const destRegion = (locations || []).find(l => l.id === config.destinoId)?.region || '';
+          const regionsByDay = [];
+          for (let i = 0; i < numDays; i++) {
+            const ratio = numDays > 1 ? i / (numDays - 1) : 0;
+            regionsByDay.push(ratio < 0.5 ? origRegion : destRegion);
           }
+          const wRes = await api.post('/weather/simulate', {
+            mes: config.mes,
+            dia_inicio: config.diaMes || 1,
+            num_dias: numDays,
+            regiones_por_dia: regionsByDay,
+          });
+          setJourneyWeather(wRes.data?.dias || []);
+        } catch (err) {
+          console.warn('No se pudo rodar el clima del viaje al inicio:', err);
+        }
+      }
+
+      let safetyIter = 0;
+      const safetyMax = totalCasillas + 20;
+
+      while (localPos < totalCasillas && !autoStopRef.current && safetyIter < safetyMax) {
+        safetyIter++;
+
+        const casillasRestantes = totalCasillas - localPos;
+
+        // 1) TIRADA DE ORIENTACIÓN ───────────────────────────────────────────
+        setAutoMessage('Tirada de orientación');
+        setAutoSubtitle(`Casilla ${localPos} de ${totalCasillas}`);
+        let oData;
+        try {
+          const oRes = await api.post('/travel/orientation-check', {
+            modificador_sabiduria: guia.modViajar || guia.modSabiduria || 0,
+            competencia_viajar: guia.competenciaViajar || false,
+            competencia_cartografia: guia.competenciaCartografia || false,
+            competencia_navegacion: false,
+            tiene_mapa: true,
+            viaje_maritimo: false,
+            penalizacion_multiples_papeles: guiaTieneMultiplesRoles,
+            bonus_competencia: 0,
+          }, { params: { casillas_restantes: casillasRestantes } });
+          oData = oRes.data;
+          if (!oData?.success) throw new Error('orientation failed');
+        } catch (e) {
+          console.error('Error orientación (auto):', e);
+          toast.error('Fallo en tirada de orientación. Viaje global interrumpido.');
+          break;
+        }
+
+        // PX del Guía por la orientación
+        const exitoOri = oData.total >= 15;
+        const xpOri = calculateRollXP(15, oData.total, exitoOri, terreno, tipoTierra, oData.d20);
+        const guiaPrev = localCharacterXP[guia.id] || { total: 0, rolls: [] };
+        localCharacterXP[guia.id] = {
+          total: guiaPrev.total + xpOri.pxFinal,
+          rolls: [...guiaPrev.rolls, {
+            type: 'orientacion', cd: 15, tirada: oData.total,
+            exito: exitoOri, ...xpOri, casilla: localPos,
+          }],
+        };
+        localOrientationChecks.push({
+          ...oData, xpResult: xpOri,
+          guiaId: guia.id, guiaNombre: guia.nombre,
+          casilla_actual: localPos, casillas_restantes: casillasRestantes,
+        });
+        setLastOrientationResult({
+          ...oData, xpResult: xpOri,
+          guiaId: guia.id, guiaNombre: guia.nombre,
+        });
+
+        // 2) ¿VIAJE COMPLETADO? ──────────────────────────────────────────────
+        if (oData.viaje_completado) {
+          localPos = totalCasillas;
+          setCurrentPosition(totalCasillas);
           setAutoProgress(100);
+          setAutoMessage('¡Destino alcanzado!');
+          setAutoSubtitle(oData.detalle || 'La compañía completa el viaje sin más eventos.');
           await sleep(800);
           break;
         }
 
-        // ── Detect stuck state (position not advancing) ──
-        if (pos === prevPosition) {
-          stuckCounter++;
-          if (stuckCounter >= 8) {
-            // After 8 iterations without progress, abort
-            setAutoMessage('Atasco detectado');
-            setAutoSubtitle(`Tras ${stuckCounter} intentos sin avance, interrumpo la automatización.`);
-            await sleep(2000);
-            toast.error('⚠️ Automatización interrumpida: el viaje no avanza. Continúa manualmente.', { duration: 8000 });
-            break;
-          }
-        } else {
-          stuckCounter = 0;
-          prevPosition = pos;
-        }
+        // 3) POSICIÓN DEL PRÓXIMO EVENTO ─────────────────────────────────────
+        const casillasHasta = Math.max(1, oData.casillas_hasta_evento || 1);
+        const eventPos = Math.min(localPos + casillasHasta, totalCasillas);
 
-        // ── Resolve a pending event ──
-        if (currentEventRef.current && !currentEventRef.current.resuelto) {
-          const ev = currentEventRef.current;
-          setAutoMessage(`Resolviendo "${ev.evento?.nombre || 'acontecimiento'}"`);
-          setAutoSubtitle(`Casilla ${ev.casilla || pos} · objetivo: ${ev.objetivo?.papel || '?'}`);
-          const tr = ev.objetivo?.papel;
-          const mod = tr ? getRoleModifier(tr).modifier : 0;
-          const d20 = Math.floor(Math.random() * 20) + 1;
-          const total = d20 + mod;
-          try {
-            await resolveCurrentEvent(total);
-          } catch (e) {
-            console.error('Error resolving event in auto:', e);
-            // Skip this event and break to avoid infinite loop
-            break;
-          }
-          await sleep(250);
+        // 4) GENERAR EVENTO EN ESA POSICIÓN ──────────────────────────────────
+        setAutoMessage('Generando acontecimiento');
+        setAutoSubtitle(`Casilla ${eventPos}`);
+        let evData;
+        try {
+          const evRes = await api.post('/travel/generate-event', null, {
+            params: { tipo_tierra: tipoTierra, terreno, estacion: config.estacion },
+          });
+          evData = evRes.data;
+          if (!evData?.success) throw new Error('event failed');
+        } catch (e) {
+          console.error('Error generando evento (auto):', e);
+          // Avanza igualmente para no atascarse
+          localPos = eventPos;
+          setCurrentPosition(localPos);
+          setAutoProgress(Math.min(99, Math.round((localPos / totalCasillas) * 100)));
           continue;
         }
 
-        // ── Otherwise, do an orientation check ──
-        setAutoMessage(`Tirada de orientación`);
-        setAutoSubtitle(`Casilla ${pos} de ${totalCasillas}`);
+        // 5) AUTO-RESOLVER EVENTO ───────────────────────────────────────────
+        const targetRole = evData.objetivo?.papel;
+        const { modifier: evMod, member: targetMember } = getRoleModifier(targetRole);
+        const d20 = Math.floor(Math.random() * 20) + 1;
+        const tirada = d20 + evMod;
+        const cd = evData.resolucion?.cd || 12;
+        const exitoEv = tirada >= cd;
+
+        setAutoMessage(`Resolviendo "${evData.evento?.nombre || 'acontecimiento'}"`);
+        setAutoSubtitle(`${targetMember?.nombre || 'Grupo'} · d20=${d20}+${evMod}=${tirada} vs CD ${cd}`);
+
         try {
-          await performOrientationCheck();
+          await api.post('/travel/resolve-event', null, {
+            params: {
+              evento_id: evData.evento.id,
+              tirada_resolucion: tirada,
+              cd, exito: exitoEv,
+              evento_nombre: evData.evento.nombre,
+              objetivo_papel: targetRole,
+              personaje_nombre: targetMember?.nombre || 'Desconocido',
+            },
+          });
         } catch (e) {
-          console.error('Error in orientation in auto:', e);
-          break;
+          console.warn('resolve-event falló (auto), seguimos:', e);
         }
-        await sleep(300);
+
+        // PX del personaje por el evento
+        if (targetMember) {
+          const xpEv = calculateRollXP(cd, tirada, exitoEv, terreno, tipoTierra, d20);
+          const prev = localCharacterXP[targetMember.id] || { total: 0, rolls: [] };
+          localCharacterXP[targetMember.id] = {
+            total: prev.total + xpEv.pxFinal,
+            rolls: [...prev.rolls, {
+              type: 'evento', eventoNombre: evData.evento.nombre,
+              cd, tirada, exito: exitoEv, ...xpEv, casilla: eventPos,
+            }],
+          };
+        }
+
+        // Narrativa IA (best-effort; no bloqueante)
+        let narrativa = null;
+        try {
+          const wDay = (journeyWeather || [])[Math.min(eventPos - 1, (journeyWeather || []).length - 1)];
+          const climaTxt = wDay
+            ? `${wDay.estado_label}${wDay.region ? ' en ' + wDay.region : ''}`
+            : '';
+          const nRes = await api.post('/travel/generate-narrative', null, {
+            params: {
+              evento_nombre: evData.evento.nombre,
+              exito: exitoEv,
+              consecuencia: exitoEv ? evData.evento.consecuencias_exito : evData.evento.consecuencias_fracaso,
+              personaje_nombre: targetMember?.nombre || 'El grupo',
+              papel: targetRole,
+              tirada, cd,
+              origen: config.origenNombre,
+              destino: config.destinoNombre,
+              terreno,
+              evento_numero: localEvents.length + 1,
+              total_eventos: localEvents.length + 1,
+              dia_actual: eventPos,
+              dias_totales: journeyCalc?.estimaciones?.dias_estimados || 1,
+              notas_maestro: '',
+              clima: climaTxt,
+            },
+          });
+          if (nRes.data?.success) narrativa = nRes.data.narrative;
+        } catch { /* narrativa es opcional */ }
+
+        const wDay = (journeyWeather || [])[Math.min(eventPos - 1, (journeyWeather || []).length - 1)] || null;
+        localEvents.push({
+          ...evData,
+          casilla: eventPos,
+          resuelto: true,
+          tirada,
+          exito: exitoEv,
+          narrativa,
+          orientacion: oData,
+          clima_dia: wDay,
+        });
+
+        // 6) AVANZA POSICIÓN ────────────────────────────────────────────────
+        localPos = eventPos;
+        setCurrentPosition(localPos);
+        setAutoProgress(Math.min(99, Math.round((localPos / totalCasillas) * 100)));
+
+        // Pequeña pausa para que el usuario perciba avance del overlay
+        await sleep(180);
       }
 
-      // ── Final wrap-up ──
-      const eventsAfter = events.filter(e => e.resuelto).length;
-      const eventsProcessed = Math.max(0, eventsAfter - eventsBefore);
+      // ── Sincroniza estado al terminar ─────────────────────────────────────
+      setEvents(localEvents);
+      setOrientationChecks(localOrientationChecks);
+      setCharacterXP(localCharacterXP);
+      setCurrentPosition(localPos);
 
-      if (modeRef.current === 'results') {
-        toast.success(`Viaje automatizado: ${eventsProcessed} eventos resueltos en ${currentPositionRef.current} casillas.`);
-      } else if (iterations >= maxIterations) {
-        setAutoSubtitle('Límite de iteraciones alcanzado');
-        await sleep(1500);
-        toast.warning(`Automatización detenida tras ${iterations} iteraciones. Continúa manualmente.`);
+      if (autoStopRef.current) {
+        toast.warning('Viaje global detenido por el usuario.');
+      } else if (localPos >= totalCasillas) {
+        setAutoProgress(100);
+        setAutoMessage('Compilando crónica…');
+        setAutoSubtitle('Calculando fatiga y narrativa final');
+        try {
+          await calculateFatigueResults(localEvents);
+        } catch (e) {
+          console.error('Error calculando fatiga final:', e);
+        }
+        toast.success(`Viaje global completado: ${localEvents.length} acontecimientos.`);
+        setMode('results');
+        await sleep(700);
+      } else {
+        toast.warning(`Viaje global interrumpido en la casilla ${localPos}/${totalCasillas}.`);
       }
+    } catch (e) {
+      console.error('Error en viaje global:', e);
+      toast.error('Error inesperado en el viaje global.');
     } finally {
       setAutoRunning(false);
       autoStopRef.current = false;
-      // Tiny delay so the user sees 100% before the overlay disappears
       setTimeout(() => {
         setAutoProgress(0);
         setAutoMessage('');
@@ -2178,6 +2390,8 @@ const EnhancedTravelSystem = () => {
           provisionsCheck={provisionsCheck}
           showProvisionsWarning={showProvisionsWarning}
           travelMode={travelMode}
+          initialFatigueOverrides={initialFatigueOverrides}
+          setInitialFatigueOverrides={setInitialFatigueOverrides}
           setConfig={setConfig}
           setOrigenSearch={setOrigenSearch}
           setDestinoSearch={setDestinoSearch}

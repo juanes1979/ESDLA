@@ -17,8 +17,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Route, Compass, Mountain, MapPin, Plus, X, Check, Shield,
   Footprints, AlertTriangle, Sparkles, Save, Users,
-  ArrowLeftRight, ChevronRight, Coins, Loader2, Play, SkipForward
+  ArrowLeftRight, ChevronRight, Coins, Loader2, Play, SkipForward,
+  Activity, Bed
 } from 'lucide-react';
+import { Textarea } from '@/components/ui/textarea';
 import JourneyMiniMap from '../JourneyMiniMap';
 import WeatherIndicator from '../WeatherIndicator';
 import {
@@ -31,6 +33,7 @@ const ConfigView = ({
   config, locations, origenSearch, destinoSearch, origenOpen, destinoOpen,
   journeyCalc, loadingCalc, loadingComparison, routeComparison, showComparison,
   mapExpanded, characters, provisionsCheck, showProvisionsWarning, travelMode,
+  initialFatigueOverrides = {}, setInitialFatigueOverrides = () => {},
   setConfig, setOrigenSearch, setDestinoSearch, setOrigenOpen, setDestinoOpen,
   setMapExpanded, setShowComparison, setShowProvisionsShop, setShowProvisionsWarning,
   setTravelMode,
@@ -1237,8 +1240,122 @@ const ConfigView = ({
               </div>
             </Card>
           )}
-          
-          <Button 
+
+          {/* Fatiga inicial — heredada de la ficha, override con justificación */}
+          {config.miembros.filter(m => m.papeles?.length > 0).length > 0 && (
+            <Card className="mt-3 p-3 border border-orange-500/30 bg-orange-900/10">
+              <div className="flex items-start gap-2 mb-3">
+                <Activity className="w-5 h-5 text-orange-400 flex-shrink-0 mt-0.5" />
+                <div>
+                  <p className="font-bold text-orange-300 text-sm">Fatiga inicial</p>
+                  <p className="text-xs text-muted-foreground">
+                    Por defecto se hereda de la ficha del personaje. Si el DJ desea ajustarla
+                    (p. ej., descansaron en una posada los últimos 3 días), debe escribir una
+                    justificación obligatoria.
+                  </p>
+                </div>
+              </div>
+              <div className="space-y-2">
+                {config.miembros.filter(m => m.papeles?.length > 0).map(m => {
+                  const ch = characters.find(c => c.id === m.id);
+                  const fatigaFicha = Number(ch?.fatiga ?? 0);
+                  const ov = initialFatigueOverrides[m.id];
+                  const fatigaActual = ov ? Number(ov.fatiga ?? fatigaFicha) : fatigaFicha;
+                  const justificacion = ov?.justificacion || '';
+                  const cambiada = fatigaActual !== fatigaFicha;
+                  return (
+                    <div
+                      key={m.id}
+                      className={`p-2 rounded border ${cambiada ? 'border-orange-500/40 bg-black/30' : 'border-transparent bg-black/20'}`}
+                      data-testid={`initial-fatigue-row-${m.id}`}
+                    >
+                      <div className="flex items-center gap-3 flex-wrap">
+                        <Bed className="w-4 h-4 text-orange-400/70" />
+                        <span className="font-medium text-sm flex-1 truncate text-[hsl(var(--gold))]">
+                          {m.nombre}
+                        </span>
+                        <span className="text-xs text-muted-foreground">
+                          Ficha: <span className="font-mono text-orange-200">{fatigaFicha}</span>
+                        </span>
+                        <div className="flex items-center gap-1">
+                          <Label className="text-xs text-muted-foreground">Inicial:</Label>
+                          <Input
+                            type="number"
+                            min={0}
+                            max={6}
+                            value={fatigaActual}
+                            onChange={(e) => {
+                              const val = Math.max(0, Math.min(6, parseInt(e.target.value || '0', 10)));
+                              setInitialFatigueOverrides(prev => ({
+                                ...prev,
+                                [m.id]: {
+                                  fatiga: val,
+                                  justificacion: prev[m.id]?.justificacion || '',
+                                  original: fatigaFicha,
+                                },
+                              }));
+                            }}
+                            className="w-16 h-7 text-center"
+                            data-testid={`initial-fatigue-input-${m.id}`}
+                          />
+                        </div>
+                        {cambiada && (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                              setInitialFatigueOverrides(prev => {
+                                const next = { ...prev };
+                                delete next[m.id];
+                                return next;
+                              });
+                            }}
+                            className="h-7 px-2 text-xs"
+                            title="Restablecer al valor de ficha"
+                          >
+                            <X className="w-3 h-3 mr-1" /> Reset
+                          </Button>
+                        )}
+                      </div>
+                      {cambiada && (
+                        <div className="mt-2">
+                          <Label className="text-xs text-orange-300">
+                            Justificación obligatoria del DJ:
+                          </Label>
+                          <Textarea
+                            value={justificacion}
+                            onChange={(e) => {
+                              const txt = e.target.value;
+                              setInitialFatigueOverrides(prev => ({
+                                ...prev,
+                                [m.id]: {
+                                  fatiga: prev[m.id]?.fatiga ?? fatigaActual,
+                                  justificacion: txt,
+                                  original: fatigaFicha,
+                                },
+                              }));
+                            }}
+                            placeholder="Ej: La compañía durmió tres noches en la Posada del Poney Pisador antes de partir."
+                            rows={2}
+                            className="text-xs mt-1"
+                            data-testid={`initial-fatigue-justification-${m.id}`}
+                          />
+                          {!justificacion.trim() && (
+                            <p className="text-xs text-red-400 mt-1">
+                              Debes justificar el cambio antes de iniciar el viaje.
+                            </p>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </Card>
+          )}
+
+          <Button
             onClick={travelMode === 'global' ? startGlobalJourney : startDayByDayJourney}
             disabled={!journeyCalc?.success || config.miembros.length === 0 || !config.miembros.some(m => m.papeles?.includes('guia'))}
             className="w-full h-12 text-lg mt-2"
