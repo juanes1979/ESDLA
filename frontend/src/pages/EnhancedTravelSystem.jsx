@@ -279,7 +279,7 @@ const EnhancedTravelSystem = () => {
       // Combine miembros (with travel role) + acompañantes (without role) so the
       // backend can compute the slowest speed of the WHOLE group.
       const todosViajeros = [
-        ...config.miembros,
+        ...config.miembros.filter(m => m.papeles?.length > 0),
         ...((config.acompanantes || []).map(a => ({
           id: a.id,
           nombre: a.nombre,
@@ -382,6 +382,10 @@ const EnhancedTravelSystem = () => {
   // Check if party has enough food and water for the journey
   const checkProvisionsForJourney = useCallback((diasViaje) => {
     if (!config.miembros.length || !diasViaje) return null;
+    
+    // Sólo cuentan los que viajan (con papel) + acompañantes; los miembros sin papel
+    // están añadidos al grupo pero no parten de viaje, no consumen provisiones.
+    const numPersonajes = config.miembros.filter(m => m.papeles?.length > 0).length + (config.acompanantes || []).length;
 
     // Acompañantes also need food/water (same daily intake)
     const numPersonajes = config.miembros.length + (config.acompanantes || []).length;
@@ -395,7 +399,7 @@ const EnhancedTravelSystem = () => {
     let aguaDisponible = 0;
     
     // For each viajero (miembros + acompañantes), check their character's inventory
-    const todosViajeros = [...config.miembros, ...(config.acompanantes || [])];
+    const todosViajeros = [...config.miembros.filter(m => m.papeles?.length > 0), ...(config.acompanantes || [])];
     todosViajeros.forEach(miembro => {
       const char = characters.find(c => c.id === miembro.id);
       if (!char?.inventario) return;
@@ -636,7 +640,7 @@ const EnhancedTravelSystem = () => {
   // Consume food and water for each party member, apply fatigue if supplies run out
   const consumeDailyProvisions = useCallback(() => {
     // Acompañantes consume the same as miembros
-    const todosViajeros = [...config.miembros, ...(config.acompanantes || [])];
+    const todosViajeros = [...config.miembros.filter(m => m.papeles?.length > 0), ...(config.acompanantes || [])];
     const numPersonajes = todosViajeros.length;
     const comidaConsumidaHoy = numPersonajes; // 1 ration per person
     const aguaConsumidaHoy = numPersonajes * 2; // 2L per person
@@ -690,7 +694,7 @@ const EnhancedTravelSystem = () => {
   
   // Refill water near towns/rivers
   const refillWaterNearTown = useCallback((townName) => {
-    const numPersonajes = config.miembros.length;
+    const numPersonajes = config.miembros.filter(m => m.papeles?.length > 0).length + (config.acompanantes || []).length;
     const aguaNecesaria = numPersonajes * 2 * 3; // 3 days of water
     
     setPartyProvisions(prev => ({
@@ -986,7 +990,7 @@ const EnhancedTravelSystem = () => {
 
     let comidaInicial = 0;
     let aguaInicial = 0;
-    const todosViajerosInicio = [...config.miembros, ...(config.acompanantes || [])];
+    const todosViajerosInicio = [...config.miembros.filter(m => m.papeles?.length > 0), ...(config.acompanantes || [])];
     todosViajerosInicio.forEach(miembro => {
       const char = characters.find(c => c.id === miembro.id);
       if (!char?.inventario) return;
@@ -1884,7 +1888,7 @@ const EnhancedTravelSystem = () => {
   // Reduce raciones (incl. packs) y vacía los odres del inventario.
   const persistProvisionsToInventory = useCallback(async () => {
     const todosViajeros = [
-      ...config.miembros,
+      ...config.miembros.filter(m => m.papeles?.length > 0),
       ...((config.acompanantes || [])),
     ];
     if (todosViajeros.length === 0) return { ok: 0, fail: 0 };

@@ -1528,6 +1528,20 @@ const MiddleEarthMap = () => {
               Mapa del Maestro
             </h1>
             <Badge variant="outline">{filteredLocations.length} ubicaciones</Badge>
+
+            {/* Acceso rápido al editor de terrenos */}
+            {showMasterView && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => navigate('/terrain-editor')}
+                className="border-amber-600/60 text-amber-400 hover:bg-amber-600/10"
+                data-testid="goto-terrain-editor-from-map-btn"
+                title="Editor de Terrenos (pintar tipos de tierra y dificultad)"
+              >
+                🎨 Editor de Terrenos
+              </Button>
+            )}
             
             {/* Edit mode toggle - Only for Maestro */}
             {showMasterView && (

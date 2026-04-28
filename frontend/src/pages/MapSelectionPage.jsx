@@ -4,7 +4,7 @@
  */
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Map, Crown, Users, Lock, ArrowLeft } from 'lucide-react';
+import { Map, Crown, Users, Lock, ArrowLeft, Brush } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { useUser } from '../contexts/UserContext';
 
@@ -39,6 +39,18 @@ const MapSelectionPage = () => {
                 MAPA DE LA TIERRA MEDIA
               </h1>
             </div>
+            {isAdmin && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => navigate('/terrain-editor')}
+                className="ml-auto border-amber-600 text-amber-400 hover:bg-amber-600/10"
+                data-testid="goto-terrain-editor-btn"
+              >
+                <Brush className="h-4 w-4 mr-2" />
+                Editor de Terrenos
+              </Button>
+            )}
           </div>
         </div>
       </div>

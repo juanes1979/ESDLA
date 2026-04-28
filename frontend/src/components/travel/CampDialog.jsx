@@ -347,12 +347,12 @@ export default function CampDialog({
                   <Eye className="w-4 h-4" />
                   Centinela durante el descanso (recupera la mitad)
                 </Label>
-                <Select value={sentinelId} onValueChange={setSentinelId}>
+                <Select value={sentinelId || '__none__'} onValueChange={(v) => setSentinelId(v === '__none__' ? '' : v)}>
                   <SelectTrigger data-testid="camp-sentinel-select">
                     <SelectValue placeholder="Elegir centinela" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Sin centinela (grupo completo descansa)</SelectItem>
+                    <SelectItem value="__none__">Sin centinela (grupo completo descansa)</SelectItem>
                     {miembros.map((m) => (
                       <SelectItem key={m.id} value={m.id}>
                         {m.nombre}

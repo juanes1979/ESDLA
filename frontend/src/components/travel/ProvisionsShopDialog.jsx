@@ -578,8 +578,8 @@ export default function ProvisionsShopDialog({
           )}
 
           {/* Tabla por persona */}
-          <ScrollArea className="max-h-[300px] pr-2">
-            <div className="space-y-2">
+          <ScrollArea className="max-h-[55vh] pr-2">
+            <div className="space-y-2 pb-2">
               {rows.map((row) => {
                 const estado = resultados[row.id];
                 return (

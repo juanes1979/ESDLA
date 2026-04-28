@@ -1048,6 +1048,7 @@ async def calculate_journey(config: JourneyConfig):
     route_data = None
     path_points = []  # Full path for map display
     path_segments = []  # Detailed segments
+    path_result = None  # Pathfinder result (may stay None if pathfinder is not run)
     
     try:
         # Use our own db connection to get locations
@@ -1188,7 +1189,26 @@ async def calculate_journey(config: JourneyConfig):
                     }
             
             # Fallback to direct line if no pathfinding data or pathfinding failed
+            # — IMPORTANTE: si el A* falla por presencia de barreras infranqueables o
+            #   polígonos bloqueantes, NO calculamos línea recta (sería ignorar todo
+            #   el terreno). Avisamos al DJ y le dejamos decidir.
             if not route_data:
+                pathfinder_failed = path_result is not None and not path_result.success
+                if pathfinder_failed:
+                    return {
+                        "error": True,
+                        "message": (
+                            "No se pudo encontrar una ruta válida entre origen y destino. "
+                            "Es probable que haya barreras infranqueables, ríos sin paso o "
+                            "extensiones de agua que bloquean el camino. Revisa el mapa, "
+                            "añade un puente / paso de montaña, o desactiva 'preferir caminos' "
+                            "y prueba de nuevo."
+                        ),
+                        "ruta_alternativa_necesaria": True,
+                        "warnings_pathfinder": getattr(path_result, 'warnings', []),
+                    }
+                # Si NO se ejecutó pathfinder (origen/destino sin coords, etc.), sí
+                # caemos al modo línea recta como hasta ahora — pero con aviso claro.
                 # Calculate distance
                 dx = end_loc.get('x', 0) - start_loc.get('x', 0)
                 dy = end_loc.get('y', 0) - start_loc.get('y', 0)

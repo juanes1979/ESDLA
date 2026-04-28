@@ -247,6 +247,35 @@ class MiddleEarthPathfinder:
         self._build_barrier_segments()
         self._build_location_map()
     
+    def _segment_crosses_blocking_polygon(self, from_pos: Tuple[float, float], to_pos: Tuple[float, float]) -> bool:
+        """
+        Comprueba si el segmento entre dos posiciones atraviesa algún polígono
+        bloqueante (infranqueable o agua) muestreando puntos intermedios.
+        Necesario porque GRID_RESOLUTION=1.0 (~20 km) puede saltar por encima
+        de polígonos infranqueables más estrechos que un paso del A*.
+        """
+        if not self.terrain_polygons:
+            return False
+        BLOCKING = {'infranqueable', 'agua'}
+        # Filtrar sólo los polígonos bloqueantes (rendimiento)
+        blocking_polys = [p for p in self.terrain_polygons if p.get('type') in BLOCKING]
+        if not blocking_polys:
+            return False
+        # 5 puntos intermedios (sin contar from/to). Suficiente para captar polígonos
+        # de ~5-10 km en un salto diagonal de ~28 km.
+        n_samples = 5
+        fx, fy = from_pos
+        tx, ty = to_pos
+        for i in range(1, n_samples + 1):
+            t = i / (n_samples + 1)
+            x = fx + (tx - fx) * t
+            y = fy + (ty - fy) * t
+            for poly in blocking_polys:
+                pts = poly.get('points', [])
+                if pts and self._point_in_polygon(x, y, pts):
+                    return True
+        return False
+
     def _point_in_polygon(self, x: float, y: float, polygon_points: list) -> bool:
         """Check if point is inside polygon using ray casting"""
         n = len(polygon_points)
@@ -675,6 +704,12 @@ class MiddleEarthPathfinder:
         
         # Check for barrier (impassable)
         if self._check_barrier_crossing(from_pos, to_pos):
+            return (float('inf'), 'ninguno', '', 'infranqueable', None)
+
+        # Check if the segment crosses an infranqueable / agua terrain polygon
+        # (los polígonos pueden ser más pequeños que GRID_RESOLUTION → muestreamos
+        # el segmento para no "saltar por encima" de un bloqueo).
+        if self._segment_crosses_blocking_polygon(from_pos, to_pos):
             return (float('inf'), 'ninguno', '', 'infranqueable', None)
         
         # Get terrain
