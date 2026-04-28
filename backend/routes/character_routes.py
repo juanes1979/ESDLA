@@ -1207,16 +1207,18 @@ async def remove_equipment_reward(
 
 # === EQUIPMENT MANAGEMENT ENDPOINTS ===
 
-# Conversion rates: 1 mo = 10 mp = 100 me = 1000 mc
+# Jerarquía oficial Tierra Media: 1 mo = 100 mp = 1.000 mc = 10.000 me
+# Unidad base = me (la más pequeña). Cualquier moneda se convierte a "me" para
+# poder pagar con cualquier combinación que sume el valor total.
 COIN_VALUES = {
-    "mo": 1000,  # 1 oro = 1000 base
-    "mp": 100,   # 1 plata = 100 base
-    "me": 10,    # 1 estaño = 10 base
-    "mc": 1      # 1 cobre = 1 base
+    "mo": 10000,  # 1 oro = 10.000 me
+    "mp": 100,    # 1 plata = 100 me
+    "mc": 10,     # 1 cobre = 10 me
+    "me": 1       # 1 estaño = 1 me  (base)
 }
 
 def convert_to_base(dinero: dict) -> int:
-    """Convert all coins to base value (cobre)"""
+    """Convert all coins to base value (estaño)"""
     total = 0
     for coin, amount in dinero.items():
         if coin in COIN_VALUES:
@@ -1224,10 +1226,11 @@ def convert_to_base(dinero: dict) -> int:
     return total
 
 def convert_from_base(base_amount: int) -> dict:
-    """Convert base value back to coins (prioritize larger denominations)"""
-    result = {"mo": 0, "mp": 0, "me": 0, "mc": 0}
+    """Convert base value back to coins (prioritize larger denominations).
+    Orden importante: mo → mp → mc → me (de mayor a menor valor)."""
+    result = {"mo": 0, "mp": 0, "mc": 0, "me": 0}
     remaining = base_amount
-    for coin in ["mo", "mp", "me", "mc"]:
+    for coin in ["mo", "mp", "mc", "me"]:
         result[coin] = remaining // COIN_VALUES[coin]
         remaining = remaining % COIN_VALUES[coin]
     return result

@@ -23,16 +23,24 @@ const SauronEyeOverlay = ({ visible, percent = 0, message = '', subtitle = '', o
       }}
     >
       <div className="flex flex-col items-center gap-6 max-w-lg px-6">
-        <div className="relative w-72 h-72 sauron-pulse">
+        <div className="relative w-72 h-72 sauron-pulse rounded-full overflow-hidden">
           <img
             src="/ojo_sauron.png"
             alt="Ojo de Sauron"
-            className="w-full h-full object-cover sauron-spin"
+            className="w-full h-full object-cover"
             style={{
               filter: 'drop-shadow(0 0 60px rgba(255, 90, 0, 0.7)) drop-shadow(0 0 120px rgba(180, 30, 0, 0.4))',
-              mixBlendMode: 'screen',
               clipPath: 'circle(50% at 50% 50%)',
               WebkitClipPath: 'circle(50% at 50% 50%)',
+            }}
+          />
+          {/* Halo de fuego que respira con el ojo */}
+          <div
+            aria-hidden="true"
+            className="absolute inset-0 rounded-full pointer-events-none"
+            style={{
+              background: 'radial-gradient(circle, rgba(255,140,0,0.0) 55%, rgba(255,80,0,0.35) 75%, rgba(120,20,0,0) 100%)',
+              mixBlendMode: 'screen',
             }}
           />
         </div>
