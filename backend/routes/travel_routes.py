@@ -1315,9 +1315,13 @@ async def calculate_journey(config: JourneyConfig):
         velocidad_grupo = min(v["velocidad_efectiva"] for v in velocidades)
         miembro_mas_lento = next(v["nombre"] for v in velocidades if v["velocidad_efectiva"] == velocidad_grupo)
         # Marca quién recibe +5 al cansancio: aquellos cuya velocidad SIN
-        # estorbo es estrictamente mayor que la velocidad del grupo.
+        # estorbo es estrictamente mayor que la velocidad del grupo Y que
+        # no son ellos mismos los estorbados (estorbo_metros >= 0). El
+        # +5 compensa a los compañeros forzados a ir lento por culpa de
+        # OTRO miembro estorbado.
         for v in velocidades:
-            v["bonus_fatiga"] = 5 if v["velocidad_sin_estorbo"] > velocidad_grupo else 0
+            no_estorbado = (v.get("estorbo_metros", 0) or 0) >= 0
+            v["bonus_fatiga"] = 5 if (v["velocidad_sin_estorbo"] > velocidad_grupo and no_estorbado) else 0
     else:
         velocidad_grupo = BASE_SPEED_METERS
         velocidades = []

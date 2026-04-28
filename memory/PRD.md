@@ -2,6 +2,66 @@
 
 ## Current State (2026-02-28)
 
+### ✅ Iteración 62 — Oleada 3 (ficha completa) + integración estorbo en viaje
+- **Reorganización en pestañas** de la ficha (`CharacterSheetPage`):
+  Resumen · Atributos · Combate · Equipo · Comunidad · Sombra · Trasfondo
+  · Historia.
+- **Subir nivel con gate de PX (5e estándar)**: `LevelUpButton` exporta
+  `XP_THRESHOLDS`. El botón se deshabilita si los PX no llegan al umbral
+  y muestra `"Nivel N: faltan X PX"`.
+- **Cards extendidas** en `ExtendedCards.jsx`:
+  - HeaderInfoCard (nombre del jugador, sexo, bonif. competencia,
+    iniciativa con bonus extra)
+  - SavingThrowsCard (6 atributos con competencia)
+  - DeathSavesCard (3 éxitos / 3 fracasos, dots interactivos)
+  - WeightEncumbranceCard (peso transportado, capacidad FUE×7.5,
+    estorbo automático -3 m / -6 m según ratio, integra montura
+    "transporta_equipo")
+  - ToolsProficiencyCard (lista de herramientas con add/remove)
+  - ShadowExtendedCard (cicatrices + maldición)
+  - PatronCard (nombre, tipo, descripción, beneficios)
+  - ProfessionSpecialsCard (lista)
+  - HistoryCard (textarea grande)
+- **Backend**: PATCH `/characters/{id}` acepta y persiste todos los
+  nuevos campos (sexo, nombre_jugador, iniciativa_bonus,
+  salvaciones_competencia, salvaciones_muerte, competencias_herramientas,
+  cicatrices_sombra, maldicion_sombra, mecenas, especiales_profesion,
+  historia, estorbo_metros, montura).
+- **Estorbo afectando viaje**: `MiembroConfig` añade `estorbo_metros` y
+  `montura_carga_equipo`. `velocidad_efectiva()` resta el estorbo (excepto
+  si la montura carga el equipo). Si un miembro frena al grupo, los demás
+  reciben `+5` a la salvación contra cansancio (`bonus_fatiga` en
+  `velocidad_grupo.desglose_velocidades`).
+- `CampDialog` aplica el +5 automáticamente leyendo
+  `journeyCalc.velocidad_grupo.desglose_velocidades`.
+- Validado: pytest 3/3 PASS (`/app/backend/tests/test_ol3_iter62.py`).
+  UI 100% verificada por testing agent.
+
+### Iteración 61 — Bloque A
+- PDF Ficha Oficial (centrado proporcional A4).
+- Botón Volver de Ficha Oficial → ficha singular.
+- Mapa de resultados `h-[480px]` con letterbox.
+- Panel del grupo durante el viaje (`JourneyPartyPanel`).
+- Notas privadas del jugador (`PrivateNotesCard`).
+
+### 🟠 Pendiente — Reglas de fatiga (a depurar con el usuario)
+Propuesta para discutir tras esta iteración:
+
+  1. **Tirada de salvación al final de cada jornada de marcha** (al
+     intentar acampar o descansar prolongado): CD = 10 + provisiones
+     fallidas. Si falla, +1 fatiga. Si pasa, sin cambio.
+  2. **Tirada extra al fallar un evento** que tenga `fatigue_cd_increase
+     > 0`: CD aumenta acumuladamente para esa noche.
+  3. **Marcha forzada (>10 km extra)**: tirada CON con desventaja al
+     finalizar la marcha. Falla → +1 fatiga.
+  4. **Obligar a acampar**: si CUALQUIER miembro alcanza fatiga 5+,
+     el sistema fuerza un campamento al final del día (toast + bloqueo
+     del avance hasta resolver).
+  5. **Fatiga 6** = al borde de la muerte: marcha forzada NO permitida
+     y solo descanso largo o santuario reduce la fatiga.
+
+### 🏗️ Histórico previo
+
 ### ✅ Iteración 61 — Bloque A (PDF + Mapa + Notas privadas + Panel grupo)
 - **PDF Ficha Oficial (3 hojas)**: nuevo cálculo de centrado en
   `InteractiveCharacterSheet.jsx` que escala por anchura O por altura para
