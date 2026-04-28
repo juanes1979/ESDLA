@@ -2,7 +2,25 @@
 
 ## Current State (2026-02-28)
 
-### ✅ Iteración 63 — Reglas de fatiga implementadas
+### ✅ Iteración 64 — TTS narrador clásico + Alerta predictiva
+- **TTS narrador clásico** (`/api/travel/tts/narrative`):
+  modelo `tts-1-hd` (auto-degrada a `tts-1` para textos >2000 chars y
+  evitar el timeout del ingress), voz `onyx` (grave, autoritaria),
+  velocidad 0.95. Devuelve audio MP3 en base64. Componente frontend
+  `NarrativeTTSPlayer.jsx` con botón "Escuchar crónica" + reproductor
+  HTML5 con autoplay y cleanup. Verificado en runtime (131 KB para
+  texto corto en español).
+- **Alerta predictiva** (`JourneyForecastCard.jsx`) en ConfigView:
+  estima — sin viajar — fatiga media final, raciones/agua disponibles
+  vs. necesarias, día más duro (clima extremo), y avisos críticos
+  (fatiga 5+, provisiones insuficientes, clima extremo). Mensaje
+  narrativo generado en cliente, sin coste de IA. Borde dinámico
+  (rojo/ámbar/verde) según severidad. `triggerCalculateJourney`
+  precarga el clima día a día para alimentar la card.
+- Validado por testing agent (4/5 backend pytest, 100% frontend
+  verificado en runtime + code-review TTS-2).
+
+### Iteración 63 — Reglas de fatiga implementadas
 Reglas finales (consensuadas con el usuario):
 
   1. **Salvación contra cansancio CD 10** al pulsar Acampar.

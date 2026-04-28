@@ -3110,10 +3110,16 @@ async def tts_narrative(request: TTSNarrativeRequest):
             cut = text.rfind('.', 0, max_chars)
             text = text[:cut + 1] if cut > 0 else text[:max_chars]
 
+        # Para textos largos (>2000 chars) bajamos a tts-1 (mucho más rápido,
+        # ~60% del coste de tts-1-hd, sin timeouts del ingress).
+        model = request.model
+        if model == 'tts-1-hd' and len(text) > 2000:
+            model = 'tts-1'
+
         tts = OpenAITextToSpeech(api_key=api_key)
         audio_b64 = await tts.generate_speech_base64(
             text=text,
-            model=request.model,
+            model=model,
             voice=request.voice,
             speed=request.speed,
             response_format='mp3',
@@ -3123,7 +3129,7 @@ async def tts_narrative(request: TTSNarrativeRequest):
             "audio_base64": audio_b64,
             "mime": "audio/mp3",
             "voice": request.voice,
-            "model": request.model,
+            "model": model,
             "chars": len(text),
         }
     except Exception as e:
