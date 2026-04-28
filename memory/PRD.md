@@ -2,6 +2,29 @@
 
 ## Current State (2026-02-28)
 
+### ✅ Iteración 60 — Hotfixes críticos del Sistema de Viaje
+- **Cálculo de días corregido** (`travel_routes.py`): el motor dividía
+  `pathfinder_days` entre un ratio que asumía base 22.5 km/día, pero el
+  pathfinder usa 36. Nueva fórmula:
+  `dias = max(distancia_física / km_grupo, pathfinder_days * 36 / km_grupo)`.
+  Validado: Bree → Rivendel ≈ 285 km @ 22.5 km/día → 13 días (antes 8).
+- **CampDialog sin viaje en BD**: ya no muestra "No hay un viaje activo" en
+  modo Jornada a Jornada. Aplica -0.5 a la CD y eventos nocturnos en local.
+- **Provisiones inicializadas en modo global**: lee inventario de
+  miembros/acompañantes al iniciar viaje. En asentamientos los odres parten
+  llenos.
+- **Forrajeo**: ahora suma 2d4 raciones + 3d4 L de agua (coincide con el
+  texto del diálogo, antes era 1d4+1d4).
+- **Crónica final con clima por día**: `/travel/generate-journey-summary`
+  acepta `clima_por_dia` y `narrativa_individual` por evento; el system
+  prompt instruye a respetar el clima exacto.
+- **UX Fatiga inicial**: botón "Reset" a la izquierda de "Ficha:";
+  justificación opcional; nuevo botón "Poner a 0" por personaje y
+  "Eliminar cansancio del grupo" en la cabecera.
+- Validado al 100% (`/app/test_reports/iteration_60.json`).
+
+### Current State (2026-02-28) — heredado
+
 ### ✅ Travel System Logic Overhaul (Batch 2) — COMPLETO
 - **Modo único interactivo "Jornada a Jornada"**: eliminado el toggle entre
   "Viaje Global" y "Día a Día" en ConfigView. El botón "Iniciar Viaje" siempre
