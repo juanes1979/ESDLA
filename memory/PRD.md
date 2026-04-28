@@ -2,6 +2,40 @@
 
 ## Current State (2026-02-28)
 
+### ✅ Iteración 61 — Bloque A (PDF + Mapa + Notas privadas + Panel grupo)
+- **PDF Ficha Oficial (3 hojas)**: nuevo cálculo de centrado en
+  `InteractiveCharacterSheet.jsx` que escala por anchura O por altura para
+  que cada hoja quepa entera dentro del A4 (sin desbordar hacia abajo).
+- **Botón Volver de Ficha Oficial**: corregido — ahora navega a
+  `/character/{id}` (singular) → vuelve a la ficha normal del personaje.
+- **Mapa de resultados más grande**: `JourneyMiniMap` por defecto a
+  `h-[480px]` (antes 288 px) con `preserveAspectRatio="xMidYMid meet"` y
+  `bg-black` → letterbox natural si el viaje es vertical o corto, sin
+  recortar origen/destino.
+- **Panel del grupo (Oleada 2)**: nuevo `JourneyPartyPanel.jsx` integrado
+  en GlobalJourneyView. Por miembro: nombre + papel · fatiga con código
+  de color · último cambio (badge ±) · raciones/agua proporcional ·
+  última salvación contra cansancio (d20+mod vs CD ✓/✗) · indicador de
+  estorbo. Cabecera: CD acumulada de fatiga, totales del grupo.
+- **Notas privadas del jugador**: nuevo `PrivateNotesCard.jsx` en la
+  ficha del personaje (oculto por defecto). Backend persiste vía
+  `PATCH /api/characters/{id}` (campo `notas_privadas_jugador`).
+- Validado por testing agent (`/app/test_reports/iteration_61.json`).
+
+### 🟠 Pendiente — Bloque B (próxima iteración)
+- Reglas de tiradas de salvación contra fatiga (cuándo se hacen,
+  cuándo se obliga a acampar). Necesita clarificación del usuario.
+- Oleada 3 — expansión completa de la ficha del personaje:
+  * Bug PX subir nivel (umbrales 5e estándar).
+  * Peso/estorbo afectando velocidad de viaje (con bonus +5 a salvación
+    contra fatiga para los que no sufren estorbo, regla del usuario).
+  * Campos nuevos: bonificador de competencia, sexo, comp. herramientas,
+    iniciativa, T. salvación 6 atributos, T. muerte, Cansancio,
+    Sombra/Cicatrices/Maldición, Comunidad, Mecenas, Heredero, Virtudes,
+    Recompensas, Especiales de profesión, Historia.
+
+### 📜 Histórico previo (2026-02-28)
+
 ### ✅ Iteración 60 — Hotfixes críticos del Sistema de Viaje
 - **Cálculo de días corregido** (`travel_routes.py`): el motor dividía
   `pathfinder_days` entre un ratio que asumía base 22.5 km/día, pero el

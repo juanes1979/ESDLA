@@ -219,7 +219,7 @@ const InteractiveCharacterSheet = () => {
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => navigate(`/characters/${characterId}`)}
+              onClick={() => navigate(`/character/${characterId}`)}
               className="text-muted-foreground hover:text-foreground"
               data-testid="back-button"
             >
