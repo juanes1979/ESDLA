@@ -61,12 +61,16 @@ const CulturesSection = ({
   const loadCultureVirtues = useCallback(async (cultureId) => {
     try {
       const res = await api.get(`/data/cultures/${cultureId}/virtues`);
+      // El endpoint devuelve {culture_id, culture_name, tiene_virtud_inicial,
+      // permite_virtudes_comunes, virtues: [...]} — guardamos sólo la lista.
+      const list = Array.isArray(res.data) ? res.data : (res.data?.virtues || []);
       setCultureVirtues(prev => ({
         ...prev,
-        [cultureId]: res.data
+        [cultureId]: list
       }));
     } catch (err) {
       console.error('Error loading culture virtues:', err);
+      setCultureVirtues(prev => ({ ...prev, [cultureId]: [] }));
     }
   }, []);
 

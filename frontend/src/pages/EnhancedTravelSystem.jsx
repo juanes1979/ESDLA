@@ -387,8 +387,6 @@ const EnhancedTravelSystem = () => {
     // están añadidos al grupo pero no parten de viaje, no consumen provisiones.
     const numPersonajes = config.miembros.filter(m => m.papeles?.length > 0).length + (config.acompanantes || []).length;
 
-    // Acompañantes also need food/water (same daily intake)
-    const numPersonajes = config.miembros.length + (config.acompanantes || []).length;
     // Requirements: 1 ration/day per person, 2L water/day per person
     const comidaNecesaria = numPersonajes * diasViaje; // in rations
     const aguaNecesaria = numPersonajes * diasViaje * 2; // in liters

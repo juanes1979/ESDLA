@@ -57,6 +57,17 @@ Decisiones de arquitectura ya acordadas con el usuario (ver detalle completo en
 
 Lint ✅ Python y JS. Backend probado con 8 casos curl.
 
+### 🎙️ Acordado para futuro (post-Sistema de Campañas)
+
+**TTS narrador clásico** para el modo "Viaje global" automatizado:
+- Al terminar el viaje, generar un mini-podcast (~30s) con OpenAI TTS leyendo la
+  narrativa épica con voz de "narrador clásico".
+- **Reproducción manual**: el DJ pulsa Play, NO suena automáticamente.
+- Integrado como botón en la pantalla de resultados al lado del PDF de la crónica.
+- Necesita integration_playbook_expert_v2 para configurar OpenAI TTS via Emergent LLM Key.
+- Decisión técnica: precachear el audio durante la generación de la narrativa para
+  evitar latencia al pulsar Play.
+
 ### 📌 Pendientes para próxima sesión (post-fork campañas)
 - 26 puntos abiertos en `CAMPAIGN_ARCHITECTURE.md` (auth, sincronización, etc.).
 - P0 Auth + Roles → P0 Modelo Campaña → P0 Enrutado de queries → P0 Object Storage.
