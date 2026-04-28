@@ -2,6 +2,24 @@
 
 ## Current State (2026-02-26)
 
+### 🏗️ NEXT MAJOR PHASE — Sistema de Campañas (post-fork)
+
+Decisiones de arquitectura ya acordadas con el usuario (ver detalle completo en
+`/app/memory/CAMPAIGN_ARCHITECTURE.md`):
+
+- **Roles**: Maestro (admin global único editor de reglas), Director de Juego (consulta
+  reglas, edita personajes, crea ubicaciones/mapas locales a su campaña, crea campañas),
+  Jugador (TBD).
+- **Aislamiento**: híbrido "branching" — BD principal global con reglas (sólo Maestro
+  edita) + **una BD por campaña** (`lotr5e_campaign_{id}`) con datos de juego (personajes
+  asignados, viajes activos, ubicaciones locales, mapas subidos, polígonos extra,
+  overrides de clima, inventario/dinero/PX consumidos).
+- **Selector de campaña** dentro del panel del DJ — todo lo que se haga dentro queda
+  ligado a esa campaña. Un personaje no puede estar en dos campañas a la vez.
+- **Bloqueador previo**: implementar primero **P0 Auth + Roles** antes de campañas.
+- 26 puntos abiertos pendientes de definir antes de empezar a programar (ver
+  `CAMPAIGN_ARCHITECTURE.md` sección "Puntos abiertos").
+
 ### ✅ COMPLETED This Session
 
 #### 19. Iteración 66 — Pathfinding Debugger arreglado + Piezas movibles en Editor de Terrenos (2026-02-26)
