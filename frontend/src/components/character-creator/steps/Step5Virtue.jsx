@@ -78,8 +78,16 @@ const Step5Virtue = ({ draftId, draft, onComplete, onBack }) => {
       const response = await api.patch(`/draft/${draftId}/step5`, virtueData);
       onComplete(response.data);
     } catch (err) {
-      console.error('Error saving step 5:', err);
-      setError('No se pudo guardar la virtud');
+      // Extraer detalle del backend para depurar (404 virtud / 404 draft / 422 validación)
+      const detail = err?.response?.data?.detail || err?.response?.data?.message || err?.message || '';
+      const status = err?.response?.status;
+      console.error('Error saving step 5:', { status, detail, payload: virtueData });
+      const friendly = status === 404
+        ? `No se encontró ${detail.toLowerCase().includes('draft') ? 'el borrador' : 'la virtud'} en la BD. Recarga la página.`
+        : status === 422
+        ? `Datos inválidos: ${detail}`
+        : `No se pudo guardar la virtud${detail ? ': ' + detail : ''}`;
+      setError(friendly);
     } finally {
       setSaving(false);
     }

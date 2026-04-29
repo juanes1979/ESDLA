@@ -637,6 +637,30 @@ async def update_draft_step5(draft_id: str, data: CharacterCreateStep5):
         "paso_actual": 6,  # Continue to skills step
         "updated_at": now_utc(),
     }
+
+    # Virtudes especiales que añaden una montura al personaje
+    # ("Poni de Bree" para los Hombres de Bree).
+    nombre_virtud = (data.virtud_nombre or virtue.get('nombre') or '').strip().lower()
+    if nombre_virtud == 'poni de bree':
+        # Stats canónicos del Poni de Bree.
+        update["montura"] = {
+            "nombre": "Poni de Bree",
+            "tipo": "poni",
+            "carga_kg": 101,
+            "constitucion": 13,
+            "constitucion_mod": 1,
+            "velocidad": 12,
+            "tamano": "Mediano",  # también puede actuar como pequeño
+            "tamano_alt": "Pequeño",
+            "transporta_equipo": True,
+            "origen": "Virtud cultural de los Hombres de Bree",
+            "rasgos": [
+                "Usa el bonificador por competencia del personaje",
+                "Mejora sus estadísticas con la experiencia del jinete",
+                "Puede actuar en combate bajo las órdenes de su dueño",
+            ],
+            "ganado_via_virtud": True,
+        }
     
     await db.character_drafts.update_one(
         {"_id": draft_id},

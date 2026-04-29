@@ -726,8 +726,11 @@ const Step3Occupation = ({ draftId, draft, onComplete, onBack }) => {
     const question = occupationData.habilidades?.pregunta || 'Elige tus habilidades:';
     const allOptions = occupationData.habilidades?.opciones || [];
     
-    // CRITICAL: Collect ALL existing skills from culture and background
-    // These should NOT be available for selection
+    // Sólo deben listarse aquí las habilidades que el personaje YA TIENE
+    // ANTES de elegir las de ocupación: las de cultura + trasfondo. NO se
+    // debe usar `habilidades_competencia` (campo consolidado post-step3)
+    // porque eso duplica las que se acaban de elegir y dispara el conteo
+    // a niveles imposibles si el usuario vuelve atrás.
     const existingSkillsRaw = [
       // From culture - automatic competencies
       ...(draft?.competencias_habilidades_cultura || []),
@@ -739,8 +742,6 @@ const Step3Occupation = ({ draftId, draft, onComplete, onBack }) => {
       ...(draft?.competencias_trasfondo?.habilidades || []),
       // From background - chosen skill competencies
       ...(draft?.competencias_habilidades_trasfondo || []),
-      // Consolidated field if exists
-      ...(draft?.habilidades_competencia || []),
     ];
     
     // Clean and dedupe for display

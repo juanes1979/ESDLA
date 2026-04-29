@@ -107,9 +107,17 @@ CONTEXT_LABEL_ES = {
 }
 
 
-def _hard_check(text: str) -> Optional[CheckNameResponse]:
+def _hard_check(text: str, context: str = 'other') -> Optional[CheckNameResponse]:
     raw = (text or '').strip()
+    # El nombre del jugador PUEDE quedar vacío (DJ crea la ficha y el
+    # jugador la rellena después). El resto de contextos exige texto.
     if not raw:
+        if context == 'player_name':
+            return CheckNameResponse(
+                appropriate=True, category='ok',
+                reason='Nombre del jugador vacío: se podrá completar más adelante.',
+                flagged_term=None,
+            )
         return CheckNameResponse(
             appropriate=False, category='nonsense',
             reason='El campo está vacío.', flagged_term=None,
@@ -162,36 +170,41 @@ async def _llm_check(text: str, context: ContextLiteral) -> CheckNameResponse:
 
         ctx_label = CONTEXT_LABEL_ES.get(context, 'el texto')
         is_character = context in ('character_name', 'character_surname')
+        # Para el nombre del jugador permitimos cualquier nick, alias o
+        # abreviatura. El usuario sólo quería bloquear insultos / sexual /
+        # contenido político actual.
         tolkien_clause = (
             "- ACEPTA libremente nombres tolkienianos o que recuerden a personajes de El Señor de "
-            "los Anillos / El Hobbit / El Silmarillion (Aragorn, Frodo, Boromir, Galadriel, etc.). "
-            "Es un juego ambientado en la Tierra Media — los jugadores PUEDEN homenajear personajes.\n"
+            "los Anillos / El Hobbit / El Silmarillion (Aragorn, Frodo, Boromir, Galadriel, etc.).\n"
             if is_character else
-            "- RECHAZA nombres de personajes icónicos de Tolkien usados como nombre real del jugador "
-            "(Aragorn, Gandalf, Frodo, Sauron…). Para el nombre del jugador esperamos un nombre real.\n"
+            "- ACEPTA cualquier nick, alias o nombre real (ej. 'juanesdeloli', 'TigerKing', 'Pep', "
+            "'Maria1990'). Sólo bloquea si el texto es claramente un insulto, contenido sexual "
+            "explícito, o una referencia política contemporánea ofensiva.\n"
         )
 
         system_msg = (
-            "Eres un moderador de contenido para un videojuego de rol ambientado en la Tierra Media "
-            "de Tolkien. Tu tarea es decidir si un texto introducido por un usuario es APROPIADO "
-            "para usarse en el juego.\n\n"
-            "RECHAZA contenido que sea:\n"
-            "- Sexual o vulgar (genitales, actos sexuales, insinuaciones obscenas).\n"
-            "- Político / ideológico contemporáneo (líderes actuales, partidos, ideologías polémicas, "
-            "  figuras políticas reales de los siglos XX-XXI).\n"
-            "- Palabrotas, insultos u ofensas (en cualquier idioma).\n"
-            "- Juegos de palabras claramente humorísticos fuera de tono (ej. 'Pepito Pistolas', 'Don Pene').\n"
-            "- Referencias a marcas o productos comerciales reales.\n"
-            "- Texto sin sentido (mashing de teclado, números aleatorios, símbolos repetidos).\n"
-            "- Nombres de figuras históricas reales mediáticas de los siglos XIX-XXI (Hitler, Stalin, etc.).\n\n"
-            "ACEPTA:\n"
-            "- Nombres ficticios coherentes con la Tierra Media o con culturas reales antiguas/medievales.\n"
-            "- Nombres comunes en castellano o cualquier idioma (Juan, Carlos, María, Olga, John, Pedro, Ana).\n"
-            "- Nombres extraños pero plausibles para el género de fantasía.\n"
-            "- Apodos sobrios.\n"
+            "Eres un moderador de contenido para un juego de rol de mesa ambientado en la Tierra "
+            "Media de Tolkien. Tu único trabajo es detectar contenido CLARAMENTE ofensivo. POR "
+            "DEFECTO, ACEPTA todo. Sólo rechaza si entra en una de estas categorías "
+            "INEQUÍVOCAS:\n\n"
+            "RECHAZA SOLO si el texto es:\n"
+            "- Sexual explícito (genitales, actos sexuales, insinuaciones obscenas obvias).\n"
+            "- Insulto directo (palabrota inequívoca como insulto: 'gilipollas', 'mierda', etc.).\n"
+            "- Apología o referencia ofensiva a líderes políticos contemporáneos (Hitler, Stalin, "
+            "  Trump, Putin, Franco usados como nombre real…).\n"
+            "- Spam evidente de teclado ('asdfasdf', 'qwerty123' como nombre completo).\n\n"
+            "ACEPTA SIEMPRE (no rechazar bajo ninguna circunstancia):\n"
+            "- Nombres reales o nicks de personas (Juan, Pedro, Maria, Olga, Pep, juanesdeloli, "
+            "  TigerKing, etc.).\n"
+            "- Nombres de fantasía aleatorios (Vinul Harnar, Thranduin, Arandor, etc.).\n"
+            "- Mezclas de letras y números razonables (Maria1990, Olga2k, Pep_2026).\n"
+            "- Apellidos compuestos o nombres extraños pero plausibles.\n"
+            "- Nombres comunes en cualquier idioma (inglés, español, francés, élfico, klingon…).\n"
+            "- Nombres de marcas, productos o ficción que NO sean ofensivos en sí mismos.\n"
             f"{tolkien_clause}\n"
-            "IMPORTANTE: en caso de duda razonable, ACEPTA. Sólo rechaza si está claramente "
-            "fuera de tono.\n\n"
+            "REGLA DE ORO: en CUALQUIER duda, ACEPTA. Es preferible dejar pasar 100 nombres raros "
+            "antes que rechazar uno legítimo. NO juzgues por estética o por sonar 'extraño', sólo "
+            "por las 4 categorías de rechazo de arriba.\n\n"
             "Responde SIEMPRE en formato JSON estricto, sin texto adicional ni markdown:\n"
             '{"appropriate": true|false, "category": "ok|profanity|sexual|political|insult|nonsense|other", '
             '"reason": "explicación breve en español (max 80 caracteres)"}'
@@ -240,7 +253,7 @@ async def _llm_check(text: str, context: ContextLiteral) -> CheckNameResponse:
 async def check_name(req: CheckNameRequest):
     text = (req.text or '').strip()
     # 1) Filtro duro local (corta sin coste IA)
-    hard = _hard_check(text)
+    hard = _hard_check(text, req.context)
     if hard is not None:
         result = hard
     else:

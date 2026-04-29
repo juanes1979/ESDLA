@@ -19,24 +19,30 @@ const CharacterSummary = ({ draft, onFinalize, onEdit, loading, draftId }) => {
 
   // Generate character portrait using AI
   const generatePortrait = async () => {
+    if (!draft || !draft.nombre) {
+      toast.error('Faltan datos del personaje para generar el retrato.');
+      return;
+    }
     setGeneratingPortrait(true);
     try {
       const response = await api.post('/portraits/generate', {
-        nombre: draft.nombre,
-        cultura: draft.cultura_nombre,
-        raza: draft.raza_nombre,
-        vocacion: draft.vocacion_nombre,
-        trasfondo: draft.trasfondo_nombre,
-        edad: draft.edad,
-        altura_cm: draft.altura_cm,
-        peso_kg: draft.peso_kg,
-        color_ojos: draft.color_ojos || draft.ojos,
-        color_pelo: draft.color_pelo || draft.pelo,
-        rasgos_fisicos: draft.rasgos_fisicos,
-        genero: draft.genero,
-      });
+        nombre: draft.nombre || '',
+        cultura: draft.cultura_nombre || '',
+        raza: draft.raza_nombre || draft.cultura_nombre || '',
+        vocacion: draft.vocacion_nombre || draft.ocupacion_nombre || '',
+        trasfondo: draft.trasfondo_nombre || '',
+        edad: draft.edad || null,
+        altura_cm: draft.altura_cm || null,
+        peso_kg: draft.peso_kg || null,
+        color_ojos: draft.color_ojos || draft.ojos || '',
+        color_pelo: draft.color_pelo || draft.pelo || '',
+        rasgos_fisicos: draft.rasgos_fisicos || '',
+        genero: draft.genero || draft.sexo || 'hombre',
+      }, { timeout: 90000 }); // 90s para que la IA tenga tiempo
       
-      if (response.data.success && response.data.image_base64) {
+      if (response.data?.success && response.data?.image_base64 &&
+          typeof response.data.image_base64 === 'string' &&
+          response.data.image_base64.length > 100) {
         const imageBase64 = response.data.image_base64;
         setPortraitImage(imageBase64);
         
