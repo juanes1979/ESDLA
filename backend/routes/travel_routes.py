@@ -2989,6 +2989,7 @@ class JourneySummaryRequest(BaseModel):
     personajes: List[Dict[str, Any]] = []
     px_total: int = 0
     terrenos: Dict[str, float] = None
+    heridos: List[Dict[str, Any]] = []  # personajes que cayeron a 0 PG durante el viaje
 
 @router.post("/generate-journey-summary")
 async def generate_journey_summary(request: JourneySummaryRequest):
@@ -3034,6 +3035,14 @@ async def generate_journey_summary(request: JourneySummaryRequest):
             for terrain, km in request.terrenos.items():
                 terreno_text += f"\n  - {terrain}: {km:.1f} km"
         
+        # Build casualty summary (personajes que cayeron a 0 PG)
+        heridos_text = ""
+        if request.heridos:
+            for h in request.heridos:
+                dia_h = h.get('dia') or h.get('casilla') or '?'
+                evento_h = h.get('evento') or 'un acontecimiento'
+                heridos_text += f"\n  - {h.get('nombre', 'Un viajero')} cayó a 0 PG en el día {dia_h} ({evento_h})"
+
         chat = LlmChat(
             api_key=api_key,
             session_id=f"summary_{uuid.uuid4().hex[:8]}",
@@ -3045,7 +3054,10 @@ async def generate_journey_summary(request: JourneySummaryRequest):
             Cuando referencias un evento, usa el mismo clima que ya consta para ese día (no inventes otro tiempo).
             Reutiliza las narrativas individuales si están disponibles, integrándolas con cohesión.
             Estructura tu relato con naturalidad: cómo empezó el viaje, qué pasó en el camino, y cómo llegaron.
-            Máximo 350 palabras. No uses emojis."""
+            Si hay HERIDOS GRAVES (personajes que cayeron a 0 PG), narra explícitamente cómo y dónde ocurrió,
+            quién quedó inconsciente, cómo lo cargaron sus compañeros (en montura, a hombros) y en qué estado
+            llegaron al destino. NO inventes salvaciones ni curaciones que no se hayan rodado.
+            Máximo 400 palabras. No uses emojis."""
         ).with_model("openai", "gpt-4o")
         
         prompt = f"""Escribe el relato de este viaje:
@@ -3056,8 +3068,9 @@ COMPAÑÍA: {grupo_text if grupo_text else "Un grupo de viajeros"}
 TERRENOS: {terreno_text if terreno_text else "Caminos y sendas de la Tierra Media"}
 CLIMA POR DÍA: {clima_text if clima_text else "(no disponible)"}
 ACONTECIMIENTOS: {eventos_text if eventos_text else "El viaje fue tranquilo"}
+HERIDOS GRAVES (cayeron a 0 PG): {heridos_text if heridos_text else "Ninguno — todos llegan en pie"}
 
-Narra el viaje de forma natural, como si se lo contaras a alguien. Respeta el clima exacto de cada día (NO inventes otro), describe el paisaje y los momentos importantes. Si hay narrativas individuales arriba, intégralas. NO menciones puntos de experiencia ni mecánicas de juego."""
+Narra el viaje de forma natural, como si se lo contaras a alguien. Respeta el clima exacto de cada día (NO inventes otro), describe el paisaje y los momentos importantes. Si hay narrativas individuales arriba, intégralas. {"INTEGRA EXPLÍCITAMENTE el desenlace de los heridos en la narración: cuándo cayó cada uno, cómo lo cargaron sus compañeros y cómo llegan al destino malheridos." if request.heridos else ""} NO menciones puntos de experiencia ni mecánicas de juego."""
         
         user_message = UserMessage(text=prompt)
         response = await chat.send_message(user_message)

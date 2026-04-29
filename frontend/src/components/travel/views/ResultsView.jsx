@@ -26,7 +26,7 @@ const ResultsView = ({
   pxApplied, pxResults, applyingPX, characterXP,
   journeyChronicle, journeyNarrative, generatingNarrative, includeChronicleInPDF,
   currentPosition, nextEventPosition, locations,
-  mapContainerRef,
+  mapContainerRef, characters = [],
   setMode, setIncludeChronicleInPDF, setJourneyChronicle,
   applyPXToCharacters, generateJourneyNarrative, printJourneyDocument, resetJourney,
 }) => {
@@ -515,6 +515,64 @@ const ResultsView = ({
           </ScrollArea>
         </CardContent>
       </Card>
+
+      {/* Heridos al llegar — mini-recap visual antes de la crónica */}
+      {(() => {
+        const todos = [
+          ...(config?.miembros || []),
+          ...((config?.acompanantes || []).map(a => ({ ...a, _esAcompanante: true }))),
+        ];
+        const heridos = [];
+        for (const m of todos) {
+          const ch = characters.find(c => c.id === m.id);
+          if (!ch) continue;
+          const pg = Number(ch.puntos_golpe_actual ?? ch.puntos_golpe_max ?? 0);
+          const pgMax = Number(ch.puntos_golpe_max ?? 0);
+          if (pgMax > 0 && pg <= 0) {
+            const eventoCaida = events.find(e => e.evento?.id === 'event_terrible' && !e.exito);
+            heridos.push({
+              nombre: ch.nombre || m.nombre,
+              dia: eventoCaida?.casilla,
+              evento: eventoCaida?.evento?.nombre,
+              pgMax,
+            });
+          }
+        }
+        if (heridos.length === 0) return null;
+        return (
+          <Card className="card-parchment border-2 border-red-500/50 bg-red-950/20" data-testid="heridos-recap-card">
+            <CardHeader>
+              <CardTitle className="text-lg text-red-300 flex items-center gap-2">
+                <span className="text-2xl">💀</span>
+                Heridos al llegar a {config.destinoNombre}
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-red-200/80 mb-3 italic">
+                {heridos.length === 1
+                  ? `Un viajero llega inconsciente. Necesita curación urgente.`
+                  : `${heridos.length} viajeros llegan inconscientes. La compañía necesita reposo y cuidados.`}
+              </p>
+              <ul className="space-y-2">
+                {heridos.map((h, i) => (
+                  <li key={i} className="flex items-start gap-2 text-sm" data-testid={`herido-${i}`}>
+                    <span className="text-red-400 mt-0.5">•</span>
+                    <div className="flex-1">
+                      <span className="font-bold text-red-200">{h.nombre}</span>
+                      <span className="text-red-300/70"> · 0 / {h.pgMax} PG</span>
+                      {h.dia && (
+                        <span className="text-red-300/60 text-xs ml-2 italic">
+                          (Cayó el día {h.dia}{h.evento ? ` por "${h.evento}"` : ''})
+                        </span>
+                      )}
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </CardContent>
+          </Card>
+        );
+      })()}
 
       {/* Journey Narrative Section */}
       <Card className="card-parchment border-2 border-[hsl(var(--gold))]/30">

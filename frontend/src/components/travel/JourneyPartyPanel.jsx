@@ -179,6 +179,46 @@ const JourneyPartyPanel = ({
                     <AlertTriangle className="w-3 h-3" /> Carga
                   </span>
                 )}
+
+                {/* Montura sobrecargada — calcula sólo lo que va en la
+                    montura (items con portado_por='montura') y compara con
+                    capacidad_carga del campo character.montura. */}
+                {(() => {
+                  if (!ch?.montura?.nombre) return null;
+                  const cap = Number(ch.montura.capacidad_carga || ch.montura.carga_kg || 0);
+                  if (cap <= 0) return null;
+                  let pesoMontura = 0;
+                  (ch.inventario || []).forEach(it => {
+                    if (!it || it.portado_por !== 'montura') return;
+                    const cantidad = Number(it.cantidad || 1);
+                    const peso = Number(it.peso_kg || it.peso || 0);
+                    pesoMontura += peso * cantidad;
+                  });
+                  // También suma equipo cargado dentro de character.montura.equipo
+                  (ch.montura.equipo || []).forEach(it => {
+                    pesoMontura += Number(it?.peso_kg || it?.peso || 0) * Number(it?.cantidad || 1);
+                  });
+                  const ratio = pesoMontura / cap;
+                  const sobrecargada = ratio > 1;
+                  const cargada = !sobrecargada && ratio > 0.8;
+                  if (pesoMontura === 0) return null;
+                  return (
+                    <span
+                      className={`text-[10px] flex items-center gap-1 px-1 rounded ${
+                        sobrecargada
+                          ? 'text-red-300 bg-red-500/10 border border-red-500/40 animate-pulse'
+                          : cargada
+                            ? 'text-amber-300 bg-amber-500/10 border border-amber-500/30'
+                            : 'text-emerald-300'
+                      }`}
+                      title={`${ch.montura.nombre}: ${pesoMontura.toFixed(1)} / ${cap} kg`}
+                      data-testid={`party-mount-load-${m.id}`}
+                    >
+                      🐎 {pesoMontura.toFixed(0)}/{cap} kg
+                      {sobrecargada && <AlertTriangle className="w-3 h-3" />}
+                    </span>
+                  );
+                })()}
               </div>
             );
           })}

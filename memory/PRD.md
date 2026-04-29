@@ -2,6 +2,38 @@
 
 ## Current State (2026-04-29)
 
+### ✅ Iteración 79 — Fix tienda + forecast + poni sobrecargado + heridos
+**Bugs:**
+- **Forecast vs panel desfasado**: `JourneyForecastCard.sumProvisions` no
+  parseaba "Pack de N raciones" → contaba 2 packs como 2 raciones en
+  vez de 20. Fix: usar `summarizeProvisions` de `inventoryProvisions.js`
+  (la misma helper que usa el panel y la tienda) → todos los contadores
+  ahora coinciden.
+- **Tienda de provisiones bloqueada**: tras pulsar "Comprar todo el grupo"
+  los botones se quedaban marcados "Comprado" aunque el usuario subiera
+  manualmente packs/odres. Fix:
+  - Tras cada compra exitosa se limpia el override del personaje para
+    recalcular sugerencias con el inventario actualizado.
+  - El botón pasa a "Comprar más" si packs/odres > 0, "Comprado" sólo
+    si no queda nada por comprar.
+  - "Comprar todo el grupo" se rehabilita mientras alguien tenga packs
+    u odres pendientes (no depende ya del flag `resultados`).
+  - `comprarTodos` itera por filas con `necesitaAlgo` real.
+
+**Mejoras:**
+- **Aviso de poni sobrecargado** en `JourneyPartyPanel`: nueva chip
+  "🐎 X/Y kg" por viajero con montura. Color verde ≤ 80%, ámbar >80%,
+  rojo + pulse cuando supera el tope (`capacidad_carga`). Suma items
+  con `portado_por='montura'` + `montura.equipo[]`.
+- **Heridos integrados en la narrativa final**: `JourneySummaryRequest`
+  acepta lista `heridos`. El system prompt instruye a la IA a narrar
+  explícitamente quién cayó, dónde y cómo lo cargaron sus compañeros.
+  El frontend detecta automáticamente personajes con PG ≤ 0 al final
+  del viaje y los envía con día y nombre del evento (Terrible Desgracia).
+- **Mini-recap visual en `ResultsView`**: tarjeta destacada en rojo
+  "💀 Heridos al llegar a {destino}" antes de la crónica, con lista
+  de inconscientes y el evento que los tumbó.
+
 ### ✅ Iteración 78 — Bugfix Poni de Bree + visibilidad montura
 - **Bug crítico**: el endpoint `finalize` NO copiaba `montura` desde el draft
   al personaje creado, así que la virtud "Poni de Bree" se perdía. Fix:

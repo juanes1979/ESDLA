@@ -18,6 +18,7 @@ import {
   TrendingUp, AlertTriangle, Drumstick, Droplet, Activity, CloudLightning,
   Calendar, Footprints,
 } from 'lucide-react';
+import { summarizeProvisions } from './inventoryProvisions';
 
 // Probabilidad de FALLAR la salvación CD 10 con un mod CON medio (+1) y bonus 0.
 // d20 + 1 < 10 → d20 ≤ 8 → 8/20 = 40 %. Asumimos +0.4 fatiga/día por miembro
@@ -31,22 +32,12 @@ const isExtremeWeather = (label) => {
     || l.includes('nieve fuerte') || l.includes('helada') || l.includes('extremo');
 };
 
+// Usa la misma lógica que el panel del grupo y la tienda. Esto resuelve el
+// desfase: aquí también se cuentan "Pack de N raciones" como N por unidad y
+// se respeta `litros_actuales` de cada odre.
 const sumProvisions = (inv) => {
-  let raciones = 0, litros = 0;
-  (inv || []).forEach(it => {
-    const cant = Number(it?.cantidad || 1);
-    const tipo = (it?.tipo || it?.categoria || '').toLowerCase();
-    const nombre = (it?.nombre || '').toLowerCase();
-    if (tipo.includes('racion') || tipo.includes('comida') || nombre.includes('ración') || nombre.includes('racion')) {
-      raciones += cant;
-    }
-    if (tipo.includes('odre') || tipo.includes('agua') || nombre.includes('odre') || nombre.includes('agua')) {
-      // Asumir 10 L por odre estándar.
-      const litrosPorUnidad = Number(it?.litros || it?.capacidad || 10);
-      litros += cant * litrosPorUnidad;
-    }
-  });
-  return { raciones, litros };
+  const s = summarizeProvisions(inv || []);
+  return { raciones: s.raciones, litros: s.totalLitros };
 };
 
 const JourneyForecastCard = ({ config, journeyCalc, journeyWeather = [], characters = [] }) => {

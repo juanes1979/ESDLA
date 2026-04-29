@@ -332,6 +332,14 @@ export default function ProvisionsShopDialog({
       setResultados((prev) => ({ ...prev, [row.id]: 'ok' }));
       toast.success(`${row.nombre} compró por ${row.precioFmt}.`);
       if (onPurchaseComplete) onPurchaseComplete(row.id);
+      // Limpia el override para que la próxima sugerencia (raciones/odres
+      // que aún falten) se calcule con el inventario actualizado y el
+      // usuario pueda seguir comprando si lo desea.
+      setOverrides((prev) => {
+        const next = { ...prev };
+        delete next[row.id];
+        return next;
+      });
     } catch (err) {
       console.error(err);
       setResultados((prev) => ({ ...prev, [row.id]: 'error' }));
@@ -344,7 +352,9 @@ export default function ProvisionsShopDialog({
   const comprarTodos = async () => {
     setProcessing(true);
     for (const row of rows) {
-      if (row.puedeComprar && resultados[row.id] !== 'ok') {
+      // Compra para todos los que pueden permitírselo Y todavía necesitan algo.
+      const necesitaAlgo = row.packsACompra > 0 || row.odresACompra > 0 || row.precioAnimalME > 0;
+      if (row.puedeComprar && necesitaAlgo) {
         // eslint-disable-next-line no-await-in-loop
         await comprarPara(row);
       }
@@ -625,26 +635,30 @@ export default function ProvisionsShopDialog({
                       </div>
                       <div className="text-right">
                         <p className="text-xs font-mono text-[hsl(var(--gold))]">{row.precioFmt}</p>
-                        {estado === 'ok' ? (
-                          <Badge className="bg-green-600">
-                            <CheckCircle2 className="w-3 h-3 mr-1" />Comprado
-                          </Badge>
-                        ) : !row.puedeComprar ? (
-                          <Badge variant="outline" className="text-red-400">
-                            <XCircle className="w-3 h-3 mr-1" />Sin fondos
-                          </Badge>
-                        ) : (
-                          <Button
-                            size="sm"
-                            onClick={() => comprarPara(row)}
-                            disabled={processing}
-                            data-testid={`provisions-buy-${row.id}`}
-                          >
-                            {row.yaTieneTodo && row.precioAnimalME === 0
-                              ? 'No necesita'
-                              : 'Comprar'}
-                          </Button>
-                        )}
+                        {/* Estado: muestra badge de comprado anterior + botón
+                            para seguir comprando si el usuario sube los packs/odres. */}
+                        <div className="flex flex-col items-end gap-1">
+                          {estado === 'ok' && (row.packsACompra === 0 && row.odresACompra === 0 && row.precioAnimalME === 0) ? (
+                            <Badge className="bg-green-600">
+                              <CheckCircle2 className="w-3 h-3 mr-1" />Comprado
+                            </Badge>
+                          ) : !row.puedeComprar ? (
+                            <Badge variant="outline" className="text-red-400">
+                              <XCircle className="w-3 h-3 mr-1" />Sin fondos
+                            </Badge>
+                          ) : (
+                            <Button
+                              size="sm"
+                              onClick={() => comprarPara(row)}
+                              disabled={processing || (row.packsACompra === 0 && row.odresACompra === 0 && row.precioAnimalME === 0)}
+                              data-testid={`provisions-buy-${row.id}`}
+                            >
+                              {row.packsACompra === 0 && row.odresACompra === 0 && row.precioAnimalME === 0
+                                ? (estado === 'ok' ? 'Comprado' : 'No necesita')
+                                : (estado === 'ok' ? 'Comprar más' : 'Comprar')}
+                            </Button>
+                          )}
+                        </div>
                       </div>
                     </div>
 
@@ -708,7 +722,11 @@ export default function ProvisionsShopDialog({
           <Button
             onClick={comprarTodos}
             disabled={
-              processing || rows.every((r) => !r.puedeComprar || resultados[r.id] === 'ok')
+              processing ||
+              rows.every((r) =>
+                !r.puedeComprar ||
+                (r.packsACompra === 0 && r.odresACompra === 0 && r.precioAnimalME === 0)
+              )
             }
             className="bg-[hsl(var(--gold))] text-black hover:brightness-110"
             data-testid="provisions-buy-all-btn"

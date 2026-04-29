@@ -2538,7 +2538,34 @@ const EnhancedTravelSystem = () => {
           papel: m.papeles?.[0] || 'viajero'
         })),
         px_total: journeyCalc?.estimaciones?.px_total || 0,
-        terrenos: journeyCalc?.ruta?.terrain_summary
+        terrenos: journeyCalc?.ruta?.terrain_summary,
+        // Heridos graves: personajes que cayeron a 0 PG durante el viaje.
+        // Detectados a partir del estado actual de characters (los eventos
+        // tipo Terrible Desgracia ya aplicaron el daño vía PATCH /hp).
+        heridos: (() => {
+          const lista = [];
+          const todos = [
+            ...(config.miembros || []),
+            ...((config.acompanantes || []).map(a => ({ ...a, _esAcompanante: true }))),
+          ];
+          for (const m of todos) {
+            const ch = characters.find(c => c.id === m.id);
+            if (!ch) continue;
+            const pg = Number(ch.puntos_golpe_actual ?? ch.puntos_golpe_max ?? 0);
+            const pgMax = Number(ch.puntos_golpe_max ?? 0);
+            if (pgMax > 0 && pg <= 0) {
+              // Busca el evento "Terrible Desgracia" en el que cayó (si lo hay)
+              const eventoCaida = events.find(e => e.evento?.id === 'event_terrible' && !e.exito);
+              lista.push({
+                nombre: ch.nombre || m.nombre,
+                dia: eventoCaida?.casilla || null,
+                evento: eventoCaida?.evento?.nombre || 'un acontecimiento del viaje',
+                pg_max: pgMax,
+              });
+            }
+          }
+          return lista;
+        })(),
       });
       
       if (res.data.success) {
@@ -2975,6 +3002,7 @@ const EnhancedTravelSystem = () => {
           nextEventPosition={nextEventPosition}
           locations={locations}
           mapContainerRef={mapContainerRef}
+          characters={characters}
           setMode={setMode}
           setIncludeChronicleInPDF={setIncludeChronicleInPDF}
           setJourneyChronicle={setJourneyChronicle}
