@@ -118,22 +118,53 @@ class TravelPartyMember(BaseModel):
     # Si el jinete (con montura) deja la carga sobre el animal, se cancela el
     # estorbo del personaje a efectos de velocidad.
     montura_carga_equipo: bool = False
+    # Carga real (kg) que va sobre la montura y su capacidad (kg). Si la
+    # carga supera la capacidad, se aplica -33% a la velocidad de la
+    # montura (regla LOTR 5e: animal sobrecargado).
+    montura_capacidad_kg: float = 0
+    montura_carga_actual_kg: float = 0
     
-    def velocidad_efectiva(self, mount_allowed: bool = True) -> float:
+    def velocidad_efectiva(self, mount_allowed: bool = True) -> Dict[str, float]:
         """
         Get effective travel speed for this member in METERS, applying:
-          • Mount bonus (+40%) if terrain allows riding.
-          • Encumbrance penalty in meters (estorbo_metros, e.g. -3).
-        Si la montura transporta el equipo, el jinete no sufre estorbo.
+          • Cuando va montado y el terreno lo permite, la velocidad es
+            DIRECTAMENTE la de la montura (no el +40% antiguo). Si la
+            montura va sobrecargada (carga > capacidad), se le resta un
+            33% (regla LOTR 5e: animal cargado).
+          • Si la montura transporta el equipo, el jinete no sufre
+            estorbo (su penalización por carga se anula).
+          • Si va a pie o el terreno no permite montar, su velocidad =
+            velocidad_base + estorbo_metros.
+        Devuelve {"velocidad": float, "montura_sobrecargada": bool,
+                  "carga_pct": float}.
         """
-        # Si lleva montura y la montura carga el equipo, el estorbo se ignora.
         carries_gear = bool(getattr(self, 'montura_carga_equipo', False))
         estorbo_efectivo = 0 if (self.tiene_montura and carries_gear) else self.estorbo_metros
-        base = self.velocidad_base + estorbo_efectivo
-        base = max(1.0, base)  # nunca menos de 1 m
+        base_a_pie = max(1.0, self.velocidad_base + estorbo_efectivo)
+
         if self.tiene_montura and mount_allowed:
-            return base * 1.40
-        return base
+            # Velocidad de la montura. Si no está definida, fallback al
+            # +40% sobre la velocidad del personaje (compat. retro).
+            vel_montura = self.montura_velocidad if self.montura_velocidad > 0 else (self.velocidad_base * 1.40)
+            # Penalización por sobrecarga del animal: -33% si carga > cap.
+            cap = self.montura_capacidad_kg or 0
+            carga = self.montura_carga_actual_kg or 0
+            sobrecargada = (cap > 0 and carga > cap)
+            carga_pct = (carga / cap) if cap > 0 else 0
+            if sobrecargada:
+                vel_montura = vel_montura * 0.67  # -33%
+            return {
+                "velocidad": round(vel_montura, 2),
+                "montura_sobrecargada": sobrecargada,
+                "carga_pct": round(carga_pct, 2),
+                "monta": True,
+            }
+        return {
+            "velocidad": base_a_pie,
+            "montura_sobrecargada": False,
+            "carga_pct": 0,
+            "monta": False,
+        }
 
 class JourneyConfig(BaseModel):
     """Configuration for a journey"""
@@ -1294,19 +1325,23 @@ async def calculate_journey(config: JourneyConfig):
     if config.miembros:
         velocidades = []
         for m in config.miembros:
-            vel_efectiva = m.velocidad_efectiva(mount_allowed=mount_allowed)
+            vel_info = m.velocidad_efectiva(mount_allowed=mount_allowed)
+            vel_efectiva = vel_info["velocidad"]
             km_dia_miembro = vel_efectiva * KM_PER_METER_SPEED
-            # Velocidad sin estorbo (para detectar miembros que podrían ir
-            # más rápido y, por tanto, reciben +5 a salvaciones contra fatiga
-            # cuando el grupo va lento por culpa de otro).
-            vel_sin_estorbo = m.velocidad_base
+            # Velocidad sin estorbo: si va montado, la velocidad teórica
+            # de la montura sin sobrecarga; si va a pie, su velocidad base.
             if m.tiene_montura and mount_allowed:
-                vel_sin_estorbo = m.velocidad_base * 1.40
+                vel_sin_estorbo = m.montura_velocidad if m.montura_velocidad > 0 else (m.velocidad_base * 1.40)
+            else:
+                vel_sin_estorbo = m.velocidad_base
             velocidades.append({
                 "nombre": m.nombre,
                 "velocidad_base": m.velocidad_base,
                 "tiene_montura": m.tiene_montura,
                 "montura_velocidad": m.montura_velocidad,
+                "montura_sobrecargada": vel_info.get("montura_sobrecargada", False),
+                "montura_carga_pct": vel_info.get("carga_pct", 0),
+                "monta": vel_info.get("monta", False),
                 "estorbo_metros": m.estorbo_metros,
                 "velocidad_efectiva": vel_efectiva,
                 "velocidad_sin_estorbo": vel_sin_estorbo,

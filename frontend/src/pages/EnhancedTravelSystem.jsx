@@ -345,13 +345,25 @@ const EnhancedTravelSystem = () => {
           const char = characters.find(c => c.id === m.id);
           const estorbo = Number(char?.estorbo_metros ?? 0);
           const monturaCarga = !!char?.montura?.transporta_equipo;
+          // Carga real sobre la montura: items con portado_por='montura'
+          // + montura.equipo[]. La capacidad sale de character.montura.
+          let monturaCargaKg = 0;
+          (char?.inventario || []).forEach(it => {
+            if (it?.portado_por === 'montura') {
+              monturaCargaKg += Number(it.peso_kg || it.peso || 0) * Number(it.cantidad || 1);
+            }
+          });
+          (char?.montura?.equipo || []).forEach(it => {
+            monturaCargaKg += Number(it?.peso_kg || it?.peso || 0) * Number(it?.cantidad || 1);
+          });
+          const monturaCapKg = Number(char?.montura?.capacidad_carga || char?.montura?.carga_kg || 0);
           return {
             personaje_id: m.id,
             nombre: m.nombre,
             papel: m.papel,
             tiene_montura: m.tieneMontura,
             montura_nombre: m.monturaNombre,
-            montura_velocidad: m.tieneMontura && m.monturaPropia ? (m.monturaPropia.velocidad || 60) : 0,
+            montura_velocidad: m.tieneMontura && m.monturaPropia ? (m.monturaPropia.velocidad || 12) : 0,
             montura_con_bonus: m.monturaConBonus || 0,
             velocidad_base: m.velocidadBase || 9,
             modificador_sabiduria: m.modSabiduria || 0,
@@ -359,6 +371,8 @@ const EnhancedTravelSystem = () => {
             nivel: m.nivel || 1,
             estorbo_metros: estorbo,
             montura_carga_equipo: monturaCarga,
+            montura_capacidad_kg: monturaCapKg,
+            montura_carga_actual_kg: monturaCargaKg,
           };
         })
       };

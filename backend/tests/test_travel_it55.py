@@ -261,22 +261,34 @@ class TestVelocidadEfectiva:
 
     def test_no_mount_returns_base(self):
         m = self._make_member(tiene_montura=False, velocidad_base=9)
-        assert m.velocidad_efectiva(mount_allowed=True) == 9
-        assert m.velocidad_efectiva(mount_allowed=False) == 9
+        assert m.velocidad_efectiva(mount_allowed=True)["velocidad"] == 9
+        assert m.velocidad_efectiva(mount_allowed=False)["velocidad"] == 9
 
-    def test_mount_allowed_is_base_times_1_40(self):
+    def test_mount_speed_is_used_directly(self):
+        # Iter 80: la velocidad montada es la de la montura, no base*1.4
         m = self._make_member(tiene_montura=True, velocidad_base=9, montura_velocidad=18)
         got = m.velocidad_efectiva(mount_allowed=True)
-        assert abs(got - 12.6) < 1e-6, f"Expected 9*1.40=12.6, got {got}"
+        assert abs(got["velocidad"] - 18) < 1e-6
+
+    def test_mount_overload_applies_33pct_penalty(self):
+        m = self._make_member(
+            tiene_montura=True, velocidad_base=9, montura_velocidad=12,
+            montura_capacidad_kg=101, montura_carga_actual_kg=120,
+        )
+        got = m.velocidad_efectiva(mount_allowed=True)
+        # 12 * 0.67 = 8.04
+        assert abs(got["velocidad"] - 8.04) < 0.01
+        assert got["montura_sobrecargada"] is True
 
     def test_mount_not_allowed_falls_back_to_base(self):
         m = self._make_member(tiene_montura=True, velocidad_base=9, montura_velocidad=18)
-        assert m.velocidad_efectiva(mount_allowed=False) == 9
+        assert m.velocidad_efectiva(mount_allowed=False)["velocidad"] == 9
 
-    def test_dunedain_10m_with_mount(self):
-        m = self._make_member(tiene_montura=True, velocidad_base=10, montura_velocidad=18)
+    def test_mount_zero_speed_falls_back_to_base_times_1_40(self):
+        # Backwards compat: si no hay montura_velocidad → +40%.
+        m = self._make_member(tiene_montura=True, velocidad_base=10, montura_velocidad=0)
         got = m.velocidad_efectiva(mount_allowed=True)
-        assert abs(got - 14.0) < 1e-6, f"Expected 10*1.40=14.0, got {got}"
+        assert abs(got["velocidad"] - 14.0) < 1e-6
 
 
 # =========================================================================

@@ -201,7 +201,7 @@ const JourneyPartyPanel = ({
                   const ratio = pesoMontura / cap;
                   const sobrecargada = ratio > 1;
                   const cargada = !sobrecargada && ratio > 0.8;
-                  if (pesoMontura === 0) return null;
+                  const vacia = pesoMontura === 0;
                   return (
                     <span
                       className={`text-[10px] flex items-center gap-1 px-1 rounded ${
@@ -209,13 +209,18 @@ const JourneyPartyPanel = ({
                           ? 'text-red-300 bg-red-500/10 border border-red-500/40 animate-pulse'
                           : cargada
                             ? 'text-amber-300 bg-amber-500/10 border border-amber-500/30'
-                            : 'text-emerald-300'
+                            : vacia
+                              ? 'text-blue-300 bg-blue-500/10 border border-blue-500/30 cursor-help'
+                              : 'text-emerald-300'
                       }`}
-                      title={`${ch.montura.nombre}: ${pesoMontura.toFixed(1)} / ${cap} kg`}
+                      title={vacia
+                        ? `${ch.montura.nombre} vacío (0 / ${cap} kg). Sugerencia: carga el equipo del personaje en la montura desde la ficha (Gestionar equipo → "En montura") para librarlo del estorbo. La montura sólo pierde velocidad si supera ${cap} kg.`
+                        : `${ch.montura.nombre}: ${pesoMontura.toFixed(1)} / ${cap} kg${sobrecargada ? ' — SOBRECARGADA: -33% velocidad' : ''}`}
                       data-testid={`party-mount-load-${m.id}`}
                     >
                       🐎 {pesoMontura.toFixed(0)}/{cap} kg
                       {sobrecargada && <AlertTriangle className="w-3 h-3" />}
+                      {vacia && <span className="text-[9px] italic ml-1">(sin carga)</span>}
                     </span>
                   );
                 })()}

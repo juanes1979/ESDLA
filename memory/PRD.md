@@ -2,6 +2,32 @@
 
 ## Current State (2026-04-29)
 
+### ✅ Iteración 80 — Velocidad de montura realista (LOTR 5e house rule)
+- **Cambio de regla**: la velocidad efectiva al ir montado ahora es la
+  **velocidad de la montura** directamente, no el antiguo
+  `velocidad_personaje × 1.4`. Si no hay `montura_velocidad` definida,
+  fallback al cálculo antiguo (compat. retroactiva).
+- **Penalización del 33% por sobrecarga**: si la carga sobre el animal
+  supera su `capacidad_carga`, se le resta el 33% a la velocidad de la
+  montura (12 m → 8.04 m para el Poni de Bree con 120/101 kg).
+- **TravelPartyMember** nuevo:
+  - `montura_capacidad_kg` (default 0)
+  - `montura_carga_actual_kg` (default 0)
+  - `velocidad_efectiva()` ahora devuelve `Dict` con `velocidad`,
+    `montura_sobrecargada`, `carga_pct`, `monta`. El bucle de
+    `calculate_journey` adaptado.
+- **Frontend (`calculateJourney`)**: calcula la carga real sobre la
+  montura del personaje (items con `portado_por='montura'` +
+  `montura.equipo[]`) y la envía al backend junto con la capacidad.
+- **Default de `montura_velocidad`** corregido: 60 (feet legacy) → 12
+  (metros, valor canónico del Poni de Bree).
+- **Hint UX**: cuando un personaje tiene poni y aún no le carga nada,
+  el chip "🐎 0/101 kg (sin carga)" aparece en azul con tooltip que
+  recuerda al jugador entrar en "Gestionar equipo → En montura".
+- **Tests actualizados**: 5/5 tests de `TestVelocidadEfectiva` pasando,
+  incluido el nuevo `test_mount_overload_applies_33pct_penalty` y el
+  `test_mount_zero_speed_falls_back_to_base_times_1_40` (compat.).
+
 ### ✅ Iteración 79 — Fix tienda + forecast + poni sobrecargado + heridos
 **Bugs:**
 - **Forecast vs panel desfasado**: `JourneyForecastCard.sumProvisions` no
