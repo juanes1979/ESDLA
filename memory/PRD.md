@@ -2,6 +2,48 @@
 
 ## Current State (2026-04-29)
 
+### ✅ Iteración 76 — Sistema de Descansos 5e + Mecánicas de eventos + Zoom mapa
+**Bugs/Features cerrados en esta sesión:**
+
+- **Descanso Corto (D&D 5e)** (`POST /api/characters/{id}/rest/short`):
+  - Body `{dice_to_spend: int}` → tira N×1d{HD}+CON, suma curación,
+    actualiza `puntos_golpe_actual` (cap a `puntos_golpe_max`),
+    incrementa `dados_golpe_gastados`. Limita al máximo disponible
+    (`nivel - gastados`). Mínimo 1 PG por dado (regla 5e variante).
+  - Validado con 16/16 tests (`/app/backend/tests/test_rest_endpoints_it65.py`).
+- **Descanso Largo (D&D 5e + house rule LOTR)** (`POST /api/characters/{id}/rest/long`):
+  - PG al máximo, recupera `floor(level/2)` dados de golpe (mín 1), reduce
+    fatiga -1 (mín 0). Devuelve `dados_recuperados` y `curacion_total`.
+- **Frontend**:
+  - `RestDialogBody` (en `DayByDayView.jsx`): selector de Dados de Golpe a
+    gastar por personaje en descanso corto, muestra PG/DG actual,
+    visualiza tiradas y curación al confirmar. UI integrado en el rest
+    dialog existente.
+  - `performRest` (en `EnhancedTravelSystem.jsx`): llama a los endpoints
+    backend, sincroniza estado local de PG/DG/fatiga, conserva la TS de
+    CON para reducir fatiga (si falla, no aplica -1).
+- **Mecánicas de los 7 eventos de viaje** (en `resolveCurrentEvent`):
+  - Terrible Desgracia (FALLO) → TS de DES auto-rolada; éxito = pierde
+    mitad PG max, fallo = 0 PG. Aplica vía `PATCH /characters/{id}/hp`.
+  - Desesperanza (FALLO) → 1d3 puntos de Sombra a TODA la compañía
+    (`PATCH /shadow`). Toast + bitácora.
+  - Decisiones erróneas (FALLO) → 1 punto de Sombra al objetivo.
+  - Atajo (ÉXITO) → toast/bitácora "-1 día".
+  - Percance (FALLO) → mensaje "+1 día y +2 CD" (la `fatiga_cd_increase`
+    ya se suma en otra parte del flujo).
+  - Vista agradable (ÉXITO) → toast "Inspiración para la compañía".
+  - `dailySummaries` ahora incluye campo `mecanicas[]` para mostrarlas.
+- **Mapa final del viaje** (`JourneyMiniMap.jsx`):
+  - Padding reducido de 30%/15% a 15%/4%, margen de aspect ratio
+    relajado de 1.3×/0.7× a 1.5×/0.55×. Resultado: el viewBox SVG se
+    ajusta más al recorrido real en vez de mostrar Tierra Media completa.
+
+### ✅ Iteración 75 — Encumbrance hook + Bree Pony + AI Portrait fixes
+**Resumen anterior:** Ver historial implícito. Se extrajo `useEncumbrance`
+para evitar saltos de velocidad al cambiar de pestaña; AI Portrait crash
+HTTP 422 (`peso_kg` int→float) resuelto; Bree Pony virtud step mapping
+arreglado; AI Name Moderation relajada para nombres Tolkien-friendly.
+
 ### ✅ Iteración 65 — Cierre Oleada 3 (peso real + sincronización PDF)
 **Bugs cerrados de la sesión anterior:**
 
