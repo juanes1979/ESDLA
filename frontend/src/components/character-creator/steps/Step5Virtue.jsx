@@ -52,30 +52,26 @@ const Step5Virtue = ({ draftId, draft, onComplete, onBack }) => {
   const handleSubmit = async () => {
     if (!selectedVirtue) return;
 
+    // Definido FUERA del try para que el catch pueda referenciarlo en logs.
+    const virtueData = {
+      virtud_id: selectedVirtue.id,
+      virtud_nombre: selectedVirtue.nombre,
+      virtud_descripcion: selectedVirtue.descripcion,
+      virtud_rasgos: selectedVirtue.rasgos_virtud || selectedVirtue.competencias_texto,
+      virtud_caracteristicas_fijas: selectedVirtue.caracteristicas_fijas || {},
+      virtud_caracteristicas_elegir: selectedVirtue.caracteristicas_elegir || [],
+      virtud_salvaciones_elegir: selectedVirtue.salvaciones_elegir || [],
+      virtud_pg_extra: selectedVirtue.puntos_golpe_extra || 0,
+      virtud_comunidad_extra: selectedVirtue.puntos_comunidad_extra || 0,
+      virtud_ca_extra: selectedVirtue.clase_armadura_extra || 0,
+      virtud_habilidades_elegir: selectedVirtue.competencias_habilidades_elegir || [],
+      virtud_herramientas_elegir: selectedVirtue.competencias_herramientas_elegir || [],
+    };
+
     try {
       setSaving(true);
-      
-      // Save all virtue data to draft
-      const virtueData = {
-        virtud_id: selectedVirtue.id,
-        virtud_nombre: selectedVirtue.nombre,
-        virtud_descripcion: selectedVirtue.descripcion,
-        virtud_rasgos: selectedVirtue.rasgos_virtud || selectedVirtue.competencias_texto,
-        // Characteristic bonuses
-        virtud_caracteristicas_fijas: selectedVirtue.caracteristicas_fijas || {},
-        virtud_caracteristicas_elegir: selectedVirtue.caracteristicas_elegir || [],
-        // Saving throw proficiencies
-        virtud_salvaciones_elegir: selectedVirtue.salvaciones_elegir || [],
-        // Extra stats
-        virtud_pg_extra: selectedVirtue.puntos_golpe_extra || 0,
-        virtud_comunidad_extra: selectedVirtue.puntos_comunidad_extra || 0,
-        virtud_ca_extra: selectedVirtue.clase_armadura_extra || 0,
-        // Skill/tool proficiencies to choose
-        virtud_habilidades_elegir: selectedVirtue.competencias_habilidades_elegir || [],
-        virtud_herramientas_elegir: selectedVirtue.competencias_herramientas_elegir || [],
-      };
-
-      const response = await api.patch(`/draft/${draftId}/step5`, virtueData);
+      // URL correcta: /api/characters/draft/{id}/step5 (no /api/draft/...)
+      const response = await api.patch(`/characters/draft/${draftId}/step5`, virtueData);
       onComplete(response.data);
     } catch (err) {
       // Extraer detalle del backend para depurar (404 virtud / 404 draft / 422 validación)
