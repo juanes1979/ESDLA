@@ -575,80 +575,55 @@ const DayByDayView = ({
           </CardHeader>
           <CardContent className="space-y-4">
             {!restResults ? (
-              <>
-                <p className="text-sm text-muted-foreground">
-                  Elige el tipo de descanso para la compañía:
-                </p>
-
-                <div className="space-y-2">
-                  {Object.entries(REST_TYPES).map(([key, rest]) => (
-                    <div
-                      key={key}
-                      onClick={() => setSelectedRestType(key)}
-                      className={`p-3 rounded border cursor-pointer transition-colors ${
-                        selectedRestType === key
-                          ? 'border-[hsl(var(--gold))] bg-[hsl(var(--gold))/10]'
-                          : 'border-transparent bg-black/20 hover:bg-black/30'
-                      }`}
-                    >
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <h4 className="font-bold text-sm">{rest.nombre}</h4>
-                          <p className="text-xs text-muted-foreground">{rest.duracion}</p>
-                        </div>
-                        {key === 'sanctuary' && nearbyRefuges.length === 0 && (
-                          <Badge variant="outline" className="text-xs text-red-400">
-                            Requiere refugio
-                          </Badge>
-                        )}
-                      </div>
-                      <p className="text-xs text-muted-foreground mt-1">{rest.efecto}</p>
-                    </div>
-                  ))}
-                </div>
-
-                <div className="flex gap-2 mt-4">
-                  <Button
-                    variant="outline"
-                    onClick={() => setShowRestDialog(false)}
-                    className="flex-1"
-                  >
-                    Cancelar
-                  </Button>
-                  <Button
-                    onClick={() => performRest(selectedRestType)}
-                    disabled={selectedRestType === 'sanctuary' && nearbyRefuges.length === 0}
-                    className="flex-1"
-                    data-testid="confirm-rest-btn"
-                  >
-                    <Moon className="w-4 h-4 mr-2" />
-                    Descansar
-                  </Button>
-                </div>
-              </>
+              <RestDialogBody
+                config={config}
+                characters={characters}
+                selectedRestType={selectedRestType}
+                setSelectedRestType={setSelectedRestType}
+                nearbyRefuges={nearbyRefuges}
+                onCancel={() => setShowRestDialog(false)}
+                onConfirm={(diceMap) => performRest(selectedRestType, diceMap)}
+              />
             ) : (
               <>
                 <h4 className="font-bold text-sm">Resultados del descanso:</h4>
-                <div className="space-y-2">
-                  {restResults.map((result, idx) => (
-                    <div key={idx} className={`p-2 rounded ${result.exito ? 'bg-green-500/20' : 'bg-red-500/20'}`}>
-                      <div className="flex justify-between items-center">
-                        <span className="font-medium">{result.nombre}</span>
-                        <Badge variant={result.exito ? 'default' : 'destructive'}>
-                          {result.exito ? '✓ Éxito' : '✗ Fallo'}
-                        </Badge>
-                      </div>
-                      {result.tirada !== null && (
-                        <p className="text-xs text-muted-foreground mt-1">
-                          Tirada CON: {result.tirada} vs CD {result.cd}
+                <ScrollArea className="max-h-[60vh] pr-2">
+                  <div className="space-y-2">
+                    {restResults.map((result, idx) => (
+                      <div key={idx} className={`p-2 rounded ${result.exito ? 'bg-green-500/20' : 'bg-red-500/20'}`} data-testid={`rest-result-${idx}`}>
+                        <div className="flex justify-between items-center">
+                          <span className="font-medium">{result.nombre}</span>
+                          <Badge variant={result.exito ? 'default' : 'destructive'}>
+                            {result.exito ? '✓ Éxito' : '✗ Fallo'}
+                          </Badge>
+                        </div>
+                        {result.tirada !== null && (
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Tirada CON: {result.tirada} vs CD {result.cd}
+                          </p>
+                        )}
+                        {result.rolls && result.rolls.length > 0 && (
+                          <p className="text-[11px] text-emerald-300 mt-1">
+                            Dados gastados: {result.dadosGastados} → {result.rolls.map(r => `(${r.roll}+${r.con_mod}=${r.heal})`).join(' ')}
+                          </p>
+                        )}
+                        {result.dadosRecuperados > 0 && (
+                          <p className="text-[11px] text-blue-300 mt-1">
+                            Dados de Golpe recuperados: +{result.dadosRecuperados}
+                          </p>
+                        )}
+                        {(result.curacionTotal > 0) && (
+                          <p className="text-xs text-emerald-400 mt-1">
+                            Curación: +{result.curacionTotal} PG ({result.pgAntes} → {result.pgDespues}/{result.pgMax})
+                          </p>
+                        )}
+                        <p className="text-xs mt-1">
+                          Fatiga: {result.fatigaAntes} → {result.fatigaDespues}
                         </p>
-                      )}
-                      <p className="text-xs mt-1">
-                        Fatiga: {result.fatigaAntes} → {result.fatigaDespues}
-                      </p>
-                    </div>
-                  ))}
-                </div>
+                      </div>
+                    ))}
+                  </div>
+                </ScrollArea>
                 <Button
                   onClick={() => { setRestResults(null); setShowRestDialog(false); }}
                   className="w-full"
@@ -665,3 +640,131 @@ const DayByDayView = ({
 );
 
 export default DayByDayView;
+
+/**
+ * RestDialogBody — UI de selección de descanso (corto/largo/santuario).
+ * Para descanso corto permite elegir cuántos Dados de Golpe gasta cada
+ * personaje (1d{HD}+CON por dado). Devuelve el mapa al confirmar.
+ */
+function RestDialogBody({ config, characters, selectedRestType, setSelectedRestType, nearbyRefuges, onCancel, onConfirm }) {
+  const todosViajeros = [
+    ...(config?.miembros || []),
+    ...((config?.acompanantes || []).map(a => ({ ...a, papeles: a.papeles || [] }))),
+  ];
+  const [diceMap, setDiceMap] = React.useState({});
+
+  React.useEffect(() => {
+    setDiceMap({});
+  }, [selectedRestType]);
+
+  const setDiceFor = (id, val) => {
+    setDiceMap(prev => ({ ...prev, [id]: val }));
+  };
+
+  return (
+    <>
+      <p className="text-sm text-muted-foreground">
+        Elige el tipo de descanso para la compañía:
+      </p>
+
+      <div className="space-y-2">
+        {Object.entries(REST_TYPES).map(([key, rest]) => (
+          <div
+            key={key}
+            onClick={() => setSelectedRestType(key)}
+            className={`p-3 rounded border cursor-pointer transition-colors ${
+              selectedRestType === key
+                ? 'border-[hsl(var(--gold))] bg-[hsl(var(--gold))/10]'
+                : 'border-transparent bg-black/20 hover:bg-black/30'
+            }`}
+            data-testid={`rest-type-${key}`}
+          >
+            <div className="flex justify-between items-start">
+              <div>
+                <h4 className="font-bold text-sm">{rest.nombre}</h4>
+                <p className="text-xs text-muted-foreground">{rest.duracion}</p>
+              </div>
+              {key === 'sanctuary' && nearbyRefuges.length === 0 && (
+                <Badge variant="outline" className="text-xs text-red-400">
+                  Requiere refugio
+                </Badge>
+              )}
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">{rest.efecto}</p>
+          </div>
+        ))}
+      </div>
+
+      {/* Selector de Dados de Golpe para descanso corto */}
+      {selectedRestType === 'short' && (
+        <div className="space-y-2 p-3 rounded border border-emerald-500/30 bg-emerald-500/5">
+          <p className="text-xs font-bold text-emerald-300 flex items-center gap-2">
+            <Dice6 className="w-4 h-4" />
+            Dados de Golpe a gastar (cada uno: 1d{'{DG}'} + mod CON)
+          </p>
+          <div className="space-y-2">
+            {todosViajeros.map((m) => {
+              const c = characters.find(x => x.id === m.id);
+              if (!c) return null;
+              const nivel = Math.max(1, c.nivel || 1);
+              const gastados = c.dados_golpe_gastados || 0;
+              const disponibles = Math.max(0, nivel - gastados);
+              const pgActual = c.puntos_golpe_actual ?? c.puntos_golpe_max ?? 0;
+              const pgMax = c.puntos_golpe_max || 0;
+              const value = diceMap[m.id] || 0;
+              return (
+                <div key={m.id} className="flex items-center justify-between gap-2 text-xs" data-testid={`rest-hd-row-${m.id}`}>
+                  <div className="flex-1">
+                    <p className="font-medium">{m.nombre}</p>
+                    <p className="text-[10px] text-muted-foreground">
+                      PG {pgActual}/{pgMax} · DG {disponibles}/{nivel} ({c.dado_golpe || '1d8'})
+                    </p>
+                  </div>
+                  <Input
+                    type="number"
+                    min={0}
+                    max={disponibles}
+                    value={value}
+                    onChange={(e) => setDiceFor(m.id, Math.max(0, Math.min(disponibles, Number(e.target.value) || 0)))}
+                    className="w-20 h-8 text-center"
+                    data-testid={`rest-hd-input-${m.id}`}
+                    disabled={disponibles === 0}
+                  />
+                </div>
+              );
+            })}
+          </div>
+          <p className="text-[10px] text-muted-foreground italic">
+            Si dejas 0 dados, el personaje sólo gasta 1 hora sin curarse.
+          </p>
+        </div>
+      )}
+
+      {selectedRestType === 'long' && (
+        <p className="text-[11px] text-muted-foreground italic">
+          Restaura PG al máximo, recupera la mitad de los Dados de Golpe (mín. 1) y -1 fatiga si supera la TS de CON.
+        </p>
+      )}
+
+      <div className="flex gap-2 mt-4">
+        <Button
+          variant="outline"
+          onClick={onCancel}
+          className="flex-1"
+          data-testid="rest-cancel-btn"
+        >
+          Cancelar
+        </Button>
+        <Button
+          onClick={() => onConfirm(diceMap)}
+          disabled={selectedRestType === 'sanctuary' && nearbyRefuges.length === 0}
+          className="flex-1"
+          data-testid="confirm-rest-btn"
+        >
+          <Moon className="w-4 h-4 mr-2" />
+          Descansar
+        </Button>
+      </div>
+    </>
+  );
+}

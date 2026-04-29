@@ -1098,6 +1098,121 @@ async def add_experience(character_id: str, xp: int = Body(..., embed=True)):
     return {"experiencia": new_xp}
 
 
+# ============== REST SYSTEM (5e standard: Short / Long Rest) ==============
+
+def _hd_size(dado_golpe: str) -> int:
+    """Parse '1d8' → 8, '1d10' → 10, fallback 8."""
+    try:
+        if dado_golpe and 'd' in dado_golpe:
+            return int(dado_golpe.split('d')[1])
+    except Exception:
+        pass
+    return 8
+
+
+@router.post("/{character_id}/rest/short")
+async def short_rest(
+    character_id: str,
+    dice_to_spend: int = Body(..., embed=True),
+):
+    """
+    5e Short Rest (1 hour). Spend N hit dice; each rolls 1d{HD} + CON mod
+    and heals HP (capped at max). Returns rolls and new state.
+    """
+    character = await db.characters.find_one({"_id": character_id})
+    if not character:
+        raise HTTPException(status_code=404, detail="Character not found")
+
+    nivel = max(1, int(character.get('nivel', 1)))
+    gastados = int(character.get('dados_golpe_gastados', 0))
+    disponibles = max(0, nivel - gastados)
+    n = max(0, min(int(dice_to_spend), disponibles))
+
+    hd_size = _hd_size(character.get('dado_golpe', '1d8'))
+    con_score = int((character.get('atributos') or {}).get('constitucion', 10))
+    con_mod = (con_score - 10) // 2
+
+    rolls = []
+    total_curacion = 0
+    for _ in range(n):
+        roll = random.randint(1, hd_size)
+        # Mínimo 1 PG curado por dado, sumando CON mod (puede ser negativo)
+        ganancia = max(1, roll + con_mod)
+        total_curacion += ganancia
+        rolls.append({"d": hd_size, "roll": roll, "con_mod": con_mod, "heal": ganancia})
+
+    pg_max = int(character.get('puntos_golpe_max', 0) or 0)
+    pg_actual = int(character.get('puntos_golpe_actual', 0) or 0)
+    nuevo_pg = min(pg_max, pg_actual + total_curacion)
+    nuevos_gastados = gastados + n
+
+    await db.characters.update_one(
+        {"_id": character_id},
+        {"$set": {
+            "puntos_golpe_actual": nuevo_pg,
+            "dados_golpe_gastados": nuevos_gastados,
+            "updated_at": now_utc(),
+        }}
+    )
+
+    return {
+        "tipo": "descanso_corto",
+        "dados_gastados": n,
+        "dados_disponibles_restantes": max(0, nivel - nuevos_gastados),
+        "rolls": rolls,
+        "curacion_total": total_curacion,
+        "pg_anterior": pg_actual,
+        "pg_actual": nuevo_pg,
+        "pg_max": pg_max,
+        "con_mod": con_mod,
+    }
+
+
+@router.post("/{character_id}/rest/long")
+async def long_rest(character_id: str):
+    """
+    5e Long Rest (8 hours). Restores HP to full, recovers floor(level/2)
+    hit dice (min 1), and reduces fatigue by 1 (LOTR 5e house-rule kept).
+    """
+    character = await db.characters.find_one({"_id": character_id})
+    if not character:
+        raise HTTPException(status_code=404, detail="Character not found")
+
+    nivel = max(1, int(character.get('nivel', 1)))
+    gastados = int(character.get('dados_golpe_gastados', 0))
+    recuperar = max(1, nivel // 2)
+    nuevos_gastados = max(0, gastados - recuperar)
+    dados_recuperados = gastados - nuevos_gastados
+
+    pg_max = int(character.get('puntos_golpe_max', 0) or 0)
+    pg_anterior = int(character.get('puntos_golpe_actual', 0) or 0)
+
+    fatiga_anterior = float(character.get('fatiga', 0) or 0)
+    fatiga_nueva = max(0.0, fatiga_anterior - 1)
+
+    await db.characters.update_one(
+        {"_id": character_id},
+        {"$set": {
+            "puntos_golpe_actual": pg_max,
+            "dados_golpe_gastados": nuevos_gastados,
+            "fatiga": fatiga_nueva,
+            "updated_at": now_utc(),
+        }}
+    )
+
+    return {
+        "tipo": "descanso_largo",
+        "pg_anterior": pg_anterior,
+        "pg_actual": pg_max,
+        "pg_max": pg_max,
+        "dados_recuperados": dados_recuperados,
+        "dados_disponibles": nivel - nuevos_gastados,
+        "fatiga_anterior": fatiga_anterior,
+        "fatiga_nueva": fatiga_nueva,
+        "curacion_total": pg_max - pg_anterior,
+    }
+
+
 
 @router.patch("/{character_id}")
 async def update_character(character_id: str, data: dict = Body(...)):

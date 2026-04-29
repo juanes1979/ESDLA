@@ -1,0 +1,42 @@
+{
+  "summary": "Backend testing for Iteration 65 (Rest endpoints + travel event regression). Created /app/backend/tests/test_rest_endpoints_it65.py with 16 test cases covering POST /api/characters/{id}/rest/short, POST /api/characters/{id}/rest/long, regression on PATCH /hp, PATCH /shadow, and POST /api/travel/resolve-event. All 16 tests PASS against the public preview URL.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_rest_endpoints_it65.py",
+    "/app/test_reports/pytest/it65_rest.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "character_routes.py PATCH /{character_id} update endpoint does not include 'puntos_golpe_actual', 'dados_golpe_gastados', or 'fatiga' in allowed_fields. This is by design (dedicated endpoints exist) but worth documenting because tests had to use /hp PATCH and /fatigue PUT to set state. No bug.",
+    "rest/short min(1, roll+CON) is correct per 5e variant rule (each die heals at least 1).",
+    "rest/long uses LOTR house-rule: fatigue -1 (floor 0) on each long rest — confirmed working.",
+    "resolve-event uses query parameters, not JSON body — frontend must send query params (verified by tests)."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_rest_endpoints_it65.py (new)"
+  ],
+  "success_rate": {
+    "backend": "100% (16/16)",
+    "frontend": "not tested (per request)"
+  },
+  "test_credentials": "Used Admin Backup Token only for context; no auth required for these endpoints.",
+  "seed_data_creation": "None — used existing first character from GET /api/characters/. State reset between tests via long-rest (HP→max, fatigue→0) and PATCH /hp / PUT /fatigue helpers.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Tests are idempotent: each test calls _full_reset (3 long rests) before mutating state, so they can be re-run. Character used: first one returned by GET /api/characters/ (currently id=c16a362d-..., nivel=1, pg_max=20, dado_golpe=1d8, CON=12). The PATCH /{character_id} endpoint silently drops disallowed fields (no 400 error), so future tests must use dedicated endpoints (/hp, /fatigue, /shadow, /xp, /rest/*) to mutate stat state.",
+  "verified_endpoints": [
+    "POST /api/characters/{id}/rest/short — heal, clamp to dice available, clamp to max HP, dice_to_spend=0 no-op, negative clamps to 0, 404 unknown",
+    "POST /api/characters/{id}/rest/long — heals to max, recovers floor(level/2) min 1, fatigue -1 floor 0, 404 unknown",
+    "PATCH /api/characters/{id}/hp — negative damage works, floor 0 clamp",
+    "PATCH /api/characters/{id}/shadow — positive change accumulates",
+    "POST /api/travel/resolve-event — atajo (dias_reducidos=1), percance (dias_extra=1, fatigue_cd+2), desesperanza (puntos_sombra>=1), decisiones (puntos_sombra>=1), vista (inspiracion=true)"
+  ]
+}

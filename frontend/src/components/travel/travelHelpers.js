@@ -5,30 +5,39 @@
  */
 
 // =============== REST SYSTEM ===============
-// Types of rest and their effects on fatigue
+// Types of rest and their effects on fatigue / HP / Hit Dice (D&D 5e)
 export const REST_TYPES = {
   short: {
     nombre: 'Descanso Corto',
     duracion: '1 hora',
-    efecto: 'Recupera uso de habilidades (según clase)',
+    efecto: 'Gasta Dados de Golpe para curar PG (1d{DG}+CON por dado)',
     fatiga: 0, // No fatigue reduction
-    sinFatiga: false
+    sinFatiga: false,
+    afectaPG: true,
+    requiereSeleccionDG: true,
   },
   long: {
     nombre: 'Descanso Largo',
     duracion: '8 horas',
-    efecto: '-1 nivel de fatiga (con tirada CON exitosa)',
+    efecto: 'PG al máx · recupera mitad DG · -1 fatiga (CD CON)',
     fatiga: -1,
     sinFatiga: false,
     requiereTiradaCON: true,
-    cdBase: 10
+    cdBase: 10,
+    afectaPG: true,
+    restauraPGCompleto: true,
+    recuperaDG: true,
   },
   sanctuary: {
     nombre: 'Descanso en Santuario',
     duracion: '1+ días',
-    efecto: 'Elimina toda la fatiga sin tirada',
+    efecto: 'Elimina toda la fatiga sin tirada · PG al máx · todos los DG',
     fatiga: 'all',
-    sinFatiga: true
+    sinFatiga: true,
+    afectaPG: true,
+    restauraPGCompleto: true,
+    recuperaDG: true,
+    recuperaTodosDG: true,
   }
 };
 

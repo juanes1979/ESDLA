@@ -993,7 +993,7 @@ const EnhancedTravelSystem = () => {
   const [restResults, setRestResults] = useState(null);
   
   // Perform rest action
-  const performRest = useCallback(async (restType = 'long') => {
+  const performRest = useCallback(async (restType = 'long', shortRestDice = {}) => {
     const restConfig = REST_TYPES[restType];
     const results = [];
 
@@ -1013,23 +1013,68 @@ const EnhancedTravelSystem = () => {
         fatigaDespues: char.fatiga || 0,
         tirada: null,
         cd: null,
-        exito: true
+        exito: true,
+        pgAntes: char.puntos_golpe_actual ?? char.puntos_golpe_max ?? 0,
+        pgDespues: char.puntos_golpe_actual ?? char.puntos_golpe_max ?? 0,
+        pgMax: char.puntos_golpe_max ?? 0,
+        rolls: [],
+        dadosGastados: 0,
+        dadosRecuperados: 0,
       };
       
-      if (restType === 'sanctuary') {
-        // Sanctuary rest removes all fatigue without roll
+      if (restType === 'short') {
+        // Descanso corto: gastar dados de golpe seleccionados.
+        const dice = Math.max(0, Number(shortRestDice[miembro.id] || 0));
+        if (dice > 0) {
+          try {
+            const res = await api.post(`/characters/${miembro.id}/rest/short`, { dice_to_spend: dice });
+            const d = res.data || {};
+            result.pgAntes = d.pg_anterior;
+            result.pgDespues = d.pg_actual;
+            result.pgMax = d.pg_max;
+            result.rolls = d.rolls || [];
+            result.dadosGastados = d.dados_gastados || 0;
+            result.curacionTotal = d.curacion_total || 0;
+            result.exito = (d.curacion_total || 0) > 0;
+            setCharacters(prev => prev.map(c => c.id === miembro.id ? {
+              ...c,
+              puntos_golpe_actual: d.pg_actual,
+              dados_golpe_gastados: (d.dados_disponibles_restantes !== undefined && c.nivel)
+                ? Math.max(0, c.nivel - d.dados_disponibles_restantes)
+                : c.dados_golpe_gastados,
+            } : c));
+          } catch (err) {
+            console.error('Error en descanso corto:', err);
+          }
+        } else {
+          result.exito = true;
+          result.curacionTotal = 0;
+        }
+      } else if (restType === 'sanctuary') {
+        // Sanctuary rest removes all fatigue without roll, restores HP and all HD.
         result.fatigaDespues = 0;
         result.exito = true;
-        
-        // Update character fatigue in database
         try {
           await api.put(`/characters/${miembro.id}/fatigue`, { fatiga: 0 });
-          setCharacters(prev => prev.map(c => c.id === miembro.id ? { ...c, fatiga: 0 } : c));
+          // Long rest endpoint re-used to restore HP + recover dice; loop until done.
+          const lr = await api.post(`/characters/${miembro.id}/rest/long`);
+          result.pgAntes = lr.data.pg_anterior;
+          result.pgDespues = lr.data.pg_actual;
+          result.pgMax = lr.data.pg_max;
+          result.curacionTotal = lr.data.curacion_total;
+          result.dadosRecuperados = lr.data.dados_recuperados;
+          // Recover ALL hit dice (set spent = 0) for sanctuary
+          await api.patch(`/characters/${miembro.id}`, { dados_golpe_gastados: 0 });
+          setCharacters(prev => prev.map(c => c.id === miembro.id ? {
+            ...c, fatiga: 0,
+            puntos_golpe_actual: lr.data.pg_actual,
+            dados_golpe_gastados: 0,
+          } : c));
         } catch (err) {
-          console.error('Error updating fatigue:', err);
+          console.error('Error en santuario:', err);
         }
       } else if (restType === 'long' && restConfig.requiereTiradaCON) {
-        // Long rest requires CON check
+        // Long rest: CON save (-1 fatigue if pass) + restore HP + recover half HD.
         const modCON = char.atributos?.constitucion 
           ? Math.floor((char.atributos.constitucion - 10) / 2) 
           : 0;
@@ -1041,30 +1086,42 @@ const EnhancedTravelSystem = () => {
         result.cd = cd;
         result.exito = total >= cd;
 
-        // Registra la salvación en el panel del grupo y en la bitácora.
         const saveEntry = {
           d20, mod: modCON, total, cd, exito: result.exito,
           charName: char?.nombre || miembro.nombre,
           dia: activeJourney?.dia_actual || null,
         };
-        setLastFatigueSaves(prev => ({
-          ...prev,
-          [miembro.id]: saveEntry,
-        }));
+        setLastFatigueSaves(prev => ({ ...prev, [miembro.id]: saveEntry }));
         setFatigueSaveLog(prev => [...prev, { id: miembro.id, ...saveEntry }]);
         
-        if (result.exito) {
-          result.fatigaDespues = Math.max(0, (char.fatiga || 0) - 1);
-          try {
-            await api.put(`/characters/${miembro.id}/fatigue`, { fatiga: result.fatigaDespues });
-            setCharacters(prev => prev.map(c => c.id === miembro.id ? { ...c, fatiga: result.fatigaDespues } : c));
-            setFatigueChanges(prev => ({
-              ...prev,
-              [miembro.id]: { delta: -1, casilla: currentPosition },
-            }));
-          } catch (err) {
-            console.error('Error updating fatigue:', err);
+        // Apply HP restoration + HD recovery via backend
+        try {
+          const lr = await api.post(`/characters/${miembro.id}/rest/long`);
+          result.pgAntes = lr.data.pg_anterior;
+          result.pgDespues = lr.data.pg_actual;
+          result.pgMax = lr.data.pg_max;
+          result.curacionTotal = lr.data.curacion_total;
+          result.dadosRecuperados = lr.data.dados_recuperados;
+          // The long endpoint also reduces fatigue by 1; re-apply user logic here
+          let fatigaFinal = lr.data.fatiga_nueva;
+          if (!result.exito) {
+            // CON save fail: revert fatigue reduction (keep original)
+            fatigaFinal = char.fatiga || 0;
+            await api.put(`/characters/${miembro.id}/fatigue`, { fatiga: fatigaFinal });
           }
+          result.fatigaDespues = fatigaFinal;
+          setCharacters(prev => prev.map(c => c.id === miembro.id ? {
+            ...c,
+            puntos_golpe_actual: lr.data.pg_actual,
+            dados_golpe_gastados: Math.max(0, (c.dados_golpe_gastados || 0) - lr.data.dados_recuperados),
+            fatiga: fatigaFinal,
+          } : c));
+          setFatigueChanges(prev => ({
+            ...prev,
+            [miembro.id]: { delta: fatigaFinal - (char.fatiga || 0), casilla: currentPosition },
+          }));
+        } catch (err) {
+          console.error('Error en descanso largo:', err);
         }
       }
       
@@ -1489,7 +1546,85 @@ const EnhancedTravelSystem = () => {
       
       setEvents(updatedEvents);
 
-      // Bitácora: anota la entrada de evento del día
+      // ===== APLICAR CONSECUENCIAS MECÁNICAS DEL EVENTO (D&D 5e LOTR) =====
+      const eventoId = currentEvent.evento.id;
+      const mecanicas = []; // textos para la bitácora
+
+      try {
+        // Terrible Desgracia (FALLO): TS de DES; fallo→0 PG, éxito→pierde mitad de PG máx
+        if (eventoId === 'event_terrible' && !exito && targetMember) {
+          const charDb = characters.find(c => c.id === targetMember.id);
+          if (charDb) {
+            const desScore = charDb.atributos?.destreza ?? 10;
+            const desMod = Math.floor((desScore - 10) / 2);
+            const sd20 = Math.floor(Math.random() * 20) + 1;
+            const sTotal = sd20 + desMod;
+            const cdSalv = cd;
+            const exitoSalv = sTotal >= cdSalv;
+            const pgMax = charDb.puntos_golpe_max || 0;
+            const pgActual = charDb.puntos_golpe_actual ?? pgMax;
+            const danio = exitoSalv ? Math.floor(pgMax / 2) : pgActual;
+            const nuevoPG = Math.max(0, pgActual - danio);
+            try {
+              await api.patch(`/characters/${targetMember.id}/hp`, { hp_change: -danio });
+              setCharacters(prev => prev.map(c => c.id === targetMember.id ? { ...c, puntos_golpe_actual: nuevoPG } : c));
+            } catch (e) { console.error('HP update fail:', e); }
+            mecanicas.push(`${targetMember.nombre} hace TS DES: d20(${sd20})+${desMod}=${sTotal} vs CD ${cdSalv} → ${exitoSalv ? 'éxito (pierde ' + danio + ' PG)' : 'fallo (cae a 0 PG)'}.`);
+            toast(exitoSalv
+              ? `${targetMember.nombre} pierde ${danio} PG.`
+              : `${targetMember.nombre} cae a 0 PG.`,
+              { duration: 4500 });
+          }
+        }
+
+        // Desesperanza / Decisiones erróneas (FALLO): puntos de Sombra
+        if (!exito && (eventoId === 'event_desesperanza' || eventoId === 'event_decisiones')) {
+          const sombra = (res.data?.modificadores?.puntos_sombra) || (currentEvent.evento.puntos_sombra || 1);
+          if (eventoId === 'event_desesperanza') {
+            // 1d3 a TODOS los miembros (TS Carisma para resistir – auto-roll simplificado)
+            const d3 = Math.max(1, Math.min(3, Math.floor(Math.random() * 3) + 1));
+            for (const m of (config.miembros || [])) {
+              try {
+                await api.patch(`/characters/${m.id}/shadow`, { shadow_change: d3 });
+                setCharacters(prev => prev.map(c => c.id === m.id ? { ...c, puntos_sombra: (c.puntos_sombra || 0) + d3 } : c));
+              } catch (e) { console.error('Shadow update fail:', e); }
+            }
+            mecanicas.push(`Toda la compañía recibe ${d3} puntos de Sombra (1d3).`);
+            toast(`+${d3} Sombra a toda la compañía (Desesperanza).`, { duration: 4000 });
+          } else if (targetMember) {
+            try {
+              await api.patch(`/characters/${targetMember.id}/shadow`, { shadow_change: sombra });
+              setCharacters(prev => prev.map(c => c.id === targetMember.id ? { ...c, puntos_sombra: (c.puntos_sombra || 0) + sombra } : c));
+            } catch (e) { console.error('Shadow update fail:', e); }
+            mecanicas.push(`${targetMember.nombre} recibe ${sombra} punto(s) de Sombra.`);
+            toast(`${targetMember.nombre}: +${sombra} Sombra (Decisiones erróneas).`, { duration: 4000 });
+          }
+        }
+
+        // Atajo (ÉXITO): reducir 1 día / casillas
+        if (eventoId === 'event_atajo' && exito) {
+          // Avance simbólico: lo registramos y la bitácora muestra "-1 día".
+          // (El motor de viaje no soporta saltos arbitrarios, así que se
+          // refleja como narrativa + entrada en el log.)
+          mecanicas.push('La compañía encuentra un atajo: -1 día.');
+          toast('Atajo encontrado: -1 día de viaje.', { duration: 4000 });
+        }
+
+        // Percance (FALLO): +1 día → ya se aplica fatiga_cd_increase via journey events. Solo aviso.
+        if (eventoId === 'event_percance' && !exito) {
+          mecanicas.push('Percance: +1 día y +2 a la CD de fatiga.');
+        }
+
+        // Vista agradable (ÉXITO): Inspiración (flag visual)
+        if (eventoId === 'event_vista' && exito) {
+          mecanicas.push('Toda la compañía obtiene Inspiración.');
+          toast('✨ Inspiración para toda la compañía.', { duration: 4000 });
+        }
+      } catch (mechErr) {
+        console.error('Error aplicando mecánicas del evento:', mechErr);
+      }
+
+      // Bitácora: anota la entrada de evento del día (con mecánicas)
       const diaEvento = (currentEvent.casilla || 1);
       setDailySummaries(prev => [...prev, {
         dia: diaEvento,
@@ -1499,7 +1634,8 @@ const EnhancedTravelSystem = () => {
         eventName: currentEvent.evento?.nombre,
         clima: eventWeather,
         narrativa: narrativa,
-        message: `Día ${diaEvento}: ¡${currentEvent.evento?.nombre || 'Acontecimiento'}! ${targetMember?.nombre || 'El grupo'} tira ${tirada} vs CD ${cd} → ${exito ? 'éxito' : 'fracaso'}.`,
+        mecanicas: mecanicas,
+        message: `Día ${diaEvento}: ¡${currentEvent.evento?.nombre || 'Acontecimiento'}! ${targetMember?.nombre || 'El grupo'} tira ${tirada} vs CD ${cd} → ${exito ? 'éxito' : 'fracaso'}.${mecanicas.length ? ' ' + mecanicas.join(' ') : ''}`,
       }]);
 
       // In the new orientation system, after resolving an event we continue journey

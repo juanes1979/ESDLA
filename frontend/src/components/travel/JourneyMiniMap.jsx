@@ -212,9 +212,10 @@ const JourneyMiniMap = ({ origenCoords, destinoCoords, origenNombre, destinoNomb
   const centerX = (routeMinX + routeMaxX) / 2;
   const centerY = (routeMinY + routeMaxY) / 2;
 
-  // Add generous padding (30% of route size, minimum 15% of map)
-  const paddingX = Math.max(routeWidth * 0.3, MAP_PIXEL_WIDTH * 0.15);
-  const paddingY = Math.max(routeHeight * 0.3, MAP_PIXEL_HEIGHT * 0.15);
+  // Add tighter padding (15% of route size, minimum 4% of map) so the
+  // route fills the visible area instead of showing the whole world.
+  const paddingX = Math.max(routeWidth * 0.15, MAP_PIXEL_WIDTH * 0.04);
+  const paddingY = Math.max(routeHeight * 0.15, MAP_PIXEL_HEIGHT * 0.04);
 
   // Calculate viewBox dimensions centered on route
   let width = routeWidth + paddingX * 2;
@@ -225,10 +226,10 @@ const JourneyMiniMap = ({ origenCoords, destinoCoords, origenNombre, destinoNomb
   const currentAspect = width / height;
 
   // Adjust to be closer to map aspect ratio
-  if (currentAspect > mapAspect * 1.3) {
+  if (currentAspect > mapAspect * 1.5) {
     // Too wide, increase height
     height = width / mapAspect;
-  } else if (currentAspect < mapAspect * 0.7) {
+  } else if (currentAspect < mapAspect * 0.55) {
     // Too tall, increase width
     width = height * mapAspect;
   }
