@@ -16,6 +16,8 @@ const getModifier = (score) => {
 const CharacterSummary = ({ draft, onFinalize, onEdit, loading, draftId }) => {
   const [portraitImage, setPortraitImage] = useState(draft?.portrait_image || null);
   const [generatingPortrait, setGeneratingPortrait] = useState(false);
+  const [portraitProgress, setPortraitProgress] = useState(0);
+  const [portraitError, setPortraitError] = useState(null);
 
   // Generate character portrait using AI
   const generatePortrait = async () => {
@@ -23,7 +25,17 @@ const CharacterSummary = ({ draft, onFinalize, onEdit, loading, draftId }) => {
       toast.error('Faltan datos del personaje para generar el retrato.');
       return;
     }
+    setPortraitError(null);
     setGeneratingPortrait(true);
+    setPortraitProgress(0);
+
+    // Timer visual: la generación con gpt-image-1 tarda 15-30 s.
+    const t0 = Date.now();
+    const progressTimer = setInterval(() => {
+      const elapsed = Math.round((Date.now() - t0) / 1000);
+      setPortraitProgress(elapsed);
+    }, 1000);
+
     try {
       const response = await api.post('/portraits/generate', {
         nombre: draft.nombre || '',
@@ -38,38 +50,53 @@ const CharacterSummary = ({ draft, onFinalize, onEdit, loading, draftId }) => {
         color_pelo: draft.color_pelo || draft.pelo || '',
         rasgos_fisicos: draft.rasgos_fisicos || '',
         genero: draft.genero || draft.sexo || 'hombre',
-      }, { timeout: 90000 }); // 90s para que la IA tenga tiempo
-      
+      }, { timeout: 120000 }); // 2 min: gpt-image-1 puede tardar
+
+      clearInterval(progressTimer);
+
       if (response.data?.success && response.data?.image_base64 &&
           typeof response.data.image_base64 === 'string' &&
           response.data.image_base64.length > 100) {
         const imageBase64 = response.data.image_base64;
         setPortraitImage(imageBase64);
-        
-        // Update draft with the portrait in the backend
+
+        // Update draft with the portrait in the backend.
+        // Si el draft ya no existe (porque el personaje se finalizó), no es un
+        // error fatal: la imagen ya está cargada en pantalla.
         if (draftId) {
           try {
             await api.patch(`/characters/draft/${draftId}/portrait`, {
               portrait_image: imageBase64
             });
           } catch (saveError) {
-            console.error('Error saving portrait to draft:', saveError);
+            console.warn('Draft ya finalizado, no se puede guardar el retrato en el draft:', saveError?.response?.status);
           }
         }
-        
+
         // Update draft object locally
-        if (draft) {
-          draft.portrait_image = imageBase64;
-        }
+        if (draft) draft.portrait_image = imageBase64;
         toast.success('Retrato generado con éxito');
       } else {
-        toast.error('Error al generar el retrato');
+        const detail = response.data?.detail || 'La IA no devolvió ninguna imagen.';
+        setPortraitError(detail);
+        toast.error('Error al generar el retrato: ' + detail);
       }
     } catch (error) {
-      console.error('Error generating portrait:', error);
-      toast.error(error.response?.data?.detail || 'Error al generar el retrato');
+      clearInterval(progressTimer);
+      const detail = error.response?.data?.detail
+        || error.message
+        || 'Error desconocido';
+      const status = error.response?.status;
+      const msg = status === 504 || error.code === 'ECONNABORTED'
+        ? 'La generación tardó demasiado. Inténtalo de nuevo.'
+        : `Error al generar el retrato${status ? ` (HTTP ${status})` : ''}: ${detail}`;
+      console.error('Error generating portrait:', { status, detail, error });
+      setPortraitError(msg);
+      toast.error(msg);
     } finally {
+      clearInterval(progressTimer);
       setGeneratingPortrait(false);
+      setPortraitProgress(0);
     }
   };
 
@@ -129,6 +156,7 @@ const CharacterSummary = ({ draft, onFinalize, onEdit, loading, draftId }) => {
               size="sm"
               variant="outline"
               className="text-xs border-purple-500/50 text-purple-400 hover:bg-purple-500/10"
+              data-testid="generate-portrait-btn"
             >
               {generatingPortrait ? (
                 <>
@@ -147,6 +175,25 @@ const CharacterSummary = ({ draft, onFinalize, onEdit, loading, draftId }) => {
                 </>
               )}
             </Button>
+
+            {/* Feedback visible mientras la IA genera (15-30 s normales). */}
+            {generatingPortrait && (
+              <div
+                className="text-[11px] text-center text-purple-300 bg-purple-500/10 border border-purple-500/30 rounded px-2 py-1 max-w-[180px]"
+                data-testid="portrait-progress"
+              >
+                Generando retrato con IA…<br />
+                <span className="font-mono">{portraitProgress}s</span> · puede tardar 15–30 s
+              </div>
+            )}
+            {portraitError && !generatingPortrait && (
+              <div
+                className="text-[10px] text-center text-red-300 bg-red-500/10 border border-red-500/30 rounded px-2 py-1 max-w-[180px]"
+                data-testid="portrait-error"
+              >
+                {portraitError}
+              </div>
+            )}
           </div>
           <div>
             <h1 className="font-heading text-3xl text-foreground mb-1">

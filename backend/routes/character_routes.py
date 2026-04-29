@@ -1154,6 +1154,10 @@ async def update_character(character_id: str, data: dict = Body(...)):
         # {nombre, descripcion, efecto_juego, contexto, fecha, campana,
         # ocupacion}). Una vez añadidos, no se borran a la ligera.
         'defectos_sombra',
+        # Retrato generado por IA (base64). Permitido sobreescribir desde
+        # la pantalla de la ficha como red de seguridad si la generación
+        # durante el wizard falló.
+        'portrait_image',
     ]
     
     update = {"updated_at": now_utc()}

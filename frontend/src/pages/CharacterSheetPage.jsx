@@ -232,6 +232,7 @@ const CharacterSheetPage = () => {
         <CharacterHeader 
           character={character} 
           onLevelUp={(data) => setCharacter(prev => ({ ...prev, ...data }))}
+          onUpdate={(data) => setCharacter(prev => ({ ...prev, ...data }))}
         />
 
         <Tabs defaultValue="resumen" className="w-full" data-testid="character-tabs">
