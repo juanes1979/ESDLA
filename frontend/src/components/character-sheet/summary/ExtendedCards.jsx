@@ -33,6 +33,7 @@ import {
 } from 'lucide-react';
 import api from '@/services/api';
 import { toast } from 'sonner';
+import { useEncumbrance } from '@/hooks/useEncumbrance';
 
 const modFromScore = (score) => Math.floor((Number(score || 10) - 10) / 2);
 const modString = (m) => (m >= 0 ? `+${m}` : `${m}`);
@@ -298,111 +299,17 @@ export const DeathSavesCard = ({ character, onUpdate }) => {
 };
 
 // ─── Peso transportado / capacidad / estorbo (reglas LotR 5e Mod) ─────
-// Cache global de pesos: nombre normalizado → kg.
-let _pesoCache = null;
-const normalizar = (s) => (s || '').toLowerCase()
-  .normalize('NFD').replace(/[\u0300-\u036f]/g, '') // quita acentos
-  .split(/\s+[—–-]\s+mod\.?/i)[0]                  // quita "— Mod. 100%"
-  .replace(/\s+\(.*?\)/g, '')   // quita "(20)" de "Flecha (20)"
-  .replace(/\s+x\d+$/, '')      // quita "x2" final
-  .replace(/[\[\]]/g, '')       // quita corchetes
-  .trim();
-
-const cargarPesos = async () => {
-  if (_pesoCache) return _pesoCache;
-  const cache = {};
-  try {
-    const [w, a, e] = await Promise.allSettled([
-      api.get('/data/weapons'),
-      api.get('/data/armors'),
-      api.get('/data/equipment-catalog'),
-    ]);
-    const collect = (r) => {
-      if (r.status !== 'fulfilled' || !r.value?.data) return [];
-      const d = r.value.data;
-      if (Array.isArray(d)) return d;
-      // Collect ALL arrays in the response (equipment-catalog has many
-      // categories: armas_sencillas_cc, armaduras_ligeras, herramientas, …).
-      const all = [];
-      for (const v of Object.values(d)) {
-        if (Array.isArray(v)) all.push(...v);
-      }
-      return all;
-    };
-    [...collect(w), ...collect(a), ...collect(e)].forEach(it => {
-      const n = normalizar(it?.nombre);
-      const peso = Number(it?.peso_kg ?? it?.peso ?? 0);
-      if (n && peso > 0) cache[n] = peso;
-    });
-  } catch (err) {
-    console.warn('No se pudo cargar la tabla de pesos:', err);
-  }
-  _pesoCache = cache;
-  return cache;
-};
+// La lógica de cálculo vive en `hooks/useEncumbrance` para que TODAS las
+// pestañas que muestren velocidad/peso usen exactamente los mismos
+// números (antes había inconsistencias entre Resumen y Equipo).
 
 export const WeightEncumbranceCard = ({ character, onUpdate }) => {
-  const [pesoMap, setPesoMap] = useState({});
-  useEffect(() => { cargarPesos().then(setPesoMap); }, []);
-
-  const inventario = character?.inventario || [];
-  const equipoOcupacion = character?.equipo_ocupacion || [];
-  const fuerza = Number(character?.atributos?.fuerza ?? 10);
-  const tam = (character?.tamano || character?.cultura_tamano || '').toLowerCase();
-  const isSmall = tam.includes('peque') || tam.includes('small') || tam.includes('hobbit');
-  const isLarge = tam.includes('grande') || tam.includes('large');
-  const sizeMul = isLarge ? 2 : isSmall ? 0.5 : 1;
-
-  // Reglas del usuario (LotR 5e Mod)
-  const cargaMaxima = +(fuerza * 8 * sizeMul).toFixed(1);
-  const empujarArrastrar = +(fuerza * 16 * sizeMul).toFixed(1);
-  const umbralCargado = +(fuerza * 2.5 * sizeMul).toFixed(1);
-  const umbralMuyCargado = +(fuerza * 5 * sizeMul).toFixed(1);
-
-  // Suma peso del inventario + equipo de ocupación. Mira en pesoMap si
-  // el item no trae peso propio. Soporta ítems en formato string o en
-  // objeto {nombre, mejoras?, …}.
-  const pesoTotal = useMemo(() => {
-    const sumItem = (it) => {
-      if (!it) return 0;
-      // Ignora items "portado_por": "montura" — los lleva el animal.
-      if (typeof it === 'object' && (it?.portado_por || '').toLowerCase() === 'montura') return 0;
-      const cant = Number(typeof it === 'object' ? (it.cantidad || 1) : 1);
-      const propio = Number((typeof it === 'object' ? (it.peso_kg ?? it.peso) : 0) || 0);
-      const nombre = typeof it === 'string' ? it : it?.nombre;
-      let peso = propio;
-      if (!peso) peso = pesoMap[normalizar(nombre)] || 0;
-      return peso * cant;
-    };
-    let total = 0;
-    inventario.forEach(it => { total += sumItem(it); });
-    equipoOcupacion.forEach(it => { total += sumItem(it); });
-    return total;
-  }, [inventario, equipoOcupacion, pesoMap]);
-
-  const monturaCarga = !!character?.montura?.transporta_equipo;
-  const pesoEfectivo = monturaCarga ? 0 : pesoTotal;
-
-  // Estado: descargado / cargado / muy cargado / sobrepeso
-  let estado = 'Sin estorbo';
-  let factorMov = 1;
-  let estorboM = 0;
-  let color = 'text-emerald-300';
-  let desventajaTiradas = false;
-  if (pesoEfectivo > cargaMaxima) {
-    estado = 'Sobrecargado (no puedes moverte con normalidad)';
-    factorMov = 0; color = 'text-red-500'; desventajaTiradas = true;
-  } else if (pesoEfectivo > umbralMuyCargado) {
-    estado = 'Muy cargado (-66 % movimiento, desventaja en FUE/DES/CON)';
-    factorMov = 1 / 3; color = 'text-red-400'; desventajaTiradas = true;
-  } else if (pesoEfectivo > umbralCargado) {
-    estado = 'Cargado (-33 % movimiento)';
-    factorMov = 2 / 3; color = 'text-orange-300';
-  }
-
-  const velBase = Number(character?.velocidad || character?.cultura_velocidad || 9);
-  const velEfectiva = Math.max(0, Math.round(velBase * factorMov));
-  estorboM = velEfectiva - velBase; // negativo o 0
+  const enc = useEncumbrance(character);
+  const {
+    pesoTotal, monturaCarga, cargaMaxima, empujarArrastrar,
+    umbralCargado, umbralMuyCargado, estado, factorMov, color,
+    desventajaTiradas, velEfectiva, estorboM,
+  } = enc;
 
   // Persiste el estorbo en metros (lo lee el sistema de viaje).
   useEffect(() => {

@@ -4,6 +4,7 @@
 import { Heart, Shield, Footprints, Swords, Eye, Plus, Minus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { useEncumbrance } from '@/hooks/useEncumbrance';
 
 const getModifier = (score) => Math.floor((score - 10) / 2);
 
@@ -16,6 +17,9 @@ const CombatStatsCard = ({
   const attributes = character.atributos || {};
   const hpPercent = (character.puntos_golpe_actual / character.puntos_golpe_max) * 100;
   const ac = character.clase_armadura || (10 + getModifier(attributes.destreza || 10));
+  // Cálculo en VIVO (mismo hook que la pestaña Equipo). Ya no depende de
+  // `character.estorbo_metros` persistido — así no hay inconsistencias.
+  const enc = useEncumbrance(character);
 
   return (
     <div className="space-y-6">
@@ -97,23 +101,24 @@ const CombatStatsCard = ({
           <Footprints className="w-6 h-6 mx-auto mb-2 text-[hsl(var(--gold))]" />
           <p className="text-xs text-muted-foreground">Velocidad</p>
           {(() => {
-            const velBase = Number(character.velocidad || character.cultura_velocidad || 9);
-            const estorbo = Number(character.estorbo_metros || 0);
-            const velEf = Math.max(0, velBase + estorbo);
-            const tier = estorbo <= -6 ? 'muy' : (estorbo <= -3 ? 'cargado' : 'ok');
+            const { velBase, velEfectiva, tier } = enc;
             return (
               <>
                 <p className={`font-heading text-2xl ${tier === 'ok' ? 'text-foreground' : tier === 'cargado' ? 'text-orange-300' : 'text-red-400'}`}>
-                  {velEf}m
+                  {velEfectiva}m
                 </p>
                 {tier !== 'ok' && (
                   <p className={`text-[10px] mt-1 font-bold ${tier === 'cargado' ? 'text-orange-300' : 'text-red-400'}`}
                      data-testid="encumbrance-badge">
-                    {tier === 'cargado' ? 'CARGADO −33%' : 'MUY CARGADO −66%'}
+                    {tier === 'cargado'
+                      ? 'CARGADO −33%'
+                      : tier === 'muy'
+                      ? 'MUY CARGADO −66%'
+                      : 'SOBRECARGADO'}
                   </p>
                 )}
                 {tier !== 'ok' && (
-                  <p className="text-[9px] text-muted-foreground italic">base {velBase}m · {estorbo}m</p>
+                  <p className="text-[9px] text-muted-foreground italic">base {velBase}m · {velEfectiva - velBase}m</p>
                 )}
               </>
             );
