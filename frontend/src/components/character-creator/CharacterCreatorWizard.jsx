@@ -71,22 +71,50 @@ export const CharacterCreatorWizard = () => {
     return CULTURAS_CON_VIRTUD.includes(cultureName);
   }, []);
 
+  // Mapea el `paso_actual` que devuelve el backend (que usa una numeración
+  // más fina: 4=atributos, 5=virtud, 6=skills, 7=equipo, 8=detalles…) al
+  // paso del wizard frontend (1..6: cultura, trasfondo, ocupación, virtud,
+  // equipo, detalles). Esto evita que tras guardar la virtud el wizard
+  // salte directamente a "Detalles" y se vea como si no avanzara o se
+  // saltara el paso de Equipo.
+  const mapBackendStepToWizard = useCallback((backendStep, currentWizardStep, cultureName) => {
+    if (typeof backendStep !== 'number') return currentWizardStep + 1;
+    const hasVirtue = cultureGetsVirtue(cultureName);
+    // backend → wizard
+    //   1 cultura       → 1
+    //   2 trasfondo     → 2
+    //   3 ocupación     → 3
+    //   4 atributos     → 3 (los atributos se asignan dentro de la cultura)
+    //   5 virtud        → 4 (sólo si la cultura tiene virtud; si no, 5)
+    //   6 skills        → 5 (saltamos skills: ya se hace en Step3Occupation)
+    //   7 equipo        → 5
+    //   8 detalles      → 6
+    //   9+ finalize     → 7 (isComplete)
+    if (backendStep <= 1) return 1;
+    if (backendStep === 2) return 2;
+    if (backendStep === 3) return 3;
+    if (backendStep === 4) return 3;
+    if (backendStep === 5) return hasVirtue ? 4 : 5;
+    if (backendStep === 6 || backendStep === 7) return 5;
+    if (backendStep === 8) return 6;
+    return 7; // ≥9 → completado
+  }, [cultureGetsVirtue]);
+
   // Handle step completion
   const handleStepComplete = useCallback((updatedDraft) => {
     setDraft(updatedDraft);
-    let nextStep = updatedDraft.paso_actual || currentStep + 1;
-    
-    // Si estamos en paso 4 (atributos) y la cultura NO obtiene virtud, saltamos al paso 6
-    if (currentStep === 4 && !cultureGetsVirtue(updatedDraft.cultura_nombre)) {
-      nextStep = 6;
-    }
-    
+    const cultureName = updatedDraft.cultura_nombre;
+    let nextStep = mapBackendStepToWizard(updatedDraft.paso_actual, currentStep, cultureName);
+
+    // Garantía: nunca retroceder.
+    if (nextStep <= currentStep) nextStep = currentStep + 1;
+
     setCurrentStep(nextStep);
-    
-    if (nextStep > 8) {
+
+    if (nextStep > 6) {
       setIsComplete(true);
     }
-  }, [currentStep, cultureGetsVirtue]);
+  }, [currentStep, cultureGetsVirtue, mapBackendStepToWizard]);
 
   // Navigate to previous step - RESET current step data to prevent duplicates
   const handleBack = useCallback(async () => {
