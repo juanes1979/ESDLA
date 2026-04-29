@@ -12,10 +12,11 @@ const CharacterHeader = ({ character, onLevelUp }) => {
           <img 
             src={`data:image/png;base64,${character.portrait_image}`}
             alt={`Retrato de ${character.nombre}`}
-            className="w-24 h-24 rounded-full object-cover border-2 border-[hsl(var(--gold))]"
+            className="w-24 h-24 rounded-full object-cover ring-1 ring-[hsl(var(--gold))/50]"
+            style={{ background: 'transparent' }}
           />
         ) : (
-          <div className="w-24 h-24 rounded-full bg-gradient-to-br from-[hsl(var(--gold))/30] to-[hsl(var(--gold))/10] flex items-center justify-center border-2 border-[hsl(var(--gold))]">
+          <div className="w-24 h-24 rounded-full bg-gradient-to-br from-[hsl(var(--gold))/30] to-[hsl(var(--gold))/10] flex items-center justify-center ring-1 ring-[hsl(var(--gold))/50]">
             <span className="font-heading text-4xl text-[hsl(var(--gold))]">
               {character.nombre?.[0]?.toUpperCase()}
             </span>
@@ -48,6 +49,13 @@ const CharacterHeader = ({ character, onLevelUp }) => {
           <p className="font-heading text-2xl text-[hsl(var(--gold))]">
             {character.experiencia || 0} XP
           </p>
+          {character.codigo_publico && (
+            <p className="text-[10px] text-muted-foreground font-mono mt-2 tracking-wider"
+               data-testid="codigo-publico-display"
+               title="Código público único del personaje">
+              {character.codigo_publico}
+            </p>
+          )}
         </div>
       </div>
     </div>

@@ -96,7 +96,28 @@ const CombatStatsCard = ({
         <div className="card-parchment rounded-lg p-4 text-center">
           <Footprints className="w-6 h-6 mx-auto mb-2 text-[hsl(var(--gold))]" />
           <p className="text-xs text-muted-foreground">Velocidad</p>
-          <p className="font-heading text-2xl text-foreground">{character.velocidad}m</p>
+          {(() => {
+            const velBase = Number(character.velocidad || character.cultura_velocidad || 9);
+            const estorbo = Number(character.estorbo_metros || 0);
+            const velEf = Math.max(0, velBase + estorbo);
+            const tier = estorbo <= -6 ? 'muy' : (estorbo <= -3 ? 'cargado' : 'ok');
+            return (
+              <>
+                <p className={`font-heading text-2xl ${tier === 'ok' ? 'text-foreground' : tier === 'cargado' ? 'text-orange-300' : 'text-red-400'}`}>
+                  {velEf}m
+                </p>
+                {tier !== 'ok' && (
+                  <p className={`text-[10px] mt-1 font-bold ${tier === 'cargado' ? 'text-orange-300' : 'text-red-400'}`}
+                     data-testid="encumbrance-badge">
+                    {tier === 'cargado' ? 'CARGADO −33%' : 'MUY CARGADO −66%'}
+                  </p>
+                )}
+                {tier !== 'ok' && (
+                  <p className="text-[9px] text-muted-foreground italic">base {velBase}m · {estorbo}m</p>
+                )}
+              </>
+            );
+          })()}
         </div>
         <div className="card-parchment rounded-lg p-4 text-center">
           <Swords className="w-6 h-6 mx-auto mb-2 text-[hsl(var(--torch-orange))]" />

@@ -28,6 +28,89 @@ def generate_id():
     return str(uuid.uuid4())
 
 
+# ==== Código público de personaje (RAZSUBCAAXXXXX) ====
+import re as _re
+import unicodedata as _ud
+
+_STOP_WORDS = {'de', 'del', 'la', 'las', 'los', 'el', 'y', 'e', 'a'}
+
+# Mapeo cultura → raza (3 letras). Usado cuando categoria_cultura no
+# permite deducirla automáticamente.
+_CULTURE_TO_RACE = {
+    # Hombres
+    'dunedain': 'HOM', 'beornidas': 'HOM', 'rohirrim': 'HOM', 'gondorianos': 'HOM',
+    'tharbad': 'HOM', 'lossoth': 'HOM', 'pueblo de bardo': 'HOM', 'bardidas': 'HOM',
+    'hombres': 'HOM',
+    # Elfos
+    'elfos': 'ELF', 'noldor': 'ELF', 'sindar': 'ELF', 'silvanos': 'ELF',
+    'lindon': 'ELF', 'rivendel': 'ELF', 'lothlorien': 'ELF', 'bosque negro': 'ELF',
+    # Enanos
+    'enanos': 'ENA', 'erebor': 'ENA', 'colinas de hierro': 'ENA',
+    'montañas grises': 'ENA', 'montanas grises': 'ENA',
+    # Hobbits
+    'hobbits': 'HOB', 'pelosos': 'HOB', 'fuertes': 'HOB', 'albos': 'HOB',
+    'mediano': 'HOB', 'medianos': 'HOB',
+}
+
+
+def _strip_accents(s: str) -> str:
+    return ''.join(c for c in _ud.normalize('NFD', s or '') if _ud.category(c) != 'Mn')
+
+
+def _detect_race_letters(character: dict) -> str:
+    """3 letras de raza basadas en categoria_cultura/cultura_nombre."""
+    src = ((character.get('categoria_cultura') or '') + ' ' + (character.get('cultura_nombre') or '')).lower()
+    src = _strip_accents(src)
+    for key, race in _CULTURE_TO_RACE.items():
+        if key in src:
+            return race
+    # Fallback razonable por nombre directo
+    return 'HOM'
+
+
+def _subculture_letters(cultura_nombre: str) -> str:
+    """4 letras: si UNA palabra → primeras 4 de esa palabra. Si VARIAS
+    palabras → primeras 4 de la última palabra (saltando "de/del/la…")."""
+    raw = _strip_accents(cultura_nombre or '').upper()
+    palabras = [p for p in _re.split(r'\s+', raw.strip()) if p and p.lower() not in _STOP_WORDS]
+    if not palabras:
+        return 'XXXX'
+    target = palabras[0] if len(palabras) == 1 else palabras[-1]
+    target = _re.sub(r'[^A-Z]', '', target)
+    return (target[:4]).ljust(4, 'X')
+
+
+async def generate_codigo_publico(character: dict) -> str:
+    """Genera RAZSUBCAAXXXXX único. Reintenta hasta encontrar XXXXX libre."""
+    raz = _detect_race_letters(character)
+    sub = _subculture_letters(character.get('cultura_nombre', ''))
+    # Año de creación si existe; si no, año actual.
+    created = character.get('created_at')
+    try:
+        if isinstance(created, str):
+            year = datetime.fromisoformat(created.replace('Z', '+00:00')).year
+        elif isinstance(created, datetime):
+            year = created.year
+        else:
+            year = datetime.now(timezone.utc).year
+    except Exception:
+        year = datetime.now(timezone.utc).year
+    aa = f"{year % 100:02d}"
+
+    prefix = f"{raz}{sub}{aa}"
+    # Semilla temporal + reintentos para garantizar unicidad
+    rng = random.Random()
+    for _ in range(20):
+        xxxxx = f"{rng.randint(0, 99999):05d}"
+        codigo = f"{prefix}{xxxxx}"
+        existing = await db.characters.find_one({"codigo_publico": codigo}, {"_id": 1})
+        if not existing:
+            return codigo
+    # Si tras 20 intentos no encontró único, usa timestamp como último recurso
+    ts = int(datetime.now(timezone.utc).timestamp()) % 100000
+    return f"{prefix}{ts:05d}"
+
+
 def now_utc():
     return datetime.now(timezone.utc).isoformat()
 
@@ -1040,6 +1123,13 @@ async def update_character(character_id: str, data: dict = Body(...)):
         'estorbo_metros',
         # Montura completa (incluye flag transporta_equipo)
         'montura',
+        # Código público RAZSUBCAAXXXXX (read-only en práctica, pero se
+        # puede sobreescribir manualmente para casos excepcionales).
+        'codigo_publico',
+        # Defectos de la Sombra (lista de objetos
+        # {nombre, descripcion, efecto_juego, contexto, fecha, campana,
+        # ocupacion}). Una vez añadidos, no se borran a la ligera.
+        'defectos_sombra',
     ]
     
     update = {"updated_at": now_utc()}
@@ -1054,6 +1144,44 @@ async def update_character(character_id: str, data: dict = Body(...)):
     
     updated = await db.characters.find_one({"_id": character_id})
     return serialize_doc(updated)
+
+
+
+# ─── Código público RAZSUBCAAXXXXX ─────────────────────────────────────
+@router.post("/{character_id}/codigo-publico")
+async def assign_codigo_publico(character_id: str, force: bool = False):
+    """Genera (o regenera si force=True) el código público del personaje."""
+    char = await db.characters.find_one({"_id": character_id})
+    if not char:
+        raise HTTPException(status_code=404, detail="Character not found")
+    if char.get("codigo_publico") and not force:
+        return {"codigo_publico": char["codigo_publico"], "regenerated": False}
+    codigo = await generate_codigo_publico(char)
+    await db.characters.update_one(
+        {"_id": character_id},
+        {"$set": {"codigo_publico": codigo, "updated_at": now_utc()}}
+    )
+    return {"codigo_publico": codigo, "regenerated": True}
+
+
+@router.post("/codigo-publico/migrate")
+async def migrate_all_codigo_publico(force: bool = False):
+    """Asigna codigo_publico a todos los personajes que no lo tengan
+    (o a todos si force=True). Idempotente."""
+    cursor = db.characters.find({} if force else {"codigo_publico": {"$in": [None, ""]}})
+    assigned = []
+    skipped = 0
+    async for char in cursor:
+        if char.get("codigo_publico") and not force:
+            skipped += 1
+            continue
+        codigo = await generate_codigo_publico(char)
+        await db.characters.update_one(
+            {"_id": char["_id"]},
+            {"$set": {"codigo_publico": codigo, "updated_at": now_utc()}}
+        )
+        assigned.append({"id": char.get("_id"), "nombre": char.get("nombre"), "codigo": codigo})
+    return {"assigned": len(assigned), "skipped": skipped, "items": assigned}
 
 
 

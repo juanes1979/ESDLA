@@ -38,6 +38,7 @@ import {
   ProfessionSpecialsCard,
   HistoryCard,
 } from '@/components/character-sheet/summary/ExtendedCards';
+import ShadowDefectsCard from '@/components/character-sheet/summary/ShadowDefectsCard';
 
 const CharacterSheetPage = () => {
   const { characterId } = useParams();
@@ -333,10 +334,14 @@ const CharacterSheetPage = () => {
             />
           </TabsContent>
 
-          {/* SOMBRA — puntos sombra, estados, cicatrices, maldición */}
+          {/* SOMBRA — puntos sombra, estados, cicatrices, maldición, defectos */}
           <TabsContent value="sombra" className="space-y-6">
             <ShadowPathCard character={character} />
             <ShadowExtendedCard
+              character={character}
+              onUpdate={(data) => setCharacter(prev => ({ ...prev, ...data }))}
+            />
+            <ShadowDefectsCard
               character={character}
               onUpdate={(data) => setCharacter(prev => ({ ...prev, ...data }))}
             />

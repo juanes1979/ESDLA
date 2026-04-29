@@ -58,21 +58,33 @@ async function persistField(characterId, payload, onUpdate) {
   }
 }
 
-// ─── Header info: SOLO LECTURA para nombre del jugador y sexo ──────────
+// ─── Header info: nombre del jugador EDITABLE (DJ puede crear ficha sin
+//      asignar; el jugador la edita después). Sexo SOLO LECTURA.
 export const HeaderInfoCard = ({ character, onUpdate }) => {
   const [iniciativaBonus, setIniciativaBonus] = useState(character?.iniciativa_bonus || 0);
+  const [nombreJugador, setNombreJugador] = useState(
+    character?.nombre_jugador || character?.jugador || ''
+  );
   const dexMod = modFromScore(character?.atributos?.destreza);
   const iniciativaTotal = dexMod + Number(iniciativaBonus || 0);
   const profBonus = proficiencyByLevel(character?.nivel);
 
-  useEffect(() => setIniciativaBonus(character?.iniciativa_bonus || 0), [character?.id]);
+  useEffect(() => {
+    setIniciativaBonus(character?.iniciativa_bonus || 0);
+    setNombreJugador(character?.nombre_jugador || character?.jugador || '');
+  }, [character?.id]);
 
   const saveBonus = () => persistField(character?.id, {
     iniciativa_bonus: Number(iniciativaBonus || 0),
   }, onUpdate);
 
+  const savePlayer = () => persistField(character?.id, {
+    nombre_jugador: (nombreJugador || '').trim(),
+  }, onUpdate);
+
   const sexoLabel = character?.sexo || character?.genero || '—';
-  const playerLabel = character?.nombre_jugador || '—';
+  const playerStored = character?.nombre_jugador || character?.jugador || '';
+  const playerDirty = (nombreJugador || '').trim() !== (playerStored || '').trim();
 
   return (
     <Card className="card-parchment" data-testid="header-info-card">
@@ -85,17 +97,36 @@ export const HeaderInfoCard = ({ character, onUpdate }) => {
         <div className="grid grid-cols-2 gap-3">
           <div className="bg-black/20 p-2 rounded">
             <Label className="text-[10px] text-muted-foreground">Nombre del jugador</Label>
-            <p className="text-sm font-medium" data-testid="player-name-display">{playerLabel}</p>
+            <div className="flex gap-1 mt-1">
+              <Input
+                value={nombreJugador}
+                onChange={e => setNombreJugador(e.target.value)}
+                placeholder="Sin asignar"
+                className="h-8"
+                data-testid="player-name-input"
+              />
+              <Button
+                size="sm"
+                onClick={savePlayer}
+                disabled={!playerDirty}
+                title="Guardar nombre del jugador"
+                data-testid="player-name-save"
+              >
+                <Save className="w-3.5 h-3.5" />
+              </Button>
+            </div>
+            <p className="text-[9px] text-muted-foreground italic mt-1">
+              El DJ puede crear la ficha sin jugador; al asignarla, el jugador puede escribir su nombre aquí.
+            </p>
           </div>
           <div className="bg-black/20 p-2 rounded">
             <Label className="text-[10px] text-muted-foreground">Sexo</Label>
             <p className="text-sm font-medium" data-testid="character-sex-display">{sexoLabel}</p>
+            <p className="text-[9px] text-muted-foreground italic mt-1">
+              Se establece en la creación.
+            </p>
           </div>
         </div>
-        <p className="text-[10px] text-muted-foreground italic">
-          Estos datos se establecen en la creación del personaje y no se
-          modifican aquí.
-        </p>
         <div className="grid grid-cols-3 gap-3">
           <div className="bg-black/20 p-2 rounded text-center">
             <p className="text-[10px] text-muted-foreground">Bonif. competencia</p>
@@ -130,9 +161,28 @@ export const HeaderInfoCard = ({ character, onUpdate }) => {
 };
 
 // ─── Tiradas de salvación SOLO LECTURA ─────────────────────────────────
+// Normaliza el nombre del atributo (mayúsculas, acentos, abreviaturas)
+// para que case con `fuerza`, `FUE`, `Fuerza`, `FUERZA`, `CONSTITUCIÓN`, etc.
+const _norm = (s) => (s || '').toString().toLowerCase()
+  .normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+const _hasComp = (list, attr) => {
+  const target = _norm(attr);
+  const short = target.slice(0, 3); // 'fue', 'des', 'con', 'int', 'sab', 'car'
+  return (list || []).some(x => {
+    const n = _norm(x);
+    return n.includes(short) || n.startsWith(short);
+  });
+};
+
 export const SavingThrowsCard = ({ character }) => {
   const profBonus = proficiencyByLevel(character?.nivel);
-  const competencias = character?.salvaciones_competencia || [];
+  // Merge: campo nuevo `salvaciones_competencia` + legacy
+  // `salvaciones_competentes` y `competencias.tiradas_salvacion`.
+  const competencias = [
+    ...(character?.salvaciones_competencia || []),
+    ...(character?.salvaciones_competentes || []),
+    ...(character?.competencias?.tiradas_salvacion || []),
+  ];
 
   return (
     <Card className="card-parchment" data-testid="saving-throws-card">
@@ -145,7 +195,7 @@ export const SavingThrowsCard = ({ character }) => {
         <div className="grid grid-cols-2 gap-2">
           {Object.entries(ATTR_ES).map(([key, label]) => {
             const m = modFromScore(character?.atributos?.[key]);
-            const isComp = competencias.includes(key);
+            const isComp = _hasComp(competencias, key);
             const total = isComp ? m + profBonus : m;
             return (
               <div
@@ -427,7 +477,21 @@ export const WeightEncumbranceCard = ({ character, onUpdate }) => {
 
 // ─── Competencia con herramientas (SOLO LECTURA) ──────────────────────
 export const ToolsProficiencyCard = ({ character }) => {
-  const tools = character?.competencias_herramientas || [];
+  // Merge de TODAS las fuentes: campo nuevo + legacy de cultura/trasfondo/ocupación.
+  const tools = useMemo(() => {
+    const collected = [
+      ...(character?.competencias_herramientas || []),
+      ...(character?.competencias_herramientas_2 || []),
+      ...(character?.competencias_herramientas_trasfondo || []),
+      ...(character?.competencias?.herramientas || []),
+      ...(character?.competencias?.herramientas_cultura || []),
+      ...(character?.herramientas_elegidas_ocupacion || []),
+      ...(character?.competencia_herramienta_cultura ? [character.competencia_herramienta_cultura] : []),
+      ...(character?.herramienta_elegida_cultura ? [character.herramienta_elegida_cultura] : []),
+      ...(character?.competencia_herramienta_1 ? [character.competencia_herramienta_1] : []),
+    ].filter(Boolean).map(t => typeof t === 'string' ? t : (t?.nombre || ''));
+    return [...new Set(collected.filter(Boolean))];
+  }, [character]);
   return (
     <Card className="card-parchment" data-testid="tools-card">
       <CardHeader className="pb-2">

@@ -158,17 +158,30 @@ const SombraSection = ({ data, isAdmin, onDeleteSenda }) => {
             😵 ESTADOS DE LA SOMBRA
           </h3>
           <div className="space-y-3">
-            {data.estados.map((estado, i) => (
-              <div key={i} className="bg-purple-500/10 p-3 rounded border border-purple-500/20">
-                <p className="font-bold text-purple-400">{estado.estado}</p>
-                {estado.descripcion && (
-                  <p className="text-sm text-muted-foreground mt-1">{estado.descripcion}</p>
-                )}
-                {estado.efecto && (
-                  <p className="text-xs text-purple-300 mt-2 italic">Efecto: {estado.efecto}</p>
-                )}
-              </div>
-            ))}
+            {data.estados.map((estado, i) => {
+              // BD guarda {nombre, condicion, efectos[]} — soportamos también
+              // el formato antiguo {estado, descripcion, efecto}.
+              const nombre = estado.nombre || estado.estado || '';
+              const condicion = estado.condicion || estado.descripcion || '';
+              const efectos = Array.isArray(estado.efectos)
+                ? estado.efectos
+                : (estado.efecto ? [estado.efecto] : []);
+              return (
+                <div key={i} className="bg-purple-500/10 p-3 rounded border border-purple-500/20" data-testid={`shadow-state-${i}`}>
+                  <p className="font-bold text-purple-400">{nombre}</p>
+                  {condicion && (
+                    <p className="text-sm text-muted-foreground mt-1">
+                      <span className="text-purple-300/80">Condición:</span> {condicion}
+                    </p>
+                  )}
+                  {efectos.length > 0 && (
+                    <ul className="text-xs text-purple-300 mt-2 italic list-disc list-inside space-y-0.5">
+                      {efectos.map((ef, k) => <li key={k}>{ef}</li>)}
+                    </ul>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </div>
       )}
