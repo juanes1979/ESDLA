@@ -820,8 +820,31 @@ const EnhancedTravelSystem = () => {
       });
       
       if (eventRes.data.success) {
+        // Climate applied to the event: pull weather of THAT day. If
+        // extreme (storm, blizzard, gale, deep frost) → +2 to resolution
+        // CD and tag desventaja_clima. If favorable → -1 to CD.
+        const dayIdx = Math.max(0, posicion - 1);
+        const weather = (journeyWeather || [])[Math.min(dayIdx, (journeyWeather || []).length - 1)] || null;
+        const climaLabel = (weather?.estado_label || '').toLowerCase();
+        const esExtremo = ['tormenta','vendaval','nieve fuerte','extremo','helada','ventisca','niebla densa']
+          .some(k => climaLabel.includes(k));
+        const esFavorable = ['despejado','soleado','templado','suave','agradable']
+          .some(k => climaLabel.includes(k));
+        const cdMod = esExtremo ? 2 : (esFavorable ? -1 : 0);
+        const cdAjustada = Math.max(5, (eventRes.data.resolucion?.cd || 15) + cdMod);
+
         const newEvent = {
           ...eventRes.data,
+          resolucion: {
+            ...(eventRes.data.resolucion || {}),
+            cd: cdAjustada,
+            cd_base: eventRes.data.resolucion?.cd || 15,
+            cd_clima_mod: cdMod,
+            desventaja_clima: esExtremo,
+            ventaja_clima: esFavorable,
+            clima_label: weather?.estado_label || null,
+          },
+          clima_dia: weather,
           casilla: posicion,
           resuelto: false,
           resultado: null,
@@ -832,7 +855,10 @@ const EnhancedTravelSystem = () => {
         setCurrentEvent(newEvent);
         setAwaitingOrientationCheck(false);
         
-        toast.info(`¡Acontecimiento en la casilla ${posicion}! (${orientationResult.detalle})`);
+        const climaTxt = weather?.estado_label
+          ? ` · clima: ${weather.estado_label}${cdMod !== 0 ? ` (CD ${cdMod > 0 ? '+' : ''}${cdMod})` : ''}`
+          : '';
+        toast.info(`¡Acontecimiento en la casilla ${posicion}! (${orientationResult.detalle})${climaTxt}`);
       }
     } catch (err) {
       console.error('Error generating event:', err);
@@ -1570,10 +1596,18 @@ const EnhancedTravelSystem = () => {
               setCharacters(prev => prev.map(c => c.id === targetMember.id ? { ...c, puntos_golpe_actual: nuevoPG } : c));
             } catch (e) { console.error('HP update fail:', e); }
             mecanicas.push(`${targetMember.nombre} hace TS DES: d20(${sd20})+${desMod}=${sTotal} vs CD ${cdSalv} → ${exitoSalv ? 'éxito (pierde ' + danio + ' PG)' : 'fallo (cae a 0 PG)'}.`);
-            toast(exitoSalv
-              ? `${targetMember.nombre} pierde ${danio} PG.`
-              : `${targetMember.nombre} cae a 0 PG.`,
-              { duration: 4500 });
+            if (nuevoPG <= 0) {
+              mecanicas.push(`⚠️ ${targetMember.nombre} ha caído inconsciente (0 PG). Necesita curación urgente.`);
+              toast.error(`💀 ${targetMember.nombre} cae INCONSCIENTE (0 PG). Aplica primeros auxilios o un descanso.`, {
+                duration: 7000,
+                style: { background: '#7f1d1d', color: '#fecaca', border: '1px solid #f87171' },
+              });
+            } else {
+              toast(exitoSalv
+                ? `${targetMember.nombre} pierde ${danio} PG.`
+                : `${targetMember.nombre} cae a ${nuevoPG} PG.`,
+                { duration: 4500 });
+            }
           }
         }
 
@@ -1842,7 +1876,15 @@ const EnhancedTravelSystem = () => {
         const { modifier: evMod, member: targetMember } = getRoleModifier(targetRole);
         const d20 = Math.floor(Math.random() * 20) + 1;
         const tirada = d20 + evMod;
-        const cd = evData.resolucion?.cd || 12;
+        // Aplica el clima del día concreto al CD del evento.
+        const wDayPre = (journeyWeather || [])[Math.min(eventPos - 1, (journeyWeather || []).length - 1)] || null;
+        const climaLabelPre = (wDayPre?.estado_label || '').toLowerCase();
+        const climaExtremoPre = ['tormenta','vendaval','nieve fuerte','extremo','helada','ventisca','niebla densa']
+          .some(k => climaLabelPre.includes(k));
+        const climaFavPre = ['despejado','soleado','templado','suave','agradable']
+          .some(k => climaLabelPre.includes(k));
+        const climaCdMod = climaExtremoPre ? 2 : (climaFavPre ? -1 : 0);
+        const cd = Math.max(5, (evData.resolucion?.cd || 12) + climaCdMod);
         const exitoEv = tirada >= cd;
 
         setAutoMessage(`Resolviendo "${evData.evento?.nombre || 'acontecimiento'}"`);

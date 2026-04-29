@@ -373,9 +373,26 @@ const DayByDayView = ({
                   </div>
                   <div>
                     <p className="text-sm text-muted-foreground">Dificultad (CD):</p>
-                    <p className="text-2xl font-bold text-red-400">{currentEvent.resolucion.cd}</p>
+                    <p className="text-2xl font-bold text-red-400" data-testid="event-resolution-cd">{currentEvent.resolucion.cd}</p>
+                    {currentEvent.resolucion?.cd_clima_mod !== undefined && currentEvent.resolucion.cd_clima_mod !== 0 && (
+                      <p className="text-[11px] mt-0.5">
+                        <span className="text-muted-foreground">Base </span>
+                        <span className="font-mono">{currentEvent.resolucion.cd_base}</span>
+                        <span className={`ml-1 font-bold ${currentEvent.resolucion.cd_clima_mod > 0 ? 'text-red-300' : 'text-emerald-300'}`}>
+                          {currentEvent.resolucion.cd_clima_mod > 0 ? '+' : ''}{currentEvent.resolucion.cd_clima_mod}
+                        </span>
+                        <span className="ml-1 text-muted-foreground italic">
+                          ({currentEvent.resolucion.clima_label})
+                        </span>
+                      </p>
+                    )}
                   </div>
                 </div>
+                {currentEvent.clima_dia?.estado_label && currentEvent.resolucion?.cd_clima_mod === 0 && (
+                  <p className="text-[11px] mt-2 text-muted-foreground italic" data-testid="event-clima-info">
+                    Clima del día: <span className="text-sky-300">{currentEvent.clima_dia.estado_label}</span>
+                  </p>
+                )}
               </div>
             );
           })()}

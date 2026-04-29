@@ -2,6 +2,22 @@
 
 ## Current State (2026-04-29)
 
+### ✅ Iteración 77 — Clima → CD del evento + Aviso de inconsciencia
+- **Clima del día aplicado al evento de su casilla** (`generateEventAtPosition`
+  + bucle de Viaje Global): se busca `journeyWeather[posicion-1]` y se
+  ajusta la **CD de resolución** del evento:
+  - "tormenta", "vendaval", "nieve fuerte", "ventisca", "niebla densa",
+    "extremo", "helada" → **+2 CD** (bandera `desventaja_clima`).
+  - "despejado", "soleado", "templado", "suave", "agradable" → **-1 CD**
+    (bandera `ventaja_clima`).
+  - El resto: 0. La UI muestra "Base X +Y (clima)" y el clima del día.
+- **Aviso de inconsciente** (`JourneyPartyPanel`):
+  - Nueva columna de PG (corazón) con color crítico/inconsciente.
+  - Badge "Inconsciente" + ring rojo + animación pulse cuando PG ≤ 0.
+  - Toast destacado "💀 Inconsciente — necesita curación" cuando una
+    Terrible Desgracia tira a un personaje a 0 PG.
+  - También se loguea en la bitácora del día como `mecanicas[]`.
+
 ### ✅ Iteración 76 — Sistema de Descansos 5e + Mecánicas de eventos + Zoom mapa
 **Bugs/Features cerrados en esta sesión:**
 

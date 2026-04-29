@@ -13,7 +13,7 @@
  */
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Activity, Drumstick, Droplet, Shield, AlertTriangle, Users } from 'lucide-react';
+import { Activity, Drumstick, Droplet, Shield, AlertTriangle, Users, Heart, Skull } from 'lucide-react';
 
 const PAPEL_LABELS = {
   guia: 'Guía',
@@ -93,20 +93,49 @@ const JourneyPartyPanel = ({
             const fatiga = Number(ch?.fatiga ?? 0);
             const change = fatigueChanges[m.id]; // {delta: +1/-1, casilla}
             const save = lastFatigueSaves[m.id];
+            const pgActual = Number(ch?.puntos_golpe_actual ?? ch?.puntos_golpe_max ?? 0);
+            const pgMax = Number(ch?.puntos_golpe_max ?? 0);
+            const inconsciente = pgMax > 0 && pgActual <= 0;
+            const pgCritico = pgMax > 0 && !inconsciente && pgActual <= Math.ceil(pgMax / 4);
             const papelLabel = m._esAcompanante
               ? 'acompañante'
               : (PAPEL_LABELS[m.papeles?.[0]] || m.papeles?.[0] || 'viajero');
             return (
               <div
                 key={m.id}
-                className="flex items-center gap-3 text-xs p-2 rounded bg-black/30 border border-border/30"
+                className={`flex items-center gap-3 text-xs p-2 rounded border ${
+                  inconsciente
+                    ? 'bg-red-900/40 border-red-500/60 ring-1 ring-red-500/40 animate-pulse'
+                    : pgCritico
+                      ? 'bg-orange-900/20 border-orange-500/40'
+                      : 'bg-black/30 border-border/30'
+                }`}
                 data-testid={`party-row-${m.id}`}
               >
                 {/* Identidad */}
                 <div className="flex-shrink-0 min-w-[110px]">
-                  <p className="font-bold text-[hsl(var(--gold))] truncate">{m.nombre}</p>
+                  <p className="font-bold text-[hsl(var(--gold))] truncate flex items-center gap-1">
+                    {m.nombre}
+                    {inconsciente && <Skull className="w-3 h-3 text-red-400" />}
+                  </p>
                   <p className="text-[10px] text-muted-foreground">{papelLabel}</p>
                 </div>
+
+                {/* Puntos de Golpe */}
+                {pgMax > 0 && (
+                  <div className="flex items-center gap-1" title={`PG ${pgActual}/${pgMax}`}>
+                    <Heart className={`w-3.5 h-3.5 ${inconsciente ? 'text-red-500' : pgCritico ? 'text-orange-400' : 'text-rose-300'}`} />
+                    <span className={`font-mono font-bold ${inconsciente ? 'text-red-400' : pgCritico ? 'text-orange-300' : 'text-rose-200'}`}
+                      data-testid={`party-pg-${m.id}`}>
+                      {pgActual}/{pgMax}
+                    </span>
+                    {inconsciente && (
+                      <Badge variant="outline" className="px-1 py-0 text-[10px] text-red-300 border-red-500/60 bg-red-500/10" data-testid={`party-inconsciente-${m.id}`}>
+                        Inconsciente
+                      </Badge>
+                    )}
+                  </div>
+                )}
 
                 {/* Fatiga actual + último cambio */}
                 <div className="flex items-center gap-1.5">
