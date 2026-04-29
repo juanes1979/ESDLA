@@ -2,6 +2,33 @@
 
 ## Current State (2026-04-29)
 
+### ✅ Iteración 81 — Toggle "Va montado" + carga real del jinete sobre la montura
+- **Nuevo campo `montado: bool`** en personaje (default false). Indica si
+  el jinete va sobre la montura en este instante.
+- **Nuevo endpoint** `PATCH /api/characters/{id}/mounted` body
+  `{montado: bool}` para alternar el estado.
+- **Backend `weight-summary`**: cuando `montado=True`,
+  `peso_total_montura = peso_montura (items) + peso_corporal (jinete) +
+  peso_personaje (equipo del jinete)`. Cuando `montado=False`, sólo
+  contabiliza items explícitamente cargados en el animal. Devuelve
+  además `montado` y `montura_sobrecargada` para que la UI no recalcule.
+- **EquipmentManagerModal**: nuevo toggle "Va montado" debajo del
+  recuadro de la montura. Llama a `handleToggleMounted`. La etiqueta
+  del peso ahora muestra "(jinete + equipo)" o "(sólo carga)" según
+  el estado, y resalta en rojo "⚠️ SOBRECARGADO" si supera la cap.
+- **Frontend `calculateJourney`** (`EnhancedTravelSystem`): cuando el
+  personaje va `montado`, el payload `montura_carga_actual_kg` incluye
+  ya el peso corporal + el equipo del jinete + lo cargado en el animal,
+  para que el backend de viaje aplique correctamente el -33% si supera
+  la capacidad.
+- **JourneyPartyPanel**: el chip "🐎 X/Y kg" ahora muestra el peso
+  REAL (incluyendo jinete + equipo si va montado) y añade el badge
+  "·jinete" cuando el jugador está montado. Sin carga + sin estar
+  montado → tooltip recordando el toggle.
+- **Verificación E2E**: Darnric Camposol (peso corporal 48.6 kg + equipo
+  20.76 kg = 69.36 / 101 kg en poni) → no sobrecargado, restante
+  31.64 kg. Toggle aplicado vía curl.
+
 ### ✅ Iteración 80 — Velocidad de montura realista (LOTR 5e house rule)
 - **Cambio de regla**: la velocidad efectiva al ir montado ahora es la
   **velocidad de la montura** directamente, no el antiguo

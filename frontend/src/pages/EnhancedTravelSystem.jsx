@@ -346,16 +346,28 @@ const EnhancedTravelSystem = () => {
           const estorbo = Number(char?.estorbo_metros ?? 0);
           const monturaCarga = !!char?.montura?.transporta_equipo;
           // Carga real sobre la montura: items con portado_por='montura'
-          // + montura.equipo[]. La capacidad sale de character.montura.
+          // + montura.equipo[] + (si va montado: peso del jinete + equipo
+          // que el jinete lleva sobre sí). La capacidad sale de
+          // character.montura.
           let monturaCargaKg = 0;
+          let pesoEquipoPersonaje = 0;
           (char?.inventario || []).forEach(it => {
-            if (it?.portado_por === 'montura') {
-              monturaCargaKg += Number(it.peso_kg || it.peso || 0) * Number(it.cantidad || 1);
+            if (!it) return;
+            const peso = Number(it.peso_kg || it.peso || 0) * Number(it.cantidad || 1);
+            if (it.portado_por === 'montura') {
+              monturaCargaKg += peso;
+            } else {
+              pesoEquipoPersonaje += peso;
             }
           });
           (char?.montura?.equipo || []).forEach(it => {
             monturaCargaKg += Number(it?.peso_kg || it?.peso || 0) * Number(it?.cantidad || 1);
           });
+          // Si va montado, suma peso corporal del jinete + su equipo.
+          if (char?.montado) {
+            const pesoCorporal = Number(char?.peso_kg || char?.peso || 70);
+            monturaCargaKg += pesoCorporal + pesoEquipoPersonaje;
+          }
           const monturaCapKg = Number(char?.montura?.capacidad_carga || char?.montura?.carga_kg || 0);
           return {
             personaje_id: m.id,

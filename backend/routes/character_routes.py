@@ -1966,18 +1966,26 @@ async def get_character_weight_summary(character_id: str):
     # Mount info
     montura = character.get("montura", {})
     capacidad_montura = montura.get("capacidad_carga", 0) if montura else 0
-    
-    # Character's body weight (for when mounted)
+
+    # Character's body weight (relevant only when riding)
     peso_corporal = character.get("peso_kg", 0) or 0
-    
-    # Total weight on mount = items on mount + character body weight (when riding)
-    peso_total_montura = peso_montura + peso_corporal
-    
+
+    # Whether the rider is mounted right now. If True, the mount also
+    # carries the rider's body weight AND the equipment that the rider
+    # carries on themselves (peso_personaje). If False, the mount only
+    # carries items explicitly placed on it (peso_montura).
+    montado = bool(character.get("montado", False))
+
+    if montado:
+        peso_total_montura = peso_montura + peso_corporal + peso_personaje
+    else:
+        peso_total_montura = peso_montura
+
     return {
         "peso_personaje": round(peso_personaje, 2),
         "peso_montura": round(peso_montura, 2),  # Just items
         "peso_corporal": round(peso_corporal, 2),  # Character's body weight
-        "peso_total_montura": round(peso_total_montura, 2),  # Items + rider
+        "peso_total_montura": round(peso_total_montura, 2),  # Mount-borne weight (depends on montado)
         "capacidad_personaje": round(capacidad_base, 2),
         "limite_cargado": round(limite_cargado, 2),
         "limite_muy_cargado": round(limite_muy_cargado, 2),
@@ -1986,4 +1994,18 @@ async def get_character_weight_summary(character_id: str):
         "nombre_montura": montura.get("nombre", ""),
         "capacidad_montura": capacidad_montura,
         "capacidad_montura_restante": round(capacidad_montura - peso_total_montura, 2) if capacidad_montura else 0,
+        "montado": montado,
+        "montura_sobrecargada": bool(capacidad_montura and peso_total_montura > capacidad_montura),
     }
+
+
+@router.patch("/{character_id}/mounted")
+async def toggle_mounted(character_id: str, montado: bool = Body(..., embed=True)):
+    """Toggle the rider's mounted state (jinete montado sobre la montura)."""
+    res = await db.characters.update_one(
+        {"_id": character_id},
+        {"$set": {"montado": montado, "updated_at": now_utc()}}
+    )
+    if res.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Character not found")
+    return {"montado": montado}

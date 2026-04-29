@@ -180,24 +180,27 @@ const JourneyPartyPanel = ({
                   </span>
                 )}
 
-                {/* Montura sobrecargada — calcula sólo lo que va en la
-                    montura (items con portado_por='montura') y compara con
-                    capacidad_carga del campo character.montura. */}
+                {/* Montura sobrecargada — calcula el peso REAL sobre el
+                    animal: items con portado_por='montura' + montura.equipo[]
+                    + (si va montado: peso del jinete + equipo personal). */}
                 {(() => {
                   if (!ch?.montura?.nombre) return null;
                   const cap = Number(ch.montura.capacidad_carga || ch.montura.carga_kg || 0);
                   if (cap <= 0) return null;
                   let pesoMontura = 0;
+                  let pesoPersonaje = 0;
                   (ch.inventario || []).forEach(it => {
-                    if (!it || it.portado_por !== 'montura') return;
-                    const cantidad = Number(it.cantidad || 1);
-                    const peso = Number(it.peso_kg || it.peso || 0);
-                    pesoMontura += peso * cantidad;
+                    if (!it) return;
+                    const peso = Number(it.peso_kg || it.peso || 0) * Number(it.cantidad || 1);
+                    if (it.portado_por === 'montura') pesoMontura += peso;
+                    else pesoPersonaje += peso;
                   });
-                  // También suma equipo cargado dentro de character.montura.equipo
                   (ch.montura.equipo || []).forEach(it => {
                     pesoMontura += Number(it?.peso_kg || it?.peso || 0) * Number(it?.cantidad || 1);
                   });
+                  if (ch.montado) {
+                    pesoMontura += Number(ch.peso_kg || ch.peso || 70) + pesoPersonaje;
+                  }
                   const ratio = pesoMontura / cap;
                   const sobrecargada = ratio > 1;
                   const cargada = !sobrecargada && ratio > 0.8;
@@ -214,11 +217,12 @@ const JourneyPartyPanel = ({
                               : 'text-emerald-300'
                       }`}
                       title={vacia
-                        ? `${ch.montura.nombre} vacío (0 / ${cap} kg). Sugerencia: carga el equipo del personaje en la montura desde la ficha (Gestionar equipo → "En montura") para librarlo del estorbo. La montura sólo pierde velocidad si supera ${cap} kg.`
-                        : `${ch.montura.nombre}: ${pesoMontura.toFixed(1)} / ${cap} kg${sobrecargada ? ' — SOBRECARGADA: -33% velocidad' : ''}`}
+                        ? `${ch.montura.nombre} vacío (0 / ${cap} kg). Carga el equipo del jinete en la montura desde "Gestionar equipo → En montura". Si el jinete va MONTADO sobre el animal, marca el toggle "Va montado" para que la montura cargue también su peso corporal.`
+                        : `${ch.montura.nombre}: ${pesoMontura.toFixed(1)} / ${cap} kg ${ch.montado ? '(jinete + equipo)' : '(sólo carga)'}${sobrecargada ? ' — SOBRECARGADA: -33% velocidad' : ''}`}
                       data-testid={`party-mount-load-${m.id}`}
                     >
                       🐎 {pesoMontura.toFixed(0)}/{cap} kg
+                      {ch.montado && <span className="text-[9px] italic">·jinete</span>}
                       {sobrecargada && <AlertTriangle className="w-3 h-3" />}
                       {vacia && <span className="text-[9px] italic ml-1">(sin carga)</span>}
                     </span>

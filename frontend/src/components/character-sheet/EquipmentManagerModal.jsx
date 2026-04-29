@@ -266,6 +266,24 @@ const EquipmentManagerModal = ({
     }
   };
 
+  // Toggle whether the rider is mounted (jinete sobre la montura).
+  // Cuando va montado, la montura carga el peso del jinete y de su equipo
+  // personal — no sólo el equipo explícitamente cargado en ella.
+  const handleToggleMounted = async (montado) => {
+    setProcessing(true);
+    try {
+      const res = await api.patch(`/characters/${character.id}/mounted`, { montado });
+      onCharacterUpdate({ ...character, montado: res.data.montado });
+      await refreshWeight();
+      toast.success(montado ? 'Jinete montado en la montura.' : 'Jinete a pie.');
+    } catch (err) {
+      console.error('Error toggling mounted:', err);
+      toast.error(err.response?.data?.detail || 'Error al actualizar');
+    } finally {
+      setProcessing(false);
+    }
+  };
+
   // Detect if character has a mount (either as character.montura or in inventory)
   const detectMount = useMemo(() => {
     // Helper to get mount capacity from catalog
@@ -574,21 +592,42 @@ const EquipmentManagerModal = ({
               </div>
             )}
             {hasMount && (
-              <div className="flex items-center gap-2 bg-blue-900/30 px-3 py-1 rounded">
-                <Landmark className="w-4 h-4 text-blue-400" />
-                <span>{detectMount.nombre}: {(() => {
-                  // Use backend calculation if available, otherwise calculate locally
-                  if (weightSummary?.peso_total_montura !== undefined) {
-                    const pesoTotal = Math.round(parseFloat(weightSummary.peso_total_montura) + parseFloat(weightSummary?.peso_personaje || 0));
-                    return `${pesoTotal}/${detectMount.capacidad} kg (jinete+equipo)`;
-                  }
-                  // Fallback: Calculate mount load: equipment on mount + character weight + equipment on character
-                  const pesoEquipoMontura = parseFloat(weightSummary?.peso_montura) || 0;
-                  const pesoPersonaje = parseFloat(character.peso_kg) || parseFloat(character.peso) || 70;
-                  const pesoEquipoPersonaje = parseFloat(weightSummary?.peso_personaje) || 0;
-                  const pesoTotal = Math.round(pesoEquipoMontura + pesoPersonaje + pesoEquipoPersonaje);
-                  return `${pesoTotal}/${detectMount.capacidad} kg (jinete+equipo)`;
-                })()}</span>
+              <div className="flex flex-col gap-2 bg-blue-900/30 px-3 py-2 rounded">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <Landmark className="w-4 h-4 text-blue-400" />
+                  <span className="font-medium">{detectMount.nombre}:</span>
+                  <span data-testid="mount-weight-display">
+                    {(() => {
+                      // Backend ya calcula peso_total_montura considerando el flag montado.
+                      const pesoBase = parseFloat(weightSummary?.peso_montura || 0);
+                      const pesoTotal = parseFloat(weightSummary?.peso_total_montura ?? pesoBase);
+                      const cap = parseFloat(detectMount.capacidad || 0);
+                      const sobrec = cap > 0 && pesoTotal > cap;
+                      const lbl = character.montado ? 'jinete + equipo' : 'sólo carga';
+                      return (
+                        <span className={sobrec ? 'text-red-300 font-bold' : ''}>
+                          {Math.round(pesoTotal)}/{cap} kg
+                          <span className="text-[10px] text-blue-300 ml-1">({lbl})</span>
+                          {sobrec && <span className="ml-1 text-red-300">⚠️ SOBRECARGADO</span>}
+                        </span>
+                      );
+                    })()}
+                  </span>
+                </div>
+                {/* Toggle: ¿el jinete va montado? */}
+                <label className="flex items-center gap-2 text-xs cursor-pointer select-none" data-testid="mounted-toggle-label">
+                  <input
+                    type="checkbox"
+                    checked={!!character.montado}
+                    onChange={(e) => handleToggleMounted(e.target.checked)}
+                    disabled={processing}
+                    className="rounded border-blue-400/40 bg-blue-900/40 text-blue-400 focus:ring-blue-400"
+                    data-testid="mounted-toggle"
+                  />
+                  <span className="text-blue-200">
+                    Va montado <span className="text-[10px] text-blue-300/70 italic">(la montura carga al jinete + su equipo)</span>
+                  </span>
+                </label>
               </div>
             )}
           </div>
