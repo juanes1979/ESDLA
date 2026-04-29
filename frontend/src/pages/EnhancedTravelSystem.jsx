@@ -447,32 +447,50 @@ const EnhancedTravelSystem = () => {
   // Check if party has enough food and water for the journey
   const checkProvisionsForJourney = useCallback((diasViaje) => {
     if (!config.miembros.length || !diasViaje) return null;
-    
+
     // Sólo cuentan los que viajan (con papel) + acompañantes; los miembros sin papel
     // están añadidos al grupo pero no parten de viaje, no consumen provisiones.
-    const numPersonajes = config.miembros.filter(m => m.papeles?.length > 0).length + (config.acompanantes || []).length;
+    const todosViajeros = [
+      ...config.miembros.filter(m => m.papeles?.length > 0),
+      ...(config.acompanantes || []),
+    ];
+    const numPersonajes = todosViajeros.length;
+    if (numPersonajes === 0) return null;
 
     // Requirements: 1 ration/day per person, 2L water/day per person
     const comidaNecesaria = numPersonajes * diasViaje; // in rations
     const aguaNecesaria = numPersonajes * diasViaje * 2; // in liters
-    
-    // Calculate total provisions from party inventory
-    // This would need to check each character's inventory
+
+    // Si el origen es un asentamiento conocido, los odres se asumen
+    // rellenados gratis a su capacidad máxima (10 L) — misma regla que
+    // aplica `partyProvisions` al iniciar el viaje. Sin esta corrección la
+    // alerta y el panel del grupo mostraban totales distintos.
+    const origenLoc = (locations || []).find(l => l.id === config.origenId);
+    const tipoOrigen = (origenLoc?.tipo || origenLoc?.tipo_lugar || '').toLowerCase();
+    const esAsentamientoConocido = !!origenLoc && (
+      tipoOrigen.includes('aldea') || tipoOrigen.includes('pueblo') ||
+      tipoOrigen.includes('ciudad') || tipoOrigen.includes('refugio') ||
+      tipoOrigen.includes('santuario') || tipoOrigen.includes('asentamiento') ||
+      tipoOrigen.includes('fortal') || tipoOrigen.includes('castillo') ||
+      tipoOrigen.includes('hostal') || tipoOrigen.includes('posada') || !tipoOrigen
+    );
+
+    // Calculate total provisions from party inventory (todosViajeros).
     let comidaDisponible = 0;
     let aguaDisponible = 0;
-    
-    // For each viajero (miembros + acompañantes), check their character's inventory
-    const todosViajeros = [...config.miembros.filter(m => m.papeles?.length > 0), ...(config.acompanantes || [])];
     todosViajeros.forEach(miembro => {
       const char = characters.find(c => c.id === miembro.id);
       if (!char?.inventario) return;
-      // Detect rations (incl. packs) and odres in the character's inventory.
       const summary = summarizeProvisions(char.inventario);
       comidaDisponible += summary.raciones;
-      aguaDisponible += summary.totalLitros;
+      const litrosCharacter = esAsentamientoConocido
+        ? summary.odres.length * 10 + summary.aguaSuelta
+        : summary.totalLitros;
+      aguaDisponible += litrosCharacter;
     });
-    
+
     return {
+      numPersonajes,
       comidaNecesaria,
       aguaNecesaria,
       comidaDisponible,
@@ -484,7 +502,7 @@ const EnhancedTravelSystem = () => {
       faltaComida: Math.max(0, comidaNecesaria - comidaDisponible),
       faltaAgua: Math.max(0, aguaNecesaria - aguaDisponible)
     };
-  }, [config.miembros, config.acompanantes, characters]);
+  }, [config.miembros, config.acompanantes, config.origenId, characters, locations]);
   
   // Check provisions when journey is calculated
   useEffect(() => {

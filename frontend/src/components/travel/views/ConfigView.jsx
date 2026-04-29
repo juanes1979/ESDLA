@@ -1210,7 +1210,7 @@ const ConfigView = ({
                 <div className="flex-1">
                   <p className="font-bold text-yellow-500 text-sm">Provisiones Insuficientes</p>
                   <p className="text-xs text-muted-foreground mt-1">
-                    Para {journeyCalc?.estimaciones?.dias_estimados || '?'} días de viaje con {config.miembros.length} personas:
+                    Para {journeyCalc?.estimaciones?.dias_estimados || '?'} días de viaje con {provisionsCheck?.numPersonajes || (config.miembros.filter(m => m.papeles?.length > 0).length + (config.acompanantes || []).length)} personas:
                   </p>
                   <div className="grid grid-cols-2 gap-2 mt-2 text-xs">
                     <div className={provisionsCheck.comidaSuficiente ? 'text-green-400' : 'text-red-400'}>
