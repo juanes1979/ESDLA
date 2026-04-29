@@ -939,19 +939,28 @@ const EnhancedTravelSystem = () => {
   }, [config.miembros]);
   
   // Foraging action - costs time, success depends on Survival check
-  const performForaging = useCallback(async (characterId) => {
-    const char = config.miembros.find(m => m.id === characterId);
+  const performForaging = useCallback(async (characterId, opts = {}) => {
+    // El forrajeador puede ser un miembro CON papel o un acompañante.
+    const char = config.miembros.find(m => m.id === characterId)
+      || (config.acompanantes || []).find(a => a.id === characterId);
     if (!char) return;
-    
-    // Roll d20 + Wisdom modifier + proficiency if applicable
-    const d20 = Math.floor(Math.random() * 20) + 1;
-    const modifier = char.modSabiduria || 0;
-    const total = d20 + modifier;
-    const cd = 15; // Survival DC for foraging
+    const fullChar = characters.find(c => c.id === characterId);
+
+    // Tirada de Sabiduría con ventaja si el forrajeador es Cazador.
+    const esCazador = !!opts.esCazador
+      || (char.papeles || []).includes('cazador')
+      || (fullChar?.ocupacion_nombre || '').toLowerCase().includes('cazador');
+    const d1 = Math.floor(Math.random() * 20) + 1;
+    const d2 = esCazador ? (Math.floor(Math.random() * 20) + 1) : null;
+    const d20 = esCazador ? Math.max(d1, d2) : d1;
+    const modSab = char.modSabiduria != null
+      ? Number(char.modSabiduria)
+      : Math.floor(((fullChar?.atributos?.sabiduria ?? 10) - 10) / 2);
+    const total = d20 + modSab;
+    const cd = 15;
     const exito = total >= cd;
-    
+
     if (exito) {
-      // 2d4 raciones y 3d4 litros de agua según las reglas (texto del diálogo).
       const comidaEncontrada =
         (Math.floor(Math.random() * 4) + 1) + (Math.floor(Math.random() * 4) + 1);
       const aguaEncontrada =
@@ -965,16 +974,16 @@ const EnhancedTravelSystem = () => {
         aguaTotal: prev.aguaTotal + aguaEncontrada
       }));
 
-      toast.success(`¡${char.nombre} encontró ${comidaEncontrada} raciones y ${aguaEncontrada}L de agua! (Tirada: ${total} vs CD ${cd})`);
+      const ventajaMsg = esCazador ? ` [ventaja Cazador: ${d1}/${d2}]` : '';
+      toast.success(`¡${char.nombre} encontró ${comidaEncontrada} raciones y ${aguaEncontrada} L! (Tirada: ${total} vs CD ${cd}${ventajaMsg})`);
     } else {
-      toast.error(`${char.nombre} no encontró nada comestible. (Tirada: ${total} vs CD ${cd})`);
+      const ventajaMsg = esCazador ? ` [ventaja Cazador: ${d1}/${d2}]` : '';
+      toast.error(`${char.nombre} no encontró nada. (Tirada: ${total} vs CD ${cd}${ventajaMsg})`);
     }
-    
-    // Foraging takes time - add 1 to stage days
+
     setStageDays(prev => prev + 1);
-    
-    return { exito, tirada: total, cd };
-  }, [config.miembros]);
+    return { exito, tirada: total, cd, esCazador };
+  }, [config.miembros, config.acompanantes, characters]);
   
   // =============== REST SYSTEM ===============
 
@@ -987,8 +996,13 @@ const EnhancedTravelSystem = () => {
   const performRest = useCallback(async (restType = 'long') => {
     const restConfig = REST_TYPES[restType];
     const results = [];
-    
-    for (const miembro of config.miembros) {
+
+    // El cansancio afecta a TODOS los que viajan (con/sin papel + acompañantes).
+    const todosViajeros = [
+      ...config.miembros,
+      ...((config.acompanantes || []).map(a => ({ ...a, papeles: a.papeles || [] }))),
+    ];
+    for (const miembro of todosViajeros) {
       const char = characters.find(c => c.id === miembro.id);
       if (!char) continue;
       
@@ -2798,6 +2812,7 @@ const EnhancedTravelSystem = () => {
         open={showCampDialog}
         onClose={() => setShowCampDialog(false)}
         miembros={config.miembros}
+        acompanantes={config.acompanantes || []}
         characters={characters}
         activeJourney={activeJourney || (mode === 'global' ? { fatiga_cd_total: globalFatigaCD, config: { tipo_tierra: journeyCalc?.ruta?.tipo_tierra } } : null)}
         region={journeyCalc?.ruta?.tipo_tierra || 'tierras_salvajes'}

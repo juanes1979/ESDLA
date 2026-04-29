@@ -530,9 +530,10 @@ const ResultsView = ({
               <p className="italic text-muted-foreground leading-relaxed text-justify border-l-4 border-[hsl(var(--gold))]/30 pl-4">
                 {journeyNarrative}
               </p>
-              <div className="mt-4">
-                <NarrativeTTSPlayer text={journeyNarrative} />
-              </div>
+              {/* TTS deshabilitado a petición del usuario: las voces de
+                  OpenAI tienen acento latinoamericano. Cuando dispongamos
+                  de un TTS con voz castellana de España (estilo Gandalf)
+                  se vuelve a habilitar. */}
             </div>
           ) : (
             <p className="text-sm text-muted-foreground">

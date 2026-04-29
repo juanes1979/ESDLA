@@ -14,7 +14,7 @@
  *     Fallo = posible sorpresa al grupo.
  *   - La CD acumulada de Fatiga del viaje se reduce 0,5 por cada acampada.
  */
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -49,6 +49,7 @@ export default function CampDialog({
   open,
   onClose,
   miembros,
+  acompanantes = [],
   characters,
   activeJourney,
   region,
@@ -69,14 +70,37 @@ export default function CampDialog({
   currentTerreno = '',
   onCampDayCompleted,
 }) {
+  // El cansancio afecta a TODOS los que viajan, no sólo a los que tienen
+  // papel asignado. Combinamos miembros + acompañantes.
+  const todosViajeros = useMemo(
+    () => [
+      ...(miembros || []),
+      ...((acompanantes || []).map(a => ({ ...a, _esAcompanante: true, papeles: a.papeles || [] }))),
+    ],
+    [miembros, acompanantes]
+  );
   const [sentinelId, setSentinelId] = useState(miembros?.[0]?.id || '');
   const [foragerId, setForagerId] = useState(
     miembros?.find((m) => m.papeles?.includes('cazador'))?.id || miembros?.[0]?.id || ''
   );
   const [foragingResult, setForagingResult] = useState(null);
+  const [foragingDoneToday, setForagingDoneToday] = useState(false);
   const [foragingBusy, setForagingBusy] = useState(false);
   const [results, setResults] = useState(null);
   const [processing, setProcessing] = useState(false);
+  // Tras "Acampar" el usuario decide si forrajear (o no). Sólo se permite
+  // 1 forrajeo por acampada (regla del usuario).
+  const [campDone, setCampDone] = useState(false);
+
+  // Reset por día / al abrir el dialog otra vez.
+  useEffect(() => {
+    if (open) {
+      setCampDone(false);
+      setForagingDoneToday(false);
+      setForagingResult(null);
+      setResults(null);
+    }
+  }, [open]);
 
   const regionKey = region || activeJourney?.config?.tipo_tierra || 'tierras_salvajes';
   const numNightEvents = NIGHT_EVENTS_BY_REGION[regionKey] || 1;
@@ -85,8 +109,8 @@ export default function CampDialog({
     if (!partyProvisions) return true;
     const disponiblesComida = partyProvisions.comidaTotal - partyProvisions.comidaConsumida;
     const disponiblesAgua = partyProvisions.aguaTotal - partyProvisions.aguaConsumida;
-    return disponiblesComida >= miembros.length && disponiblesAgua >= miembros.length;
-  }, [partyProvisions, miembros]);
+    return disponiblesComida >= todosViajeros.length && disponiblesAgua >= todosViajeros.length;
+  }, [partyProvisions, todosViajeros]);
 
   const performCamp = useCallback(async () => {
     setProcessing(true);
@@ -97,8 +121,8 @@ export default function CampDialog({
       if (setPartyProvisions) {
         setPartyProvisions((prev) => ({
           ...prev,
-          comidaConsumida: prev.comidaConsumida + miembros.length,
-          aguaConsumida: prev.aguaConsumida + miembros.length,
+          comidaConsumida: prev.comidaConsumida + todosViajeros.length,
+          aguaConsumida: prev.aguaConsumida + todosViajeros.length,
         }));
       }
 
@@ -123,7 +147,7 @@ export default function CampDialog({
       const cdProvisiones = (Number(diasSinComida) || 0) * 1 + (Number(diasSinAgua) || 0) * 2;
 
       const charResults = [];
-      for (const m of miembros) {
+      for (const m of todosViajeros) {
         const char = characters.find((c) => c.id === m.id);
         const conMod = modFromScore(char?.atributos?.constitucion);
         const bonusFatiga = Number(
@@ -325,6 +349,7 @@ export default function CampDialog({
         `Acampada realizada. CD Fatiga: ${fatigaCdNueva}. ` +
           `${charResults.length} tiradas CON, ${nightEvents.length} evento(s) nocturno(s).`
       );
+      setCampDone(true);
     } finally {
       setProcessing(false);
     }
@@ -464,30 +489,41 @@ export default function CampDialog({
                 </p>
               </div>
 
-              {/* Forrajear durante la acampada */}
-              <div className="space-y-2 p-3 rounded border border-emerald-500/30 bg-emerald-500/5">
+              {/* Forrajear durante la acampada — sólo disponible TRAS
+                  pulsar "Acampar un día" y limitado a 1 vez por acampada.*/}
+              <div className={`space-y-2 p-3 rounded border ${campDone ? 'border-emerald-500/30 bg-emerald-500/5' : 'border-border/30 bg-muted/30 opacity-60'}`}>
                 <p className="text-sm font-bold flex items-center gap-2 text-emerald-400">
                   <Leaf className="w-4 h-4" />
-                  Forrajear (opcional)
+                  Forrajear (opcional, tras acampar)
+                  {foragingDoneToday && (
+                    <Badge variant="outline" className="ml-2 text-emerald-400 border-emerald-500/40">Hecho hoy</Badge>
+                  )}
                 </p>
+                {!campDone && (
+                  <p className="text-[11px] text-amber-300 italic">
+                    Pulsa primero "Acampar un día" para poder forrajear.
+                  </p>
+                )}
                 <p className="text-[11px] text-muted-foreground">
                   Un personaje busca alimento y agua en la naturaleza. Tirada de
                   <strong> Sabiduría </strong>vs CD según terreno
                   ({getForageCD(terrenoViaje)} en {terrenoViaje || 'desconocido'}).
                   Éxito: <strong>2d4 raciones</strong> y <strong>3d4 L</strong> de agua.
+                  Si el forrajeador es el <strong>Cazador</strong>, gana ventaja en la tirada.
                 </p>
                 <div className="flex gap-2 items-end">
                   <div className="flex-1">
                     <Label className="text-xs">Forrajeador</Label>
-                    <Select value={foragerId} onValueChange={setForagerId}>
+                    <Select value={foragerId} onValueChange={setForagerId} disabled={!campDone || foragingDoneToday}>
                       <SelectTrigger data-testid="camp-forager-select">
                         <SelectValue placeholder="Elegir forrajeador" />
                       </SelectTrigger>
                       <SelectContent>
-                        {miembros.map((m) => (
+                        {todosViajeros.map((m) => (
                           <SelectItem key={m.id} value={m.id}>
                             {m.nombre}
                             {m.papeles?.includes('cazador') ? ' (Cazador)' : ''}
+                            {m._esAcompanante ? ' (acompañante)' : ''}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -503,18 +539,22 @@ export default function CampDialog({
                       }
                       setForagingBusy(true);
                       try {
-                        const r = await onForage(foragerId);
+                        // Marca al forrajeador "esCazador" para que el handler
+                        // padre aplique ventaja (2 d20 toma el mejor).
+                        const cazador = !!todosViajeros.find(m => m.id === foragerId)?.papeles?.includes('cazador');
+                        const r = await onForage(foragerId, { esCazador: cazador });
                         setForagingResult(r || null);
+                        setForagingDoneToday(true);
                       } finally {
                         setForagingBusy(false);
                       }
                     }}
-                    disabled={foragingBusy || !foragerId}
+                    disabled={!campDone || foragingDoneToday || foragingBusy || !foragerId}
                     className="border-emerald-500/40 hover:bg-emerald-500/10"
                     data-testid="camp-forage-btn"
                   >
                     <Leaf className="w-4 h-4 mr-2" />
-                    {foragingBusy ? 'Buscando...' : 'Forrajear'}
+                    {foragingBusy ? 'Buscando...' : foragingDoneToday ? 'Ya forrajeado' : 'Forrajear'}
                   </Button>
                 </div>
                 {foragingResult && (
