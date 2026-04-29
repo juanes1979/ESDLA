@@ -707,12 +707,24 @@ const ConfigView = ({
             <div>
               <Label>Día del Mes</Label>
               <Input
-                type="number"
-                min="1"
-                max="30"
-                value={config.diaMes}
+                type="text"
+                inputMode="numeric"
+                pattern="[0-9]*"
+                value={config.diaMes ?? ''}
                 onChange={(e) => {
-                  const v = parseInt(e.target.value, 10);
+                  const raw = e.target.value;
+                  // Permite vaciar el input para que el usuario pueda
+                  // teclear un número nuevo sin tener que insertar un
+                  // dígito antes de borrar el "1".
+                  if (raw === '') {
+                    setConfig(prev => ({ ...prev, diaMes: '' }));
+                    return;
+                  }
+                  if (!/^\d{1,2}$/.test(raw)) return; // ignora caracteres no numéricos
+                  setConfig(prev => ({ ...prev, diaMes: raw }));
+                }}
+                onBlur={() => {
+                  const v = parseInt(config.diaMes, 10);
                   const clamped = Number.isNaN(v) ? 1 : Math.max(1, Math.min(30, v));
                   setConfig(prev => ({ ...prev, diaMes: clamped }));
                 }}
