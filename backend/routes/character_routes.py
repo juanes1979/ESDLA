@@ -643,10 +643,11 @@ async def update_draft_step5(draft_id: str, data: CharacterCreateStep5):
     nombre_virtud = (data.virtud_nombre or virtue.get('nombre') or '').strip().lower()
     if nombre_virtud == 'poni de bree':
         # Stats canónicos del Poni de Bree.
-        update["montura"] = {
+        montura_data = {
             "nombre": "Poni de Bree",
             "tipo": "poni",
             "carga_kg": 101,
+            "capacidad_carga": 101,
             "constitucion": 13,
             "constitucion_mod": 1,
             "velocidad": 12,
@@ -660,7 +661,30 @@ async def update_draft_step5(draft_id: str, data: CharacterCreateStep5):
                 "Puede actuar en combate bajo las órdenes de su dueño",
             ],
             "ganado_via_virtud": True,
+            "equipo": [],  # equipo cargado en la montura
         }
+        update["montura"] = montura_data
+
+        # También añade el poni al inventario para que aparezca en "Equipo
+        # completo" y se pueda gestionar (cargar equipo en él) desde la
+        # ficha. Sólo se añade si todavía no está.
+        existing_inv = draft.get('inventario', []) or []
+        already_has = any(
+            (it.get('nombre') if isinstance(it, dict) else str(it)).strip().lower() == 'poni de bree'
+            for it in existing_inv
+        )
+        if not already_has:
+            existing_inv = existing_inv + [{
+                "nombre": "Poni de Bree",
+                "categoria": "monturas",
+                "cantidad": 1,
+                "peso_kg": 0,  # el peso de la montura no afecta al estorbo del jinete
+                "portado_por": "personaje",  # se monta, no se carga
+                "es_montura": True,
+                "ganado_via_virtud": True,
+                "capacidad_carga_kg": 101,
+            }]
+            update["inventario"] = existing_inv
     
     await db.character_drafts.update_one(
         {"_id": draft_id},
@@ -971,6 +995,8 @@ async def finalize_character(draft_id: str):
         "virtud4": draft.get('virtud4'),
         "virtud4_descripcion": draft.get('virtud4_descripcion'),
         "virtud4_rasgos": draft.get('virtud4_rasgos'),
+        # Mount obtained via virtue (e.g. "Poni de Bree" for Bree Men)
+        "montura": draft.get('montura') or {},
         
         # Meta
         "estado": "activo",

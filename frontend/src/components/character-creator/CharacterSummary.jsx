@@ -792,6 +792,31 @@ const CharacterSummary = ({ draft, onFinalize, onEdit, loading, draftId }) => {
                   </div>
                 )}
                 
+                {/* Mount obtained via virtue (e.g. Poni de Bree) */}
+                {draft.montura && draft.montura.nombre && (
+                  <div className="bg-blue-900/20 rounded-lg p-3 border border-blue-500/40" data-testid="summary-mount-card">
+                    <p className="text-xs text-blue-400 font-heading mb-2">🐎 Montura (vía virtud)</p>
+                    <div className="flex justify-between items-start text-sm">
+                      <div>
+                        <p className="text-foreground font-medium">{draft.montura.nombre}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {draft.montura.tipo ? `${draft.montura.tipo} · ` : ''}
+                          {draft.montura.tamano || ''}
+                          {draft.montura.velocidad ? ` · ${draft.montura.velocidad} m vel.` : ''}
+                        </p>
+                        {draft.montura.transporta_equipo && (
+                          <p className="text-xs text-blue-300 mt-1 italic">
+                            Puede cargar hasta {draft.montura.carga_kg || 0} kg de equipo (alivia el estorbo del jinete).
+                          </p>
+                        )}
+                      </div>
+                      <div className="text-right text-xs text-blue-300">
+                        <p>Cap: {draft.montura.carga_kg || 0} kg</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 {/* Money */}
                 <div className="bg-[hsl(var(--gold))/10] rounded-lg p-3">
                   <div className="flex items-center justify-between">

@@ -2,6 +2,26 @@
 
 ## Current State (2026-04-29)
 
+### ✅ Iteración 78 — Bugfix Poni de Bree + visibilidad montura
+- **Bug crítico**: el endpoint `finalize` NO copiaba `montura` desde el draft
+  al personaje creado, así que la virtud "Poni de Bree" se perdía. Fix:
+  añadido `"montura": draft.get('montura') or {}` en `finalize`.
+- **Mejora**: al asignarse la virtud "Poni de Bree" en `step5`, también se
+  añade el poni al `inventario` (categoría `monturas`, `peso_kg=0`,
+  `capacidad_carga_kg=101`, `es_montura=True`, `ganado_via_virtud=True`)
+  para que aparezca en el "Equipo Completo" y se pueda gestionar
+  (cargar equipo en él) desde la ficha vía `EquipmentManagerModal`.
+- **CharacterSummary**: nueva tarjeta "🐎 Montura (vía virtud)" antes de
+  Dinero que muestra nombre, tipo, tamaño, velocidad y capacidad.
+- **Migración**: aplicada a 2 personajes existentes (Xalan Fuenteoscura,
+  Darnric Camposol) + 1 draft con virtud "Poni de Bree" pero sin
+  `montura` en BD. Idempotente: no duplica si ya existe.
+- **Carga de equipo en la montura**: ya estaba soportado en el backend
+  (`PATCH /characters/{id}/equipment/carry` con `carried_by='montura'`)
+  y en el frontend (`EquipmentManagerModal` muestra "En montura/Sin
+  montura" por ítem). El cálculo de peso ya excluye lo cargado en la
+  montura al estimar el estorbo del jinete.
+
 ### ✅ Iteración 77 — Clima → CD del evento + Aviso de inconsciencia
 - **Clima del día aplicado al evento de su casilla** (`generateEventAtPosition`
   + bucle de Viaje Global): se busca `journeyWeather[posicion-1]` y se
