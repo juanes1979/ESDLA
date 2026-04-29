@@ -252,6 +252,7 @@ export const DeathSavesCard = ({ character, onUpdate }) => {
 let _pesoCache = null;
 const normalizar = (s) => (s || '').toLowerCase()
   .normalize('NFD').replace(/[\u0300-\u036f]/g, '') // quita acentos
+  .split(/\s+[—–-]\s+mod\.?/i)[0]                  // quita "— Mod. 100%"
   .replace(/\s+\(.*?\)/g, '')   // quita "(20)" de "Flecha (20)"
   .replace(/\s+x\d+$/, '')      // quita "x2" final
   .replace(/[\[\]]/g, '')       // quita corchetes
@@ -270,8 +271,13 @@ const cargarPesos = async () => {
       if (r.status !== 'fulfilled' || !r.value?.data) return [];
       const d = r.value.data;
       if (Array.isArray(d)) return d;
-      for (const v of Object.values(d)) if (Array.isArray(v)) return v;
-      return [];
+      // Collect ALL arrays in the response (equipment-catalog has many
+      // categories: armas_sencillas_cc, armaduras_ligeras, herramientas, …).
+      const all = [];
+      for (const v of Object.values(d)) {
+        if (Array.isArray(v)) all.push(...v);
+      }
+      return all;
     };
     [...collect(w), ...collect(a), ...collect(e)].forEach(it => {
       const n = normalizar(it?.nombre);
@@ -290,6 +296,7 @@ export const WeightEncumbranceCard = ({ character, onUpdate }) => {
   useEffect(() => { cargarPesos().then(setPesoMap); }, []);
 
   const inventario = character?.inventario || [];
+  const equipoOcupacion = character?.equipo_ocupacion || [];
   const fuerza = Number(character?.atributos?.fuerza ?? 10);
   const tam = (character?.tamano || character?.cultura_tamano || '').toLowerCase();
   const isSmall = tam.includes('peque') || tam.includes('small') || tam.includes('hobbit');
@@ -302,18 +309,26 @@ export const WeightEncumbranceCard = ({ character, onUpdate }) => {
   const umbralCargado = +(fuerza * 2.5 * sizeMul).toFixed(1);
   const umbralMuyCargado = +(fuerza * 5 * sizeMul).toFixed(1);
 
-  // Suma peso del inventario (mira en pesoMap si el item no trae peso propio)
+  // Suma peso del inventario + equipo de ocupación. Mira en pesoMap si
+  // el item no trae peso propio. Soporta ítems en formato string o en
+  // objeto {nombre, mejoras?, …}.
   const pesoTotal = useMemo(() => {
-    return inventario.reduce((acc, it) => {
+    const sumItem = (it) => {
+      if (!it) return 0;
       // Ignora items "portado_por": "montura" — los lleva el animal.
-      if ((it?.portado_por || '').toLowerCase() === 'montura') return acc;
-      const cant = Number(it?.cantidad || 1);
-      const propio = Number(it?.peso_kg ?? it?.peso ?? 0);
+      if (typeof it === 'object' && (it?.portado_por || '').toLowerCase() === 'montura') return 0;
+      const cant = Number(typeof it === 'object' ? (it.cantidad || 1) : 1);
+      const propio = Number((typeof it === 'object' ? (it.peso_kg ?? it.peso) : 0) || 0);
+      const nombre = typeof it === 'string' ? it : it?.nombre;
       let peso = propio;
-      if (!peso) peso = pesoMap[normalizar(it?.nombre)] || 0;
-      return acc + peso * cant;
-    }, 0);
-  }, [inventario, pesoMap]);
+      if (!peso) peso = pesoMap[normalizar(nombre)] || 0;
+      return peso * cant;
+    };
+    let total = 0;
+    inventario.forEach(it => { total += sumItem(it); });
+    equipoOcupacion.forEach(it => { total += sumItem(it); });
+    return total;
+  }, [inventario, equipoOcupacion, pesoMap]);
 
   const monturaCarga = !!character?.montura?.transporta_equipo;
   const pesoEfectivo = monturaCarga ? 0 : pesoTotal;

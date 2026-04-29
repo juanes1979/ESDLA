@@ -335,7 +335,8 @@ const SheetPage1 = ({ character, scale, weaponCatalog = [], equipmentCatalog = {
   const periciasHabilidades = (character.pericia_elegida || [])
     .map(s => s?.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, '_'));
   
-  const salvacionesCompetentes = character.salvaciones_competentes || 
+  const salvacionesCompetentes = character.salvaciones_competencia ||
+    character.salvaciones_competentes ||
     character.competencias?.tiradas_salvacion || [];
   
   // Calculate skill modifier
@@ -611,6 +612,7 @@ const SheetPage1 = ({ character, scale, weaponCatalog = [], equipmentCatalog = {
       ...(character.herramienta_elegida_cultura ? [character.herramienta_elegida_cultura] : []),
       ...(character.competencia_herramienta_1 ? [character.competencia_herramienta_1] : []),
       ...(character.competencias_herramientas_2 || []),
+      ...(character.competencias_herramientas || []),
       ...(character.competencias?.herramientas || []),
       ...(character.competencias?.herramientas_cultura || []),
       ...(character.herramientas_elegidas_ocupacion || []),
@@ -828,7 +830,7 @@ const SheetPage1 = ({ character, scale, weaponCatalog = [], equipmentCatalog = {
       {/* Basic Info */}
       <DisplayField {...PAGE1_FIELDS.nombre} value={character.nombre} scale={scale} />
       <DisplayField {...PAGE1_FIELDS.ocupacion_nivel} value={`${character.ocupacion_nombre || character.vocacion_nombre || ''} ${nivel}`} scale={scale} />
-      <DisplayField {...PAGE1_FIELDS.jugador} value={character.jugador || ''} scale={scale} />
+      <DisplayField {...PAGE1_FIELDS.jugador} value={character.jugador || character.nombre_jugador || ''} scale={scale} />
       <DisplayField {...PAGE1_FIELDS.cultura} value={character.cultura_nombre || ''} scale={scale} />
       <DisplayField {...PAGE1_FIELDS.senda_sombra} value={character.senda_sombra || ''} scale={scale} />
       
@@ -872,7 +874,11 @@ const SheetPage1 = ({ character, scale, weaponCatalog = [], equipmentCatalog = {
       <DisplayField {...PAGE1_FIELDS.inspiracion} value={character.inspiracion || ''} scale={scale} />
       <DisplayField {...PAGE1_FIELDS.bonificador_competencia} value={`+${bonificadorCompetencia}`} scale={scale} />
       <DisplayField {...PAGE1_FIELDS.clase_armadura} value={10 + Math.floor(((attrs.destreza || 10) - 10) / 2)} scale={scale} />
-      <DisplayField {...PAGE1_FIELDS.iniciativa} value={getModifier(attrs.destreza || 10)} scale={scale} />
+      <DisplayField {...PAGE1_FIELDS.iniciativa} value={(() => {
+        const dexMod = Math.floor(((attrs.destreza || 10) - 10) / 2);
+        const total = dexMod + Number(character.iniciativa_bonus || 0);
+        return total >= 0 ? `+${total}` : `${total}`;
+      })()} scale={scale} />
       <DisplayField {...PAGE1_FIELDS.velocidad} value={`${character.velocidad || 9}m`} scale={scale} />
       
       {/* Hit Points */}

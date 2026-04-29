@@ -165,7 +165,16 @@ const SheetPage2 = ({ character, scale, fieldPositions = {} }) => {
       <DisplayField {...getPos('sombra')} value={character.senda_sombra || ''} scale={scale} />
       <DisplayField 
         {...getPos('descripcion_sombra')} 
-        value={character.senda_sombra_descripcion || character.maldicion_descripcion || character.descripcion_sombra || ''} 
+        value={(() => {
+          const parts = [];
+          const desc = character.senda_sombra_descripcion || character.maldicion_descripcion || character.descripcion_sombra;
+          if (desc) parts.push(desc);
+          if (character.maldicion_sombra) parts.push(`Maldición: ${character.maldicion_sombra}`);
+          if (Array.isArray(character.cicatrices_sombra) && character.cicatrices_sombra.length > 0) {
+            parts.push(`Cicatrices: ${character.cicatrices_sombra.join(', ')}`);
+          }
+          return parts.join('\n');
+        })()}
         scale={scale} 
       />
       
@@ -178,20 +187,36 @@ const SheetPage2 = ({ character, scale, fieldPositions = {} }) => {
       />
       
       {/* Resources */}
-      <DisplayField {...getPos('puntos_comunidad')} value={character.puntos_comunidad ? character.puntos_comunidad : ''} scale={scale} />
+      <DisplayField {...getPos('puntos_comunidad')} value={
+        character.puntos_comunidad
+          ? character.puntos_comunidad
+          : (character.mecenas?.puntos_comunidad || '')
+      } scale={scale} />
       <DisplayField {...getPos('heredero')} value={character.heredero || ''} scale={scale} />
       <DisplayField {...getPos('inversion')} value={character.inversion || ''} scale={scale} />
       
-      {/* Mecenas section */}
-      <DisplayField {...getPos('mecenas')} value={character.mecenas || character.patron_nombre || ''} scale={scale} />
+      {/* Mecenas section — supports both legacy strings and the new object schema */}
+      <DisplayField {...getPos('mecenas')} value={
+        (typeof character.mecenas === 'object' && character.mecenas)
+          ? (character.mecenas.nombre || '')
+          : (character.mecenas || character.patron_nombre || '')
+      } scale={scale} />
       <DisplayField 
         {...getPos('descripcion_mecenas')} 
-        value={character.descripcion_mecenas || ''} 
+        value={
+          (typeof character.mecenas === 'object' && character.mecenas?.descripcion_mecenas)
+            ? character.mecenas.descripcion_mecenas
+            : (character.descripcion_mecenas || '')
+        }
         scale={scale} 
       />
       <DisplayField 
         {...getPos('ventaja_mecenas')} 
-        value={character.ventaja_mecenas || ''} 
+        value={
+          (typeof character.mecenas === 'object' && character.mecenas?.ventaja_mecenas)
+            ? character.mecenas.ventaja_mecenas
+            : (character.ventaja_mecenas || '')
+        }
         scale={scale} 
       />
       
