@@ -253,7 +253,11 @@ const DayByDayView = ({
       </CardContent>
     </Card>
 
-    <PartyFatiguePanel miembros={config.miembros} characters={characters} />
+    <PartyFatiguePanel
+      miembros={config.miembros}
+      acompanantes={config.acompanantes || []}
+      characters={characters}
+    />
 
     <Card className="card-parchment">
       <CardHeader className="pb-2">

@@ -2,6 +2,7 @@
  * Character Header - Name, level, culture, experience
  */
 import { LevelUpButton } from '@/components/LevelUpModal';
+import { toast } from 'sonner';
 
 const CharacterHeader = ({ character, onLevelUp }) => {
   return (
@@ -50,11 +51,23 @@ const CharacterHeader = ({ character, onLevelUp }) => {
             {character.experiencia || 0} XP
           </p>
           {character.codigo_publico && (
-            <p className="text-[10px] text-muted-foreground font-mono mt-2 tracking-wider"
-               data-testid="codigo-publico-display"
-               title="Código público único del personaje">
+            <button
+              onClick={() => {
+                navigator.clipboard?.writeText(character.codigo_publico).then(
+                  () => toast.success(`Código copiado: ${character.codigo_publico}`),
+                  () => toast.error('No se pudo copiar')
+                );
+              }}
+              className="text-[10px] text-muted-foreground font-mono mt-2 tracking-wider hover:text-[hsl(var(--gold))] transition-colors cursor-pointer flex items-center gap-1 ml-auto"
+              data-testid="codigo-publico-display"
+              title="Click para copiar el código público"
+            >
               {character.codigo_publico}
-            </p>
+              <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+              </svg>
+            </button>
           )}
         </div>
       </div>

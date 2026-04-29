@@ -456,6 +456,7 @@ const ConfigView = ({
                     isDirectLine={journeyCalc.ruta.is_direct_line}
                     expanded={mapExpanded}
                     onToggleExpand={() => setMapExpanded(!mapExpanded)}
+                    totalCasillas={journeyCalc.ruta.casillas || 0}
                   />
                 </div>
               )}

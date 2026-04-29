@@ -17,6 +17,8 @@ const CharactersListPage = () => {
   const [characters, setCharacters] = useState([]);
   const [drafts, setDrafts] = useState([]);
   const [loading, setLoading] = useState(true);
+  // Búsqueda por nombre, jugador, cultura o código público.
+  const [searchQuery, setSearchQuery] = useState('');
   
   // Selection state
   const [selectMode, setSelectMode] = useState(false);
@@ -329,8 +331,53 @@ const CharactersListPage = () => {
                   )}
                 </div>
 
+                {/* Buscador (filtra por nombre, jugador, cultura o código público) */}
+                <div className="mb-4">
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={searchQuery}
+                      onChange={e => setSearchQuery(e.target.value)}
+                      placeholder="Buscar por nombre, jugador, cultura o código (p.ej. HOMDUNE26…)"
+                      className="w-full bg-gray-900/60 border border-orange-500/20 rounded-lg px-4 py-2 pl-9 text-sm text-gray-100 focus:outline-none focus:border-orange-500/60"
+                      data-testid="character-search-input"
+                    />
+                    <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-4.35-4.35m0 0A7 7 0 104 4a7 7 0 0012.65 12.65z" />
+                    </svg>
+                    {searchQuery && (
+                      <button
+                        type="button"
+                        onClick={() => setSearchQuery('')}
+                        className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-500 hover:text-white"
+                        data-testid="character-search-clear"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    )}
+                  </div>
+                </div>
+
                 <div className="grid md:grid-cols-2 gap-4">
-                  {characters.map(char => (
+                  {(() => {
+                    const q = (searchQuery || '').trim().toLowerCase();
+                    const list = q
+                      ? characters.filter(c => {
+                          const fields = [
+                            c.nombre, c.jugador, c.nombre_jugador,
+                            c.cultura_nombre, c.ocupacion, c.codigo_publico,
+                          ].filter(Boolean).map(s => String(s).toLowerCase());
+                          return fields.some(f => f.includes(q));
+                        })
+                      : characters;
+                    if (list.length === 0 && q) {
+                      return (
+                        <p className="md:col-span-2 text-center text-sm text-muted-foreground italic py-8" data-testid="search-no-results">
+                          Ningún personaje coincide con "{searchQuery}".
+                        </p>
+                      );
+                    }
+                    return list.map(char => (
                     <div
                       key={char.id}
                       className={cn(
@@ -377,11 +424,17 @@ const CharactersListPage = () => {
                           <div className="flex gap-3 mt-1 text-xs text-gray-500">
                             <span>Nivel {char.nivel || 1}</span>
                             <span>PG: {char.puntos_golpe_actual}/{char.puntos_golpe_max}</span>
+                            {char.codigo_publico && (
+                              <span className="font-mono text-amber-400/70 tracking-wider" title="Código público">
+                                {char.codigo_publico}
+                              </span>
+                            )}
                           </div>
                         </div>
                       </button>
                     </div>
-                  ))}
+                    ));
+                  })()}
                 </div>
               </>
             )}

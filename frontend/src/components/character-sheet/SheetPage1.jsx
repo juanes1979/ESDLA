@@ -64,6 +64,8 @@ export const PAGE1_FIELDS = {
   piel: { x: 1434, y: 156, width: 93, fontSize: 20, align: 'left' },
   pelo: { x: 1518, y: 156, width: 93, fontSize: 20, align: 'left' },
   sexo: { x: 376, y: 261, width: 137, fontSize: 40, align: 'center' },
+  // Código público RAZSUBCAAXXXXX, esquina superior derecha
+  codigo_publico: { x: 1450, y: 43, width: 280, fontSize: 26, align: 'right' },
   
   // Attributes - Main values
   fuerza_valor: { x: 95, y: 332, width: 107, fontSize: 100, align: 'center' },
@@ -831,6 +833,7 @@ const SheetPage1 = ({ character, scale, weaponCatalog = [], equipmentCatalog = {
       <DisplayField {...PAGE1_FIELDS.nombre} value={character.nombre} scale={scale} />
       <DisplayField {...PAGE1_FIELDS.ocupacion_nivel} value={`${character.ocupacion_nombre || character.vocacion_nombre || ''} ${nivel}`} scale={scale} />
       <DisplayField {...PAGE1_FIELDS.jugador} value={character.jugador || character.nombre_jugador || ''} scale={scale} />
+      <DisplayField {...PAGE1_FIELDS.codigo_publico} value={character.codigo_publico || ''} scale={scale} />
       <DisplayField {...PAGE1_FIELDS.cultura} value={character.cultura_nombre || ''} scale={scale} />
       <DisplayField {...PAGE1_FIELDS.senda_sombra} value={character.senda_sombra || ''} scale={scale} />
       

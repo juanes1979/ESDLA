@@ -26,8 +26,12 @@ const levelColor = (n) => {
   return { bar: 'bg-red-700', text: 'text-red-300', bg: 'bg-red-900/30 border-red-700/60' };
 };
 
-export default function PartyFatiguePanel({ miembros = [], characters = [] }) {
-  if (!miembros.length) return null;
+export default function PartyFatiguePanel({ miembros = [], acompanantes = [], characters = [] }) {
+  // Mostramos TODOS los viajeros (con papel o acompañantes). La fatiga
+  // aplica a cualquiera que viaje, no sólo a los miembros con papel.
+  const acomp = (acompanantes || []).map(a => ({ ...a, _esAcompanante: true }));
+  const todos = [...miembros, ...acomp];
+  if (!todos.length) return null;
 
   return (
     <Card className="card-parchment" data-testid="party-fatigue-panel">
@@ -42,7 +46,7 @@ export default function PartyFatiguePanel({ miembros = [], characters = [] }) {
       </CardHeader>
       <CardContent>
         <div className="space-y-2">
-          {miembros.map((m) => {
+          {todos.map((m) => {
             const char = characters.find((c) => c.id === m.id);
             const fatiga = Number(char?.fatiga || 0);
             const level = Math.floor(fatiga);
@@ -60,11 +64,15 @@ export default function PartyFatiguePanel({ miembros = [], characters = [] }) {
                 <div className="flex items-center justify-between mb-1">
                   <div className="flex items-center gap-2 min-w-0">
                     <span className="font-medium truncate">{m.nombre}</span>
-                    {m.papeles?.length > 0 && (
+                    {m._esAcompanante ? (
+                      <span className="text-[10px] text-muted-foreground italic truncate">
+                        (acompañante)
+                      </span>
+                    ) : m.papeles?.length > 0 ? (
                       <span className="text-[10px] text-muted-foreground truncate">
                         ({m.papeles.join(', ')})
                       </span>
-                    )}
+                    ) : null}
                   </div>
                   <Badge variant="outline" className={`${colors.text} text-xs shrink-0`}>
                     {isDying ? <Skull className="w-3 h-3 mr-1" /> : <ShieldAlert className="w-3 h-3 mr-1" />}

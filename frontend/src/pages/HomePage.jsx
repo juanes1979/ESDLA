@@ -61,7 +61,10 @@ const NAV_ITEMS = [
     description: 'Gestiona tus campañas, fichas y documentos.',
     path: '/storage',
     position: { top: '54%', right: '6%' },
-    side: 'right'
+    side: 'right',
+    // Esta imagen trae un halo blanco horneado; lo recortamos escalando
+    // un poco la <img> dentro del contenedor `overflow-hidden`.
+    imgScale: 1.12
   }
 ];
 
@@ -127,6 +130,7 @@ const FloatingNavIcon = ({ item, onNavigate, index }) => {
           src={item.image} 
           alt={item.title}
           className="w-full h-full object-cover"
+          style={item.imgScale ? { transform: `scale(${item.imgScale})` } : undefined}
         />
         
         {/* Coming Soon Badge */}

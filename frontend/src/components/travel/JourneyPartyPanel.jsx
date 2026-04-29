@@ -35,18 +35,24 @@ const fatigueColor = (f) => {
 
 const JourneyPartyPanel = ({
   miembros = [],
+  acompanantes = [],
   characters = [],
   partyProvisions = { comidaTotal: 0, aguaTotal: 0, comidaConsumida: 0, aguaConsumida: 0 },
   globalFatigaCD = 10,
   lastFatigueSaves = {},
   fatigueChanges = {},
 }) => {
-  const activos = miembros.filter(m => m.papeles?.length > 0);
-  if (activos.length === 0) return null;
+  // Mostramos TODOS los viajeros (con papel + acompañantes), no sólo los que
+  // tienen papel asignado. La regla de comida/agua aplica al grupo entero.
+  const conPapel = miembros.filter(m => m.papeles?.length > 0)
+    .map(m => ({ ...m, _esAcompanante: false }));
+  const acomp = (acompanantes || []).map(a => ({ ...a, _esAcompanante: true, papeles: a.papeles || [] }));
+  const todos = [...conPapel, ...acomp];
+  if (todos.length === 0) return null;
 
   const comidaDisp = Math.max(0, (partyProvisions.comidaTotal || 0) - (partyProvisions.comidaConsumida || 0));
   const aguaDisp = Math.max(0, (partyProvisions.aguaTotal || 0) - (partyProvisions.aguaConsumida || 0));
-  const personasParaRepartir = Math.max(1, activos.length);
+  const personasParaRepartir = Math.max(1, todos.length);
   const racionesPorCabeza = (partyProvisions.comidaConsumida || 0) / personasParaRepartir;
   const litrosPorCabeza = (partyProvisions.aguaConsumida || 0) / personasParaRepartir;
 
@@ -56,7 +62,7 @@ const JourneyPartyPanel = ({
         <CardTitle className="text-sm text-[hsl(var(--gold))] flex items-center gap-2">
           <Users className="w-4 h-4" />
           Estado del grupo
-          <Badge variant="outline" className="ml-1">{activos.length}</Badge>
+          <Badge variant="outline" className="ml-1">{todos.length}</Badge>
         </CardTitle>
         <div className="flex items-center gap-3 text-xs">
           <span title="CD acumulada de fatiga por eventos fallidos" className="flex items-center gap-1">
@@ -82,12 +88,14 @@ const JourneyPartyPanel = ({
       </CardHeader>
       <CardContent>
         <div className="space-y-1.5">
-          {activos.map(m => {
+          {todos.map(m => {
             const ch = characters.find(c => c.id === m.id);
             const fatiga = Number(ch?.fatiga ?? 0);
             const change = fatigueChanges[m.id]; // {delta: +1/-1, casilla}
             const save = lastFatigueSaves[m.id];
-            const papelLabel = PAPEL_LABELS[m.papeles?.[0]] || m.papeles?.[0] || 'viajero';
+            const papelLabel = m._esAcompanante
+              ? 'acompañante'
+              : (PAPEL_LABELS[m.papeles?.[0]] || m.papeles?.[0] || 'viajero');
             return (
               <div
                 key={m.id}

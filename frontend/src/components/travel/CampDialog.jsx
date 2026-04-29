@@ -184,9 +184,21 @@ export default function CampDialog({
           console.error('Error actualizando fatiga:', err);
         }
 
-        // Notifica al panel del grupo (modo interactivo).
+        // Notifica al panel del grupo (modo interactivo). Pasamos también
+        // la tirada extra (si la hay) y los motivos para el log diario.
         if (onFatigueSave && !skipSave) {
-          onFatigueSave(m.id, { d20, mod: conMod + bonusFatiga, total, cd, exito: pasa });
+          onFatigueSave(m.id, {
+            d20,
+            mod: conMod + bonusFatiga,
+            total,
+            cd,
+            exito: pasa,
+            saveExtra,
+            climaExtremo,
+            enSombra,
+            charName: m.nombre,
+            dia: activeJourney?.dia_actual || null,
+          });
         }
         if (onFatigueChange && reduccion !== 0) {
           onFatigueChange(m.id, -reduccion);

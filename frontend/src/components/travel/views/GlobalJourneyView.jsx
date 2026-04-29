@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import JourneyPartyPanel from '../JourneyPartyPanel';
+import FatigueSaveLogPanel from '../FatigueSaveLogPanel';
 
 const summaryIcon = (tipo) => {
   switch (tipo) {
@@ -46,6 +47,7 @@ const GlobalJourneyView = ({
   partyProvisions = { comidaTotal: 0, aguaTotal: 0, comidaConsumida: 0, aguaConsumida: 0 },
   globalFatigaCD = 10,
   lastFatigueSaves = {},
+  fatigueSaveLog = [],
   fatigueChanges = {},
   // setters
   setMode, setGmNotesOrientation, setGmNotesEvent,
@@ -105,12 +107,16 @@ const GlobalJourneyView = ({
     {/* Panel del grupo durante el viaje */}
     <JourneyPartyPanel
       miembros={config.miembros}
+      acompanantes={config.acompanantes || []}
       characters={characters}
       partyProvisions={partyProvisions}
       globalFatigaCD={globalFatigaCD}
       lastFatigueSaves={lastFatigueSaves}
       fatigueChanges={fatigueChanges}
     />
+
+    {/* Bitácora completa de salvaciones de fatiga (visible al DJ) */}
+    <FatigueSaveLogPanel log={fatigueSaveLog} />
 
     {/* Banner de descanso obligatorio: si alguien llega a fatiga 5+ */}
     {(() => {

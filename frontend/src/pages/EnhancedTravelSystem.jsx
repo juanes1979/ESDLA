@@ -216,6 +216,10 @@ const EnhancedTravelSystem = () => {
   // Última tirada de salvación contra cansancio (panel del grupo).
   // Forma: { [charId]: { d20, mod, total, cd, exito } }
   const [lastFatigueSaves, setLastFatigueSaves] = useState({});
+  // Bitácora COMPLETA de salvaciones del viaje (visible al DJ).
+  // Cada entrada: { dia, id, charName, d20, mod, total, cd, exito,
+  //                saveExtra?, climaExtremo?, enSombra? }
+  const [fatigueSaveLog, setFatigueSaveLog] = useState([]);
   // Último cambio de fatiga registrado por personaje (para mostrar +1/-1 en el panel).
   // Forma: { [charId]: { delta: number, casilla: number } }
   const [fatigueChanges, setFatigueChanges] = useState({});
@@ -584,6 +588,7 @@ const EnhancedTravelSystem = () => {
     setDiasSinAgua(0);
     setLastFatigueSaves({});
     setFatigueChanges({});
+    setFatigueSaveLog([]);
     // Bitácora: día 1 — la compañía parte. Si hubo overrides de fatiga, se anotan.
     const partidaSummaries = [{
       dia: 1,
@@ -1004,11 +1009,17 @@ const EnhancedTravelSystem = () => {
         result.cd = cd;
         result.exito = total >= cd;
 
-        // Registra la salvación en el panel del grupo.
+        // Registra la salvación en el panel del grupo y en la bitácora.
+        const saveEntry = {
+          d20, mod: modCON, total, cd, exito: result.exito,
+          charName: char?.nombre || miembro.nombre,
+          dia: activeJourney?.dia_actual || null,
+        };
         setLastFatigueSaves(prev => ({
           ...prev,
-          [miembro.id]: { d20, mod: modCON, total, cd, exito: result.exito },
+          [miembro.id]: saveEntry,
         }));
+        setFatigueSaveLog(prev => [...prev, { id: miembro.id, ...saveEntry }]);
         
         if (result.exito) {
           result.fatigaDespues = Math.max(0, (char.fatiga || 0) - 1);
@@ -1812,7 +1823,12 @@ const EnhancedTravelSystem = () => {
       
       if (res.data.success) {
         setActiveJourney(res.data.journey);
-        
+
+        // *** CONSUMO DIARIO DE PROVISIONES (modo Día a Día) ***
+        // Cada avance de día consume comida/agua del grupo. Sin esto, el
+        // panel muestra 0.0/0.0 L durante todo el viaje.
+        consumeDailyProvisions();
+
         // Check for event generation (simplified - every 2-3 days)
         if (res.data.journey.dia_actual % 2 === 0) {
           await generateDayEvent();
@@ -2679,6 +2695,7 @@ const EnhancedTravelSystem = () => {
           partyProvisions={partyProvisions}
           globalFatigaCD={globalFatigaCD}
           lastFatigueSaves={lastFatigueSaves}
+          fatigueSaveLog={fatigueSaveLog}
           fatigueChanges={fatigueChanges}
           setMode={setMode}
           setGmNotesOrientation={setGmNotesOrientation}
@@ -2789,6 +2806,13 @@ const EnhancedTravelSystem = () => {
         onCampDayCompleted={() => setConsecutiveCampDays(d => d + 1)}
         onFatigueSave={(charId, save) => {
           setLastFatigueSaves(prev => ({ ...prev, [charId]: save }));
+          // Append al log diario completo. Si la salvación trae los
+          // motivos extra (clima/sombra/saveExtra) los conservamos para
+          // que el DJ pueda ver la evolución.
+          setFatigueSaveLog(prev => [
+            ...prev,
+            { id: charId, ...save },
+          ]);
         }}
         onFatigueChange={(charId, delta) => {
           setFatigueChanges(prev => ({ ...prev, [charId]: { delta, casilla: currentPosition } }));

@@ -81,7 +81,7 @@ const createSmoothPath = (points) => {
   return path;
 };
 
-const JourneyMiniMap = ({ origenCoords, destinoCoords, origenNombre, destinoNombre, pathPoints, isDirectLine, expanded = false, onToggleExpand, events = [], forPrint = false }) => {
+const JourneyMiniMap = ({ origenCoords, destinoCoords, origenNombre, destinoNombre, pathPoints, isDirectLine, expanded = false, onToggleExpand, events = [], totalCasillas = 0, forPrint = false }) => {
   const [imageLoaded, setImageLoaded] = useState(false);
   const [mapImageBase64, setMapImageBase64] = useState(null);
   const containerRef = useRef(null);
@@ -390,10 +390,18 @@ const JourneyMiniMap = ({ origenCoords, destinoCoords, origenNombre, destinoNomb
 
               {/* Event markers along the path */}
               {events && events.length > 0 && events.map((event, idx) => {
-                // Compute the event's progress along the journey [0..1]
-                const casillaTotal = (events[events.length - 1]?.casilla) ||
-                                     (pathInPixelCoords.length - 1) || 1;
-                const eventProgress = Math.min(1, Math.max(0, (event.casilla || idx + 1) / Math.max(1, casillaTotal)));
+                // El total real de casillas viene del cálculo del viaje. Si
+                // no llega, fallback al máximo `casilla` registrado y, en
+                // último caso, al número de eventos. Usar la casilla del
+                // último evento como denominador (bug previo) hacía que
+                // todos los marcadores se amontonaran al final.
+                const maxEventCasilla = Math.max(0, ...events.map(e => Number(e.casilla || 0)));
+                const casillaTotal = totalCasillas
+                  || maxEventCasilla
+                  || (pathInPixelCoords.length - 1)
+                  || 1;
+                const eventCasilla = Number(event.casilla || idx + 1);
+                const eventProgress = Math.min(1, Math.max(0, eventCasilla / Math.max(1, casillaTotal)));
 
                 // Two ways to place: along detailed path, or interpolated on the straight line
                 let point;

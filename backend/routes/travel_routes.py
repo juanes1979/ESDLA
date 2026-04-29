@@ -3174,14 +3174,19 @@ async def apply_px_individual(request: ApplyPXIndividualRequest):
                 })
                 continue
             
-            # Update XP
-            current_xp = character.get('xp', 0) or 0
+            # Update XP — el campo oficial en la ficha es `experiencia`.
+            # `xp` se mantiene también por compatibilidad legacy.
+            current_xp = character.get('experiencia', 0) or 0
             new_xp = current_xp + px_amount
             
             try:
                 await db.characters.update_one(
                     {"_id": character["_id"]},
-                    {"$set": {"xp": new_xp}}
+                    {"$set": {
+                        "experiencia": new_xp,
+                        "xp": new_xp,
+                        "updated_at": datetime.now(timezone.utc).isoformat(),
+                    }}
                 )
                 exitosos += 1
                 results.append({

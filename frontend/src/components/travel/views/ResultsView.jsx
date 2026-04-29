@@ -58,6 +58,7 @@ const ResultsView = ({
           pathPoints={journeyCalc?.ruta?.path}
           isDirectLine={!journeyCalc?.ruta?.path || journeyCalc.ruta.path.length < 3}
           events={events}
+          totalCasillas={journeyCalc?.ruta?.casillas || 0}
         />
       </div>
 
