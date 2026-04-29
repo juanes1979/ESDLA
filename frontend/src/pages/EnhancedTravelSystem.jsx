@@ -299,6 +299,74 @@ const EnhancedTravelSystem = () => {
       setConfig(prev => ({ ...prev, estacion: mes.estacion }));
     }
   }, [config.mes]);
+
+  // ============== AUTO-RECALC GROUP SPEED WHEN "MONTADO" TOGGLES ==============
+  // Cuando un viajero cambia su estado montado/a-pie durante el viaje, recalcula
+  // la velocidad del grupo en caliente (sin tocar la ruta) y avisa por toast.
+  const prevMontadoRef = useRef({});
+  const computeMemberSpeed = useCallback((char) => {
+    if (!char) return 0;
+    const baseEstorbo = Number(char.estorbo_metros || 0);
+    const velBase = Math.max(1, Number(char.velocidad_metros || char.velocidad_base || 9) + baseEstorbo);
+    const tieneMontura = !!char.montura?.nombre;
+    if (!tieneMontura || !char.montado) return velBase;
+    const velMontura = Number(char.montura.velocidad || 12);
+    // Sobrecarga
+    let cargaMontura = 0;
+    let pesoPersonal = 0;
+    (char.inventario || []).forEach(it => {
+      if (!it) return;
+      const peso = Number(it.peso_kg || it.peso || 0) * Number(it.cantidad || 1);
+      if (it.portado_por === 'montura') cargaMontura += peso;
+      else pesoPersonal += peso;
+    });
+    (char.montura.equipo || []).forEach(it => {
+      cargaMontura += Number(it?.peso_kg || it?.peso || 0) * Number(it?.cantidad || 1);
+    });
+    const cap = Number(char.montura.capacidad_carga || char.montura.carga_kg || 0);
+    const cargaTotal = cargaMontura + Number(char.peso_kg || 70) + pesoPersonal;
+    const sobrecargada = cap > 0 && cargaTotal > cap;
+    return sobrecargada ? velMontura * 0.67 : velMontura;
+  }, []);
+
+  useEffect(() => {
+    const journeyActivo = !!activeJourney || mode === 'global' || mode === 'dayByDay';
+    const todos = [
+      ...(config.miembros || []),
+      ...((config.acompanantes || []).map(a => ({ ...a, _esAcompanante: true }))),
+    ];
+    if (todos.length === 0) return;
+
+    let avisos = [];
+    todos.forEach(m => {
+      const ch = characters.find(c => c.id === m.id);
+      if (!ch) return;
+      const prev = prevMontadoRef.current[m.id];
+      const cur = !!ch.montado;
+      if (prev !== undefined && prev !== cur && journeyActivo) {
+        avisos.push({ nombre: ch.nombre || m.nombre, montado: cur });
+      }
+      prevMontadoRef.current[m.id] = cur;
+    });
+
+    if (avisos.length > 0) {
+      // Velocidad efectiva del grupo (mínimo entre todos los miembros).
+      const speeds = todos
+        .map(m => characters.find(c => c.id === m.id))
+        .filter(Boolean)
+        .map(computeMemberSpeed)
+        .filter(v => v > 0);
+      const groupSpeed = speeds.length ? Math.min(...speeds) : 0;
+      avisos.forEach(a => {
+        toast(
+          a.montado
+            ? `🐎 ${a.nombre} ha montado: el grupo va ahora a ${groupSpeed.toFixed(1)} m/turno.`
+            : `👣 ${a.nombre} ha desmontado: el grupo va ahora a ${groupSpeed.toFixed(1)} m/turno.`,
+          { duration: 5000 }
+        );
+      });
+    }
+  }, [characters, activeJourney, mode, config.miembros, config.acompanantes, computeMemberSpeed]);
   
   // =============== JOURNEY CALCULATION ===============
   
@@ -2397,8 +2465,17 @@ const EnhancedTravelSystem = () => {
         if (m.id !== charId) return m;
         
         if (useMount && m.monturaPropia) {
-          // Use owned mount
-          const modCon = parseInt(m.monturaPropia.constitucion?.match(/[+-]?\d+/)?.[1] || '0');
+          // Use owned mount. constitucion puede venir como string ("13" o "13 (+1)") o como número.
+          const consRaw = m.monturaPropia.constitucion;
+          let modCon = 0;
+          if (typeof m.monturaPropia.constitucion_mod === 'number') {
+            modCon = m.monturaPropia.constitucion_mod;
+          } else if (typeof consRaw === 'string') {
+            const m2 = consRaw.match(/[+-]?\d+/);
+            modCon = m2 ? parseInt(m2[0], 10) : 0;
+          } else if (typeof consRaw === 'number') {
+            modCon = Math.floor((consRaw - 10) / 2);
+          }
           return {
             ...m,
             tieneMontura: true,

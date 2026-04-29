@@ -886,7 +886,7 @@ const ConfigView = ({
                           }
                         </SelectValue>
                       </SelectTrigger>
-                      <SelectContent>
+                      <SelectContent className="max-h-[60vh]">
                         <SelectItem value="_select_" disabled>
                           <span className="text-muted-foreground">Seleccionar personaje</span>
                         </SelectItem>
@@ -1090,7 +1090,7 @@ const ConfigView = ({
                   <SelectTrigger data-testid="add-acompanante-select">
                     <SelectValue placeholder="Selecciona un personaje..." />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="max-h-[60vh]">
                     {characters
                       .filter(c =>
                         !config.miembros.some(m => m.id === c.id) &&

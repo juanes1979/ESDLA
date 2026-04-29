@@ -2,6 +2,29 @@
 
 ## Current State (2026-04-29)
 
+### ✅ Iteración 82 — Hotfix crash + dropdown completo + auto-recalc velocidad
+- **Bug crítico (crash "ALGO SE HA ROTO EN EL VIAJE")**: al togglear "a
+  pie / a caballo" en los Papeles de Viaje saltaba
+  `TypeError: m.monturaPropia.constitucion.match is not a function`.
+  Causa: el campo `montura.constitucion` viene como `int` (13) tras la
+  migración del Poni de Bree, pero el código asumía string. Fix en
+  `updateMemberMount`: ahora soporta string ("13", "13 (+1)"), número
+  (13 → mod = (13-10)/2 = 1) y prioriza `constitucion_mod` si existe.
+- **Dropdown de personajes recortado**: el `SelectContent` del selector
+  de papeles y de añadir acompañante no tenía `max-h` explícito → al
+  haber 30+ personajes, sólo veías los primeros sin scroll visible.
+  Fix: `max-h-[60vh]` en ambos `<SelectContent>` para forzar scroll
+  interno y respetar siempre la altura de la ventana.
+- **Auto-recalc de velocidad al togglear "Va montado" en marcha**:
+  nuevo `useEffect` que vigila cambios en `characters[*].montado`
+  durante un viaje activo. Cuando alguien monta/desmonta:
+  - Calcula la **nueva velocidad efectiva del grupo** en cliente con
+    la misma lógica del backend (incluyendo -33% por sobrecarga del
+    animal, peso jinete + equipo si va montado).
+  - Lanza un toast: "🐎 Darnric ha montado: el grupo va ahora a 9.0
+    m/turno" o "👣 ha desmontado: 9.0 m/turno", duración 5 s.
+  - Helper `computeMemberSpeed(char)` incluido para reutilizar.
+
 ### ✅ Iteración 81 — Toggle "Va montado" + carga real del jinete sobre la montura
 - **Nuevo campo `montado: bool`** en personaje (default false). Indica si
   el jinete va sobre la montura en este instante.
