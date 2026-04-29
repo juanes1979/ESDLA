@@ -48,7 +48,15 @@ const CharacterHeader = ({ character, onLevelUp, onUpdate }) => {
       if (onUpdate) onUpdate(patched.data);
       toast.success('Retrato generado y guardado en la ficha.');
     } catch (e) {
-      const detail = e.response?.data?.detail || e.message || 'Error desconocido';
+      const rawDetail = e.response?.data?.detail;
+      let detail;
+      if (Array.isArray(rawDetail)) {
+        detail = rawDetail.map(d => `${(d.loc || []).slice(1).join('.')}: ${d.msg}`).join('; ');
+      } else if (rawDetail && typeof rawDetail === 'object') {
+        detail = JSON.stringify(rawDetail);
+      } else {
+        detail = rawDetail || e.message || 'Error desconocido';
+      }
       const status = e.response?.status;
       const msg = status === 504 || e.code === 'ECONNABORTED'
         ? 'La generación tardó demasiado. Inténtalo de nuevo.'

@@ -22,8 +22,8 @@ class PortraitRequest(BaseModel):
     vocacion: Optional[str] = None
     trasfondo: Optional[str] = None
     edad: Optional[int] = None
-    altura_cm: Optional[int] = None
-    peso_kg: Optional[int] = None
+    altura_cm: Optional[float] = None
+    peso_kg: Optional[float] = None
     color_ojos: Optional[str] = None
     color_pelo: Optional[str] = None
     rasgos_fisicos: Optional[str] = None

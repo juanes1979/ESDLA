@@ -83,9 +83,16 @@ const CharacterSummary = ({ draft, onFinalize, onEdit, loading, draftId }) => {
       }
     } catch (error) {
       clearInterval(progressTimer);
-      const detail = error.response?.data?.detail
-        || error.message
-        || 'Error desconocido';
+      // El detail de 422 viene como array de objetos Pydantic [{loc, msg, ...}]
+      const rawDetail = error.response?.data?.detail;
+      let detail;
+      if (Array.isArray(rawDetail)) {
+        detail = rawDetail.map(d => `${(d.loc || []).slice(1).join('.')}: ${d.msg}`).join('; ');
+      } else if (rawDetail && typeof rawDetail === 'object') {
+        detail = JSON.stringify(rawDetail);
+      } else {
+        detail = rawDetail || error.message || 'Error desconocido';
+      }
       const status = error.response?.status;
       const msg = status === 504 || error.code === 'ECONNABORTED'
         ? 'La generación tardó demasiado. Inténtalo de nuevo.'
