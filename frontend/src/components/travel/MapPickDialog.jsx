@@ -132,8 +132,13 @@ const MapPickDialog = ({
     const imgX = e.clientX - rect.left;
     const imgY = e.clientY - rect.top;
     if (imgX < 0 || imgY < 0 || imgX > rect.width || imgY > rect.height) return;
+    // IMPORTANT: the project-wide coordinate system uses Y=0 at the BOTTOM
+    // of the map and Y=100 at the TOP (see JourneyMiniMap.jsx). The screen
+    // however measures Y from the top, so we MUST flip the Y axis to keep
+    // every coordinate (clicks, marker, polygons, payload) in the same
+    // convention as `db.locations.y` and `db.terrain_polygons[i].y`.
     const xPct = (imgX / rect.width) * 100;
-    const yPct = (imgY / rect.height) * 100;
+    const yPct = 100 - (imgY / rect.height) * 100;
 
     // Reject clicks inside an impassable / water polygon.
     for (const poly of blockedPolys) {
@@ -278,7 +283,9 @@ const MapPickDialog = ({
           />
           {/* Impassable / water overlay — anchored to the image's real on-
               screen bounding rect (post-transform), so it stays in sync with
-              both pan and zoom. */}
+              both pan and zoom. The SVG flips Y because polygon coords use
+              Y=0 at the BOTTOM (project convention) while SVG uses Y=0 at
+              the TOP. */}
           {blockedPolys.length > 0 && imgRef.current && containerRef.current && (() => {
             const imgRect = imgRef.current.getBoundingClientRect();
             const ctRect = containerRef.current.getBoundingClientRect();
@@ -296,26 +303,32 @@ const MapPickDialog = ({
                 }}
                 data-testid="mappick-blocked-overlay"
               >
-                {blockedPolys.map((p, idx) => (
-                  <polygon
-                    key={p.id || idx}
-                    points={(p.points || []).map((pt) => `${pt.x},${pt.y}`).join(' ')}
-                    fill="rgba(220, 38, 38, 0.32)"
-                    stroke="rgba(220, 38, 38, 0.75)"
-                    strokeWidth="0.15"
-                    strokeLinejoin="round"
-                  />
-                ))}
+                {/* g transform: flip Y so polygon (x, y) with y=0 at bottom
+                    renders correctly on screen (where 0 is at top). */}
+                <g transform="scale(1, -1) translate(0, -100)">
+                  {blockedPolys.map((p, idx) => (
+                    <polygon
+                      key={p.id || idx}
+                      points={(p.points || []).map((pt) => `${pt.x},${pt.y}`).join(' ')}
+                      fill="rgba(220, 38, 38, 0.32)"
+                      stroke="rgba(220, 38, 38, 0.75)"
+                      strokeWidth="0.15"
+                      strokeLinejoin="round"
+                    />
+                  ))}
+                </g>
               </svg>
             );
           })()}
 
-          {/* Click marker — anchored to image's real on-screen rect */}
+          {/* Click marker — anchored to image's real on-screen rect. The
+              picked.y uses the project convention (Y=0 at the BOTTOM) so
+              we flip it to map onto screen pixels (Y=0 at the TOP). */}
           {picked && imgRef.current && containerRef.current && (() => {
             const imgRect = imgRef.current.getBoundingClientRect();
             const ctRect = containerRef.current.getBoundingClientRect();
             const px = (imgRect.left - ctRect.left) + (picked.x / 100) * imgRect.width;
-            const py = (imgRect.top - ctRect.top) + (picked.y / 100) * imgRect.height;
+            const py = (imgRect.top - ctRect.top) + ((100 - picked.y) / 100) * imgRect.height;
             return (
               <div
                 style={{

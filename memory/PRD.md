@@ -2,6 +2,27 @@
 
 ## Current State (2026-04-30)
 
+### ✅ Iteración 89 — Map Picker: corrección crítica del eje Y invertido
+**(Smoke test: click en Eriador (24.1, 64.9) → región "Eriador" + overlay rojo perfectamente alineado sobre Mar de Belegaer, Montañas Nubladas, etc.)**
+
+**Bug crítico encontrado** — el sistema tiene una convención **Y-axis invertida** (Y=0 en el FONDO del mapa, Y=100 en lo ALTO) — confirmado en `JourneyMiniMap.jsx:138` (`Y: 0% = bottom, 100% = top`). Mi MapPickDialog leía `yPct = imgY/height*100` (Y=0 arriba), provocando:
+1. Click arriba (Eriador) → DB `y=18.6` → realmente caía en agua de Harad/Sur (donde DB y=18.6 corresponde).
+2. La ubicación más cercana se calculaba con coords cruzadas → "Andrast · Gondor" (sur) cuando el usuario clicaba en Eriador (norte).
+3. Pathfinder fallaba porque el origen estaba en agua del sur.
+4. El overlay SVG renderizaba los polígonos al revés (de ahí "está volteada").
+
+**Fix:**
+1. `onMouseUp`: `yPct = 100 - (imgY/rect.height)*100` para alinear con la convención del proyecto.
+2. SVG overlay: envuelto en `<g transform="scale(1, -1) translate(0, -100)">` para flip vertical en pantalla.
+3. Marcador: `py = top + ((100 - picked.y)/100) * height` para mostrar en la posición correcta de pantalla.
+4. Comentarios explicativos referenciando `JourneyMiniMap.jsx` para evitar regresiones futuras.
+
+**Verificado** (`pathfinding._get_terrain_at_point`):
+- Antes: click superior → `(32.7, 18.6)` → `terrain=agua, nearest=Andrast (Gondor)` ❌
+- Ahora: click superior → `(32.7, 81.4)` → `terrain=moderado, nearest=Colinas de Evendim (Eriador)` ✅
+
+---
+
 ### ✅ Iteración 88 — Map Picker: overlay rojo de zonas infranqueables + bloqueo de clic
 **(Smoke test: clic en tierra válida (50.2, 50.2) → marcador OK + región "Rohan"; clic en agua/montañas → bloqueado con toast)**
 
