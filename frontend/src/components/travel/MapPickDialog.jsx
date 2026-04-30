@@ -104,6 +104,16 @@ const MapPickDialog = ({
     return () => ro.disconnect();
   }, [open]);
 
+  // CSS `transform: scale()` doesn't change the layout box, so the
+  // ResizeObserver above never fires when zooming. Force a re-measure
+  // (after the DOM commit) every time zoom/pan changes so the SVG
+  // overlay and marker re-anchor to the image's new bounding rect.
+  useEffect(() => {
+    if (!open) return undefined;
+    const id = requestAnimationFrame(measure);
+    return () => cancelAnimationFrame(id);
+  }, [zoom, pan, open]);
+
   const onWheel = (e) => {
     e.preventDefault();
     const delta = -Math.sign(e.deltaY) * ZOOM_STEP;

@@ -1339,28 +1339,6 @@ const EquipmentManagerModal = ({
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => {
-                              setEditTarget({
-                                item_index: item.index,
-                                source: item.apiSource || 'inventario',
-                                nombreBase: item.nombreBase || item.nombre,
-                                categoria: item.categoria,
-                                posicion: item.posicion,
-                              });
-                              setEditCategoria(item.categoria || 'equipo_general');
-                              setEditPosicion(item.posicion || '');
-                            }}
-                            disabled={processing || item.index == null || ['armas','armadura','armadura_piezas'].includes(item.apiSource)}
-                            title={item.index == null ? 'No editable' : 'Editar / cambiar categoría'}
-                            className="text-blue-300 hover:text-blue-200 hover:bg-blue-900/30"
-                            data-testid={`edit-item-${item.nombreBase}`}
-                          >
-                            <FolderOpen className="w-4 h-4" />
-                          </Button>
-
-                          <Button
-                            variant="ghost"
-                            size="sm"
                             onClick={() => setDiscardTarget({
                               nombreBase: item.nombreBase || item.nombre,
                               categoria: item.categoria,

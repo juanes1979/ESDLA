@@ -65,13 +65,15 @@ const LocationWidget = ({ character, onUpdate }) => {
   };
 
   // Compute mini-map crop: centered on (x, y) of the character, ~25% of map width.
-  // x, y are stored as percentages (0..100) in the locations data.
+  // x, y are stored as percentages (0..100) in DB convention where Y=0 is at
+  // the BOTTOM of the map (see JourneyMiniMap.jsx). CSS background-position
+  // uses Y=0 at the TOP, so we MUST flip Y to crop the right area of the map.
   const miniMapStyle = ubicacion?.x != null && ubicacion?.y != null
     ? {
         backgroundImage: `url(${MAP_IMG})`,
         // Scale up so we get ~4× zoom (i.e., we show 25 % of the map at most)
         backgroundSize: '400%',
-        backgroundPosition: `${ubicacion.x}% ${ubicacion.y}%`,
+        backgroundPosition: `${ubicacion.x}% ${100 - ubicacion.y}%`,
         backgroundRepeat: 'no-repeat',
       }
     : null;

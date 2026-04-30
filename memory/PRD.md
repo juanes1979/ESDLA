@@ -2,6 +2,22 @@
 
 ## Current State (2026-04-30)
 
+### ✅ Iteración 90 — 3 fixes en bloque (zoom-overlay, LocationWidget Y-flip, botones edit-categoría)
+**(Smoke test: zoom 300% en MapPickDialog → overlay rojo perfectamente encajado sobre Mar de Belegaer + cordilleras de las Montañas Nubladas individuales)**
+
+1. **MapPickDialog — overlay desplazado al hacer zoom**
+   - Causa: `transform: scale()` en CSS no dispara `ResizeObserver` (el layout-box no cambia, sólo el rect post-transform).
+   - Fix: nuevo `useEffect` en `[zoom, pan, open]` con `requestAnimationFrame(measure)` para re-anclar el SVG y el marcador después del commit del DOM.
+
+2. **LocationWidget — mini-mapa descuadrado en la ficha**
+   - Causa: el mismo bug Y-invertido de iter89. `backgroundPosition: '${x}% ${y}%'` interpretaba `y` con convención de pantalla (Y=0 arriba) cuando el DB usa Y=0 abajo.
+   - Fix: `backgroundPosition: '${x}% ${100 - y}%'`. Ahora el mini-mapa muestra la zona correcta del mapa cuando el personaje está en Bree (35.6, 71.4 → 35.6%, 28.6% pantalla).
+
+3. **EquipmentManagerModal — botones "📁" no deben editar categorías**
+   - Eliminado el botón `<FolderOpen>` con `data-testid="edit-item-…"` (líneas 1339–1359). La edición de categorías ahora SÓLO se hace en la hoja de Reglas → Equipo, como pidió el usuario.
+
+---
+
 ### ✅ Iteración 89 — Map Picker: corrección crítica del eje Y invertido
 **(Smoke test: click en Eriador (24.1, 64.9) → región "Eriador" + overlay rojo perfectamente alineado sobre Mar de Belegaer, Montañas Nubladas, etc.)**
 
