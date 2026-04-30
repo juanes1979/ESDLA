@@ -2,6 +2,52 @@
 
 ## Current State (2026-04-30)
 
+### ✅ Iteración 84 — Bugs (Bloque A) + Avisos compra montura (B) + Reorg Comida (B) + Tabla Eventos (C-7)
+**(Backend testing agent 26/26 PASS — 100%, frontend lint OK, smoke OK)**
+
+**Bloque A — Bugs reportados**
+- **Armas/armaduras de `equipo_ocupacion` ahora son MOVIBLES y con toggle "activa"**.
+  El bug era que las armas/armadura del trasfondo viven en `character.equipo_ocupacion[]` (no en `armas[]`/`armadura`).
+  - Frontend: `getAllEquipment()` ahora marca `canMove=true` y `canToggleActive=true` con `apiSource='equipo_ocupacion'`.
+  - Backend: `PATCH /equipment/carry` y `/equipment/toggle-active` aceptan `source='equipo_ocupacion'`.
+  - `weight-summary` itera ahora `equipo_ocupacion` y aplica `portado_por=montura` correctamente.
+  - `delete_mount` reasigna también items de `equipo_ocupacion`.
+- **Inconsistencia provisiones del viaje** (header "130.2/114 raciones OK" vs alerta predictiva "Faltan 48").
+  - `JourneyForecastCard` recibe ahora `provisionsCheck` desde el contenedor → ambas vistas usan la **misma fuente** (logic incl. asentamiento conocido + diasComidaTotal por masa).
+  - Display unificado con 1 decimal (`130.2/114`).
+
+**Bloque B — Avisos al comprar montura + Reorg comida en creación**
+- Nuevo helper `/app/frontend/src/utils/mountUsage.js`: detecta si el personaje tiene Alforjas / Bocado y bridas / Silla de monta; flag `puedeMontarSinSilla` para Elfos / Rohirrim / Dúnedan.
+- Al comprar `monturas` (cualquier item del catálogo): toast warnings:
+  - Sin Alforjas → "NO podrás cargarla sin Alforjas".
+  - Sin Bocado+Bridas+Silla → "Para montarla necesitas: Bocado y bridas / Silla de monta (excepto Elfo, Rohirrim, Dúnedan)".
+  - Si la cultura permite montar a pelo, mensaje informativo en lugar de warning.
+- Filtro real (no permitir cargar/montar) → se aplicará al implementar Bloque C-5 (ubicación) según el flujo del usuario.
+- **Step7Equipment** (creación de personaje):
+  - Categoría "Comida" renombrada a **"Consumibles"** y limitada a `consumibles` (sin `comida_posadas`).
+  - Nueva categoría **"Ropa"** disponible en la tienda de creación.
+  - `comida_posadas` queda fuera de la creación; sigue accesible en el modal de equipo durante la partida (lo filtraremos por ubicación en C-5).
+
+**Bloque C-7 — Tabla de eventos de viaje correcta**
+- **CD por terreno**: `gran_camino`/`camino_*`/`sendas` → CD 10; `campo_abierto` → CD 15; `muy_dificil`/`desalentador` → CD 20.
+- `POST /api/travel/generate-event` devuelve nuevos campos: `terreno_categoria`, `cd_prueba`, `desventaja_estacion` (true en otoño/invierno).
+- Frontend (`generateEventAtPosition`) propaga `desventaja_salvacion` y `terreno_categoria` a `currentEvent.resolucion`.
+- **Shadow saves correctos** (pre-existente solo aplicaba Sombra automáticamente):
+  - **Desesperanza** (fallo de prueba): tira 1d3 → cada miembro hace **TS CARISMA vs CD del evento**; sólo los que fallan reciben los puntos.
+  - **Decisiones erróneas** (fallo): el OBJETIVO hace **TS SABIDURÍA vs CD del evento**; sólo si falla recibe 1 punto Sombra.
+  - **Terrible desgracia** (fallo): TS DESTREZA con desventaja en otoño/invierno; éxito → pierde mitad de PG máximos, fallo → 0 PG.
+- En todas las TS: si `desventaja_salvacion=true` (otoño/invierno) → tira 2d20 y se queda con el menor.
+- UI: nuevos badges en `DayByDayView` que muestran "Terreno: Camino (CD 10)" / "Otoño/Invierno → Desventaja en TS y prueba".
+
+**Tests**
+- `/app/test_reports/iteration_67.json` — **26/26 PASS** (100%).
+- Test files: `test_event_cd_terrain_it67.py`.
+
+**Pendiente para próxima sesión**
+- Bloque C-5: Ubicación del personaje (creación + ficha + lock en campaña + filtro tienda)
+- Bloque C-6: "Indicar en el mapa" para origen/destino del viaje (mapa vacío, zoom + pan, click fija punto)
+- (Backlog) Filtro real (no solo aviso) para usar montura sin accesorios
+
 ### ✅ Iteración 83 — Ropa, Multi-montura y Consumo proporcional de comida
 **(Fases 1 + 2 + 3 completas en una sola sesión — backend 100% testing agent 11/11)**
 
