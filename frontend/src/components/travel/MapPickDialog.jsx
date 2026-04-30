@@ -1,18 +1,17 @@
 /**
  * MapPickDialog — full-screen empty map picker.
  *
- * Shows the raw Middle-earth player map (no markers) and lets the user
- * click a point. The closest known location is computed and returned via
- * `onPick({ id, nombre, region, x, y, distancePct })`.
+ * Shows the raw Middle-earth player map and lets the user click ANY point.
+ * The marker appears EXACTLY at the click coordinates (no snapping). The
+ * picked point is returned with its raw (x, y) percentages and a synthetic
+ * id `custom:x,y`. The closest known location is used silently to inherit
+ * a region for climate/terrain calculations.
  *
  * UX:
  *  - Click + drag to pan
  *  - Mouse wheel to zoom (1× → 6×)
- *  - Click without dragging to select the point
- *  - "Reset" button restores zoom 1× / center
- *  - Single dot marker shows the snapped location after pick (preview).
- *
- * The component is "vacío total" by request — no labels, no icons.
+ *  - Click without dragging to drop a marker at that exact point
+ *  - "Centrar" button restores zoom 1× / center
  */
 import { useEffect, useRef, useState } from 'react';
 import {
@@ -22,17 +21,9 @@ import { Button } from '@/components/ui/button';
 import { ZoomIn, ZoomOut, Crosshair, MapPin, X as XIcon } from 'lucide-react';
 
 const MAP_SRC = '/mapa_jugadores.jpg';
-const NATURAL_W = 1920;
-const NATURAL_H = 1080;
 const ZOOM_MIN = 1;
 const ZOOM_MAX = 6;
 const ZOOM_STEP = 0.25;
-
-const distanceSq = (a, b) => {
-  const dx = (a.x - b.x);
-  const dy = (a.y - b.y);
-  return dx * dx + dy * dy;
-};
 
 const MapPickDialog = ({
   open,
@@ -48,13 +39,13 @@ const MapPickDialog = ({
   const [dragging, setDragging] = useState(false);
   const dragStart = useRef(null);
   const moved = useRef(false);
-  const [snapped, setSnapped] = useState(null);
+  const [picked, setPicked] = useState(null); // { x, y, regionGuess }
 
   useEffect(() => {
     if (open) {
       setZoom(1);
       setPan({ x: 0, y: 0 });
-      setSnapped(null);
+      setPicked(null);
     }
   }, [open]);
 
@@ -82,39 +73,51 @@ const MapPickDialog = ({
     setDragging(false);
     if (moved.current) return; // it was a drag, not a click
     if (!imgRef.current) return;
-    // Use the image's REAL on-screen bounding rect (post-transform). This
-    // avoids assumptions about width-vs-height fitting that broke when the
-    // map was constrained by height (wide containers, 16:9 map).
+    // Use the image's REAL on-screen bounding rect (post-transform).
     const rect = imgRef.current.getBoundingClientRect();
     const imgX = e.clientX - rect.left;
     const imgY = e.clientY - rect.top;
     if (imgX < 0 || imgY < 0 || imgX > rect.width || imgY > rect.height) return;
     const xPct = (imgX / rect.width) * 100;
     const yPct = (imgY / rect.height) * 100;
-    // Snap to nearest known location
-    let best = null;
+
+    // Silently look up the closest known location to inherit region/terrain
+    // (used by the climate/event system). The marker itself is placed at the
+    // raw click coordinates — never on the snapped location.
+    let nearest = null;
     let bestDistSq = Infinity;
     for (const loc of locations) {
       if (loc.x == null || loc.y == null) continue;
-      const d = distanceSq({ x: loc.x, y: loc.y }, { x: xPct, y: yPct });
+      const dx = loc.x - xPct;
+      const dy = loc.y - yPct;
+      const d = dx * dx + dy * dy;
       if (d < bestDistSq) {
         bestDistSq = d;
-        best = loc;
+        nearest = loc;
       }
     }
-    if (best) {
-      setSnapped({
-        ...best,
-        clickX: xPct,
-        clickY: yPct,
-        distancePct: Math.sqrt(bestDistSq),
-      });
-    }
+    setPicked({
+      x: xPct,
+      y: yPct,
+      region: nearest?.region || '',
+      claseRegion: nearest?.clase_region || nearest?.tipo_tierra || '',
+    });
   };
 
   const handleConfirm = () => {
-    if (!snapped) return;
-    onPick?.(snapped);
+    if (!picked) return;
+    const { x, y, region, claseRegion } = picked;
+    const xs = x.toFixed(1);
+    const ys = y.toFixed(1);
+    onPick?.({
+      id: `custom:${xs},${ys}`,
+      nombre: `Punto en el mapa (${xs}, ${ys})`,
+      x,
+      y,
+      region,
+      clase_region: claseRegion,
+      custom: true,
+    });
     onClose?.();
   };
 
@@ -130,8 +133,8 @@ const MapPickDialog = ({
             Marca en el mapa el {target === 'origen' ? 'punto de partida' : 'destino'}
           </DialogTitle>
           <DialogDescription>
-            Arrastra para mover, rueda para hacer zoom. Haz clic en un punto y se elegirá la
-            ubicación más cercana.
+            Arrastra para mover, rueda para hacer zoom. Haz clic en cualquier
+            punto del mapa para fijarlo como {target === 'origen' ? 'origen' : 'destino'}.
           </DialogDescription>
         </DialogHeader>
 
@@ -167,10 +170,10 @@ const MapPickDialog = ({
               Centrar
             </Button>
           </div>
-          {snapped && (
+          {picked && (
             <div className="text-xs text-emerald-300" data-testid="mappick-selected">
-              Más cercano: <strong className="text-emerald-200">{snapped.nombre}</strong>
-              {snapped.region && <> · {snapped.region}</>}
+              Coordenadas: <strong className="text-emerald-200">{picked.x.toFixed(1)}, {picked.y.toFixed(1)}</strong>
+              {picked.region && <span className="text-muted-foreground"> · región: {picked.region}</span>}
             </div>
           )}
         </div>
@@ -183,7 +186,7 @@ const MapPickDialog = ({
           onMouseMove={onMouseMove}
           onMouseUp={onMouseUp}
           onMouseLeave={() => setDragging(false)}
-          style={{ cursor: dragging ? 'grabbing' : 'grab' }}
+          style={{ cursor: dragging ? 'grabbing' : 'crosshair' }}
           data-testid="mappick-canvas"
         >
           <img
@@ -203,13 +206,13 @@ const MapPickDialog = ({
               userSelect: 'none',
             }}
           />
-          {/* Marker for the snapped location — anchored to the image's real
-              on-screen rect (post-transform) so it lines up exactly. */}
-          {snapped && imgRef.current && containerRef.current && (() => {
+          {/* Marker — anchored to the image's real on-screen rect (post-
+              transform) so it lines up exactly with the click point. */}
+          {picked && imgRef.current && containerRef.current && (() => {
             const imgRect = imgRef.current.getBoundingClientRect();
             const ctRect = containerRef.current.getBoundingClientRect();
-            const px = (imgRect.left - ctRect.left) + (snapped.x / 100) * imgRect.width;
-            const py = (imgRect.top - ctRect.top) + (snapped.y / 100) * imgRect.height;
+            const px = (imgRect.left - ctRect.left) + (picked.x / 100) * imgRect.width;
+            const py = (imgRect.top - ctRect.top) + (picked.y / 100) * imgRect.height;
             return (
               <div
                 style={{
@@ -236,7 +239,7 @@ const MapPickDialog = ({
           </Button>
           <Button
             onClick={handleConfirm}
-            disabled={!snapped}
+            disabled={!picked}
             className="bg-[hsl(var(--gold))] text-[hsl(var(--primary-foreground))] hover:bg-[hsl(var(--gold-dim))]"
             data-testid="mappick-confirm"
           >

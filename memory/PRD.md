@@ -2,6 +2,23 @@
 
 ## Current State (2026-04-30)
 
+### ✅ Iteración 87 — Map Picker: clic en cualquier punto del mapa (sin snap a ubicaciones)
+**(Backend curl PASS para `calculate-journey` y `compare-routes` con coords custom)**
+
+**Bug reportado** — El usuario clicaba en un punto cualquiera del mapa pero el marcador SALTABA a la ubicación más cercana (ej. "Más cercano: Andrast · Gondor"). El usuario pidió: «se puede elegir cualquier parte del mapa con la única salvedad de las zonas infranqueables».
+
+**Fix completo**
+1. `MapPickDialog.jsx` reescrito: el marcador se coloca **EXACTAMENTE** donde se hace clic (sin snap). Etiqueta cambiada a `Coordenadas: 45.2, 67.8 · región: Eriador`. Cursor de canvas pasado a `crosshair`.
+2. La región del clic se hereda silenciosamente de la ubicación más cercana (solo para clima/terreno).
+3. `JourneyConfig` y `RouteComparisonRequest` (backend) ahora aceptan `origen_x/y, destino_x/y` opcionales. Si el id empieza por `custom:` o se mandan coords, se construye una location virtual con la región heredada y se ejecuta el pathfinder con esas coords.
+4. `EnhancedTravelSystem.jsx` y `ConfigView.jsx`: nuevos campos en `config` (`origenX/Y, destinoX/Y`); se envían a los 3 endpoints (`calculate-journey`, `compare-routes`, `journey/start`); se resetean a `null` cuando el usuario elige desde el dropdown clásico.
+
+**Verificación**
+- `curl /api/travel/calculate-journey` con coords custom → ruta calculada (40 km, 2 casillas, terrain "facil").
+- `curl /api/travel/compare-routes` con coords custom → linea_recta + ruta_caminos OK.
+
+---
+
 ### ✅ Iteración 86 — 3 bugs reportados con vídeos: checkbox admin, edit-item, montura no detectada
 **(Backend testing agent 61/61 PASS — 100% incl. regresión de iter66/67/68/69, frontend lint OK)**
 

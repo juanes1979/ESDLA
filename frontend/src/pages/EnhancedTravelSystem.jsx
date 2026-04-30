@@ -86,6 +86,12 @@ const EnhancedTravelSystem = () => {
     origenNombre: '',
     destinoId: '',
     destinoNombre: '',
+    // Optional explicit coordinates when the user picks a free point on the
+    // map (custom: ids). Allow journeys to start/end at any (x, y) %.
+    origenX: null,
+    origenY: null,
+    destinoX: null,
+    destinoY: null,
     evitarSombra: false,
     evitarTierrasOscuras: false,
     preferirCaminos: true,
@@ -403,6 +409,10 @@ const EnhancedTravelSystem = () => {
         origen_nombre: config.origenNombre,
         destino_id: config.destinoId,
         destino_nombre: config.destinoNombre,
+        origen_x: config.origenX,
+        origen_y: config.origenY,
+        destino_x: config.destinoX,
+        destino_y: config.destinoY,
         evitar_sombra: config.evitarSombra,
         evitar_tierras_oscuras: config.evitarTierrasOscuras,
         preferir_caminos: config.preferirCaminos,
@@ -489,6 +499,10 @@ const EnhancedTravelSystem = () => {
         origen_nombre: config.origenNombre,
         destino_id: config.destinoId,
         destino_nombre: config.destinoNombre,
+        origen_x: config.origenX,
+        origen_y: config.origenY,
+        destino_x: config.destinoX,
+        destino_y: config.destinoY,
         evitar_sombra: config.evitarSombra || false,
         evitar_tierras_oscuras: config.evitarTierrasOscuras || false,
         ritmo: config.ritmo || 'normal'
@@ -1491,6 +1505,10 @@ const EnhancedTravelSystem = () => {
         origen_nombre: config.origenNombre,
         destino_id: config.destinoId,
         destino_nombre: config.destinoNombre,
+        origen_x: config.origenX,
+        origen_y: config.origenY,
+        destino_x: config.destinoX,
+        destino_y: config.destinoY,
         evitar_sombra: config.evitarSombra,
         evitar_tierras_oscuras: config.evitarTierrasOscuras,
         preferir_caminos: config.preferirCaminos,
@@ -3208,10 +3226,22 @@ const EnhancedTravelSystem = () => {
         locations={locations}
         onPick={(loc) => {
           if (mapPickFor === 'origen') {
-            setConfig(prev => ({ ...prev, origenId: loc.id, origenNombre: loc.nombre }));
+            setConfig(prev => ({
+              ...prev,
+              origenId: loc.id,
+              origenNombre: loc.nombre,
+              origenX: loc.custom ? loc.x : null,
+              origenY: loc.custom ? loc.y : null,
+            }));
             toast.success(`Origen: ${loc.nombre}`);
           } else if (mapPickFor === 'destino') {
-            setConfig(prev => ({ ...prev, destinoId: loc.id, destinoNombre: loc.nombre }));
+            setConfig(prev => ({
+              ...prev,
+              destinoId: loc.id,
+              destinoNombre: loc.nombre,
+              destinoX: loc.custom ? loc.x : null,
+              destinoY: loc.custom ? loc.y : null,
+            }));
             toast.success(`Destino: ${loc.nombre}`);
           }
         }}

@@ -172,6 +172,13 @@ class JourneyConfig(BaseModel):
     origen_nombre: str
     destino_id: str
     destino_nombre: str
+    # Optional explicit coordinates (used when picking arbitrary points on the
+    # map via MapPickDialog). When provided they override the DB lookup and
+    # allow the journey to start/end at any (x, y) percentage on the map.
+    origen_x: Optional[float] = None
+    origen_y: Optional[float] = None
+    destino_x: Optional[float] = None
+    destino_y: Optional[float] = None
     evitar_sombra: bool = False  # Avoid shadow/dark lands
     evitar_tierras_oscuras: bool = False
     preferir_caminos: bool = True
@@ -1094,9 +1101,50 @@ async def calculate_journey(config: JourneyConfig):
     
     try:
         # Use our own db connection to get locations
-        start_loc = await db.locations.find_one({"_id": config.origen_id})
-        end_loc = await db.locations.find_one({"_id": config.destino_id})
-        
+        # If the id is a "custom:" sentinel (free map point) we skip DB lookup
+        # and build a synthetic location below from explicit coordinates.
+        start_loc = None
+        end_loc = None
+        if config.origen_id and not str(config.origen_id).startswith("custom:"):
+            start_loc = await db.locations.find_one({"_id": config.origen_id})
+        if config.destino_id and not str(config.destino_id).startswith("custom:"):
+            end_loc = await db.locations.find_one({"_id": config.destino_id})
+
+        # Build virtual locations for free map points based on the closest
+        # known location's region/clase_region (used for climate + land type).
+        async def _build_virtual_loc(x, y, nombre, fallback_id):
+            all_l = await db.locations.find({}).to_list(length=None)
+            nearest = None
+            best = float('inf')
+            for l in all_l:
+                lx = l.get('x'); ly = l.get('y')
+                if lx is None or ly is None:
+                    continue
+                d = (lx - x) ** 2 + (ly - y) ** 2
+                if d < best:
+                    best = d
+                    nearest = l
+            return {
+                "_id": fallback_id or f"custom:{x},{y}",
+                "nombre": nombre or "Punto en el mapa",
+                "x": x,
+                "y": y,
+                "region": (nearest.get('region') if nearest else 'Eriador'),
+                "clase_region": (nearest.get('clase_region') if nearest else 'tierras_salvajes'),
+                "tipo_tierra": (nearest.get('tipo_tierra') if nearest else 'tierras_salvajes'),
+            }
+
+        if not start_loc and config.origen_x is not None and config.origen_y is not None:
+            start_loc = await _build_virtual_loc(
+                config.origen_x, config.origen_y,
+                config.origen_nombre, config.origen_id,
+            )
+        if not end_loc and config.destino_x is not None and config.destino_y is not None:
+            end_loc = await _build_virtual_loc(
+                config.destino_x, config.destino_y,
+                config.destino_nombre, config.destino_id,
+            )
+
         # Remove MongoDB _id for serialization
         if start_loc:
             start_loc['id'] = str(start_loc.pop('_id'))
@@ -1689,6 +1737,11 @@ class RouteComparisonRequest(BaseModel):
     origen_nombre: str
     destino_id: str
     destino_nombre: str
+    # Optional arbitrary map coordinates (mirrors JourneyConfig)
+    origen_x: Optional[float] = None
+    origen_y: Optional[float] = None
+    destino_x: Optional[float] = None
+    destino_y: Optional[float] = None
     evitar_sombra: bool = False
     evitar_tierras_oscuras: bool = False
     ritmo: str = "normal"
@@ -1705,10 +1758,45 @@ async def compare_routes(request: RouteComparisonRequest):
     """
     from utils.pathfinding import MiddleEarthPathfinder
     
-    # Get locations
-    start_loc = await db.locations.find_one({"_id": request.origen_id})
-    end_loc = await db.locations.find_one({"_id": request.destino_id})
-    
+    # Get locations (allow free map points via "custom:" id + explicit coords)
+    start_loc = None
+    end_loc = None
+    if request.origen_id and not str(request.origen_id).startswith("custom:"):
+        start_loc = await db.locations.find_one({"_id": request.origen_id})
+    if request.destino_id and not str(request.destino_id).startswith("custom:"):
+        end_loc = await db.locations.find_one({"_id": request.destino_id})
+
+    async def _virtual_loc(x, y, nombre, fallback_id):
+        all_l = await db.locations.find({}).to_list(length=None)
+        nearest = None
+        best = float('inf')
+        for l in all_l:
+            lx = l.get('x'); ly = l.get('y')
+            if lx is None or ly is None:
+                continue
+            d = (lx - x) ** 2 + (ly - y) ** 2
+            if d < best:
+                best = d
+                nearest = l
+        return {
+            "_id": fallback_id or f"custom:{x},{y}",
+            "nombre": nombre or "Punto en el mapa",
+            "x": x,
+            "y": y,
+            "region": (nearest.get('region') if nearest else 'Eriador'),
+            "clase_region": (nearest.get('clase_region') if nearest else 'tierras_salvajes'),
+            "tipo_tierra": (nearest.get('tipo_tierra') if nearest else 'tierras_salvajes'),
+        }
+
+    if not start_loc and request.origen_x is not None and request.origen_y is not None:
+        start_loc = await _virtual_loc(
+            request.origen_x, request.origen_y, request.origen_nombre, request.origen_id,
+        )
+    if not end_loc and request.destino_x is not None and request.destino_y is not None:
+        end_loc = await _virtual_loc(
+            request.destino_x, request.destino_y, request.destino_nombre, request.destino_id,
+        )
+
     if not start_loc or not end_loc:
         return {"error": True, "message": "Ubicaciones no encontradas"}
     

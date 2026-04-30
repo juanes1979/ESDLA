@@ -92,7 +92,7 @@ const ConfigView = ({
                       size="sm"
                       className="h-6 w-6 p-0"
                       onClick={() => {
-                        setConfig(prev => ({ ...prev, origenId: '', origenNombre: '' }));
+                        setConfig(prev => ({ ...prev, origenId: '', origenNombre: '', origenX: null, origenY: null }));
                         setOrigenSearch('');
                       }}
                     >
@@ -113,7 +113,7 @@ const ConfigView = ({
                               className="w-full justify-start h-8 text-sm"
                               disabled={loc.id === config.destinoId}
                               onClick={() => {
-                                setConfig(prev => ({ ...prev, origenId: loc.id, origenNombre: loc.nombre }));
+                                setConfig(prev => ({ ...prev, origenId: loc.id, origenNombre: loc.nombre, origenX: null, origenY: null }));
                                 setOrigenSearch('');
                                 setOrigenOpen(false);
                               }}
@@ -174,7 +174,7 @@ const ConfigView = ({
                       size="sm"
                       className="h-6 w-6 p-0"
                       onClick={() => {
-                        setConfig(prev => ({ ...prev, destinoId: '', destinoNombre: '' }));
+                        setConfig(prev => ({ ...prev, destinoId: '', destinoNombre: '', destinoX: null, destinoY: null }));
                         setDestinoSearch('');
                       }}
                     >
@@ -195,7 +195,7 @@ const ConfigView = ({
                               className="w-full justify-start h-8 text-sm"
                               disabled={loc.id === config.origenId}
                               onClick={() => {
-                                setConfig(prev => ({ ...prev, destinoId: loc.id, destinoNombre: loc.nombre }));
+                                setConfig(prev => ({ ...prev, destinoId: loc.id, destinoNombre: loc.nombre, destinoX: null, destinoY: null }));
                                 setDestinoSearch('');
                                 setDestinoOpen(false);
                               }}
