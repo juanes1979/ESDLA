@@ -19,7 +19,7 @@ import requests
 
 BASE_URL = (
     os.environ.get("REACT_APP_BACKEND_URL")
-    or "https://aventura-arda.preview.emergentagent.com"
+    or "https://middle-earth-5e.preview.emergentagent.com"
 ).rstrip("/")
 
 SPANISH_RAIN_WORDS = (
