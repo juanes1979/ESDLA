@@ -2,6 +2,26 @@
 
 ## Current State (2026-04-30)
 
+### ✅ Iteración 93 — todo el reparto entre TODOS los viajeros (con papel + acompañantes)
+
+Mis disculpas: en iter92 toqué sólo `travelPrint.js` (la copia para imprimir), no la app en vivo. Ahora repaso TODO el flujo de fin de viaje:
+
+1. **`ResultsView.jsx` (panel "Puntos de Experiencia Ganados" en la app)**
+   - Antes filtraba `config.miembros.filter(m => m.papeles?.length > 0)` → divisor = 4.
+   - Ahora `[...config.miembros, ...config.acompanantes]` → divisor = 7. La tabla muestra los 7 con etiqueta "Acompañante" cuando no hay papel; reciben PX viaje pero PX tiradas = 0.
+
+2. **`EnhancedTravelSystem.jsx → applyPXToCharacters`** (el botón "Finalizar Viaje y Repartir PX")
+   - Antes `membersWithRoles.length` como divisor y sólo aplicaba PX a esos 4.
+   - Ahora reparte el PX base entre los 7 y llama al endpoint con la lista completa. Acompañantes reciben PX viaje (sin PX tiradas).
+
+3. **`EnhancedTravelSystem.jsx → calculateFatigueResults`** (panel "Tiradas de Fatiga" + sección del print "FATIGA DEL VIAJE")
+   - Antes iteraba sólo `config.miembros` (4) → en imagen 1 sólo aparecían 2 visibles + en imagen 3 (PDF) sólo 4.
+   - Ahora itera `[...config.miembros, ...config.acompanantes]` → tira CD-CON para los 7. Etiqueta "Acompañante" si no tiene papel.
+
+4. **`travelPrint.js`** (mantenido de iter92): La Compañía + tabla PX + Resumen ya cuentan a los 7.
+
+---
+
 ### ✅ Iteración 92 — 4 fixes (PX, mini-mapa, CD fatiga +2, Cambiar categoría desde listado)
 
 1. **PX del viaje se reparten entre TODOS los viajeros (no sólo los con papel)** — `travelPrint.js`: el reparto del PX base del trayecto ahora cuenta `[...miembros, ...acompañantes]`. La tabla del print incluye una fila por cada uno; los acompañantes muestran "acompañante" como papel y reciben sólo PX viaje (las PX por tirada siguen requiriendo papel). La sección "La Compañía" del informe también lista a los 7.

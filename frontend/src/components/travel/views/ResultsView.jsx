@@ -151,8 +151,14 @@ const ResultsView = ({
         </CardHeader>
         <CardContent>
           {(() => {
-            const membersWithRoles = config.miembros.filter(m => m.papeles?.length > 0);
-            const numMembers = membersWithRoles.length || 1;
+            // Reparto del PX base del viaje: TODOS los viajeros (con papel y
+            // acompañantes), porque todos cruzan el mismo terreno. Las PX
+            // por tirada (individuales) sólo se ganan por quien tira.
+            const allTravellers = [
+              ...config.miembros,
+              ...((config.acompanantes || []).map(a => ({ ...a, papeles: a.papeles || [] }))),
+            ];
+            const numMembers = Math.max(1, allTravellers.length);
             const journeyBasePX = journeyCalc?.estimaciones?.px_total || 0;
             const pxPerMemberFromJourney = Math.round(journeyBasePX / numMembers);
 
@@ -161,7 +167,7 @@ const ResultsView = ({
                 <p className="text-sm text-muted-foreground mb-2">
                   {pxApplied
                     ? '¡Los PX han sido aplicados a las fichas de los personajes!'
-                    : 'PX del viaje repartidos a partes iguales + PX individuales por tiradas.'
+                    : 'PX del viaje repartidos a partes iguales entre TODOS los viajeros + PX individuales por tiradas.'
                   }
                 </p>
 
@@ -177,9 +183,10 @@ const ResultsView = ({
                 </div>
 
                 <div className="grid md:grid-cols-2 gap-3">
-                  {membersWithRoles.map((member) => {
+                  {allTravellers.map((member) => {
                     const memberResult = pxResults?.results?.find(r => r.character_id === member.id);
-                    const hasMultiple = member.papeles.length > 1;
+                    const papelesArr = member.papeles || [];
+                    const hasMultiple = papelesArr.length > 1;
                     const memberXP = characterXP[member.id] || { total: 0, rolls: [] };
                     const rollCount = memberXP.rolls?.length || 0;
                     const successCount = memberXP.rolls?.filter(r => r.exito).length || 0;
@@ -201,7 +208,7 @@ const ResultsView = ({
                           <div className="flex-1">
                             <p className="font-bold text-[hsl(var(--gold))]">{member.nombre}</p>
                             <p className="text-xs text-muted-foreground">
-                              {member.papeles.map(p => ROLE_INFO[p]?.nombre).join(', ')}
+                              {papelesArr.length ? papelesArr.map(p => ROLE_INFO[p]?.nombre || p).join(', ') : 'Acompañante'}
                             </p>
                             {hasMultiple && (
                               <p className="text-xs text-yellow-400">⚠️ Múltiples papeles: -5</p>

@@ -2284,8 +2284,14 @@ const EnhancedTravelSystem = () => {
       }
     });
     
-    // Tirada individual de CON por cada miembro (regla: fallo = +1 nivel exacto)
-    for (const member of config.miembros) {
+    // Tirada individual de CON por CADA viajero (los con papel + los
+    // acompañantes). Todos atraviesan el mismo terreno y sufren la misma
+    // fatiga; los acompañantes simplemente no tienen papel asignado.
+    const todosLosViajeros = [
+      ...config.miembros,
+      ...((config.acompanantes || []).map(a => ({ ...a, papeles: a.papeles || [] }))),
+    ];
+    for (const member of todosLosViajeros) {
       const char = characters.find(c => c.id === member.id);
       if (!char) continue;
       
@@ -2321,7 +2327,7 @@ const EnhancedTravelSystem = () => {
         
         results.push({
           personaje: member.nombre,
-          papel: member.papeles?.join(', ') || '',
+          papel: member.papeles?.length ? member.papeles.join(', ') : 'Acompañante',
           cd_base: getFatigueBaseCD(terrenoViaje),
           ...res.data
         });
@@ -2878,15 +2884,20 @@ const EnhancedTravelSystem = () => {
   // =============== APPLY PX TO CHARACTERS ===============
   
   const applyPXToCharacters = async () => {
-    const membersWithRoles = config.miembros.filter(m => m.papeles?.length > 0);
-    if (membersWithRoles.length === 0) {
-      toast.error('No hay personajes con roles asignados');
+    // PX BASE del viaje se reparten entre TODOS los viajeros (con papel +
+    // acompañantes). Las PX por TIRADAS sólo las ganan quienes tiraron.
+    const allTravellers = [
+      ...config.miembros,
+      ...((config.acompanantes || []).map(a => ({ ...a, papeles: a.papeles || [] }))),
+    ];
+    if (allTravellers.length === 0) {
+      toast.error('No hay viajeros');
       return;
     }
     
-    // Calculate base journey PX divided equally
+    // Calculate base journey PX divided equally among ALL travellers
     const journeyBasePX = journeyCalc?.estimaciones?.px_total || 0;
-    const pxPerMemberFromJourney = Math.round(journeyBasePX / membersWithRoles.length);
+    const pxPerMemberFromJourney = Math.round(journeyBasePX / allTravellers.length);
     
     setApplyingPX(true);
     
@@ -2897,8 +2908,9 @@ const EnhancedTravelSystem = () => {
       const fallos = allRolls.length - aciertos;
       const groupMult = calculateGroupMultiplier(aciertos, fallos);
       
-      // Build array of {character_id, px_amount} with TOTAL = journey share + individual rolls (ajustado) — mínimo 0 por PJ
-      const characterPXList = membersWithRoles.map(m => {
+      // Build array of {character_id, px_amount} for ALL travellers.
+      // Acompañantes reciben sólo PX viaje (no tiraron, así que PX rolls = 0).
+      const characterPXList = allTravellers.map(m => {
         const rollsXP = characterXP[m.id]?.total || 0;
         const rollsXPAjustado = Math.floor(rollsXP * groupMult.multiplicador);
         const totalXP = Math.max(0, pxPerMemberFromJourney + rollsXPAjustado);
@@ -2943,9 +2955,9 @@ const EnhancedTravelSystem = () => {
       // Fallback to old method if new endpoint doesn't exist
       try {
         const totalRollsXP = Object.values(characterXP).reduce((sum, c) => sum + (c.total || 0), 0);
-        const avgPX = Math.round((journeyBasePX + totalRollsXP) / membersWithRoles.length);
+        const avgPX = Math.round((journeyBasePX + totalRollsXP) / allTravellers.length);
         const response = await api.post('/travel/apply-px', {
-          character_ids: membersWithRoles.map(m => m.id),
+          character_ids: allTravellers.map(m => m.id),
           px_amount: avgPX,
           journey_id: activeJourney?.id || null,
           journey_description: `Viaje de ${config.origenNombre} a ${config.destinoNombre}`
