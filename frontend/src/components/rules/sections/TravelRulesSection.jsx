@@ -1035,42 +1035,26 @@ const TravelRulesSection = () => {
                         </div>
                       ))}
                     </div>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <Label className="text-xs">Marcha forzada — % consumo extra (1h, 2h, 3h, 4h)</Label>
-                        <div className="grid grid-cols-4 gap-2 mt-1">
-                          {[0, 1, 2, 3].map((idx) => (
-                            <Input
-                              key={`mfc-${idx}`}
-                              type="number" step="1"
-                              value={(rules.marcha_forzada_consumo_pct || [10, 20, 35, 50])[idx]}
-                              onChange={(e) => {
-                                const arr = [...(rules.marcha_forzada_consumo_pct || [10, 20, 35, 50])];
-                                arr[idx] = parseFloat(e.target.value);
-                                setRules({...rules, marcha_forzada_consumo_pct: arr});
-                              }}
-                              data-testid={`rules-mf-consumo-${idx + 1}h`}
-                            />
-                          ))}
-                        </div>
-                      </div>
-                      <div>
-                        <Label className="text-xs">Marcha forzada — % velocidad extra (1h, 2h, 3h, 4h)</Label>
-                        <div className="grid grid-cols-4 gap-2 mt-1">
-                          {[0, 1, 2, 3].map((idx) => (
-                            <Input
-                              key={`mfv-${idx}`}
-                              type="number" step="1"
-                              value={(rules.marcha_forzada_velocidad_pct || [15, 30, 45, 60])[idx]}
-                              onChange={(e) => {
-                                const arr = [...(rules.marcha_forzada_velocidad_pct || [15, 30, 45, 60])];
-                                arr[idx] = parseFloat(e.target.value);
-                                setRules({...rules, marcha_forzada_velocidad_pct: arr});
-                              }}
-                              data-testid={`rules-mf-velocidad-${idx + 1}h`}
-                            />
-                          ))}
-                        </div>
+                    <div>
+                      <Label className="text-xs">Marcha forzada — % consumo extra (1h, 2h, 3h, 4h)</Label>
+                      <p className="text-[10px] text-muted-foreground italic mb-1">
+                        La marcha forzada NO cambia la velocidad: añade horas extra a las 8 h estándar
+                        del día de viaje (mayor desgaste y consumo, no ir más rápido).
+                      </p>
+                      <div className="grid grid-cols-4 gap-2">
+                        {[0, 1, 2, 3].map((idx) => (
+                          <Input
+                            key={`mfc-${idx}`}
+                            type="number" step="1"
+                            value={(rules.marcha_forzada_consumo_pct || [10, 20, 35, 50])[idx]}
+                            onChange={(e) => {
+                              const arr = [...(rules.marcha_forzada_consumo_pct || [10, 20, 35, 50])];
+                              arr[idx] = parseFloat(e.target.value);
+                              setRules({...rules, marcha_forzada_consumo_pct: arr});
+                            }}
+                            data-testid={`rules-mf-consumo-${idx + 1}h`}
+                          />
+                        ))}
                       </div>
                     </div>
                   </Card>
@@ -1117,46 +1101,6 @@ const TravelRulesSection = () => {
                           type="number"
                           value={rules.orientation_success_by_5_distance}
                           onChange={(e) => setRules({...rules, orientation_success_by_5_distance: parseInt(e.target.value)})}
-                        />
-                      </div>
-                    </div>
-                  </Card>
-                  
-                  {/* Speed Rules */}
-                  <Card className="p-4 border-green-500/30">
-                    <h4 className="font-bold text-green-400 mb-3">Velocidad</h4>
-                    <div className="grid grid-cols-4 gap-4">
-                      <div>
-                        <Label className="text-xs">Umbral Lento (m)</Label>
-                        <Input
-                          type="number"
-                          value={rules.speed_slow_threshold}
-                          onChange={(e) => setRules({...rules, speed_slow_threshold: parseInt(e.target.value)})}
-                        />
-                      </div>
-                      <div>
-                        <Label className="text-xs">Días (Lento)</Label>
-                        <Input
-                          type="number"
-                          value={rules.speed_slow_days}
-                          onChange={(e) => setRules({...rules, speed_slow_days: parseInt(e.target.value)})}
-                        />
-                      </div>
-                      <div>
-                        <Label className="text-xs">Umbral Rápido (m)</Label>
-                        <Input
-                          type="number"
-                          value={rules.speed_fast_threshold}
-                          onChange={(e) => setRules({...rules, speed_fast_threshold: parseInt(e.target.value)})}
-                        />
-                      </div>
-                      <div>
-                        <Label className="text-xs">Días (Rápido)</Label>
-                        <Input
-                          type="number"
-                          step="0.1"
-                          value={rules.speed_fast_days}
-                          onChange={(e) => setRules({...rules, speed_fast_days: parseFloat(e.target.value)})}
                         />
                       </div>
                     </div>

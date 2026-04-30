@@ -31,9 +31,8 @@ def test_travel_rules_includes_rationing_defaults():
     assert rules.get('consumo_agua_normal') == 2.0
     assert rules.get('consumo_agua_rapido') == 2.5
 
-    # Forced-march modifier arrays
+    # Forced-march modifier array (consumo only — velocity is NOT modified)
     assert rules.get('marcha_forzada_consumo_pct') == [10.0, 20.0, 35.0, 50.0]
-    assert rules.get('marcha_forzada_velocidad_pct') == [15.0, 30.0, 45.0, 60.0]
 
 
 def test_travel_rules_can_persist_rationing_overrides():

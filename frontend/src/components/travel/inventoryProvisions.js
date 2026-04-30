@@ -89,7 +89,9 @@ export const summarizeProvisions = (inventario = []) => {
   const totalLitros =
     odres.reduce((s, o) => s + o.litros_actuales, 0) + aguaSuelta;
 
-  const diasComidaTotal = totalFoodMassKg / 0.5;
+  // Conversión másica: 1 ración = 1 kg de comida (1 día completo).
+  const KG_POR_RACION = 1.0;
+  const diasComidaTotal = totalFoodMassKg / KG_POR_RACION;
 
   return { raciones, odres, aguaSuelta, totalLitros, totalFoodMassKg, diasComidaTotal };
 };

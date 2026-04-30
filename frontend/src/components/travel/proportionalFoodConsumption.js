@@ -31,14 +31,15 @@ export const isFoodItem = (item) => {
 };
 
 /**
- * Compute days of food an item represents (peso / 0.5 kg per day).
+ * Compute days of food an item represents (peso / 1.0 kg per day).
+ * 1 ración = 1 kg = 1 día completo de comida.
  */
 export const daysOfFood = (item) => {
   if (!item || typeof item !== 'object') return 0;
   const peso = Number(item.peso_kg || 0);
   const cantidad = Number(item.cantidad || 1);
   if (peso <= 0) return 0;
-  return (peso * cantidad) / 0.5;
+  return (peso * cantidad) / 1.0;
 };
 
 /**

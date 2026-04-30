@@ -102,12 +102,11 @@ class TravelRulesConfig(BaseModel):
     consumo_agua_normal: float = 2.0
     consumo_agua_rapido: float = 2.5
     # Forced March — extra hour modifiers expressed as PORCENTAJE adicional
-    # de consumo por cada hora forzada (1, 2, 3, 4 h). Aplicado SOBRE el
+    # de consumo por cada hora forzada (1, 2, 3, 4 h). La marcha forzada
+    # NO modifica la velocidad, sólo añade horas extra a las 8 h estándar
+    # del día de viaje (mayor desgaste y consumo). Aplicado SOBRE el
     # consumo del ritmo elegido. Ej: forzar 2 h con 'normal' → ×(1+0.20).
     marcha_forzada_consumo_pct: List[float] = [10.0, 20.0, 35.0, 50.0]
-    # Forced March — extra metres per turn ganados por cada hora forzada
-    # (modificador positivo a la velocidad efectiva). Ej: 1 h = +15 %.
-    marcha_forzada_velocidad_pct: List[float] = [15.0, 30.0, 45.0, 60.0]
     # Speed settings (days per hex)
     speed_slow_threshold: int = 5  # feet
     speed_slow_days: int = 2
