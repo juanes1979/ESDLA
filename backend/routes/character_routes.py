@@ -782,17 +782,18 @@ async def update_draft_step9(draft_id: str, data: CharacterCreateStep9):
         # Resolve and store full ubicacion_actual snapshot
         loc = await db.locations.find_one({"id": data.ubicacion_id}) or \
               await db.locations.find_one({"_id": data.ubicacion_id})
-        if loc:
-            update["ubicacion_actual"] = {
-                "id": loc.get("id") or loc.get("_id"),
-                "nombre": loc.get("nombre"),
-                "region": loc.get("region"),
-                "tipo": loc.get("tipo"),
-                "x": loc.get("x"),
-                "y": loc.get("y"),
-                "tipo_tierra": loc.get("tipo_tierra") or loc.get("clase_region"),
-                "terreno": loc.get("terreno"),
-            }
+        if not loc:
+            raise HTTPException(status_code=404, detail="Ubicación no encontrada")
+        update["ubicacion_actual"] = {
+            "id": loc.get("id") or loc.get("_id"),
+            "nombre": loc.get("nombre"),
+            "region": loc.get("region"),
+            "tipo": loc.get("tipo"),
+            "x": loc.get("x"),
+            "y": loc.get("y"),
+            "tipo_tierra": loc.get("tipo_tierra") or loc.get("clase_region"),
+            "terreno": loc.get("terreno"),
+        }
     
     result = await db.character_drafts.update_one(
         {"_id": draft_id},

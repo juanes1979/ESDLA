@@ -2,6 +2,39 @@
 
 ## Current State (2026-04-30)
 
+### ✅ Iteración 85 — Ubicación del personaje (C-5) + "Indicar en mapa" para viajes (C-6)
+**(Backend testing agent 31/31 PASS — 100%, frontend lint OK, smoke OK)**
+
+**C-5 — Ubicación del personaje**
+- Nuevo campo `character.ubicacion_actual = {id, nombre, region, tipo, x, y, tipo_tierra, terreno}` (denormalizado al guardar para evitar joins).
+- **Creación de personaje** (Step8Details): bloque "Ubicación inicial" con buscador + lista agrupada por región (filtrada a tipos de asentamiento: ciudad / pueblo / aldea / fortaleza / refugio …). Es **obligatorio** para finalizar el personaje.
+- **Endpoint** `PATCH /api/characters/{id}/ubicacion` con `{location_id, force}`. Si `character.campaign_id` está fijado y `force=false` → **403** (sólo el DJ con `force=true` puede cambiarla cuando RBAC esté listo).
+- **Finalize** del draft copia `ubicacion_actual` al personaje creado.
+- Validaciones: 404 si la ubicación no existe (tanto en `PATCH /ubicacion` como en `step9`).
+- **Widget "Estás aquí"** (`LocationWidget.jsx`) en la cabecera de la ficha:
+  - Mini-mapa cuadrado (96 px) recortado a la zona del asentamiento usando `background-image` + `background-position` con las coords del location (zoom 4×) y un dot rojo central.
+  - Texto: región + nombre + tipo.
+  - Botón **"Cambiar"** abre dialog con búsqueda y lista; **deshabilitado con icono de candado** cuando el personaje está asignado a campaña.
+- (Backlog) Filtro real de tienda por región se queda para la siguiente iteración: `regiones_disponibles` ya está en los items del catálogo, sólo hay que aplicar el filtro al render.
+
+**C-6 — "Indicar en el mapa"**
+- Nuevo botón `📍 Indicar en mapa` junto a las etiquetas Origen y Destino del viajador.
+- `MapPickDialog.jsx`: dialogo full-screen (96 vw × 90 vh) con la imagen `mapa_jugadores.jpg` **vacía** (sin etiquetas ni iconos).
+- Controles: arrastrar para pan, rueda del ratón para zoom (1×–6×, paso 25 %), botón Centrar.
+- Al hacer click en un punto, se calcula la ubicación más cercana por distancia euclídea sobre las coords (x, y) en %; se muestra un dot rojo grande sobre el mapa y un texto "Más cercano: X · Región".
+- Al confirmar → `setConfig({origenId|destinoId})` con el id de la ubicación elegida.
+
+**Tests**
+- `/app/test_reports/iteration_68.json` — **31/31 PASS** (100%) incl. regresión de C-5 + iter67 (eventos por terreno + carry equipo_ocupacion).
+- Test file: `/app/backend/tests/test_ubicacion_it68.py`.
+
+**Pendiente (backlog)**
+- Filtro real (no aviso) de tienda por región usando `character.ubicacion_actual.region` y `item.regiones_disponibles`.
+- Filtro real para usar montura (Alforjas / Bocado+Brida+Silla) — hoy es solo aviso.
+- Refactor `character_routes.py` (≥ 2530 líneas) → split en `character_equipment_routes.py`, `character_mount_routes.py`, `character_location_routes.py`.
+- P0 RBAC + Sistema de Campañas (CAMPAIGN_ARCHITECTURE.md).
+- P1 Pantalla del DJ + subida de mapas.
+
 ### ✅ Iteración 84 — Bugs (Bloque A) + Avisos compra montura (B) + Reorg Comida (B) + Tabla Eventos (C-7)
 **(Backend testing agent 26/26 PASS — 100%, frontend lint OK, smoke OK)**
 
