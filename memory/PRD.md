@@ -2,6 +2,44 @@
 
 ## Current State (2026-04-30)
 
+### ✅ Iteración 86 — 3 bugs reportados con vídeos: checkbox admin, edit-item, montura no detectada
+**(Backend testing agent 61/61 PASS — 100% incl. regresión de iter66/67/68/69, frontend lint OK)**
+
+**Bug 1 — Admin checkbox "marcar/desmarcar todos" no toggle**
+- En `/app/frontend/src/components/rules/EquipmentSection.jsx`, el `Checkbox` Radix se intentaba poner indeterminate vía `ref.indeterminate` (no funciona en Radix).
+- Fix: pasamos `checked={isIndeterminate ? 'indeterminate' : allItemsAvailable}` (Radix soporta el string) y el `onCheckedChange` ahora flippea siempre: si **algo** está marcado → desmarca todo, si nada está marcado → marca todo. Ya no se queda atascado en indeterminado.
+
+**Bug 2 — Editar / cambiar de bloque un item**
+- Nuevo endpoint `PATCH /api/characters/{id}/equipment/edit-item` con `{item_index, source, nueva_categoria, nueva_posicion, nuevo_nombre}`. Soporta `source ∈ {inventario, equipo, equipo_ocupacion}`. Validaciones 400/404.
+- En `EquipmentManagerModal`, nuevo botón 📁 (FolderOpen, azul) en cada item movible que abre AlertDialog con `<select>` de categoría (Equipo General / Herramientas / Ropa / **Consumibles** / Comida en Posadas / Hierbas / Venenos / Accesorios de Montura / Transporte). Cuando la nueva categoría es 'ropa', aparece un segundo `<select>` para la posición.
+- Caso del usuario: ahora puede mover "Raciones (1 día) (Paquete de 10)" del bloque General a Consumibles directamente desde la ficha.
+
+**Bug 3 — Caballo de caminos no detectado como montura**
+- El personaje tenía el caballo en `equipo_ocupacion` (legado de la creación) y `monturas[]` estaba vacío → `PATCH /equipment/carry` rechazaba con 400 "El personaje no tiene montura".
+- **Fix múltiple**:
+  1. `POST /equipment/add` con `item_category='monturas'` ahora puebla TANTO `character.montura` (legacy mirror) **como** `character.monturas[]` (lista nueva con id, nombre_original, capacidad, velocidad).
+  2. `PATCH /equipment/carry` ahora detecta monturas en cualquier fuente (`inventario`, `equipo_ocupacion`, `equipo_nivel_vida`, `equipo_trasfondo`) por keywords (caballo/pony/poni/mula/burro/corcel/yegua/potro/asno).
+  3. **Auto-promoción**: si detecta una montura fuera de `monturas[]`, la promociona automáticamente a `monturas[]` con datos del catálogo + sus campos guardados, y la elimina del array original.
+  4. **Ajuste de índice**: si el usuario pidió mover un item del mismo source de la montura promocionada, su `item_index` se decrementa para no apuntar al item equivocado.
+  5. `_current_list(src)` helper que lee de `update` primero (lista ya trimada) → evita el bug HIGH detectado en iter69 donde el horse aparecía duplicado.
+
+**Tests**
+- `/app/test_reports/iteration_69.json` — 18/19 (1 HIGH detectado).
+- `/app/test_reports/iteration_70.json` — **61/61 PASS, 100%**, 0 issues críticos. Regresión completa iter66-69 verde.
+- Test files: `test_mount_autopromote_edit_it69.py` (mantenido para retest).
+
+**Comentarios del testing agent (no críticos, llevan repitiéndose 4 iteraciones)**
+- 🛠️ `character_routes.py` ya supera **2692 líneas** — pendiente split en `character_equipment_routes.py` / `character_mount_routes.py` / `character_location_routes.py`.
+- Constante `mount_keywords` duplicada en 2 lugares — extraer a módulo.
+
+**Pendiente (backlog) — siguen tras estos fixes**
+- Filtro real de tienda por región (hoy aviso)
+- Filtro real para usar montura (Alforjas / Bocado+Brida+Silla)
+- P0 Login + RBAC + Sistema de Campañas
+- P1 Pantalla DJ (incl. transferir inventario entre personajes)
+- P1 Subida de mapas/aventuras
+- Refactor `character_routes.py`
+
 ### ✅ Iteración 85 — Ubicación del personaje (C-5) + "Indicar en mapa" para viajes (C-6)
 **(Backend testing agent 31/31 PASS — 100%, frontend lint OK, smoke OK)**
 
