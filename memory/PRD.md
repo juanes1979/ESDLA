@@ -2,7 +2,30 @@
 
 ## Current State (2026-04-30)
 
-### ✅ Iteración 70 — Sistema de Raciones + bug fix Move-Item (Feb 2026)
+### ✅ Iteración 71 — Refactor (P0) + Indicador de provisiones en ficha
+
+**Refactor `EnhancedTravelSystem.jsx` (3.270 → 3.088 líneas, -182 líneas):**
+- Nuevo hook `/app/frontend/src/hooks/useJourneyProvisions.js` (273 líneas) que encapsula 4 estados (`partyProvisions`, `provisionFatigue`, `diasSinComida`, `diasSinAgua`) y 5 callbacks (`checkProvisionsForJourney`, `initializeProvisions`, `consumeDailyProvisions`, `refillWaterNearTown`, `performForaging`).
+- Toda la lógica de consumo / forrajeo / recarga de odres / detección de asentamiento está ahora centralizada en el hook con dependencias bien declaradas en sus `useCallback`.
+- Los call sites originales del componente se mantienen intactos (alias `performForaging = performForagingHook`).
+
+**Indicador de Provisiones en la ficha del personaje:**
+- Nuevo componente `ProvisionsIndicator` dentro de `WeightEncumbranceCard` (`ExtendedCards.jsx`).
+- Muestra "Comida disponible: X días" y "Agua disponible: X días" calculados con `summarizeProvisions(inventario)`.
+- Tinte semafórico: <3 días rojo, 3-6 ámbar, 7+ verde. Sub-línea con kg de comida + Litros + cuenta de odres.
+- `data-testid`: `provisions-indicator`, `provisions-food-days`, `provisions-water-days`.
+
+**Limpieza correlativa pedida por el usuario:**
+- ❌ Tarjeta verde "Velocidad" legacy eliminada del editor de reglas (umbrales en pies sin uso real).
+- ❌ Campo "% velocidad extra" de Marcha Forzada eliminado: la marcha forzada NO modifica velocidad, sólo añade horas extra al día (con su % de consumo extra).
+- ✅ Conversión corregida: **1 ración = 1 kg de comida = 1 día completo** (antes 0.5 kg/día) en `inventoryProvisions.js` y `proportionalFoodConsumption.js`.
+- ✅ Backend: eliminado `marcha_forzada_velocidad_pct` de `TravelRulesConfig`.
+
+**Tests:** 5/5 de `test_rationing_it70.py` siguen pasando. El testing_agent_v3_fork (iter 71) confirma 100% backend + 100% frontend (sin crash).
+
+---
+
+### ✅ Iteración 70 — Sistema de Raciones + bug fix Move-Item
 
 **Backend (`/app/backend/routes/`)**
 - `data_routes.py::move_equipment_item` ahora hace match **case-insensitive y Unicode-normalizado**, con fallback por prefijo. Resuelve el error recurrente `Item 'Raciones (1 día)' not found in 'equipo_general'` que aparecía cuando el usuario renombraba el item en el editor antes de pulsar "Cambiar categoría". El error 404 ahora incluye una pista contextual con los primeros candidatos disponibles.
