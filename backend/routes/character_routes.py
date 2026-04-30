@@ -1627,6 +1627,20 @@ class ToggleActiveRequest(BaseModel):
     source: str = "inventario"  # "inventario" | "armadura" | "armadura_piezas"
 
 
+class EditItemRequest(BaseModel):
+    """Edit free-form fields of an item already in the character's equipment.
+
+    Currently lets the player change `categoria`, `posicion` and `nombre`
+    so they can reorganise items between blocks without having to delete &
+    re-add them.
+    """
+    item_index: int
+    source: str = "inventario"  # inventario | equipo | equipo_ocupacion
+    nueva_categoria: Optional[str] = None
+    nueva_posicion: Optional[str] = None
+    nuevo_nombre: Optional[str] = None
+
+
 class MountCreateRequest(BaseModel):
     nombre_original: str
     nombre_personalizado: Optional[str] = None
@@ -1734,18 +1748,40 @@ async def add_equipment_to_character(character_id: str, data: AddEquipmentReques
         new_item["precio_pagado"] = 0
     
     update = {"updated_at": now_utc()}
-    
+
     # Handle mounts specially
     if data.item_category == "monturas":
-        # Add mount to character
-        mount_data = {
-            "nombre": data.item_name,
-            "capacidad_carga": data.capacidad_carga or (catalog_item.get("capacidad_carga") if catalog_item else 0),
-            "velocidad": catalog_item.get("velocidad") if catalog_item else 0,
-            "constitucion": catalog_item.get("constitucion") if catalog_item else "",
-            "equipo": [],  # Equipment carried by mount
+        import uuid as _uuid
+        # Add mount to BOTH legacy `montura` (mirror) AND new `monturas[]` array
+        capacidad = data.capacidad_carga or (catalog_item.get("capacidad_carga") if catalog_item else 0)
+        velocidad = catalog_item.get("velocidad") if catalog_item else 0
+        constitucion = catalog_item.get("constitucion") if catalog_item else ""
+
+        new_mount = {
+            "id": str(_uuid.uuid4()),
+            "nombre_original": data.item_name,
+            "nombre_personalizado": data.item_name,
+            "especie": data.item_name,
+            "capacidad_carga": capacidad or 150,
+            "velocidad": velocidad or 12,
+            "constitucion": constitucion,
+            "equipo": [],
+            "es_jinete_activo": False,
         }
-        update["montura"] = mount_data
+        monturas_arr = character.get("monturas", []) or []
+        monturas_arr.append(new_mount)
+        update["monturas"] = monturas_arr
+
+        # Mirror primary in character.montura for backward compat
+        primary = monturas_arr[0]
+        update["montura"] = {
+            "nombre": primary.get("nombre_original"),
+            "nombre_personalizado": primary.get("nombre_personalizado"),
+            "capacidad_carga": primary.get("capacidad_carga"),
+            "velocidad": primary.get("velocidad"),
+            "constitucion": primary.get("constitucion"),
+            "equipo": primary.get("equipo", []),
+        }
     elif "armas" in data.item_category:
         # Add to armas array
         armas = character.get("armas", [])
@@ -1886,12 +1922,84 @@ async def update_equipment_carrier(character_id: str, data: UpdateEquipmentCarry
     if not character:
         raise HTTPException(status_code=404, detail="Personaje no encontrado")
 
-    # Detect mount (primary list or legacy)
+    update = {"updated_at": now_utc()}
+
+    # Detect mount (primary list, legacy field, OR any equipment source)
     monturas_list = character.get("monturas", []) or []
     has_mount = bool(monturas_list) or bool(character.get("montura", {}).get("nombre"))
 
+    # Fallback: scan all equipment sources (equipo_ocupacion, inventario, ...)
+    # to detect a mount that hasn't been promoted to monturas[] yet.
+    if not has_mount:
+        mount_keywords = ['caballo', 'pony', 'poni', 'mula', 'burro', 'corcel', 'yegua', 'potro', 'asno']
+        for src_key in ("inventario", "equipo_ocupacion", "equipo_nivel_vida", "equipo_trasfondo"):
+            for it in (character.get(src_key) or []):
+                nombre = (it.get("nombre") if isinstance(it, dict) else str(it) or "").lower()
+                if any(k in nombre for k in mount_keywords):
+                    has_mount = True
+                    break
+            if has_mount:
+                break
+
     if data.carried_by == "montura" and not has_mount:
         raise HTTPException(status_code=400, detail="El personaje no tiene montura")
+
+    # Auto-promote a detected mount into monturas[] if needed so subsequent
+    # operations (mount_id assignment, weight-summary per-mount) work.
+    if data.carried_by == "montura" and not monturas_list:
+        import uuid as _uuid
+        # Pick the first mount-like item from any source
+        promoted = None
+        promoted_source = None
+        promoted_index = None
+        mount_keywords = ['caballo', 'pony', 'poni', 'mula', 'burro', 'corcel', 'yegua', 'potro', 'asno']
+        for src_key in ("inventario", "equipo_ocupacion", "equipo_nivel_vida", "equipo_trasfondo"):
+            lst = character.get(src_key) or []
+            for idx, it in enumerate(lst):
+                nombre = (it.get("nombre") if isinstance(it, dict) else str(it) or "").lower()
+                if any(k in nombre for k in mount_keywords):
+                    promoted = it if isinstance(it, dict) else {"nombre": it}
+                    promoted_source = src_key
+                    promoted_index = idx
+                    break
+            if promoted:
+                break
+        if not promoted and character.get("montura", {}).get("nombre"):
+            promoted = character["montura"]
+
+        if promoted:
+            # Look up catalog defaults for capacity/speed
+            catalog_doc = await db.equipment_catalog.find_one({"_id": "main"}) or {}
+            mounts_cat = catalog_doc.get("monturas", []) or []
+            cat = next((m for m in mounts_cat if (m.get("nombre") or "").lower().strip() ==
+                        (promoted.get("nombre") or "").lower().strip()), None)
+            new_mount = {
+                "id": str(_uuid.uuid4()),
+                "nombre_original": promoted.get("nombre"),
+                "nombre_personalizado": promoted.get("nombre_personalizado") or promoted.get("nombre"),
+                "especie": promoted.get("nombre"),
+                "capacidad_carga": promoted.get("capacidad_carga") or (cat.get("capacidad_carga") if cat else 150),
+                "velocidad": promoted.get("velocidad") or (cat.get("velocidad") if cat else 12),
+                "constitucion": (cat.get("constitucion") if cat else "") or "",
+                "equipo": [],
+                "es_jinete_activo": False,
+            }
+            monturas_list = [new_mount]
+            update["monturas"] = monturas_list
+            # Mirror primary
+            update["montura"] = {
+                "nombre": new_mount["nombre_original"],
+                "nombre_personalizado": new_mount["nombre_personalizado"],
+                "capacidad_carga": new_mount["capacidad_carga"],
+                "velocidad": new_mount["velocidad"],
+                "constitucion": new_mount["constitucion"],
+                "equipo": [],
+            }
+            # If promoted from inventory-style list, remove the duplicate
+            if promoted_source and promoted_index is not None:
+                src_list = list(character.get(promoted_source) or [])
+                src_list.pop(promoted_index)
+                update[promoted_source] = src_list
 
     # Resolve target mount_id
     target_mount_id = data.mount_id
@@ -1900,7 +2008,6 @@ async def update_equipment_carrier(character_id: str, data: UpdateEquipmentCarry
             target_mount_id = monturas_list[0].get("id")
 
     source = (data.source or "inventario").lower()
-    update = {"updated_at": now_utc()}
     deactivated = False
     item_name = None
     item_posicion = None
@@ -2339,6 +2446,49 @@ async def toggle_mounted(
         "mount_id": active_mount_id,
         "character": serialize_doc(updated),
     }
+
+
+@router.patch("/{character_id}/equipment/edit-item")
+async def edit_equipment_item(character_id: str, data: EditItemRequest):
+    """Edit free-form fields (categoria, posicion, nombre) of an item that
+    already lives in the character's inventario / equipo / equipo_ocupacion.
+
+    Useful when the player wants to reclassify a misfiled item — e.g.,
+    "Raciones (1 día) (Paquete de 10)" sitting under General that should
+    really live under Consumibles.
+    """
+    character = await db.characters.find_one({"_id": character_id})
+    if not character:
+        raise HTTPException(status_code=404, detail="Personaje no encontrado")
+
+    src = (data.source or "inventario").lower()
+    if src not in ("inventario", "equipo", "equipo_ocupacion"):
+        raise HTTPException(status_code=400, detail="Source no soportado")
+
+    lst = character.get(src, []) or []
+    if data.item_index < 0 or data.item_index >= len(lst):
+        raise HTTPException(status_code=400, detail="Índice fuera de rango")
+
+    item = lst[data.item_index]
+    if not isinstance(item, dict):
+        item = {"nombre": str(item), "cantidad": 1}
+
+    if data.nueva_categoria is not None:
+        item["categoria"] = data.nueva_categoria
+    if data.nueva_posicion is not None:
+        item["posicion"] = data.nueva_posicion
+    if data.nuevo_nombre is not None and data.nuevo_nombre.strip():
+        item["nombre"] = data.nuevo_nombre.strip()
+
+    lst[data.item_index] = item
+    await db.characters.update_one(
+        {"_id": character_id},
+        {"$set": {src: lst, "updated_at": now_utc()}}
+    )
+    updated = await db.characters.find_one({"_id": character_id})
+    return {"character": serialize_doc(updated), "item": item}
+
+
 
 
 # ---------------------------------------------------------------------------

@@ -1,0 +1,43 @@
+{
+  "summary": "Iteration 69 backend testing for mount auto-promotion + edit-item endpoint. 18/19 PASS (94.7%). All 6 EditItemRequest tests PASS, both equipment/add mount tests PASS (monturas[] populated with full new shape; second add appends to array; legacy montura mirror present). Auto-promotion works correctly when the horse lives in a DIFFERENT source than the moved item (e.g., horse in equipo_trasfondo, item moved from inventario → horse correctly promoted into monturas[] AND removed from equipo_trasfondo). 400 'El personaje no tiene montura' is correctly returned when no mount is anywhere. Regression: Xalan GET, weight-summary monturas_detalle, mounts CRUD (POST/PATCH /monturas), carry-with-existing-monturas (no auto-promotion), ubicacion snapshot (it68), travel generate-event terreno→CD (it67) all green. ONE FAILURE — a real backend bug — when the horse and the item being moved live in the SAME source (equipo_ocupacion in our repro), the auto-promotion's removal of the horse is OVERWRITTEN by the apply_move codepath which re-reads from the original `character[source]` list. Result: horse is duplicated — exists both in monturas[] AND in equipo_ocupacion.",
+  "backend_issues": {
+    "critical": [
+      {
+        "endpoint": "PATCH /api/characters/{id}/equipment/carry",
+        "issue": "Auto-promotion correctly sets `update[source] = trimmed_list` (lines 2000-2002), but when the carry's `source` parameter equals the source from which the mount was promoted (e.g., both = 'equipo_ocupacion'), the per-source branch at lines 2066-2074 reads `character.get('equipo_ocupacion')` (ORIGINAL list still containing the horse), applies move on the moved item, and writes back to `update['equipo_ocupacion']`, OVERWRITING the trimmed list. Result: the horse is duplicated — present in both character.monturas[] AND character.equipo_ocupacion. Confirmed on a fresh char with `equipo_ocupacion=[Caballo de caminos, Daga]`, monturas=[]: after PATCH /equipment/carry {item_index:1, carried_by:'montura', source:'equipo_ocupacion'}, monturas[0].nombre_original = 'Caballo de caminos' (good) but equipo_ocupacion still contains both Caballo and modified Daga (BUG). Same scenario with horse in equipo_trasfondo and moved item in inventario works correctly because the source paths differ.",
+        "priority": "HIGH"
+      }
+    ],
+    "minor": []
+  },
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_mount_autopromote_edit_it69.py",
+    "/app/test_reports/pytest/it69.xml"
+  ],
+  "action_items": [
+    "FIX HIGH: PATCH /api/characters/{id}/equipment/carry — duplicate-horse bug when carry source equals the auto-promoted source. RECOMMENDED FIX: after auto-promotion at lines 1999-2002, in each per-source branch (armas/equipo/equipo_ocupacion/inventario at lines 2033-2084) read the list from `update.get(source, character.get(source) or [])` instead of `character.get(source)` so the trimmed list (with horse already removed) is the one being modified. Alternatively, re-fetch character after auto-promotion completes. Without this fix, user reports a horse appearing both as a Mount and in their occupation/trasfondo equipment list.",
+    "(Optional) Money check on /equipment/add: when the requester pays for a mount the catalog price is enforced (Necesitas 6 mp). Make sure the frontend always pre-checks dinero before submission so the user gets a friendly UI error rather than a backend 400. Not a bug, just UX."
+  ],
+  "critical_code_review_comments": [
+    "character_routes.py:1909-2095 (equipment/carry) — auto-promotion logic at 1947-2002 is correct in isolation but interacts unsafely with the per-source branches at 2033-2084: those branches all read `character.get(source)` (the un-mutated original) instead of `update.get(source, character.get(source) or [])`. Any future code that mutates `update[source]` before the per-source branch will be silently overwritten. Recommend introducing a local helper `_current_list(src) = update.get(src, character.get(src) or [])` and using it everywhere.",
+    "character_routes.py:1934 mount_keywords list duplicated at 1955 — extract to module-level constant.",
+    "character_routes.py:1927-1942 mount-detection scans 4 sources for keywords, fine for now but quadratic with item count; not a concern at current scale.",
+    "character_routes.py:2451-2489 equipment/edit-item — clean implementation. Validates source ∈ {inventario, equipo, equipo_ocupacion}, validates index range (negative + overflow), 404 on missing character. Good HTTP codes. Minor: silently no-ops when none of the three optional fields are provided — could 400 instead, but harmless.",
+    "character_routes.py:1753-1784 equipment/add mount branch — correctly populates monturas[] AND mirrors to legacy montura. Good. Note: capacidad/velocidad fall back to 150/12 if catalog has neither and request omits.",
+    "character_routes.py is now 2680 lines — same recurring comment from iter67/it68, overdue for a split into character_equipment_routes.py / character_mount_routes.py / character_location_routes.py.",
+    "EditItemRequest (line 1630) Pydantic model is well-typed with sensible defaults."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_mount_autopromote_edit_it69.py (new)",
+    "/app/test_reports/iteration_69.json (new)",
+    "/app/test_reports/pytest/it69.xml (junit)"
+  ],
+  "success_rate": {"backend": "94.7% (18/19)", "frontend": "not tested (backend-only request)"},
+  "test_credentials": "N/A (no auth required)",
+  "seed_data_creation": "All test fixtures self-cleaning. Each char_with_horse_in_ocupacion / char_with_horse_in_trasfondo / char_clean / char_no_mount creates a character via direct Mongo insert and deletes it on teardown. No leaks. Xalan (208ab2df-...) state untouched (only GET /weight-summary, GET /).",
+  "retest_needed": true,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "After main agent fixes the duplicate-horse bug at character_routes.py:2066-2074 (or all four per-source branches at 2033-2084), re-run /app/backend/tests/test_mount_autopromote_edit_it69.py — specifically TestEquipmentCarryAutoPromotion::test_carry_to_montura_autopromotes_horse_from_equipo_ocupacion. The fix should make all 19 tests pass. The other auto-promotion test (horse in equipo_trasfondo, item from inventario) already passes and proves the fundamental auto-promotion + duplicate-removal logic is correct; the bug only manifests when carry.source matches the source the mount was promoted from. Test fixtures bypass the catalog-price check by seeding {dinero:{mo:100,mp:100,me:100,mc:100}} — keep this pattern for future equipment/add tests.",
+  "rca of the issue": "RCA — Duplicate-horse bug in PATCH /equipment/carry: (1) auto-promotion (lines 1947-2002) iterates equipment sources, finds 'Caballo de caminos' in equipo_ocupacion[0], adds it to update['monturas'] and update['equipo_ocupacion'] = trimmed_list (without the horse). (2) Then the per-source dispatch (lines 2066-2074) executes `eqocup = character.get('equipo_ocupacion', []) or []` — this reads the ORIGINAL list (still with the horse). It applies _apply_move on eqocup[item_index], then writes back: `update['equipo_ocupacion'] = eqocup`. (3) This OVERWRITES the trimmed list from step (1), so when Mongo $set is applied, equipo_ocupacion still contains the horse. Reproduction: synthetic char with equipo_ocupacion=[{'nombre':'Caballo de caminos', cantidad:1}, {'nombre':'Daga', ...}], monturas=[]; PATCH /equipment/carry {item_index:1, carried_by:'montura', source:'equipo_ocupacion'} → 200 OK, monturas[].length==1 ✔, but equipo_ocupacion still has 2 entries including the Caballo ✘. Mitigation: in each per-source branch read `update.get(src, character.get(src) or [])` instead of `character.get(src) or []`."
+}

@@ -380,13 +380,14 @@ const EquipmentSection = ({
           <div className="flex items-center gap-3">
             {isAdmin && (
               <Checkbox
-                checked={allItemsAvailable}
-                ref={(el) => {
-                  if (el) el.indeterminate = isIndeterminate;
-                }}
-                onCheckedChange={(checked) => toggleCategoryCreation(cat.key, cat.name, checked)}
+                checked={isIndeterminate ? 'indeterminate' : allItemsAvailable}
+                onCheckedChange={() =>
+                  // Always flip: if everything (or some) is on → off all; otherwise → on all
+                  toggleCategoryCreation(cat.key, cat.name, !(allItemsAvailable || isIndeterminate))
+                }
                 className="h-5 w-5"
                 title={allItemsAvailable ? 'Desmarcar todos para creación' : 'Marcar todos para creación'}
+                data-testid={`category-toggle-${cat.key}`}
               />
             )}
             <h4 className="font-heading text-md text-[hsl(var(--magic-blue))]">{cat.name}</h4>

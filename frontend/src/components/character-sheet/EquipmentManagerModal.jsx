@@ -15,7 +15,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { 
   X, Package, Plus, Trash2, Search, ShoppingCart, Gift, 
   Loader2, AlertTriangle, Landmark, User, Scale, Coins,
-  Sword, Shield, ChevronDown, ChevronRight, Power, PowerOff, Shirt
+  Sword, Shield, ChevronDown, ChevronRight, Power, PowerOff, Shirt, FolderOpen
 } from 'lucide-react';
 import { toast } from 'sonner';
 import api from '@/services/api';
@@ -79,6 +79,10 @@ const EquipmentManagerModal = ({
   const [selectedCategory, setSelectedCategory] = useState('equipo_general');
   const [expandedGroups, setExpandedGroups] = useState({ 'Equipo': true });
   const [discardTarget, setDiscardTarget] = useState(null); // { nombreBase, categoria, activa, posicion }
+  // Re-categorise dialog target { item_index, source, nombreBase, categoria }
+  const [editTarget, setEditTarget] = useState(null);
+  const [editCategoria, setEditCategoria] = useState('');
+  const [editPosicion, setEditPosicion] = useState('');
   
   // Toggle group expansion
   const toggleGroup = (group) => {
@@ -441,6 +445,34 @@ const EquipmentManagerModal = ({
       toast.success('Montura eliminada');
     } catch (err) {
       toast.error(err.response?.data?.detail || 'Error');
+    }
+  };
+
+  // Save edited item (category/position rename)
+  const handleSaveEdit = async () => {
+    if (!editTarget) return;
+    setProcessing(true);
+    try {
+      const payload = {
+        item_index: editTarget.item_index,
+        source: editTarget.source || 'inventario',
+      };
+      if (editCategoria && editCategoria !== editTarget.categoria) payload.nueva_categoria = editCategoria;
+      if (editPosicion && editPosicion !== editTarget.posicion) payload.nueva_posicion = editPosicion;
+      if (!payload.nueva_categoria && !payload.nueva_posicion) {
+        toast.info('No hay cambios que guardar.');
+        setEditTarget(null);
+        return;
+      }
+      const res = await api.patch(`/characters/${character.id}/equipment/edit-item`, payload);
+      onCharacterUpdate(res.data?.character || res.data);
+      await refreshWeight();
+      toast.success('Item recategorizado.');
+      setEditTarget(null);
+    } catch (err) {
+      toast.error(err.response?.data?.detail || 'Error al editar');
+    } finally {
+      setProcessing(false);
     }
   };
 
@@ -1307,6 +1339,28 @@ const EquipmentManagerModal = ({
                           <Button
                             variant="ghost"
                             size="sm"
+                            onClick={() => {
+                              setEditTarget({
+                                item_index: item.index,
+                                source: item.apiSource || 'inventario',
+                                nombreBase: item.nombreBase || item.nombre,
+                                categoria: item.categoria,
+                                posicion: item.posicion,
+                              });
+                              setEditCategoria(item.categoria || 'equipo_general');
+                              setEditPosicion(item.posicion || '');
+                            }}
+                            disabled={processing || item.index == null || ['armas','armadura','armadura_piezas'].includes(item.apiSource)}
+                            title={item.index == null ? 'No editable' : 'Editar / cambiar categoría'}
+                            className="text-blue-300 hover:text-blue-200 hover:bg-blue-900/30"
+                            data-testid={`edit-item-${item.nombreBase}`}
+                          >
+                            <FolderOpen className="w-4 h-4" />
+                          </Button>
+
+                          <Button
+                            variant="ghost"
+                            size="sm"
                             onClick={() => setDiscardTarget({
                               nombreBase: item.nombreBase || item.nombre,
                               categoria: item.categoria,
@@ -1391,6 +1445,72 @@ const EquipmentManagerModal = ({
           </div>
           <AlertDialogFooter>
             <AlertDialogCancel data-testid="mount-picker-cancel">Cancelar</AlertDialogCancel>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* AlertDialog: Editar / recategorizar item */}
+      <AlertDialog open={!!editTarget} onOpenChange={(o) => !o && setEditTarget(null)}>
+        <AlertDialogContent className="bg-[hsl(var(--background))] border-blue-500/40">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-blue-300 flex items-center gap-2">
+              <FolderOpen className="w-5 h-5" />
+              Editar / mover de bloque
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-muted-foreground">
+              Cambia la categoría o la posición de
+              {' '}<strong className="text-foreground">{editTarget?.nombreBase}</strong>.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="space-y-3 py-2">
+            <div>
+              <label className="block text-xs text-muted-foreground mb-1">Categoría / bloque</label>
+              <select
+                value={editCategoria}
+                onChange={(e) => setEditCategoria(e.target.value)}
+                className="w-full bg-background/40 border border-[hsl(var(--gold))/40] rounded px-3 py-2 text-sm"
+                data-testid="edit-categoria-select"
+              >
+                <option value="equipo_general">Equipo General</option>
+                <option value="herramientas">Herramientas</option>
+                <option value="juegos">Juegos</option>
+                <option value="instrumentos_musicales">Instrumentos Musicales</option>
+                <option value="ropa">Ropa</option>
+                <option value="consumibles">Consumibles</option>
+                <option value="comida_posadas">Comida en Posadas</option>
+                <option value="hierbas">Hierbas y Pociones</option>
+                <option value="venenos">Venenos</option>
+                <option value="accesorios_monturas">Accesorios de Montura</option>
+                <option value="transporte_terrestre">Transporte Terrestre</option>
+              </select>
+            </div>
+            {editCategoria === 'ropa' && (
+              <div>
+                <label className="block text-xs text-muted-foreground mb-1">Posición (sólo Ropa)</label>
+                <select
+                  value={editPosicion || 'cuerpo'}
+                  onChange={(e) => setEditPosicion(e.target.value)}
+                  className="w-full bg-background/40 border border-[hsl(var(--gold))/40] rounded px-3 py-2 text-sm"
+                  data-testid="edit-posicion-select"
+                >
+                  <option value="cabeza">Cabeza</option>
+                  <option value="cuerpo">Cuerpo</option>
+                  <option value="brazos">Brazos</option>
+                  <option value="piernas">Piernas</option>
+                  <option value="pies">Pies</option>
+                </select>
+              </div>
+            )}
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel data-testid="edit-cancel">Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleSaveEdit}
+              className="bg-blue-600 hover:bg-blue-700 text-white"
+              data-testid="edit-confirm"
+            >
+              Guardar
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
