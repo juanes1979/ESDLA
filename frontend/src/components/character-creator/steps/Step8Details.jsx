@@ -16,11 +16,16 @@ const Step8Details = ({ draftId, draft, onComplete, onBack }) => {
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  
+
   // Custom history state
   const [customHistoria, setCustomHistoria] = useState('');
   const [generatingStory, setGeneratingStory] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
+
+  // Initial location
+  const [locations, setLocations] = useState([]);
+  const [ubicacionId, setUbicacionId] = useState(draft?.ubicacion_actual?.id || '');
+  const [locationFilter, setLocationFilter] = useState('');
 
   // Cargar datos completos del trasfondo para obtener los rasgos
   useEffect(() => {
@@ -44,6 +49,25 @@ const Step8Details = ({ draftId, draft, onComplete, onBack }) => {
     };
     loadBackground();
   }, [draft?.trasfondo_id]);
+
+  // Cargar locations para el selector de ubicación inicial
+  useEffect(() => {
+    const loadLocations = async () => {
+      try {
+        const res = await api.get('/data/locations');
+        const list = res.data?.locations || res.data || [];
+        // Filtrar a tipos que tengan sentido como "estás aquí"
+        const settlementTypes = ['ciudad', 'ciudad_capital', 'ciudad_elfica', 'ciudad_lago', 'ciudad_puerto',
+                                  'pueblo', 'aldea', 'puerto', 'fortaleza', 'refugio', 'refugio_elfico',
+                                  'reino_elfico', 'reino_enano', 'casa', 'posada_abandonada', 'lugar_especial'];
+        const filtered = list.filter((l) => !l.tipo || settlementTypes.includes(l.tipo));
+        setLocations(filtered);
+      } catch (e) {
+        console.error('Error loading locations:', e);
+      }
+    };
+    loadLocations();
+  }, []);
 
   // Generate personal history with AI
   const generatePersonalHistory = async () => {
@@ -75,6 +99,11 @@ const Step8Details = ({ draftId, draft, onComplete, onBack }) => {
 
   // Handle submit
   const handleSubmit = async () => {
+    if (!ubicacionId) {
+      setError('Debes elegir una ubicación inicial para tu personaje.');
+      toast.error('Elige una ubicación inicial antes de continuar.');
+      return;
+    }
     try {
       setSaving(true);
       
@@ -98,6 +127,7 @@ const Step8Details = ({ draftId, draft, onComplete, onBack }) => {
         rasgo_distintivo_2: getRasgoCompleto(1),
         motivacion: null,
         historia: customHistoria || backgroundData?.descripcion || null,
+        ubicacion_id: ubicacionId || null,
       });
       onComplete(updatedDraft);
     } catch (err) {
@@ -316,6 +346,79 @@ const Step8Details = ({ draftId, draft, onComplete, onBack }) => {
           </div>
         </div>
       )}
+
+      {/* Ubicación inicial */}
+      <div className="card-parchment rounded-lg p-6 space-y-4" data-testid="ubicacion-inicial-section">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-full bg-emerald-900/40 flex items-center justify-center text-emerald-300">
+            📍
+          </div>
+          <div>
+            <h3 className="font-heading text-xl text-[hsl(var(--gold))]">Ubicación Inicial</h3>
+            <p className="text-sm text-muted-foreground">
+              Elige el asentamiento donde tu personaje comienza la aventura.
+              Podrás cambiarlo en la ficha mientras no estés en una campaña.
+            </p>
+          </div>
+        </div>
+        <div className="space-y-2">
+          <input
+            type="text"
+            placeholder="Buscar asentamiento o región..."
+            value={locationFilter}
+            onChange={(e) => setLocationFilter(e.target.value)}
+            className="w-full bg-background/40 border border-[hsl(var(--gold))/30] rounded-md px-3 py-2 text-sm focus:border-[hsl(var(--gold))] outline-none"
+            data-testid="ubicacion-filter-input"
+          />
+          <div className="max-h-64 overflow-y-auto rounded border border-[hsl(var(--gold))/20] bg-background/20 divide-y divide-[hsl(var(--gold))/10]">
+            {(() => {
+              const filtered = locations.filter((l) => {
+                const f = locationFilter.toLowerCase();
+                if (!f) return true;
+                return (l.nombre || '').toLowerCase().includes(f) ||
+                       (l.region || '').toLowerCase().includes(f);
+              });
+              const grouped = {};
+              filtered.forEach((l) => {
+                const reg = l.region || 'Otros';
+                grouped[reg] = grouped[reg] || [];
+                grouped[reg].push(l);
+              });
+              const regions = Object.keys(grouped).sort();
+              if (!regions.length) {
+                return <div className="p-3 text-sm text-muted-foreground text-center">Sin resultados.</div>;
+              }
+              return regions.map((reg) => (
+                <div key={reg}>
+                  <div className="bg-[hsl(var(--gold))/10] px-3 py-1 text-[11px] uppercase tracking-wide text-[hsl(var(--gold))]">
+                    {reg}
+                  </div>
+                  {grouped[reg].map((l) => (
+                    <button
+                      key={l.id}
+                      type="button"
+                      onClick={() => setUbicacionId(l.id)}
+                      className={`w-full text-left px-4 py-2 text-sm flex items-center justify-between hover:bg-[hsl(var(--gold))/10] transition-colors ${
+                        ubicacionId === l.id ? 'bg-emerald-900/30 border-l-2 border-emerald-500' : ''
+                      }`}
+                      data-testid={`ubicacion-option-${l.id}`}
+                    >
+                      <span className="font-medium">{l.nombre}</span>
+                      <span className="text-[11px] text-muted-foreground italic">{l.tipo}</span>
+                    </button>
+                  ))}
+                </div>
+              ));
+            })()}
+          </div>
+          {ubicacionId && (
+            <div className="text-xs text-emerald-300" data-testid="ubicacion-selected">
+              ✓ Seleccionado: <strong>{locations.find((l) => l.id === ubicacionId)?.nombre}</strong>
+              {' '}({locations.find((l) => l.id === ubicacionId)?.region})
+            </div>
+          )}
+        </div>
+      </div>
 
       {/* Error Message */}
       {error && (

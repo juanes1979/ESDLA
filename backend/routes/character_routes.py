@@ -265,6 +265,7 @@ class CharacterCreateStep9(BaseModel):
     rasgo_distintivo_2: Optional[Any] = None
     motivacion: Optional[str] = None
     historia: Optional[str] = None
+    ubicacion_id: Optional[str] = None  # Initial location chosen by player
 
 
 class CharacterDraft(BaseModel):
@@ -777,6 +778,21 @@ async def update_draft_step9(draft_id: str, data: CharacterCreateStep9):
         "paso_actual": 9,  # Complete (8 pasos + 1 = finalizado)
         "updated_at": now_utc(),
     }
+    if data.ubicacion_id:
+        # Resolve and store full ubicacion_actual snapshot
+        loc = await db.locations.find_one({"id": data.ubicacion_id}) or \
+              await db.locations.find_one({"_id": data.ubicacion_id})
+        if loc:
+            update["ubicacion_actual"] = {
+                "id": loc.get("id") or loc.get("_id"),
+                "nombre": loc.get("nombre"),
+                "region": loc.get("region"),
+                "tipo": loc.get("tipo"),
+                "x": loc.get("x"),
+                "y": loc.get("y"),
+                "tipo_tierra": loc.get("tipo_tierra") or loc.get("clase_region"),
+                "terreno": loc.get("terreno"),
+            }
     
     result = await db.character_drafts.update_one(
         {"_id": draft_id},
@@ -915,6 +931,8 @@ async def finalize_character(draft_id: str):
         "rasgo_distintivo_2": draft.get('rasgo_distintivo_2') or draft.get('defecto'),  # Fallback to defecto
         "motivacion": draft.get('motivacion'),
         "historia": draft.get('historia'),
+        # Initial location chosen by player
+        "ubicacion_actual": draft.get('ubicacion_actual'),
         # Progression
         "nivel": 1,
         "experiencia": 0,
@@ -1621,6 +1639,16 @@ class MountUpdateRequest(BaseModel):
     nombre_personalizado: Optional[str] = None
     capacidad_carga: Optional[float] = None
     velocidad: Optional[float] = None
+
+
+class UbicacionUpdateRequest(BaseModel):
+    """Update the character's current location.
+
+    `force` permite a un DJ saltarse el bloqueo de campaña.
+    Cuando RBAC esté implementado, `force` exigirá rol 'dj' o 'maestro'.
+    """
+    location_id: str
+    force: bool = False
 
 
 @router.post("/{character_id}/equipment/add")
@@ -2443,3 +2471,58 @@ async def delete_mount(character_id: str, mount_id: str):
     await db.characters.update_one({"_id": character_id}, {"$set": update})
     updated = await db.characters.find_one({"_id": character_id})
     return {"character": serialize_doc(updated)}
+
+
+
+# ---------------------------------------------------------------------------
+# Ubicación del personaje
+# ---------------------------------------------------------------------------
+
+@router.patch("/{character_id}/ubicacion")
+async def update_character_ubicacion(character_id: str, data: UbicacionUpdateRequest):
+    """Set the character's current location.
+
+    If the character has been assigned to a campaign (`campaign_id` is set),
+    this endpoint refuses to change the location unless `force=True` is
+    provided (intended for the campaign DJ once RBAC is wired up).
+
+    The location's `id`, `nombre`, `region`, `tipo`, `x`, `y` and
+    `tipo_tierra` are denormalised onto `character.ubicacion_actual` so the
+    frontend can render the "you are here" widget without an extra round-trip.
+    """
+    character = await db.characters.find_one({"_id": character_id})
+    if not character:
+        raise HTTPException(status_code=404, detail="Personaje no encontrado")
+
+    if character.get("campaign_id") and not data.force:
+        raise HTTPException(
+            status_code=403,
+            detail=(
+                "El personaje está asignado a una campaña; "
+                "sólo el Director de Juego puede mover su ubicación."
+            ),
+        )
+
+    # Resolve the target location
+    loc = await db.locations.find_one({"id": data.location_id}) or \
+          await db.locations.find_one({"_id": data.location_id})
+    if not loc:
+        raise HTTPException(status_code=404, detail="Ubicación no encontrada")
+
+    ubicacion = {
+        "id": loc.get("id") or loc.get("_id"),
+        "nombre": loc.get("nombre"),
+        "region": loc.get("region"),
+        "tipo": loc.get("tipo"),
+        "x": loc.get("x"),
+        "y": loc.get("y"),
+        "tipo_tierra": loc.get("tipo_tierra") or loc.get("clase_region"),
+        "terreno": loc.get("terreno"),
+    }
+
+    await db.characters.update_one(
+        {"_id": character_id},
+        {"$set": {"ubicacion_actual": ubicacion, "updated_at": now_utc()}},
+    )
+    updated = await db.characters.find_one({"_id": character_id})
+    return {"character": serialize_doc(updated), "ubicacion": ubicacion}

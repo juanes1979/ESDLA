@@ -39,6 +39,7 @@ import {
   HistoryCard,
 } from '@/components/character-sheet/summary/ExtendedCards';
 import ShadowDefectsCard from '@/components/character-sheet/summary/ShadowDefectsCard';
+import LocationWidget from '@/components/character-sheet/summary/LocationWidget';
 
 const CharacterSheetPage = () => {
   const { characterId } = useParams();
@@ -234,6 +235,14 @@ const CharacterSheetPage = () => {
           onLevelUp={(data) => setCharacter(prev => ({ ...prev, ...data }))}
           onUpdate={(data) => setCharacter(prev => ({ ...prev, ...data }))}
         />
+
+        {/* Estás aquí — ubicación + mini-mapa */}
+        <div className="my-4">
+          <LocationWidget
+            character={character}
+            onUpdate={(updated) => setCharacter(prev => ({ ...prev, ...updated }))}
+          />
+        </div>
 
         <Tabs defaultValue="resumen" className="w-full" data-testid="character-tabs">
           <TabsList className="grid grid-cols-4 lg:grid-cols-8 mb-6 w-full">

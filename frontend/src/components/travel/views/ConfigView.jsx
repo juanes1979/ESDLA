@@ -43,6 +43,7 @@ const ConfigView = ({
   addAcompanante, removeAcompanante, toggleAcompananteMount,
   startGlobalJourney, startDayByDayJourney,
   journeyWeather = [],
+  openMapPicker = null,
 }) => (
     <div className="space-y-6">
       {/* Origin & Destination */}
@@ -57,8 +58,20 @@ const ConfigView = ({
           <div className="grid md:grid-cols-2 gap-4">
             {/* Origin with Search */}
             <div>
-              <Label className="flex items-center gap-2 mb-2">
-                <MapPin className="w-4 h-4 text-green-400" /> Origen
+              <Label className="flex items-center justify-between gap-2 mb-2">
+                <span className="flex items-center gap-2">
+                  <MapPin className="w-4 h-4 text-green-400" /> Origen
+                </span>
+                {openMapPicker && (
+                  <button
+                    type="button"
+                    onClick={() => openMapPicker('origen')}
+                    className="text-[11px] px-2 py-1 rounded bg-[hsl(var(--gold))/15] border border-[hsl(var(--gold))/30] text-[hsl(var(--gold))] hover:bg-[hsl(var(--gold))/25]"
+                    data-testid="origen-map-pick-btn"
+                  >
+                    📍 Indicar en mapa
+                  </button>
+                )}
               </Label>
               <div className="relative">
                 <Input
@@ -127,8 +140,20 @@ const ConfigView = ({
             
             {/* Destination with Search */}
             <div>
-              <Label className="flex items-center gap-2 mb-2">
-                <MapPin className="w-4 h-4 text-red-400" /> Destino
+              <Label className="flex items-center justify-between gap-2 mb-2">
+                <span className="flex items-center gap-2">
+                  <MapPin className="w-4 h-4 text-red-400" /> Destino
+                </span>
+                {openMapPicker && (
+                  <button
+                    type="button"
+                    onClick={() => openMapPicker('destino')}
+                    className="text-[11px] px-2 py-1 rounded bg-[hsl(var(--gold))/15] border border-[hsl(var(--gold))/30] text-[hsl(var(--gold))] hover:bg-[hsl(var(--gold))/25]"
+                    data-testid="destino-map-pick-btn"
+                  >
+                    📍 Indicar en mapa
+                  </button>
+                )}
               </Label>
               <div className="relative">
                 <Input

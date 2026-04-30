@@ -59,6 +59,7 @@ import ResultsView from '@/components/travel/views/ResultsView';
 import GlobalJourneyView from '@/components/travel/views/GlobalJourneyView';
 import DayByDayView from '@/components/travel/views/DayByDayView';
 import ConfigView from '@/components/travel/views/ConfigView';
+import MapPickDialog from '@/components/travel/MapPickDialog';
 
 
 const EnhancedTravelSystem = () => {
@@ -70,6 +71,8 @@ const EnhancedTravelSystem = () => {
   
   // Data from API
   const [locations, setLocations] = useState([]);
+  // C-6: "Indicar en mapa" — picker target ('origen'|'destino'|null)
+  const [mapPickFor, setMapPickFor] = useState(null);
   const [locationsByRegion, setLocationsByRegion] = useState({});
   const [characters, setCharacters] = useState([]);
   const [monturas, setMonturas] = useState([]);
@@ -3018,6 +3021,7 @@ const EnhancedTravelSystem = () => {
           updateMemberMount={updateMemberMount}
           addAcompanante={addAcompanante}
           removeAcompanante={removeAcompanante}
+          openMapPicker={(which) => setMapPickFor(which)}
           toggleAcompananteMount={toggleAcompananteMount}
           startGlobalJourney={startGlobalJourney}
           startDayByDayJourney={startDayByDayJourney}
@@ -3194,6 +3198,23 @@ const EnhancedTravelSystem = () => {
         message={autoMessage}
         subtitle={autoSubtitle}
         onCancel={() => { autoStopRef.current = true; }}
+      />
+
+      {/* C-6: Map-based origin/destination picker */}
+      <MapPickDialog
+        open={!!mapPickFor}
+        onClose={() => setMapPickFor(null)}
+        target={mapPickFor || 'origen'}
+        locations={locations}
+        onPick={(loc) => {
+          if (mapPickFor === 'origen') {
+            setConfig(prev => ({ ...prev, origenId: loc.id, origenNombre: loc.nombre }));
+            toast.success(`Origen: ${loc.nombre}`);
+          } else if (mapPickFor === 'destino') {
+            setConfig(prev => ({ ...prev, destinoId: loc.id, destinoNombre: loc.nombre }));
+            toast.success(`Destino: ${loc.nombre}`);
+          }
+        }}
       />
     </div>
   );

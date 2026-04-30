@@ -1,0 +1,38 @@
+{
+  "summary": "Iteration 68 backend testing complete for C-5 (character ubicación). 16/16 new tests + 15/15 iteration-67 regression tests = 31/31 PASS (100%). Validated: (1) PATCH /api/characters/{id}/ubicacion accepts {location_id, force}, returns {character, ubicacion} with full snapshot shape {id, nombre, region, tipo, x, y, tipo_tierra, terreno} — verified against Hobbiton (loc_002), Bree (loc_131), Minas Tirith (loc_038); snapshot is persisted on character.ubicacion_actual and survives GET. (2) 404 when location_id unknown, 404 when character_id unknown. (3) 403 with Spanish message when character.campaign_id is set and force=false. (4) force=true bypasses campaign lock. (5) PATCH /api/characters/draft/{id}/step9 accepts ubicacion_id and stores full ubicacion_actual snapshot on draft (verified via API response + MongoDB). (6) POST /api/characters/draft/{id}/finalize copies ubicacion_actual from draft to new character; verified via GET. (7) step9 without ubicacion_id is a no-op for location (no accidental overwrite). (8) Xalan (208ab2df-a51a-43e5-b96e-1c6757a2ada8) sanity: has Bree with full shape, can be re-set. (9) Regression iter67: weight-summary, generate-event terreno→CD mapping (camino=10, campo_abierto=15, muy_dificil=20), desventaja_estacion, equipment/carry equipo_ocupacion, toggle-active, mounts CRUD — all green.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST /api/characters/draft/{id}/finalize", "issue": "Response returns the character dict directly but the finalize code uses '_id' as key; the serialize helper normalises this to 'id' in most paths. Test uses both '.get(id) or .get(_id)' to be safe. Not a bug, just worth noting for consistency with other endpoints."},
+      {"endpoint": "PATCH /api/characters/draft/{id}/step9", "issue": "If an invalid ubicacion_id is sent, it is silently ignored (no ubicacion_actual written, but request returns 200). Consider returning 400/404 so the frontend can surface the error instead of silently losing the selection."}
+    ]
+  },
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_ubicacion_it68.py",
+    "/app/test_reports/pytest/it68_ubicacion.xml",
+    "/app/backend/tests/test_event_cd_terrain_it67.py"
+  ],
+  "action_items": [
+    "(Optional) Return 404 from PATCH /draft/{id}/step9 when ubicacion_id does not resolve to a location, instead of silently dropping it (currently returns 200 with no ubicacion_actual).",
+    "(Optional) Frontend-only C-6 MapPickDialog (mapa vacío, zoom+pan, snap) was NOT tested per the request — main agent should self-verify via UI.",
+    "Test leak: one character was orphaned in past iterations ('TEST_capa…' still present on Xalan from iter67). It68 created only self-cleaning fixtures (throwaway_character + minimal_draft with teardown), no new leak."
+  ],
+  "critical_code_review_comments": [
+    "character_routes.py:2481-2528 — update_character_ubicacion is clean: finds character by _id, checks campaign_id+force, resolves location via {id} OR {_id}, denormalises {id, nombre, region, tipo, x, y, tipo_tierra, terreno} onto character. Good separation, good HTTP codes (404/403/200). One minor: campaign_id check uses truthiness — an empty string would also block, which is probably intended but could be tightened to `is not None`.",
+    "character_routes.py:770-806 — update_draft_step9 silently ignores an unresolved ubicacion_id (loc lookup returns None, no error raised). Frontend relies on the drop-down so this is low-risk, but a 400/404 would be more defensive.",
+    "character_routes.py:935 — finalize simply does `draft.get('ubicacion_actual')`; copy path is correct. Note: if draft has no ubicacion_actual the final character has `ubicacion_actual: None`, which the frontend C-5 ficha should handle (tested, works).",
+    "character_routes.py is now 2529 lines — overdue for a split (character_equipment_routes.py, character_mount_routes.py, character_location_routes.py). Repeated from iter67.",
+    "UbicacionUpdateRequest (line 1644) is correctly typed with Pydantic and `force: bool = False` default. Good."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_ubicacion_it68.py (new)"
+  ],
+  "success_rate": {"backend": "100% (31/31 including regression)", "frontend": "not tested (backend-only request per C-5 scope)"},
+  "test_credentials": "N/A (no auth)",
+  "seed_data_creation": "Test fixtures create and delete their own data (throwaway_character + minimal_draft). No leaks. Xalan's Bree assignment is re-set identically by one regression test — idempotent, no state drift.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "C-5 backend (PATCH /characters/{id}/ubicacion + step9 ubicacion_id + finalize copy) is fully validated and green. Canonical locations for tests: loc_002 Hobbiton (pueblo/tierras_libres/facil), loc_131 Bree (pueblo/tierras_libres/facil), loc_038 Minas Tirith. Xalan 208ab2df-... has Bree set. Fresh drafts created via POST /api/characters/draft can be completed by direct Mongo update of {nombre, cultura_id, cultura_nombre, trasfondo_id, trasfondo_nombre, ocupacion_id, caracteristicas{...}} — see minimal_draft fixture in test_ubicacion_it68.py. C-6 MapPickDialog is frontend-only, NOT covered here.",
+  "rca of the issue": "N/A — no bugs found. All tests passed on first full run after a minor fixture adjustment (used direct Mongo seeding to reach finalize-required draft state without running the full 9-step wizard)."
+}
