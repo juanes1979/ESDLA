@@ -61,6 +61,7 @@ import DayByDayView from '@/components/travel/views/DayByDayView';
 import ConfigView from '@/components/travel/views/ConfigView';
 import MapPickDialog from '@/components/travel/MapPickDialog';
 import { computeMemberSpeed, getRoleModifier as getRoleModifierHelper } from '@/utils/travelSpeed';
+import useJourneyProvisions from '@/hooks/useJourneyProvisions';
 
 
 const EnhancedTravelSystem = () => {
@@ -181,19 +182,13 @@ const EnhancedTravelSystem = () => {
   const [nearbyRefuges, setNearbyRefuges] = useState([]); // Refuges near current position
   
   // =============== PROVISIONS SYSTEM (Food/Water) ===============
+  // Estado de display (warnings, food/water catálogo). El estado y la
+  // lógica de consumo/forrajeo viven en el hook `useJourneyProvisions`
+  // declarado más abajo (con acceso a config, characters, locations y reglas).
   const [foodWaterItems, setFoodWaterItems] = useState({ food_items: [], water_items: [] });
   const [provisionsCheck, setProvisionsCheck] = useState(null); // Result of provisions check
   const [showProvisionsWarning, setShowProvisionsWarning] = useState(false);
-  // Party provisions tracking during journey
-  const [partyProvisions, setPartyProvisions] = useState({
-    comidaTotal: 0, // Total food rations available
-    aguaTotal: 0,   // Total liters of water
-    comidaConsumida: 0,
-    aguaConsumida: 0
-  });
-  // Fatigue from lack of provisions
-  const [provisionFatigue, setProvisionFatigue] = useState({}); // { charId: { sinComida: days, sinAgua: days } }
-  
+
   // Camp dialog state
   const [showCampDialog, setShowCampDialog] = useState(false);
   const [travelEvents, setTravelEvents] = useState([]);
@@ -238,12 +233,29 @@ const EnhancedTravelSystem = () => {
   // Contador de días consecutivos en campamento (sin marcha entre medias).
   // La salvación contra cansancio se OMITE en la 2.ª acampada consecutiva.
   const [consecutiveCampDays, setConsecutiveCampDays] = useState(0);
-  // Días consecutivos sin comida/agua a nivel grupo (suben la CD).
-  const [diasSinComida, setDiasSinComida] = useState(0);
-  const [diasSinAgua, setDiasSinAgua] = useState(0);
   // Weather rolled for the entire journey at startGlobalJourney (Markov chain)
   const [journeyWeather, setJourneyWeather] = useState([]);
   const autoStopRef = useRef(false);
+
+  // Provisions: state + actions extraídos al hook `useJourneyProvisions`.
+  // Día sin comida/agua a nivel grupo lo gestiona el propio hook.
+  const {
+    partyProvisions, setPartyProvisions,
+    provisionFatigue, setProvisionFatigue,
+    diasSinComida, setDiasSinComida,
+    diasSinAgua, setDiasSinAgua,
+    checkProvisionsForJourney,
+    initializeProvisions,
+    consumeDailyProvisions,
+    refillWaterNearTown,
+    performForaging: performForagingHook,
+  } = useJourneyProvisions({
+    config,
+    characters,
+    locations,
+    travelRules,
+    onForageDay: () => setStageDays(prev => prev + 1),
+  });
   
   // Refs to access latest state inside the async automation loop (avoid stale closures)
   const currentPositionRef = useRef(currentPosition);
@@ -536,67 +548,8 @@ const EnhancedTravelSystem = () => {
   }, [config.origenId, config.destinoId, config.mes, config.diaMes, locations, calculateJourney]);
   
   // =============== PROVISIONS CHECK ===============
-  // Check if party has enough food and water for the journey
-  const checkProvisionsForJourney = useCallback((diasViaje) => {
-    if (!config.miembros.length || !diasViaje) return null;
-
-    // Sólo cuentan los que viajan (con papel) + acompañantes; los miembros sin papel
-    // están añadidos al grupo pero no parten de viaje, no consumen provisiones.
-    const todosViajeros = [
-      ...config.miembros.filter(m => m.papeles?.length > 0),
-      ...(config.acompanantes || []),
-    ];
-    const numPersonajes = todosViajeros.length;
-    if (numPersonajes === 0) return null;
-
-    // Requirements: 1 ration/day per person, 2L water/day per person
-    const comidaNecesaria = numPersonajes * diasViaje; // in rations
-    const aguaNecesaria = numPersonajes * diasViaje * 2; // in liters
-
-    // Si el origen es un asentamiento conocido, los odres se asumen
-    // rellenados gratis a su capacidad máxima (10 L) — misma regla que
-    // aplica `partyProvisions` al iniciar el viaje. Sin esta corrección la
-    // alerta y el panel del grupo mostraban totales distintos.
-    const origenLoc = (locations || []).find(l => l.id === config.origenId);
-    const tipoOrigen = (origenLoc?.tipo || origenLoc?.tipo_lugar || '').toLowerCase();
-    const esAsentamientoConocido = !!origenLoc && (
-      tipoOrigen.includes('aldea') || tipoOrigen.includes('pueblo') ||
-      tipoOrigen.includes('ciudad') || tipoOrigen.includes('refugio') ||
-      tipoOrigen.includes('santuario') || tipoOrigen.includes('asentamiento') ||
-      tipoOrigen.includes('fortal') || tipoOrigen.includes('castillo') ||
-      tipoOrigen.includes('hostal') || tipoOrigen.includes('posada') || !tipoOrigen
-    );
-
-    // Calculate total provisions from party inventory (todosViajeros).
-    // Include ALL food items (raciones + consumibles + comida_posadas) by mass.
-    let comidaDisponible = 0;
-    let aguaDisponible = 0;
-    todosViajeros.forEach(miembro => {
-      const char = characters.find(c => c.id === miembro.id);
-      if (!char?.inventario) return;
-      const summary = summarizeProvisions(char.inventario);
-      // Use total food mass converted to ration-days
-      comidaDisponible += summary.diasComidaTotal || summary.raciones;
-      const litrosCharacter = esAsentamientoConocido
-        ? summary.odres.length * 10 + summary.aguaSuelta
-        : summary.totalLitros;
-      aguaDisponible += litrosCharacter;
-    });
-
-    return {
-      numPersonajes,
-      comidaNecesaria,
-      aguaNecesaria,
-      comidaDisponible,
-      aguaDisponible,
-      comidaSuficiente: comidaDisponible >= comidaNecesaria,
-      aguaSuficiente: aguaDisponible >= aguaNecesaria,
-      diasComida: numPersonajes > 0 ? comidaDisponible / numPersonajes : 0,
-      diasAgua: numPersonajes > 0 ? aguaDisponible / (numPersonajes * 2) : 0,
-      faltaComida: Math.max(0, comidaNecesaria - comidaDisponible),
-      faltaAgua: Math.max(0, aguaNecesaria - aguaDisponible)
-    };
-  }, [config.miembros, config.acompanantes, config.origenId, characters, locations]);
+  // `checkProvisionsForJourney` y resto de utilidades de provisiones
+  // se obtienen del hook `useJourneyProvisions` (declarado al principio del componente).
   
   // Check provisions when journey is calculated
   useEffect(() => {
@@ -986,146 +939,13 @@ const EnhancedTravelSystem = () => {
   // El consumo base depende de las reglas editables (`travelRules`):
   //   consumo_comida_{ritmo} y consumo_agua_{ritmo} (raciones/día y L/día por personaje).
   //   Si hay marcha forzada (1-4 h), se aplica un % de consumo extra.
-  const consumeDailyProvisions = useCallback(() => {
-    // Acompañantes consume the same as miembros
-    const todosViajeros = [...config.miembros.filter(m => m.papeles?.length > 0), ...(config.acompanantes || [])];
-    const numPersonajes = todosViajeros.length;
+  // =============== DAILY CONSUMPTION / REFILL / FORAGING ===============
+  // Toda la lógica vive en `useJourneyProvisions` (importado al inicio del
+  // componente). Se exponen `consumeDailyProvisions`, `refillWaterNearTown`
+  // y `performForagingHook` desde el hook. Aquí mantenemos un alias con el
+  // nombre antiguo `performForaging` para no tocar todos los call sites.
+  const performForaging = performForagingHook;
 
-    // Base consumption per person from rules (fallback to old behaviour: 1 ración + 2 L).
-    const ritmo = config.ritmo || 'normal';
-    const baseFood = Number(travelRules?.[`consumo_comida_${ritmo}`] ?? 1.0);
-    const baseWater = Number(travelRules?.[`consumo_agua_${ritmo}`] ?? 2.0);
-
-    // Forced march extra-consumption modifier (per hour).
-    const horasMF = Math.max(0, Math.min(4, Number(config.horasMarchaForzada || 0)));
-    const consumoPctArr = travelRules?.marcha_forzada_consumo_pct || [10, 20, 35, 50];
-    const mfMultiplier = horasMF > 0 ? 1 + (Number(consumoPctArr[horasMF - 1] || 0) / 100) : 1;
-
-    const foodPerPerson = baseFood * mfMultiplier;
-    const waterPerPerson = baseWater * mfMultiplier;
-    const comidaConsumidaHoy = numPersonajes * foodPerPerson;
-    const aguaConsumidaHoy = numPersonajes * waterPerPerson;
-
-    setPartyProvisions(prev => {
-      const nuevaComidaDisponible = prev.comidaTotal - prev.comidaConsumida - comidaConsumidaHoy;
-      const nuevaAguaDisponible = prev.aguaTotal - prev.aguaConsumida - aguaConsumidaHoy;
-      
-      // Track provision fatigue per character (only miembros con papel acumulan fatiga
-      // efectiva en el sistema; los acompañantes pasan hambre pero no se gestionan).
-      const newProvisionFatigue = { ...provisionFatigue };
-      
-      config.miembros.forEach(miembro => {
-        if (!newProvisionFatigue[miembro.id]) {
-          newProvisionFatigue[miembro.id] = { sinComida: 0, sinAgua: 0 };
-        }
-        
-        // If no food available, increment days without food
-        if (nuevaComidaDisponible < 0) {
-          newProvisionFatigue[miembro.id].sinComida += 1;
-        }
-        
-        // If no water available, increment days without water
-        if (nuevaAguaDisponible < 0) {
-          newProvisionFatigue[miembro.id].sinAgua += 1;
-        }
-      });
-      
-      setProvisionFatigue(newProvisionFatigue);
-
-      // Contadores a NIVEL GRUPO (suben la CD de la salvación contra
-      // cansancio en CampDialog). Días consecutivos sin comida y sin agua.
-      if (nuevaComidaDisponible < 0) {
-        setDiasSinComida(prev => prev + 1);
-      } else {
-        setDiasSinComida(0);
-      }
-      if (nuevaAguaDisponible < 0) {
-        setDiasSinAgua(prev => prev + 1);
-      } else {
-        setDiasSinAgua(0);
-      }
-      
-      // Show warnings if running low (using the actual per-day consumption)
-      if (nuevaComidaDisponible < comidaConsumidaHoy && nuevaComidaDisponible >= 0) {
-        toast.warning(`¡Comida escasa! Queda para ${Math.floor(nuevaComidaDisponible / Math.max(0.01, comidaConsumidaHoy))} día(s).`);
-      } else if (nuevaComidaDisponible < 0) {
-        toast.error(`¡Sin comida! +1 nivel de fatiga para cada miembro.`);
-      }
-
-      if (nuevaAguaDisponible < aguaConsumidaHoy && nuevaAguaDisponible >= 0) {
-        toast.warning(`¡Agua escasa! Queda para ${Math.floor(nuevaAguaDisponible / Math.max(0.01, aguaConsumidaHoy))} día(s).`);
-      } else if (nuevaAguaDisponible < 0) {
-        toast.error(`¡Sin agua! +2 niveles de fatiga para cada miembro.`);
-      }
-      
-      return {
-        ...prev,
-        comidaConsumida: prev.comidaConsumida + comidaConsumidaHoy,
-        aguaConsumida: prev.aguaConsumida + aguaConsumidaHoy
-      };
-    });
-  }, [config.miembros, config.acompanantes, config.ritmo, config.horasMarchaForzada, travelRules, provisionFatigue]);
-
-  // Refill water near towns/rivers
-  const refillWaterNearTown = useCallback((townName) => {
-    const numPersonajes = config.miembros.filter(m => m.papeles?.length > 0).length + (config.acompanantes || []).length;
-    const aguaNecesaria = numPersonajes * 2 * 3; // 3 days of water
-    
-    setPartyProvisions(prev => ({
-      ...prev,
-      aguaTotal: prev.aguaTotal + aguaNecesaria,
-    }));
-    
-    toast.success(`Agua rellenada cerca de ${townName}. +${aguaNecesaria}L disponibles.`);
-  }, [config.miembros]);
-  
-  // Foraging action - costs time, success depends on Survival check
-  const performForaging = useCallback(async (characterId, opts = {}) => {
-    // El forrajeador puede ser un miembro CON papel o un acompañante.
-    const char = config.miembros.find(m => m.id === characterId)
-      || (config.acompanantes || []).find(a => a.id === characterId);
-    if (!char) return;
-    const fullChar = characters.find(c => c.id === characterId);
-
-    // Tirada de Sabiduría con ventaja si el forrajeador es Cazador.
-    const esCazador = !!opts.esCazador
-      || (char.papeles || []).includes('cazador')
-      || (fullChar?.ocupacion_nombre || '').toLowerCase().includes('cazador');
-    const d1 = Math.floor(Math.random() * 20) + 1;
-    const d2 = esCazador ? (Math.floor(Math.random() * 20) + 1) : null;
-    const d20 = esCazador ? Math.max(d1, d2) : d1;
-    const modSab = char.modSabiduria != null
-      ? Number(char.modSabiduria)
-      : Math.floor(((fullChar?.atributos?.sabiduria ?? 10) - 10) / 2);
-    const total = d20 + modSab;
-    const cd = 15;
-    const exito = total >= cd;
-
-    if (exito) {
-      const comidaEncontrada =
-        (Math.floor(Math.random() * 4) + 1) + (Math.floor(Math.random() * 4) + 1);
-      const aguaEncontrada =
-        (Math.floor(Math.random() * 4) + 1) +
-        (Math.floor(Math.random() * 4) + 1) +
-        (Math.floor(Math.random() * 4) + 1);
-
-      setPartyProvisions(prev => ({
-        ...prev,
-        comidaTotal: prev.comidaTotal + comidaEncontrada,
-        aguaTotal: prev.aguaTotal + aguaEncontrada
-      }));
-
-      const ventajaMsg = esCazador ? ` [ventaja Cazador: ${d1}/${d2}]` : '';
-      toast.success(`¡${char.nombre} encontró ${comidaEncontrada} raciones y ${aguaEncontrada} L! (Tirada: ${total} vs CD ${cd}${ventajaMsg})`);
-    } else {
-      const ventajaMsg = esCazador ? ` [ventaja Cazador: ${d1}/${d2}]` : '';
-      toast.error(`${char.nombre} no encontró nada. (Tirada: ${total} vs CD ${cd}${ventajaMsg})`);
-    }
-
-    setStageDays(prev => prev + 1);
-    return { exito, tirada: total, cd, esCazador };
-  }, [config.miembros, config.acompanantes, characters]);
-  
   // =============== REST SYSTEM ===============
 
   // State for rest dialog

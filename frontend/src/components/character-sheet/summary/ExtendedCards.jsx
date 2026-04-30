@@ -29,11 +29,12 @@ import {
   Skull, Heart, Shield, Wrench, BookOpen, Crown, Award,
   ScrollText, Sparkles, Save, Plus, X, Weight,
   AlertTriangle, Footprints, User as UserIcon, Eye, EyeOff,
-  Lock,
+  Lock, Apple, Droplet,
 } from 'lucide-react';
 import api from '@/services/api';
 import { toast } from 'sonner';
 import { useEncumbrance } from '@/hooks/useEncumbrance';
+import { summarizeProvisions } from '@/components/travel/inventoryProvisions';
 
 const modFromScore = (score) => Math.floor((Number(score || 10) - 10) / 2);
 const modString = (m) => (m >= 0 ? `+${m}` : `${m}`);
@@ -377,8 +378,61 @@ export const WeightEncumbranceCard = ({ character, onUpdate }) => {
           Cuando un compañero estorbado ralentiza al grupo en un viaje, los
           demás (sin estorbo) reciben +5 a las salvaciones contra cansancio.
         </p>
+
+        {/* Provisiones disponibles — visible para el jugador sin abrir el panel del DJ */}
+        <ProvisionsIndicator inventario={character?.inventario || []} />
       </CardContent>
     </Card>
+  );
+};
+
+// ─── Indicador de provisiones (raciones / agua) ───────────────────────
+// Calcula días de comida y agua disponibles a partir del inventario real
+// del personaje. Útil para que el jugador sepa de un vistazo si está
+// preparado para un viaje sin tener que esperar al panel del DJ.
+//   • Comida: 1 ración = 1 kg = 1 día completo de comida.
+//   • Agua: 2 L por día (consumo "Normal").
+const ProvisionsIndicator = ({ inventario = [] }) => {
+  const summary = useMemo(() => summarizeProvisions(inventario), [inventario]);
+  const diasComida = Math.floor(summary.diasComidaTotal || 0);
+  const diasAgua = Math.floor((summary.totalLitros || 0) / 2);
+
+  // Tinte: < 3 días → rojo, 3-6 → ámbar, 7+ → verde.
+  const tintFor = (n) => {
+    if (n < 3) return { bg: 'bg-red-900/15', border: 'border-red-500/40', text: 'text-red-300' };
+    if (n < 7) return { bg: 'bg-amber-900/15', border: 'border-amber-500/40', text: 'text-amber-300' };
+    return { bg: 'bg-emerald-900/15', border: 'border-emerald-500/40', text: 'text-emerald-300' };
+  };
+  const tComida = tintFor(diasComida);
+  const tAgua = tintFor(diasAgua);
+
+  return (
+    <div className="grid grid-cols-2 gap-2" data-testid="provisions-indicator">
+      <div className={`p-2 rounded border flex items-center gap-2 ${tComida.bg} ${tComida.border}`}>
+        <Apple className={`w-4 h-4 flex-shrink-0 ${tComida.text}`} />
+        <div className="flex-1">
+          <p className="text-[10px] text-muted-foreground leading-tight">Comida disponible</p>
+          <p className={`font-mono font-bold text-sm leading-tight ${tComida.text}`} data-testid="provisions-food-days">
+            {diasComida} día{diasComida === 1 ? '' : 's'}
+          </p>
+          <p className="text-[9px] text-muted-foreground leading-tight">
+            {(summary.totalFoodMassKg || 0).toFixed(1)} kg · {summary.raciones || 0} raciones
+          </p>
+        </div>
+      </div>
+      <div className={`p-2 rounded border flex items-center gap-2 ${tAgua.bg} ${tAgua.border}`}>
+        <Droplet className={`w-4 h-4 flex-shrink-0 ${tAgua.text}`} />
+        <div className="flex-1">
+          <p className="text-[10px] text-muted-foreground leading-tight">Agua disponible</p>
+          <p className={`font-mono font-bold text-sm leading-tight ${tAgua.text}`} data-testid="provisions-water-days">
+            {diasAgua} día{diasAgua === 1 ? '' : 's'}
+          </p>
+          <p className="text-[9px] text-muted-foreground leading-tight">
+            {(summary.totalLitros || 0).toFixed(1)} L · {summary.odres?.length || 0} odre{summary.odres?.length === 1 ? '' : 's'}
+          </p>
+        </div>
+      </div>
+    </div>
   );
 };
 

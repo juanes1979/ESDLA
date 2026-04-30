@@ -1,0 +1,30 @@
+{
+  "summary": "Iter71 — Regression + rationing verification after useJourneyProvisions hook refactor. Backend: all new TravelRulesConfig rationing fields present with correct defaults; legacy marcha_forzada_velocidad_pct removed; move-item 404 includes 'Pista' hint. All 5 test_rationing_it70.py tests PASS. Frontend: /viajes loads with ZERO console errors / zero pageerrors — hook refactor did not break EnhancedTravelSystem. Deep UI click into config screen not tested (home page shows graphical landing with circular nav buttons; anchor-based routing). E1: NO crash from refactor.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_rationing_it70.py",
+    "/app/test_reports/pytest/it71.xml"
+  ],
+  "action_items": [
+    "Opcional: que E1 verifique manualmente ProvisionsIndicator (food-days/water-days) en una ficha con inventario real — no hicimos click-through hasta la ficha por ahorro de tiempo según indicación del main agent.",
+    "Opcional: E1 puede confirmar en el UI editor de reglas la nueva tarjeta 'Raciones y Marcha Forzada' y ausencia de tarjeta verde 'Velocidad' legacy."
+  ],
+  "critical_code_review_comments": [
+    "useJourneyProvisions.js (274 líneas) bien estructurado; dependencias de useCallback correctas (config.miembros, acompanantes, ritmo, etc.). No memory leaks visibles.",
+    "Backend TravelRulesConfig: campos rationing tienen defaults razonables. No existe el legacy marcha_forzada_velocidad_pct tras el refactor — confirmado por inspección del modelo Pydantic.",
+    "move_equipment_item: matching con unicodedata.normalize('NFC')+casefold() + prefix fallback + mensaje de error con primeros 5 items y 'Pista' — implementación sólida.",
+    "EnhancedTravelSystem.jsx sigue siendo muy grande; el refactor ayudó pero podría seguir descomponiéndose (P1)."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "100%", "frontend": "100% (no-crash)"},
+  "test_credentials": "N/A (RBAC aún no activo)",
+  "seed_data_creation": "Ninguna",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Home app (/) usa landing gráfica con botones circulares en vez de links-text; evaluar body.innerText puede dar falsos negativos. Para testear /viajes en profundidad hay que hacer click en el botón 'Generador de Viajes' desde home, o posiblemente ajustar selector. Los 5 tests de test_rationing_it70.py siguen pasando. Pre-existing failures test_group_speed.py y test_character_sheet_features.py IGNORADOS por indicación."
+}
