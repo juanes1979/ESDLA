@@ -393,6 +393,21 @@ const DayByDayView = ({
                     Clima del día: <span className="text-sky-300">{currentEvent.clima_dia.estado_label}</span>
                   </p>
                 )}
+                {/* Hints: terreno + estación */}
+                <div className="flex flex-wrap gap-2 mt-2 text-[11px]" data-testid="event-rule-hints">
+                  {currentEvent.resolucion?.terreno_categoria && (
+                    <Badge variant="outline" className="bg-amber-900/30 border-amber-500/40 text-amber-200">
+                      Terreno: {currentEvent.resolucion.terreno_categoria === 'camino' ? 'Camino (CD 10)' :
+                                 currentEvent.resolucion.terreno_categoria === 'dificil' ? 'Difícil (CD 20)' :
+                                 'Campo abierto (CD 15)'}
+                    </Badge>
+                  )}
+                  {currentEvent.resolucion?.desventaja_salvacion && (
+                    <Badge variant="outline" className="bg-purple-900/30 border-purple-500/40 text-purple-200">
+                      Otoño/Invierno → Desventaja en TS y prueba
+                    </Badge>
+                  )}
+                </div>
               </div>
             );
           })()}

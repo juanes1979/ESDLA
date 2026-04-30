@@ -940,6 +940,9 @@ const EnhancedTravelSystem = () => {
             desventaja_clima: esExtremo,
             ventaja_clima: esFavorable,
             clima_label: weather?.estado_label || null,
+            // Propagate season disadvantage for saves (otoño/invierno)
+            desventaja_salvacion: !!eventRes.data.desventaja_estacion,
+            terreno_categoria: eventRes.data.terreno_categoria,
           },
           clima_dia: weather,
           casilla: posicion,
@@ -1674,13 +1677,17 @@ const EnhancedTravelSystem = () => {
       const mecanicas = []; // textos para la bitácora
 
       try {
-        // Terrible Desgracia (FALLO): TS de DES; fallo→0 PG, éxito→pierde mitad de PG máx
+        // Terrible Desgracia (FALLO): TS de DES; fallo→0 PG, éxito→pierde mitad de PG máx.
+        // Desventaja en otoño/invierno (per reglas).
         if (eventoId === 'event_terrible' && !exito && targetMember) {
           const charDb = characters.find(c => c.id === targetMember.id);
           if (charDb) {
             const desScore = charDb.atributos?.destreza ?? 10;
             const desMod = Math.floor((desScore - 10) / 2);
-            const sd20 = Math.floor(Math.random() * 20) + 1;
+            const desventaja = currentEvent?.resolucion?.desventaja_salvacion;
+            const r1 = Math.floor(Math.random() * 20) + 1;
+            const r2 = desventaja ? Math.floor(Math.random() * 20) + 1 : null;
+            const sd20 = desventaja ? Math.min(r1, r2) : r1;
             const sTotal = sd20 + desMod;
             const cdSalv = cd;
             const exitoSalv = sTotal >= cdSalv;
@@ -1692,7 +1699,8 @@ const EnhancedTravelSystem = () => {
               await api.patch(`/characters/${targetMember.id}/hp`, { hp_change: -danio });
               setCharacters(prev => prev.map(c => c.id === targetMember.id ? { ...c, puntos_golpe_actual: nuevoPG } : c));
             } catch (e) { console.error('HP update fail:', e); }
-            mecanicas.push(`${targetMember.nombre} hace TS DES: d20(${sd20})+${desMod}=${sTotal} vs CD ${cdSalv} → ${exitoSalv ? 'éxito (pierde ' + danio + ' PG)' : 'fallo (cae a 0 PG)'}.`);
+            const detalleD = desventaja ? `d20(${r1}/${r2}→${sd20})` : `d20(${sd20})`;
+            mecanicas.push(`${targetMember.nombre} hace TS DES: ${detalleD}+${desMod}=${sTotal} vs CD ${cdSalv} → ${exitoSalv ? 'éxito (pierde ' + danio + ' PG)' : 'fallo (cae a 0 PG)'}.`);
             if (nuevoPG <= 0) {
               mecanicas.push(`⚠️ ${targetMember.nombre} ha caído inconsciente (0 PG). Necesita curación urgente.`);
               toast.error(`💀 ${targetMember.nombre} cae INCONSCIENTE (0 PG). Aplica primeros auxilios o un descanso.`, {
@@ -1709,26 +1717,54 @@ const EnhancedTravelSystem = () => {
         }
 
         // Desesperanza / Decisiones erróneas (FALLO): puntos de Sombra
+        // Se realiza una TIRADA DE SALVACIÓN por cada personaje afectado:
+        //   - Desesperanza: TS CARISMA para resistir; afecta a TODA la compañía.
+        //   - Decisiones erróneas: TS SABIDURÍA para resistir; afecta solo al objetivo.
+        // La CD de la salvación es la misma que la CD de la prueba de característica.
+        // Sólo los que FALLAN la salvación reciben los puntos de Sombra.
         if (!exito && (eventoId === 'event_desesperanza' || eventoId === 'event_decisiones')) {
-          const sombra = (res.data?.modificadores?.puntos_sombra) || (currentEvent.evento.puntos_sombra || 1);
-          if (eventoId === 'event_desesperanza') {
-            // 1d3 a TODOS los miembros (TS Carisma para resistir – auto-roll simplificado)
-            const d3 = Math.max(1, Math.min(3, Math.floor(Math.random() * 3) + 1));
-            for (const m of (config.miembros || [])) {
+          const isDesesperanza = eventoId === 'event_desesperanza';
+          const atributoSalvacion = isDesesperanza ? 'carisma' : 'sabiduria';
+          const atributoLabel = isDesesperanza ? 'CAR' : 'SAB';
+          const cdSalv = cd;
+          // Para Desesperanza: 1d3 puntos a quienes fallen la TS
+          const sombraValor = isDesesperanza
+            ? Math.max(1, Math.min(3, Math.floor(Math.random() * 3) + 1))
+            : 1;
+
+          const personajesAfectados = isDesesperanza
+            ? (config.miembros || [])
+            : (targetMember ? [targetMember] : []);
+
+          if (isDesesperanza) {
+            mecanicas.push(`Desesperanza: 1d3=${sombraValor} puntos de Sombra. Cada miembro debe hacer TS CAR (CD ${cdSalv}).`);
+          }
+
+          for (const m of personajesAfectados) {
+            const charDb = characters.find(c => c.id === m.id);
+            if (!charDb) continue;
+            const score = charDb.atributos?.[atributoSalvacion] ?? 10;
+            const mod = Math.floor((score - 10) / 2);
+            // Desventaja en otoño/invierno: 2 d20, escoge el menor
+            const desventaja = currentEvent?.resolucion?.desventaja_salvacion;
+            const r1 = Math.floor(Math.random() * 20) + 1;
+            const r2 = desventaja ? Math.floor(Math.random() * 20) + 1 : null;
+            const d20 = desventaja ? Math.min(r1, r2) : r1;
+            const total = d20 + mod;
+            const exitoSalv = total >= cdSalv;
+            const detalleD = desventaja ? `d20(${r1}/${r2}→${d20})` : `d20(${d20})`;
+            mecanicas.push(`${m.nombre} TS ${atributoLabel}: ${detalleD}+${mod}=${total} vs CD ${cdSalv} → ${exitoSalv ? '✓ resiste' : '✗ falla'}.`);
+
+            if (!exitoSalv) {
               try {
-                await api.patch(`/characters/${m.id}/shadow`, { shadow_change: d3 });
-                setCharacters(prev => prev.map(c => c.id === m.id ? { ...c, puntos_sombra: (c.puntos_sombra || 0) + d3 } : c));
+                await api.patch(`/characters/${m.id}/shadow`, { shadow_change: sombraValor });
+                setCharacters(prev => prev.map(c => c.id === m.id ? { ...c, puntos_sombra: (c.puntos_sombra || 0) + sombraValor } : c));
               } catch (e) { console.error('Shadow update fail:', e); }
+              mecanicas.push(`  → ${m.nombre} recibe ${sombraValor} punto(s) de Sombra.`);
+              toast(`${m.nombre}: +${sombraValor} Sombra.`, { duration: 4000 });
+            } else {
+              toast(`${m.nombre} resiste la Sombra.`, { duration: 3000 });
             }
-            mecanicas.push(`Toda la compañía recibe ${d3} puntos de Sombra (1d3).`);
-            toast(`+${d3} Sombra a toda la compañía (Desesperanza).`, { duration: 4000 });
-          } else if (targetMember) {
-            try {
-              await api.patch(`/characters/${targetMember.id}/shadow`, { shadow_change: sombra });
-              setCharacters(prev => prev.map(c => c.id === targetMember.id ? { ...c, puntos_sombra: (c.puntos_sombra || 0) + sombra } : c));
-            } catch (e) { console.error('Shadow update fail:', e); }
-            mecanicas.push(`${targetMember.nombre} recibe ${sombra} punto(s) de Sombra.`);
-            toast(`${targetMember.nombre}: +${sombra} Sombra (Decisiones erróneas).`, { duration: 4000 });
           }
         }
 

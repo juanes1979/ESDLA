@@ -2051,14 +2051,28 @@ async def generate_event(
     # Roll for objective
     d3_roll = roll_d3()
     objetivo = next((o for o in objectives if o['d3_value'] == d3_roll), objectives[0])
-    
-    # Get terrain CD
-    terrain_config = next((t for t in terrains if t['tipo'] == terreno), terrains[1])
-    cd_prueba = terrain_config.get('cd_prueba', 15)
-    
-    # Check season disadvantage for saves
-    es_invierno_otono = estacion in ['invierno', 'otono']
-    
+
+    # Compute event-resolution CD per the rulebook:
+    #   CAMINO        → CD 10
+    #   CAMPO ABIERTO → CD 15
+    #   TERRENO DIFÍCIL (any "dificil" variant) → CD 20
+    # Fall back to the terrain difficulty table if available.
+    t_lower = (terreno or "").lower()
+    if "camino" in t_lower or t_lower in ("gran_camino", "camino_mayor", "camino_menor", "sendas"):
+        cd_prueba = 10
+        terreno_categoria = "camino"
+    elif "dificil" in t_lower or t_lower in ("muy_dificil", "desalentador"):
+        cd_prueba = 20
+        terreno_categoria = "dificil"
+    else:
+        # Default to "campo abierto"
+        terrain_config = next((t for t in terrains if t['tipo'] == terreno), None)
+        cd_prueba = 15 if not terrain_config else (terrain_config.get('cd_prueba_evento') or 15)
+        terreno_categoria = "campo_abierto"
+
+    # Check season disadvantage for saves AND the event resolution check
+    es_invierno_otono = estacion in ['invierno', 'otono', 'otoño']
+
     return {
         "success": True,
         "tiradas": {
@@ -2076,6 +2090,9 @@ async def generate_event(
             "tipo_salvacion_extra": evento.get('tipo_salvacion_extra'),
             "puntos_sombra": evento.get('puntos_sombra', 0)
         },
+        "terreno_categoria": terreno_categoria,
+        "cd_prueba": cd_prueba,
+        "desventaja_estacion": bool(es_invierno_otono),
         "objetivo": {
             "papel": objetivo['papel'],
             "prueba": objetivo['prueba'],

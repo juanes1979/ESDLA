@@ -1,0 +1,33 @@
+{
+  "summary": "Iteration 67 backend testing complete. All 15 new tests + 11 regression tests passed (26/26 = 100%). Validated: (1) POST /api/travel/generate-event correctly returns cd_prueba=10 for gran_camino/camino_mayor/camino_menor, cd_prueba=15 for campo_abierto, cd_prueba=20 for muy_dificil/desalentador; terreno_categoria field present; resolucion.cd matches cd_prueba. (2) desventaja_estacion=true for 'invierno' and 'otono', false for 'verano'/'primavera'. (3) PATCH /api/characters/{id}/equipment/carry accepts source='equipo_ocupacion' and moves items between character and mount, persisting portado_por correctly. (4) PATCH /api/characters/{id}/equipment/toggle-active accepts source='equipo_ocupacion'. (5) GET /api/characters/{id}/weight-summary works for Xalan (id=208ab2df...). (6) Regression: all iteration 66 tests still pass (multi-mount CRUD, ropa, weight-summary monturas_detalle, mounted+mount_id, travel calculate-journey, rest endpoints).",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST /api/travel/generate-event", "issue": "Endpoint uses query parameters (terreno, estacion, tipo_tierra) instead of JSON body. Frontend callers must use ?terreno=...&estacion=... format. Not a bug per se but inconsistent with most POSTs in the codebase that use JSON bodies. Recommend documenting clearly or migrating to a Pydantic body model."}
+    ]
+  },
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_event_cd_terrain_it67.py",
+    "/app/test_reports/pytest/it67_event_cd.xml"
+  ],
+  "action_items": [
+    "(Optional) Consider switching POST /api/travel/generate-event to a Pydantic JSON body for consistency with the rest of the API (currently query params).",
+    "Frontend Shadow save logic (CHA per character before applying Sombra) was NOT tested as it is frontend-only per the request — main agent should self-verify via UI."
+  ],
+  "critical_code_review_comments": [
+    "travel_routes.py:2012-2107 generate_event uses default query params; works correctly but mixed style (other POSTs use Pydantic body). Logic is clean: 'camino' substring → CD 10, 'dificil'/'muy_dificil'/'desalentador' → CD 20, else CD 15.",
+    "character_routes.py:1930+ and 2000+ correctly add 'equipo_ocupacion' branch in equipment/carry and equipment/toggle-active; reassignment on delete_mount (line 2415) properly uses _reassign for equipo_ocupacion.",
+    "character_routes.py is large (>2400 lines); consider splitting into character_equipment_routes.py + character_mount_routes.py for maintainability. Not blocking."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_event_cd_terrain_it67.py (new)"
+  ],
+  "success_rate": {"backend": "100% (26/26)", "frontend": "not tested (backend-only request)"},
+  "test_credentials": "N/A (no auth)",
+  "seed_data_creation": "Added 1 ropa item 'TEST_Capa de prueba it67' to Xalan via equipment/add (regression). Did not clean up — minor test leak.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Bloque A+B+C-7 backend changes are fully validated. Travel generate-event endpoint uses QUERY PARAMS (terreno, estacion, tipo_tierra) — keep this in mind when writing future tests. Equipment carry payload requires 'carried_by' (NOT 'portado_por') and toggle-active requires 'activa' bool. Xalan Fuenteoscura (id=208ab2df-a51a-43e5-b96e-1c6757a2ada8) is the canonical multi-mount + equipo_ocupacion test character.",
+  "rca of the issue": "N/A — no bugs found in backend changes. Initial test failures were due to test script using JSON body instead of query params for generate-event and using 'portado_por'/missing 'activa' fields; fixed in test, then all passed."
+}

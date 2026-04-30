@@ -1430,6 +1430,7 @@ const ConfigView = ({
             journeyCalc={journeyCalc}
             journeyWeather={journeyWeather}
             characters={characters}
+            provisionsCheck={provisionsCheck}
           />
         </CardContent>
       </Card>

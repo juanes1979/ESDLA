@@ -47,6 +47,21 @@ export const getActiveClothingByPosition = (character, posicion) => {
     if (isActiveOnBody(p)) out.push(p);
   });
 
+  // Armor / clothing in equipo_ocupacion
+  const eqocup = character?.equipo_ocupacion || [];
+  eqocup.forEach((it) => {
+    if (!it || typeof it !== 'object') return;
+    const cat = lower(it.categoria);
+    const nombre = lower(it.nombre);
+    const isClothing = cat === 'ropa';
+    const armorNames = ['armadura', 'cota', 'coleto', 'coraza', 'peto'];
+    const isArmorByName = armorNames.some((a) => nombre.includes(a));
+    if (!isClothing && !isArmorByName) return;
+    const pos = lower(it.posicion || (isArmorByName ? 'cuerpo' : ''));
+    if (pos !== posicion) return;
+    if (isActiveOnBody(it)) out.push(it);
+  });
+
   return out;
 };
 
@@ -57,6 +72,16 @@ export const isBarefoot = (character) =>
   getActiveClothingByPosition(character, 'pies').length === 0;
 
 export const hasActiveWeapon = (character) => {
+  const lower = (s) => (s || '').toString().toLowerCase();
   const armas = character?.armas || [];
-  return armas.some((a) => isActiveOnBody(a));
+  if (armas.some((a) => isActiveOnBody(a))) return true;
+  // Also weapons stored in equipo_ocupacion
+  const eqocup = character?.equipo_ocupacion || [];
+  const weaponNames = ['espada','daga','arco','lanza','hacha','bastón','baston','maza','martillo','ballesta','cimitarra','estoque','garrote','hoz','flajelo','piqueta','látigo','latigo'];
+  return eqocup.some((it) => {
+    if (!it || typeof it !== 'object') return false;
+    const n = lower(it.nombre);
+    if (!weaponNames.some((w) => n.includes(w))) return false;
+    return isActiveOnBody(it);
+  });
 };

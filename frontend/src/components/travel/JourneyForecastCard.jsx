@@ -40,7 +40,7 @@ const sumProvisions = (inv) => {
   return { raciones: s.raciones, litros: s.totalLitros };
 };
 
-const JourneyForecastCard = ({ config, journeyCalc, journeyWeather = [], characters = [] }) => {
+const JourneyForecastCard = ({ config, journeyCalc, journeyWeather = [], characters = [], provisionsCheck = null }) => {
   if (!journeyCalc?.success) return null;
   const miembrosConPapel = (config?.miembros || []).filter(m => m.papeles?.length > 0);
   const acompanantes = config?.acompanantes || [];
@@ -50,15 +50,24 @@ const JourneyForecastCard = ({ config, journeyCalc, journeyWeather = [], charact
   const dias = Math.max(1, Math.round(journeyCalc?.estimaciones?.dias_estimados || 1));
 
   // ── Provisiones disponibles vs necesarias ─────────────────────────────
+  // Si hay un `provisionsCheck` ya calculado por el contenedor, lo
+  // utilizamos para garantizar consistencia con la cabecera del viaje
+  // (mismo total food por masa, misma lógica de asentamiento conocido).
   let raciones = 0, litros = 0;
-  const todosViajeros = [...miembrosConPapel, ...acompanantes];
-  todosViajeros.forEach(m => {
-    const ch = characters.find(c => c.id === m.id);
-    if (!ch?.inventario) return;
-    const s = sumProvisions(ch.inventario);
-    raciones += s.raciones;
-    litros += s.litros;
-  });
+  if (provisionsCheck) {
+    raciones = provisionsCheck.comidaDisponible || 0;
+    litros = provisionsCheck.aguaDisponible || 0;
+  } else {
+    const todosViajeros = [...miembrosConPapel, ...acompanantes];
+    todosViajeros.forEach(m => {
+      const ch = characters.find(c => c.id === m.id);
+      if (!ch?.inventario) return;
+      const s = summarizeProvisions(ch.inventario);
+      // Use diasComidaTotal (mass-based) so consumibles + comida count too
+      raciones += s.diasComidaTotal || s.raciones;
+      litros += s.totalLitros;
+    });
+  }
   const racionesNecesarias = numViajeros * dias;
   const litrosNecesarios = numViajeros * 2 * dias;
   const racionesFaltan = Math.max(0, racionesNecesarias - raciones);
@@ -94,7 +103,7 @@ const JourneyForecastCard = ({ config, journeyCalc, journeyWeather = [], charact
   // ── Avisos ─────────────────────────────────────────────────────────────
   const avisos = [];
   if (racionesFaltan > 0)
-    avisos.push({ tipo: 'comida', msg: `Faltan ${racionesFaltan} raciones (${diasSinComida} día${diasSinComida === 1 ? '' : 's'} sin comida).` });
+    avisos.push({ tipo: 'comida', msg: `Faltan ${racionesFaltan.toFixed(1)} raciones (${diasSinComida} día${diasSinComida === 1 ? '' : 's'} sin comida).` });
   if (litrosFaltan > 0)
     avisos.push({ tipo: 'agua', msg: `Faltan ${litrosFaltan.toFixed(0)} L de agua (${diasSinAgua} día${diasSinAgua === 1 ? '' : 's'} sin agua).` });
   if (algunoLlegaA6)
@@ -108,8 +117,8 @@ const JourneyForecastCard = ({ config, journeyCalc, journeyWeather = [], charact
   const resumen = `Con esta carga y velocidad, llegarás con fatiga media ${fatigaPromedio} ` +
     `tras ${dias} día${dias === 1 ? '' : 's'} de viaje. ` +
     (raciones >= racionesNecesarias
-      ? `Te quedarán ${raciones - racionesNecesarias} raciones de margen. `
-      : `Te faltan ${racionesFaltan} raciones. `) +
+      ? `Te quedarán ${(raciones - racionesNecesarias).toFixed(1)} raciones de margen. `
+      : `Te faltan ${racionesFaltan.toFixed(1)} raciones. `) +
     (diaMasDuro
       ? `El día más duro será el ${diaMasDuro.dia} (${diaMasDuro.label}${diaMasDuro.region ? ' en ' + diaMasDuro.region : ''}).`
       : 'No se prevé clima especialmente adverso.');
@@ -153,7 +162,7 @@ const JourneyForecastCard = ({ config, journeyCalc, journeyWeather = [], charact
             </p>
             <p className={`font-mono text-lg font-bold ${racionesFaltan > 0 ? 'text-red-300' : 'text-emerald-300'}`}
                data-testid="forecast-food">
-              {raciones}/{racionesNecesarias}
+              {raciones.toFixed(1)}/{racionesNecesarias}
             </p>
           </div>
           <div className="bg-black/30 p-2 rounded">

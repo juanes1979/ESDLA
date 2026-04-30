@@ -1927,6 +1927,16 @@ async def update_equipment_carrier(character_id: str, data: UpdateEquipmentCarry
         equipo[data.item_index] = _apply_move(item)
         update["equipo"] = equipo
 
+    elif source == "equipo_ocupacion":
+        eqocup = character.get("equipo_ocupacion", []) or []
+        if data.item_index < 0 or data.item_index >= len(eqocup):
+            raise HTTPException(status_code=400, detail="Índice de equipo_ocupacion inválido")
+        item = eqocup[data.item_index]
+        if not isinstance(item, dict):
+            item = {"nombre": item, "cantidad": 1}
+        eqocup[data.item_index] = _apply_move(item)
+        update["equipo_ocupacion"] = eqocup
+
     else:  # inventario (default)
         inventario = character.get("inventario", []) or []
         if data.item_index < 0 or data.item_index >= len(inventario):
@@ -1987,6 +1997,14 @@ async def toggle_equipment_active(character_id: str, data: ToggleActiveRequest):
             armas[data.item_index] = {"nombre": armas[data.item_index]}
         armas[data.item_index]["activa"] = bool(data.activa)
         update["armas"] = armas
+    elif source == "equipo_ocupacion":
+        eqocup = character.get("equipo_ocupacion", []) or []
+        if data.item_index < 0 or data.item_index >= len(eqocup):
+            raise HTTPException(status_code=400, detail="Índice inválido")
+        if not isinstance(eqocup[data.item_index], dict):
+            eqocup[data.item_index] = {"nombre": eqocup[data.item_index]}
+        eqocup[data.item_index]["activa"] = bool(data.activa)
+        update["equipo_ocupacion"] = eqocup
     else:
         inventario = character.get("inventario", []) or []
         if data.item_index < 0 or data.item_index >= len(inventario):
@@ -2101,6 +2119,17 @@ async def get_character_weight_summary(character_id: str):
 
     # Equipo (shield, tools) - account for portado_por
     for item in character.get("equipo", []):
+        if isinstance(item, dict):
+            peso = get_weight(item.get("nombre"), item)
+            if item.get("portado_por") == "montura":
+                _add_mount_weight(peso, item.get("mount_id") or default_mount_id)
+            else:
+                peso_personaje += peso
+        else:
+            peso_personaje += get_weight(item)
+
+    # Equipo de ocupación (armas, armaduras, escudos y útiles del trasfondo)
+    for item in character.get("equipo_ocupacion", []) or []:
         if isinstance(item, dict):
             peso = get_weight(item.get("nombre"), item)
             if item.get("portado_por") == "montura":
@@ -2383,6 +2412,7 @@ async def delete_mount(character_id: str, mount_id: str):
         "monturas": monturas,
         "inventario": _reassign(character.get("inventario", []) or []),
         "equipo": _reassign(character.get("equipo", []) or []),
+        "equipo_ocupacion": _reassign(character.get("equipo_ocupacion", []) or []),
         "armas": _reassign(character.get("armas", []) or []),
         "armadura_piezas": _reassign(character.get("armadura_piezas", []) or []),
         "updated_at": now_utc(),

@@ -32,6 +32,23 @@ export const computeEffectiveCA = (character) => {
       const m = String(arm.comentarios).toLowerCase().match(/m[aá]x\.?\s*(\d+)/);
       if (m) dexCap = parseInt(m[1], 10);
     }
+  } else {
+    // Fallback: armor stored as part of equipo_ocupacion
+    const armorNames = ['armadura', 'cota', 'coleto', 'coraza', 'peto'];
+    for (const it of (character.equipo_ocupacion || [])) {
+      if (!it || typeof it !== 'object') continue;
+      const n = (it.nombre || '').toLowerCase();
+      if (!armorNames.some((a) => n.includes(a))) continue;
+      if (!isActive(it)) continue;
+      if (it.ca) {
+        baseAc = Number(it.ca) || 10;
+        if (it.comentarios) {
+          const m = String(it.comentarios).toLowerCase().match(/m[aá]x\.?\s*(\d+)/);
+          if (m) dexCap = parseInt(m[1], 10);
+        }
+        break;
+      }
+    }
   }
 
   const cappedDex = dexCap != null ? Math.min(dexMod, dexCap) : dexMod;

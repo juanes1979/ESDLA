@@ -24,6 +24,7 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle
 } from '@/components/ui/alert-dialog';
 import { isNaked, isBarefoot, getActiveClothingByPosition } from '@/utils/clothingState';
+import { getMountUsageStatus } from '@/utils/mountUsage';
 
 // Category display names
 const CATEGORY_NAMES = {
@@ -225,6 +226,28 @@ const EquipmentManagerModal = ({
       toast.success(res.data.message);
       onCharacterUpdate(res.data.character);
       await refreshWeight();
+
+      // Mount-purchase warnings: alert if missing accessories
+      if (selectedCategory === 'monturas') {
+        const status = getMountUsageStatus(res.data.character);
+        if (status.missingForLoad.length > 0) {
+          toast.warning(
+            `🐎 Has comprado una montura, pero NO podrás cargarla sin: ${status.missingForLoad.join(', ')}.`,
+            { duration: 9000 }
+          );
+        }
+        if (status.missingForRide.length > 0 && !status.razaPuedeSinSilla) {
+          toast.warning(
+            `🏇 Para montarla necesitas: ${status.missingForRide.join(' y ')}. (Excepto Elfo, Rohirrim o Dúnedan, que pueden montar a pelo.)`,
+            { duration: 12000 }
+          );
+        } else if (status.missingForRide.length > 0 && status.razaPuedeSinSilla) {
+          toast.info(
+            `🏇 Tu cultura te permite montar sin silla, pero te faltan: ${status.missingForRide.join(', ')} para montar de forma estándar.`,
+            { duration: 10000 }
+          );
+        }
+      }
       
       // Reset form
       setSelectedItem(null);
@@ -565,7 +588,11 @@ const EquipmentManagerModal = ({
           categoria: 'armas',
           tipo: 'Arma',
           peso: item?.peso_kg || 0,
-          canMove: false,
+          canMove: true,
+          portadoPor: item?.portado_por || 'personaje',
+          apiSource: 'equipo_ocupacion',
+          activa: item?.activa !== false,
+          canToggleActive: true,
           index: idx,
           source: 'ocupacion',
           mejoras,
@@ -577,7 +604,12 @@ const EquipmentManagerModal = ({
           categoria: 'armaduras',
           tipo: 'Armadura',
           peso: item?.peso_kg || 0,
-          canMove: false,
+          canMove: true,
+          portadoPor: item?.portado_por || 'personaje',
+          apiSource: 'equipo_ocupacion',
+          activa: item?.activa !== false,
+          canToggleActive: true,
+          posicion: item?.posicion || 'cuerpo',
           index: idx,
           mejoras,
         });
@@ -588,7 +620,9 @@ const EquipmentManagerModal = ({
           categoria: 'escudos',
           tipo: 'Escudo',
           peso: item?.peso_kg || 0,
-          canMove: false,
+          canMove: true,
+          portadoPor: item?.portado_por || 'personaje',
+          apiSource: 'equipo_ocupacion',
           index: idx,
           mejoras,
         });
@@ -602,6 +636,7 @@ const EquipmentManagerModal = ({
           peso: item?.peso_kg || 0,
           canMove: true,
           portadoPor: item?.portado_por || 'personaje',
+          apiSource: 'equipo_ocupacion',
           index: idx,
         });
       }
