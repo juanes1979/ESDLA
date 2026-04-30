@@ -54,6 +54,7 @@ import {
 } from '@/components/travel/travelHelpers';
 import { printJourneyDocument as printJourneyDocumentHelper } from '@/components/travel/travelPrint';
 import { summarizeProvisions } from '@/components/travel/inventoryProvisions';
+import { consumeProportionalFood } from '@/components/travel/proportionalFoodConsumption';
 import ResultsView from '@/components/travel/views/ResultsView';
 import GlobalJourneyView from '@/components/travel/views/GlobalJourneyView';
 import DayByDayView from '@/components/travel/views/DayByDayView';
@@ -570,13 +571,15 @@ const EnhancedTravelSystem = () => {
     );
 
     // Calculate total provisions from party inventory (todosViajeros).
+    // Include ALL food items (raciones + consumibles + comida_posadas) by mass.
     let comidaDisponible = 0;
     let aguaDisponible = 0;
     todosViajeros.forEach(miembro => {
       const char = characters.find(c => c.id === miembro.id);
       if (!char?.inventario) return;
       const summary = summarizeProvisions(char.inventario);
-      comidaDisponible += summary.raciones;
+      // Use total food mass converted to ration-days
+      comidaDisponible += summary.diasComidaTotal || summary.raciones;
       const litrosCharacter = esAsentamientoConocido
         ? summary.odres.length * 10 + summary.aguaSuelta
         : summary.totalLitros;
@@ -741,7 +744,7 @@ const EnhancedTravelSystem = () => {
       const char = characters.find(c => c.id === miembro.id);
       if (!char?.inventario) return;
       const summary = summarizeProvisions(char.inventario);
-      comidaInicial += summary.raciones;
+      comidaInicial += summary.diasComidaTotal || summary.raciones;
       const litrosCharacter = esAsentamientoConocido
         ? summary.odres.length * 10 + summary.aguaSuelta
         : summary.totalLitros;
@@ -1454,7 +1457,7 @@ const EnhancedTravelSystem = () => {
       const char = characters.find(c => c.id === miembro.id);
       if (!char?.inventario) return;
       const summary = summarizeProvisions(char.inventario);
-      comidaInicial += summary.raciones;
+      comidaInicial += summary.diasComidaTotal || summary.raciones;
       // Si origen es asentamiento conocido, todos los odres parten LLENOS (10 L c/u).
       const litrosCharacter = esAsentamientoConocido
         ? summary.odres.length * 10 + summary.aguaSuelta
@@ -2706,6 +2709,7 @@ const EnhancedTravelSystem = () => {
     const racionesPorViajero = Math.ceil(
       (partyProvisions.comidaConsumida || 0) / todosViajeros.length
     );
+    const gramosPorViajero = racionesPorViajero * 500; // 1 ración = 0.5 kg de comida
     const litrosPorViajero = Math.ceil(
       (partyProvisions.aguaConsumida || 0) / todosViajeros.length
     );
@@ -2717,46 +2721,13 @@ const EnhancedTravelSystem = () => {
       const char = characters.find((c) => c.id === m.id);
       if (!char || !char.inventario) continue;
 
-      const newInventario = JSON.parse(JSON.stringify(char.inventario));
-
-      // 1) Restar raciones
-      let racionesPorRestar = racionesPorViajero;
-      for (const item of newInventario) {
-        if (racionesPorRestar <= 0) break;
-        if (!item || !item.nombre) continue;
-        const n = (item.nombre || '').toLowerCase();
-        if (!n.includes('raci')) continue;
-        const packMatch = n.match(/\((\d+)\s*raciones?\)/);
-        const packSize = packMatch ? parseInt(packMatch[1], 10) : 1;
-        const rEnEsteItem = (item.cantidad || 1) * packSize;
-        if (rEnEsteItem <= racionesPorRestar) {
-          racionesPorRestar -= rEnEsteItem;
-          item.cantidad = 0; // se elimina después
-        } else {
-          // Solo gastamos lo necesario: si es pack y queda parcial, lo dejamos
-          // como ración suelta restante (best effort). Aproximación: si packSize=1,
-          // restamos cantidad. Si packSize>1, abrimos un pack y dejamos sueltos.
-          if (packSize === 1) {
-            item.cantidad -= racionesPorRestar;
-            racionesPorRestar = 0;
-          } else {
-            // Abrir un pack: rebajar cantidad en 1 y guardar las que sobran como ración suelta
-            const packsAUsar = Math.ceil(racionesPorRestar / packSize);
-            const racionesUsadasReales = packsAUsar * packSize;
-            const sobrantes = racionesUsadasReales - racionesPorRestar;
-            item.cantidad = Math.max(0, (item.cantidad || 1) - packsAUsar);
-            if (sobrantes > 0) {
-              newInventario.push({
-                nombre: 'Raciones sueltas',
-                cantidad: sobrantes,
-                categoria: 'equipo_general',
-                peso_kg: 0.45 * sobrantes,
-              });
-            }
-            racionesPorRestar = 0;
-          }
-        }
-      }
+      // 1) Restar comida PROPORCIONALMENTE a la masa de cada consumible.
+      //    Se reparte `gramosPorViajero` entre todos los food items.
+      const { inventario: afterFood } = consumeProportionalFood(
+        char.inventario,
+        gramosPorViajero
+      );
+      const newInventario = JSON.parse(JSON.stringify(afterFood));
 
       // 2) Vaciar odres por orden (uno se vacía a la vez)
       let litrosPorRestar = litrosPorViajero;

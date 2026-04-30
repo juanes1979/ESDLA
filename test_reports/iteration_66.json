@@ -1,0 +1,43 @@
+{
+  "summary": "Iteration 66 backend tests for Ropa category, multi-mount CRUD, weight-summary per-mount details, carry-move-to-mount auto-deactivate, and toggle_mounted with mount_id. Created /app/backend/tests/test_equipment_multi_mount_ropa_it66.py with 11 test cases. All 11 PASS against the public preview URL.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "PATCH /api/characters/{id}/mounted", "issue": "Response field `mount_id` in return body returns the id of the first mount in the list instead of the currently active rider mount. Not a data bug (the `es_jinete_activo` flags in character.monturas[] are correct) but the response shape is misleading."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_equipment_multi_mount_ropa_it66.py",
+    "/app/test_reports/pytest/it66_equipment.xml"
+  ],
+  "action_items": [
+    "(Optional, minor) Fix response `mount_id` field in PATCH /mounted to reflect active mount (target_id) instead of monturas[0].id."
+  ],
+  "critical_code_review_comments": [
+    "character_routes.py equipment/carry correctly sets portado_por and mount_id, and auto-deactivates active items moved to montura. Verified with weapon and inventory items.",
+    "character_routes.py weight-summary.monturas_detalle correctly allocates item mass to the mount whose mount_id matches the item; unassigned items fall to the primary mount (monturas[0]). This is acceptable fallback behavior after migrations.",
+    "DELETE /monturas/{mount_id} correctly reassigns items (inventario/equipo/armas/armadura_piezas/armadura) from that mount back to personaje and removes mount_id.",
+    "POST /monturas generates uuid4 per mount. Consider validating against duplicate names if that is desired business rule.",
+    "equipment-catalog returns exactly 24 ropa items, each with posicion in {cabeza,cuerpo,piernas,brazos,pies}. Migration ran correctly.",
+    "PATCH /mounted with mount_id correctly flips es_jinete_activo booleans on all mounts; dismount (montado=false) clears all flags.",
+    "Regression: POST /rest/short, POST /rest/long, POST /travel/calculate-journey still respond 200 (no 5xx). Existing flows not broken.",
+    "Xalan Fuenteoscura migrated data verified: 2 monturas (Poni de Bree, Lúcero) + 3 ropa items in inventario with posicion field."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_equipment_multi_mount_ropa_it66.py (new)"
+  ],
+  "success_rate": {
+    "backend": "100% (11/11)",
+    "frontend": "not tested (per request)"
+  },
+  "test_credentials": "Not required — equipment/mount/weight-summary endpoints are open.",
+  "seed_data_creation": "All test data (TEST_mount_*, TEST_item_*, TEST_heavy_*, TEST_espada_*, Botas acolchonadas) is created and cleaned up per-test on Xalan Fuenteoscura (id=208ab2df-a51a-43e5-b96e-1c6757a2ada8). Post-run verification confirms 0 TEST_ items remain.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Test file is idempotent — it creates and removes ephemeral weapons/mounts/items on Xalan (208ab2df-a51a-43e5-b96e-1c6757a2ada8). Xalan has 2 mounts (Poni de Bree + Lúcero) and 3 migrated ropa items. Note: tests leave montado=false and es_jinete_activo=false on all mounts after cleanup. If the frontend expects Lúcero to be the default active rider, the main agent may want to re-activate it via PATCH /mounted {montado:true, mount_id:'232c51e3-8d04-46bb-bc5d-5e6b489b39cc'} after testing. Pre-existing KeyError in test_group_speed.py was NOT investigated per request."
+}

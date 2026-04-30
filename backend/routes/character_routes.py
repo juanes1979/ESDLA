@@ -1568,7 +1568,7 @@ def price_to_base(precio: float, moneda: str) -> int:
 class AddEquipmentRequest(BaseModel):
     """Request to add equipment to a character"""
     item_name: str
-    item_category: str  # equipo_general, armas_sencillas_cc, monturas, etc.
+    item_category: str  # equipo_general, armas_sencillas_cc, monturas, ropa, etc.
     cantidad: int = 1
     is_purchase: bool = True  # True = compra, False = regalo/tesoro
     precio: Optional[float] = None  # Si es diferente al del catálogo
@@ -1577,15 +1577,50 @@ class AddEquipmentRequest(BaseModel):
     peso_kg: Optional[float] = None
     dano: Optional[str] = None
     ca: Optional[int] = None
+    ca_bonus: Optional[int] = None  # CA incremental para piezas de armadura (bracelete +1, etc.)
     herida: Optional[int] = None
     alcance: Optional[str] = None
     capacidad_carga: Optional[int] = None  # Para monturas
+    posicion: Optional[str] = None  # cabeza / cuerpo / piernas / brazos / pies (ropa/armadura)
 
 
 class UpdateEquipmentCarryRequest(BaseModel):
-    """Request to update what the character/mount carries"""
+    """Request to update what the character/mount carries.
+
+    `source` indica en qué array del personaje está el objeto:
+      - "inventario" (por defecto) - inventario general
+      - "equipo"      - lista character.equipo (escudos, utensilios)
+      - "armas"       - character.armas
+      - "armadura"    - character.armadura (objeto único)
+      - "armadura_piezas" - character.armadura_piezas[] (nuevas piezas tipo brazalete)
+      - "ropa"        - inventario filtrando categoria=='ropa'
+    """
     item_index: int
     carried_by: str  # "personaje" or "montura"
+    source: Optional[str] = "inventario"
+    mount_id: Optional[str] = None  # si carried_by == 'montura', especifica qué montura
+
+
+class ToggleActiveRequest(BaseModel):
+    """Activate / deactivate a piece of clothing or an armor piece."""
+    item_index: int
+    activa: bool
+    source: str = "inventario"  # "inventario" | "armadura" | "armadura_piezas"
+
+
+class MountCreateRequest(BaseModel):
+    nombre_original: str
+    nombre_personalizado: Optional[str] = None
+    especie: Optional[str] = None
+    capacidad_carga: Optional[float] = 150
+    velocidad: Optional[float] = 12
+    constitucion: Optional[str] = ""
+
+
+class MountUpdateRequest(BaseModel):
+    nombre_personalizado: Optional[str] = None
+    capacidad_carga: Optional[float] = None
+    velocidad: Optional[float] = None
 
 
 @router.post("/{character_id}/equipment/add")
@@ -1629,8 +1664,17 @@ async def add_equipment_to_character(character_id: str, data: AddEquipmentReques
         new_item["herida"] = data.herida or (catalog_item.get("herida") if catalog_item else 0)
         new_item["alcance"] = data.alcance or (catalog_item.get("alcance") if catalog_item else "")
         new_item["tipo"] = catalog_item.get("modificador") if catalog_item else ""
+        new_item["activa"] = True  # arma lista para blandir
     elif "armaduras" in data.item_category or data.item_category == "escudos":
         new_item["ca"] = data.ca or (catalog_item.get("ca") if catalog_item else 0)
+        new_item["ca_bonus"] = data.ca_bonus if data.ca_bonus is not None else (catalog_item.get("ca_bonus") if catalog_item else 0)
+        # Posicion for armor (not shields)
+        if "armaduras" in data.item_category:
+            new_item["posicion"] = data.posicion or (catalog_item.get("posicion") if catalog_item else "cuerpo")
+        new_item["activa"] = True
+    elif data.item_category == "ropa":
+        new_item["posicion"] = data.posicion or (catalog_item.get("posicion") if catalog_item else "cuerpo")
+        new_item["activa"] = True
     
     # Handle purchase
     if data.is_purchase:
@@ -1679,8 +1723,17 @@ async def add_equipment_to_character(character_id: str, data: AddEquipmentReques
         armas.append(new_item)
         update["armas"] = armas
     elif "armaduras" in data.item_category:
-        # Replace armor
-        update["armadura"] = new_item
+        # Si la pieza tiene posicion != cuerpo O viene como ca_bonus > 0,
+        # la tratamos como pieza secundaria (brazalete, grebas, hombreras).
+        pos = (new_item.get("posicion") or "").lower()
+        is_secondary = (pos and pos != "cuerpo") or ((new_item.get("ca_bonus") or 0) > 0 and not new_item.get("ca"))
+        if is_secondary:
+            piezas = character.get("armadura_piezas", []) or []
+            piezas.append(new_item)
+            update["armadura_piezas"] = piezas
+        else:
+            # Reemplaza la armadura principal del cuerpo
+            update["armadura"] = new_item
     elif data.item_category == "escudos":
         # Add to equipo
         equipo = character.get("equipo", [])
@@ -1791,63 +1844,161 @@ async def remove_equipment_from_character(
 @router.patch("/{character_id}/equipment/carry")
 async def update_equipment_carrier(character_id: str, data: UpdateEquipmentCarryRequest):
     """
-    Update who carries an item (character or mount).
-    For calculating encumbrance:
-    - Items carried by mount don't count towards character's weight
-    - Weapons and armor ALWAYS count (character always wears them)
+    Update who carries an item.
+
+    Supports moving items between the character and the mount across different
+    sources: inventario, equipo, armas, armadura principal, armadura_piezas.
+
+    When a ropa/armadura/arma "activa" is moved to the mount it is automatically
+    deactivated (no la llevas puesta/lista). The caller is responsible for
+    showing the warning toasts in the UI.
     """
     character = await db.characters.find_one({"_id": character_id})
     if not character:
         raise HTTPException(status_code=404, detail="Personaje no encontrado")
-    
-    # Detect mount from character.montura field OR from inventory
-    has_mount = False
-    mount_names = ['caballo', 'pony', 'mula', 'burro', 'corcel', 'yegua', 'potro', 'asno']
-    
-    if character.get("montura", {}).get("nombre"):
-        has_mount = True
-    else:
-        # Check inventory for mount
-        inventario = character.get("inventario", [])
-        for item in inventario:
-            nombre = (item.get("nombre", "") if isinstance(item, dict) else str(item)).lower()
-            if any(m in nombre for m in mount_names):
-                has_mount = True
-                break
-        
-        # Also check equipo_nivel_vida, equipo_trasfondo, equipo_ocupacion
-        for source in ["equipo_nivel_vida", "equipo_trasfondo", "equipo_ocupacion"]:
-            for item in character.get(source, []):
-                nombre = (item.get("nombre", "") if isinstance(item, dict) else str(item)).lower()
-                if any(m in nombre for m in mount_names):
-                    has_mount = True
-                    break
-    
-    if not has_mount:
+
+    # Detect mount (primary list or legacy)
+    monturas_list = character.get("monturas", []) or []
+    has_mount = bool(monturas_list) or bool(character.get("montura", {}).get("nombre"))
+
+    if data.carried_by == "montura" and not has_mount:
         raise HTTPException(status_code=400, detail="El personaje no tiene montura")
-    
-    inventario = character.get("inventario", [])
-    if data.item_index < 0 or data.item_index >= len(inventario):
-        raise HTTPException(status_code=400, detail="Índice de objeto inválido")
-    
-    item = inventario[data.item_index]
-    if isinstance(item, dict):
-        item["portado_por"] = data.carried_by
-        inventario[data.item_index] = item
-    else:
-        inventario[data.item_index] = {
-            "nombre": item,
-            "cantidad": 1,
-            "portado_por": data.carried_by
-        }
-    
-    await db.characters.update_one(
-        {"_id": character_id},
-        {"$set": {"inventario": inventario, "updated_at": now_utc()}}
-    )
-    
+
+    # Resolve target mount_id
+    target_mount_id = data.mount_id
+    if data.carried_by == "montura" and not target_mount_id:
+        if monturas_list:
+            target_mount_id = monturas_list[0].get("id")
+
+    source = (data.source or "inventario").lower()
+    update = {"updated_at": now_utc()}
+    deactivated = False
+    item_name = None
+    item_posicion = None
+
+    def _apply_move(obj):
+        """Apply move semantics to a single item dict. Returns the dict modified."""
+        nonlocal deactivated, item_name, item_posicion
+        if not isinstance(obj, dict):
+            return obj
+        obj["portado_por"] = data.carried_by
+        if data.carried_by == "montura":
+            if target_mount_id:
+                obj["mount_id"] = target_mount_id
+        else:
+            obj.pop("mount_id", None)
+        item_name = obj.get("nombre")
+        item_posicion = obj.get("posicion")
+        if data.carried_by == "montura" and obj.get("activa"):
+            obj["activa"] = False
+            deactivated = True
+        return obj
+
+    if source == "armas":
+        armas = character.get("armas", []) or []
+        if data.item_index < 0 or data.item_index >= len(armas):
+            raise HTTPException(status_code=400, detail="Índice de arma inválido")
+        item = armas[data.item_index]
+        if not isinstance(item, dict):
+            item = {"nombre": item, "cantidad": 1}
+        armas[data.item_index] = _apply_move(item)
+        update["armas"] = armas
+
+    elif source == "armadura":
+        arm = character.get("armadura", {}) or {}
+        if not isinstance(arm, dict) or not arm.get("nombre"):
+            raise HTTPException(status_code=404, detail="Armadura no encontrada")
+        update["armadura"] = _apply_move(arm)
+
+    elif source == "armadura_piezas":
+        piezas = character.get("armadura_piezas", []) or []
+        if data.item_index < 0 or data.item_index >= len(piezas):
+            raise HTTPException(status_code=400, detail="Índice de pieza inválido")
+        piezas[data.item_index] = _apply_move(piezas[data.item_index])
+        update["armadura_piezas"] = piezas
+
+    elif source == "equipo":
+        equipo = character.get("equipo", []) or []
+        if data.item_index < 0 or data.item_index >= len(equipo):
+            raise HTTPException(status_code=400, detail="Índice de equipo inválido")
+        item = equipo[data.item_index]
+        if not isinstance(item, dict):
+            item = {"nombre": item, "cantidad": 1}
+        equipo[data.item_index] = _apply_move(item)
+        update["equipo"] = equipo
+
+    else:  # inventario (default)
+        inventario = character.get("inventario", []) or []
+        if data.item_index < 0 or data.item_index >= len(inventario):
+            raise HTTPException(status_code=400, detail="Índice de objeto inválido")
+        item = inventario[data.item_index]
+        if not isinstance(item, dict):
+            item = {"nombre": item, "cantidad": 1}
+        inventario[data.item_index] = _apply_move(item)
+        update["inventario"] = inventario
+
+    await db.characters.update_one({"_id": character_id}, {"$set": update})
+
     updated = await db.characters.find_one({"_id": character_id})
-    return serialize_doc(updated)
+    return {
+        "character": serialize_doc(updated),
+        "deactivated": deactivated,
+        "item_name": item_name,
+        "item_posicion": item_posicion,
+        "source": source,
+    }
+
+
+@router.patch("/{character_id}/equipment/toggle-active")
+async def toggle_equipment_active(character_id: str, data: ToggleActiveRequest):
+    """Activate / deactivate a clothing or armor piece.
+
+    - source='inventario': toggle inventario[item_index].activa (ropa)
+    - source='armadura': toggle character.armadura.activa (cuerpo)
+    - source='armadura_piezas': toggle armadura_piezas[item_index].activa
+    - source='armas': toggle armas[item_index].activa (blandida / guardada)
+    """
+    character = await db.characters.find_one({"_id": character_id})
+    if not character:
+        raise HTTPException(status_code=404, detail="Personaje no encontrado")
+
+    source = (data.source or "inventario").lower()
+    update = {"updated_at": now_utc()}
+
+    if source == "armadura":
+        arm = character.get("armadura", {}) or {}
+        if not isinstance(arm, dict) or not arm.get("nombre"):
+            raise HTTPException(status_code=404, detail="Armadura no encontrada")
+        arm["activa"] = bool(data.activa)
+        update["armadura"] = arm
+    elif source == "armadura_piezas":
+        piezas = character.get("armadura_piezas", []) or []
+        if data.item_index < 0 or data.item_index >= len(piezas):
+            raise HTTPException(status_code=400, detail="Índice inválido")
+        if not isinstance(piezas[data.item_index], dict):
+            piezas[data.item_index] = {"nombre": piezas[data.item_index]}
+        piezas[data.item_index]["activa"] = bool(data.activa)
+        update["armadura_piezas"] = piezas
+    elif source == "armas":
+        armas = character.get("armas", []) or []
+        if data.item_index < 0 or data.item_index >= len(armas):
+            raise HTTPException(status_code=400, detail="Índice inválido")
+        if not isinstance(armas[data.item_index], dict):
+            armas[data.item_index] = {"nombre": armas[data.item_index]}
+        armas[data.item_index]["activa"] = bool(data.activa)
+        update["armas"] = armas
+    else:
+        inventario = character.get("inventario", []) or []
+        if data.item_index < 0 or data.item_index >= len(inventario):
+            raise HTTPException(status_code=400, detail="Índice inválido")
+        if not isinstance(inventario[data.item_index], dict):
+            inventario[data.item_index] = {"nombre": inventario[data.item_index]}
+        inventario[data.item_index]["activa"] = bool(data.activa)
+        update["inventario"] = inventario
+
+    await db.characters.update_one({"_id": character_id}, {"$set": update})
+    updated = await db.characters.find_one({"_id": character_id})
+    return {"character": serialize_doc(updated), "activa": bool(data.activa), "source": source}
 
 
 @router.get("/{character_id}/weight-summary")
@@ -1881,10 +2032,19 @@ async def get_character_weight_summary(character_id: str):
         return 0
     
     peso_personaje = 0
-    peso_montura = 0
+    peso_montura = 0  # total across all mounts
+    peso_por_mount_id = {}  # mount_id -> kg
+
+    def _add_mount_weight(peso: float, mount_id: str = None):
+        nonlocal peso_montura
+        peso_montura += peso
+        if mount_id:
+            peso_por_mount_id[mount_id] = peso_por_mount_id.get(mount_id, 0) + peso
+        else:
+            peso_por_mount_id["__unassigned__"] = peso_por_mount_id.get("__unassigned__", 0) + peso
     
     # Mount-related item detection
-    mount_names = ['caballo', 'pony', 'mula', 'burro', 'corcel', 'yegua', 'potro', 'asno']
+    mount_names = ['caballo', 'pony', 'poni', 'mula', 'burro', 'corcel', 'yegua', 'potro', 'asno']
     mount_accessory_names = ['silla de monta', 'alforjas', 'bocado', 'bridas', 'bocado y bridas', 
                              'arreos', 'barda', 'silla de montar', 'albarda', 'estribos', 'riendas', 
                              'herradura', 'manta de montar']
@@ -1893,39 +2053,62 @@ async def get_character_weight_summary(character_id: str):
         lower = nombre.lower()
         return any(m in lower for m in mount_names) or any(a in lower for a in mount_accessory_names)
     
-    # Detect if character has a mount
-    has_mount = bool(character.get("montura", {}).get("nombre"))
-    if not has_mount:
-        # Check inventory for mount
-        for item in character.get("inventario", []):
-            nombre = item.get("nombre", "") if isinstance(item, dict) else str(item)
-            if any(m in nombre.lower() for m in mount_names):
-                has_mount = True
-                break
-        # Check other equipment sources
-        if not has_mount:
-            for source in ["equipo_nivel_vida", "equipo_trasfondo", "equipo_ocupacion"]:
-                for item in character.get(source, []):
-                    nombre = item.get("nombre", "") if isinstance(item, dict) else str(item)
-                    if any(m in nombre.lower() for m in mount_names):
-                        has_mount = True
-                        break
+    # Prefer new `monturas` list; fallback to legacy single `montura`
+    monturas_list = character.get("monturas", []) or []
+    if not monturas_list and character.get("montura", {}).get("nombre"):
+        mlegacy = character["montura"]
+        monturas_list = [{
+            "id": "legacy",
+            "nombre_original": mlegacy.get("nombre"),
+            "nombre_personalizado": mlegacy.get("nombre_personalizado") or mlegacy.get("nombre"),
+            "capacidad_carga": mlegacy.get("capacidad_carga", 0),
+            "velocidad": mlegacy.get("velocidad", 0),
+        }]
+
+    has_mount = bool(monturas_list)
+    default_mount_id = monturas_list[0]["id"] if monturas_list else None
     
-    # Weapons (always on character)
+    # Weapons - account for portado_por
     for arma in character.get("armas", []):
-        nombre = arma.get("nombre") if isinstance(arma, dict) else arma
-        peso = arma.get("peso_kg") if isinstance(arma, dict) else None
-        peso_personaje += get_weight(nombre, arma if isinstance(arma, dict) else None)
-    
-    # Armor (always on character)
+        if not isinstance(arma, dict):
+            peso_personaje += get_weight(arma)
+            continue
+        nombre = arma.get("nombre")
+        peso = get_weight(nombre, arma)
+        if arma.get("portado_por") == "montura":
+            _add_mount_weight(peso, arma.get("mount_id") or default_mount_id)
+        else:
+            peso_personaje += peso
+
+    # Armor (principal) - account for portado_por
     armadura = character.get("armadura", {})
     if isinstance(armadura, dict) and armadura.get("nombre"):
-        peso_personaje += get_weight(armadura.get("nombre"), armadura)
-    
-    # Shield/Equipo (always on character for now)
+        peso = get_weight(armadura.get("nombre"), armadura)
+        if armadura.get("portado_por") == "montura":
+            _add_mount_weight(peso, armadura.get("mount_id") or default_mount_id)
+        else:
+            peso_personaje += peso
+
+    # Armor pieces (brazalete, grebas, etc.)
+    for pieza in character.get("armadura_piezas", []) or []:
+        if not isinstance(pieza, dict):
+            continue
+        peso = get_weight(pieza.get("nombre"), pieza)
+        if pieza.get("portado_por") == "montura":
+            _add_mount_weight(peso, pieza.get("mount_id") or default_mount_id)
+        else:
+            peso_personaje += peso
+
+    # Equipo (shield, tools) - account for portado_por
     for item in character.get("equipo", []):
-        nombre = item.get("nombre") if isinstance(item, dict) else item
-        peso_personaje += get_weight(nombre, item if isinstance(item, dict) else None)
+        if isinstance(item, dict):
+            peso = get_weight(item.get("nombre"), item)
+            if item.get("portado_por") == "montura":
+                _add_mount_weight(peso, item.get("mount_id") or default_mount_id)
+            else:
+                peso_personaje += peso
+        else:
+            peso_personaje += get_weight(item)
     
     # Inventory items - check who carries them
     # Mount items ALWAYS go to mount if character has one
@@ -1937,9 +2120,9 @@ async def get_character_weight_summary(character_id: str):
             
             # Mount-related items always on mount (if has mount)
             if is_mount_related(nombre) and has_mount:
-                peso_montura += peso
+                _add_mount_weight(peso, item.get("mount_id") or default_mount_id)
             elif item.get("portado_por") == "montura":
-                peso_montura += peso
+                _add_mount_weight(peso, item.get("mount_id") or default_mount_id)
             else:
                 peso_personaje += peso
         else:
@@ -1963,49 +2146,264 @@ async def get_character_weight_summary(character_id: str):
     limite_cargado = fuerza * 2.5  # Encumbered threshold
     limite_muy_cargado = fuerza * 4  # Heavily encumbered threshold
     
-    # Mount info
+    # Mount info — compute per-mount details
     montura = character.get("montura", {})
-    capacidad_montura = montura.get("capacidad_carga", 0) if montura else 0
+    # capacidad principal (legacy field, primer montura)
+    capacidad_montura = 0
+    if monturas_list:
+        capacidad_montura = monturas_list[0].get("capacidad_carga", 0)
+    elif montura:
+        capacidad_montura = montura.get("capacidad_carga", 0)
 
     # Character's body weight (relevant only when riding)
     peso_corporal = character.get("peso_kg", 0) or 0
 
-    # Whether the rider is mounted right now. If True, the mount also
-    # carries the rider's body weight AND the equipment that the rider
-    # carries on themselves (peso_personaje). If False, the mount only
-    # carries items explicitly placed on it (peso_montura).
+    # Whether the rider is mounted right now. Find the mount flagged with
+    # es_jinete_activo (or default to monturas[0]).
     montado = bool(character.get("montado", False))
+    jinete_mount_id = None
+    if montado and monturas_list:
+        for m in monturas_list:
+            if m.get("es_jinete_activo"):
+                jinete_mount_id = m.get("id")
+                break
+        if jinete_mount_id is None:
+            jinete_mount_id = monturas_list[0].get("id")
 
-    if montado:
-        peso_total_montura = peso_montura + peso_corporal + peso_personaje
+    # Build per-mount detail
+    monturas_detalle = []
+    for m in monturas_list:
+        mid = m.get("id")
+        base_peso = peso_por_mount_id.get(mid, 0)
+        # Unassigned items fall onto the primary mount only
+        if mid == default_mount_id:
+            base_peso += peso_por_mount_id.get("__unassigned__", 0)
+        total = base_peso
+        lleva_jinete = montado and mid == jinete_mount_id
+        if lleva_jinete:
+            total += peso_corporal + peso_personaje
+        cap = m.get("capacidad_carga", 0) or 0
+        monturas_detalle.append({
+            "id": mid,
+            "nombre": m.get("nombre_personalizado") or m.get("nombre_original"),
+            "nombre_original": m.get("nombre_original"),
+            "capacidad": cap,
+            "velocidad": m.get("velocidad", 0) or 0,
+            "peso_cargado": round(total, 2),
+            "peso_sin_jinete": round(base_peso, 2),
+            "capacidad_restante": round(cap - total, 2) if cap else 0,
+            "sobrecargada": bool(cap and total > cap),
+            "lleva_jinete": lleva_jinete,
+            "es_jinete_activo": bool(m.get("es_jinete_activo")),
+        })
+
+    if montado and monturas_list:
+        # Primary riding mount receives rider weight
+        primary_base = peso_por_mount_id.get(jinete_mount_id, 0)
+        if jinete_mount_id == default_mount_id:
+            primary_base += peso_por_mount_id.get("__unassigned__", 0)
+        peso_total_montura = primary_base + peso_corporal + peso_personaje
     else:
         peso_total_montura = peso_montura
 
     return {
         "peso_personaje": round(peso_personaje, 2),
-        "peso_montura": round(peso_montura, 2),  # Just items
+        "peso_montura": round(peso_montura, 2),  # Just items (aggregated across all mounts)
         "peso_corporal": round(peso_corporal, 2),  # Character's body weight
-        "peso_total_montura": round(peso_total_montura, 2),  # Mount-borne weight (depends on montado)
+        "peso_total_montura": round(peso_total_montura, 2),  # Primary mount-borne weight (depends on montado)
         "capacidad_personaje": round(capacidad_base, 2),
         "limite_cargado": round(limite_cargado, 2),
         "limite_muy_cargado": round(limite_muy_cargado, 2),
         "estado_carga": "muy_cargado" if peso_personaje > limite_muy_cargado else ("cargado" if peso_personaje > limite_cargado else "normal"),
-        "tiene_montura": bool(montura.get("nombre")),
-        "nombre_montura": montura.get("nombre", ""),
+        "tiene_montura": bool(monturas_list) or bool(montura.get("nombre")),
+        "nombre_montura": (monturas_list[0].get("nombre_personalizado") or monturas_list[0].get("nombre_original")) if monturas_list else montura.get("nombre", ""),
         "capacidad_montura": capacidad_montura,
         "capacidad_montura_restante": round(capacidad_montura - peso_total_montura, 2) if capacidad_montura else 0,
         "montado": montado,
         "montura_sobrecargada": bool(capacidad_montura and peso_total_montura > capacidad_montura),
+        "monturas_detalle": monturas_detalle,
+        "jinete_mount_id": jinete_mount_id,
     }
 
 
 @router.patch("/{character_id}/mounted")
-async def toggle_mounted(character_id: str, montado: bool = Body(..., embed=True)):
-    """Toggle the rider's mounted state (jinete montado sobre la montura)."""
-    res = await db.characters.update_one(
-        {"_id": character_id},
-        {"$set": {"montado": montado, "updated_at": now_utc()}}
-    )
-    if res.matched_count == 0:
+async def toggle_mounted(
+    character_id: str,
+    montado: bool = Body(..., embed=True),
+    mount_id: Optional[str] = Body(None, embed=True),
+):
+    """Toggle the rider's mounted state and (optionally) select which mount to ride.
+
+    If `mount_id` is provided, sets `es_jinete_activo=True` on that mount and
+    False on all others. Keeps `character.montura` as a mirror of the active
+    mount for backward compatibility.
+    """
+    character = await db.characters.find_one({"_id": character_id})
+    if not character:
         raise HTTPException(status_code=404, detail="Character not found")
-    return {"montado": montado}
+
+    monturas_list = character.get("monturas", []) or []
+    update = {"montado": bool(montado), "updated_at": now_utc()}
+
+    if monturas_list:
+        target_id = mount_id or next((m.get("id") for m in monturas_list if m.get("es_jinete_activo")), None)
+        if not target_id:
+            target_id = monturas_list[0].get("id")
+        new_monturas = []
+        target_mount = None
+        for m in monturas_list:
+            m2 = dict(m)
+            m2["es_jinete_activo"] = (m2.get("id") == target_id and bool(montado))
+            if m2["es_jinete_activo"]:
+                target_mount = m2
+            new_monturas.append(m2)
+        update["monturas"] = new_monturas
+        if montado and target_mount:
+            update["montura"] = {
+                "nombre": target_mount.get("nombre_original"),
+                "nombre_personalizado": target_mount.get("nombre_personalizado"),
+                "capacidad_carga": target_mount.get("capacidad_carga"),
+                "velocidad": target_mount.get("velocidad"),
+                "constitucion": target_mount.get("constitucion"),
+                "equipo": target_mount.get("equipo", []),
+            }
+
+    await db.characters.update_one({"_id": character_id}, {"$set": update})
+    updated = await db.characters.find_one({"_id": character_id})
+    return {
+        "montado": bool(montado),
+        "mount_id": update.get("monturas", [{}])[0].get("id") if "monturas" in update else None,
+        "character": serialize_doc(updated),
+    }
+
+
+# ---------------------------------------------------------------------------
+# Multi-mount CRUD endpoints
+# ---------------------------------------------------------------------------
+
+@router.post("/{character_id}/monturas")
+async def add_mount(character_id: str, data: MountCreateRequest):
+    """Add a new mount to character.monturas[]. Returns the new mount id."""
+    import uuid as _uuid
+    character = await db.characters.find_one({"_id": character_id})
+    if not character:
+        raise HTTPException(status_code=404, detail="Character not found")
+
+    new_mount = {
+        "id": str(_uuid.uuid4()),
+        "nombre_original": data.nombre_original,
+        "nombre_personalizado": data.nombre_personalizado or data.nombre_original,
+        "especie": data.especie or data.nombre_original,
+        "capacidad_carga": data.capacidad_carga or 150,
+        "velocidad": data.velocidad or 12,
+        "constitucion": data.constitucion or "",
+        "equipo": [],
+        "es_jinete_activo": False,
+    }
+
+    monturas = character.get("monturas", []) or []
+    monturas.append(new_mount)
+    await db.characters.update_one(
+        {"_id": character_id},
+        {"$set": {"monturas": monturas, "updated_at": now_utc()}}
+    )
+    updated = await db.characters.find_one({"_id": character_id})
+    return {"character": serialize_doc(updated), "mount": new_mount}
+
+
+@router.patch("/{character_id}/monturas/{mount_id}")
+async def update_mount(character_id: str, mount_id: str, data: MountUpdateRequest):
+    """Rename or adjust a mount (capacity/speed)."""
+    character = await db.characters.find_one({"_id": character_id})
+    if not character:
+        raise HTTPException(status_code=404, detail="Character not found")
+
+    monturas = character.get("monturas", []) or []
+    found = False
+    for m in monturas:
+        if m.get("id") == mount_id:
+            if data.nombre_personalizado is not None:
+                m["nombre_personalizado"] = data.nombre_personalizado
+            if data.capacidad_carga is not None:
+                m["capacidad_carga"] = data.capacidad_carga
+            if data.velocidad is not None:
+                m["velocidad"] = data.velocidad
+            found = True
+            break
+    if not found:
+        raise HTTPException(status_code=404, detail="Montura no encontrada")
+
+    # Mirror primary in character.montura
+    update = {"monturas": monturas, "updated_at": now_utc()}
+    primary = monturas[0]
+    update["montura"] = {
+        "nombre": primary.get("nombre_original"),
+        "nombre_personalizado": primary.get("nombre_personalizado"),
+        "capacidad_carga": primary.get("capacidad_carga"),
+        "velocidad": primary.get("velocidad"),
+        "constitucion": primary.get("constitucion"),
+        "equipo": primary.get("equipo", []),
+    }
+
+    await db.characters.update_one({"_id": character_id}, {"$set": update})
+    updated = await db.characters.find_one({"_id": character_id})
+    return {"character": serialize_doc(updated)}
+
+
+@router.delete("/{character_id}/monturas/{mount_id}")
+async def delete_mount(character_id: str, mount_id: str):
+    """Remove a mount. Items carried by it fall to the character."""
+    character = await db.characters.find_one({"_id": character_id})
+    if not character:
+        raise HTTPException(status_code=404, detail="Character not found")
+
+    monturas = character.get("monturas", []) or []
+    monturas = [m for m in monturas if m.get("id") != mount_id]
+
+    # Reassign items that belonged to this mount
+    def _reassign(lst):
+        if not isinstance(lst, list):
+            return lst
+        out = []
+        for it in lst:
+            if isinstance(it, dict) and it.get("mount_id") == mount_id:
+                it = dict(it)
+                it["portado_por"] = "personaje"
+                it.pop("mount_id", None)
+            out.append(it)
+        return out
+
+    update = {
+        "monturas": monturas,
+        "inventario": _reassign(character.get("inventario", []) or []),
+        "equipo": _reassign(character.get("equipo", []) or []),
+        "armas": _reassign(character.get("armas", []) or []),
+        "armadura_piezas": _reassign(character.get("armadura_piezas", []) or []),
+        "updated_at": now_utc(),
+    }
+    # Armadura is a single dict
+    arm = character.get("armadura", {}) or {}
+    if isinstance(arm, dict) and arm.get("mount_id") == mount_id:
+        arm = dict(arm)
+        arm["portado_por"] = "personaje"
+        arm.pop("mount_id", None)
+        update["armadura"] = arm
+
+    # Mirror primary
+    if monturas:
+        p = monturas[0]
+        update["montura"] = {
+            "nombre": p.get("nombre_original"),
+            "nombre_personalizado": p.get("nombre_personalizado"),
+            "capacidad_carga": p.get("capacidad_carga"),
+            "velocidad": p.get("velocidad"),
+            "constitucion": p.get("constitucion"),
+            "equipo": p.get("equipo", []),
+        }
+    else:
+        update["montura"] = {}
+        update["montado"] = False
+
+    await db.characters.update_one({"_id": character_id}, {"$set": update})
+    updated = await db.characters.find_one({"_id": character_id})
+    return {"character": serialize_doc(updated)}

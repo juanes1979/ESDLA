@@ -15,14 +15,20 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { 
   X, Package, Plus, Trash2, Search, ShoppingCart, Gift, 
   Loader2, AlertTriangle, Landmark, User, Scale, Coins,
-  Sword, Shield, ChevronDown, ChevronRight
+  Sword, Shield, ChevronDown, ChevronRight, Power, PowerOff, Shirt
 } from 'lucide-react';
 import { toast } from 'sonner';
 import api from '@/services/api';
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle
+} from '@/components/ui/alert-dialog';
+import { isNaked, isBarefoot, getActiveClothingByPosition } from '@/utils/clothingState';
 
 // Category display names
 const CATEGORY_NAMES = {
   equipo_general: 'Equipo General',
+  ropa: 'Ropa',
   herramientas: 'Herramientas',
   juegos: 'Juegos',
   instrumentos_musicales: 'Instrumentos Musicales',
@@ -49,9 +55,12 @@ const CATEGORY_GROUPS = {
   'Armas': ['armas_sencillas_cc', 'armas_sencillas_distancia', 'armas_marciales_cc', 'armas_marciales_distancia'],
   'Armaduras': ['armaduras_ligeras', 'armaduras_medias', 'armaduras_pesadas', 'escudos'],
   'Equipo': ['equipo_general', 'herramientas', 'juegos', 'instrumentos_musicales'],
+  'Ropa': ['ropa'],
   'Consumibles': ['consumibles', 'comida_posadas', 'hierbas', 'venenos'],
   'Monturas y Transporte': ['monturas', 'accesorios_monturas', 'transporte_terrestre', 'transporte_maritimo'],
 };
+
+const POSICIONES = ['cabeza', 'cuerpo', 'brazos', 'piernas', 'pies'];
 
 const COIN_LABELS = { mo: 'Oro', mp: 'Plata', me: 'Estaño', mc: 'Cobre' };
 
@@ -68,6 +77,7 @@ const EquipmentManagerModal = ({
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('equipo_general');
   const [expandedGroups, setExpandedGroups] = useState({ 'Equipo': true });
+  const [discardTarget, setDiscardTarget] = useState(null); // { nombreBase, categoria, activa, posicion }
   
   // Toggle group expansion
   const toggleGroup = (group) => {
@@ -205,9 +215,11 @@ const EquipmentManagerModal = ({
         peso_kg: selectedItem.peso_kg,
         dano: selectedItem.dano,
         ca: selectedItem.ca,
+        ca_bonus: selectedItem.ca_bonus,
         herida: selectedItem.herida,
         alcance: selectedItem.alcance,
         capacidad_carga: selectedItem.capacidad_carga,
+        posicion: selectedItem.posicion,
       });
       
       toast.success(res.data.message);
@@ -225,38 +237,90 @@ const EquipmentManagerModal = ({
     }
   };
 
-  // Remove equipment
-  const handleRemoveEquipment = async (itemName, itemCategory) => {
-    if (!confirm(`¿Eliminar ${itemName}?`)) return;
-    
+  // Remove equipment ("Tirar al camino") — with contextual warnings.
+  const handleRemoveEquipment = async (itemName, itemCategory, metaBefore = null) => {
     setProcessing(true);
     try {
       const res = await api.delete(`/characters/${character.id}/equipment/remove`, {
         params: { item_name: itemName, item_category: itemCategory }
       });
       
-      toast.success(res.data.message);
-      onCharacterUpdate(res.data.character);
+      const updatedChar = res.data.character;
+      onCharacterUpdate(updatedChar);
       await refreshWeight();
+
+      // Warnings if the removed item was active and uncovered a body slot / left no active weapons
+      if (metaBefore?.activa) {
+        const pos = (metaBefore.posicion || '').toLowerCase();
+        if (pos === 'cuerpo' && getActiveClothingByPosition(updatedChar, 'cuerpo').length === 0) {
+          toast.error('Has tirado tu ropa y vas desnud@. Las gentes y autoridades pueden reaccionar mal.', { duration: 10000 });
+        } else if (pos === 'pies' && getActiveClothingByPosition(updatedChar, 'pies').length === 0) {
+          toast.error('Vas descalzo. El terreno irregular puede dañarte. Tirada CON/hora mientras viajes a pie.', { duration: 10000 });
+        } else if (metaBefore.apiSource === 'armadura' || metaBefore.apiSource === 'armadura_piezas') {
+          toast.info('Pieza de armadura tirada. CA recalculada.');
+        } else if (metaBefore.apiSource === 'armas') {
+          toast.warning('Has tirado un arma activa. Si te atacan te pillarán sin arma lista.', { duration: 8000 });
+        }
+      }
+
+      toast.success(res.data.message);
     } catch (err) {
       console.error('Error removing equipment:', err);
-      toast.error(err.response?.data?.detail || 'Error al eliminar equipo');
+      toast.error(err.response?.data?.detail || 'Error al tirar el objeto');
     } finally {
       setProcessing(false);
     }
   };
 
-  // Update carrier (character or mount)
-  const handleUpdateCarrier = async (itemIndex, carriedBy) => {
+  // Update carrier (character or mount) for ANY equipment source.
+  // Fires contextual warnings when moving ACTIVE clothing / armor / weapons to mount.
+  const handleUpdateCarrier = async (itemIndex, carriedBy, source = 'inventario', itemMeta = null) => {
     setProcessing(true);
     try {
       const res = await api.patch(`/characters/${character.id}/equipment/carry`, {
         item_index: itemIndex,
-        carried_by: carriedBy
+        carried_by: carriedBy,
+        source,
       });
-      
-      onCharacterUpdate(res.data);
+
+      const data = res.data || {};
+      const updatedChar = data.character || data;
+      onCharacterUpdate(updatedChar);
       await refreshWeight();
+
+      // Contextual warnings when moving ACTIVE items to mount
+      if (carriedBy === 'montura' && data.deactivated) {
+        const pos = (data.item_posicion || itemMeta?.posicion || '').toLowerCase();
+        if (source === 'armas') {
+          toast.warning(
+            'Has retirado un arma de tu inventario personal. Si la quieres usar tendrás varios turnos perdidos para poder blandirla. Ojo si te pillan desprevenido.',
+            { duration: 8000 }
+          );
+        } else if (source === 'armadura' || source === 'armadura_piezas') {
+          toast.warning(
+            'Has retirado una pieza de tu armadura. Tu CA se ha recalculado sin esta pieza.',
+            { duration: 7000 }
+          );
+        } else if (pos === 'cuerpo') {
+          // Only fire the naked warning if there are no other active cuerpo pieces
+          const stillCovered = getActiveClothingByPosition(updatedChar, 'cuerpo').length > 0;
+          if (!stillCovered) {
+            toast.error(
+              'Has retirado tu ropa y vas desnud@, puedes tener problemas con las personas que te encuentres y con las autoridades. Ves con cuidado.',
+              { duration: 10000 }
+            );
+          }
+        } else if (pos === 'pies') {
+          const stillCovered = getActiveClothingByPosition(updatedChar, 'pies').length > 0;
+          if (!stillCovered) {
+            toast.error(
+              'Vas descalzo, el terreno irregular o cualquier cosa del suelo puede dañarte. Ves con precaución. (Tirada de CON/hora mientras viajes a pie.)',
+              { duration: 10000 }
+            );
+          }
+        }
+      }
+
       toast.success(`Equipo ${carriedBy === 'montura' ? 'movido a la montura' : 'llevado por el personaje'}`);
     } catch (err) {
       console.error('Error updating carrier:', err);
@@ -266,14 +330,53 @@ const EquipmentManagerModal = ({
     }
   };
 
+  // Toggle active state on clothing / armor / weapon.
+  const handleToggleActive = async (itemIndex, activa, source = 'inventario', itemMeta = null) => {
+    setProcessing(true);
+    try {
+      const res = await api.patch(`/characters/${character.id}/equipment/toggle-active`, {
+        item_index: itemIndex,
+        activa,
+        source,
+      });
+      const updatedChar = res.data?.character || res.data;
+      onCharacterUpdate(updatedChar);
+      await refreshWeight();
+
+      // Warnings when deactivating clothing on cuerpo/pies
+      if (!activa) {
+        const pos = (itemMeta?.posicion || '').toLowerCase();
+        if (pos === 'cuerpo') {
+          if (getActiveClothingByPosition(updatedChar, 'cuerpo').length === 0) {
+            toast.error('Vas desnud@. Las gentes y autoridades pueden reaccionar mal.', { duration: 9000 });
+          }
+        } else if (pos === 'pies') {
+          if (getActiveClothingByPosition(updatedChar, 'pies').length === 0) {
+            toast.error('Vas descalzo. Tirada de CON/hora mientras viajes a pie.', { duration: 9000 });
+          }
+        } else if (source === 'armadura' || source === 'armadura_piezas') {
+          toast.info('Pieza de armadura desactivada. CA recalculada.');
+        }
+      }
+    } catch (err) {
+      console.error('Error toggling active:', err);
+      toast.error(err.response?.data?.detail || 'Error al cambiar estado');
+    } finally {
+      setProcessing(false);
+    }
+  };
+
   // Toggle whether the rider is mounted (jinete sobre la montura).
   // Cuando va montado, la montura carga el peso del jinete y de su equipo
   // personal — no sólo el equipo explícitamente cargado en ella.
-  const handleToggleMounted = async (montado) => {
+  const handleToggleMounted = async (montado, mountId = null) => {
     setProcessing(true);
     try {
-      const res = await api.patch(`/characters/${character.id}/mounted`, { montado });
-      onCharacterUpdate({ ...character, montado: res.data.montado });
+      const payload = { montado };
+      if (mountId) payload.mount_id = mountId;
+      const res = await api.patch(`/characters/${character.id}/mounted`, payload);
+      const updated = res.data?.character || { ...character, montado: res.data?.montado };
+      onCharacterUpdate(updated);
       await refreshWeight();
       toast.success(montado ? 'Jinete montado en la montura.' : 'Jinete a pie.');
     } catch (err) {
@@ -281,6 +384,40 @@ const EquipmentManagerModal = ({
       toast.error(err.response?.data?.detail || 'Error al actualizar');
     } finally {
       setProcessing(false);
+    }
+  };
+
+  // === Multi-montura CRUD ===
+  const [renamingMountId, setRenamingMountId] = useState(null);
+  const [renamingValue, setRenamingValue] = useState('');
+  const [mountPickerFor, setMountPickerFor] = useState(null); // { index, source, itemMeta }
+
+  const handleRenameMount = async (mountId, newName) => {
+    if (!newName || !newName.trim()) return;
+    try {
+      const res = await api.patch(
+        `/characters/${character.id}/monturas/${mountId}`,
+        { nombre_personalizado: newName.trim() }
+      );
+      onCharacterUpdate(res.data.character);
+      toast.success('Nombre actualizado');
+    } catch (err) {
+      toast.error(err.response?.data?.detail || 'Error al renombrar');
+    } finally {
+      setRenamingMountId(null);
+      setRenamingValue('');
+    }
+  };
+
+  const handleDeleteMount = async (mountId, nombre) => {
+    if (!confirm(`¿Eliminar la montura ${nombre}? El equipo cargado volverá al personaje.`)) return;
+    try {
+      const res = await api.delete(`/characters/${character.id}/monturas/${mountId}`);
+      onCharacterUpdate(res.data.character);
+      await refreshWeight();
+      toast.success('Montura eliminada');
+    } catch (err) {
+      toast.error(err.response?.data?.detail || 'Error');
     }
   };
 
@@ -377,24 +514,29 @@ const EquipmentManagerModal = ({
         addedWeapons.add(nombre.toLowerCase());
         
         const mejoras = typeof arma === 'object' ? (arma.mejoras || []) : [];
+        const armaObj = typeof arma === 'object' ? arma : {};
         items.push({
           nombre: mejoras.length > 0 ? `${nombre} [${mejoras.join(', ')}]` : nombre,
           nombreBase: nombre,
           categoria: 'armas',
           tipo: 'Arma',
-          peso: arma?.peso_kg || 0,
-          canMove: false, // Weapons always on character
+          peso: armaObj?.peso_kg || 0,
+          canMove: source === 'armas', // Only weapons stored in armas[] are movable by index
+          portadoPor: armaObj?.portado_por || 'personaje',
           index: idx,
-          source: source,
+          source: source === 'armas' ? 'armas' : source,
+          apiSource: source === 'armas' ? 'armas' : null,
+          activa: armaObj?.activa !== false,
+          canToggleActive: source === 'armas',
           mejoras,
         });
       });
     };
     
-    // Weapons from armas array
+    // Weapons from armas array (movibles + toggle activa)
     addWeapons(character.armas, 'armas');
     
-    // Weapons from armas_elegidas (character creation)
+    // Weapons from armas_elegidas (character creation) - legacy, not movible
     addWeapons(character.armas_elegidas, 'elegidas');
     
     // Process equipo_ocupacion (occupation equipment) - weapons, armor, and other items
@@ -465,21 +607,48 @@ const EquipmentManagerModal = ({
       }
     });
     
-    // Armor
+    // Primary armor (character.armadura) - movable + toggle activa
     const armadura = character.armadura;
     if (armadura && (typeof armadura === 'string' ? armadura : armadura.nombre)) {
       const nombre = typeof armadura === 'object' ? armadura.nombre : armadura;
       const mejoras = typeof armadura === 'object' ? (armadura.mejoras || []) : [];
+      const armObj = typeof armadura === 'object' ? armadura : {};
       items.push({
         nombre: mejoras.length > 0 ? `${nombre} [${mejoras.join(', ')}]` : nombre,
         nombreBase: nombre,
         categoria: 'armaduras',
         tipo: 'Armadura',
-        peso: armadura?.peso_kg || 0,
-        canMove: false, // Armor always on character
+        peso: armObj?.peso_kg || 0,
+        canMove: true,
+        portadoPor: armObj?.portado_por || 'personaje',
+        apiSource: 'armadura',
+        activa: armObj?.activa !== false,
+        canToggleActive: true,
+        posicion: armObj?.posicion || 'cuerpo',
         mejoras,
       });
     }
+    
+    // Armor pieces (brazalete, grebas…)
+    (character.armadura_piezas || []).forEach((pieza, idx) => {
+      if (!pieza || typeof pieza !== 'object') return;
+      const nombre = pieza.nombre;
+      if (!nombre) return;
+      items.push({
+        nombre,
+        nombreBase: nombre,
+        categoria: 'armaduras',
+        tipo: `Pieza Armadura${pieza.ca_bonus ? ` (+${pieza.ca_bonus} CA)` : ''}`,
+        peso: pieza?.peso_kg || 0,
+        canMove: true,
+        portadoPor: pieza?.portado_por || 'personaje',
+        apiSource: 'armadura_piezas',
+        activa: pieza?.activa !== false,
+        canToggleActive: true,
+        posicion: pieza?.posicion || 'cuerpo',
+        index: idx,
+      });
+    });
     
     // Armor from armadura_elegida (character creation)
     if (!armadura && character.armadura_elegida) {
@@ -510,8 +679,9 @@ const EquipmentManagerModal = ({
         categoria: nombre?.toLowerCase().includes('escudo') ? 'escudos' : 'equipo',
         tipo: nombre?.toLowerCase().includes('escudo') ? 'Escudo' : 'Equipo',
         peso: item?.peso_kg || 0,
-        canMove: !nombre?.toLowerCase().includes('escudo'), // Shields can't be moved
+        canMove: true,
         portadoPor: item?.portado_por || 'personaje',
+        apiSource: 'equipo',
         index: idx,
         mejoras,
       });
@@ -522,19 +692,34 @@ const EquipmentManagerModal = ({
       const nombre = typeof item === 'object' ? item.nombre : item;
       const cantidad = typeof item === 'object' ? item.cantidad : 1;
       const isMountItem = isMountRelatedItem(nombre);
-      
+      const isRopa = typeof item === 'object' && (item.categoria || '').toLowerCase() === 'ropa';
+      const cat = typeof item === 'object' ? (item.categoria || '').toLowerCase() : '';
+      const isFood = cat === 'consumibles' || cat === 'comida_posadas' || (nombre || '').toLowerCase().includes('raci');
+      const peso_kg = typeof item === 'object' ? Number(item.peso_kg || 0) : 0;
+      const diasComida = isFood && peso_kg > 0 ? (peso_kg * Number(cantidad || 0)) / 0.5 : null;
+
+      // Show fractional cantidades with 2 decimals if applicable
+      const cantidadDisplay = (typeof cantidad === 'number' && !Number.isInteger(cantidad))
+        ? cantidad.toFixed(2)
+        : cantidad;
+
       items.push({
-        nombre: cantidad > 1 ? `${nombre} (x${cantidad})` : nombre,
+        nombre: cantidad > 1 || (typeof cantidad === 'number' && cantidad !== 1) ? `${nombre} (x${cantidadDisplay})` : nombre,
         nombreBase: nombre,
         categoria: item?.categoria || 'equipo_general',
-        tipo: isMountItem ? 'Montura/Accesorios' : 'Inventario',
-        peso: (item?.peso_kg || 0) * cantidad,
-        // Mount items cannot be moved when character has a mount - they always stay on mount
+        tipo: isMountItem ? 'Montura/Accesorios' : (isRopa ? 'Ropa' : (isFood ? 'Comida' : 'Inventario')),
+        peso: peso_kg * Number(cantidad || 0),
         canMove: isMountItem ? false : true,
-        // Mount items are ALWAYS on the mount if character has one, otherwise on character
         portadoPor: isMountItem && hasMount ? 'montura' : (item?.portado_por || 'personaje'),
+        apiSource: 'inventario',
+        activa: isRopa ? (item?.activa !== false) : undefined,
+        canToggleActive: isRopa,
+        posicion: isRopa ? (item?.posicion || 'cuerpo') : undefined,
+        diasComida,
         index: idx,
         isMountItem,
+        isRopa,
+        isFood,
       });
     });
     
@@ -591,45 +776,107 @@ const EquipmentManagerModal = ({
                 )}
               </div>
             )}
-            {hasMount && (
-              <div className="flex flex-col gap-2 bg-blue-900/30 px-3 py-2 rounded">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <Landmark className="w-4 h-4 text-blue-400" />
-                  <span className="font-medium">{detectMount.nombre}:</span>
-                  <span data-testid="mount-weight-display">
-                    {(() => {
-                      // Backend ya calcula peso_total_montura considerando el flag montado.
-                      const pesoBase = parseFloat(weightSummary?.peso_montura || 0);
-                      const pesoTotal = parseFloat(weightSummary?.peso_total_montura ?? pesoBase);
-                      const cap = parseFloat(detectMount.capacidad || 0);
-                      const sobrec = cap > 0 && pesoTotal > cap;
-                      const lbl = character.montado ? 'jinete + equipo' : 'sólo carga';
-                      return (
-                        <span className={sobrec ? 'text-red-300 font-bold' : ''}>
-                          {Math.round(pesoTotal)}/{cap} kg
-                          <span className="text-[10px] text-blue-300 ml-1">({lbl})</span>
-                          {sobrec && <span className="ml-1 text-red-300">⚠️ SOBRECARGADO</span>}
-                        </span>
-                      );
-                    })()}
-                  </span>
+            {(() => {
+              const monturas = character.monturas || [];
+              const detalle = weightSummary?.monturas_detalle || [];
+              if (monturas.length === 0 && !hasMount) return null;
+              return (
+                <div className="flex flex-col gap-2 bg-blue-900/30 px-3 py-2 rounded w-full lg:w-auto" data-testid="mounts-summary">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-xs font-medium text-blue-200 flex items-center gap-1">
+                      <Landmark className="w-3.5 h-3.5" /> Monturas
+                    </span>
+                    <button
+                      className="text-[11px] text-blue-300 hover:text-blue-200 underline"
+                      onClick={async () => {
+                        const nombre = prompt('Especie de la montura (ej. "Poni de Bree"):', 'Poni de Bree');
+                        if (!nombre) return;
+                        const alias = prompt('Nombre personalizado para esta montura:', nombre);
+                        try {
+                          const res = await api.post(`/characters/${character.id}/monturas`, {
+                            nombre_original: nombre,
+                            nombre_personalizado: alias || nombre,
+                            capacidad_carga: 150,
+                            velocidad: 12,
+                          });
+                          onCharacterUpdate(res.data.character);
+                          await refreshWeight();
+                          toast.success('Montura añadida');
+                        } catch (e) {
+                          toast.error(e.response?.data?.detail || 'Error');
+                        }
+                      }}
+                      data-testid="add-mount-btn"
+                    >
+                      + Añadir
+                    </button>
+                  </div>
+                  {monturas.map((m) => {
+                    const det = detalle.find((d) => d.id === m.id) || {};
+                    const isRenaming = renamingMountId === m.id;
+                    const rides = !!m.es_jinete_activo && !!character.montado;
+                    return (
+                      <div key={m.id} className="flex items-center gap-2 text-xs flex-wrap" data-testid={`mount-row-${m.id}`}>
+                        {isRenaming ? (
+                          <>
+                            <Input
+                              autoFocus
+                              value={renamingValue}
+                              onChange={(e) => setRenamingValue(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') handleRenameMount(m.id, renamingValue);
+                                if (e.key === 'Escape') { setRenamingMountId(null); setRenamingValue(''); }
+                              }}
+                              className="h-6 w-40 text-xs"
+                              data-testid={`rename-input-${m.id}`}
+                            />
+                            <button onClick={() => handleRenameMount(m.id, renamingValue)} className="text-emerald-400 text-[11px]">✓</button>
+                            <button onClick={() => { setRenamingMountId(null); setRenamingValue(''); }} className="text-gray-400 text-[11px]">✕</button>
+                          </>
+                        ) : (
+                          <>
+                            <button
+                              onClick={() => { setRenamingMountId(m.id); setRenamingValue(m.nombre_personalizado || m.nombre_original); }}
+                              className="font-medium text-blue-100 hover:text-white underline-offset-2 hover:underline"
+                              title="Renombrar"
+                              data-testid={`mount-name-${m.id}`}
+                            >
+                              {m.nombre_personalizado || m.nombre_original}
+                            </button>
+                            <span className="text-[10px] text-blue-300 italic">({m.nombre_original})</span>
+                          </>
+                        )}
+                        {det.capacidad > 0 && (
+                          <span className={det.sobrecargada ? 'text-red-300 font-bold' : 'text-blue-200'}>
+                            {Math.round(det.peso_cargado || 0)}/{det.capacidad} kg
+                            {det.sobrecargada && <span className="ml-1">⚠️</span>}
+                          </span>
+                        )}
+                        <label className="flex items-center gap-1 cursor-pointer select-none ml-auto">
+                          <input
+                            type="checkbox"
+                            checked={rides}
+                            onChange={(e) => handleToggleMounted(e.target.checked, m.id)}
+                            disabled={processing}
+                            className="rounded border-blue-400/40 bg-blue-900/40 text-blue-400"
+                            data-testid={`ride-toggle-${m.id}`}
+                          />
+                          <span className="text-blue-200 text-[11px]">montado aquí</span>
+                        </label>
+                        <button
+                          onClick={() => handleDeleteMount(m.id, m.nombre_personalizado || m.nombre_original)}
+                          className="text-red-400 hover:text-red-300 text-[11px]"
+                          title="Eliminar montura"
+                          data-testid={`delete-mount-${m.id}`}
+                        >
+                          <Trash2 className="w-3 h-3" />
+                        </button>
+                      </div>
+                    );
+                  })}
                 </div>
-                {/* Toggle: ¿el jinete va montado? */}
-                <label className="flex items-center gap-2 text-xs cursor-pointer select-none" data-testid="mounted-toggle-label">
-                  <input
-                    type="checkbox"
-                    checked={!!character.montado}
-                    onChange={(e) => handleToggleMounted(e.target.checked)}
-                    disabled={processing}
-                    className="rounded border-blue-400/40 bg-blue-900/40 text-blue-400 focus:ring-blue-400"
-                    data-testid="mounted-toggle"
-                  />
-                  <span className="text-blue-200">
-                    Va montado <span className="text-[10px] text-blue-300/70 italic">(la montura carga al jinete + su equipo)</span>
-                  </span>
-                </label>
-              </div>
-            )}
+              );
+            })()}
           </div>
         </CardHeader>
         
@@ -939,14 +1186,38 @@ const EquipmentManagerModal = ({
                           {!['Arma', 'Armadura', 'Escudo'].includes(item.tipo) && <Package className="w-4 h-4 text-gray-400" />}
                           <div>
                             <span className="font-medium">{item.nombre}</span>
-                            <div className="text-xs text-muted-foreground flex gap-2">
+                            <div className="text-xs text-muted-foreground flex gap-2 flex-wrap">
                               <Badge variant="outline" className="text-xs">{item.tipo}</Badge>
                               {item.peso > 0 && <span>{item.peso.toFixed(2)} kg</span>}
+                              {item.diasComida != null && item.diasComida > 0 && (
+                                <span className="text-emerald-300" data-testid={`dias-comida-${item.nombreBase}`}>
+                                  🍞 {item.diasComida.toFixed(2)} días comida
+                                </span>
+                              )}
                             </div>
                           </div>
                         </div>
                         
                         <div className="flex items-center gap-2">
+                          {/* Active/Inactive toggle for clothing, armor, weapons */}
+                          {item.canToggleActive && (
+                            <button
+                              onClick={() => handleToggleActive(item.index, !item.activa, item.apiSource, item)}
+                              disabled={processing}
+                              title={item.activa ? 'Desactivar (guardar)' : 'Activar (ponerse / empuñar)'}
+                              className={`flex items-center gap-1 rounded px-2 py-1 text-xs ${
+                                item.activa
+                                  ? 'bg-emerald-700/40 text-emerald-300 hover:bg-emerald-700/60'
+                                  : 'bg-gray-700/40 text-gray-400 hover:bg-gray-700/60'
+                              }`}
+                              data-testid={`toggle-active-${item.nombreBase}`}
+                            >
+                              {item.activa ? <Power className="w-3 h-3" /> : <PowerOff className="w-3 h-3" />}
+                              {item.activa ? 'Activa' : 'Guardada'}
+                              {item.posicion && <span className="text-[10px] italic">· {item.posicion}</span>}
+                            </button>
+                          )}
+
                           {/* Mount items indicator - always on mount, no toggle */}
                           {item.isMountItem && hasMount && (
                             <div className="flex items-center gap-1 bg-blue-900/50 rounded p-1 px-2">
@@ -954,7 +1225,7 @@ const EquipmentManagerModal = ({
                               <span className="text-xs text-blue-400">En montura</span>
                             </div>
                           )}
-                          
+
                           {/* Mount items without mount - show person indicator */}
                           {item.isMountItem && !hasMount && (
                             <div className="flex items-center gap-1 bg-amber-900/30 rounded p-1 px-2">
@@ -962,39 +1233,56 @@ const EquipmentManagerModal = ({
                               <span className="text-xs text-amber-400">Sin montura</span>
                             </div>
                           )}
-                          
-                          {/* Carrier toggle for moveable items (NOT mount items) - show if has mount */}
+
+                          {/* Carrier toggle for any moveable item (weapons/armor/inventory) */}
                           {item.canMove && !item.isMountItem && hasMount && (
                             <div className="flex items-center gap-1 bg-secondary/50 rounded p-1">
                               <button
-                                onClick={() => handleUpdateCarrier(item.index, 'personaje')}
+                                onClick={() => handleUpdateCarrier(item.index, 'personaje', item.apiSource || 'inventario', item)}
                                 disabled={processing}
                                 className={`p-1 rounded ${
                                   item.portadoPor !== 'montura' ? 'bg-[hsl(var(--gold))]/30' : 'hover:bg-secondary'
                                 }`}
                                 title="Llevado por personaje"
+                                data-testid={`carry-personaje-${item.nombreBase}`}
                               >
                                 <User className="w-4 h-4" />
                               </button>
                               <button
-                                onClick={() => handleUpdateCarrier(item.index, 'montura')}
+                                onClick={() => {
+                                  const mounts = character.monturas || [];
+                                  if (mounts.length > 1) {
+                                    setMountPickerFor({ index: item.index, source: item.apiSource || 'inventario', itemMeta: item });
+                                  } else {
+                                    handleUpdateCarrier(item.index, 'montura', item.apiSource || 'inventario', item);
+                                  }
+                                }}
                                 disabled={processing}
                                 className={`p-1 rounded ${
                                   item.portadoPor === 'montura' ? 'bg-blue-600/30' : 'hover:bg-secondary'
                                 }`}
                                 title={`Llevado por ${detectMount?.nombre || 'montura'}`}
+                                data-testid={`carry-montura-${item.nombreBase}`}
                               >
                                 <Landmark className="w-4 h-4" />
                               </button>
                             </div>
                           )}
-                          
+
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => handleRemoveEquipment(item.nombreBase || item.nombre, item.categoria)}
+                            onClick={() => setDiscardTarget({
+                              nombreBase: item.nombreBase || item.nombre,
+                              categoria: item.categoria,
+                              activa: item.activa,
+                              posicion: item.posicion,
+                              apiSource: item.apiSource,
+                            })}
                             disabled={processing}
+                            title="Tirar al camino"
                             className="text-red-400 hover:text-red-300 hover:bg-red-900/30"
+                            data-testid={`discard-${item.nombreBase}`}
                           >
                             <Trash2 className="w-4 h-4" />
                           </Button>
@@ -1008,6 +1296,118 @@ const EquipmentManagerModal = ({
           )}
         </CardContent>
       </Card>
+
+      {/* Mount picker: choose which mount to load the item onto */}
+      <AlertDialog open={!!mountPickerFor} onOpenChange={(open) => !open && setMountPickerFor(null)}>
+        <AlertDialogContent className="bg-[hsl(var(--background))] border-blue-500/50">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-blue-300 flex items-center gap-2">
+              <Landmark className="w-5 h-5" />
+              ¿A qué montura lo cargas?
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-muted-foreground">
+              Elige la montura que cargará <strong className="text-foreground">{mountPickerFor?.itemMeta?.nombreBase}</strong>.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="flex flex-col gap-2 py-2">
+            {(character.monturas || []).map((m) => {
+              const det = (weightSummary?.monturas_detalle || []).find((d) => d.id === m.id) || {};
+              return (
+                <button
+                  key={m.id}
+                  className="flex items-center justify-between gap-2 rounded border border-blue-500/30 bg-blue-900/20 px-3 py-2 text-sm hover:bg-blue-900/40 transition-colors"
+                  data-testid={`mount-picker-${m.id}`}
+                  onClick={() => {
+                    const picker = mountPickerFor;
+                    setMountPickerFor(null);
+                    if (picker) {
+                      // Include mount_id in call via custom handler
+                      (async () => {
+                        setProcessing(true);
+                        try {
+                          const res = await api.patch(`/characters/${character.id}/equipment/carry`, {
+                            item_index: picker.index,
+                            carried_by: 'montura',
+                            source: picker.source,
+                            mount_id: m.id,
+                          });
+                          onCharacterUpdate(res.data?.character || res.data);
+                          await refreshWeight();
+                          toast.success(`Cargado en ${m.nombre_personalizado || m.nombre_original}`);
+                        } catch (e) {
+                          toast.error(e.response?.data?.detail || 'Error');
+                        } finally {
+                          setProcessing(false);
+                        }
+                      })();
+                    }
+                  }}
+                >
+                  <span className="font-medium text-blue-100">{m.nombre_personalizado || m.nombre_original}</span>
+                  {det.capacidad > 0 && (
+                    <span className={det.sobrecargada ? 'text-red-300' : 'text-blue-300'}>
+                      {Math.round(det.peso_cargado || 0)}/{det.capacidad} kg
+                      {det.sobrecargada && ' ⚠️'}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel data-testid="mount-picker-cancel">Cancelar</AlertDialogCancel>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* AlertDialog: Tirar al camino */}
+      <AlertDialog open={!!discardTarget} onOpenChange={(open) => !open && setDiscardTarget(null)}>
+        <AlertDialogContent className="bg-[hsl(var(--background))] border-red-500/50">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-red-400 flex items-center gap-2">
+              <Trash2 className="w-5 h-5" />
+              ¿Tirar al camino?
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-muted-foreground space-y-2">
+              <span className="block">
+                Vas a tirar <strong className="text-foreground">{discardTarget?.nombreBase}</strong> al
+                camino. Esta acción no se puede deshacer: perderás el objeto definitivamente.
+              </span>
+              {discardTarget?.activa && (discardTarget?.posicion === 'cuerpo') && (
+                <span className="block text-red-300">
+                  ⚠️ Esta pieza te cubre el cuerpo. Si la tiras y no llevas otra ropa activa,
+                  <strong> irás desnud@</strong>.
+                </span>
+              )}
+              {discardTarget?.activa && (discardTarget?.posicion === 'pies') && (
+                <span className="block text-red-300">
+                  ⚠️ Esta pieza te cubre los pies. Si la tiras y no llevas otro calzado,
+                  <strong> irás descalzo</strong> (tirada CON/hora al viajar a pie).
+                </span>
+              )}
+              {discardTarget?.activa && discardTarget?.apiSource === 'armas' && (
+                <span className="block text-red-300">
+                  ⚠️ Esta arma está activa. Te quedarás sin arma lista y tardarás turnos en empuñar otra.
+                </span>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel data-testid="discard-cancel">Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                const target = discardTarget;
+                setDiscardTarget(null);
+                if (target) handleRemoveEquipment(target.nombreBase, target.categoria, target);
+              }}
+              className="bg-red-600 hover:bg-red-700 text-white"
+              data-testid="discard-confirm"
+            >
+              Tirarlo
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

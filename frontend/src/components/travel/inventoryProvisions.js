@@ -38,15 +38,18 @@ export const isOdreItem = (item) => {
 
 /**
  * Given a character's inventario array, return:
- *   { raciones, odres: [{idx, litros_actuales}], totalLitros }
+ *   { raciones, diasComidaTotal, totalFoodMassKg, odres: [{idx, litros_actuales}], totalLitros }
  *
- * `raciones` accounts for "Pack de N raciones" multipliers. Each entry in
- * `odres` represents ONE physical odre with its current liters.
+ * - `raciones` only counts classic "raciones de viaje" items (backward compat).
+ * - `diasComidaTotal` counts ALL food items (raciones + consumibles + comida_posadas)
+ *   using the `peso / 0.5` formula (1 día de comida = 0.5 kg).
+ * - Each entry in `odres` represents ONE physical odre with its current liters.
  */
 export const summarizeProvisions = (inventario = []) => {
   let raciones = 0;
   const odres = [];
   let aguaSuelta = 0;
+  let totalFoodMassKg = 0;
 
   inventario.forEach((item, idx) => {
     if (!item) return;
@@ -55,10 +58,8 @@ export const summarizeProvisions = (inventario = []) => {
     if (isRationItem(item)) {
       const packSize = matchPackSize(item.nombre);
       raciones += cantidad * (packSize || 1);
+      totalFoodMassKg += Number(item.peso_kg || 0) * cantidad;
     } else if (isOdreItem(item)) {
-      // Each unit of cantidad is one odre with its own litros_actuales.
-      // If the item stores a single shared litros_actuales we use it for all
-      // physical units (best-effort).
       const litros = item.litros_actuales != null
         ? Number(item.litros_actuales)
         : ODRE_CAPACIDAD_L;
@@ -67,24 +68,35 @@ export const summarizeProvisions = (inventario = []) => {
       }
     } else if (lower(item.nombre).includes('agua') && item.litros) {
       aguaSuelta += Number(item.litros) * cantidad;
+    } else {
+      // Other food items (categoria=consumibles/comida_posadas)
+      const cat = lower(item.categoria);
+      if (cat === 'consumibles' || cat === 'comida_posadas') {
+        totalFoodMassKg += Number(item.peso_kg || 0) * cantidad;
+      }
     }
   });
 
   const totalLitros =
     odres.reduce((s, o) => s + o.litros_actuales, 0) + aguaSuelta;
 
-  return { raciones, odres, aguaSuelta, totalLitros };
+  const diasComidaTotal = totalFoodMassKg / 0.5;
+
+  return { raciones, odres, aguaSuelta, totalLitros, totalFoodMassKg, diasComidaTotal };
 };
 
 /**
  * How many days of food/water this character has, assuming standard intake.
+ * `diasComida` uses the total food mass (all consumibles), not just raciones.
  */
 export const daysOfProvisions = (inventario = []) => {
   const s = summarizeProvisions(inventario);
   return {
-    diasComida: Math.floor(s.raciones / RACIONES_POR_DIA),
+    diasComida: Math.floor(s.diasComidaTotal || 0),
     diasAgua: Math.floor(s.totalLitros / LITROS_AGUA_POR_DIA),
     raciones: s.raciones,
+    diasComidaTotal: s.diasComidaTotal,
+    totalFoodMassKg: s.totalFoodMassKg,
     litros: s.totalLitros,
   };
 };

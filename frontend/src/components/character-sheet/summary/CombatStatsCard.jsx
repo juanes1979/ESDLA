@@ -1,10 +1,12 @@
 /**
  * Combat Stats Card - HP, Shadow, AC, Speed, Hit Die
  */
-import { Heart, Shield, Footprints, Swords, Eye, Plus, Minus } from 'lucide-react';
+import { Heart, Shield, Footprints, Swords, Eye, Plus, Minus, ShieldAlert, ShieldOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { useEncumbrance } from '@/hooks/useEncumbrance';
+import { computeEffectiveCA } from '@/utils/armorClass';
+import { isNaked, isBarefoot } from '@/utils/clothingState';
 
 const getModifier = (score) => Math.floor((score - 10) / 2);
 
@@ -16,7 +18,10 @@ const CombatStatsCard = ({
 }) => {
   const attributes = character.atributos || {};
   const hpPercent = (character.puntos_golpe_actual / character.puntos_golpe_max) * 100;
-  const ac = character.clase_armadura || (10 + getModifier(attributes.destreza || 10));
+  // CA efectiva recalculada al vuelo (depende de las piezas activas).
+  const ac = computeEffectiveCA(character);
+  const desnudo = isNaked(character);
+  const descalzo = isBarefoot(character);
   // Cálculo en VIVO (mismo hook que la pestaña Equipo). Ya no depende de
   // `character.estorbo_metros` persistido — así no hay inconsistencias.
   const enc = useEncumbrance(character);
@@ -95,7 +100,7 @@ const CombatStatsCard = ({
         <div className="card-parchment rounded-lg p-4 text-center">
           <Shield className="w-6 h-6 mx-auto mb-2 text-[hsl(var(--magic-blue))]" />
           <p className="text-xs text-muted-foreground">Clase Armadura</p>
-          <p className="font-heading text-2xl text-foreground">{ac}</p>
+          <p className="font-heading text-2xl text-foreground" data-testid="effective-ca">{ac}</p>
         </div>
         <div className="card-parchment rounded-lg p-4 text-center">
           <Footprints className="w-6 h-6 mx-auto mb-2 text-[hsl(var(--gold))]" />
@@ -130,6 +135,26 @@ const CombatStatsCard = ({
           <p className="font-heading text-xl text-foreground">{character.dado_golpe}</p>
         </div>
       </div>
+
+      {/* Clothing / Footwear warnings */}
+      {(desnudo || descalzo) && (
+        <div className="flex flex-wrap gap-2" data-testid="clothing-warnings">
+          {desnudo && (
+            <div className="flex items-center gap-2 rounded-md border border-red-500/40 bg-red-900/30 px-3 py-2 text-xs text-red-200"
+                 data-testid="naked-badge">
+              <ShieldOff className="w-4 h-4 text-red-300" />
+              <span><strong>Desnud@.</strong> Las gentes y autoridades pueden reaccionar mal.</span>
+            </div>
+          )}
+          {descalzo && (
+            <div className="flex items-center gap-2 rounded-md border border-amber-500/40 bg-amber-900/30 px-3 py-2 text-xs text-amber-200"
+                 data-testid="barefoot-badge">
+              <ShieldAlert className="w-4 h-4 text-amber-300" />
+              <span><strong>Descalzo.</strong> Tirada de CON/hora mientras viajas a pie.</span>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Shadow Points */}
       <div className="card-parchment rounded-lg p-4">

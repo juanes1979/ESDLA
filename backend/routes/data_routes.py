@@ -1068,6 +1068,7 @@ async def get_equipment_catalog(
     # Build full result from catalog
     all_keys = [
         "herramientas", "juegos", "instrumentos_musicales", "equipo_general",
+        "ropa",
         "consumibles", "comida_posadas", "hierbas", "venenos",
         "armas_sencillas_cc", "armas_sencillas_distancia", "armas_marciales_cc", "armas_marciales_distancia",
         "armaduras_ligeras", "armaduras_medias", "armaduras_pesadas", "escudos",
