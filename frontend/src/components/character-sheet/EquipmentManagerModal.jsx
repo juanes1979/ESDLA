@@ -1262,6 +1262,15 @@ const EquipmentManagerModal = ({
                                 </span>
                               )}
                             </div>
+                            {/* Comments — shown in player sheet ONLY (per
+                                user request). Empty comments render as a
+                                discreet em-dash. */}
+                            <div
+                              className="text-xs italic text-amber-100/70 mt-0.5"
+                              data-testid={`item-comentarios-${item.nombreBase}`}
+                            >
+                              {item.comentarios?.trim() ? item.comentarios : '—'}
+                            </div>
                           </div>
                         </div>
                         

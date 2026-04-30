@@ -540,7 +540,14 @@ const EquipmentSection = ({
                       <div className="flex gap-1 justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                         <button
                           onClick={() => {
-                            setEditingItem({ ...item, categoria: cat.key });
+                            // Always remember the original DB name so a
+                            // later "Cambiar categoría" or rename works
+                            // even if the user has tweaked the input.
+                            setEditingItem({
+                              ...item,
+                              categoria: cat.key,
+                              _originalNombre: item.nombre,
+                            });
                             setShowItemEditor(true);
                           }}
                           className="p-1 hover:text-[hsl(var(--gold))]"
@@ -1022,6 +1029,65 @@ const ItemEditorModal = ({ item, setItem, onSave, onClose, saving, availableRegi
               </div>
             );
           })()}
+
+          {/* Pack & ration controls (visible for food / consumable
+              categories) + universal comments box. */}
+          <div className="border-t border-border/30 pt-4 space-y-3" data-testid="item-pack-ration-fields">
+            {(['consumibles', 'comida_posadas', 'equipo_general', 'hierbas'].includes(item.categoria)) && (
+              <>
+                <div className="flex items-center gap-3">
+                  <input
+                    id="ed-racion-diaria"
+                    type="checkbox"
+                    checked={!!item.es_racion_diaria}
+                    onChange={(e) => updateField('es_racion_diaria', e.target.checked)}
+                    className="w-4 h-4"
+                    data-testid="field-es-racion-diaria"
+                  />
+                  <label htmlFor="ed-racion-diaria" className="text-sm">
+                    Es ración diaria (1 unidad = 1 día completo de comida)
+                  </label>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-sm text-muted-foreground">
+                      Unidades por paquete
+                      <span className="block text-xs italic">
+                        Cuántas unidades trae un "paquete" (cerezas: 50; raciones: 10).
+                        El peso registrado es POR UNIDAD individual.
+                      </span>
+                    </label>
+                    <Input
+                      type="number"
+                      step="1"
+                      min="1"
+                      value={item.unidades_paquete ?? 1}
+                      onChange={(e) => updateField('unidades_paquete', parseInt(e.target.value, 10) || 1)}
+                      data-testid="field-unidades-paquete"
+                    />
+                  </div>
+                  {item.es_racion_diaria && (
+                    <div className="text-xs text-amber-200/70 self-end pb-2 italic">
+                      Al consumir, se descuenta 1 unidad por personaje y día,
+                      sin importar el ritmo de marcha.
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
+
+            <div>
+              <label className="text-sm text-muted-foreground">Comentarios (visible en la ficha del jugador)</label>
+              <textarea
+                rows={2}
+                value={item.comentarios ?? ''}
+                onChange={(e) => updateField('comentarios', e.target.value)}
+                placeholder="Notas, descripción, sabor narrativo… (opcional)"
+                className="w-full px-3 py-2 bg-background border border-border rounded text-sm"
+                data-testid="field-comentarios"
+              />
+            </div>
+          </div>
 
           {/* Settlement availability */}
           <div className="border-t border-border/30 pt-4">
