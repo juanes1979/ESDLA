@@ -182,6 +182,35 @@ const JourneyMiniMap = ({ origenCoords, destinoCoords, origenNombre, destinoNomb
   // Add natural variation to make the path look hand-drawn
   const naturalPath = createNaturalPath(pathInPixelCoords, isDirectLine ? 50 : 25);
 
+  // Pre-compute cumulative distances along `naturalPath` so we can place
+  // event markers by ARC-LENGTH (i.e., real progress along the route)
+  // instead of by point-index. Sampling by index causes events to bunch
+  // up wherever the path has many close-together control points (curves
+  // / bends), which is exactly the issue the user reported.
+  const cumDist = [0];
+  for (let i = 1; i < naturalPath.length; i++) {
+    const dx = naturalPath[i].x - naturalPath[i - 1].x;
+    const dy = naturalPath[i].y - naturalPath[i - 1].y;
+    cumDist.push(cumDist[i - 1] + Math.hypot(dx, dy));
+  }
+  const totalArc = cumDist[cumDist.length - 1] || 1;
+
+  const pointAtProgress = (progress) => {
+    const target = Math.max(0, Math.min(1, progress)) * totalArc;
+    // Binary search would be nicer, but linear is fine for ~hundreds of pts.
+    for (let i = 1; i < cumDist.length; i++) {
+      if (cumDist[i] >= target) {
+        const segLen = cumDist[i] - cumDist[i - 1] || 1;
+        const t = (target - cumDist[i - 1]) / segLen;
+        return {
+          x: naturalPath[i - 1].x + (naturalPath[i].x - naturalPath[i - 1].x) * t,
+          y: naturalPath[i - 1].y + (naturalPath[i].y - naturalPath[i - 1].y) * t,
+        };
+      }
+    }
+    return naturalPath[naturalPath.length - 1];
+  };
+
   // Calculate viewBox to show entire route CENTERED with padding
   // IMPORTANT: Always include both origin and destination markers
   const allX = [origen.x, destino.x, ...naturalPath.map(p => p.x)].filter(v => !isNaN(v));
@@ -404,18 +433,9 @@ const JourneyMiniMap = ({ origenCoords, destinoCoords, origenNombre, destinoNomb
                 const eventCasilla = Number(event.casilla || idx + 1);
                 const eventProgress = Math.min(1, Math.max(0, eventCasilla / Math.max(1, casillaTotal)));
 
-                // Two ways to place: along detailed path, or interpolated on the straight line
-                let point;
-                if (pathInPixelCoords.length > 2) {
-                  const pathIndex = Math.floor(eventProgress * (pathInPixelCoords.length - 1));
-                  point = pathInPixelCoords[Math.min(pathIndex, pathInPixelCoords.length - 1)];
-                } else {
-                  // Linear interpolation between origin and destination
-                  point = {
-                    x: origen.x + (destino.x - origen.x) * eventProgress,
-                    y: origen.y + (destino.y - origen.y) * eventProgress,
-                  };
-                }
+                // Place by REAL distance along the route so events don't
+                // bunch up on path bends (see `pointAtProgress` above).
+                const point = pointAtProgress(eventProgress);
                 if (!point) return null;
 
                 // Small offset so multiple events at same casilla don't overlap completely

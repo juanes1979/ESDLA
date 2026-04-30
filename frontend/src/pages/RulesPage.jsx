@@ -4,7 +4,7 @@
  */
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Users, Swords, Shield, BookOpen, Sparkles, Moon, Map, Loader2, Package, Search, ChevronDown, ChevronUp, Plus, Copy, Edit, User, Scroll, Trash2, Crown, Skull, MapPin, FileText, Printer, Check, AlertTriangle, Coins, Settings, CloudSun } from 'lucide-react';
+import { ArrowLeft, Users, Swords, Shield, BookOpen, Sparkles, Moon, Map, Loader2, Package, Search, ChevronDown, ChevronUp, Plus, Copy, Edit, User, Scroll, Trash2, Crown, Skull, MapPin, FileText, Printer, Check, AlertTriangle, Coins, Settings, CloudSun, FolderOpen } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -100,6 +100,13 @@ const RulesPage = () => {
   const [editingEquipmentItem, setEditingEquipmentItem] = useState(null);
   const [savingEquipmentItem, setSavingEquipmentItem] = useState(false);
   const [availableRegions, setAvailableRegions] = useState([]);
+
+  // "Cambiar categoría" dialog (lets admin move an item to a different
+  // category — only common fields are preserved; category-specific fields
+  // are dropped so the user can re-enter them in the new editor).
+  const [showChangeCategoryDialog, setShowChangeCategoryDialog] = useState(false);
+  const [changeCategoryTarget, setChangeCategoryTarget] = useState('');
+  const [changingCategory, setChangingCategory] = useState(false);
   
   // Category availability editor states
   const [showCategoryAvailabilityEditor, setShowCategoryAvailabilityEditor] = useState(false);
@@ -875,6 +882,61 @@ const RulesPage = () => {
     }
   };
 
+  // Move an equipment item to a different category. Only the fields that
+  // are universally shared are preserved (nombre, precio, moneda, peso_kg,
+  // comentarios, availability flags). All category-specific fields (dano,
+  // ca, alcance, herida, velocidad, capacidad_carga, capacidad_kg, efecto…)
+  // are dropped on purpose so the user can re-enter them in the new editor.
+  const handleChangeCategory = async () => {
+    if (!editingEquipmentItem || !changeCategoryTarget) return;
+    const fromCategoria = editingEquipmentItem.categoria;
+    if (fromCategoria === changeCategoryTarget) {
+      toast.error('La categoría destino es la misma que la actual.');
+      return;
+    }
+    setChangingCategory(true);
+    try {
+      const COMMON_FIELDS = [
+        'nombre', 'precio', 'moneda', 'peso_kg', 'comentarios',
+        'nivel_asentamiento', 'regiones_disponibles',
+      ];
+      const preserved = {};
+      COMMON_FIELDS.forEach((f) => {
+        if (editingEquipmentItem[f] !== undefined) preserved[f] = editingEquipmentItem[f];
+      });
+      const originalNombre = editingEquipmentItem._originalNombre || editingEquipmentItem.nombre;
+      await api.put('/data/equipment-catalog/move-item', {
+        from_categoria: fromCategoria,
+        to_categoria: changeCategoryTarget,
+        nombre: originalNombre,
+        item_data: preserved,
+        replace: true,
+      });
+      toast.success(`"${preserved.nombre}" movido a "${changeCategoryTarget}". Rellena los campos específicos de la nueva categoría.`);
+      // Reload catalog and re-open the item in the new category for editing
+      const equipment = await getEquipmentCatalog();
+      setData(equipment);
+      const newItems = equipment[changeCategoryTarget] || [];
+      const moved = newItems.find((it) => it.nombre === preserved.nombre);
+      if (moved) {
+        setEditingEquipmentItem({
+          ...moved,
+          categoria: changeCategoryTarget,
+          _originalNombre: moved.nombre,
+        });
+      } else {
+        setShowEquipmentItemEditor(false);
+        setEditingEquipmentItem(null);
+      }
+      setShowChangeCategoryDialog(false);
+      setChangeCategoryTarget('');
+    } catch (err) {
+      toast.error('Error al cambiar categoría: ' + (err.response?.data?.detail || err.message));
+    } finally {
+      setChangingCategory(false);
+    }
+  };
+
   // Settlement levels for availability
   const SETTLEMENT_LEVELS = [
     { id: 'aldea', name: 'Aldea', icon: '🏡' },
@@ -1168,9 +1230,29 @@ const RulesPage = () => {
               <Edit className="w-5 h-5" />
               Editar: {item.nombre}
             </h2>
-            <Button variant="ghost" size="sm" onClick={() => { setShowEquipmentItemEditor(false); setEditingEquipmentItem(null); }}>
-              ✕
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setChangeCategoryTarget('');
+                  setShowChangeCategoryDialog(true);
+                }}
+                className="border-amber-600/50 text-amber-300 hover:bg-amber-900/30"
+                data-testid="change-category-btn"
+                title="Mover este equipo a otra categoría (los campos específicos se borrarán; el nombre, precio, peso y disponibilidad se mantienen)"
+              >
+                <FolderOpen className="w-4 h-4 mr-1" />
+                Cambiar categoría
+              </Button>
+              <Button variant="ghost" size="sm" onClick={() => { setShowEquipmentItemEditor(false); setEditingEquipmentItem(null); }}>
+                ✕
+              </Button>
+            </div>
+          </div>
+          
+          <div className="px-4 pt-3 text-xs text-muted-foreground italic">
+            Categoría actual: <strong className="text-[hsl(var(--gold))]">{item.categoria}</strong>
           </div>
           
           <div className="p-4 space-y-4">
@@ -4791,6 +4873,56 @@ const RulesPage = () => {
       
       {/* Equipment Item Editor Modal */}
       {renderEquipmentItemEditor()}
+
+      {/* Cambiar categoría — diálogo simple, sin shadcn Dialog para evitar
+          colisiones con el modal de edición ya abierto. */}
+      {showChangeCategoryDialog && editingEquipmentItem && (
+        <div className="fixed inset-0 bg-black/80 z-[60] flex items-center justify-center p-4" data-testid="change-category-dialog">
+          <div className="bg-[hsl(var(--background))] border border-amber-700/50 rounded-lg w-full max-w-md p-5 space-y-4">
+            <h3 className="font-heading text-lg text-amber-300 flex items-center gap-2">
+              <FolderOpen className="w-5 h-5" />
+              Cambiar categoría de "{editingEquipmentItem.nombre}"
+            </h3>
+            <p className="text-xs text-muted-foreground">
+              Categoría actual: <strong className="text-[hsl(var(--gold))]">{editingEquipmentItem.categoria}</strong>.
+              Al cambiar, se conservarán <em>nombre, precio, peso, comentarios y disponibilidad</em>; los campos
+              específicos (daño, CA, alcance, capacidad, etc.) se borrarán para que los rellenes en la nueva categoría.
+            </p>
+            <div>
+              <label className="text-sm text-muted-foreground">Nueva categoría</label>
+              <select
+                value={changeCategoryTarget}
+                onChange={(e) => setChangeCategoryTarget(e.target.value)}
+                className="w-full h-10 px-2 bg-background border border-border rounded text-sm"
+                data-testid="change-category-select"
+              >
+                <option value="">— Selecciona —</option>
+                {Object.keys(data || {})
+                  .filter((k) => !k.startsWith('_') && Array.isArray((data || {})[k]))
+                  .filter((k) => k !== editingEquipmentItem.categoria)
+                  .sort()
+                  .map((k) => (
+                    <option key={k} value={k}>{k}</option>
+                  ))}
+              </select>
+            </div>
+            <div className="flex justify-end gap-2 pt-2">
+              <Button variant="ghost" onClick={() => setShowChangeCategoryDialog(false)} disabled={changingCategory}>
+                Cancelar
+              </Button>
+              <Button
+                onClick={handleChangeCategory}
+                disabled={!changeCategoryTarget || changingCategory}
+                className="bg-amber-700 hover:bg-amber-600 text-white"
+                data-testid="change-category-confirm"
+              >
+                {changingCategory ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Check className="w-4 h-4 mr-2" />}
+                Mover y editar
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
       
       {/* Category Availability Editor Modal */}
       {renderCategoryAvailabilityEditor()}

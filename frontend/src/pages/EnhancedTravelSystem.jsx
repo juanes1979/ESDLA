@@ -957,8 +957,10 @@ const EnhancedTravelSystem = () => {
             desventaja_clima: esExtremo,
             ventaja_clima: esFavorable,
             clima_label: weather?.estado_label || null,
-            // Propagate season disadvantage for saves (otoño/invierno)
-            desventaja_salvacion: !!eventRes.data.desventaja_estacion,
+            // Disadvantage on saves applies ONLY when the day's weather is
+            // actually adverse — NOT just because the season is autumn /
+            // winter. Without bad weather there is no save penalty.
+            desventaja_salvacion: esExtremo,
             terreno_categoria: eventRes.data.terreno_categoria,
           },
           clima_dia: weather,

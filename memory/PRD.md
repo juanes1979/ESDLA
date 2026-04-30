@@ -2,6 +2,23 @@
 
 ## Current State (2026-04-30)
 
+### ✅ Iteración 91 — 4 fixes en bloque (pensado antes de tocar)
+**(Smoke + curl: LocationWidget centrado en Bree ✓; move-item/replace=true preserva sólo 4 campos comunes ✓)**
+
+1. **LocationWidget — fórmula CSS background-position era incorrecta**
+   Causa real: `background-position: X% Y%` NO centra el bg en el punto (X%, Y%). Para un bg de 400% y centrar en bg-point Q%, la fórmula correcta es `P = (Q − 12.5) × 4/3` (sólo aplica a 400%). Solución: reemplazar el truco de `background-image` por un `<img>` posicionado explícitamente con `width: 400%`, `left: 50% − x*4%`, `top: 50% − (100−y)*4%`. Ahora Bree (35.6, 71.4) aparece exactamente debajo del marcador rojo.
+
+2. **Desventaja por estación → desventaja por clima adverso**
+   `EnhancedTravelSystem.jsx`: `desventaja_salvacion: esExtremo` (en vez de `!!data.desventaja_estacion`). Etiquetas en `DayByDayView` y `GlobalJourneyView` cambiadas a "Clima adverso → Desventaja en TS y prueba". Si el día es despejado en otoño → sin desventaja; si hay tormenta/ventisca/nieve fuerte → desventaja.
+
+3. **Eventos en el Mapa del Viaje colocados por arc-length**
+   `JourneyMiniMap.jsx`: pre-cómputo de distancias acumuladas a lo largo de `naturalPath` y nueva función `pointAtProgress(p)` que coloca cada evento en el punto donde la distancia recorrida = `casilla / casillaTotal × distancia_total`. Antes se usaba `pathIndex = floor(p × N)`, lo que amontonaba eventos en curvas con muchos puntos de control.
+
+4. **"Cambiar categoría" en Reglas → Equipo (Editar)**
+   `RulesPage.jsx`: nuevo botón "Cambiar categoría" en la cabecera del editor de items. Abre un diálogo con un select de las 24 categorías. Al confirmar, llama al endpoint `move-item` con `replace=true` (nuevo flag añadido a `MoveItemRequest` en `data_routes.py`), preservando sólo los campos comunes (`nombre, precio, moneda, peso_kg, comentarios, nivel_asentamiento, regiones_disponibles`). Tras mover, el editor reabre el item en la nueva categoría para que el usuario rellene los campos específicos. Verificado por curl: tras mover un item de `consumibles` a `herramientas`, sólo quedan 4 campos (sin `es_comida`, `porcentaje_racion`).
+
+---
+
 ### ✅ Iteración 90 — 3 fixes en bloque (zoom-overlay, LocationWidget Y-flip, botones edit-categoría)
 **(Smoke test: zoom 300% en MapPickDialog → overlay rojo perfectamente encajado sobre Mar de Belegaer + cordilleras de las Montañas Nubladas individuales)**
 

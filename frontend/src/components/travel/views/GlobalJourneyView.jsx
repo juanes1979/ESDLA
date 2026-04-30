@@ -418,7 +418,7 @@ const GlobalJourneyView = ({
                   </div>
                 </div>
                 {currentEvent.resolucion.desventaja_salvacion && (
-                  <Badge className="bg-blue-600 mt-2">Desventaja (Otoño/Invierno)</Badge>
+                  <Badge className="bg-blue-600 mt-2">Desventaja (Clima adverso)</Badge>
                 )}
               </div>
             );

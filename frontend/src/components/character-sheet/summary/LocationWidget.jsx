@@ -64,19 +64,21 @@ const LocationWidget = ({ character, onUpdate }) => {
     }
   };
 
-  // Compute mini-map crop: centered on (x, y) of the character, ~25% of map width.
-  // x, y are stored as percentages (0..100) in DB convention where Y=0 is at
-  // the BOTTOM of the map (see JourneyMiniMap.jsx). CSS background-position
-  // uses Y=0 at the TOP, so we MUST flip Y to crop the right area of the map.
-  const miniMapStyle = ubicacion?.x != null && ubicacion?.y != null
-    ? {
-        backgroundImage: `url(${MAP_IMG})`,
-        // Scale up so we get ~4× zoom (i.e., we show 25 % of the map at most)
-        backgroundSize: '400%',
-        backgroundPosition: `${ubicacion.x}% ${100 - ubicacion.y}%`,
-        backgroundRepeat: 'no-repeat',
-      }
-    : null;
+  // Compute mini-map crop. The map uses Y=0 at the BOTTOM (project
+  // convention, see JourneyMiniMap.jsx). We want to center the visible
+  // 96×96 px box on the character's (x, y) point of the map. CSS
+  // `background-position` with percentages does NOT center on bg-point P
+  // (it aligns bg-point P with container-point P), so it gives wrong
+  // crops for arbitrary points. We instead render an <img> at 400%
+  // width inside the container and translate it so the desired point is
+  // exactly at the centre.
+  const screenY = ubicacion?.y != null ? 100 - ubicacion.y : null;
+  const hasCoords = ubicacion?.x != null && screenY != null;
+  // Image is 4× wider/taller than the box. To center on bg-point (qx, qy)%:
+  //   img_left% = 50% − qx × 4%   →   `${50 - qx * 4}%`
+  //   img_top%  = 50% − qy × 4%   →   `${50 - qy * 4}%`
+  const imgLeftPct = hasCoords ? 50 - ubicacion.x * 4 : 0;
+  const imgTopPct = hasCoords ? 50 - screenY * 4 : 0;
 
   return (
     <>
@@ -87,20 +89,36 @@ const LocationWidget = ({ character, onUpdate }) => {
         {/* Mini-map */}
         <div
           className="relative w-24 h-24 rounded-md border border-[hsl(var(--gold))/40] overflow-hidden flex-shrink-0 bg-black/20"
-          style={miniMapStyle || {}}
           data-testid="location-minimap"
         >
-          {miniMapStyle ? (
-            <div
-              className="absolute"
-              style={{
-                left: '50%', top: '50%', transform: 'translate(-50%, -50%)',
-                width: 14, height: 14, borderRadius: '50%',
-                background: 'rgba(220,38,38,0.95)',
-                border: '2px solid #fff',
-                boxShadow: '0 0 8px rgba(220,38,38,0.8)',
-              }}
-            />
+          {hasCoords ? (
+            <>
+              <img
+                src={MAP_IMG}
+                alt=""
+                draggable="false"
+                style={{
+                  position: 'absolute',
+                  width: '400%',
+                  height: 'auto',
+                  left: `${imgLeftPct}%`,
+                  top: `${imgTopPct}%`,
+                  pointerEvents: 'none',
+                  userSelect: 'none',
+                  maxWidth: 'none',
+                }}
+              />
+              <div
+                className="absolute"
+                style={{
+                  left: '50%', top: '50%', transform: 'translate(-50%, -50%)',
+                  width: 14, height: 14, borderRadius: '50%',
+                  background: 'rgba(220,38,38,0.95)',
+                  border: '2px solid #fff',
+                  boxShadow: '0 0 8px rgba(220,38,38,0.8)',
+                }}
+              />
+            </>
           ) : (
             <div className="w-full h-full flex items-center justify-center text-xs text-muted-foreground italic">
               Sin ubicación

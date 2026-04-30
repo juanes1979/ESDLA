@@ -1149,6 +1149,11 @@ class MoveItemRequest(BaseModel):
     from_categoria: str
     to_categoria: str
     item_data: Optional[dict] = None  # Additional item data to update
+    # When True, the moved item will be REPLACED with `item_data` instead
+    # of merged. Used by "Cambiar categoría" so that fields specific to the
+    # original category (dano, CA, alcance…) get dropped — the user must
+    # re-enter them in the new category's editor.
+    replace: bool = False
 
 @router.put("/equipment-catalog/move-item")
 async def move_equipment_item(request: MoveItemRequest):
@@ -1171,9 +1176,12 @@ async def move_equipment_item(request: MoveItemRequest):
     if not item_to_move:
         raise HTTPException(status_code=404, detail=f"Item '{request.nombre}' not found in '{request.from_categoria}'")
     
-    # Update item data if provided
+    # Apply the new data: either fully replace (drop old fields) or merge.
     if request.item_data:
-        item_to_move.update(request.item_data)
+        if request.replace:
+            item_to_move = dict(request.item_data)
+        else:
+            item_to_move.update(request.item_data)
     
     # Add to destination category
     dest_items = catalog.get(request.to_categoria, [])

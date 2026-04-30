@@ -404,7 +404,7 @@ const DayByDayView = ({
                   )}
                   {currentEvent.resolucion?.desventaja_salvacion && (
                     <Badge variant="outline" className="bg-purple-900/30 border-purple-500/40 text-purple-200">
-                      Otoño/Invierno → Desventaja en TS y prueba
+                      Clima adverso → Desventaja en TS y prueba
                     </Badge>
                   )}
                 </div>
