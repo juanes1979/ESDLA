@@ -179,15 +179,27 @@ export default function CampDialog({
         const isSentinel = m.id === sentinelId;
 
         // Base: -1 auto. Con nat20 -> -2. Centinela recibe la mitad.
-        // Si la tirada principal falla → +1 fatiga. Si la tirada extra
-        // (clima/sombra) falla → +1 fatiga adicional. Si es la 2.ª
-        // acampada consecutiva: recuperación automática sin tiradas.
+        // Si la tirada principal falla → fatiga adicional según margen:
+        //    Falla por <5  → +1 nivel
+        //    Falla por 5-9 → +2 niveles
+        //    Falla por ≥10 → +3 niveles
+        // Si la tirada extra (clima/sombra) falla → +1 fatiga adicional.
+        // Si es la 2.ª acampada consecutiva: recuperación automática sin tiradas.
         let reduccion = 1;
+        let margenFallo = 0;
         if (skipSave) {
           reduccion = 1;
         } else {
-          if (!pasa) reduccion = -1;          // falla → +1 fatiga
-          else if (nat20) reduccion = 2;
+          if (!pasa) {
+            margenFallo = cd - total;        // siempre > 0 cuando falla
+            // Margen-aware fatigue penalty (LOTR 5e house rule, Feb 2026):
+            let nivelesFatiga = 1;            // <5 → +1
+            if (margenFallo >= 10) nivelesFatiga = 3;
+            else if (margenFallo >= 5) nivelesFatiga = 2;
+            reduccion = -nivelesFatiga;       // negativo = suma fatiga
+          } else if (nat20) {
+            reduccion = 2;
+          }
           if (saveExtra && !pasoSavExtra) {
             reduccion -= 1; // suma fatiga adicional (resta a la reducción)
           }
@@ -217,6 +229,8 @@ export default function CampDialog({
             total,
             cd,
             exito: pasa,
+            margenFallo: pasa ? 0 : margenFallo,
+            nivelesFatiga: pasa ? 0 : Math.max(1, -reduccion),
             saveExtra,
             climaExtremo,
             enSombra,

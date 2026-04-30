@@ -2,6 +2,27 @@
 
 ## Current State (2026-04-30)
 
+### ✅ Iteración 70 — Sistema de Raciones + bug fix Move-Item (Feb 2026)
+
+**Backend (`/app/backend/routes/`)**
+- `data_routes.py::move_equipment_item` ahora hace match **case-insensitive y Unicode-normalizado**, con fallback por prefijo. Resuelve el error recurrente `Item 'Raciones (1 día)' not found in 'equipo_general'` que aparecía cuando el usuario renombraba el item en el editor antes de pulsar "Cambiar categoría". El error 404 ahora incluye una pista contextual con los primeros candidatos disponibles.
+- `travel_routes.py::TravelRulesConfig` añade campos editables:
+  - `fatigue_fail_by_less_than_5_levels` (def. 1) — fallar la salvación de cansancio por menos de 5 ya añade fatiga.
+  - `consumo_comida_{lento,normal,rapido}` (raciones/día por personaje).
+  - `consumo_agua_{lento,normal,rapido}` (L/día por personaje).
+  - `marcha_forzada_consumo_pct` y `marcha_forzada_velocidad_pct`: arrays de 4 valores (% extra por hora 1-4).
+
+**Frontend**
+- `components/rules/sections/TravelRulesSection.jsx` — nueva tarjeta "Raciones y Marcha Forzada" en el editor de reglas + nueva columna "fallo <5" en Fatiga.
+- `components/travel/inventoryProvisions.js` — `isRationItem` ahora respeta el flag `es_racion_diaria` del catálogo y `unidades_paquete` (sin necesidad de embeber la cantidad en el nombre).
+- `components/travel/CampDialog.jsx` — la salvación contra cansancio aplica fatiga **por margen**: <5 → +1, 5-9 → +2, ≥10 → +3 niveles. La crónica registra el margen y los niveles aplicados.
+- `pages/EnhancedTravelSystem.jsx::consumeDailyProvisions` — ahora consume raciones/agua según `travelRules` + ritmo + horas de marcha forzada (antes hardcoded a 1 ración + 2 L).
+
+**Tests**
+- Nuevo `backend/tests/test_rationing_it70.py` — 5 tests pasan (2 reglas + 3 move-item: case-insensitive, prefix-fallback, error helpful).
+
+---
+
 ### ✅ Iteración 95 — REFACTOR de los 2 archivos gigantes (P0 que pediste 7 veces)
 
 **Backend — `character_routes.py` (2.691 líneas → 4 módulos)**

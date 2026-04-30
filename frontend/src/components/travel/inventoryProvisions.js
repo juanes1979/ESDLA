@@ -27,8 +27,11 @@ const matchPackSize = (nombre) => {
 };
 
 export const isRationItem = (item) => {
+  // Item explicitly flagged in the catalogue overrides any name guess.
+  if (item?.es_racion_diaria === true) return true;
+  if (item?.es_racion_diaria === false) return false;
   const n = lower(item?.nombre);
-  return n.includes('raci');  // ración, raciones, ration
+  return n.includes('raci');  // ración, raciones, ration (legacy fallback)
 };
 
 export const isOdreItem = (item) => {
@@ -56,8 +59,14 @@ export const summarizeProvisions = (inventario = []) => {
     const cantidad = Number(item.cantidad || 1);
 
     if (isRationItem(item)) {
-      const packSize = matchPackSize(item.nombre);
-      raciones += cantidad * (packSize || 1);
+      // Si el item viene del catálogo con `unidades_paquete` definido,
+      // 1 unidad de inventario = 1 día de comida × unidades_paquete.
+      // Si no, intentamos detectar "(N raciones)" en el nombre, y si
+      // tampoco aparece, asumimos 1 ración por unidad (legacy).
+      const packSize = Number(item.unidades_paquete)
+        || matchPackSize(item.nombre)
+        || 1;
+      raciones += cantidad * packSize;
       totalFoodMassKg += Number(item.peso_kg || 0) * cantidad;
     } else if (isOdreItem(item)) {
       const litros = item.litros_actuales != null

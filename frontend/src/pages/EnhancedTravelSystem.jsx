@@ -982,13 +982,29 @@ const EnhancedTravelSystem = () => {
   }, [journeyCalc?.ruta?.refugios_en_ruta]);
   
   // =============== DAILY CONSUMPTION ===============
-  // Consume food and water for each party member, apply fatigue if supplies run out
+  // Consume food and water for each party member, apply fatigue if supplies run out.
+  // El consumo base depende de las reglas editables (`travelRules`):
+  //   consumo_comida_{ritmo} y consumo_agua_{ritmo} (raciones/día y L/día por personaje).
+  //   Si hay marcha forzada (1-4 h), se aplica un % de consumo extra.
   const consumeDailyProvisions = useCallback(() => {
     // Acompañantes consume the same as miembros
     const todosViajeros = [...config.miembros.filter(m => m.papeles?.length > 0), ...(config.acompanantes || [])];
     const numPersonajes = todosViajeros.length;
-    const comidaConsumidaHoy = numPersonajes; // 1 ration per person
-    const aguaConsumidaHoy = numPersonajes * 2; // 2L per person
+
+    // Base consumption per person from rules (fallback to old behaviour: 1 ración + 2 L).
+    const ritmo = config.ritmo || 'normal';
+    const baseFood = Number(travelRules?.[`consumo_comida_${ritmo}`] ?? 1.0);
+    const baseWater = Number(travelRules?.[`consumo_agua_${ritmo}`] ?? 2.0);
+
+    // Forced march extra-consumption modifier (per hour).
+    const horasMF = Math.max(0, Math.min(4, Number(config.horasMarchaForzada || 0)));
+    const consumoPctArr = travelRules?.marcha_forzada_consumo_pct || [10, 20, 35, 50];
+    const mfMultiplier = horasMF > 0 ? 1 + (Number(consumoPctArr[horasMF - 1] || 0) / 100) : 1;
+
+    const foodPerPerson = baseFood * mfMultiplier;
+    const waterPerPerson = baseWater * mfMultiplier;
+    const comidaConsumidaHoy = numPersonajes * foodPerPerson;
+    const aguaConsumidaHoy = numPersonajes * waterPerPerson;
 
     setPartyProvisions(prev => {
       const nuevaComidaDisponible = prev.comidaTotal - prev.comidaConsumida - comidaConsumidaHoy;
@@ -1029,15 +1045,15 @@ const EnhancedTravelSystem = () => {
         setDiasSinAgua(0);
       }
       
-      // Show warnings if running low
-      if (nuevaComidaDisponible < numPersonajes && nuevaComidaDisponible >= 0) {
-        toast.warning(`¡Comida escasa! Queda para ${Math.floor(nuevaComidaDisponible / numPersonajes)} día(s).`);
+      // Show warnings if running low (using the actual per-day consumption)
+      if (nuevaComidaDisponible < comidaConsumidaHoy && nuevaComidaDisponible >= 0) {
+        toast.warning(`¡Comida escasa! Queda para ${Math.floor(nuevaComidaDisponible / Math.max(0.01, comidaConsumidaHoy))} día(s).`);
       } else if (nuevaComidaDisponible < 0) {
         toast.error(`¡Sin comida! +1 nivel de fatiga para cada miembro.`);
       }
-      
-      if (nuevaAguaDisponible < numPersonajes * 2 && nuevaAguaDisponible >= 0) {
-        toast.warning(`¡Agua escasa! Queda para ${Math.floor(nuevaAguaDisponible / (numPersonajes * 2))} día(s).`);
+
+      if (nuevaAguaDisponible < aguaConsumidaHoy && nuevaAguaDisponible >= 0) {
+        toast.warning(`¡Agua escasa! Queda para ${Math.floor(nuevaAguaDisponible / Math.max(0.01, aguaConsumidaHoy))} día(s).`);
       } else if (nuevaAguaDisponible < 0) {
         toast.error(`¡Sin agua! +2 niveles de fatiga para cada miembro.`);
       }
@@ -1048,8 +1064,8 @@ const EnhancedTravelSystem = () => {
         aguaConsumida: prev.aguaConsumida + aguaConsumidaHoy
       };
     });
-  }, [config.miembros, config.acompanantes, provisionFatigue]);
-  
+  }, [config.miembros, config.acompanantes, config.ritmo, config.horasMarchaForzada, travelRules, provisionFatigue]);
+
   // Refill water near towns/rivers
   const refillWaterNearTown = useCallback((townName) => {
     const numPersonajes = config.miembros.filter(m => m.papeles?.length > 0).length + (config.acompanantes || []).length;

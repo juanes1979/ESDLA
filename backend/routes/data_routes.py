@@ -1157,24 +1157,59 @@ class MoveItemRequest(BaseModel):
 
 @router.put("/equipment-catalog/move-item")
 async def move_equipment_item(request: MoveItemRequest):
-    """Move an item from one category to another"""
+    """Move an item from one category to another.
+
+    Matching is **case-insensitive and Unicode-normalised** so that minor
+    differences (NFC vs NFD accents, capitalisation) don't break the move.
+    If the exact name doesn't match, falls back to the FIRST item whose
+    normalised name starts with the requested name (handles cases where
+    the user shortened the name in the editor without saving first).
+    """
+    import unicodedata
     catalog = await db.equipment_catalog.find_one({"_id": "main"})
     if not catalog:
         catalog = await db.equipment_catalog.find_one({})
     if not catalog:
         raise HTTPException(status_code=404, detail="Equipment catalog not found")
-    
+
+    def norm(s: str) -> str:
+        return unicodedata.normalize('NFC', (s or '').strip().casefold())
+
+    target = norm(request.nombre)
+
     # Find and remove item from source category
     source_items = catalog.get(request.from_categoria, [])
     item_to_move = None
-    
+    found_idx = None
+
+    # 1) Exact normalised match
     for i, item in enumerate(source_items):
-        if item.get('nombre') == request.nombre:
-            item_to_move = source_items.pop(i)
+        if norm(item.get('nombre', '')) == target:
+            found_idx = i
             break
-    
+    # 2) Prefix fallback (handles in-editor renames like
+    #    "Raciones (1 día) (Paquete de 10)" → "Raciones (1 día)")
+    if found_idx is None:
+        candidates = [
+            i for i, it in enumerate(source_items)
+            if norm(it.get('nombre', '')).startswith(target) and target
+        ]
+        if len(candidates) == 1:
+            found_idx = candidates[0]
+
+    if found_idx is not None:
+        item_to_move = source_items.pop(found_idx)
+
     if not item_to_move:
-        raise HTTPException(status_code=404, detail=f"Item '{request.nombre}' not found in '{request.from_categoria}'")
+        available = [it.get('nombre', '?') for it in source_items[:5]]
+        raise HTTPException(
+            status_code=404,
+            detail=(
+                f"Item '{request.nombre}' no encontrado en '{request.from_categoria}'. "
+                f"Primeros items disponibles: {available}. "
+                "Pista: si renombraste el item antes de mover, guarda primero o usa el nombre original."
+            ),
+        )
     
     # Apply the new data: either fully replace (drop old fields) or merge.
     if request.item_data:

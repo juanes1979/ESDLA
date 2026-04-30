@@ -954,13 +954,22 @@ const TravelRulesSection = () => {
                   {/* Fatigue Rules */}
                   <Card className="p-4 border-red-500/30">
                     <h4 className="font-bold text-red-400 mb-3">Fatiga</h4>
-                    <div className="grid grid-cols-4 gap-4">
+                    <div className="grid grid-cols-5 gap-4">
                       <div>
                         <Label className="text-xs">CD Base Fatiga</Label>
                         <Input
                           type="number"
                           value={rules.fatigue_base_cd}
                           onChange={(e) => setRules({...rules, fatigue_base_cd: parseInt(e.target.value)})}
+                        />
+                      </div>
+                      <div>
+                        <Label className="text-xs">Niveles (fallo &lt;5)</Label>
+                        <Input
+                          type="number"
+                          value={rules.fatigue_fail_by_less_than_5_levels ?? 1}
+                          onChange={(e) => setRules({...rules, fatigue_fail_by_less_than_5_levels: parseInt(e.target.value)})}
+                          data-testid="rules-fatigue-fail-lt5"
                         />
                       </div>
                       <div>
@@ -986,6 +995,82 @@ const TravelRulesSection = () => {
                           value={rules.forced_march_cd}
                           onChange={(e) => setRules({...rules, forced_march_cd: parseInt(e.target.value)})}
                         />
+                      </div>
+                    </div>
+                  </Card>
+
+                  {/* Rationing & Forced March Rules (NEW Feb 2026) */}
+                  <Card className="p-4 border-amber-500/30" data-testid="rules-rationing-card">
+                    <h4 className="font-bold text-amber-300 mb-3">Raciones y Marcha Forzada</h4>
+                    <p className="text-xs text-muted-foreground mb-3">
+                      Consumo base por personaje y día. <strong>1 ración</strong> = 1 día completo de comida (independiente del peso).
+                      Los porcentajes de marcha forzada se aplican sobre el consumo del ritmo elegido.
+                    </p>
+                    <div className="grid grid-cols-3 gap-4 mb-4">
+                      {[
+                        ['lento', 'Lento'],
+                        ['normal', 'Normal'],
+                        ['rapido', 'Rápido'],
+                      ].map(([key, label]) => (
+                        <div key={key} className="space-y-2 bg-black/20 rounded p-2">
+                          <p className="text-xs font-bold text-amber-300">{label}</p>
+                          <div>
+                            <Label className="text-[10px] text-muted-foreground">Comida (raciones/día)</Label>
+                            <Input
+                              type="number" step="0.05"
+                              value={rules[`consumo_comida_${key}`] ?? (key === 'rapido' ? 1.25 : 1.0)}
+                              onChange={(e) => setRules({...rules, [`consumo_comida_${key}`]: parseFloat(e.target.value)})}
+                              data-testid={`rules-consumo-comida-${key}`}
+                            />
+                          </div>
+                          <div>
+                            <Label className="text-[10px] text-muted-foreground">Agua (L/día)</Label>
+                            <Input
+                              type="number" step="0.1"
+                              value={rules[`consumo_agua_${key}`] ?? (key === 'rapido' ? 2.5 : 2.0)}
+                              onChange={(e) => setRules({...rules, [`consumo_agua_${key}`]: parseFloat(e.target.value)})}
+                              data-testid={`rules-consumo-agua-${key}`}
+                            />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <Label className="text-xs">Marcha forzada — % consumo extra (1h, 2h, 3h, 4h)</Label>
+                        <div className="grid grid-cols-4 gap-2 mt-1">
+                          {[0, 1, 2, 3].map((idx) => (
+                            <Input
+                              key={`mfc-${idx}`}
+                              type="number" step="1"
+                              value={(rules.marcha_forzada_consumo_pct || [10, 20, 35, 50])[idx]}
+                              onChange={(e) => {
+                                const arr = [...(rules.marcha_forzada_consumo_pct || [10, 20, 35, 50])];
+                                arr[idx] = parseFloat(e.target.value);
+                                setRules({...rules, marcha_forzada_consumo_pct: arr});
+                              }}
+                              data-testid={`rules-mf-consumo-${idx + 1}h`}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                      <div>
+                        <Label className="text-xs">Marcha forzada — % velocidad extra (1h, 2h, 3h, 4h)</Label>
+                        <div className="grid grid-cols-4 gap-2 mt-1">
+                          {[0, 1, 2, 3].map((idx) => (
+                            <Input
+                              key={`mfv-${idx}`}
+                              type="number" step="1"
+                              value={(rules.marcha_forzada_velocidad_pct || [15, 30, 45, 60])[idx]}
+                              onChange={(e) => {
+                                const arr = [...(rules.marcha_forzada_velocidad_pct || [15, 30, 45, 60])];
+                                arr[idx] = parseFloat(e.target.value);
+                                setRules({...rules, marcha_forzada_velocidad_pct: arr});
+                              }}
+                              data-testid={`rules-mf-velocidad-${idx + 1}h`}
+                            />
+                          ))}
+                        </div>
                       </div>
                     </div>
                   </Card>

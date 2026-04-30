@@ -76,6 +76,11 @@ class TravelRulesConfig(BaseModel):
     id: str = "travel_rules_main"
     # Fatigue base
     fatigue_base_cd: int = 10
+    # Niveles de fatiga aplicados según el margen de fallo:
+    #   • Fallar por menos de 5    → +fatigue_fail_by_less_than_5_levels  (def. 1)
+    #   • Fallar por 5  a 9        → +fatigue_fail_by_5_levels            (def. 2)
+    #   • Fallar por 10 o más      → +fatigue_fail_by_10_levels           (def. 3)
+    fatigue_fail_by_less_than_5_levels: int = 1
     fatigue_fail_by_5_levels: int = 2
     fatigue_fail_by_10_levels: int = 3
     # Orientation check
@@ -87,6 +92,22 @@ class TravelRulesConfig(BaseModel):
     # Forced march
     forced_march_cd: int = 15
     forced_march_km_per_hour: float = 6.0
+    # Rationing — base consumption per character per day, by pace.
+    #   1 ración = 1 día completo de comida (no afecta peso al consumir).
+    #   El agua se mide en litros/día.
+    consumo_comida_lento: float = 1.0
+    consumo_comida_normal: float = 1.0
+    consumo_comida_rapido: float = 1.25
+    consumo_agua_lento: float = 2.0
+    consumo_agua_normal: float = 2.0
+    consumo_agua_rapido: float = 2.5
+    # Forced March — extra hour modifiers expressed as PORCENTAJE adicional
+    # de consumo por cada hora forzada (1, 2, 3, 4 h). Aplicado SOBRE el
+    # consumo del ritmo elegido. Ej: forzar 2 h con 'normal' → ×(1+0.20).
+    marcha_forzada_consumo_pct: List[float] = [10.0, 20.0, 35.0, 50.0]
+    # Forced March — extra metres per turn ganados por cada hora forzada
+    # (modificador positivo a la velocidad efectiva). Ej: 1 h = +15 %.
+    marcha_forzada_velocidad_pct: List[float] = [15.0, 30.0, 45.0, 60.0]
     # Speed settings (days per hex)
     speed_slow_threshold: int = 5  # feet
     speed_slow_days: int = 2
