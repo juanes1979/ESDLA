@@ -2270,9 +2270,15 @@ async def toggle_mounted(
 
     await db.characters.update_one({"_id": character_id}, {"$set": update})
     updated = await db.characters.find_one({"_id": character_id})
+    active_mount_id = None
+    if montado and monturas_list:
+        for m in update.get("monturas", []):
+            if m.get("es_jinete_activo"):
+                active_mount_id = m.get("id")
+                break
     return {
         "montado": bool(montado),
-        "mount_id": update.get("monturas", [{}])[0].get("id") if "monturas" in update else None,
+        "mount_id": active_mount_id,
         "character": serialize_doc(updated),
     }
 

@@ -1,6 +1,100 @@
 # LOTR 5e RPG - Product Requirements Document
 
-## Current State (2026-04-29)
+## Current State (2026-04-30)
+
+### ✅ Iteración 83 — Ropa, Multi-montura y Consumo proporcional de comida
+**(Fases 1 + 2 + 3 completas en una sola sesión — backend 100% testing agent 11/11)**
+
+**FASE 1 — Categoría Ropa, armas/armaduras movibles, activa, tirar al camino**
+- Nueva categoría **`ropa`** en `equipment_catalog` con 24 items migrados
+  desde `equipo_general` (botas, capas, mudas, túnicas, vestidos, capucha).
+  Cada item tiene campo `posicion ∈ {cabeza, cuerpo, piernas, brazos, pies}`.
+  Migración: `/app/backend/migrations/migrate_ropa_category.py`.
+- Campo **`activa` bool** en ropa, armas y armaduras. Permite múltiples piezas
+  activas por posición (el usuario eligió la opción "varias", no "una").
+- Nuevo endpoint `PATCH /api/characters/{id}/equipment/toggle-active` con
+  source ∈ {inventario, armadura, armadura_piezas, armas}.
+- `PATCH /api/characters/{id}/equipment/carry` ahora acepta `source` y
+  `mount_id`. **Armas y armaduras** pueden moverse a la montura; mover a
+  la montura **auto-desactiva** el item (`activa=False`).
+- Nuevo campo `ca_bonus` en piezas de armadura (brazaletes +1 CA, grebas, etc.).
+  Las piezas secundarias (posicion != cuerpo o ca_bonus>0) van a
+  `character.armadura_piezas[]`; la principal sigue en `character.armadura`.
+- **CA dinámica** en `/app/frontend/src/utils/armorClass.js`: recalcula al
+  vuelo desde las piezas activas. `CombatStatsCard` la muestra directa.
+- Helpers `isNaked`, `isBarefoot`, `getActiveClothingByPosition` en
+  `/app/frontend/src/utils/clothingState.js`.
+- **Avisos contextuales** (toasts + badges en la hoja):
+  - Sin ninguna ropa activa cubriendo cuerpo → *"Vas desnud@…"* (rojo).
+  - Sin ropa activa cubriendo pies → *"Vas descalzo… (tirada CON/hora al viajar)"*.
+  - Arma activa → montura → *"Has retirado un arma… turnos perdidos"*.
+  - Pieza de armadura → *"CA recalculada"*.
+- **"Tirar al camino"** con `AlertDialog` (confirmación + resumen de
+  consecuencias) reemplaza el antiguo `confirm()` del navegador.
+- `weight-summary` pasa a considerar `portado_por=montura` también para
+  armas, armadura principal y piezas de armadura.
+
+**FASE 2 — Multi-montura con nombres**
+- Migración `/app/backend/migrations/migrate_multi_mount.py` consolida
+  `character.montura` (objeto único) + ponis del inventario en un único
+  array `character.monturas[]`. Cada montura tiene
+  `{id, nombre_original, nombre_personalizado, especie, capacidad_carga,
+  velocidad, constitucion, equipo, es_jinete_activo}`.
+- Endpoints nuevos:
+  - `POST /api/characters/{id}/monturas` (crear)
+  - `PATCH /api/characters/{id}/monturas/{mount_id}` (renombrar/ajustar)
+  - `DELETE /api/characters/{id}/monturas/{mount_id}` (elimina y reasigna
+    los items que lo tenían a `personaje`)
+- `PATCH /api/characters/{id}/mounted` admite ahora `mount_id` opcional
+  para elegir qué montura monta el jinete; actualiza `es_jinete_activo`.
+- `weight-summary` devuelve `monturas_detalle[]` con peso/capacidad por
+  montura y flag `sobrecargada`/`lleva_jinete`.
+- `EquipmentManagerModal` reemplaza el bloque único de montura por un
+  panel con TODAS las monturas: rename inline, botón "+ Añadir", checkbox
+  "montado aquí" por montura, botón eliminar. Al mover un item a la
+  montura con >1 monturas disponibles se muestra un `AlertDialog` picker
+  para elegir cuál la carga.
+
+**FASE 3 — Consumo proporcional de comida**
+- Nuevo campo derivado **`dias_comida = peso_kg × cantidad / 0.5`** que
+  se muestra en la pestaña de gestión para cualquier item de comida
+  (consumibles + comida_posadas + raciones).
+- `inventoryProvisions.summarizeProvisions` extendido: devuelve también
+  `diasComidaTotal` y `totalFoodMassKg` (suma todos los food items por
+  masa, no solo raciones clásicas). `checkProvisionsForJourney` y la
+  inicialización de `partyProvisions` ahora usan `diasComidaTotal`.
+- Nuevo helper `/app/frontend/src/components/travel/proportionalFoodConsumption.js`:
+  `consumeProportionalFood(inventario, gramos)` resta N gramos de comida
+  **proporcionalmente por masa** a TODOS los food items. Soporta
+  `cantidad` fraccionaria (`Math.round(×100)/100` → 2 decimales) y
+  elimina items con cantidad ≤ 0.005.
+- `persistProvisionsToInventory` (al terminar viaje) ahora usa
+  `consumeProportionalFood` en vez de restar solo raciones. El agua sigue
+  drenándose de los odres como antes.
+
+**Migraciones ejecutadas**
+- `migrate_ropa_category`: 24 items → categoría ropa; 34 personajes
+  actualizados con metadatos (categoria=ropa, posicion, activa=true).
+- `migrate_multi_mount`: 5 personajes migrados a `monturas[]`.
+
+**Testing**
+- Testing agent `/app/test_reports/iteration_66.json` — **11/11 PASS**
+  (Ropa catalog, ropa flow, toggle-active, carry+deactivate, multi-mount
+  CRUD, weight-summary per-mount, mounted with mount_id, regresión de
+  /rest/short, /rest/long, /travel/calculate-journey).
+- Test file creado: `/app/backend/tests/test_equipment_multi_mount_ropa_it66.py`.
+
+**Archivos clave nuevos/modificados**
+- `/app/backend/routes/character_routes.py` (nuevos modelos, endpoints,
+  weight-summary extendido)
+- `/app/backend/routes/data_routes.py` (ropa en all_keys)
+- `/app/backend/migrations/migrate_ropa_category.py`, `migrate_multi_mount.py`
+- `/app/frontend/src/components/character-sheet/EquipmentManagerModal.jsx`
+- `/app/frontend/src/components/character-sheet/summary/CombatStatsCard.jsx`
+- `/app/frontend/src/utils/clothingState.js`, `armorClass.js`
+- `/app/frontend/src/components/travel/proportionalFoodConsumption.js`
+- `/app/frontend/src/components/travel/inventoryProvisions.js`
+- `/app/frontend/src/pages/EnhancedTravelSystem.jsx`
 
 ### ✅ Iteración 82 — Hotfix crash + dropdown completo + auto-recalc velocidad
 - **Bug crítico (crash "ALGO SE HA ROTO EN EL VIAJE")**: al togglear "a
