@@ -2,6 +2,19 @@
 
 ## Current State (2026-04-30)
 
+### ✅ Iteración 88 — Map Picker: overlay rojo de zonas infranqueables + bloqueo de clic
+**(Smoke test: clic en tierra válida (50.2, 50.2) → marcador OK + región "Rohan"; clic en agua/montañas → bloqueado con toast)**
+
+**Origen del bug** — El usuario reportó "No se pudo encontrar una ruta válida" tras hacer clic en un punto que él creía Eriador (32.7, 18.6). Investigación: ese punto cae sobre un polígono de tipo `agua` (sin que la imagen del mapa lo deje claro). El pathfinder funcionaba correctamente; el problema era que el origen estaba en agua.
+
+**Fix (continuación de iter87)**
+1. `MapPickDialog`: nueva capa SVG superpuesta con polígonos rojos translúcidos sobre **todas** las zonas `agua` + `infranqueable` del catálogo `/api/data/terrain-polygons`.
+2. **ResizeObserver** + `onLoad` re-anclan el overlay al rect real de la imagen, manteniendo la alineación cuando cambia zoom/pan/tamaño de ventana.
+3. **Click bloqueado**: ray-casting `pointInPolygon` rechaza con `toast.error("No puedes elegir ese punto: está sobre agua/zona infranqueable")` antes de fijar el marcador.
+4. Texto explicativo en el header del diálogo: "Las zonas en rojo son infranqueables (agua / barreras) y no se pueden seleccionar."
+
+---
+
 ### ✅ Iteración 87 — Map Picker: clic en cualquier punto del mapa (sin snap a ubicaciones)
 **(Backend curl PASS para `calculate-journey` y `compare-routes` con coords custom)**
 

@@ -1,29 +1,47 @@
 /**
- * MapPickDialog — full-screen empty map picker.
+ * MapPickDialog — full-screen empty map picker with impassable-zone overlay.
  *
- * Shows the raw Middle-earth player map and lets the user click ANY point.
- * The marker appears EXACTLY at the click coordinates (no snapping). The
- * picked point is returned with its raw (x, y) percentages and a synthetic
- * id `custom:x,y`. The closest known location is used silently to inherit
- * a region for climate/terrain calculations.
+ * Lets the user click ANY non-blocked point of the map. Impassable terrain
+ * (`infranqueable`, `agua`) is rendered as a translucent red polygon overlay
+ * fetched from `/api/data/terrain-polygons`. Clicks inside such zones are
+ * rejected with a toast.
  *
- * UX:
- *  - Click + drag to pan
- *  - Mouse wheel to zoom (1× → 6×)
- *  - Click without dragging to drop a marker at that exact point
- *  - "Centrar" button restores zoom 1× / center
+ * The marker is dropped at the EXACT click position (no snap to known
+ * locations). A nearest-location lookup is used silently to inherit a
+ * region for climate/terrain calculations.
  */
 import { useEffect, useRef, useState } from 'react';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { ZoomIn, ZoomOut, Crosshair, MapPin, X as XIcon } from 'lucide-react';
+import { ZoomIn, ZoomOut, Crosshair, MapPin, X as XIcon, AlertTriangle } from 'lucide-react';
+import { toast } from 'sonner';
+import api from '@/services/api';
 
 const MAP_SRC = '/mapa_jugadores.jpg';
 const ZOOM_MIN = 1;
 const ZOOM_MAX = 6;
 const ZOOM_STEP = 0.25;
+
+// Polygon types that should be visually blocked / non-clickable.
+const BLOCKED_TYPES = new Set(['infranqueable', 'agua']);
+
+// Ray-casting point-in-polygon test. `points` is an array of {x, y} in the
+// same (percentage) coordinate system as the click.
+function pointInPolygon(x, y, points) {
+  let inside = false;
+  for (let i = 0, j = points.length - 1; i < points.length; j = i++) {
+    const xi = points[i].x;
+    const yi = points[i].y;
+    const xj = points[j].x;
+    const yj = points[j].y;
+    const intersect = ((yi > y) !== (yj > y)) &&
+      (x < ((xj - xi) * (y - yi)) / (yj - yi + 1e-12) + xi);
+    if (intersect) inside = !inside;
+  }
+  return inside;
+}
 
 const MapPickDialog = ({
   open,
@@ -39,14 +57,51 @@ const MapPickDialog = ({
   const [dragging, setDragging] = useState(false);
   const dragStart = useRef(null);
   const moved = useRef(false);
-  const [picked, setPicked] = useState(null); // { x, y, regionGuess }
+  const [picked, setPicked] = useState(null); // { x, y, region }
+  const [blockedPolys, setBlockedPolys] = useState([]); // [{type, points:[{x,y}]}]
+  // Force re-render when image loads / pan / zoom change so the SVG overlay
+  // and marker re-anchor to the image's fresh bounding rect.
+  const [, setMeasureTick] = useState(0);
+  const measure = () => setMeasureTick((t) => t + 1);
 
   useEffect(() => {
     if (open) {
       setZoom(1);
       setPan({ x: 0, y: 0 });
       setPicked(null);
+      // Fetch impassable / water polygons to draw a red overlay and reject
+      // clicks inside them.
+      (async () => {
+        try {
+          const res = await api.get('/data/terrain-polygons');
+          const polys = (res.data?.polygons || []).filter(
+            (p) => BLOCKED_TYPES.has(p.type),
+          );
+          setBlockedPolys(polys);
+        } catch {
+          setBlockedPolys([]);
+        }
+      })();
     }
+  }, [open]);
+
+  // Re-measure on window resize so the overlay stays aligned in fullscreen
+  // / responsive layouts.
+  useEffect(() => {
+    if (!open) return undefined;
+    window.addEventListener('resize', measure);
+    return () => window.removeEventListener('resize', measure);
+  }, [open]);
+
+  // ResizeObserver on the image so the SVG overlay re-anchors whenever the
+  // rendered image size changes (load, layout shifts, container resize).
+  useEffect(() => {
+    if (!open || !imgRef.current || typeof ResizeObserver === 'undefined') {
+      return undefined;
+    }
+    const ro = new ResizeObserver(() => measure());
+    ro.observe(imgRef.current);
+    return () => ro.disconnect();
   }, [open]);
 
   const onWheel = (e) => {
@@ -71,9 +126,8 @@ const MapPickDialog = ({
 
   const onMouseUp = (e) => {
     setDragging(false);
-    if (moved.current) return; // it was a drag, not a click
+    if (moved.current) return;
     if (!imgRef.current) return;
-    // Use the image's REAL on-screen bounding rect (post-transform).
     const rect = imgRef.current.getBoundingClientRect();
     const imgX = e.clientX - rect.left;
     const imgY = e.clientY - rect.top;
@@ -81,9 +135,16 @@ const MapPickDialog = ({
     const xPct = (imgX / rect.width) * 100;
     const yPct = (imgY / rect.height) * 100;
 
-    // Silently look up the closest known location to inherit region/terrain
-    // (used by the climate/event system). The marker itself is placed at the
-    // raw click coordinates — never on the snapped location.
+    // Reject clicks inside an impassable / water polygon.
+    for (const poly of blockedPolys) {
+      if (pointInPolygon(xPct, yPct, poly.points || [])) {
+        const label = poly.type === 'agua' ? 'agua' : 'zona infranqueable';
+        toast.error(`No puedes elegir ese punto: está sobre ${label}.`);
+        return;
+      }
+    }
+
+    // Closest known location for region inheritance (silent).
     let nearest = null;
     let bestDistSq = Infinity;
     for (const loc of locations) {
@@ -132,9 +193,13 @@ const MapPickDialog = ({
             <MapPin className="w-5 h-5 text-[hsl(var(--gold))]" />
             Marca en el mapa el {target === 'origen' ? 'punto de partida' : 'destino'}
           </DialogTitle>
-          <DialogDescription>
-            Arrastra para mover, rueda para hacer zoom. Haz clic en cualquier
-            punto del mapa para fijarlo como {target === 'origen' ? 'origen' : 'destino'}.
+          <DialogDescription className="flex items-center gap-2 flex-wrap">
+            <span>Arrastra para mover, rueda para hacer zoom. Haz clic en cualquier
+            punto del mapa para fijarlo como {target === 'origen' ? 'origen' : 'destino'}.</span>
+            <span className="inline-flex items-center gap-1 text-rose-300">
+              <AlertTriangle className="w-3.5 h-3.5" />
+              Las zonas en rojo son infranqueables (agua / barreras) y no se pueden seleccionar.
+            </span>
           </DialogDescription>
         </DialogHeader>
 
@@ -189,11 +254,16 @@ const MapPickDialog = ({
           style={{ cursor: dragging ? 'grabbing' : 'crosshair' }}
           data-testid="mappick-canvas"
         >
+          {/* Image + impassable overlay share the SAME absolute positioning
+              and transform so the SVG polygons line up exactly with the
+              underlying map. The SVG uses viewBox 0-100 which matches the
+              percentage coordinate system used for clicks and polygons. */}
           <img
             ref={imgRef}
             src={MAP_SRC}
             alt="Mapa de la Tierra Media"
             draggable="false"
+            onLoad={measure}
             style={{
               position: 'absolute',
               left: '50%',
@@ -206,8 +276,41 @@ const MapPickDialog = ({
               userSelect: 'none',
             }}
           />
-          {/* Marker — anchored to the image's real on-screen rect (post-
-              transform) so it lines up exactly with the click point. */}
+          {/* Impassable / water overlay — anchored to the image's real on-
+              screen bounding rect (post-transform), so it stays in sync with
+              both pan and zoom. */}
+          {blockedPolys.length > 0 && imgRef.current && containerRef.current && (() => {
+            const imgRect = imgRef.current.getBoundingClientRect();
+            const ctRect = containerRef.current.getBoundingClientRect();
+            return (
+              <svg
+                viewBox="0 0 100 100"
+                preserveAspectRatio="none"
+                style={{
+                  position: 'absolute',
+                  left: imgRect.left - ctRect.left,
+                  top: imgRect.top - ctRect.top,
+                  width: imgRect.width,
+                  height: imgRect.height,
+                  pointerEvents: 'none',
+                }}
+                data-testid="mappick-blocked-overlay"
+              >
+                {blockedPolys.map((p, idx) => (
+                  <polygon
+                    key={p.id || idx}
+                    points={(p.points || []).map((pt) => `${pt.x},${pt.y}`).join(' ')}
+                    fill="rgba(220, 38, 38, 0.32)"
+                    stroke="rgba(220, 38, 38, 0.75)"
+                    strokeWidth="0.15"
+                    strokeLinejoin="round"
+                  />
+                ))}
+              </svg>
+            );
+          })()}
+
+          {/* Click marker — anchored to image's real on-screen rect */}
           {picked && imgRef.current && containerRef.current && (() => {
             const imgRect = imgRef.current.getBoundingClientRect();
             const ctRect = containerRef.current.getBoundingClientRect();
