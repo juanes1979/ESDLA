@@ -713,6 +713,66 @@ const EquipmentSection = ({
 };
 
 // Item Editor Modal Component
+const FIELD_DEFS = {
+  peso_kg: { label: 'Peso (kg)', type: 'number', step: '0.01', placeholder: '0.5' },
+  dano: { label: 'Daño', type: 'text', placeholder: '1d4 contundente' },
+  herida: { label: 'Herida', type: 'number', step: '1', placeholder: '17' },
+  alcance: { label: 'Alcance', type: 'text', placeholder: '20/60' },
+  modificador: { label: 'Modificador', type: 'text', placeholder: 'Ligera, Acometida' },
+  ca: { label: 'Clase de Armadura (CA)', type: 'number', step: '1', placeholder: '11' },
+  ca_bonus: { label: 'Bonus de CA (pieza secundaria)', type: 'number', step: '1', placeholder: '1' },
+  comentarios: { label: 'Comentarios', type: 'textarea', placeholder: '1 + mod. Des. (máx. 4)' },
+  capacidad_carga: { label: 'Capacidad carga (kg)', type: 'number', step: '0.5', placeholder: '150' },
+  capacidad_kg: { label: 'Capacidad (kg)', type: 'number', step: '0.5' },
+  velocidad: { label: 'Velocidad (m/turno)', type: 'number', step: '0.5', placeholder: '12' },
+  constitucion: { label: 'Constitución', type: 'text', placeholder: '+2' },
+  capacidad_pequeno: { label: 'Cap. jinete pequeño', type: 'number', step: '0.5' },
+  capacidad_mediano: { label: 'Cap. jinete mediano', type: 'number', step: '0.5' },
+  forma_preparacion: { label: 'Forma de preparación', type: 'text', placeholder: 'Infusión, ungüento...' },
+  efecto: { label: 'Efecto', type: 'textarea', placeholder: 'Cura 2d4+2 PG, dura 1 día...' },
+  m2: { label: 'Superficie (m²)', type: 'number', step: '0.5' },
+  posicion: {
+    label: 'Posición (sólo Ropa/Armadura)',
+    type: 'select',
+    options: [
+      { value: '', label: '— ninguna —' },
+      { value: 'cabeza', label: 'Cabeza' },
+      { value: 'cuerpo', label: 'Cuerpo' },
+      { value: 'brazos', label: 'Brazos' },
+      { value: 'piernas', label: 'Piernas' },
+      { value: 'pies', label: 'Pies' },
+    ],
+  },
+};
+
+// Per-category fields shown in the editor (keep in sync with EQUIPMENT_SECTIONS)
+const CATEGORY_EXTRA_FIELDS = {
+  armas_sencillas_cc: ['dano', 'modificador', 'herida', 'peso_kg'],
+  armas_sencillas_distancia: ['dano', 'alcance', 'herida', 'peso_kg'],
+  armas_marciales_cc: ['dano', 'modificador', 'herida', 'peso_kg'],
+  armas_marciales_distancia: ['dano', 'alcance', 'herida', 'peso_kg'],
+  armaduras_ligeras: ['ca', 'ca_bonus', 'posicion', 'comentarios', 'peso_kg'],
+  armaduras_medias: ['ca', 'ca_bonus', 'posicion', 'comentarios', 'peso_kg'],
+  armaduras_pesadas: ['ca', 'ca_bonus', 'posicion', 'comentarios', 'peso_kg'],
+  escudos: ['ca', 'peso_kg'],
+  equipo_general: ['peso_kg'],
+  herramientas: ['peso_kg'],
+  juegos: ['peso_kg'],
+  instrumentos_musicales: ['peso_kg'],
+  ropa: ['posicion', 'peso_kg'],
+  consumibles: ['peso_kg'],
+  comida_posadas: ['peso_kg'],
+  hierbas: ['forma_preparacion', 'efecto', 'peso_kg'],
+  venenos: ['forma_preparacion', 'efecto', 'peso_kg'],
+  monturas: ['capacidad_carga', 'constitucion', 'velocidad', 'capacidad_pequeno', 'capacidad_mediano'],
+  accesorios_monturas: ['peso_kg'],
+  transporte_terrestre: ['capacidad_kg'],
+  transporte_maritimo: ['capacidad_kg'],
+  construccion: ['peso_kg', 'm2'],
+  gemas_preciosas: [],
+  gemas_semipreciosas: [],
+};
+
 const ItemEditorModal = ({ item, setItem, onSave, onClose, saving, availableRegions }) => {
   const updateField = (field, value) => {
     setItem(prev => ({
@@ -786,6 +846,74 @@ const ItemEditorModal = ({ item, setItem, onSave, onClose, saving, availableRegi
               </div>
             </div>
           </div>
+
+          {/* Category-specific fields — render dynamically based on item.categoria */}
+          {(() => {
+            const catKey = item.categoria;
+            const extras = CATEGORY_EXTRA_FIELDS[catKey] || [];
+            if (!extras.length) return null;
+            return (
+              <div className="border-t border-border/30 pt-4 grid grid-cols-2 gap-4" data-testid="item-editor-extra-fields">
+                {extras.map((field) => {
+                  const def = FIELD_DEFS[field];
+                  if (!def) return null;
+                  const value = item[field];
+                  const onChange = (raw) => {
+                    if (def.type === 'number') {
+                      updateField(field, raw === '' ? null : parseFloat(raw));
+                    } else {
+                      updateField(field, raw);
+                    }
+                  };
+                  if (def.type === 'select') {
+                    return (
+                      <div key={field}>
+                        <label className="text-sm text-muted-foreground">{def.label}</label>
+                        <select
+                          value={value ?? ''}
+                          onChange={(e) => onChange(e.target.value)}
+                          className="w-full h-10 px-2 bg-background border border-border rounded"
+                          data-testid={`field-${field}`}
+                        >
+                          {def.options.map((opt) => (
+                            <option key={opt.value} value={opt.value}>{opt.label}</option>
+                          ))}
+                        </select>
+                      </div>
+                    );
+                  }
+                  if (def.type === 'textarea') {
+                    return (
+                      <div key={field} className="col-span-2">
+                        <label className="text-sm text-muted-foreground">{def.label}</label>
+                        <textarea
+                          value={value ?? ''}
+                          onChange={(e) => onChange(e.target.value)}
+                          placeholder={def.placeholder}
+                          rows={2}
+                          className="w-full px-3 py-2 bg-background border border-border rounded text-sm"
+                          data-testid={`field-${field}`}
+                        />
+                      </div>
+                    );
+                  }
+                  return (
+                    <div key={field}>
+                      <label className="text-sm text-muted-foreground">{def.label}</label>
+                      <Input
+                        type={def.type}
+                        step={def.step}
+                        placeholder={def.placeholder}
+                        value={value ?? ''}
+                        onChange={(e) => onChange(e.target.value)}
+                        data-testid={`field-${field}`}
+                      />
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })()}
 
           {/* Settlement availability */}
           <div className="border-t border-border/30 pt-4">

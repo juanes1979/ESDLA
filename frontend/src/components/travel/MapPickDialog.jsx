@@ -81,26 +81,16 @@ const MapPickDialog = ({
   const onMouseUp = (e) => {
     setDragging(false);
     if (moved.current) return; // it was a drag, not a click
-    if (!containerRef.current) return;
-    const rect = containerRef.current.getBoundingClientRect();
-    // Click position relative to container
-    const cx = e.clientX - rect.left;
-    const cy = e.clientY - rect.top;
-    // Center of container
-    const ccx = rect.width / 2;
-    const ccy = rect.height / 2;
-    // Map coordinates: derived from displayed pan/zoom
-    // Displayed image dimensions:
-    const displayW = rect.width * zoom;
-    const displayH = (rect.width * zoom) * (NATURAL_H / NATURAL_W);
-    // Top-left of the displayed image relative to container
-    const imgLeft = (rect.width - displayW) / 2 + pan.x;
-    const imgTop = (rect.height - displayH) / 2 + pan.y;
-    const imgX = cx - imgLeft;
-    const imgY = cy - imgTop;
-    if (imgX < 0 || imgY < 0 || imgX > displayW || imgY > displayH) return;
-    const xPct = (imgX / displayW) * 100;
-    const yPct = (imgY / displayH) * 100;
+    if (!imgRef.current) return;
+    // Use the image's REAL on-screen bounding rect (post-transform). This
+    // avoids assumptions about width-vs-height fitting that broke when the
+    // map was constrained by height (wide containers, 16:9 map).
+    const rect = imgRef.current.getBoundingClientRect();
+    const imgX = e.clientX - rect.left;
+    const imgY = e.clientY - rect.top;
+    if (imgX < 0 || imgY < 0 || imgX > rect.width || imgY > rect.height) return;
+    const xPct = (imgX / rect.width) * 100;
+    const yPct = (imgY / rect.height) * 100;
     // Snap to nearest known location
     let best = null;
     let bestDistSq = Infinity;
@@ -213,15 +203,13 @@ const MapPickDialog = ({
               userSelect: 'none',
             }}
           />
-          {/* Marker for the snapped location */}
-          {snapped && containerRef.current && (() => {
-            const rect = containerRef.current.getBoundingClientRect();
-            const displayW = rect.width * zoom;
-            const displayH = displayW * (NATURAL_H / NATURAL_W);
-            const imgLeft = (rect.width - displayW) / 2 + pan.x;
-            const imgTop = (rect.height - displayH) / 2 + pan.y;
-            const px = imgLeft + (snapped.x / 100) * displayW;
-            const py = imgTop + (snapped.y / 100) * displayH;
+          {/* Marker for the snapped location — anchored to the image's real
+              on-screen rect (post-transform) so it lines up exactly. */}
+          {snapped && imgRef.current && containerRef.current && (() => {
+            const imgRect = imgRef.current.getBoundingClientRect();
+            const ctRect = containerRef.current.getBoundingClientRect();
+            const px = (imgRect.left - ctRect.left) + (snapped.x / 100) * imgRect.width;
+            const py = (imgRect.top - ctRect.top) + (snapped.y / 100) * imgRect.height;
             return (
               <div
                 style={{
