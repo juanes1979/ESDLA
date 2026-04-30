@@ -60,6 +60,7 @@ import GlobalJourneyView from '@/components/travel/views/GlobalJourneyView';
 import DayByDayView from '@/components/travel/views/DayByDayView';
 import ConfigView from '@/components/travel/views/ConfigView';
 import MapPickDialog from '@/components/travel/MapPickDialog';
+import { computeMemberSpeed, getRoleModifier as getRoleModifierHelper } from '@/utils/travelSpeed';
 
 
 const EnhancedTravelSystem = () => {
@@ -314,30 +315,9 @@ const EnhancedTravelSystem = () => {
   // Cuando un viajero cambia su estado montado/a-pie durante el viaje, recalcula
   // la velocidad del grupo en caliente (sin tocar la ruta) y avisa por toast.
   const prevMontadoRef = useRef({});
-  const computeMemberSpeed = useCallback((char) => {
-    if (!char) return 0;
-    const baseEstorbo = Number(char.estorbo_metros || 0);
-    const velBase = Math.max(1, Number(char.velocidad_metros || char.velocidad_base || 9) + baseEstorbo);
-    const tieneMontura = !!char.montura?.nombre;
-    if (!tieneMontura || !char.montado) return velBase;
-    const velMontura = Number(char.montura.velocidad || 12);
-    // Sobrecarga
-    let cargaMontura = 0;
-    let pesoPersonal = 0;
-    (char.inventario || []).forEach(it => {
-      if (!it) return;
-      const peso = Number(it.peso_kg || it.peso || 0) * Number(it.cantidad || 1);
-      if (it.portado_por === 'montura') cargaMontura += peso;
-      else pesoPersonal += peso;
-    });
-    (char.montura.equipo || []).forEach(it => {
-      cargaMontura += Number(it?.peso_kg || it?.peso || 0) * Number(it?.cantidad || 1);
-    });
-    const cap = Number(char.montura.capacidad_carga || char.montura.carga_kg || 0);
-    const cargaTotal = cargaMontura + Number(char.peso_kg || 70) + pesoPersonal;
-    const sobrecargada = cap > 0 && cargaTotal > cap;
-    return sobrecargada ? velMontura * 0.67 : velMontura;
-  }, []);
+  // Pure speed helper extracted to /utils/travelSpeed.js. We wrap it in a
+  // useCallback so the surrounding useEffect dependency array stays stable.
+  const computeMemberSpeed_ = useCallback((char) => computeMemberSpeed(char), []);
 
   useEffect(() => {
     const journeyActivo = !!activeJourney || mode === 'global' || mode === 'dayByDay';
@@ -364,7 +344,7 @@ const EnhancedTravelSystem = () => {
       const speeds = todos
         .map(m => characters.find(c => c.id === m.id))
         .filter(Boolean)
-        .map(computeMemberSpeed)
+        .map(computeMemberSpeed_)
         .filter(v => v > 0);
       const groupSpeed = speeds.length ? Math.min(...speeds) : 0;
       avisos.forEach(a => {
@@ -376,7 +356,7 @@ const EnhancedTravelSystem = () => {
         );
       });
     }
-  }, [characters, activeJourney, mode, config.miembros, config.acompanantes, computeMemberSpeed]);
+  }, [characters, activeJourney, mode, config.miembros, config.acompanantes, computeMemberSpeed_]);
   
   // =============== JOURNEY CALCULATION ===============
   
@@ -1545,22 +1525,9 @@ const EnhancedTravelSystem = () => {
   // =============== EVENT RESOLUTION ===============
 
   // Get the modifier + breakdown for a given target role using precomputed member values
-  const getRoleModifier = (targetRole) => {
-    const targetMember = config.miembros.find(m => m.papeles?.includes(targetRole));
-    const roleInfo = ROLE_INFO[targetRole];
-    if (!targetMember || !roleInfo) {
-      return { modifier: 0, breakdown: [], member: null, roleInfo };
-    }
-    const key = ROLE_MODIFIER_KEY[targetRole];
-    const baseMod = (key && typeof targetMember[key] === 'number') ? targetMember[key] : (targetMember.modSabiduria || 0);
-    const hasMultipleRoles = targetMember.papeles?.length > 1;
-    const modifier = baseMod + (hasMultipleRoles ? MULTI_ROLE_PENALTY : 0);
-    const breakdown = [
-      `${roleInfo.habilidad} (${roleInfo.atributo_nombre.slice(0, 3)}): ${baseMod >= 0 ? '+' : ''}${baseMod}`,
-    ];
-    if (hasMultipleRoles) breakdown.push(`Múltiples papeles: ${MULTI_ROLE_PENALTY}`);
-    return { modifier, breakdown, member: targetMember, roleInfo };
-  };
+  // Pure helper extracted to /utils/travelSpeed.js. The component still
+  // wraps it so the role lookup has direct access to `config.miembros`.
+  const getRoleModifier = (targetRole) => getRoleModifierHelper(targetRole, config.miembros);
 
   // Roll dice for event resolution
   const rollEventDice = () => {

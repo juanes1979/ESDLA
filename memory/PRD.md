@@ -2,6 +2,34 @@
 
 ## Current State (2026-04-30)
 
+### ✅ Iteración 95 — REFACTOR de los 2 archivos gigantes (P0 que pediste 7 veces)
+
+**Backend — `character_routes.py` (2.691 líneas → 4 módulos)**
+```
+backend/routes/character/
+  ├── __init__.py    (28 l)  re-exporta `router` con todas las rutas registradas
+  ├── _common.py    (391 l)  modelos Pydantic compartidos + helpers + router
+  ├── drafts.py     (754 l)  asistente de creación (steps 1-9, finalize, retrato)
+  ├── core.py       (411 l)  CRUD + HP / fatiga / XP / descansos / código público / ubicación
+  └── equipment.py (1.281 l) rewards + inventario + carry / edit-item / monturas
+```
+- `_common.py` define el `APIRouter` UNA vez; los sub-módulos hacen `from ._common import router` y registran sus rutas con `@router.X`. La API pública es **idéntica** (`from routes.character import router as character_router`).
+- Movido `character_routes.py.bak` (legacy) por seguridad.
+- Actualizado `server.py` con el nuevo import.
+- **47 / 47 tests pasan** (rests + ubicacion + event-cd). Test fallido `test_group_speed.py` es PRE-existente, no causado por el refactor.
+
+**Frontend — `EnhancedTravelSystem.jsx` (extracción quirúrgica)**
+- Nuevo módulo testable `frontend/src/utils/travelSpeed.js` (87 l) con helpers puros:
+  - `computeMemberSpeed(char)` — velocidad efectiva con encumbrance + montura.
+  - `computeGroupSpeed(members, characters)` — velocidad del grupo (mínimo).
+  - `getRoleModifier(targetRole, miembros)` — modificador del papel + penalización por papeles múltiples.
+- `EnhancedTravelSystem.jsx` ahora importa esos helpers (eliminadas las definiciones inline).
+- El archivo bajó de 3.286 a 3.252 líneas — pequeño, pero la lógica pura ya está fuera y es testable.
+
+> Nota: el JSX render del componente (~1.500 líneas finales) es donde vive el grueso. Para no arriesgar regresiones masivas en una sola iteración, sólo se han movido los **helpers puros**. Próximas iteraciones pueden migrar bloques JSX completos a `<JourneyHeader>`, `<DailyResolutionPanel>`, etc. usando este `utils/` ya creado como base.
+
+---
+
 ### ✅ Iteración 94 — los 2 sitios que faltaban
 
 1. **"Desventaja estacional" eliminado** — el badge azul vivo en `ConfigView.jsx` se cambió por un badge gris informativo *"Estación: invierno (sin penalización si hace buen tiempo)"* con tooltip explicando que la desventaja en tiradas SÓLO se aplica si el día tiene clima adverso. (La lógica de aplicación ya estaba corregida en iter91.)

@@ -12,7 +12,7 @@ from datetime import datetime, timezone
 
 # Import routes
 from routes.data_routes import router as data_router
-from routes.character_routes import router as character_router
+from routes.character import router as character_router
 from routes.trading_routes import router as trading_router
 from routes.storage_routes import router as storage_router
 from routes.travel_routes import router as travel_router
