@@ -465,7 +465,9 @@ const ConfigView = ({
                   <Badge className="bg-red-600">Desventaja en eventos</Badge>
                 )}
                 {journeyCalc.modificadores.desventaja_estacion && (
-                  <Badge className="bg-blue-600">Desventaja estacional</Badge>
+                  <Badge className="bg-blue-600/40 text-blue-200 border-blue-500/50" title="Indicativo de la estación. La desventaja en tiradas SÓLO se aplica si el día tiene clima adverso.">
+                    Estación: {journeyCalc.estacion} (sin penalización si hace buen tiempo)
+                  </Badge>
                 )}
               </div>
               
@@ -1279,8 +1281,11 @@ const ConfigView = ({
             </Card>
           )}
 
-          {/* Fatiga inicial — heredada de la ficha, override con justificación */}
-          {config.miembros.filter(m => m.papeles?.length > 0).length > 0 && (
+          {/* Fatiga inicial — heredada de la ficha, override con justificación.
+              Se muestra TANTO los miembros con papel COMO los acompañantes,
+              porque todos cruzan los mismos terrenos y empiezan el viaje
+              con la fatiga que tengan en su ficha. */}
+          {([...config.miembros, ...(config.acompanantes || [])]).length > 0 && (
             <Card className="mt-3 p-3 border border-orange-500/30 bg-orange-900/10">
               <div className="flex items-start gap-2 mb-3">
                 <Activity className="w-5 h-5 text-orange-400 flex-shrink-0 mt-0.5" />
@@ -1300,8 +1305,7 @@ const ConfigView = ({
                   data-testid="clear-group-fatigue-btn"
                   onClick={() => {
                     const overrides = {};
-                    config.miembros
-                      .filter(m => m.papeles?.length > 0)
+                    [...config.miembros, ...(config.acompanantes || [])]
                       .forEach(m => {
                         const ch = characters.find(c => c.id === m.id);
                         const fichaFat = Number(ch?.fatiga ?? 0);
@@ -1315,14 +1319,14 @@ const ConfigView = ({
                       });
                     setInitialFatigueOverrides(prev => ({ ...prev, ...overrides }));
                   }}
-                  title="Pone la fatiga inicial a 0 para todos los miembros con papel"
+                  title="Pone la fatiga inicial a 0 para TODOS los viajeros (con papel y acompañantes)"
                 >
                   <X className="w-3.5 h-3.5 mr-1" />
                   Eliminar cansancio del grupo
                 </Button>
               </div>
               <div className="space-y-2">
-                {config.miembros.filter(m => m.papeles?.length > 0).map(m => {
+                {[...config.miembros, ...(config.acompanantes || [])].map(m => {
                   const ch = characters.find(c => c.id === m.id);
                   const fatigaFicha = Number(ch?.fatiga ?? 0);
                   const ov = initialFatigueOverrides[m.id];

@@ -2,6 +2,15 @@
 
 ## Current State (2026-04-30)
 
+### ✅ Iteración 94 — los 2 sitios que faltaban
+
+1. **"Desventaja estacional" eliminado** — el badge azul vivo en `ConfigView.jsx` se cambió por un badge gris informativo *"Estación: invierno (sin penalización si hace buen tiempo)"* con tooltip explicando que la desventaja en tiradas SÓLO se aplica si el día tiene clima adverso. (La lógica de aplicación ya estaba corregida en iter91.)
+
+2. **Fatiga inicial — TODOS los viajeros aparecen ahora**
+   `ConfigView.jsx` línea 1285+: el panel "Fatiga inicial" filtraba `config.miembros.filter(m => m.papeles?.length > 0)`. Ahora itera `[...config.miembros, ...config.acompanantes]`. El botón "Eliminar cansancio del grupo" también pasa por todos. Cuando aplicas un override a un acompañante, se persiste correctamente (el handler ya iteraba por `initialFatigueOverrides`, no por papeles).
+
+---
+
 ### ✅ Iteración 93 — todo el reparto entre TODOS los viajeros (con papel + acompañantes)
 
 Mis disculpas: en iter92 toqué sólo `travelPrint.js` (la copia para imprimir), no la app en vivo. Ahora repaso TODO el flujo de fin de viaje:
