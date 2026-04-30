@@ -2515,6 +2515,35 @@ async def delete_journey(journey_id: str):
     return {"success": True, "deleted": result.deleted_count}
 
 
+@router.patch("/journey/{journey_id}/fatigue-cd")
+async def patch_journey_fatigue_cd(journey_id: str, delta: float = 0, reason: str = ""):
+    """Apply an in-flight delta to the live fatigue CD of an active journey.
+
+    Used when an event mid-journey modifies the CD (e.g. Percance failure
+    raises it by +2). Returns the updated `fatiga_cd_total`.
+    """
+    journey = await db.active_journeys.find_one({"id": journey_id}, {"_id": 0})
+    if not journey:
+        raise HTTPException(status_code=404, detail="Journey not found")
+    new_cd = float(journey.get("fatiga_cd_total", 10.0)) + float(delta)
+    if new_cd < 10.0:
+        new_cd = 10.0
+    await db.active_journeys.update_one(
+        {"id": journey_id},
+        {
+            "$set": {"fatiga_cd_total": new_cd},
+            "$push": {
+                "fatiga_cd_log": {
+                    "delta": float(delta),
+                    "reason": reason,
+                    "ts": datetime.now(timezone.utc).isoformat(),
+                }
+            },
+        },
+    )
+    return {"success": True, "fatiga_cd_total": new_cd}
+
+
 # ============== CAMP (ACAMPAR) ==============
 
 class CampRequest(BaseModel):

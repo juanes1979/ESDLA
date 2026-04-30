@@ -3,7 +3,7 @@
  * Displays equipment tables by category with admin editing capabilities
  */
 import { useState } from 'react';
-import { Plus, Edit, Trash2, Printer, MapPin, Package, Loader2, Check, AlertTriangle, UserPlus } from 'lucide-react';
+import { Plus, Edit, Trash2, Printer, MapPin, Package, Loader2, Check, AlertTriangle, UserPlus, FolderOpen } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -113,6 +113,10 @@ const EquipmentSection = ({
   const [showItemEditor, setShowItemEditor] = useState(false);
   const [editingItem, setEditingItem] = useState(null);
   const [savingItem, setSavingItem] = useState(false);
+  // "Cambiar categoría" sub-dialog (inside the item editor)
+  const [showChangeCat, setShowChangeCat] = useState(false);
+  const [changeCatTarget, setChangeCatTarget] = useState('');
+  const [movingItem, setMovingItem] = useState(false);
   
   // Category availability editor state
   const [showCategoryEditor, setShowCategoryEditor] = useState(false);
@@ -169,6 +173,50 @@ const EquipmentSection = ({
       toast.error('Error al guardar: ' + (err.response?.data?.detail || err.message));
     } finally {
       setSavingItem(false);
+    }
+  };
+
+  // Move existing item to a different category, dropping category-specific
+  // fields. Only universally common fields are kept.
+  const handleChangeCategory = async () => {
+    if (!editingItem || !changeCatTarget) return;
+    if (changeCatTarget === editingItem.categoria) {
+      toast.error('La categoría destino es la misma que la actual.');
+      return;
+    }
+    setMovingItem(true);
+    try {
+      const COMMON_FIELDS = [
+        'nombre', 'precio', 'moneda', 'peso_kg', 'comentarios',
+        'nivel_asentamiento', 'regiones_disponibles',
+      ];
+      const preserved = {};
+      COMMON_FIELDS.forEach((f) => {
+        if (editingItem[f] !== undefined) preserved[f] = editingItem[f];
+      });
+      const originalNombre = editingItem._originalNombre || editingItem.nombre;
+      const fromCat = editingItem.categoria;
+      await api.put('/data/equipment-catalog/move-item', {
+        from_categoria: fromCat,
+        to_categoria: changeCatTarget,
+        nombre: originalNombre,
+        item_data: preserved,
+        replace: true,
+      });
+      toast.success(`"${preserved.nombre}" movido a "${changeCatTarget}". Rellena los campos específicos.`);
+      // Re-open editor with the moved item in the new category
+      setEditingItem({
+        ...preserved,
+        categoria: changeCatTarget,
+        _originalNombre: preserved.nombre,
+      });
+      setShowChangeCat(false);
+      setChangeCatTarget('');
+      onRefresh?.();
+    } catch (err) {
+      toast.error('Error al cambiar categoría: ' + (err.response?.data?.detail || err.message));
+    } finally {
+      setMovingItem(false);
     }
   };
 
@@ -691,7 +739,49 @@ const EquipmentSection = ({
           onClose={() => { setShowItemEditor(false); setEditingItem(null); }}
           saving={savingItem}
           availableRegions={availableRegions}
+          onChangeCategory={() => { setChangeCatTarget(''); setShowChangeCat(true); }}
         />
+      )}
+
+      {/* Change-category sub-dialog (only common fields are preserved) */}
+      {showChangeCat && editingItem && (
+        <div className="fixed inset-0 bg-black/80 z-[60] flex items-center justify-center p-4" data-testid="es-change-cat-dialog">
+          <div className="bg-[hsl(var(--background))] border border-amber-700/50 rounded-lg w-full max-w-md p-5 space-y-4">
+            <h3 className="font-heading text-lg text-amber-300 flex items-center gap-2">
+              <Edit className="w-5 h-5" />
+              Cambiar categoría de "{editingItem.nombre}"
+            </h3>
+            <p className="text-xs text-muted-foreground">
+              Categoría actual: <strong className="text-[hsl(var(--gold))]">{editingItem.categoria}</strong>.
+              Al mover se conservan <em>nombre, precio, peso, comentarios y disponibilidad</em>; los campos
+              específicos (daño, CA, alcance…) se borrarán para que los rellenes en la nueva categoría.
+            </p>
+            <select
+              value={changeCatTarget}
+              onChange={(e) => setChangeCatTarget(e.target.value)}
+              className="w-full h-10 px-2 bg-background border border-border rounded text-sm"
+              data-testid="es-change-cat-select"
+            >
+              <option value="">— Selecciona una categoría destino —</option>
+              {Object.keys(data || {})
+                .filter((k) => !k.startsWith('_') && Array.isArray((data || {})[k]) && k !== editingItem.categoria)
+                .sort()
+                .map((k) => (<option key={k} value={k}>{k}</option>))}
+            </select>
+            <div className="flex justify-end gap-2 pt-2">
+              <Button variant="ghost" onClick={() => setShowChangeCat(false)} disabled={movingItem}>Cancelar</Button>
+              <Button
+                onClick={handleChangeCategory}
+                disabled={!changeCatTarget || movingItem}
+                className="bg-amber-700 hover:bg-amber-600 text-white"
+                data-testid="es-change-cat-confirm"
+              >
+                {movingItem ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Check className="w-4 h-4 mr-2" />}
+                Mover y editar
+              </Button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Category Availability Editor Modal */}
@@ -773,7 +863,7 @@ const CATEGORY_EXTRA_FIELDS = {
   gemas_semipreciosas: [],
 };
 
-const ItemEditorModal = ({ item, setItem, onSave, onClose, saving, availableRegions }) => {
+const ItemEditorModal = ({ item, setItem, onSave, onClose, saving, availableRegions, onChangeCategory }) => {
   const updateField = (field, value) => {
     setItem(prev => ({
       ...prev,
@@ -815,12 +905,30 @@ const ItemEditorModal = ({ item, setItem, onSave, onClose, saving, availableRegi
   return (
     <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4">
       <div className="bg-[hsl(var(--background))] border border-[hsl(var(--gold))]/50 rounded-lg w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-        <div className="p-4 border-b border-border/30 flex justify-between items-center sticky top-0 bg-[hsl(var(--background))]">
+        <div className="p-4 border-b border-border/30 flex justify-between items-center sticky top-0 bg-[hsl(var(--background))] z-10">
           <h2 className="font-heading text-xl text-[hsl(var(--gold))] flex items-center gap-2">
             <Edit className="w-5 h-5" />
             Editar: {item.nombre}
           </h2>
-          <Button variant="ghost" size="sm" onClick={onClose}>✕</Button>
+          <div className="flex items-center gap-2">
+            {onChangeCategory && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={onChangeCategory}
+                className="border-amber-600/50 text-amber-300 hover:bg-amber-900/30"
+                data-testid="es-change-category-btn"
+                title="Mover este equipo a otra categoría — se mantienen nombre, precio, peso, disponibilidad; los campos específicos se borran."
+              >
+                <FolderOpen className="w-4 h-4 mr-1" />
+                Cambiar categoría
+              </Button>
+            )}
+            <Button variant="ghost" size="sm" onClick={onClose}>✕</Button>
+          </div>
+        </div>
+        <div className="px-4 pt-3 text-xs text-muted-foreground italic">
+          Categoría actual: <strong className="text-[hsl(var(--gold))]">{item.categoria}</strong>
         </div>
         
         <div className="p-4 space-y-4">

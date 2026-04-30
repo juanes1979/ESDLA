@@ -2,6 +2,21 @@
 
 ## Current State (2026-04-30)
 
+### ✅ Iteración 92 — 4 fixes (PX, mini-mapa, CD fatiga +2, Cambiar categoría desde listado)
+
+1. **PX del viaje se reparten entre TODOS los viajeros (no sólo los con papel)** — `travelPrint.js`: el reparto del PX base del trayecto ahora cuenta `[...miembros, ...acompañantes]`. La tabla del print incluye una fila por cada uno; los acompañantes muestran "acompañante" como papel y reciben sólo PX viaje (las PX por tirada siguen requiriendo papel). La sección "La Compañía" del informe también lista a los 7.
+
+2. **LocationWidget — fórmula corregida con aspect ratio del mapa**
+   El error era usar `top: 50% − (100−y)*4%` asumiendo que la imagen tenía altura 400% del contenedor. Pero al ser `width:400% / height:auto`, la altura efectiva es `400 / (W/H) ≈ 305.86%`. Nueva fórmula: `top: 50% − screenY × IMG_HEIGHT_PCT/100` donde `IMG_HEIGHT_PCT = 400 / (19791/15133)`.
+
+3. **CD fatiga +2 al fallar Percance — ahora se aplica en vivo**
+   Antes el HUD se quedaba en CD fatiga 10.0 hasta el final del viaje. Ahora `EnhancedTravelSystem.jsx` actualiza `globalFatigaCD` y el `activeJourney` localmente al fallar Percance, y persiste mediante el nuevo endpoint `PATCH /api/travel/journey/{id}/fatigue-cd?delta=2&reason=…` (añadido a `travel_routes.py`).
+
+4. **"Cambiar categoría" desde el botón "Editar" del listado de Reglas → Equipo**
+   El botón estaba sólo en `RulesPage.jsx` pero el "Editar" del listado abre `EquipmentSection.ItemEditorModal`. Añadido el botón ahí también, con su propio diálogo y handler. Llama a `/equipment-catalog/move-item` con `replace=true` (sólo conserva nombre, precio, moneda, peso_kg, comentarios, nivel_asentamiento, regiones_disponibles).
+
+---
+
 ### ✅ Iteración 91 — 4 fixes en bloque (pensado antes de tocar)
 **(Smoke + curl: LocationWidget centrado en Bree ✓; move-item/replace=true preserva sólo 4 campos comunes ✓)**
 

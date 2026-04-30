@@ -65,20 +65,23 @@ const LocationWidget = ({ character, onUpdate }) => {
   };
 
   // Compute mini-map crop. The map uses Y=0 at the BOTTOM (project
-  // convention, see JourneyMiniMap.jsx). We want to center the visible
-  // 96×96 px box on the character's (x, y) point of the map. CSS
-  // `background-position` with percentages does NOT center on bg-point P
-  // (it aligns bg-point P with container-point P), so it gives wrong
-  // crops for arbitrary points. We instead render an <img> at 400%
-  // width inside the container and translate it so the desired point is
-  // exactly at the centre.
+  // convention). We center the visible 96×96 px container on the
+  // character's (x, y) point of the map. The image is rendered at
+  // `width: 400%` while keeping its natural aspect ratio (`height: auto`),
+  // so its rendered HEIGHT is NOT 400% of the container but 400/aspect.
+  const MAP_ASPECT = 19791 / 15133; // natural width / height of mapa_jugadores.jpg
+  const IMG_WIDTH_PCT = 400;
+  // Image height as % of container height. With width:400% and
+  // aspect-preserving auto height, this is 400 / aspect (≈ 305.86%).
+  const IMG_HEIGHT_PCT = IMG_WIDTH_PCT / MAP_ASPECT;
   const screenY = ubicacion?.y != null ? 100 - ubicacion.y : null;
   const hasCoords = ubicacion?.x != null && screenY != null;
-  // Image is 4× wider/taller than the box. To center on bg-point (qx, qy)%:
-  //   img_left% = 50% − qx × 4%   →   `${50 - qx * 4}%`
-  //   img_top%  = 50% − qy × 4%   →   `${50 - qy * 4}%`
-  const imgLeftPct = hasCoords ? 50 - ubicacion.x * 4 : 0;
-  const imgTopPct = hasCoords ? 50 - screenY * 4 : 0;
+  // Position offsets so that the bg-point (x%, screenY%) sits at the
+  // container's center (50%, 50%):
+  //   img_left% = 50 − x   × IMG_WIDTH_PCT  / 100
+  //   img_top%  = 50 − sY  × IMG_HEIGHT_PCT / 100
+  const imgLeftPct = hasCoords ? 50 - (ubicacion.x * IMG_WIDTH_PCT) / 100 : 0;
+  const imgTopPct = hasCoords ? 50 - (screenY * IMG_HEIGHT_PCT) / 100 : 0;
 
   return (
     <>

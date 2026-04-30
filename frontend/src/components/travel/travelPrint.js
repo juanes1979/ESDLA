@@ -239,10 +239,13 @@ export const printJourneyDocument = (opts) => {
 
       <h2>La Compañía</h2>
       <div>
-        ${config.miembros.filter(m => m.papeles?.length).map(m => `
+        ${[
+          ...config.miembros,
+          ...((config.acompanantes || []).map(a => ({ ...a, papeles: a.papeles || [] }))),
+        ].map(m => `
           <div class="party-member">
             <strong>${m.nombre}</strong><br>
-            <small>${m.papeles.map(p => ROLE_INFO[p]?.nombre || p).join(', ')}</small>
+            <small>${(m.papeles || []).length ? m.papeles.map(p => ROLE_INFO[p]?.nombre || p).join(', ') : 'Acompañante'}</small>
           </div>
         `).join('')}
       </div>
@@ -266,9 +269,18 @@ export const printJourneyDocument = (opts) => {
         </div>
       ` : ''}
 
-      ${journeyCalc?.px_desglose && journeyCalc.estimaciones?.px_total > 0 ? `
+      ${journeyCalc?.px_desglose && journeyCalc.estimaciones?.px_total > 0 ? (() => {
+        // Reparto de PX del VIAJE: se reparten entre TODOS los viajeros
+        // (los que tienen papel + los acompañantes), porque todos cruzan
+        // las mismas tierras peligrosas.
+        const allTravellers = [
+          ...config.miembros,
+          ...((config.acompanantes || []).map(a => ({ ...a, papeles: a.papeles || [] }))),
+        ];
+        const numTravellers = Math.max(1, allTravellers.length);
+        return `
         <h2>Experiencia Ganada</h2>
-        <p style="margin-bottom: 10px;">El viaje a través de tierras peligrosas ha otorgado <strong>${journeyCalc.estimaciones.px_total} puntos de experiencia</strong> al total de la compañía, a repartir entre los ${config.miembros.filter(m => m.papeles?.length).length || config.miembros.length} viajeros (${Math.floor((journeyCalc.estimaciones.px_total) / Math.max(1, config.miembros.filter(m => m.papeles?.length).length || config.miembros.length))} PX por cabeza, antes de bonificaciones individuales por tiradas).</p>
+        <p style="margin-bottom: 10px;">El viaje a través de tierras peligrosas ha otorgado <strong>${journeyCalc.estimaciones.px_total} puntos de experiencia</strong> al total de la compañía, a repartir entre los ${numTravellers} viajeros (${Math.floor(journeyCalc.estimaciones.px_total / numTravellers)} PX por cabeza, antes de bonificaciones individuales por tiradas).</p>
         ${journeyCalc.px_desglose.por_tipo_tierra ? `
           <div style="padding: 15px; background: rgba(34, 139, 34, 0.08); border: 1px solid #d4c4a8; margin-bottom: 15px;">
             <p style="margin: 0 0 10px 0; font-weight: bold;">Desglose por Tipo de Tierra:</p>
@@ -285,15 +297,13 @@ export const printJourneyDocument = (opts) => {
           </div>
         ` : ''}
         ${(() => {
-          const membersWithRoles = config.miembros.filter(m => m.papeles?.length);
-          if (membersWithRoles.length === 0) return '';
+          if (numTravellers === 0) return '';
           const journeyBasePX = journeyCalc.estimaciones.px_total;
-          const pxPerMemberFromJourney = Math.floor(journeyBasePX / membersWithRoles.length);
+          const pxPerMemberFromJourney = Math.floor(journeyBasePX / numTravellers);
           const allRolls = Object.values(characterXP || {}).flatMap(c => c.rolls || []);
           const aciertos = allRolls.filter(r => r.exito).length;
           const fallos = allRolls.length - aciertos;
           const totalRolls = aciertos + fallos;
-          // Mismo cálculo que calculateGroupMultiplier (Tabla 2)
           let groupMult = 1.0;
           if (totalRolls > 0) {
             const ratio = aciertos / totalRolls;
@@ -319,11 +329,12 @@ export const printJourneyDocument = (opts) => {
                   </tr>
                 </thead>
                 <tbody>
-                  ${membersWithRoles.map(m => {
+                  ${allTravellers.map(m => {
                     const rollsXP = characterXP[m.id]?.total || 0;
                     const rollsXPAjustado = Math.floor(rollsXP * groupMult);
                     const totalXP = Math.max(0, pxPerMemberFromJourney + rollsXPAjustado);
-                    const papeles = (m.papeles || []).join(', ');
+                    const papelesArr = m.papeles || [];
+                    const papeles = papelesArr.length ? papelesArr.join(', ') : 'acompañante';
                     return `
                       <tr style="border-bottom: 1px solid rgba(0,0,0,0.1);">
                         <td style="padding: 5px 8px; font-weight: 600;">${m.nombre}</td>
@@ -338,12 +349,13 @@ export const printJourneyDocument = (opts) => {
                 </tbody>
               </table>
               <p style="font-size: 11px; color: #6b5b3a; margin-top: 6px; font-style: italic;">
-                PX viaje = base del trayecto dividida entre los miembros con papeles. PX tiradas = bonificaciones por tiradas individuales (por CD y resultado). PX ajustados = PX tiradas multiplicados por el rendimiento del grupo. TOTAL = PX viaje + PX ajustados (mínimo 0).
+                PX viaje = base del trayecto dividida entre TODOS los viajeros (con papel y acompañantes). PX tiradas = bonificaciones por tiradas individuales (sólo quien tiene papel y tira). PX ajustados = PX tiradas × multiplicador del grupo. TOTAL = PX viaje + PX ajustados (mínimo 0).
               </p>
             </div>
           `;
         })()}
-      ` : ''}
+        `;
+      })() : ''}
 
       ${events.length > 0 ? `
         <h2>Acontecimientos del Viaje</h2>

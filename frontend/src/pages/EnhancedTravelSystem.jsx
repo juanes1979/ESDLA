@@ -1800,9 +1800,26 @@ const EnhancedTravelSystem = () => {
           toast('Atajo encontrado: -1 día de viaje.', { duration: 4000 });
         }
 
-        // Percance (FALLO): +1 día → ya se aplica fatiga_cd_increase via journey events. Solo aviso.
+        // Percance (FALLO): aplicar +2 a la CD de fatiga en vivo.
+        // Antes el comentario decía "ya se aplica vía journey events" pero en
+        // la práctica el panel "CD fatiga" se quedaba en 10.0 hasta el final.
+        // Aquí actualizamos `globalFatigaCD` y el `activeJourney` localmente
+        // para que el HUD lo refleje al instante.
         if (eventoId === 'event_percance' && !exito) {
-          mecanicas.push('Percance: +1 día y +2 a la CD de fatiga.');
+          const inc = 2;
+          mecanicas.push(`Percance: +1 día y +${inc} a la CD de fatiga.`);
+          setGlobalFatigaCD((prev) => (prev || 10) + inc);
+          setActiveJourney((prev) => prev
+            ? { ...prev, fatiga_cd_total: (prev.fatiga_cd_total || 10) + inc }
+            : prev);
+          // Persist on backend so it survives a refresh / re-open
+          if (activeJourney?.id) {
+            try {
+              await api.patch(`/travel/journey/${activeJourney.id}/fatigue-cd`, null, {
+                params: { delta: inc, reason: `Percance: ${currentEvent?.evento?.nombre || 'evento'}` }
+              });
+            } catch (e) { /* non-fatal: HUD already updated */ }
+          }
         }
 
         // Vista agradable (ÉXITO): Inspiración (flag visual)
