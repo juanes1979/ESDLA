@@ -1,0 +1,31 @@
+{
+  "summary": "Retest after fix for iter69 HIGH bug (duplicate-horse on PATCH /api/characters/{id}/equipment/carry when carry source equals auto-promoted source). RESULT: BUG FIXED. 19/19 tests in test_mount_autopromote_edit_it69.py PASS (was 18/19). Full regression of iter66 (11/11), iter67 (15/15), iter68 (16/16) ALSO PASS — total 61/61 backend tests green. The previously-failing test_carry_to_montura_autopromotes_horse_from_equipo_ocupacion now passes: monturas[] correctly populated with Caballo de caminos (full new shape), equipo_ocupacion correctly trimmed to ONLY contain the Daga (with portado_por='montura', no duplicate horse). The data.item_index auto-decrement (when source==promoted_source and item_index>promoted_index) works correctly — the moved Daga is found and updated. The fix at character_routes.py:1929-1930 (_current_list helper) and 2011-2013 (item_index adjustment) is sound and matches the recommendation from iter69.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_mount_autopromote_edit_it69.py",
+    "/app/test_reports/pytest/it70.xml"
+  ],
+  "action_items": [
+    "(Non-blocking carry-over from iter69) character_routes.py is now 2692 lines — overdue for a split into character_equipment_routes.py / character_mount_routes.py / character_location_routes.py.",
+    "(Non-blocking) mount_keywords list duplicated at lines 1939 and 1960 — extract to module-level constant.",
+    "(Non-blocking) PATCH /equipment/edit-item silently no-ops if none of the three optional fields are provided — could 400 instead."
+  ],
+  "critical_code_review_comments": [
+    "character_routes.py:1929-1930 — new _current_list(src_key) helper is the correct fix: reads from update first (so the trimmed list from auto-promotion is used) and falls back to character document. Used uniformly in all 5 per-source branches (armas:2045, armadura_piezas:2062, equipo:2069, equipo_ocupacion:2079, inventario:2089). Clean implementation.",
+    "character_routes.py:2011-2013 — item_index auto-decrement when (data.source==promoted_source and item_index>promoted_index) correctly handles the case where the user-supplied index becomes stale after the horse pop(). Verified via the now-passing equipo_ocupacion test where item_index=1 → after horse removal becomes index 0 of the trimmed list (Daga).",
+    "Edge case to consider (not tested by request, NOT a bug): if data.item_index == promoted_index and source == promoted_source, the user is asking to move the very item that was just promoted into monturas[] — current code would pop it then try to re-index the trimmed list at the original index, which could yield the wrong item. Real-world impact: minimal because the item being promoted IS the mount itself and clients should not request to carry the mount onto itself. Defer.",
+    "character_routes.py 2692 lines — same recurring comment from iter67/68/69, overdue for a split."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "100% (61/61 across iter66/67/68/69)", "frontend": "not tested (backend-only request)"},
+  "test_credentials": "N/A (no auth required)",
+  "seed_data_creation": "All test fixtures self-cleaning. No leaks. Xalan untouched.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Iter69 HIGH bug fully resolved. Reuse /app/backend/tests/test_mount_autopromote_edit_it69.py and the iter66/67/68 test files for regression in future iterations. The _current_list helper pattern is the canonical way to read source lists in equipment/carry going forward — any new per-source branch must use it.",
+  "rca of the issue": "Fix RCA: (1) Helper _current_list(src_key) at line 1929-1930 returns update.get(src_key, character.get(src_key) or []) — so once auto-promotion sets update[promoted_source]=trimmed_list, subsequent per-source reads see the trimmed list, not the un-mutated original. (2) item_index adjustment at lines 2011-2013 decrements data.item_index by 1 when source matches promoted_source and original index was after the popped mount — keeping the user's intended target item correctly addressed. Both pieces are needed: (1) prevents the per-source branch from overwriting the trimmed list with the original; (2) prevents off-by-one targeting after the pop. Verified end-to-end via the previously-failing test_carry_to_montura_autopromotes_horse_from_equipo_ocupacion which now passes."
+}

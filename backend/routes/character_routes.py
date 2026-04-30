@@ -1924,6 +1924,11 @@ async def update_equipment_carrier(character_id: str, data: UpdateEquipmentCarry
 
     update = {"updated_at": now_utc()}
 
+    # Helper: read the list from update if already mutated (e.g. by
+    # auto-promotion below), otherwise from the character document.
+    def _current_list(src_key):
+        return update.get(src_key, character.get(src_key) or [])
+
     # Detect mount (primary list, legacy field, OR any equipment source)
     monturas_list = character.get("monturas", []) or []
     has_mount = bool(monturas_list) or bool(character.get("montura", {}).get("nombre"))
@@ -2000,6 +2005,12 @@ async def update_equipment_carrier(character_id: str, data: UpdateEquipmentCarry
                 src_list = list(character.get(promoted_source) or [])
                 src_list.pop(promoted_index)
                 update[promoted_source] = src_list
+                # If the user-supplied source is the SAME as the source we
+                # just trimmed AND their index was AFTER the removed mount,
+                # shift it down by 1 so it still points at the right item.
+                if (data.source or "inventario").lower() == promoted_source and \
+                   data.item_index > promoted_index:
+                    data.item_index -= 1
 
     # Resolve target mount_id
     target_mount_id = data.mount_id
@@ -2031,30 +2042,31 @@ async def update_equipment_carrier(character_id: str, data: UpdateEquipmentCarry
         return obj
 
     if source == "armas":
-        armas = character.get("armas", []) or []
+        armas = _current_list("armas")
         if data.item_index < 0 or data.item_index >= len(armas):
             raise HTTPException(status_code=400, detail="Índice de arma inválido")
         item = armas[data.item_index]
         if not isinstance(item, dict):
             item = {"nombre": item, "cantidad": 1}
+        armas = list(armas)
         armas[data.item_index] = _apply_move(item)
         update["armas"] = armas
 
     elif source == "armadura":
-        arm = character.get("armadura", {}) or {}
+        arm = update.get("armadura", character.get("armadura", {}) or {})
         if not isinstance(arm, dict) or not arm.get("nombre"):
             raise HTTPException(status_code=404, detail="Armadura no encontrada")
         update["armadura"] = _apply_move(arm)
 
     elif source == "armadura_piezas":
-        piezas = character.get("armadura_piezas", []) or []
+        piezas = list(_current_list("armadura_piezas"))
         if data.item_index < 0 or data.item_index >= len(piezas):
             raise HTTPException(status_code=400, detail="Índice de pieza inválido")
         piezas[data.item_index] = _apply_move(piezas[data.item_index])
         update["armadura_piezas"] = piezas
 
     elif source == "equipo":
-        equipo = character.get("equipo", []) or []
+        equipo = list(_current_list("equipo"))
         if data.item_index < 0 or data.item_index >= len(equipo):
             raise HTTPException(status_code=400, detail="Índice de equipo inválido")
         item = equipo[data.item_index]
@@ -2064,7 +2076,7 @@ async def update_equipment_carrier(character_id: str, data: UpdateEquipmentCarry
         update["equipo"] = equipo
 
     elif source == "equipo_ocupacion":
-        eqocup = character.get("equipo_ocupacion", []) or []
+        eqocup = list(_current_list("equipo_ocupacion"))
         if data.item_index < 0 or data.item_index >= len(eqocup):
             raise HTTPException(status_code=400, detail="Índice de equipo_ocupacion inválido")
         item = eqocup[data.item_index]
@@ -2074,7 +2086,7 @@ async def update_equipment_carrier(character_id: str, data: UpdateEquipmentCarry
         update["equipo_ocupacion"] = eqocup
 
     else:  # inventario (default)
-        inventario = character.get("inventario", []) or []
+        inventario = list(_current_list("inventario"))
         if data.item_index < 0 or data.item_index >= len(inventario):
             raise HTTPException(status_code=400, detail="Índice de objeto inválido")
         item = inventario[data.item_index]
