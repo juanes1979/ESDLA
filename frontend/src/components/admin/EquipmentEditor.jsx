@@ -115,8 +115,8 @@ const EQUIPMENT_CATEGORIES = [
     fields: ['nombre', 'precio', 'moneda', 'capacidad_kg']
   },
   {
-    key: 'construccion',
-    name: 'Elementos de Construcción',
+    key: 'recursos_desarrollo',
+    name: 'Recursos de Desarrollo',
     fields: ['nombre', 'precio', 'moneda', 'peso_kg', 'm2']
   }
 ];

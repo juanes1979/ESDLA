@@ -842,6 +842,10 @@ const EnhancedTravelSystem = () => {
           // Bitácora: anota los días intermedios sin incidentes (entre la
           // orientación y el evento). Cada casilla = 1 día.
           const marchaEntries = [];
+          // Si la marcha forzada está activa (toggle de este turno o ya persistiendo),
+          // se aplica durante TODO el tramo hasta el siguiente evento. Consumo extra
+          // y salvación CD 15 por día.
+          const esMarchaForzadaTramo = !!currentDayConfig.marchaForzada || forcedMarchActive;
           for (let d = currentPosition + 1; d < nuevaPosicionEvento; d++) {
             const dia = d + 1;
             const w = (journeyWeather || [])[Math.min(d, (journeyWeather || []).length - 1)];
@@ -851,12 +855,35 @@ const EnhancedTravelSystem = () => {
               tipo: 'marcha',
               clima: w || null,
               marchaType: config.ritmo,
-              message: `Día ${dia}: marcha ${config.ritmo} sin incidentes${w?.estado_label ? ` (${w.estado_label})` : ''}.`,
+              marchaForzada: esMarchaForzadaTramo,
+              message: `Día ${dia}: ${esMarchaForzadaTramo ? '⚡ marcha FORZADA' : `marcha ${config.ritmo}`} sin incidentes${w?.estado_label ? ` (${w.estado_label})` : ''}.`,
             });
+            if (esMarchaForzadaTramo) {
+              // Consumo extra + tirada CD 15 de fatiga por cada día de marcha forzada.
+              applyForcedMarchExtraConsumption();
+              // eslint-disable-next-line no-await-in-loop
+              await applyForcedMarchSaves(dia);
+            }
           }
           if (marchaEntries.length > 0) {
             setDailySummaries(prev => [...prev, ...marchaEntries]);
           }
+
+          // Gestión de la persistencia de la marcha forzada tras este tramo:
+          //   • "Sólo un día" → se apaga tras UN día.
+          //   • Resto → persiste hasta el evento (ahora), se apaga al resolverlo.
+          if (currentDayConfig.marchaForzada) {
+            if (currentDayConfig.marchaForzadaSoloUnDia) {
+              setForcedMarchActive(false);
+            } else {
+              setForcedMarchActive(true);
+            }
+          }
+          setCurrentDayConfig(prev => ({
+            ...(prev || {}),
+            marchaForzada: false,
+            marchaForzadaSoloUnDia: false,
+          }));
 
           // Generate the event at that position
           await generateEventAtPosition(nuevaPosicionEvento, result);
@@ -919,7 +946,13 @@ const EnhancedTravelSystem = () => {
         setEvents(prev => [...prev, newEvent]);
         setCurrentEvent(newEvent);
         setAwaitingOrientationCheck(false);
-        
+
+        // Un evento corta la persistencia de la marcha forzada (RAW Abr 2026).
+        if (forcedMarchActive) {
+          setForcedMarchActive(false);
+          toast.info('⚡ Marcha forzada interrumpida — ha surgido un evento.');
+        }
+
         const climaTxt = weather?.estado_label
           ? ` · clima: ${weather.estado_label}${cdMod !== 0 ? ` (CD ${cdMod > 0 ? '+' : ''}${cdMod})` : ''}`
           : '';
@@ -1549,28 +1582,55 @@ const EnhancedTravelSystem = () => {
           }
         }
 
-        // Desesperanza / Decisiones erróneas (FALLO): puntos de Sombra
-        // Se realiza una TIRADA DE SALVACIÓN por cada personaje afectado:
-        //   - Desesperanza: TS CARISMA para resistir; afecta a TODA la compañía.
-        //   - Decisiones erróneas: TS SABIDURÍA para resistir; afecta solo al objetivo.
-        // La CD de la salvación es la misma que la CD de la prueba de característica.
-        // Sólo los que FALLAN la salvación reciben los puntos de Sombra.
+        // Desesperanza / Decisiones erróneas (FALLO): puntos de Sombra.
+        // Cada personaje afectado hace su propia TS y, si falla, recibe
+        // su propio 1d3 aleatorio INDIVIDUAL (Desesperanza, RAW house-rule
+        // Mayo 2026) o 1 punto fijo (Decisiones erróneas).
+        //   - Desesperanza: TS CARISMA (añade PB si competencia) para resistir.
+        //                    afecta a TODA la compañía (miembros + acompañantes).
+        //                    1d3 por cada uno que falla la TS.
+        //   - Decisiones erróneas: TS SABIDURÍA al objetivo. 1 punto fijo.
+        // Además: Desesperanza SUMA +2 a la CD de fatiga final del viaje
+        // (mostrado en el widget del grupo).
         if (!exito && (eventoId === 'event_desesperanza' || eventoId === 'event_decisiones')) {
           const isDesesperanza = eventoId === 'event_desesperanza';
           const atributoSalvacion = isDesesperanza ? 'carisma' : 'sabiduria';
           const atributoLabel = isDesesperanza ? 'CAR' : 'SAB';
           const cdSalv = cd;
-          // Para Desesperanza: 1d3 puntos a quienes fallen la TS
-          const sombraValor = isDesesperanza
-            ? Math.max(1, Math.min(3, Math.floor(Math.random() * 3) + 1))
-            : 1;
 
+          // ➕ Aplicar +2 a la CD de fatiga final + breakdown visual.
+          if (isDesesperanza) {
+            const inc = 2;
+            setGlobalFatigaCD((prev) => (prev || 10) + inc);
+            setFatigaCdBreakdown(prev => [...prev, {
+              motivo: 'Desesperanza',
+              delta: inc,
+              dia: (activeJourney?.dia_actual || currentPosition + 1),
+              casilla: currentPosition,
+            }]);
+            setActiveJourney((prev) => prev
+              ? { ...prev, fatiga_cd_total: (prev.fatiga_cd_total || 10) + inc }
+              : prev);
+            if (activeJourney?.id) {
+              try {
+                await api.patch(`/travel/journey/${activeJourney.id}/fatigue-cd`, null, {
+                  params: { delta: inc, reason: 'Desesperanza' },
+                });
+              } catch (e) { /* non-fatal */ }
+            }
+          }
+
+          // Personajes afectados: Desesperanza → todos (miembros con papel +
+          // acompañantes). Decisiones → sólo el objetivo.
           const personajesAfectados = isDesesperanza
-            ? (config.miembros || [])
+            ? [
+                ...(config.miembros || []).filter(m => m.papeles?.length > 0),
+                ...(config.acompanantes || []),
+              ]
             : (targetMember ? [targetMember] : []);
 
           if (isDesesperanza) {
-            mecanicas.push(`Desesperanza: 1d3=${sombraValor} puntos de Sombra. Cada miembro debe hacer TS CAR (CD ${cdSalv}).`);
+            mecanicas.push(`Desesperanza: cada miembro tira TS CAR (CD ${cdSalv}); los que fallen reciben 1d3 puntos de Sombra (individual).`);
           }
 
           for (const m of personajesAfectados) {
@@ -1578,22 +1638,37 @@ const EnhancedTravelSystem = () => {
             if (!charDb) continue;
             const score = charDb.atributos?.[atributoSalvacion] ?? 10;
             const mod = Math.floor((score - 10) / 2);
-            // Desventaja en otoño/invierno: 2 d20, escoge el menor
+            // Competencia: si el personaje tiene proficiency en TS del
+            // atributo (p.ej. Carisma), añade su bonif. de competencia.
+            const compArr = charDb.competencias_salvacion || charDb.salvaciones_competentes || [];
+            const esCompetente = Array.isArray(compArr) && compArr.some(
+              (x) => String(x).toLowerCase().startsWith(atributoSalvacion.slice(0, 3)) ||
+                     String(x).toLowerCase() === atributoSalvacion
+            );
+            const nivel = Number(charDb.nivel || 1);
+            const profBonus = Math.ceil(nivel / 4) + 1; // 5e RAW: nv 1-4 = 2, 5-8 = 3, etc.
+            const totalMod = mod + (esCompetente ? profBonus : 0);
+
             const desventaja = currentEvent?.resolucion?.desventaja_salvacion;
             const r1 = Math.floor(Math.random() * 20) + 1;
             const r2 = desventaja ? Math.floor(Math.random() * 20) + 1 : null;
             const d20 = desventaja ? Math.min(r1, r2) : r1;
-            const total = d20 + mod;
+            const total = d20 + totalMod;
             const exitoSalv = total >= cdSalv;
             const detalleD = desventaja ? `d20(${r1}/${r2}→${d20})` : `d20(${d20})`;
-            mecanicas.push(`${m.nombre} TS ${atributoLabel}: ${detalleD}+${mod}=${total} vs CD ${cdSalv} → ${exitoSalv ? '✓ resiste' : '✗ falla'}.`);
+            const compLabel = esCompetente ? ` (+PB ${profBonus})` : '';
+            mecanicas.push(`${m.nombre} TS ${atributoLabel}: ${detalleD}+${totalMod}${compLabel}=${total} vs CD ${cdSalv} → ${exitoSalv ? '✓ resiste' : '✗ falla'}.`);
 
             if (!exitoSalv) {
+              // 🎲 1d3 INDIVIDUAL para Desesperanza; 1 fijo para Decisiones.
+              const sombraValor = isDesesperanza
+                ? (Math.floor(Math.random() * 3) + 1)
+                : 1;
               try {
                 await api.patch(`/characters/${m.id}/shadow`, { shadow_change: sombraValor });
                 setCharacters(prev => prev.map(c => c.id === m.id ? { ...c, puntos_sombra: (c.puntos_sombra || 0) + sombraValor } : c));
               } catch (e) { console.error('Shadow update fail:', e); }
-              mecanicas.push(`  → ${m.nombre} recibe ${sombraValor} punto(s) de Sombra.`);
+              mecanicas.push(`  → ${m.nombre} recibe ${sombraValor} punto${sombraValor === 1 ? '' : 's'} de Sombra.`);
               toast(`${m.nombre}: +${sombraValor} Sombra.`, { duration: 4000 });
             } else {
               toast(`${m.nombre} resiste la Sombra.`, { duration: 3000 });
@@ -3018,6 +3093,8 @@ const EnhancedTravelSystem = () => {
           globalFatigaCD={globalFatigaCD}
           fatigaCdBreakdown={fatigaCdBreakdown}
           forcedMarchActive={forcedMarchActive}
+          currentDayConfig={currentDayConfig}
+          setCurrentDayConfig={setCurrentDayConfig}
           lastFatigueSaves={lastFatigueSaves}
           fatigueSaveLog={fatigueSaveLog}
           fatigueChanges={fatigueChanges}

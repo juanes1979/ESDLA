@@ -134,7 +134,7 @@ const Step7Equipment = ({ draftId, draft, onComplete, onBack }) => {
     { key: 'herbs', label: 'Hierbas', icon: Leaf, catalogKeys: ['hierbas'] },
     { key: 'poisons', label: 'Venenos', icon: Skull, catalogKeys: ['venenos'] },
     { key: 'gems', label: 'Gemas', icon: Gem, catalogKeys: ['gemas_preciosas', 'gemas_semipreciosas'] },
-    { key: 'construction', label: 'Construcción', icon: Building, catalogKeys: ['construccion'] },
+    { key: 'construction', label: 'Construcción', icon: Building, catalogKeys: ['recursos_desarrollo'] },
   ];
 
   const nivelVida = draft?.nivel_vida || 'Común';
@@ -341,7 +341,7 @@ const Step7Equipment = ({ draftId, draft, onComplete, onBack }) => {
         'venenos': 'Veneno',
         'gemas_preciosas': 'Preciosa',
         'gemas_semipreciosas': 'Semipreciosa',
-        'construccion': 'Construcción'
+        'recursos_desarrollo': 'Construcción'
       };
       return labels[cat] || cat;
     };

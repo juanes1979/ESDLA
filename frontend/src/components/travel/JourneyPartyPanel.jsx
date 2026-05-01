@@ -13,7 +13,7 @@
  */
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Activity, Drumstick, Droplet, Shield, AlertTriangle, Users, Heart, Skull } from 'lucide-react';
+import { Activity, Drumstick, Droplet, Shield, AlertTriangle, Users, Heart, Skull, Moon } from 'lucide-react';
 
 const PAPEL_LABELS = {
   guia: 'Guía',
@@ -195,6 +195,19 @@ const JourneyPartyPanel = ({
                     </Badge>
                   )}
                 </div>
+
+                {/* Puntos de Sombra */}
+                {(() => {
+                  const sombra = Number(ch?.puntos_sombra ?? 0);
+                  if (sombra <= 0) return null;
+                  const tone = sombra >= 10 ? 'text-fuchsia-300' : sombra >= 5 ? 'text-purple-300' : 'text-violet-300';
+                  return (
+                    <div className="flex items-center gap-1" title={`Puntos de Sombra: ${sombra}`} data-testid={`party-sombra-${m.id}`}>
+                      <Moon className={`w-3.5 h-3.5 ${tone}`} />
+                      <span className={`font-mono font-bold ${tone}`}>{sombra}</span>
+                    </div>
+                  );
+                })()}
 
                 {/* Provisiones individuales (proporcional) */}
                 <div className="hidden md:flex items-center gap-2 text-[10px] text-muted-foreground">

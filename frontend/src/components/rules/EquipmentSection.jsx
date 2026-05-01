@@ -80,9 +80,9 @@ const EQUIPMENT_SECTIONS = [
     ]
   },
   {
-    title: "🏗️ Elementos de Construcción",
+    title: "🏗️ Recursos de Desarrollo",
     categories: [
-      { key: 'construccion', name: 'Elementos de Construcción', fields: ['nombre', 'precio', 'peso_kg', 'm2'] },
+      { key: 'recursos_desarrollo', name: 'Recursos de Desarrollo', fields: ['nombre', 'precio', 'peso_kg', 'm2'] },
     ]
   },
   {
@@ -577,19 +577,120 @@ const EquipmentSection = ({
   // Get all category keys for PDF modal
   const allCategoryKeys = EQUIPMENT_SECTIONS.flatMap(s => s.categories.map(c => c.key));
 
+  // Excel import/export (Mayo 2026) -- upsert por nombre evita duplicados.
+  const fileInputRef = React.useRef(null);
+  const [importing, setImporting] = React.useState(false);
+  const handleExportXlsx = async () => {
+    try {
+      const base = process.env.REACT_APP_BACKEND_URL;
+      const res = await fetch(`${base}/api/data/equipment/export-xlsx`);
+      if (!res.ok) throw new Error(await res.text());
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `equipment_catalog_${new Date().toISOString().slice(0, 10)}.xlsx`;
+      document.body.appendChild(a); a.click(); a.remove();
+      URL.revokeObjectURL(url);
+      toast.success('Catálogo exportado.');
+    } catch (e) {
+      toast.error('Error exportando el catálogo.');
+    }
+  };
+  const handleTemplateXlsx = async () => {
+    try {
+      const base = process.env.REACT_APP_BACKEND_URL;
+      const res = await fetch(`${base}/api/data/equipment/template-xlsx`);
+      if (!res.ok) throw new Error(await res.text());
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'equipment_template.xlsx';
+      document.body.appendChild(a); a.click(); a.remove();
+      URL.revokeObjectURL(url);
+      toast.success('Plantilla descargada.');
+    } catch (e) {
+      toast.error('Error descargando la plantilla.');
+    }
+  };
+  const handleImportXlsxFile = async (file) => {
+    if (!file) return;
+    setImporting(true);
+    try {
+      const base = process.env.REACT_APP_BACKEND_URL;
+      const form = new FormData();
+      form.append('file', file);
+      const res = await fetch(`${base}/api/data/equipment/import-xlsx`, {
+        method: 'POST', body: form,
+      });
+      const data = await res.json();
+      if (!res.ok || !data?.success) {
+        throw new Error(data?.detail || data?.error || 'Import fallo');
+      }
+      const s = data.stats || {};
+      toast.success(`Importado: ${s.created || 0} creados, ${s.updated || 0} actualizados en ${s.categories || 0} categorías.`);
+      onRefresh?.();
+    } catch (e) {
+      toast.error(`Error importando: ${e.message}`);
+    } finally {
+      setImporting(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
   return (
     <div className="space-y-8" data-testid="equipment-section">
       {/* Action buttons */}
-      <div className="flex justify-between items-center mb-4">
-        <Button
-          onClick={() => setShowPdfModal(true)}
-          variant="outline"
-          className="border-[hsl(var(--gold))]/50 hover:bg-[hsl(var(--gold))]/10"
-          data-testid="export-equipment-pdf-btn"
-        >
-          <Printer className="w-4 h-4 mr-2 text-[hsl(var(--gold))]" />
-          Imprimir Listado PDF
-        </Button>
+      <div className="flex flex-wrap justify-between items-center mb-4 gap-2">
+        <div className="flex flex-wrap gap-2">
+          <Button
+            onClick={() => setShowPdfModal(true)}
+            variant="outline"
+            className="border-[hsl(var(--gold))]/50 hover:bg-[hsl(var(--gold))]/10"
+            data-testid="export-equipment-pdf-btn"
+          >
+            <Printer className="w-4 h-4 mr-2 text-[hsl(var(--gold))]" />
+            Imprimir Listado PDF
+          </Button>
+          <Button
+            onClick={handleExportXlsx}
+            variant="outline"
+            className="border-emerald-500/60 hover:bg-emerald-500/10"
+            data-testid="export-equipment-xlsx-btn"
+          >
+            <FolderOpen className="w-4 h-4 mr-2 text-emerald-400" />
+            Exportar Excel
+          </Button>
+          <Button
+            onClick={handleTemplateXlsx}
+            variant="outline"
+            className="border-sky-500/60 hover:bg-sky-500/10"
+            data-testid="template-equipment-xlsx-btn"
+          >
+            <FolderOpen className="w-4 h-4 mr-2 text-sky-400" />
+            Plantilla Excel
+          </Button>
+          <Button
+            onClick={() => fileInputRef.current?.click()}
+            variant="outline"
+            disabled={importing}
+            className="border-amber-500/60 hover:bg-amber-500/10"
+            data-testid="import-equipment-xlsx-btn"
+          >
+            {importing
+              ? <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              : <UserPlus className="w-4 h-4 mr-2 text-amber-400" />}
+            Importar Excel
+          </Button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".xlsx,.xlsm"
+            className="hidden"
+            onChange={(e) => handleImportXlsxFile(e.target.files?.[0])}
+          />
+        </div>
         
         {isAdmin && Object.keys(pendingCreationChanges).length > 0 && (
           <Button
@@ -865,7 +966,7 @@ const CATEGORY_EXTRA_FIELDS = {
   accesorios_monturas: ['peso_kg'],
   transporte_terrestre: ['capacidad_kg'],
   transporte_maritimo: ['capacidad_kg'],
-  construccion: ['peso_kg', 'm2'],
+  recursos_desarrollo: ['peso_kg', 'm2'],
   gemas_preciosas: [],
   gemas_semipreciosas: [],
 };

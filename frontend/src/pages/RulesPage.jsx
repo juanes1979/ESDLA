@@ -1617,9 +1617,9 @@ const RulesPage = () => {
         ]
       },
       {
-        title: "🏗️ Elementos de Construcción",
+        title: "🏗️ Recursos de Desarrollo",
         categories: [
-          { key: 'construccion', name: 'Elementos de Construcción', fields: ['nombre', 'precio', 'peso_kg', 'm2'] },
+          { key: 'recursos_desarrollo', name: 'Recursos de Desarrollo', fields: ['nombre', 'precio', 'peso_kg', 'm2'] },
         ]
       },
       {
@@ -1830,10 +1830,10 @@ const RulesPage = () => {
       ]
     },
     {
-      id: 'construccion',
-      title: 'Elementos de Construcción',
+      id: 'recursos_desarrollo',
+      title: 'Recursos de Desarrollo',
       categories: [
-        { key: 'construccion', name: 'Elementos de Construcción', fields: ['nombre', 'precio', 'peso_kg', 'm2'] },
+        { key: 'recursos_desarrollo', name: 'Recursos de Desarrollo', fields: ['nombre', 'precio', 'peso_kg', 'm2'] },
       ]
     },
     {

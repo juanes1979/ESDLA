@@ -2,6 +2,27 @@
 
 ## Current State (2026-05-01)
 
+### ✅ Iteración 74 — Desesperanza individual, IA prompts, Excel import/export, Sombra en panel, Marcha forzada en Global
+
+**Viaje — reglas y UX:**
+- 🎯 **Desesperanza refinada:** ahora cada personaje tira TS CAR individual (incluye competencia PB+CAR si aplica) y cada uno que falla recibe su propio `1d3` aleatorio (antes se compartía un solo valor). También se añade a acompañantes. Además **Desesperanza suma +2 a la CD de fatiga final** con entrada en el `fatigaCdBreakdown` del widget (bug visual resuelto).
+- ⚡ **Marcha forzada visible en modo Global:** ahora aparece dentro de la tarjeta "Tirada de Orientación" con el checkbox "Sólo un día". Si se deja sin marcar, persiste hasta el próximo evento. La UI muestra las consecuencias (x2 avance · CD 15/día · +50% comida · ×3 agua).
+- 🌑 **Icono de Sombra** (Luna violeta) en cada fila del panel de personajes, visible en cuanto un personaje tiene >0 puntos. Color gradual según intensidad (violeta → púrpura → fucsia).
+- 📜 **Sección "IA de acontecimientos"** en Reglas de Viaje: nueva pestaña (`tab-ai-prompts`) que muestra los 3 prompts actuales (system + plantilla de narrativa + plantilla de day-log) en read-only. Expone `GET /api/travel/config/ai-prompts`. Permite depurar qué se le pide a GPT-4o.
+
+**Equipo:**
+- 📊 **Import/Export Excel** en Precios de Equipo. Nuevos endpoints:
+  - `GET /api/data/equipment/export-xlsx` — exporta catálogo completo (hoja por categoría).
+  - `GET /api/data/equipment/template-xlsx` — plantilla vacía con fila de ejemplo + hoja LEEME.
+  - `POST /api/data/equipment/import-xlsx` — upsert por `(categoría, nombre)` con matching Unicode-NFC case-insensitive. Probado round-trip: 718 items reimportados sin duplicar.
+  - 3 botones nuevos en `EquipmentSection.jsx`: "Exportar Excel", "Plantilla Excel", "Importar Excel".
+- 💎 **Peso por defecto `0.025 kg`** asignado a 102 gemas preciosas + 130 semipreciosas (migración DB ejecutada).
+- 🏷 **Renombrada** categoría `construccion` → `recursos_desarrollo` ("Recursos de Desarrollo") en DB, backend y frontend (5 archivos, DB migrada).
+
+**Tests:** 26/26 pytests PASS. Round-trip Excel validado. Crash `cazador` sigue resuelto.
+
+---
+
 ### ✅ Iteración 73 — Fix crash 'cazador' + refinamiento Marcha Forzada + widget CD fatiga
 
 **🐛 FIX CRÍTICO — pantalla negra / TypeError 'cazador':**

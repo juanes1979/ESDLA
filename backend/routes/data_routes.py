@@ -2,7 +2,8 @@
 Game Data API Routes
 Endpoints for retrieving game data (cultures, backgrounds, occupations, etc.)
 """
-from fastapi import APIRouter, HTTPException, Query, Body
+from fastapi import APIRouter, HTTPException, Query, Body, UploadFile, File
+from fastapi.responses import StreamingResponse
 from typing import List, Optional, Dict, Any
 from pydantic import BaseModel
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -1062,7 +1063,7 @@ async def get_equipment_catalog(
             "accesorios_monturas": [],
             "transporte_terrestre": [],
             "transporte_maritimo": [],
-            "construccion": []
+            "recursos_desarrollo": []
         }
     
     # Build full result from catalog
@@ -1073,7 +1074,7 @@ async def get_equipment_catalog(
         "armas_sencillas_cc", "armas_sencillas_distancia", "armas_marciales_cc", "armas_marciales_distancia",
         "armaduras_ligeras", "armaduras_medias", "armaduras_pesadas", "escudos",
         "monturas", "accesorios_monturas", "transporte_terrestre", "transporte_maritimo",
-        "construccion", "gemas_preciosas", "gemas_semipreciosas"
+        "recursos_desarrollo", "gemas_preciosas", "gemas_semipreciosas"
     ]
     
     result = {key: catalog.get(key, []) for key in all_keys}
@@ -2025,8 +2026,8 @@ async def get_equipment_categories():
                 "fields": ["nombre", "precio", "moneda", "capacidad_kg"]
             },
             {
-                "key": "construccion",
-                "name": "Elementos de Construcción",
+                "key": "recursos_desarrollo",
+                "name": "Recursos de Desarrollo",
                 "fields": ["nombre", "precio", "moneda", "peso_kg", "m2"]
             }
         ]
@@ -4866,3 +4867,256 @@ Escribes textos concisos y evocadores que personalizan trasfondos genéricos sin
     except Exception as e:
         print(f"Error generating personal history: {e}")
         return {"success": False, "error": str(e), "historia": ""}
+
+
+# ============ EQUIPMENT EXCEL IMPORT/EXPORT (Mayo 2026) ============
+# El DJ puede:
+#   • Exportar todo el catálogo a un .xlsx (una hoja por categoría, cabecera
+#     con todos los campos soportados, valores listos para editar).
+#   • Importar un .xlsx: cada fila actualiza/crea un item. Si ya existe un
+#     item con el mismo `nombre` dentro de la misma categoría (comparación
+#     case-insensitive + Unicode NFC), se **sobreescribe** (upsert por nombre),
+#     evitando duplicados.
+
+EQUIPMENT_XLSX_COLUMNS = [
+    # Comunes
+    "nombre", "precio", "moneda", "peso_kg", "descripcion", "comentarios",
+    "disponible_creacion",
+    # Armas / armaduras
+    "dano", "alcance", "ca", "ca_bonus", "propiedades", "tipo_dano",
+    # Monturas / transporte
+    "capacidad_carga", "velocidad", "pasajeros",
+    # Comida / consumibles
+    "es_racion_diaria", "unidades_paquete", "racion_valor", "m2",
+    # Herida
+    "herida",
+]
+
+
+@router.get("/equipment/export-xlsx")
+async def export_equipment_xlsx():
+    """Exporta el catálogo completo a un .xlsx (una hoja por categoría)."""
+    import io
+    from openpyxl import Workbook
+    from openpyxl.styles import Font, PatternFill
+
+    catalog = await db.equipment_catalog.find_one({"_id": "main"}) or await db.equipment_catalog.find_one({})
+    if not catalog:
+        raise HTTPException(status_code=404, detail="Catálogo no encontrado")
+
+    wb = Workbook()
+    # Remove default sheet; we'll add one per category.
+    wb.remove(wb.active)
+
+    header_font = Font(bold=True, color="FFFFFF")
+    header_fill = PatternFill("solid", fgColor="4B5563")
+
+    for cat_key, items in catalog.items():
+        if cat_key in ("_id", "updated_at", "version") or not isinstance(items, list):
+            continue
+        # openpyxl limits sheet names to 31 chars.
+        ws = wb.create_sheet(title=cat_key[:31] or "items")
+        ws.append(EQUIPMENT_XLSX_COLUMNS)
+        for cell in ws[1]:
+            cell.font = header_font
+            cell.fill = header_fill
+        for it in items:
+            row = []
+            for col in EQUIPMENT_XLSX_COLUMNS:
+                v = it.get(col, "")
+                if isinstance(v, (list, dict)):
+                    v = str(v)
+                row.append(v)
+            ws.append(row)
+        # Auto-ish width.
+        for col_cells in ws.columns:
+            max_len = max((len(str(c.value)) for c in col_cells if c.value is not None), default=8)
+            ws.column_dimensions[col_cells[0].column_letter].width = min(40, max(10, max_len + 2))
+
+    buf = io.BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+    fname = f"equipment_catalog_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M')}.xlsx"
+    return StreamingResponse(
+        buf,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f"attachment; filename={fname}"},
+    )
+
+
+@router.get("/equipment/template-xlsx")
+async def equipment_template_xlsx():
+    """Devuelve una plantilla vacía con una hoja por categoría estándar y
+    una fila de ejemplo con los formatos esperados."""
+    import io
+    from openpyxl import Workbook
+    from openpyxl.styles import Font, PatternFill
+
+    # Usamos las categorías actuales del catálogo si existen; si no, fallback.
+    catalog = await db.equipment_catalog.find_one({"_id": "main"}) or {}
+    cat_keys = [k for k in catalog.keys() if k not in ("_id", "updated_at", "version") and isinstance(catalog.get(k), list)]
+    if not cat_keys:
+        cat_keys = [
+            "armas_sencillas_cc", "armas_marciales_cc", "armaduras_ligeras",
+            "armaduras_medias", "armaduras_pesadas", "escudos", "equipo_general",
+            "consumibles", "herramientas", "monturas", "transporte_terrestre",
+            "gemas_preciosas", "gemas_semipreciosas", "ropa",
+        ]
+
+    wb = Workbook()
+    wb.remove(wb.active)
+    header_font = Font(bold=True, color="FFFFFF")
+    header_fill = PatternFill("solid", fgColor="6D28D9")
+
+    for cat in cat_keys:
+        ws = wb.create_sheet(title=cat[:31])
+        ws.append(EQUIPMENT_XLSX_COLUMNS)
+        for cell in ws[1]:
+            cell.font = header_font
+            cell.fill = header_fill
+        # Fila de ejemplo
+        sample = {
+            "nombre": "Ejemplo (reemplázame)",
+            "precio": 10,
+            "moneda": "mp",
+            "peso_kg": 0.5,
+            "disponible_creacion": True,
+            "descripcion": "Descripción opcional del ítem.",
+        }
+        ws.append([sample.get(c, "") for c in EQUIPMENT_XLSX_COLUMNS])
+        for col_cells in ws.columns:
+            ws.column_dimensions[col_cells[0].column_letter].width = 18
+
+    # Hoja "LEEME" con instrucciones
+    readme = wb.create_sheet(title="LEEME", index=0)
+    readme.append(["Plantilla de importación de equipo — Middle-earth 5e"])
+    readme.append([""])
+    readme.append(["• Una hoja por categoría (p.ej. armas_sencillas_cc, monturas...)."])
+    readme.append(["• Al importar, cada fila crea o SOBREESCRIBE el ítem con el mismo"])
+    readme.append(["  'nombre' dentro de su categoría (comparación case-insensitive)."])
+    readme.append(["• Los campos no aplicables a una categoría pueden dejarse vacíos."])
+    readme.append(["• 'disponible_creacion' acepta: true/false/1/0/sí/no."])
+    readme.append(["• 'es_racion_diaria' acepta lo mismo. 1 ración = 1 kg = 1 día."])
+    readme.append([""])
+    readme.append(["Columnas soportadas:"] + EQUIPMENT_XLSX_COLUMNS)
+
+    buf = io.BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+    return StreamingResponse(
+        buf,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": "attachment; filename=equipment_template.xlsx"},
+    )
+
+
+@router.post("/equipment/import-xlsx")
+async def import_equipment_xlsx(file: UploadFile = File(...)):
+    """Importa un .xlsx con items. Upsert por (categoría, nombre)."""
+    import io
+    import unicodedata
+    from openpyxl import load_workbook
+
+    if not file.filename.lower().endswith((".xlsx", ".xlsm")):
+        raise HTTPException(status_code=400, detail="El archivo debe ser .xlsx")
+
+    content = await file.read()
+    try:
+        wb = load_workbook(io.BytesIO(content), data_only=True)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Archivo no válido: {e}")
+
+    def parse_bool(v):
+        if isinstance(v, bool):
+            return v
+        if v is None:
+            return None
+        s = str(v).strip().lower()
+        if s in ("true", "1", "yes", "sí", "si", "y"):
+            return True
+        if s in ("false", "0", "no", "n", ""):
+            return False
+        return None
+
+    def parse_num(v):
+        if v is None or v == "":
+            return None
+        try:
+            f = float(v)
+            return int(f) if f.is_integer() else f
+        except (TypeError, ValueError):
+            return None
+
+    def norm(s):
+        return unicodedata.normalize("NFC", (str(s) or "").strip().casefold())
+
+    catalog = await db.equipment_catalog.find_one({"_id": "main"}) or await db.equipment_catalog.find_one({})
+    if not catalog:
+        catalog = {"_id": "main"}
+        await db.equipment_catalog.insert_one(catalog)
+
+    reserved = {"LEEME", "_id", "updated_at", "version"}
+    stats = {"categories": 0, "created": 0, "updated": 0, "skipped": 0, "details": []}
+
+    for sheet_name in wb.sheetnames:
+        if sheet_name.strip().upper() in reserved:
+            continue
+        ws = wb[sheet_name]
+        rows = list(ws.iter_rows(values_only=True))
+        if not rows:
+            continue
+        headers = [str(h).strip() if h else "" for h in rows[0]]
+        if "nombre" not in [h.lower() for h in headers]:
+            stats["details"].append(f"{sheet_name}: omitido (falta columna 'nombre')")
+            stats["skipped"] += 1
+            continue
+
+        cat_key = sheet_name.strip().lower()
+        existing_items = list(catalog.get(cat_key, []) or [])
+        # Index by normalised name for fast upsert.
+        idx_by_name = {norm(it.get("nombre", "")): i for i, it in enumerate(existing_items)}
+
+        created = updated = 0
+        for row in rows[1:]:
+            if not row or all(c is None or c == "" for c in row):
+                continue
+            item = {}
+            for h, v in zip(headers, row):
+                if not h:
+                    continue
+                key = h.lower()
+                if key in ("disponible_creacion", "es_racion_diaria"):
+                    b = parse_bool(v)
+                    if b is not None:
+                        item[key] = b
+                elif key in ("precio", "peso_kg", "ca", "ca_bonus", "capacidad_carga",
+                             "velocidad", "pasajeros", "unidades_paquete", "racion_valor",
+                             "herida", "m2"):
+                    n = parse_num(v)
+                    if n is not None:
+                        item[key] = n
+                elif v is not None and v != "":
+                    item[key] = v
+            nombre = str(item.get("nombre", "")).strip()
+            if not nombre:
+                continue
+            item["nombre"] = nombre
+            k = norm(nombre)
+            if k in idx_by_name:
+                existing_items[idx_by_name[k]] = {**existing_items[idx_by_name[k]], **item}
+                updated += 1
+            else:
+                existing_items.append(item)
+                idx_by_name[k] = len(existing_items) - 1
+                created += 1
+
+        await db.equipment_catalog.update_one(
+            {"_id": catalog["_id"]},
+            {"$set": {cat_key: existing_items, "updated_at": datetime.now(timezone.utc)}},
+        )
+        stats["categories"] += 1
+        stats["created"] += created
+        stats["updated"] += updated
+        stats["details"].append(f"{sheet_name}: {created} creados, {updated} actualizados ({cat_key})")
+
+    return {"success": True, "stats": stats}

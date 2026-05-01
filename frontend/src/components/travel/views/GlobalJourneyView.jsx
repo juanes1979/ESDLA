@@ -51,6 +51,8 @@ const GlobalJourneyView = ({
   fatigueChanges = {},
   fatigaCdBreakdown = [],
   forcedMarchActive = false,
+  currentDayConfig = {},
+  setCurrentDayConfig,
   // setters
   setMode, setGmNotesOrientation, setGmNotesEvent,
   setShowCampDialog, setShowProvisionsShop,
@@ -292,6 +294,46 @@ const GlobalJourneyView = ({
                     className="text-xs mt-1"
                     data-testid="gm-notes-orientation"
                   />
+                </div>
+
+                {/* Marcha Forzada (se decide ANTES de tirar orientación) */}
+                <div className="mt-3 p-2 rounded border"
+                     style={{
+                       borderColor: (currentDayConfig?.marchaForzada || forcedMarchActive) ? 'rgba(251, 146, 60, 0.6)' : 'hsl(var(--border))',
+                       background: (currentDayConfig?.marchaForzada || forcedMarchActive) ? 'rgba(194, 65, 12, 0.14)' : 'transparent',
+                     }}>
+                  <label className="flex items-center gap-2 cursor-pointer select-none" data-testid="global-forced-march-toggle">
+                    <input
+                      type="checkbox"
+                      checked={!!currentDayConfig?.marchaForzada || !!forcedMarchActive}
+                      onChange={(e) => setCurrentDayConfig && setCurrentDayConfig(prev => ({
+                        ...(prev || {}), marchaForzada: e.target.checked,
+                      }))}
+                      className="accent-orange-500"
+                    />
+                    <span className="text-xs font-semibold text-orange-200">
+                      ⚡ Marcha forzada {forcedMarchActive && !currentDayConfig?.marchaForzada ? '(persistiendo hasta el próximo evento)' : ''}
+                    </span>
+                  </label>
+                  {currentDayConfig?.marchaForzada && (
+                    <>
+                      <label className="mt-2 flex items-center gap-2 text-[11px] text-orange-100 cursor-pointer select-none"
+                             data-testid="global-forced-march-only-one-day">
+                        <input
+                          type="checkbox"
+                          checked={!!currentDayConfig?.marchaForzadaSoloUnDia}
+                          onChange={(e) => setCurrentDayConfig && setCurrentDayConfig(prev => ({
+                            ...(prev || {}), marchaForzadaSoloUnDia: e.target.checked,
+                          }))}
+                          className="accent-orange-500"
+                        />
+                        <span>Sólo un día (si no, persiste hasta el próximo evento / orientación)</span>
+                      </label>
+                      <p className="mt-1 text-[10px] text-orange-200/80">
+                        Doble avance · Tirada CD 15 por día + modificadores acumulados · +50 % comida · ×3 agua.
+                      </p>
+                    </>
+                  )}
                 </div>
 
                 <div className="flex gap-2">

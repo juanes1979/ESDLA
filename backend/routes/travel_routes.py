@@ -3419,3 +3419,74 @@ async def apply_px_individual(request: ApplyPXIndividualRequest):
             "success": False,
             "error": str(e)
         }
+
+
+# ============== AI PROMPTS — TRANSPARENCIA PARA EL DJ ==============
+
+@router.get("/config/ai-prompts")
+async def get_ai_prompts():
+    """Devuelve los prompts actualmente en uso por la IA para generar
+    narrativas de eventos de viaje, tiradas de orientación y crónicas.
+    Permite que el DJ los vea y (en el futuro) los depure/modifique.
+    Por ahora: READ-ONLY reflejo del código.
+    """
+    system_message = (
+        "Eres el narrador del grupo. Escribes notas cortas (2-3 frases) en español, en tono cercano tipo "
+        "Tolkien pero NATURAL — como un compañero de viaje contando lo sucedido al volver. NUNCA pedante.\n\n"
+        "REGLAS DE PERSONAJES:\n"
+        "- Refiérete al personaje SOLO por su NOMBRE DE PILA. NUNCA uses apellido.\n"
+        "- NO repitas el papel ('nuestro vigía', 'el atento explorador').\n"
+        "- Ejemplos: 'Folgo se adelantó al sendero' (SÍ). 'Folgo Rizocastaño, nuestro vigía...' (NO).\n\n"
+        "REGLAS DE AMBIENTACIÓN (Tolkien):\n"
+        "- Si la región es reconocible (Comarca, Bree, Eriador, Bosque Negro, Rohan, Gondor, etc.), describe "
+        "el paisaje COMO LO ES en la obra de Tolkien.\n\n"
+        "REGLAS DE CLIMA:\n"
+        "- Si se proporciona un clima, INTÉGRALO en una pincelada breve — sin cifras.\n\n"
+        "PROHIBIDO:\n"
+        "- 'épico', 'glorioso', 'valeroso', 'magnánimo'.\n"
+        "- Emojis.\n"
+        "- Mencionar tiradas, dados, CDs.\n"
+        "- Mencionar origen ni destino del viaje completo (céntrate en el momento)."
+    )
+
+    event_prompt_template = (
+        "Genera una breve narrativa (2-3 frases) para este evento de viaje:\n\n"
+        "FASE DEL VIAJE: {fase_viaje} (día {dia_actual} de {dias_totales})\n"
+        "TERRENO ACTUAL: {terreno_desc}\n"
+        "EVENTO: {evento_nombre}\n"
+        "RESULTADO: {\"El grupo tuvo éxito\" if exito else \"Las cosas no salieron bien\"}\n"
+        "PERSONAJE RESPONSABLE: {primer_nombre} (papel: {papel_name} — NO menciones el papel en el texto)\n"
+        "CONSECUENCIA: {consecuencia}\n"
+        "[Opcional] NOTAS DEL MAESTRO: {notas_maestro}\n"
+        "[Opcional] CLIMA DEL DÍA (mencionar sin cifras): {clima}\n\n"
+        "Describe qué sucedió de forma natural y sencilla, como si lo contaras junto al fuego. "
+        "Usa SOLO el nombre de pila '{primer_nombre}'."
+    )
+
+    day_log_prompt_template = (
+        "Genera UN párrafo (máx. 4-5 frases) contando el día {dia_numero} de un viaje de {dias_totales} días "
+        "por el terreno {terreno} ({tipo_tierra}).\n\n"
+        "ORIENTACIÓN DEL DÍA: {orientacion_resumen}\n"
+        "EVENTOS DEL DÍA: {eventos_resumen}\n"
+        "TIRADAS DE FATIGA: {fatiga_resumen}\n"
+        "ACAMPADA: {acampada_resumen}\n"
+        "CLIMA: {clima}\n"
+        "CONTEXTO DE AYER: {dia_anterior_resumen}\n\n"
+        "Narra como si lo contaras al fuego, sin repeticiones técnicas y sin cifras."
+    )
+
+    return {
+        "success": True,
+        "read_only": True,
+        "prompts": {
+            "system_message": system_message,
+            "event_narrative_template": event_prompt_template,
+            "day_log_template": day_log_prompt_template,
+        },
+        "model": "openai:gpt-4o",
+        "notas": (
+            "Estos prompts se usan en los endpoints /api/travel/generate-event-narrative "
+            "y /api/travel/generate-day-log. Por ahora son READ-ONLY (reflejan el código). "
+            "Si quieres editarlos en caliente, indícalo y añadimos persistencia + override."
+        ),
+    }

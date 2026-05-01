@@ -311,6 +311,9 @@ const TravelRulesSection = () => {
               <TabsTrigger value="rules" data-testid="tab-rules">
                 <Save className="w-4 h-4 mr-1" /> Reglas
               </TabsTrigger>
+              <TabsTrigger value="aiprompts" data-testid="tab-ai-prompts">
+                <Compass className="w-4 h-4 mr-1" /> IA de acontecimientos
+              </TabsTrigger>
             </TabsList>
             
             {/* EVENTS TAB */}
@@ -1114,10 +1117,100 @@ const TravelRulesSection = () => {
                 </div>
               )}
             </TabsContent>
+
+            {/* AI PROMPTS TAB — transparencia del prompt que recibe la IA */}
+            <TabsContent value="aiprompts">
+              <AiPromptsTab />
+            </TabsContent>
           </Tabs>
         </CardContent>
       </Card>
     </div>
+  );
+};
+
+// ========================== AI PROMPTS (READ-ONLY) ==========================
+// Muestra los prompts que se envían a la IA para generar narrativas de eventos
+// y crónicas diarias. Por ahora es READ-ONLY: refleja el código actual. Así el
+// DJ puede ver EXACTAMENTE qué se le pide a GPT y depurar/mejorar peticiones.
+const AiPromptsTab = () => {
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await api.get('/travel/config/ai-prompts');
+        setData(res.data);
+      } catch (e) {
+        toast.error('No se pudieron cargar los prompts de IA');
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, []);
+
+  if (loading) return <p className="text-sm text-muted-foreground p-4">Cargando prompts…</p>;
+  if (!data?.prompts) return <p className="text-sm text-red-400 p-4">No hay prompts disponibles.</p>;
+
+  const { system_message, event_narrative_template, day_log_template } = data.prompts;
+  return (
+    <ScrollArea className="h-[560px] pr-4">
+      <div className="space-y-4" data-testid="ai-prompts-panel">
+        <div className="p-3 rounded bg-blue-900/20 border border-blue-500/30 text-xs text-blue-200">
+          <strong>Modelo en uso:</strong> {data.model || 'openai:gpt-4o'} ·
+          <strong className="ml-2">Estado:</strong> {data.read_only ? 'Sólo lectura (refleja el código)' : 'Editable'}
+          <p className="mt-1 text-[11px] opacity-80">{data.notas}</p>
+        </div>
+
+        <Card className="p-3 border-amber-500/30">
+          <h4 className="text-sm font-bold text-amber-300 mb-2">1. System message (instrucciones de estilo)</h4>
+          <p className="text-[11px] text-muted-foreground mb-2">
+            Esto es lo que la IA recibe como “personalidad” antes de cualquier petición.
+          </p>
+          <textarea
+            readOnly
+            value={system_message}
+            rows={14}
+            className="w-full p-2 rounded border border-border bg-black/30 text-[11px] font-mono whitespace-pre-wrap"
+            data-testid="ai-prompt-system"
+          />
+        </Card>
+
+        <Card className="p-3 border-emerald-500/30">
+          <h4 className="text-sm font-bold text-emerald-300 mb-2">2. Narrativa de un acontecimiento</h4>
+          <p className="text-[11px] text-muted-foreground mb-2">
+            Endpoint: <code>POST /api/travel/generate-event-narrative</code>. Se rellena con los valores del evento.
+          </p>
+          <textarea
+            readOnly
+            value={event_narrative_template}
+            rows={12}
+            className="w-full p-2 rounded border border-border bg-black/30 text-[11px] font-mono whitespace-pre-wrap"
+            data-testid="ai-prompt-event"
+          />
+        </Card>
+
+        <Card className="p-3 border-sky-500/30">
+          <h4 className="text-sm font-bold text-sky-300 mb-2">3. Diario de una jornada (day-log)</h4>
+          <p className="text-[11px] text-muted-foreground mb-2">
+            Endpoint: <code>POST /api/travel/generate-day-log</code>. Une orientación, eventos, tiradas y clima.
+          </p>
+          <textarea
+            readOnly
+            value={day_log_template}
+            rows={10}
+            className="w-full p-2 rounded border border-border bg-black/30 text-[11px] font-mono whitespace-pre-wrap"
+            data-testid="ai-prompt-daylog"
+          />
+        </Card>
+
+        <p className="text-[11px] text-muted-foreground italic">
+          Nota: si quieres poder editar los prompts en caliente (sin pasar por código), pídelo y añadimos
+          persistencia en DB + un botón <em>Guardar</em> para cada plantilla.
+        </p>
+      </div>
+    </ScrollArea>
   );
 };
 

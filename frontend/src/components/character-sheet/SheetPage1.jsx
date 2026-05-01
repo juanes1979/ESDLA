@@ -658,7 +658,7 @@ const SheetPage1 = ({ character, scale, weaponCatalog = [], equipmentCatalog = {
       'armas_sencillas_cc', 'armas_sencillas_distancia', 'armas_marciales_cc', 'armas_marciales_distancia',
       'armaduras_ligeras', 'armaduras_medias', 'armaduras_pesadas', 'escudos',
       'monturas', 'accesorios_monturas', 'transporte_terrestre', 'transporte_maritimo',
-      'gemas_preciosas', 'gemas_semipreciosas', 'construccion'
+      'gemas_preciosas', 'gemas_semipreciosas', 'recursos_desarrollo'
     ];
     
     for (const category of allCategories) {
