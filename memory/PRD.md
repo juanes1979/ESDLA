@@ -2,6 +2,21 @@
 
 ## Current State (2026-05-01)
 
+### ✅ Iteración 75 — Fix "no entra a Precios de Equipo" + refactor P1 useFatigueSystem
+
+**🐛 Fix crítico:** `EquipmentSection.jsx` usaba `React.useRef` sin importar React. El render crasheaba silenciosamente al entrar en *Precios de Equipo*. Cambiado a `useRef` importado desde `react`. Smoke test confirma la página carga con los 4 botones (PDF + Exportar Excel + Plantilla Excel + Importar Excel) y sin errores de consola.
+
+**P1 — Refactor `EnhancedTravelSystem.jsx` (continuación):**
+- Nuevo hook **`/app/frontend/src/hooks/useFatigueSystem.js`** (161 líneas) que encapsula TODO el estado + lógica del sistema de fatiga y marcha forzada:
+  - Estado: `globalFatigaCD`, `fatigaCdBreakdown`, `lastFatigueSaves`, `fatigueChanges`, `fatigueSaveLog`, `forcedMarchActive`.
+  - Acciones: `addCdModifier()`, `applyForcedMarchExtraConsumption()`, `applyForcedMarchSaves()`, `resetFatigueSystem()`.
+- `EnhancedTravelSystem.jsx` reduce ~90 líneas más (de 3.306 → 3.241). Progreso del refactor acumulado: **3.500+ → 3.241** tras extraer `useJourneyProvisions` + `useFatigueSystem` + `travelSpeed.js` utils.
+- `journeyIdForFatigue` se sincroniza automáticamente con `activeJourney.id` vía `useEffect`, así el hook persiste la CD en backend sin que el padre tenga que preocuparse.
+
+**Tests:** 26/26 pytests PASS · Smoke `/travel` sin crash · Smoke `/rules → Precios de Equipo` OK.
+
+---
+
 ### ✅ Iteración 74 — Desesperanza individual, IA prompts, Excel import/export, Sombra en panel, Marcha forzada en Global
 
 **Viaje — reglas y UX:**

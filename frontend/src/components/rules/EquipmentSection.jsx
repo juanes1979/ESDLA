@@ -2,7 +2,7 @@
  * Equipment Section Component
  * Displays equipment tables by category with admin editing capabilities
  */
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { Plus, Edit, Trash2, Printer, MapPin, Package, Loader2, Check, AlertTriangle, UserPlus, FolderOpen } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -578,8 +578,8 @@ const EquipmentSection = ({
   const allCategoryKeys = EQUIPMENT_SECTIONS.flatMap(s => s.categories.map(c => c.key));
 
   // Excel import/export (Mayo 2026) -- upsert por nombre evita duplicados.
-  const fileInputRef = React.useRef(null);
-  const [importing, setImporting] = React.useState(false);
+  const fileInputRef = useRef(null);
+  const [importing, setImporting] = useState(false);
   const handleExportXlsx = async () => {
     try {
       const base = process.env.REACT_APP_BACKEND_URL;

@@ -62,6 +62,7 @@ import ConfigView from '@/components/travel/views/ConfigView';
 import MapPickDialog from '@/components/travel/MapPickDialog';
 import { computeMemberSpeed, getRoleModifier as getRoleModifierHelper } from '@/utils/travelSpeed';
 import useJourneyProvisions from '@/hooks/useJourneyProvisions';
+import useFatigueSystem from '@/hooks/useFatigueSystem';
 
 
 const EnhancedTravelSystem = () => {
@@ -139,7 +140,7 @@ const EnhancedTravelSystem = () => {
   // mantenga activa durante los siguientes días hasta el próximo evento (y
   // se desactive automáticamente al resolverlo), salvo que el DJ marque
   // "solo un día" (en cuyo caso se apaga tras un sólo día).
-  const [forcedMarchActive, setForcedMarchActive] = useState(false);
+  // `forcedMarchActive` se extrae del hook `useFatigueSystem` (más abajo).
   
   // Events for current journey
   const [events, setEvents] = useState([]);
@@ -226,22 +227,19 @@ const EnhancedTravelSystem = () => {
 
   // CD acumulada de fatiga durante la jornada interactiva (modo global sin
   // viaje en BD). Se actualiza con eventos fallidos, acampadas, etc.
-  const [globalFatigaCD, setGlobalFatigaCD] = useState(10);
-  // Desglose acumulado de modificadores de la CD final de fatiga. Cada entry:
-  //   { motivo: 'Tormenta en el paso', delta: +2, dia: 3, casilla: 4 }
-  // Alimenta el widget de JourneyPartyPanel para que el grupo vea en vivo
-  // cómo de dura será la tirada final y decida si acampar o no.
-  const [fatigaCdBreakdown, setFatigaCdBreakdown] = useState([]);
-  // Última tirada de salvación contra cansancio (panel del grupo).
-  // Forma: { [charId]: { d20, mod, total, cd, exito } }
-  const [lastFatigueSaves, setLastFatigueSaves] = useState({});
-  // Bitácora COMPLETA de salvaciones del viaje (visible al DJ).
-  // Cada entrada: { dia, id, charName, d20, mod, total, cd, exito,
-  //                saveExtra?, climaExtremo?, enSombra? }
-  const [fatigueSaveLog, setFatigueSaveLog] = useState([]);
-  // Último cambio de fatiga registrado por personaje (para mostrar +1/-1 en el panel).
-  // Forma: { [charId]: { delta: number, casilla: number } }
-  const [fatigueChanges, setFatigueChanges] = useState({});
+  // Fatigue system + forced march (extraído al hook `useFatigueSystem` en Mayo 2026).
+  // Todo el estado CD, breakdown, salvaciones, logs, y las acciones de marcha
+  // forzada viven ahora en el hook. Aquí solo consumimos las referencias.
+  // setForcedMarchActive también se obtiene del hook.
+  // (NB: el hook necesita saber el id del viaje activo para persistir la CD
+  //  en backend; se actualiza vía un efecto más abajo cuando empieza el viaje.)
+  const [journeyIdForFatigue, setJourneyIdForFatigue] = useState(null);
+  // State de fatiga extraído al hook `useFatigueSystem` (se invoca más abajo):
+  //   - lastFatigueSaves  : última salvación por personaje.
+  //   - fatigueSaveLog    : bitácora completa del viaje (para el DJ).
+  //   - fatigueChanges    : último cambio de fatiga por personaje (HUD +1/-1).
+  //   - forcedMarchActive : ¿la marcha forzada persiste entre orientación y evento?
+  //   - globalFatigaCD / fatigaCdBreakdown.
 
   // Contador de días consecutivos en campamento (sin marcha entre medias).
   // La salvación contra cansancio se OMITE en la 2.ª acampada consecutiva.
@@ -269,6 +267,27 @@ const EnhancedTravelSystem = () => {
     travelRules,
     onForageDay: () => setStageDays(prev => prev + 1),
   });
+
+  // Fatigue & forced march system (extraído Mayo 2026).
+  const {
+    globalFatigaCD, setGlobalFatigaCD,
+    fatigaCdBreakdown, setFatigaCdBreakdown,
+    lastFatigueSaves, setLastFatigueSaves,
+    fatigueChanges, setFatigueChanges,
+    fatigueSaveLog, setFatigueSaveLog,
+    forcedMarchActive, setForcedMarchActive,
+    addCdModifier,
+    applyForcedMarchExtraConsumption,
+    applyForcedMarchSaves,
+    resetFatigueSystem,
+  } = useFatigueSystem({
+    config,
+    characters,
+    setCharacters,
+    travelRules,
+    setPartyProvisions,
+    journeyId: journeyIdForFatigue,
+  });
   
   // Refs to access latest state inside the async automation loop (avoid stale closures)
   const currentPositionRef = useRef(currentPosition);
@@ -280,6 +299,9 @@ const EnhancedTravelSystem = () => {
   useEffect(() => { charactersRef.current = characters; }, [characters]);
   // Sync mode to ref so async automation loop can see immediate changes
   useEffect(() => { modeRef.current = mode; }, [mode]);
+  // Mantiene sincronizado el id de viaje que necesita el hook de fatiga
+  // para persistir sus modificaciones de CD en backend.
+  useEffect(() => { setJourneyIdForFatigue(activeJourney?.id || null); }, [activeJourney?.id]);
   
   // =============== LOAD DATA ===============
   
@@ -664,9 +686,8 @@ const EnhancedTravelSystem = () => {
     setConsecutiveCampDays(0);
     setDiasSinComida(0);
     setDiasSinAgua(0);
-    setLastFatigueSaves({});
-    setFatigueChanges({});
-    setFatigueSaveLog([]);
+    // Reset completo del sistema de fatiga (CD, breakdown, saves, MF…).
+    resetFatigueSystem();
     // Bitácora: día 1 — la compañía parte. Si hubo overrides de fatiga, se anotan.
     const partidaSummaries = [{
       dia: 1,
@@ -2149,76 +2170,10 @@ const EnhancedTravelSystem = () => {
     }
   };
 
-  /**
-   * Consumo EXTRA de raciones/agua por un día de marcha forzada (RAW Abr 2026):
-   *   • +50 % de comida respecto al consumo del ritmo.
-   *   • x3 (+200 %) de agua respecto al consumo del ritmo.
-   * Se llama DESPUÉS de consumeDailyProvisions; solo añade la diferencia.
-   */
-  const applyForcedMarchExtraConsumption = useCallback(() => {
-    const todosViajeros = [
-      ...config.miembros.filter(m => m.papeles?.length > 0),
-      ...(config.acompanantes || []),
-    ];
-    const n = todosViajeros.length;
-    if (n === 0) return;
-    const ritmo = config.ritmo || 'normal';
-    const baseFood = Number(travelRules?.[`consumo_comida_${ritmo}`] ?? 1.0);
-    const baseWater = Number(travelRules?.[`consumo_agua_${ritmo}`] ?? 2.0);
-    // Extra SOBRE el consumo ya aplicado: +50 % comida, +200 % agua.
-    const extraComida = n * baseFood * 0.5;
-    const extraAgua = n * baseWater * 2.0;
-    setPartyProvisions(prev => ({
-      ...prev,
-      comidaConsumida: prev.comidaConsumida + extraComida,
-      aguaConsumida: prev.aguaConsumida + extraAgua,
-    }));
-    toast.info(`⚡ Marcha forzada: +${extraComida.toFixed(1)} raciones y +${extraAgua.toFixed(1)} L consumidos extra.`);
-  }, [config.miembros, config.acompanantes, config.ritmo, travelRules, setPartyProvisions]);
+  // `applyForcedMarchExtraConsumption` y `applyForcedMarchSaves` se obtienen
+  // ahora del hook `useFatigueSystem` (arriba). Se conservan sus call sites
+  // con el mismo nombre — no hay cambio semántico.
 
-  /**
-   * Ejecuta la salvación de fatiga CD 15 para todos los viajeros tras un día
-   * de marcha forzada. Consecuencias por margen de fallo:
-   *   • Éxito        → 0 niveles de cansancio
-   *   • Fallo <5     → +1 nivel
-   *   • Fallo 5-9    → +2 niveles
-   *   • Fallo ≥10    → +3 niveles
-   * Aplica el resultado directamente a la ficha del personaje.
-   */
-  const applyForcedMarchSaves = async (diaActual) => {
-    const cd = 15;
-    const todosViajeros = [
-      ...config.miembros.filter(m => m.papeles?.length > 0),
-      ...(config.acompanantes || []),
-    ];
-    for (const miembro of todosViajeros) {
-      const char = characters.find(c => c.id === miembro.id);
-      if (!char) continue;
-      const conMod = Math.floor(((char.atributos?.constitucion || 10) - 10) / 2);
-      const d20 = Math.floor(Math.random() * 20) + 1;
-      const total = d20 + conMod;
-      const exito = total >= cd;
-      let nivelesCansancio = 0;
-      if (!exito) {
-        const margen = cd - total;
-        nivelesCansancio = margen >= 10 ? 3 : margen >= 5 ? 2 : 1;
-      }
-      if (nivelesCansancio > 0) {
-        const fatigaActual = Number(char.fatiga || 0);
-        const nuevaFatiga = Math.min(6, fatigaActual + nivelesCansancio);
-        try {
-          await api.put(`/characters/${miembro.id}/fatigue`, { fatiga: nuevaFatiga });
-          setCharacters(prev => prev.map(c => c.id === miembro.id ? { ...c, fatiga: nuevaFatiga } : c));
-        } catch (e) {
-          console.error('Error aplicando fatiga marcha forzada:', e);
-        }
-        toast.error(`⚡ Marcha forzada (día ${diaActual}): ${char.nombre} falla CON ${total} vs CD ${cd} → +${nivelesCansancio} nivel${nivelesCansancio === 1 ? '' : 'es'} de cansancio`);
-      } else {
-        toast.success(`⚡ Marcha forzada (día ${diaActual}): ${char.nombre} supera CON ${total} vs CD ${cd}`);
-      }
-    }
-  };
-  
   const generateDayEvent = async () => {
     try {
       const res = await api.post('/travel/generate-event', null, {
