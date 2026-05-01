@@ -21,9 +21,23 @@ const RACIONES_POR_DIA = 1;
 const lower = (s) => (s || '').toString().toLowerCase();
 
 const matchPackSize = (nombre) => {
-  // "Pack de Raciones de viaje (10 raciones)" → 10
-  const m = lower(nombre).match(/\((\d+)\s*raciones?\)/);
-  return m ? parseInt(m[1], 10) : null;
+  // Detecta varios formatos comunes de "paquete de N":
+  //   "Pack de Raciones de viaje (10 raciones)" → 10
+  //   "Raciones (1 día) (Paquete de 10)"         → 10
+  //   "Raciones (1 día) (x10)"                   → 10
+  //   "Raciones x5"                              → 5
+  const low = lower(nombre);
+  const patterns = [
+    /\((\d+)\s*raciones?\)/,           // (10 raciones)
+    /\(paquete\s*de\s*(\d+)\)/,        // (paquete de 10)
+    /\(x\s*(\d+)\)/,                   // (x10)
+    /\bx\s*(\d+)\b/,                   // x10 al final del nombre
+  ];
+  for (const rx of patterns) {
+    const m = low.match(rx);
+    if (m) return parseInt(m[1], 10);
+  }
+  return null;
 };
 
 export const isRationItem = (item) => {

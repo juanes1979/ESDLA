@@ -2,6 +2,32 @@
 
 ## Current State (2026-04-30)
 
+### ✅ Iteración 72 — Fix RAW mecánica de fatiga + Pydantic validations (P1)
+
+**Corrección crítica de reglas RAW (LOTR 5e):**
+- La tirada de salvación de fatiga es **UNA SOLA VEZ al final del viaje** — CD 10 + acumulado de eventos. Antes hacíamos una tirada diaria en `CampDialog`, lo cual era incorrecto. `calculateFatigueResults` ya hacía esto bien y se conserva.
+- Eliminada la tirada de CON diaria en `CampDialog`; mantenemos centinela + eventos nocturnos + reducción pasiva de la CD (-0.5 por acampada).
+- **Marcha forzada** es ahora un **toggle BINARIO POR DÍA** (se decide tras la tirada de orientación, igual que el ritmo). Un día de marcha forzada:
+  - Dobla el avance en km del día.
+  - Obliga a salvación CON CD 15 al final del día con las consecuencias normales por margen (<5 → +1 nivel, 5-9 → +2, ≥10 → +3).
+  - NO multiplica el consumo de raciones.
+- Añadido `applyForcedMarchSaves` que se ejecuta desde `advanceDay` cuando el DJ marcó el toggle para ese día.
+- Eliminado el input global `horasMarchaForzada (0-4)` del config del viaje y del editor de reglas.
+- Eliminados los campos legacy `marcha_forzada_consumo_pct` y `marcha_forzada_velocidad_pct` del modelo backend `TravelRulesConfig`.
+
+**Validaciones Pydantic centralizadas (P1):**
+- `CharacterAttributes`: cada atributo en [1, 30].
+- `EquipmentItem.cantidad` ≥ 1. `AddEquipmentRequest`: cantidad ≥ 1, precio/peso_kg/ca/herida ≥ 0.
+- `MountCreateRequest/MountUpdateRequest`: capacidad_carga y velocidad ≥ 0.
+- Endpoint `PUT /characters/{id}/fatigue`: `Body(ge=0, le=6)` — rechaza negativos y valores > 6 con 422.
+
+**Quick fix indicador de provisiones:**
+- `matchPackSize` en `inventoryProvisions.js` ahora reconoce formatos `(xN)`, `(Paquete de N)`, `xN` además del legacy `(N raciones)`. El indicador de la ficha ya no muestra "0 días" con items como "Raciones (1 día) (x10)".
+
+**Tests:** 26/26 pytests pasan (5 nuevos `test_pydantic_validations_it72.py` + 5 rationing_it70 + 16 rest_endpoints_it65). El testing_agent_v3_fork confirma 100% backend + 100% frontend sin regresiones.
+
+---
+
 ### ✅ Iteración 71 — Refactor (P0) + Indicador de provisiones en ficha
 
 **Refactor `EnhancedTravelSystem.jsx` (3.270 → 3.088 líneas, -182 líneas):**
