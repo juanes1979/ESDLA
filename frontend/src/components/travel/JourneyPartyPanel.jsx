@@ -41,6 +41,12 @@ const JourneyPartyPanel = ({
   globalFatigaCD = 10,
   lastFatigueSaves = {},
   fatigueChanges = {},
+  // Nuevos (Abr 2026): desglose del CD acumulado y estado del viaje.
+  fatigaCdBreakdown = [],    // [{ motivo: 'Tormenta día 3', delta: +2, casilla: 4 }, ...]
+  diaActual = null,
+  casillaActual = null,
+  totalCasillas = null,
+  forcedMarchActive = false,
 }) => {
   // Mostramos TODOS los viajeros (con papel + acompañantes), no sólo los que
   // tienen papel asignado. La regla de comida/agua aplica al grupo entero.
@@ -56,35 +62,72 @@ const JourneyPartyPanel = ({
   const racionesPorCabeza = (partyProvisions.comidaConsumida || 0) / personasParaRepartir;
   const litrosPorCabeza = (partyProvisions.aguaConsumida || 0) / personasParaRepartir;
 
+  // Últimos 4 modificadores del CD para vista compacta bajo el badge.
+  const lastMods = (fatigaCdBreakdown || []).slice(-4);
+
   return (
     <Card className="card-parchment border border-emerald-500/30" data-testid="journey-party-panel">
-      <CardHeader className="pb-2 flex flex-row items-center justify-between">
-        <CardTitle className="text-sm text-[hsl(var(--gold))] flex items-center gap-2">
-          <Users className="w-4 h-4" />
-          Estado del grupo
-          <Badge variant="outline" className="ml-1">{todos.length}</Badge>
-        </CardTitle>
-        <div className="flex items-center gap-3 text-xs">
-          <span title="CD acumulada de fatiga por eventos fallidos" className="flex items-center gap-1">
-            <Shield className="w-3.5 h-3.5 text-orange-400" />
-            <span className="text-muted-foreground">CD fatiga</span>
-            <span className="font-mono text-orange-300 font-bold" data-testid="party-cd-fatiga">
-              {Number(globalFatigaCD).toFixed(1)}
+      <CardHeader className="pb-2 flex flex-col gap-2">
+        <div className="flex flex-row items-center justify-between w-full">
+          <CardTitle className="text-sm text-[hsl(var(--gold))] flex items-center gap-2">
+            <Users className="w-4 h-4" />
+            Estado del grupo
+            <Badge variant="outline" className="ml-1">{todos.length}</Badge>
+            {diaActual != null && (
+              <Badge variant="outline" className="ml-1 text-[10px]" data-testid="party-dia-actual">
+                Día {diaActual}{totalCasillas ? ` · ${casillaActual}/${totalCasillas}` : ''}
+              </Badge>
+            )}
+            {forcedMarchActive && (
+              <Badge className="ml-1 bg-orange-600 hover:bg-orange-600 text-[10px]" data-testid="party-marcha-forzada">
+                ⚡ Marcha forzada
+              </Badge>
+            )}
+          </CardTitle>
+          <div className="flex items-center gap-3 text-xs">
+            <span title="CD de la tirada FINAL de fatiga (base 10 + eventos − acampadas)" className="flex items-center gap-1">
+              <Shield className="w-3.5 h-3.5 text-orange-400" />
+              <span className="text-muted-foreground">CD fatiga final</span>
+              <span className="font-mono text-orange-300 font-bold" data-testid="party-cd-fatiga">
+                {Number(globalFatigaCD).toFixed(1)}
+              </span>
             </span>
-          </span>
-          <span title="Comida disponible / consumida" className="flex items-center gap-1">
-            <Drumstick className="w-3.5 h-3.5 text-amber-300" />
-            <span className="font-mono text-amber-200">
-              {comidaDisp.toFixed(0)}/{(partyProvisions.comidaTotal || 0).toFixed(0)}
+            <span title="Comida disponible / consumida" className="flex items-center gap-1">
+              <Drumstick className="w-3.5 h-3.5 text-amber-300" />
+              <span className="font-mono text-amber-200">
+                {comidaDisp.toFixed(0)}/{(partyProvisions.comidaTotal || 0).toFixed(0)}
+              </span>
             </span>
-          </span>
-          <span title="Agua disponible / consumida" className="flex items-center gap-1">
-            <Droplet className="w-3.5 h-3.5 text-sky-300" />
-            <span className="font-mono text-sky-200">
-              {aguaDisp.toFixed(1)}/{(partyProvisions.aguaTotal || 0).toFixed(1)}L
+            <span title="Agua disponible / consumida" className="flex items-center gap-1">
+              <Droplet className="w-3.5 h-3.5 text-sky-300" />
+              <span className="font-mono text-sky-200">
+                {aguaDisp.toFixed(1)}/{(partyProvisions.aguaTotal || 0).toFixed(1)}L
+              </span>
             </span>
-          </span>
+          </div>
         </div>
+
+        {/* Desglose compacto de la CD acumulada — ayuda al DJ a decidir si acampar */}
+        {lastMods.length > 0 && (
+          <div className="flex flex-wrap items-center gap-1 text-[10px]" data-testid="party-cd-breakdown">
+            <span className="text-muted-foreground">Modificadores recientes:</span>
+            {lastMods.map((mod, i) => (
+              <Badge
+                key={i}
+                variant="outline"
+                className={`text-[10px] ${mod.delta >= 0 ? 'border-red-500/40 text-red-300' : 'border-emerald-500/40 text-emerald-300'}`}
+                title={`Día ${mod.dia || '?'}: ${mod.motivo}`}
+              >
+                {mod.delta >= 0 ? '+' : ''}{mod.delta} {mod.motivo}
+              </Badge>
+            ))}
+            {(fatigaCdBreakdown || []).length > lastMods.length && (
+              <span className="text-[10px] text-muted-foreground">
+                (+{fatigaCdBreakdown.length - lastMods.length} más)
+              </span>
+            )}
+          </div>
+        )}
       </CardHeader>
       <CardContent>
         <div className="space-y-1.5">

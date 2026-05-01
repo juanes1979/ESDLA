@@ -1,6 +1,29 @@
 # LOTR 5e RPG - Product Requirements Document
 
-## Current State (2026-04-30)
+## Current State (2026-05-01)
+
+### ✅ Iteración 73 — Fix crash 'cazador' + refinamiento Marcha Forzada + widget CD fatiga
+
+**🐛 FIX CRÍTICO — pantalla negra / TypeError 'cazador':**
+- `utils/travelSpeed.js` importaba `ROLE_MODIFIER_KEY` desde `../components/travel/travelConstants`, pero ese símbolo vive en `travelHelpers.js`. El import era `undefined` → al llamar `ROLE_MODIFIER_KEY['cazador']` crasheaba. Corregido.
+
+**Refinamiento de la Marcha Forzada (reglas del usuario):**
+- Consumo extra por un día de marcha forzada: **+50 % comida** y **×3 agua** respecto al ritmo base. Aplicado en nueva función `applyForcedMarchExtraConsumption`.
+- Persistencia automática: activar marcha forzada la mantiene hasta el **próximo evento/orientación** (se apaga automáticamente al aparecer un evento).
+- Nuevo checkbox **"Sólo un día"** en el toggle: limita la marcha forzada a ese único día.
+- Nuevo estado `forcedMarchActive` con badge "⚡ Marcha forzada" en el panel del grupo cuando está persistiendo.
+
+**Widget CD Fatiga Final en el panel del grupo (mejora sugerida aprobada):**
+- `JourneyPartyPanel` ahora muestra:
+  - `Día N · casilla/total` del viaje
+  - Badge "⚡ Marcha forzada" cuando persiste
+  - CD fatiga final en vivo con desglose de modificadores recientes (últimos 4)
+  - Badges con color (rojo = subida, verde = bajada) y tooltip con día/motivo
+- `fatigaCdBreakdown` alimentado desde `resolveEvent` (percances, accidentes, etc.).
+
+**Tests:** 26/26 pytests PASS. Reproducción con Playwright confirma que el flujo de generación de viaje NO lanza el error 'cazador' tras el fix.
+
+---
 
 ### ✅ Iteración 72 — Fix RAW mecánica de fatiga + Pydantic validations (P1)
 

@@ -4,7 +4,8 @@
  * (no React state) so we keep them outside the component for testability.
  */
 
-import { ROLE_INFO, ROLE_MODIFIER_KEY, MULTI_ROLE_PENALTY } from '../components/travel/travelConstants';
+import { ROLE_INFO, MULTI_ROLE_PENALTY } from '../components/travel/travelConstants';
+import { ROLE_MODIFIER_KEY } from '../components/travel/travelHelpers';
 
 /**
  * Compute the effective travel speed (in metres per round) of a single

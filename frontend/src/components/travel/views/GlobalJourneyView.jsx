@@ -49,6 +49,8 @@ const GlobalJourneyView = ({
   lastFatigueSaves = {},
   fatigueSaveLog = [],
   fatigueChanges = {},
+  fatigaCdBreakdown = [],
+  forcedMarchActive = false,
   // setters
   setMode, setGmNotesOrientation, setGmNotesEvent,
   setShowCampDialog, setShowProvisionsShop,
@@ -113,6 +115,11 @@ const GlobalJourneyView = ({
       globalFatigaCD={globalFatigaCD}
       lastFatigueSaves={lastFatigueSaves}
       fatigueChanges={fatigueChanges}
+      fatigaCdBreakdown={fatigaCdBreakdown || []}
+      diaActual={currentPosition + 1}
+      casillaActual={currentPosition}
+      totalCasillas={journeyCalc?.ruta?.casillas || 0}
+      forcedMarchActive={forcedMarchActive}
     />
 
     {/* Bitácora completa de salvaciones de fatiga (visible al DJ) */}

@@ -238,18 +238,37 @@ const DayByDayView = ({
               />
               <span className="text-xs">
                 {currentDayConfig.marchaForzada
-                  ? '⚡ Forzando marcha (x2 km · tirada CD 15 al final del día)'
+                  ? '⚡ Forzando marcha (x2 km · CD 15 · +50% comida · x3 agua)'
                   : 'Avance normal'}
               </span>
             </div>
+            {currentDayConfig.marchaForzada && (
+              <label
+                className="mt-1 flex items-center gap-2 text-[11px] text-orange-200 cursor-pointer select-none"
+                data-testid="forced-march-only-one-day"
+              >
+                <input
+                  type="checkbox"
+                  checked={!!currentDayConfig.marchaForzadaSoloUnDia}
+                  onChange={(e) =>
+                    setCurrentDayConfig(prev => ({ ...prev, marchaForzadaSoloUnDia: e.target.checked }))
+                  }
+                  className="accent-orange-500"
+                />
+                <span>Sólo un día (si no, persiste hasta el próximo evento)</span>
+              </label>
+            )}
           </div>
         </div>
 
         {currentDayConfig.marchaForzada && (
           <div className="mb-4 p-2 bg-orange-900/20 rounded border border-orange-500/40 text-[11px] text-orange-200">
-            ⚡ <strong>Marcha Forzada activa hoy:</strong> dobla la distancia recorrida. Al final del día,
-            cada personaje deberá superar una salvación de CON CD 15 o sufrir fatiga (−&lt;5 → +1 nivel,
-            5-9 → +2, ≥10 → +3). Se decide día a día.
+            ⚡ <strong>Marcha Forzada activa hoy:</strong> dobla la distancia recorrida al mismo ritmo. Al final del día cada
+            personaje realiza una salvación CON CD 15 (más modificadores acumulados) o sufre fatiga
+            (&lt;5 → +1 nivel, 5-9 → +2, ≥10 → +3). Consumo extra: <strong>+50 % comida</strong> y <strong>x3 agua</strong> respecto
+            al ritmo base. {currentDayConfig.marchaForzadaSoloUnDia
+              ? 'Se aplica SOLO este día.'
+              : 'Persistirá hasta el próximo evento/orientación si no se marca "Sólo un día".'}
           </div>
         )}
 

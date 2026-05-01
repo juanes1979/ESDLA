@@ -131,8 +131,15 @@ const EnhancedTravelSystem = () => {
   const [activeJourney, setActiveJourney] = useState(null);
   const [currentDayConfig, setCurrentDayConfig] = useState({
     ritmo: 'normal',
-    marchaForzada: false, // binary toggle per day (RAW Abr 2026)
+    marchaForzada: false,          // ¿hoy la marcha es forzada?
+    marchaForzadaSoloUnDia: false, // ¿la marcha forzada es solo 1 día o hasta el próx. evento?
   });
+  // Estado persistente de "bandera de marcha forzada activa" mientras no haya
+  // un nuevo evento/orientación. Permite que al pulsar una marcha forzada se
+  // mantenga activa durante los siguientes días hasta el próximo evento (y
+  // se desactive automáticamente al resolverlo), salvo que el DJ marque
+  // "solo un día" (en cuyo caso se apaga tras un sólo día).
+  const [forcedMarchActive, setForcedMarchActive] = useState(false);
   
   // Events for current journey
   const [events, setEvents] = useState([]);
@@ -220,6 +227,11 @@ const EnhancedTravelSystem = () => {
   // CD acumulada de fatiga durante la jornada interactiva (modo global sin
   // viaje en BD). Se actualiza con eventos fallidos, acampadas, etc.
   const [globalFatigaCD, setGlobalFatigaCD] = useState(10);
+  // Desglose acumulado de modificadores de la CD final de fatiga. Cada entry:
+  //   { motivo: 'Tormenta en el paso', delta: +2, dia: 3, casilla: 4 }
+  // Alimenta el widget de JourneyPartyPanel para que el grupo vea en vivo
+  // cómo de dura será la tirada final y decida si acampar o no.
+  const [fatigaCdBreakdown, setFatigaCdBreakdown] = useState([]);
   // Última tirada de salvación contra cansancio (panel del grupo).
   // Forma: { [charId]: { d20, mod, total, cd, exito } }
   const [lastFatigueSaves, setLastFatigueSaves] = useState({});
@@ -1607,6 +1619,12 @@ const EnhancedTravelSystem = () => {
           const inc = 2;
           mecanicas.push(`Percance: +1 día y +${inc} a la CD de fatiga.`);
           setGlobalFatigaCD((prev) => (prev || 10) + inc);
+          setFatigaCdBreakdown(prev => [...prev, {
+            motivo: `Percance (${currentEvent?.evento?.nombre || 'evento'})`,
+            delta: inc,
+            dia: (activeJourney?.dia_actual || currentPosition + 1),
+            casilla: currentPosition,
+          }]);
           setActiveJourney((prev) => prev
             ? { ...prev, fatiga_cd_total: (prev.fatiga_cd_total || 10) + inc }
             : prev);
@@ -1995,13 +2013,15 @@ const EnhancedTravelSystem = () => {
     if (!activeJourney) return;
 
     try {
-      const esMarchaForzadaHoy = !!currentDayConfig.marchaForzada;
+      // Una marcha forzada se mantiene activa desde que se activa hasta el
+      // siguiente evento/orientación (o se apaga tras 1 día si el DJ marcó
+      // el checkbox "solo un día"). Si el toggle del día dice true, fuerza
+      // la marcha aunque no estuviera activa antes.
+      const esMarchaForzadaHoy = !!currentDayConfig.marchaForzada || forcedMarchActive;
+
       const res = await api.post(`/travel/journey/${activeJourney.id}/advance-day`, null, {
         params: {
           ritmo: currentDayConfig.ritmo,
-          // Enviamos 8 "horas extra" para que el backend doble el avance del día.
-          // El valor numérico es legacy; lo que cuenta realmente es si hubo o no
-          // marcha forzada (la salvación CD 15 se hace aquí en el front).
           marcha_forzada_horas: esMarchaForzadaHoy ? 8 : 0,
         },
       });
@@ -2009,15 +2029,35 @@ const EnhancedTravelSystem = () => {
       if (res.data.success) {
         setActiveJourney(res.data.journey);
 
-        // Consumo diario (1 ración + 2 L por persona, ajustado por ritmo).
+        // Consumo diario — base por ritmo + EXTRA si hay marcha forzada.
+        //   Reglas Abr 2026: MF añade +50% comida y x3 agua respecto al ritmo
+        //   base del viaje. Este extra se aplica POR ENCIMA del consumo del hook.
         consumeDailyProvisions();
+        if (esMarchaForzadaHoy) applyForcedMarchExtraConsumption();
 
-        // ⚡ Tirada de salvación de fatiga CD 15 — SOLO si este día
-        // se ha forzado la marcha (RAW Abr 2026). Resultados aplicados
-        // inmediatamente a la ficha del personaje.
+        // ⚡ Salvación CD 15 de fatiga por cada día de marcha forzada.
         if (esMarchaForzadaHoy) {
           await applyForcedMarchSaves(res.data.journey?.dia_actual || activeJourney.dia_actual);
         }
+
+        // Gestión de la persistencia del estado de marcha forzada:
+        //   • Si hoy se activó y el DJ marcó "solo un día" → la apagamos.
+        //   • Si hoy se activó y NO marcó "solo un día"   → persiste hasta el próximo evento.
+        //   • Si ya estaba persistiendo, sigue activa.
+        if (currentDayConfig.marchaForzada) {
+          if (currentDayConfig.marchaForzadaSoloUnDia) {
+            setForcedMarchActive(false);
+          } else {
+            setForcedMarchActive(true);
+          }
+        }
+        // Reset del toggle del día tras aplicarlo (si no es persistente el
+        // DJ puede volver a marcarlo mañana). Mantiene la UI limpia.
+        setCurrentDayConfig(prev => ({
+          ...prev,
+          marchaForzada: false,
+          marchaForzadaSoloUnDia: false,
+        }));
 
         // Check for event generation (simplified - every 2-3 days)
         if (res.data.journey.dia_actual % 2 === 0) {
@@ -2033,6 +2073,33 @@ const EnhancedTravelSystem = () => {
       toast.error('Error al avanzar día');
     }
   };
+
+  /**
+   * Consumo EXTRA de raciones/agua por un día de marcha forzada (RAW Abr 2026):
+   *   • +50 % de comida respecto al consumo del ritmo.
+   *   • x3 (+200 %) de agua respecto al consumo del ritmo.
+   * Se llama DESPUÉS de consumeDailyProvisions; solo añade la diferencia.
+   */
+  const applyForcedMarchExtraConsumption = useCallback(() => {
+    const todosViajeros = [
+      ...config.miembros.filter(m => m.papeles?.length > 0),
+      ...(config.acompanantes || []),
+    ];
+    const n = todosViajeros.length;
+    if (n === 0) return;
+    const ritmo = config.ritmo || 'normal';
+    const baseFood = Number(travelRules?.[`consumo_comida_${ritmo}`] ?? 1.0);
+    const baseWater = Number(travelRules?.[`consumo_agua_${ritmo}`] ?? 2.0);
+    // Extra SOBRE el consumo ya aplicado: +50 % comida, +200 % agua.
+    const extraComida = n * baseFood * 0.5;
+    const extraAgua = n * baseWater * 2.0;
+    setPartyProvisions(prev => ({
+      ...prev,
+      comidaConsumida: prev.comidaConsumida + extraComida,
+      aguaConsumida: prev.aguaConsumida + extraAgua,
+    }));
+    toast.info(`⚡ Marcha forzada: +${extraComida.toFixed(1)} raciones y +${extraAgua.toFixed(1)} L consumidos extra.`);
+  }, [config.miembros, config.acompanantes, config.ritmo, travelRules, setPartyProvisions]);
 
   /**
    * Ejecuta la salvación de fatiga CD 15 para todos los viajeros tras un día
@@ -2095,6 +2162,11 @@ const EnhancedTravelSystem = () => {
         };
         setCurrentEvent(newEvent);
         setEvents(prev => [...prev, newEvent]);
+        // Un evento corta la persistencia de la marcha forzada (RAW Abr 2026).
+        if (forcedMarchActive) {
+          setForcedMarchActive(false);
+          toast.info('⚡ Marcha forzada interrumpida — ha surgido un evento.');
+        }
       }
     } catch (err) {
       console.error('Error generating event:', err);
@@ -2944,6 +3016,8 @@ const EnhancedTravelSystem = () => {
           dailySummaries={dailySummaries}
           partyProvisions={partyProvisions}
           globalFatigaCD={globalFatigaCD}
+          fatigaCdBreakdown={fatigaCdBreakdown}
+          forcedMarchActive={forcedMarchActive}
           lastFatigueSaves={lastFatigueSaves}
           fatigueSaveLog={fatigueSaveLog}
           fatigueChanges={fatigueChanges}
