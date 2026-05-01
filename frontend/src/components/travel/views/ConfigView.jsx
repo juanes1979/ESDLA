@@ -782,23 +782,13 @@ const ConfigView = ({
               </div>
             )}
             
-            <div>
-              <Label>Marcha Forzada (horas extra)</Label>
-              <Select 
-                value={config.horasMarchaForzada.toString()} 
-                onValueChange={(v) => setConfig(prev => ({ ...prev, horasMarchaForzada: parseInt(v) }))}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="0">Sin marcha forzada</SelectItem>
-                  <SelectItem value="1">+1 hora (CD 11)</SelectItem>
-                  <SelectItem value="2">+2 horas (CD 12)</SelectItem>
-                  <SelectItem value="3">+3 horas (CD 13)</SelectItem>
-                  <SelectItem value="4">+4 horas (CD 14)</SelectItem>
-                </SelectContent>
-              </Select>
+            <div className="p-3 rounded border border-amber-500/30 bg-amber-950/10">
+              <Label className="text-xs text-amber-300">Marcha Forzada</Label>
+              <p className="text-[11px] text-muted-foreground mt-1">
+                Se decide <strong>día a día</strong> tras la tirada de orientación. Un día de
+                marcha forzada dobla el avance en km y obliga a una salvación de CON CD 15
+                al final del día con consecuencias por margen de fallo.
+              </p>
             </div>
           </div>
         </CardContent>
@@ -1048,16 +1038,8 @@ const ConfigView = ({
             </div>
           )}
           
-          {/* Forced march warning */}
-          {config.horasMarchaForzada > 0 && (
-            <div className="p-3 bg-orange-900/30 rounded border border-orange-500/50 text-sm">
-              <p className="text-orange-400">
-                <AlertTriangle className="w-4 h-4 inline mr-2" />
-                <strong>Marcha Forzada activa:</strong> Todos los personajes sufren -5 a su Percepción pasiva.
-              </p>
-            </div>
-          )}
-          
+          {/* Forced march info (now day-by-day) */}
+
           {/* Summary of assigned roles */}
           <div className="pt-4 border-t border-border/30">
             <div className="flex flex-wrap gap-2">

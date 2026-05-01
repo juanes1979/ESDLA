@@ -220,23 +220,38 @@ const DayByDayView = ({
           </div>
 
           <div>
-            <Label className="text-sm">Marcha Forzada</Label>
-            <Select
-              value={currentDayConfig.marchaForzada.toString()}
-              onValueChange={(v) => setCurrentDayConfig(prev => ({ ...prev, marchaForzada: parseInt(v) }))}
+            <Label className="text-sm">Marcha Forzada (hoy)</Label>
+            <div
+              className="mt-1 flex items-center gap-2 p-2 rounded border cursor-pointer transition-colors"
+              onClick={() => setCurrentDayConfig(prev => ({ ...prev, marchaForzada: !prev.marchaForzada }))}
+              style={{
+                borderColor: currentDayConfig.marchaForzada ? 'rgba(251, 146, 60, 0.6)' : 'hsl(var(--border))',
+                background: currentDayConfig.marchaForzada ? 'rgba(194, 65, 12, 0.18)' : 'transparent',
+              }}
+              data-testid="forced-march-toggle"
             >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="0">Sin marcha forzada</SelectItem>
-                <SelectItem value="1">+1 hora (+6 km)</SelectItem>
-                <SelectItem value="2">+2 horas (+12 km)</SelectItem>
-                <SelectItem value="3">+3 horas (+18 km)</SelectItem>
-              </SelectContent>
-            </Select>
+              <input
+                type="checkbox"
+                checked={!!currentDayConfig.marchaForzada}
+                onChange={() => {}}
+                className="accent-orange-500 pointer-events-none"
+              />
+              <span className="text-xs">
+                {currentDayConfig.marchaForzada
+                  ? '⚡ Forzando marcha (x2 km · tirada CD 15 al final del día)'
+                  : 'Avance normal'}
+              </span>
+            </div>
           </div>
         </div>
+
+        {currentDayConfig.marchaForzada && (
+          <div className="mb-4 p-2 bg-orange-900/20 rounded border border-orange-500/40 text-[11px] text-orange-200">
+            ⚡ <strong>Marcha Forzada activa hoy:</strong> dobla la distancia recorrida. Al final del día,
+            cada personaje deberá superar una salvación de CON CD 15 o sufrir fatiga (−&lt;5 → +1 nivel,
+            5-9 → +2, ≥10 → +3). Se decide día a día.
+          </div>
+        )}
 
         <Button
           onClick={advanceDay}
@@ -298,11 +313,10 @@ const DayByDayView = ({
           })}
         </div>
 
-        {(config.miembros.some(m => m.papeles?.length > 1) || config.horasMarchaForzada > 0) && (
+        {config.miembros.some(m => m.papeles?.length > 1) && (
           <div className="mt-3 p-2 bg-yellow-900/30 rounded border border-yellow-500/30 text-xs text-yellow-400">
             ⚠️ Percepción pasiva reducida (-5):
             {config.miembros.filter(m => m.papeles?.length > 1).map(m => m.nombre).join(', ')}
-            {config.horasMarchaForzada > 0 && ' | Todos (marcha forzada)'}
           </div>
         )}
       </CardContent>

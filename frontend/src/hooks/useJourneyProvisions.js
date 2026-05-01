@@ -134,10 +134,11 @@ export const useJourneyProvisions = ({ config, characters, locations, travelRule
   }, [config, characters, locations]);
 
   /**
-   * Consume comida/agua de un día completo. Aplica:
-   *   • consumo base por ritmo (lento/normal/rápido) según `travelRules`.
-   *   • modificador % por horas de marcha forzada (1-4 h).
-   *   • Toasts de aviso cuando escasea o se agota.
+   * Consume comida/agua de un día completo según el ritmo del viaje.
+   *   • 1 ración (= 1 kg) = 1 día completo de comida por personaje.
+   *   • Consumo de agua configurable (L/día) por ritmo.
+   *   • La marcha forzada NO multiplica el consumo (RAW Abr 2026). Lo que
+   *     aumenta es la fatiga acumulada por la salvación CD 15 diaria.
    */
   const consumeDailyProvisions = useCallback(() => {
     const todosViajeros = [
@@ -151,12 +152,8 @@ export const useJourneyProvisions = ({ config, characters, locations, travelRule
     const baseFood = Number(travelRules?.[`consumo_comida_${ritmo}`] ?? 1.0);
     const baseWater = Number(travelRules?.[`consumo_agua_${ritmo}`] ?? 2.0);
 
-    const horasMF = Math.max(0, Math.min(4, Number(config.horasMarchaForzada || 0)));
-    const consumoPctArr = travelRules?.marcha_forzada_consumo_pct || [10, 20, 35, 50];
-    const mfMultiplier = horasMF > 0 ? 1 + (Number(consumoPctArr[horasMF - 1] || 0) / 100) : 1;
-
-    const comidaConsumidaHoy = numPersonajes * baseFood * mfMultiplier;
-    const aguaConsumidaHoy = numPersonajes * baseWater * mfMultiplier;
+    const comidaConsumidaHoy = numPersonajes * baseFood;
+    const aguaConsumidaHoy = numPersonajes * baseWater;
 
     setPartyProvisions(prev => {
       const nuevaComida = prev.comidaTotal - prev.comidaConsumida - comidaConsumidaHoy;
@@ -195,7 +192,7 @@ export const useJourneyProvisions = ({ config, characters, locations, travelRule
         aguaConsumida: prev.aguaConsumida + aguaConsumidaHoy,
       };
     });
-  }, [config.miembros, config.acompanantes, config.ritmo, config.horasMarchaForzada, travelRules]);
+  }, [config.miembros, config.acompanantes, config.ritmo, travelRules]);
 
   /**
    * Rellena los odres del grupo cerca de un asentamiento o río.

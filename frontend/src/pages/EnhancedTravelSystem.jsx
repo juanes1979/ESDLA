@@ -101,7 +101,8 @@ const EnhancedTravelSystem = () => {
     mes: 'Cermië',
     diaMes: 1,
     estacion: 'verano',
-    horasMarchaForzada: 0,
+    // `horasMarchaForzada` eliminado (Abr 2026): la marcha forzada ahora se
+    // decide día a día tras la tirada de orientación (toggle `marchaForzadaHoy`).
     miembros: [],
     // Acompañantes: viajan con el grupo, NO tienen papel ni hacen tiradas de
     // eventos/orientación/fatiga, pero SÍ cuentan para velocidad y provisiones.
@@ -130,7 +131,7 @@ const EnhancedTravelSystem = () => {
   const [activeJourney, setActiveJourney] = useState(null);
   const [currentDayConfig, setCurrentDayConfig] = useState({
     ritmo: 'normal',
-    marchaForzada: 0
+    marchaForzada: false, // binary toggle per day (RAW Abr 2026)
   });
   
   // Events for current journey
@@ -411,7 +412,7 @@ const EnhancedTravelSystem = () => {
         ritmo: config.ritmo,
         mes: config.mes,
         estacion: config.estacion,
-        horas_marcha_forzada: config.horasMarchaForzada,
+        // horas_marcha_forzada eliminado (Abr 2026): se decide por día tras orientación.
         miembros: todosViajeros.map(m => {
           // Enriquecer con estorbo y bandera de montura cargando equipo
           // a partir de la ficha del personaje (persistido por la
@@ -1236,21 +1237,15 @@ const EnhancedTravelSystem = () => {
     setAwaitingOrientationCheck(true);
   };
   
-  // Calculate fatigue for current stage only
+  // Calculate fatigue for current stage only (used only in global journey view)
   const calculateStageFatigue = async () => {
-    // Calculate CD based on stage events
     let cd = 10 + stageDays; // Base + days
     stageEvents.forEach(e => {
       if (!e.exito) cd += 2; // Failed events add to fatigue
     });
-    
-    // Apply marcha forzada if used
-    if (config.horasMarchaForzada > 0) {
-      cd += config.horasMarchaForzada * 2;
-    }
-    
     setStageFatigueDC(cd);
-    // Note: Actual fatigue rolls happen in calculateFatigueResults
+    // Note: Actual fatigue rolls happen in calculateFatigueResults at end of journey.
+    // Marcha forzada ya no se configura globalmente; se decide por día.
   };
   
   const startDayByDayJourney = async () => {
@@ -1333,7 +1328,7 @@ const EnhancedTravelSystem = () => {
         ritmo: config.ritmo,
         mes: config.mes,
         estacion: config.estacion,
-        horas_marcha_forzada: config.horasMarchaForzada,
+        // horas_marcha_forzada eliminado (Abr 2026): se decide por día tras orientación.
         miembros: config.miembros.map(m => ({
           personaje_id: m.id,
           nombre: m.nombre,
@@ -1998,28 +1993,37 @@ const EnhancedTravelSystem = () => {
   
   const advanceDay = async () => {
     if (!activeJourney) return;
-    
+
     try {
+      const esMarchaForzadaHoy = !!currentDayConfig.marchaForzada;
       const res = await api.post(`/travel/journey/${activeJourney.id}/advance-day`, null, {
         params: {
           ritmo: currentDayConfig.ritmo,
-          marcha_forzada_horas: currentDayConfig.marchaForzada
-        }
+          // Enviamos 8 "horas extra" para que el backend doble el avance del día.
+          // El valor numérico es legacy; lo que cuenta realmente es si hubo o no
+          // marcha forzada (la salvación CD 15 se hace aquí en el front).
+          marcha_forzada_horas: esMarchaForzadaHoy ? 8 : 0,
+        },
       });
-      
+
       if (res.data.success) {
         setActiveJourney(res.data.journey);
 
-        // *** CONSUMO DIARIO DE PROVISIONES (modo Día a Día) ***
-        // Cada avance de día consume comida/agua del grupo. Sin esto, el
-        // panel muestra 0.0/0.0 L durante todo el viaje.
+        // Consumo diario (1 ración + 2 L por persona, ajustado por ritmo).
         consumeDailyProvisions();
+
+        // ⚡ Tirada de salvación de fatiga CD 15 — SOLO si este día
+        // se ha forzado la marcha (RAW Abr 2026). Resultados aplicados
+        // inmediatamente a la ficha del personaje.
+        if (esMarchaForzadaHoy) {
+          await applyForcedMarchSaves(res.data.journey?.dia_actual || activeJourney.dia_actual);
+        }
 
         // Check for event generation (simplified - every 2-3 days)
         if (res.data.journey.dia_actual % 2 === 0) {
           await generateDayEvent();
         }
-        
+
         if (res.data.completado) {
           await finishDayByDayJourney();
         }
@@ -2027,6 +2031,49 @@ const EnhancedTravelSystem = () => {
     } catch (err) {
       console.error('Error advancing day:', err);
       toast.error('Error al avanzar día');
+    }
+  };
+
+  /**
+   * Ejecuta la salvación de fatiga CD 15 para todos los viajeros tras un día
+   * de marcha forzada. Consecuencias por margen de fallo:
+   *   • Éxito        → 0 niveles de cansancio
+   *   • Fallo <5     → +1 nivel
+   *   • Fallo 5-9    → +2 niveles
+   *   • Fallo ≥10    → +3 niveles
+   * Aplica el resultado directamente a la ficha del personaje.
+   */
+  const applyForcedMarchSaves = async (diaActual) => {
+    const cd = 15;
+    const todosViajeros = [
+      ...config.miembros.filter(m => m.papeles?.length > 0),
+      ...(config.acompanantes || []),
+    ];
+    for (const miembro of todosViajeros) {
+      const char = characters.find(c => c.id === miembro.id);
+      if (!char) continue;
+      const conMod = Math.floor(((char.atributos?.constitucion || 10) - 10) / 2);
+      const d20 = Math.floor(Math.random() * 20) + 1;
+      const total = d20 + conMod;
+      const exito = total >= cd;
+      let nivelesCansancio = 0;
+      if (!exito) {
+        const margen = cd - total;
+        nivelesCansancio = margen >= 10 ? 3 : margen >= 5 ? 2 : 1;
+      }
+      if (nivelesCansancio > 0) {
+        const fatigaActual = Number(char.fatiga || 0);
+        const nuevaFatiga = Math.min(6, fatigaActual + nivelesCansancio);
+        try {
+          await api.put(`/characters/${miembro.id}/fatigue`, { fatiga: nuevaFatiga });
+          setCharacters(prev => prev.map(c => c.id === miembro.id ? { ...c, fatiga: nuevaFatiga } : c));
+        } catch (e) {
+          console.error('Error aplicando fatiga marcha forzada:', e);
+        }
+        toast.error(`⚡ Marcha forzada (día ${diaActual}): ${char.nombre} falla CON ${total} vs CD ${cd} → +${nivelesCansancio} nivel${nivelesCansancio === 1 ? '' : 'es'} de cansancio`);
+      } else {
+        toast.success(`⚡ Marcha forzada (día ${diaActual}): ${char.nombre} supera CON ${total} vs CD ${cd}`);
+      }
     }
   };
   

@@ -1,18 +1,21 @@
 /**
  * CampDialog — Sistema de Acampar durante un viaje.
  *
- * Reglas implementadas (confirmadas por el usuario):
- *   - Acampar consume 1 ración + 1 litro de agua por miembro.
- *   - Cada personaje reduce su fatiga -1 automáticamente; si la tirada CON
- *     (CD 10) resulta en un 20 natural, la reducción es -2.
- *   - El Centinela recibe la mitad del beneficio (p.ej. -0,5 o -1 en nat20).
+ * Reglas RAW (corregidas Abr 2026):
+ *   - Acampar consume 1 ración + 1 litro de agua por miembro (sobre el consumo
+ *     normal del día — la acampada es una acción adicional del DJ).
+ *   - **NO hay tirada de salvación de fatiga diaria.** La tirada de fatiga
+ *     se hace UNA SOLA VEZ al final del viaje con `calculateFatigueResults`.
+ *     Acampar, en cambio, REBAJA la CD acumulada de esa tirada final (-0.5
+ *     por acampada, gestionado por `POST /travel/journey/{id}/camp`).
  *   - Tiradas de evento nocturno según peligro de la región:
  *       tierras_libres / fronterizas: 1 evento
  *       tierras_salvajes / sombra:    2 eventos
  *       tierras_oscuras:              3 eventos
- *   - El Centinela hace Sabiduría (Percepción) CD 12 para anticiparse.
- *     Fallo = posible sorpresa al grupo.
- *   - La CD acumulada de Fatiga del viaje se reduce 0,5 por cada acampada.
+ *     Los eventos nocturnos SÍ pueden subir la CD acumulada (cada uno añade
+ *     su `fatigue_cd_increase` al viaje).
+ *   - El Centinela hace Sabiduría (Percepción) CD 12 para anticiparse a los
+ *     eventos; fallar = posible sorpresa al grupo.
  */
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
@@ -126,139 +129,19 @@ export default function CampDialog({
         }));
       }
 
-      // 2) Tirada de recuperación de fatiga para cada personaje
-      // Reglas (Feb 2026):
-      //   • Salvación contra cansancio CD 10 + diasSinComida×1 + diasSinAgua×2.
-      //   • Bonus +5 si el personaje no es el causante del estorbo del grupo.
-      //   • Si se trata de la 2.ª acampada consecutiva (sin marcha entre
-      //     medias), se OMITE la tirada y se aplica recuperación automática.
-      //   • Si el clima del día es extremo (tormenta/nieve fuerte) o se
-      //     atraviesan tierras de la sombra, se rueda una tirada EXTRA;
-      //     fallar cualquiera de las dos suma +1 fatiga.
-      const skipSave = consecutiveCampDays >= 1; // 2nd+ consecutive camp
-      const climaExtremo = (() => {
-        const lab = (currentClima?.estado_label || '').toLowerCase();
-        return lab.includes('tormenta') || lab.includes('nieve fuerte') ||
-               lab.includes('vendaval') || lab.includes('extremo') || lab.includes('helada');
-      })();
-      const enSombra = (currentTerreno || '').toLowerCase().includes('sombra') ||
-                       (currentTerreno || '').toLowerCase().includes('oscur');
-      const necesitaSalvExtra = climaExtremo || enSombra;
-      const cdProvisiones = (Number(diasSinComida) || 0) * 1 + (Number(diasSinAgua) || 0) * 2;
-
-      const charResults = [];
-      for (const m of todosViajeros) {
-        const char = characters.find((c) => c.id === m.id);
-        const conMod = modFromScore(char?.atributos?.constitucion);
-        const bonusFatiga = Number(
-          desgloseVelocidades.find((v) => v.nombre === m.nombre)?.bonus_fatiga || 0
-        );
-        const cd = 10 + cdProvisiones;
-        let d20 = 0, total = 0, pasa = true, nat20 = false;
-        let saveExtra = null;
-        let pasoSavExtra = true;
-
-        if (!skipSave) {
-          d20 = rollDie(20);
-          total = d20 + conMod + bonusFatiga;
-          pasa = total >= cd;
-          nat20 = d20 === 20;
-
-          if (necesitaSalvExtra) {
-            const d20e = rollDie(20);
-            const totalE = d20e + conMod + bonusFatiga;
-            pasoSavExtra = totalE >= cd;
-            saveExtra = {
-              motivo: climaExtremo ? 'Clima extremo' : 'Tierras de la Sombra',
-              d20: d20e, mod: conMod + bonusFatiga, total: totalE, cd,
-              exito: pasoSavExtra,
-            };
-          }
-        }
-
-        const isSentinel = m.id === sentinelId;
-
-        // Base: -1 auto. Con nat20 -> -2. Centinela recibe la mitad.
-        // Si la tirada principal falla → fatiga adicional según margen:
-        //    Falla por <5  → +1 nivel
-        //    Falla por 5-9 → +2 niveles
-        //    Falla por ≥10 → +3 niveles
-        // Si la tirada extra (clima/sombra) falla → +1 fatiga adicional.
-        // Si es la 2.ª acampada consecutiva: recuperación automática sin tiradas.
-        let reduccion = 1;
-        let margenFallo = 0;
-        if (skipSave) {
-          reduccion = 1;
-        } else {
-          if (!pasa) {
-            margenFallo = cd - total;        // siempre > 0 cuando falla
-            // Margen-aware fatigue penalty (LOTR 5e house rule, Feb 2026):
-            let nivelesFatiga = 1;            // <5 → +1
-            if (margenFallo >= 10) nivelesFatiga = 3;
-            else if (margenFallo >= 5) nivelesFatiga = 2;
-            reduccion = -nivelesFatiga;       // negativo = suma fatiga
-          } else if (nat20) {
-            reduccion = 2;
-          }
-          if (saveExtra && !pasoSavExtra) {
-            reduccion -= 1; // suma fatiga adicional (resta a la reducción)
-          }
-        }
-        if (isSentinel && reduccion > 0) reduccion = reduccion / 2;
-
-        const fatigaAntes = Number(char?.fatiga || 0);
-        const fatigaDespues = Math.max(0, Math.min(6, Math.round((fatigaAntes - reduccion) * 2) / 2));
-
-        try {
-          await api.put(`/characters/${m.id}/fatigue`, { fatiga: fatigaDespues });
-          if (setCharacters) {
-            setCharacters((prev) =>
-              prev.map((c) => (c.id === m.id ? { ...c, fatiga: fatigaDespues } : c))
-            );
-          }
-        } catch (err) {
-          console.error('Error actualizando fatiga:', err);
-        }
-
-        // Notifica al panel del grupo (modo interactivo). Pasamos también
-        // la tirada extra (si la hay) y los motivos para el log diario.
-        if (onFatigueSave && !skipSave) {
-          onFatigueSave(m.id, {
-            d20,
-            mod: conMod + bonusFatiga,
-            total,
-            cd,
-            exito: pasa,
-            margenFallo: pasa ? 0 : margenFallo,
-            nivelesFatiga: pasa ? 0 : Math.max(1, -reduccion),
-            saveExtra,
-            climaExtremo,
-            enSombra,
-            charName: m.nombre,
-            dia: activeJourney?.dia_actual || null,
-          });
-        }
-        if (onFatigueChange && reduccion !== 0) {
-          onFatigueChange(m.id, -reduccion);
-        }
-
-        charResults.push({
-          id: m.id,
-          nombre: m.nombre,
-          conMod,
-          d20,
-          total,
-          cd,
-          pasa,
-          nat20,
-          isSentinel,
-          reduccion,
-          fatigaAntes,
-          fatigaDespues,
-          skipSave,
-          saveExtra,
-        });
-      }
+      // 2) NO se hace tirada de salvación de fatiga en la acampada (RAW Abr 2026).
+      //    La salvación única de fatiga ocurre al finalizar el viaje
+      //    (véase `calculateFatigueResults` en EnhancedTravelSystem).
+      //    Aquí sólo recogemos los resultados de centinela + eventos nocturnos
+      //    y la reducción pasiva de la CD acumulada.
+      const charResults = todosViajeros.map((m) => ({
+        id: m.id,
+        nombre: m.nombre,
+        fatigaAntes: Number(characters.find((c) => c.id === m.id)?.fatiga || 0),
+        fatigaDespues: Number(characters.find((c) => c.id === m.id)?.fatiga || 0),
+        skipSave: true,
+        skipMotivo: 'La tirada de fatiga ocurre sólo al finalizar el viaje',
+      }));
 
       // Notifica al estado superior que se ha completado un día de campamento.
       if (onCampDayCompleted) {

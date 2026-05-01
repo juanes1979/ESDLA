@@ -1035,27 +1035,16 @@ const TravelRulesSection = () => {
                         </div>
                       ))}
                     </div>
-                    <div>
-                      <Label className="text-xs">Marcha forzada — % consumo extra (1h, 2h, 3h, 4h)</Label>
-                      <p className="text-[10px] text-muted-foreground italic mb-1">
-                        La marcha forzada NO cambia la velocidad: añade horas extra a las 8 h estándar
-                        del día de viaje (mayor desgaste y consumo, no ir más rápido).
+                    <div className="p-3 rounded bg-black/30 border border-amber-500/20">
+                      <p className="text-[11px] text-amber-200 leading-snug">
+                        <strong>Marcha Forzada (RAW Abr 2026):</strong> se decide día a día
+                        después de la tirada de orientación. Un día de marcha forzada
+                        <strong> dobla el avance en km</strong> y obliga a una salvación
+                        de Constitución <strong>CD 15</strong> al final del día, con las
+                        consecuencias normales por margen de fallo (&lt;5 → +1 nivel,
+                        5-9 → +2 niveles, ≥10 → +3 niveles). NO multiplica el consumo de
+                        raciones.
                       </p>
-                      <div className="grid grid-cols-4 gap-2">
-                        {[0, 1, 2, 3].map((idx) => (
-                          <Input
-                            key={`mfc-${idx}`}
-                            type="number" step="1"
-                            value={(rules.marcha_forzada_consumo_pct || [10, 20, 35, 50])[idx]}
-                            onChange={(e) => {
-                              const arr = [...(rules.marcha_forzada_consumo_pct || [10, 20, 35, 50])];
-                              arr[idx] = parseFloat(e.target.value);
-                              setRules({...rules, marcha_forzada_consumo_pct: arr});
-                            }}
-                            data-testid={`rules-mf-consumo-${idx + 1}h`}
-                          />
-                        ))}
-                      </div>
                     </div>
                   </Card>
                   

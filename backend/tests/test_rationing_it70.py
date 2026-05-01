@@ -31,29 +31,26 @@ def test_travel_rules_includes_rationing_defaults():
     assert rules.get('consumo_agua_normal') == 2.0
     assert rules.get('consumo_agua_rapido') == 2.5
 
-    # Forced-march modifier array (consumo only — velocity is NOT modified)
-    assert rules.get('marcha_forzada_consumo_pct') == [10.0, 20.0, 35.0, 50.0]
+    # Forced-march modifier (removed Abr 2026): `marcha_forzada_consumo_pct`
+    # ya no se expone — la marcha forzada se decide día a día y no
+    # multiplica el consumo de raciones.
+    assert 'marcha_forzada_consumo_pct' not in rules or rules.get('marcha_forzada_consumo_pct') is None
 
 
 def test_travel_rules_can_persist_rationing_overrides():
     # Get current values
     cur = requests.get(f"{API}/travel/config/rules", timeout=10).json()['rules']
-    body = {**cur,
-            'consumo_comida_rapido': 1.5,
-            'marcha_forzada_consumo_pct': [12, 25, 40, 60]}
+    body = {**cur, 'consumo_comida_rapido': 1.5}
     body.pop('updated_at', None)  # let backend stamp
 
     res = requests.put(f"{API}/travel/config/rules", json=body, timeout=10)
     assert res.status_code == 200, res.text
     saved = res.json().get('rules', {})
     assert saved['consumo_comida_rapido'] == 1.5
-    assert saved['marcha_forzada_consumo_pct'] == [12, 25, 40, 60]
 
     # Restore defaults
     requests.put(f"{API}/travel/config/rules",
-                 json={**cur,
-                       'consumo_comida_rapido': 1.25,
-                       'marcha_forzada_consumo_pct': [10.0, 20.0, 35.0, 50.0]},
+                 json={**cur, 'consumo_comida_rapido': 1.25},
                  timeout=10)
 
 

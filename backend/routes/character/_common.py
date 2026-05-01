@@ -131,12 +131,13 @@ def serialize_docs(docs: list) -> list:
 # === REQUEST/RESPONSE MODELS ===
 
 class CharacterAttributes(BaseModel):
-    fuerza: int = 10
-    destreza: int = 10
-    constitucion: int = 10
-    inteligencia: int = 10
-    sabiduria: int = 10
-    carisma: int = 10
+    # D&D 5e: atributos válidos 1-30. Pydantic rechaza valores fuera de rango.
+    fuerza: int = Field(10, ge=1, le=30)
+    destreza: int = Field(10, ge=1, le=30)
+    constitucion: int = Field(10, ge=1, le=30)
+    inteligencia: int = Field(10, ge=1, le=30)
+    sabiduria: int = Field(10, ge=1, le=30)
+    carisma: int = Field(10, ge=1, le=30)
 
 
 class CharacterSkill(BaseModel):
@@ -148,7 +149,7 @@ class CharacterSkill(BaseModel):
 class EquipmentItem(BaseModel):
     item_id: str
     nombre: str
-    cantidad: int = 1
+    cantidad: int = Field(1, ge=1)     # ≥1 (un ítem de inventario no puede ser 0)
     equipado: bool = False
 
 
@@ -336,17 +337,17 @@ def price_to_base(precio: float, moneda: str) -> int:
 class AddEquipmentRequest(BaseModel):
     item_name: str
     item_category: str
-    cantidad: int = 1
+    cantidad: int = Field(1, ge=1)                      # ≥1
     is_purchase: bool = True
-    precio: Optional[float] = None
+    precio: Optional[float] = Field(None, ge=0)         # ≥0
     moneda: Optional[str] = "mp"
-    peso_kg: Optional[float] = None
+    peso_kg: Optional[float] = Field(None, ge=0)        # ≥0
     dano: Optional[str] = None
-    ca: Optional[int] = None
+    ca: Optional[int] = Field(None, ge=0)               # ≥0
     ca_bonus: Optional[int] = None
-    herida: Optional[int] = None
+    herida: Optional[int] = Field(None, ge=0)           # ≥0
     alcance: Optional[str] = None
-    capacidad_carga: Optional[int] = None
+    capacidad_carga: Optional[int] = Field(None, ge=0)  # ≥0
     posicion: Optional[str] = None
 
 
@@ -375,15 +376,15 @@ class MountCreateRequest(BaseModel):
     nombre_original: str
     nombre_personalizado: Optional[str] = None
     especie: Optional[str] = None
-    capacidad_carga: Optional[float] = 150
-    velocidad: Optional[float] = 12
+    capacidad_carga: Optional[float] = Field(150, ge=0)  # ≥0 kg
+    velocidad: Optional[float] = Field(12, ge=0)         # ≥0 m/turno
     constitucion: Optional[str] = ""
 
 
 class MountUpdateRequest(BaseModel):
     nombre_personalizado: Optional[str] = None
-    capacidad_carga: Optional[float] = None
-    velocidad: Optional[float] = None
+    capacidad_carga: Optional[float] = Field(None, ge=0)
+    velocidad: Optional[float] = Field(None, ge=0)
 
 
 class UbicacionUpdateRequest(BaseModel):

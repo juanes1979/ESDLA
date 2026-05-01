@@ -1,0 +1,34 @@
+{
+  "summary": "Iter72 — Fatigue RAW mechanics + Pydantic validations. Backend: all 26 tests PASS (5 pydantic_validations_it72 + 5 rationing_it70 + 16 rest_endpoints_it65). GET /api/travel/config/rules confirmed returns fatigue_fail_by_less_than_5_levels=1, consumo_comida_{lento=1.0, normal=1.0, rapido=1.25}, consumo_agua_{lento=2.0, normal=2.0}, and does NOT expose marcha_forzada_consumo_pct nor marcha_forzada_velocidad_pct. Endpoint PUT /characters/{id}/fatigue correctly rejects -1/7 with 422 and accepts [0, 0.5, 2.5, 6] with 200. POST /characters/{id}/equipment/add rejects peso_kg=-5 and cantidad=0 with 422. Frontend: /travel loads with ZERO console errors and ZERO page errors after removal of config.horasMarchaForzada; the new informative card 'Marcha Forzada — Se decide día a día tras la tirada de orientación. Un día de marcha forzada dobla el avance en km y obliga a una salvación de CON CD 15 al final del día con consecuencias por margen de fallo.' is rendered in ConfigView with no editable inputs for % marcha forzada (only descriptive text). Character sheet /character/{id} loads cleanly and ProvisionsIndicator (data-testid='provisions-indicator') renders in the Equipo tab showing food-days & water-days. Binary forced-march toggle (data-testid='forced-march-toggle') lives in DayByDayView which only mounts during an active journey — per main agent instruction NOT tested via full journey flow.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_pydantic_validations_it72.py",
+    "/app/backend/tests/test_rationing_it70.py",
+    "/app/backend/tests/test_rest_endpoints_it65.py",
+    "/app/test_reports/pytest/it72.xml"
+  ],
+  "action_items": [
+    "Opcional (no regresión de iter72): el personaje c16a362d tiene 'Raciones (1 día) (x10)' en inventario pero ProvisionsIndicator muestra 'Comida disponible: 0 días'. Esto sugiere que summarizeProvisions no reconoce el formato '(x10)' o el nombre 'Raciones (1 día)' como comida. No es una regresión de iter72 — probablemente preexistente desde iter71. E1 puede validar summarizeProvisions en lib/provisions.js si quiere."
+  ],
+  "critical_code_review_comments": [
+    "Pydantic validation en _common.py usando Field(ge=, le=) es idiomático y retorna 422 automáticamente con mensaje estructurado — implementación correcta.",
+    "Endpoint PUT /characters/{id}/fatigue usa Body(ge=0, le=6) que cubre ambos extremos + fracciones 0.5 — alineado con RAW.",
+    "TravelRulesConfig limpió correctamente los campos legacy (marcha_forzada_*_pct) sin romper serialización ni persistencia de los overrides nuevos (test_travel_rules_can_persist_rationing_overrides PASS).",
+    "ConfigView elimina el select 'Horas de marcha forzada' y lo reemplaza por una tarjeta informativa de solo lectura — UX consistente con la decisión RAW.",
+    "El binary forced-march toggle en DayByDayView es la vía correcta para que advanceDay dispare applyForcedMarchSaves sólo cuando corresponda; no se probó el flujo completo pero la estructura del código está sana.",
+    "EnhancedTravelSystem.jsx sigue siendo un archivo grande (>2000 líneas). El refactor de CampDialog y el hook useJourneyProvisions ayudan, pero continuar la descomposición del DayByDayView y de la lógica de advanceDay mejoraría la mantenibilidad (P2)."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "100% (26/26)", "frontend": "100% (no-crash, zero console/page errors)"},
+  "test_credentials": "N/A (RBAC aún no activo)",
+  "seed_data_creation": "Ninguna permanente; test_move_item crea/borra 'TEST RACIONES' en el catálogo.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Para probar el binary forced-march-toggle y applyForcedMarchSaves hay que iniciar un viaje real (origen/destino + miembros + click 'Planificar Ruta' y 'Iniciar Viaje'). En iter72 no se ejecutó el flujo por indicación del main agent. Screens verificadas: /travel (ConfigView), /character/{id} (tabs Resumen y Equipo). Pre-existing failures test_group_speed.py y test_character_sheet_features.py siguen IGNORADOS. El public URL REACT_APP_BACKEND_URL=https://middle-earth-5e.preview.emergentagent.com responde 200 en /api/travel/config/rules.",
+  "rca of the issue": "N/A — no se detectaron bugs en iter72."
+}
