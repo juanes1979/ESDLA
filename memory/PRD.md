@@ -2,6 +2,21 @@
 
 ## Current State (2026-05-01)
 
+### ✅ Iteración 76 — Tercera ola del refactor: JourneyHeader + JourneyDialogs
+
+**Componentes extraídos (`components/travel/views/`):**
+- **`JourneyHeader.jsx`** (45 líneas) — cabecera con botón Inicio, título y badge de modo. Render puro sin estado.
+- **`JourneyDialogs.jsx`** (122 líneas) — agrupa los 4 diálogos flotantes (CampDialog, ProvisionsShopDialog, SauronEyeOverlay, MapPickDialog) como un único componente contenedor. Todas las props bajan por pass-through desde el orquestador.
+
+**Resultado:**
+- `EnhancedTravelSystem.jsx` pasa de **3.241 → 3.221 líneas** (acumulado −280 desde el inicio del refactor P1).
+- Estructura final del archivo: delega a 6 sub-componentes (`ConfigView`, `GlobalJourneyView`, `DayByDayView`, `ResultsView`, `JourneyHeader`, `JourneyDialogs`) + 2 hooks (`useJourneyProvisions`, `useFatigueSystem`) + 1 helper (`utils/travelSpeed.js`).
+- El núcleo que queda es la orquestación de estado global (API loading, resolveEvent, advanceDay, calculateFatigueResults). Extraer más supondría romper la cohesión — el archivo ya es navegable.
+
+**Tests:** 26/26 pytests PASS · Smoke screenshot OK · Cero errores de consola.
+
+---
+
 ### ✅ Iteración 75 — Fix "no entra a Precios de Equipo" + refactor P1 useFatigueSystem
 
 **🐛 Fix crítico:** `EquipmentSection.jsx` usaba `React.useRef` sin importar React. El render crasheaba silenciosamente al entrar en *Precios de Equipo*. Cambiado a `useRef` importado desde `react`. Smoke test confirma la página carga con los 4 botones (PDF + Exportar Excel + Plantilla Excel + Importar Excel) y sin errores de consola.

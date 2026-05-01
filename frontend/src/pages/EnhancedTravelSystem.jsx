@@ -59,6 +59,8 @@ import ResultsView from '@/components/travel/views/ResultsView';
 import GlobalJourneyView from '@/components/travel/views/GlobalJourneyView';
 import DayByDayView from '@/components/travel/views/DayByDayView';
 import ConfigView from '@/components/travel/views/ConfigView';
+import JourneyHeader from '@/components/travel/views/JourneyHeader';
+import JourneyDialogs from '@/components/travel/views/JourneyDialogs';
 import MapPickDialog from '@/components/travel/MapPickDialog';
 import { computeMemberSpeed, getRoleModifier as getRoleModifierHelper } from '@/utils/travelSpeed';
 import useJourneyProvisions from '@/hooks/useJourneyProvisions';
@@ -2963,25 +2965,7 @@ const EnhancedTravelSystem = () => {
   
   return (
     <div className="container mx-auto p-4 max-w-4xl">
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center gap-4">
-          <Button variant="ghost" size="sm" asChild className="text-muted-foreground hover:text-white">
-            <a href="/">
-              <ArrowLeft className="w-4 h-4 mr-1" />
-              Inicio
-            </a>
-          </Button>
-          <h1 className="text-3xl font-heading text-[hsl(var(--gold))]">
-            <Compass className="w-8 h-8 inline mr-3" />
-            Generador de Viajes
-          </h1>
-        </div>
-        {mode !== 'config' && (
-          <Badge variant="outline" className="text-lg">
-            {mode === 'global' ? 'Jornada a Jornada' : mode === 'dayByDay' ? 'Jornada a Jornada' : 'Resultados'}
-          </Badge>
-        )}
-      </div>
+      <JourneyHeader mode={mode} />
       
       {mode === 'config' && (
         <ConfigView
@@ -3132,14 +3116,20 @@ const EnhancedTravelSystem = () => {
         />
       )}
       
-      {/* Camp Dialog */}
-      <CampDialog
-        open={showCampDialog}
-        onClose={() => setShowCampDialog(false)}
+      {/* Diálogos flotantes (acampada, tienda, overlay y selector de mapa) */}
+      <JourneyDialogs
+        // Camp
+        showCampDialog={showCampDialog}
+        setShowCampDialog={setShowCampDialog}
         miembros={config.miembros}
         acompanantes={config.acompanantes || []}
         characters={characters}
-        activeJourney={activeJourney || (mode === 'global' ? { fatiga_cd_total: globalFatigaCD, config: { tipo_tierra: journeyCalc?.ruta?.tipo_tierra } } : null)}
+        activeJourney={
+          activeJourney ||
+          (mode === 'global'
+            ? { fatiga_cd_total: globalFatigaCD, config: { tipo_tierra: journeyCalc?.ruta?.tipo_tierra } }
+            : null)
+        }
         region={journeyCalc?.ruta?.tipo_tierra || 'tierras_salvajes'}
         partyProvisions={partyProvisions}
         setPartyProvisions={setPartyProvisions}
@@ -3152,7 +3142,7 @@ const EnhancedTravelSystem = () => {
           setActiveJourney((prev) => (prev ? { ...prev, ...patch } : prev));
         }}
         terrenoViaje={journeyCalc?.ruta?.terreno || 'moderado'}
-        onForage={performForaging}
+        performForaging={performForaging}
         desgloseVelocidades={journeyCalc?.velocidad_grupo?.desglose_velocidades || []}
         consecutiveCampDays={consecutiveCampDays}
         diasSinComida={diasSinComida}
@@ -3161,59 +3151,49 @@ const EnhancedTravelSystem = () => {
           (journeyWeather || [])[Math.min(currentPosition, (journeyWeather || []).length - 1)] || null
         }
         currentTerreno={journeyCalc?.ruta?.tipo_tierra || ''}
-        onCampDayCompleted={() => setConsecutiveCampDays(d => d + 1)}
+        onCampDayCompleted={() => setConsecutiveCampDays((d) => d + 1)}
         onFatigueSave={(charId, save) => {
-          setLastFatigueSaves(prev => ({ ...prev, [charId]: save }));
-          // Append al log diario completo. Si la salvación trae los
-          // motivos extra (clima/sombra/saveExtra) los conservamos para
-          // que el DJ pueda ver la evolución.
-          setFatigueSaveLog(prev => [
-            ...prev,
-            { id: charId, ...save },
-          ]);
+          setLastFatigueSaves((prev) => ({ ...prev, [charId]: save }));
+          setFatigueSaveLog((prev) => [...prev, { id: charId, ...save }]);
         }}
         onFatigueChange={(charId, delta) => {
-          setFatigueChanges(prev => ({ ...prev, [charId]: { delta, casilla: currentPosition } }));
+          setFatigueChanges((prev) => ({ ...prev, [charId]: { delta, casilla: currentPosition } }));
         }}
-      />
-      
-      {/* Provisions Shop Dialog */}
-      <ProvisionsShopDialog
-        open={showProvisionsShop}
-        onClose={() => setShowProvisionsShop(false)}
-        miembros={config.miembros}
-        acompanantes={config.acompanantes || []}
-        characters={characters}
-        diasViaje={journeyCalc?.estimaciones?.dias_estimados || activeJourney?.config?.dias_estimados || 7}
-        origenRegionName={(locations || []).find(l => l.id === config.origenId)?.region || ''}
-        terreno={journeyCalc?.ruta?.terreno || ''}
+
+        // Provisions shop
+        showProvisionsShop={showProvisionsShop}
+        setShowProvisionsShop={setShowProvisionsShop}
+        diasViaje={
+          journeyCalc?.estimaciones?.dias_estimados || activeJourney?.config?.dias_estimados || 7
+        }
+        origenRegionName={(locations || []).find((l) => l.id === config.origenId)?.region || ''}
+        terrenoShop={journeyCalc?.ruta?.terreno || ''}
         tipoTierra={journeyCalc?.ruta?.tipo_tierra || ''}
         onPurchaseComplete={() => {
-          // Reload characters to reflect new inventory/money
-          api.get('/characters/').then(res => {
-            if (res.data?.characters) setCharacters(res.data.characters);
-          }).catch(err => console.error(err));
+          api
+            .get('/characters/')
+            .then((res) => {
+              if (res.data?.characters) setCharacters(res.data.characters);
+            })
+            .catch((err) => console.error(err));
         }}
-      />
 
-      {/* Sauron's Eye overlay during automated journey */}
-      <SauronEyeOverlay
-        visible={autoRunning}
-        percent={autoProgress}
-        message={autoMessage}
-        subtitle={autoSubtitle}
-        onCancel={() => { autoStopRef.current = true; }}
-      />
+        // Automation overlay
+        autoRunning={autoRunning}
+        autoProgress={autoProgress}
+        autoMessage={autoMessage}
+        autoSubtitle={autoSubtitle}
+        onAutoCancel={() => {
+          autoStopRef.current = true;
+        }}
 
-      {/* C-6: Map-based origin/destination picker */}
-      <MapPickDialog
-        open={!!mapPickFor}
-        onClose={() => setMapPickFor(null)}
-        target={mapPickFor || 'origen'}
+        // Map picker
+        mapPickFor={mapPickFor}
+        setMapPickFor={setMapPickFor}
         locations={locations}
-        onPick={(loc) => {
+        onMapPick={(loc) => {
           if (mapPickFor === 'origen') {
-            setConfig(prev => ({
+            setConfig((prev) => ({
               ...prev,
               origenId: loc.id,
               origenNombre: loc.nombre,
@@ -3222,7 +3202,7 @@ const EnhancedTravelSystem = () => {
             }));
             toast.success(`Origen: ${loc.nombre}`);
           } else if (mapPickFor === 'destino') {
-            setConfig(prev => ({
+            setConfig((prev) => ({
               ...prev,
               destinoId: loc.id,
               destinoNombre: loc.nombre,
