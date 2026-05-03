@@ -2,6 +2,16 @@
 
 ## Current State (2026-05-03)
 
+### ✅ Iteración 77b — Fix inconsistencia peso de montura (PDF vs modal)
+
+**🐛 Bug:** El PDF de la Ficha Oficial mostraba `Caballo de caminos 167/150 Kg` mientras el `EquipmentManagerModal` mostraba `71/150 kg` (checkbox "montado aquí" desmarcado). 96 kg de diferencia = peso del jinete + su equipo.
+
+**Causa:** `SheetPage1.jsx` línea 1044-1047 sumaba **siempre** el peso corporal del jinete + su equipo a la carga de la montura, sin comprobar `character.montado`. El backend `weight-summary` (usado por el modal) ya lo hacía bien desde iter81.
+
+**Fix:** Envolver la suma del jinete dentro de `if (character.montado)`. Cuando está desmontado, la PDF muestra solo el equipo cargado en la montura, igual que el modal.
+
+---
+
 ### ✅ Iteración 77 — Fix bug: Monturas atrapadas en inventario tras creación
 
 **🐛 Bug reportado:** Al comprar una montura ("Caballo de caminos", etc.) durante el **Paso 7** del creador de personajes, quedaba en `character.inventario` en vez de promocionarse a `character.monturas[]`. Causa raíz doble:

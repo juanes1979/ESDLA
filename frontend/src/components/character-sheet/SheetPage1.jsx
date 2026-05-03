@@ -1041,10 +1041,17 @@ const SheetPage1 = ({ character, scale, weaponCatalog = [], equipmentCatalog = {
           }
         });
         
-        // Add character's body weight + equipment weight when mounted
-        const pesoEquipoPersonaje = parseFloat(pesoTransportado) || 0;
-        const pesoPersonaje = parseFloat(character.peso_kg) || parseFloat(character.peso) || 70;
-        const pesoTotal = Math.round(pesoEnMontura + pesoEquipoPersonaje + pesoPersonaje);
+        // Add character's body weight + equipment weight ONLY when actually mounted.
+        // Without this gate, the PDF double-counts the rider even when the
+        // "montado aquí" checkbox is off (mismatch with EquipmentManagerModal).
+        let pesoTotal;
+        if (character.montado) {
+          const pesoEquipoPersonaje = parseFloat(pesoTransportado) || 0;
+          const pesoPersonaje = parseFloat(character.peso_kg) || parseFloat(character.peso) || 70;
+          pesoTotal = Math.round(pesoEnMontura + pesoEquipoPersonaje + pesoPersonaje);
+        } else {
+          pesoTotal = Math.round(pesoEnMontura);
+        }
         
         return (
           <DisplayField 
