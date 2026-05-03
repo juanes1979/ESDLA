@@ -293,7 +293,20 @@ const Step7Equipment = ({ draftId, draft, onComplete, onBack }) => {
           equipado: false,
           origen: 'compra',
           precio: item.precio,
-          moneda: item.moneda
+          moneda: item.moneda,
+          // Preserve category so finalize can promote special items
+          // (monturas → character.monturas[], ropa → has posicion, etc.)
+          categoria: item.categoria,
+          peso_kg: item.peso_kg,
+          // Mount-specific fields (only relevant if categoria === 'monturas')
+          velocidad: item.velocidad,
+          capacidad_carga: item.capacidad_carga,
+          constitucion: item.constitucion,
+          // Armor/weapon stats for completeness
+          ca: item.ca,
+          ca_bonus: item.ca_bonus,
+          dano: item.dano,
+          posicion: item.posicion,
         }))
       ];
       

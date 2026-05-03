@@ -147,6 +147,8 @@ class CharacterSkill(BaseModel):
 
 
 class EquipmentItem(BaseModel):
+    model_config = {"extra": "allow"}  # Allow categoria/peso_kg/velocidad/etc. to pass through for mount promotion in finalize
+
     item_id: str
     nombre: str
     cantidad: int = Field(1, ge=1)     # ≥1 (un ítem de inventario no puede ser 0)

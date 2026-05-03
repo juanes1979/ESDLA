@@ -1,6 +1,26 @@
 # LOTR 5e RPG - Product Requirements Document
 
-## Current State (2026-05-01)
+## Current State (2026-05-03)
+
+### ✅ Iteración 77 — Fix bug: Monturas atrapadas en inventario tras creación
+
+**🐛 Bug reportado:** Al comprar una montura ("Caballo de caminos", etc.) durante el **Paso 7** del creador de personajes, quedaba en `character.inventario` en vez de promocionarse a `character.monturas[]`. Causa raíz doble:
+
+1. **Frontend** (`Step7Equipment.jsx` · `handleSubmit`): al serializar el carrito a `inventario[]` solo se guardaba `{item_id, nombre, cantidad, equipado, origen, precio, moneda}`. Se **perdían** `categoria`, `peso_kg`, `velocidad`, `capacidad_carga`, `constitucion`, etc. → el backend no podía saber después que ese item era una montura.
+2. **Backend** (`finalize_character`): copiaba `draft.inventario` tal cual al `character`, sin promocionar los items con `categoria='monturas'` al array `monturas[]`. El flujo post-creación (`POST /equipment/add`) sí lo hacía bien desde iter86, pero el flujo de creación no.
+3. **Pydantic**: `EquipmentItem` no tenía `extra='allow'`, así que aunque el frontend enviara más campos, Pydantic los stripeaba silenciosamente.
+
+**Fix aplicado:**
+- `Step7Equipment.jsx`: preserva `categoria`, `peso_kg`, `velocidad`, `capacidad_carga`, `constitucion`, `ca`, `ca_bonus`, `dano`, `posicion` en los items enviados al draft.
+- `EquipmentItem` (Pydantic): `model_config = {"extra": "allow"}` para pasar los campos nuevos.
+- `finalize_character` (drafts.py): nuevo bloque que escanea `inventario`, extrae items con `categoria='monturas'` O cuyo nombre contiene keywords (`caballo, poni, pony, mula, burro, corcel, yegua, potro, asno`), los promociona a `monturas[]` con datos del catálogo como fallback, y los elimina del inventario. También espeja la montura primaria en el legacy `character.montura` para retrocompatibilidad con panels viejos.
+- Además, si el draft tiene `montura` legacy (virtud Poni de Bree) y no hay monturas compradas, se convierte a entrada `monturas[0]` (consolida con el fix de iter78).
+
+**Migración:** Odan Valleoscuro tenía "Caballo de caminos" atrapado en `inventario` con `categoria=None`. Script idempotente lo movió a `monturas[]` (vel=14, cap=150) preservando los demás items.
+
+**Tests:** 29/29 pytests PASS (`test_mount_promotion_it77.py` con 3 nuevos: add directo, finalize con mount en inv, finalize con legacy montura). Smoke OK.
+
+---
 
 ### ✅ Iteración 76 — Tercera ola del refactor: JourneyHeader + JourneyDialogs
 

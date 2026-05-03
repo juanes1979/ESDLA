@@ -757,6 +757,81 @@ async def finalize_character(draft_id: str):
     }
     
     # Insert character and delete draft
+    # --- Promote any mounts sitting in the draft inventory into monturas[] ---
+    # (Fix for bug where Step7 shop purchases of mounts got stuck in inventory.)
+    import uuid as _uuid
+    catalog_doc = await db.equipment_catalog.find_one({"_id": "main"}) or {}
+    mounts_catalog = catalog_doc.get("monturas", []) or []
+
+    def _lookup_mount(name: str):
+        if not name:
+            return None
+        n = name.lower().strip()
+        for m in mounts_catalog:
+            if (m.get("nombre") or "").lower().strip() == n:
+                return m
+        return None
+
+    mount_keywords = ("caballo", "poni", "pony", "mula", "burro", "corcel", "yegua", "potro", "asno")
+    promoted_mounts = []
+    remaining_inventory = []
+    for item in character.get("inventario", []) or []:
+        if not isinstance(item, dict):
+            remaining_inventory.append(item)
+            continue
+        cat = (item.get("categoria") or "").lower()
+        name = item.get("nombre") or ""
+        is_mount = cat == "monturas" or any(kw in name.lower() for kw in mount_keywords)
+        if not is_mount:
+            remaining_inventory.append(item)
+            continue
+        cat_item = _lookup_mount(name) or {}
+        qty = max(1, int(item.get("cantidad") or 1))
+        for _ in range(qty):
+            promoted_mounts.append({
+                "id": str(_uuid.uuid4()),
+                "nombre_original": name,
+                "nombre_personalizado": name,
+                "especie": name,
+                "capacidad_carga": item.get("capacidad_carga") or cat_item.get("capacidad_carga") or 150,
+                "velocidad": item.get("velocidad") or cat_item.get("velocidad") or 12,
+                "constitucion": item.get("constitucion") or cat_item.get("constitucion") or "",
+                "equipo": [],
+                "es_jinete_activo": False,
+            })
+
+    # If the draft had a legacy `montura` object AND we didn't promote any mounts,
+    # seed monturas[] from it so the virtue-based mount (Poni de Bree) also lands in the list.
+    legacy_mount = draft.get("montura") or {}
+    if promoted_mounts:
+        character["inventario"] = remaining_inventory
+        character["monturas"] = promoted_mounts
+        # Mirror primary to legacy field (back-compat with panels that still read it)
+        primary = promoted_mounts[0]
+        character["montura"] = {
+            "nombre": primary.get("nombre_original"),
+            "nombre_personalizado": primary.get("nombre_personalizado"),
+            "capacidad_carga": primary.get("capacidad_carga"),
+            "velocidad": primary.get("velocidad"),
+            "constitucion": primary.get("constitucion"),
+            "equipo": primary.get("equipo", []),
+        }
+    elif legacy_mount.get("nombre"):
+        # Virtue-granted mount (Poni de Bree). Build monturas[] entry.
+        character["monturas"] = [{
+            "id": str(_uuid.uuid4()),
+            "nombre_original": legacy_mount.get("nombre"),
+            "nombre_personalizado": legacy_mount.get("nombre"),
+            "especie": legacy_mount.get("nombre"),
+            "capacidad_carga": legacy_mount.get("capacidad_carga") or legacy_mount.get("carga_kg") or 101,
+            "velocidad": legacy_mount.get("velocidad") or 12,
+            "constitucion": legacy_mount.get("constitucion") or "",
+            "equipo": legacy_mount.get("equipo", []) or [],
+            "es_jinete_activo": False,
+        }]
+    else:
+        character.setdefault("monturas", [])
+
     await db.characters.insert_one(character)
     await db.character_drafts.delete_one({"_id": draft_id})
     
