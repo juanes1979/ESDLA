@@ -221,7 +221,15 @@ async def _calculate_initial(party_member_ids: List[str]) -> Dict[str, Any]:
     if not party_member_ids:
         return {"valor": 0, "desglose": []}
 
-    chars = await db.characters.find({"id": {"$in": party_member_ids}}, {"_id": 0}).to_list(100)
+    # Los personajes usan `_id` como identificador (string UUID), no `id`.
+    chars = await db.characters.find(
+        {"_id": {"$in": party_member_ids}}
+    ).to_list(100)
+    # Normalizamos `id` para downstream (sin filtrar `_id` con projection
+    # porque MongoDB no permite mezclar excluir _id con $in en algunas
+    # versiones de motor).
+    for ch in chars:
+        ch.pop("_id", None)
 
     # Base por raza: SÓLO la más alta de la party.
     max_race_base = 0
