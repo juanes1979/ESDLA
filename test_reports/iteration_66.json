@@ -36,7 +36,7 @@
     "frontend": "not tested (per request)"
   },
   "test_credentials": "Not required — equipment/mount/weight-summary endpoints are open.",
-  "seed_data_creation": "All test data (TEST_mount_*, TEST_item_*, TEST_heavy_*, TEST_espada_*, Botas acolchonadas) is created and cleaned up per-test on Xalan Fuenteoscura (id=208ab2df-a51a-43e5-b96e-1c6757a2ada8). Post-run verification confirms 0 TEST_ items remain.",
+  "seed_data_creation": "All test data (TEST_mount_*, TEST_item_*, TEST_heavy_*, TEST_espada_*, Botas acolchonadas) is created and cleaned up per-test on Xalan Fuenteoscura (id=journey-roller). Post-run verification confirms 0 TEST_ items remain.",
   "retest_needed": false,
   "main_agent_can_self_test": true,
   "context_for_next_testing_agent": "Test file is idempotent — it creates and removes ephemeral weapons/mounts/items on Xalan (208ab2df-a51a-43e5-b96e-1c6757a2ada8). Xalan has 2 mounts (Poni de Bree + Lúcero) and 3 migrated ropa items. Note: tests leave montado=false and es_jinete_activo=false on all mounts after cleanup. If the frontend expects Lúcero to be the default active rider, the main agent may want to re-activate it via PATCH /mounted {montado:true, mount_id:'232c51e3-8d04-46bb-bc5d-5e6b489b39cc'} after testing. Pre-existing KeyError in test_group_speed.py was NOT investigated per request."

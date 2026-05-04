@@ -13,7 +13,7 @@ import uuid
 import pytest
 import requests
 
-BASE_URL = os.environ.get("REACT_APP_BACKEND_URL", "https://middle-earth-5e.preview.emergentagent.com").rstrip("/")
+BASE_URL = os.environ.get("REACT_APP_BACKEND_URL", "https://journey-roller.preview.emergentagent.com").rstrip("/")
 API = f"{BASE_URL}/api"
 
 XALAN_ID = "208ab2df-a51a-43e5-b96e-1c6757a2ada8"

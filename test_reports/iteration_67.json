@@ -28,6 +28,6 @@
   "seed_data_creation": "Added 1 ropa item 'TEST_Capa de prueba it67' to Xalan via equipment/add (regression). Did not clean up — minor test leak.",
   "retest_needed": false,
   "should_main_agent_self_test": true,
-  "context_for_next_testing_agent": "Bloque A+B+C-7 backend changes are fully validated. Travel generate-event endpoint uses QUERY PARAMS (terreno, estacion, tipo_tierra) — keep this in mind when writing future tests. Equipment carry payload requires 'carried_by' (NOT 'portado_por') and toggle-active requires 'activa' bool. Xalan Fuenteoscura (id=208ab2df-a51a-43e5-b96e-1c6757a2ada8) is the canonical multi-mount + equipo_ocupacion test character.",
+  "context_for_next_testing_agent": "Bloque A+B+C-7 backend changes are fully validated. Travel generate-event endpoint uses QUERY PARAMS (terreno, estacion, tipo_tierra) — keep this in mind when writing future tests. Equipment carry payload requires 'carried_by' (NOT 'portado_por') and toggle-active requires 'activa' bool. Xalan Fuenteoscura (id=journey-roller) is the canonical multi-mount + equipo_ocupacion test character.",
   "rca of the issue": "N/A — no bugs found in backend changes. Initial test failures were due to test script using JSON body instead of query params for generate-event and using 'portado_por'/missing 'activa' fields; fixed in test, then all passed."
 }

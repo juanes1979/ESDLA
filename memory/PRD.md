@@ -895,3 +895,27 @@ Decisiones acordadas (`/app/memory/CAMPAIGN_ARCHITECTURE.md`):
 - OpenAI TTS-1 / TTS-1-HD (onyx) — Emergent LLM Key
 
 ## User's Preferred Language: Español
+
+---
+
+## CHANGELOG — Sesión Feb 2026 (Refactor Wave 5)
+**2026-02 · Refactor Oleada 5 — `EnhancedTravelSystem.jsx`**
+- Extraído nuevo hook `/app/frontend/src/hooks/useJourneyMembers.js` (268 líneas)
+  - Encapsula gestión completa de miembros + acompañantes:
+    `addMember`, `addMemberWithRole`, `removeMember`, `removeRoleFromMember`,
+    `toggleMemberRole`, `updateMemberRole`, `updateMemberMount`,
+    `addAcompanante`, `removeAcompanante`, `toggleAcompananteMount`.
+  - Elimina duplicación en la construcción del `miembro` (payload único via `buildMemberPayload`).
+- Reducción de `EnhancedTravelSystem.jsx`: **3221 → 2919 líneas** (−302, −9.4%).
+- Limpiados imports ahora no usados: `MAX_ROLES_PER_CHARACTER`, `calcBonusCompetencia`,
+  `tieneCompetenciaEn`, `tienePericia`, `getModAtributo`, `calcModHabilidad`.
+- Verificación: lint limpio + smoke screenshot del `/travel` OK + pytest
+  `test_mount_promotion_it77.py` 3/3 PASS.
+
+### Pendiente refactor (backlog P1)
+- `EnhancedTravelSystem.jsx` sigue con ~2920 líneas. Próximas extracciones
+  candidatas (baja prioridad, alto acoplamiento):
+  - `useEventResolution` (resolveCurrentEvent, rollEventDice, generateEventAtPosition) — complejo por dependencias.
+  - `useJourneyAutomation` (automateJourney, advanceDay, finishDayByDayJourney).
+  - `useJourneyResults` (generateJourneyNarrative, applyPXToCharacters, printJourneyDocument, resetJourney).
+
