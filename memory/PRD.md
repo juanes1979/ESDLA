@@ -2,7 +2,26 @@
 
 ## Current State (2026-05-04)
 
-### ✅ Iteración 82 — 4 features de juego + investigación crash Ocupaciones (NUEVO)
+### ✅ Iteración 82-bis — Selector año T.E. + refactor (NUEVO)
+
+**🟢 Año T.E. en config viaje:** input numérico junto a "Día del Mes" en `ConfigView`, default 2950, clamp 1-3500, sólo dígitos, helper text. `data-testid="journey-year-input"`. El año fluye automáticamente al log de Historia del personaje.
+
+**🟢 Refactor `EnhancedTravelSystem.jsx`** (2132 → **1812 líneas**, −321):
+- `resolveCurrentEvent` extraído a nuevo hook `/app/frontend/src/hooks/useEventResolution.js` (327 líneas).
+- Mantiene 1:1 todas las mecánicas RAW: Terrible Desgracia (TS DES + daño), Desesperanza (TS CAR + Sombra individual + CD fatiga +2), Decisiones Erróneas (TS SAB + Sombra), Atajo, Percance (+CD fatiga +2), Vista agradable (Inspiración).
+- Verificado por testing agent: 0 console errors.
+
+**🟢 Refactor `CultureEditor.jsx`** (793 → **561 líneas**, −232):
+- `CompetenciesSection` (130 líneas) — habilidades automáticas + a elegir + herramientas opc 1/2 + competencia adicional.
+- `VirtuesConfigSection` (95 líneas) — sólo se monta si `tiene_virtud_inicial`.
+- `cultureEditorConstants.js` — `ALL_SKILLS`, `ALL_TOOLS`, `COMPETENCIA_ADICIONAL_CATEGORIAS`, `ATTRIBUTES`.
+- "Texto para imagen IA" promovido a `CollapsibleSection` propia con color `magic-blue`.
+
+**Tests:** 21/21 backend PASS · Frontend 100% (testing_agent_v3_fork iter75: 0 issues).
+
+---
+
+### ✅ Iteración 82 — 4 features de juego + investigación crash Ocupaciones
 
 **🟢 Coste de creación de Baúl (1 mp):**
 - `POST /api/characters/{id}/chest/store` cobra **1 mp** la **primera vez** que se crea un baúl en una ubicación. Si no hay fondos suficientes → **400** con detalle.
