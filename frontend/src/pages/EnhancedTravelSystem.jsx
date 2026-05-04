@@ -9,6 +9,7 @@ import html2canvas from 'html2canvas';
 import api from '@/services/api';
 import {
   MESES_ELFICOS,
+  getEventCdBonusForRoles,
 } from '@/components/travel/travelConstants';
 import {
   REST_TYPES,
@@ -62,6 +63,7 @@ const EnhancedTravelSystem = () => {
     ritmo: 'normal',
     mes: 'Cermië',
     diaMes: 1,
+    anioTe: 2950,
     estacion: 'verano',
     // `horasMarchaForzada` eliminado (Abr 2026): la marcha forzada ahora se
     // decide día a día tras la tirada de orientación (toggle `marchaForzadaHoy`).
@@ -884,7 +886,11 @@ const EnhancedTravelSystem = () => {
         const esFavorable = ['despejado','soleado','templado','suave','agradable']
           .some(k => climaLabel.includes(k));
         const cdMod = esExtremo ? 2 : (esFavorable ? -1 : 0);
-        const cdAjustada = Math.max(5, (eventRes.data.resolucion?.cd || 15) + cdMod);
+        // +CD por sobrecarga de papeles (viaje en solitario / desbalanceado).
+        const maxRolesAnyMember = (config?.miembros || [])
+          .reduce((m, x) => Math.max(m, (x.papeles || []).length), 0);
+        const cdRolesBonus = getEventCdBonusForRoles(maxRolesAnyMember);
+        const cdAjustada = Math.max(5, (eventRes.data.resolucion?.cd || 15) + cdMod + cdRolesBonus);
 
         const newEvent = {
           ...eventRes.data,
@@ -893,6 +899,8 @@ const EnhancedTravelSystem = () => {
             cd: cdAjustada,
             cd_base: eventRes.data.resolucion?.cd || 15,
             cd_clima_mod: cdMod,
+            cd_roles_mod: cdRolesBonus,
+            roles_max: maxRolesAnyMember,
             desventaja_clima: esExtremo,
             ventaja_clima: esFavorable,
             clima_label: weather?.estado_label || null,

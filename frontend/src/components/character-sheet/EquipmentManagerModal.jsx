@@ -307,7 +307,11 @@ const EquipmentManagerModal = ({
       const res = await api.post(`/characters/${character.id}/chest/store`, payload);
       onCharacterUpdate(res.data.character);
       await Promise.all([refreshWeight(), refreshChests()]);
-      toast.success(`Guardado en el baúl: ${item.nombre}`);
+      if (res.data.chest_created) {
+        toast.success(`Baúl creado en esta ubicación (-1 mp). Guardado: ${item.nombre}`);
+      } else {
+        toast.success(`Guardado en el baúl: ${item.nombre}`);
+      }
     } catch (err) {
       toast.error(formatApiError(err, 'No se pudo guardar en el baúl'));
     } finally {

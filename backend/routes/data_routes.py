@@ -83,6 +83,10 @@ class CultureCreate(BaseModel):
     virtudes_propias: Optional[List[str]] = []  # List of virtue IDs specific to this culture
     copiar_virtudes_de: Optional[str] = ""  # Culture ID to copy virtues from
     permite_virtudes_comunes: Optional[bool] = False  # Can choose common virtues too
+    # NEW (it82): texto base editable que se usará al generar retratos IA
+    # para personajes de esta cultura. Si está vacío, fallback al diccionario
+    # hardcoded de `portrait_routes.build_portrait_prompt`.
+    prompt_imagen_ia: Optional[str] = ""
 
 class CultureNamesCreate(BaseModel):
     cultura: str

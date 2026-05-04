@@ -4,7 +4,7 @@
  * (no React state) so we keep them outside the component for testability.
  */
 
-import { ROLE_INFO, MULTI_ROLE_PENALTY } from '../components/travel/travelConstants';
+import { ROLE_INFO, getMultiRolePenalty } from '../components/travel/travelConstants';
 import { ROLE_MODIFIER_KEY } from '../components/travel/travelHelpers';
 
 /**
@@ -78,11 +78,14 @@ export function getRoleModifier(targetRole, miembros) {
     key && typeof targetMember[key] === 'number'
       ? targetMember[key]
       : targetMember.modSabiduria || 0;
-  const hasMultipleRoles = targetMember.papeles?.length > 1;
-  const modifier = baseMod + (hasMultipleRoles ? MULTI_ROLE_PENALTY : 0);
+  const rolesCount = (targetMember.papeles || []).length;
+  const multiRolePenalty = getMultiRolePenalty(rolesCount);
+  const modifier = baseMod + multiRolePenalty;
   const breakdown = [
     `${roleInfo.habilidad} (${roleInfo.atributo_nombre.slice(0, 3)}): ${baseMod >= 0 ? '+' : ''}${baseMod}`,
   ];
-  if (hasMultipleRoles) breakdown.push(`Múltiples papeles: ${MULTI_ROLE_PENALTY}`);
+  if (multiRolePenalty !== 0) {
+    breakdown.push(`Múltiples papeles (${rolesCount}): ${multiRolePenalty}`);
+  }
   return { modifier, breakdown, member: targetMember, roleInfo };
 }

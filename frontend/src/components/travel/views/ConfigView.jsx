@@ -802,7 +802,7 @@ const ConfigView = ({
             Papeles de Viaje
           </CardTitle>
           <p className="text-sm text-muted-foreground">
-            Asigna personajes a cada papel. Un mismo personaje puede tener varios papeles (con penalización de -5 en cada función).
+            Asigna personajes a cada papel. Un mismo personaje puede tener varios papeles. Penalización general: 2 papeles −5, 3 papeles −6, 4 papeles (viaje en solitario) −7. Con 3+ papeles: desventaja en marcha forzada y +CD en eventos.
           </p>
         </CardHeader>
         <CardContent className="space-y-4">

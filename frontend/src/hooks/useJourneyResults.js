@@ -73,6 +73,12 @@ const useJourneyResults = ({
   const generateJourneyNarrative = useCallback(async () => {
     setGeneratingNarrative(true);
     try {
+      const miembrosActivos = (config.miembros || []).filter((m) => m.papeles?.length > 0);
+      const acompanantes = config.acompanantes || [];
+      const totalViajeros = miembrosActivos.length + acompanantes.length;
+      const soloTraveler = totalViajeros === 1;
+      const sobrecargado = miembrosActivos.find((m) => (m.papeles || []).length >= 3);
+
       const res = await api.post('/travel/generate-journey-summary', {
         origen: config.origenNombre,
         destino: config.destinoNombre,
@@ -99,9 +105,14 @@ const useJourneyResults = ({
         personajes: config.miembros.map((m) => ({
           nombre: m.nombre,
           papel: m.papeles?.[0] || 'viajero',
+          papeles: m.papeles || [],
         })),
         px_total: journeyCalc?.estimaciones?.px_total || 0,
         terrenos: journeyCalc?.ruta?.terrain_summary,
+        solo_traveler: soloTraveler,
+        miembro_sobrecargado: sobrecargado
+          ? { nombre: sobrecargado.nombre, papeles: sobrecargado.papeles?.length || 0 }
+          : null,
         heridos: (() => {
           const lista = [];
           const todos = [
@@ -294,6 +305,10 @@ const useJourneyResults = ({
         characters: characterPXList,
         journey_id: activeJourney?.id || null,
         journey_description: `Viaje de ${config.origenNombre} a ${config.destinoNombre}`,
+        journey_origen: config.origenNombre,
+        journey_destino: config.destinoNombre,
+        anio_te: config.anioTe || 2950,
+        journey_summary: journeyNarrative || '',
       });
 
       if (response.data.success) {
@@ -342,7 +357,7 @@ const useJourneyResults = ({
       setApplyingPX(false);
     }
   }, [
-    config, journeyCalc, characterXP, activeJourney,
+    config, journeyCalc, characterXP, activeJourney, journeyNarrative,
     setApplyingPX, setPxApplied, setPxResults, persistProvisionsToInventory,
   ]);
 

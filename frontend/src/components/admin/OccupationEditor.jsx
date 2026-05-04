@@ -337,7 +337,7 @@ const OccupationEditor = ({ occupation, onSave, onClose, onCopy }) => {
     }
   };
 
-  // Get all weapons from equipment lists
+  // Get all weapons from equipment lists (deduped)
   const getAllWeapons = () => {
     const weapons = [];
     ['armas_sencillas_cc', 'armas_sencillas_distancia', 'armas_marciales_cc', 'armas_marciales_distancia'].forEach(cat => {
@@ -345,7 +345,7 @@ const OccupationEditor = ({ occupation, onSave, onClose, onCopy }) => {
         if (w.nombre) weapons.push(w.nombre);
       });
     });
-    return weapons;
+    return Array.from(new Set(weapons));
   };
 
   const getAllArmors = () => {
@@ -355,15 +355,15 @@ const OccupationEditor = ({ occupation, onSave, onClose, onCopy }) => {
         if (a.nombre) armors.push(a.nombre);
       });
     });
-    return armors;
+    return Array.from(new Set(armors));
   };
 
   const getAllTools = () => {
-    return [
+    return Array.from(new Set([
       ...(equipmentLists.herramientas || []).map(h => h.nombre),
       ...(equipmentLists.juegos || []),
       ...(equipmentLists.instrumentos || [])
-    ].filter(Boolean);
+    ].filter(Boolean)));
   };
 
   return (

@@ -8,10 +8,33 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from typing import Optional
 from dotenv import load_dotenv
+from motor.motor_asyncio import AsyncIOMotorClient
 
 load_dotenv()
 
 router = APIRouter(prefix="/portraits", tags=["portraits"])
+
+_mongo_client = AsyncIOMotorClient(os.environ.get("MONGO_URL"))
+_db = _mongo_client[os.environ.get("DB_NAME")]
+
+
+async def _resolve_culture_prompt(cultura: Optional[str]) -> Optional[str]:
+    """Devuelve el `prompt_imagen_ia` configurado por el DJ para esa cultura
+    (matcheo case-insensitive sobre `cultura.nombre`). None si no hay nada
+    útil configurado.
+    """
+    if not cultura:
+        return None
+    try:
+        doc = await _db.cultures.find_one({
+            "nombre": {"$regex": f"^{cultura.strip()}$", "$options": "i"}
+        })
+        if not doc:
+            return None
+        text = (doc.get("prompt_imagen_ia") or "").strip()
+        return text or None
+    except Exception:
+        return None
 
 
 class PortraitRequest(BaseModel):
@@ -30,8 +53,13 @@ class PortraitRequest(BaseModel):
     genero: Optional[str] = None
 
 
-def build_portrait_prompt(data: PortraitRequest) -> str:
-    """Build a detailed prompt for character portrait generation"""
+def build_portrait_prompt(data: PortraitRequest, custom_culture_prompt: Optional[str] = None) -> str:
+    """Build a detailed prompt for character portrait generation.
+
+    Si `custom_culture_prompt` viene informado (texto guardado por el DJ en
+    `culture.prompt_imagen_ia`), se usa **en lugar** del bloque hardcoded
+    de `race_descriptions`.
+    """
     
     # Base description based on race/culture
     race_descriptions = {
@@ -64,8 +92,11 @@ def build_portrait_prompt(data: PortraitRequest) -> str:
     parts.append("Photorealistic black and white pencil drawing, highly detailed portrait")
     parts.append("medieval fantasy style inspired by Lord of the Rings and Tolkien's Middle-earth")
     
-    # Character basics
-    if data.cultura:
+    # Character basics — usa el prompt custom si el DJ lo configuró,
+    # si no recurre al diccionario hardcoded por raza.
+    if custom_culture_prompt:
+        parts.append(custom_culture_prompt)
+    elif data.cultura:
         cultura_lower = data.cultura.lower()
         for key, desc in race_descriptions.items():
             if key in cultura_lower:
@@ -127,9 +158,12 @@ async def generate_portrait(request: PortraitRequest):
         api_key = os.environ.get('EMERGENT_LLM_KEY')
         if not api_key:
             raise HTTPException(status_code=500, detail="API key not configured")
-        
+
+        # Resuelve el prompt custom de la cultura (si el DJ lo definió)
+        custom_culture_prompt = await _resolve_culture_prompt(request.cultura)
+
         # Build the prompt
-        prompt = build_portrait_prompt(request)
+        prompt = build_portrait_prompt(request, custom_culture_prompt=custom_culture_prompt)
         print(f"Generating portrait for {request.nombre} with prompt: {prompt[:200]}...")
         
         # Initialize the image generator

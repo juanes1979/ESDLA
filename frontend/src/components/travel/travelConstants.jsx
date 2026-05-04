@@ -94,8 +94,35 @@ export const hasPenalty = (member, marchaForzada = 0) => {
   return hasMultipleRoles(member) || marchaForzada > 0;
 };
 
-// Penalty amount for multiple roles or forced march
+/**
+ * Penalización general por asumir varios papeles de viaje a la vez.
+ *  - 1 papel : sin penalización.
+ *  - 2 papeles: -5
+ *  - 3 papeles: -6
+ *  - 4 papeles (viaje en solitario): -7
+ */
+export const getMultiRolePenalty = (rolesCount) => {
+  const n = Math.max(0, Number(rolesCount) || 0);
+  if (n <= 1) return 0;
+  if (n === 2) return -5;
+  if (n === 3) return -6;
+  return -7;
+};
+
+/**
+ * Bonus de CD en eventos por carga excesiva de papeles. Se suma al CD base
+ * del evento cuando un mismo viajero soporta 3+ papeles. Refleja la mayor
+ * dificultad de reaccionar bajo presión sostenida.
+ */
+export const getEventCdBonusForRoles = (rolesCount) => {
+  const n = Math.max(0, Number(rolesCount) || 0);
+  if (n <= 2) return 0;
+  if (n === 3) return 2;
+  return 3;
+};
+
+// Penalty amount for multiple roles (legacy: usado donde no podemos escalar con #papeles)
 export const MULTI_ROLE_PENALTY = -5;
 
-// Maximum roles per character
-export const MAX_ROLES_PER_CHARACTER = 2;
+// Maximum roles per character. Permitimos 4 para soportar viaje en solitario.
+export const MAX_ROLES_PER_CHARACTER = 4;

@@ -44,6 +44,7 @@ def chest_test_character(mongo_db):
                       "inteligencia": 10, "sabiduria": 10, "carisma": 10},
         "monturas": [], "inventario": [], "chests": [],
         "escudos": [{"nombre": "Broquel TEST", "peso_kg": 2.5}],
+        "dinero": {"mo": 0, "mp": 5, "me": 0, "mc": 0},
     })
     yield cid
     mongo_db.characters.delete_one({"_id": cid})

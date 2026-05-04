@@ -97,8 +97,9 @@ export const useFatigueSystem = ({
    */
   const applyForcedMarchSaves = useCallback(async (dia) => {
     if (!characters || !setCharacters) return [];
+    const miembrosConPapeles = (config?.miembros || []).filter(m => m.papeles?.length > 0);
     const todosViajeros = [
-      ...((config?.miembros || []).filter(m => m.papeles?.length > 0)),
+      ...miembrosConPapeles,
       ...(config?.acompanantes || []),
     ];
     const results = [];
@@ -106,7 +107,13 @@ export const useFatigueSystem = ({
       const char = characters.find(c => c.id === miembro.id);
       if (!char) continue;
       const mod = conMod(char.atributos?.constitucion);
-      const d20 = Math.floor(Math.random() * 20) + 1;
+      // Desventaja en MF si carga 3+ papeles (viaje en solitario o muy
+      // desbalanceado): tirada con 2d20 quedándose con el menor.
+      const rolesCount = (miembro.papeles || []).length;
+      const conDesventaja = rolesCount >= 3;
+      const d1 = Math.floor(Math.random() * 20) + 1;
+      const d2 = Math.floor(Math.random() * 20) + 1;
+      const d20 = conDesventaja ? Math.min(d1, d2) : d1;
       const total = d20 + mod;
       const exito = total >= FORCED_MARCH_CD;
       let nivelesCansancio = 0;
@@ -123,11 +130,13 @@ export const useFatigueSystem = ({
         } catch (e) {
           console.error('Error aplicando fatiga marcha forzada:', e);
         }
-        toast.error(`⚡ Marcha forzada (día ${dia}): ${char.nombre} falla CON ${total} vs CD ${FORCED_MARCH_CD} → +${nivelesCansancio} nivel${nivelesCansancio === 1 ? '' : 'es'}`);
+        const sufijo = conDesventaja ? ` (desventaja: 2d20=${d1}/${d2}→${d20})` : '';
+        toast.error(`⚡ Marcha forzada (día ${dia}): ${char.nombre} falla CON ${total} vs CD ${FORCED_MARCH_CD}${sufijo} → +${nivelesCansancio} nivel${nivelesCansancio === 1 ? '' : 'es'}`);
       } else {
-        toast.success(`⚡ Marcha forzada (día ${dia}): ${char.nombre} supera CON ${total} vs CD ${FORCED_MARCH_CD}`);
+        const sufijo = conDesventaja ? ` (desventaja: 2d20=${d1}/${d2}→${d20})` : '';
+        toast.success(`⚡ Marcha forzada (día ${dia}): ${char.nombre} supera CON ${total} vs CD ${FORCED_MARCH_CD}${sufijo}`);
       }
-      results.push({ charId: miembro.id, total, exito, niveles: nivelesCansancio });
+      results.push({ charId: miembro.id, total, exito, niveles: nivelesCansancio, desventaja: conDesventaja });
     }
     return results;
   }, [characters, setCharacters, config]);

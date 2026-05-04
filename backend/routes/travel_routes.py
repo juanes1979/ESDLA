@@ -3303,6 +3303,8 @@ class JourneySummaryRequest(BaseModel):
     px_total: int = 0
     terrenos: Dict[str, float] = None
     heridos: List[Dict[str, Any]] = []  # personajes que cayeron a 0 PG durante el viaje
+    solo_traveler: bool = False  # Un único viajero (todos los papeles a uno)
+    miembro_sobrecargado: Optional[Dict[str, Any]] = None  # {nombre, papeles} si alguien lleva 3+ papeles
 
 @router.post("/generate-journey-summary")
 async def generate_journey_summary(request: JourneySummaryRequest):
@@ -3370,20 +3372,32 @@ async def generate_journey_summary(request: JourneySummaryRequest):
             Si hay HERIDOS GRAVES (personajes que cayeron a 0 PG), narra explícitamente cómo y dónde ocurrió,
             quién quedó inconsciente, cómo lo cargaron sus compañeros (en montura, a hombros) y en qué estado
             llegaron al destino. NO inventes salvaciones ni curaciones que no se hayan rodado.
-            Máximo 400 palabras. No uses emojis."""
+            REGLA DE NÚMERO GRAMATICAL: si el campo VIAJE_EN_SOLITARIO es 'sí', el viajero está totalmente solo;
+            usa SIEMPRE la tercera persona del singular ('viajaba', 'avanzaba', 'él/ella'), NO uses 'la compañía',
+            'el grupo', 'los viajeros', ni plurales colectivos. Si hay un MIEMBRO SOBRECARGADO con varios papeles,
+            menciona en algún momento la fatiga acumulada por asumir tantos roles a la vez (guía, cazador, vigía,
+            explorador). Máximo 400 palabras. No uses emojis."""
         ).with_model("openai", "gpt-4o")
-        
+
+        solo_text = "sí" if request.solo_traveler else "no"
+        sobrecarga_text = ""
+        if request.miembro_sobrecargado:
+            n = request.miembro_sobrecargado.get("papeles") or 0
+            nombre = request.miembro_sobrecargado.get("nombre") or "El viajero"
+            sobrecarga_text = f"\nMIEMBRO SOBRECARGADO: {nombre} cargaba {n} papeles a la vez (peso del viaje en sus hombros)."
+
         prompt = f"""Escribe el relato de este viaje:
 
 VIAJE: De {request.origen} a {request.destino}
 DURACIÓN: {request.dias} días
 COMPAÑÍA: {grupo_text if grupo_text else "Un grupo de viajeros"}
+VIAJE_EN_SOLITARIO: {solo_text}{sobrecarga_text}
 TERRENOS: {terreno_text if terreno_text else "Caminos y sendas de la Tierra Media"}
 CLIMA POR DÍA: {clima_text if clima_text else "(no disponible)"}
 ACONTECIMIENTOS: {eventos_text if eventos_text else "El viaje fue tranquilo"}
 HERIDOS GRAVES (cayeron a 0 PG): {heridos_text if heridos_text else "Ninguno — todos llegan en pie"}
 
-Narra el viaje de forma natural, como si se lo contaras a alguien. Respeta el clima exacto de cada día (NO inventes otro), describe el paisaje y los momentos importantes. Si hay narrativas individuales arriba, intégralas. {"INTEGRA EXPLÍCITAMENTE el desenlace de los heridos en la narración: cuándo cayó cada uno, cómo lo cargaron sus compañeros y cómo llegan al destino malheridos." if request.heridos else ""} NO menciones puntos de experiencia ni mecánicas de juego."""
+Narra el viaje de forma natural, como si se lo contaras a alguien. Respeta el clima exacto de cada día (NO inventes otro), describe el paisaje y los momentos importantes. Si hay narrativas individuales arriba, intégralas. {"USA SIEMPRE EL SINGULAR (es un viaje en solitario): el viajero, él/ella, no menciones grupo ni compañía." if request.solo_traveler else ""} {"INTEGRA EXPLÍCITAMENTE el desenlace de los heridos en la narración: cuándo cayó cada uno, cómo lo cargaron sus compañeros y cómo llegan al destino malheridos." if request.heridos else ""} NO menciones puntos de experiencia ni mecánicas de juego."""
         
         user_message = UserMessage(text=prompt)
         response = await chat.send_message(user_message)
@@ -3468,6 +3482,10 @@ class ApplyPXIndividualRequest(BaseModel):
     characters: List[dict]  # List of {character_id: str, character_name: str, px_amount: int}
     journey_id: Optional[str] = None
     journey_description: Optional[str] = None
+    journey_origen: Optional[str] = None
+    journey_destino: Optional[str] = None
+    anio_te: Optional[int] = None
+    journey_summary: Optional[str] = None  # 3-line AI summary
 
 @router.post("/apply-px-individual")
 async def apply_px_individual(request: ApplyPXIndividualRequest):
@@ -3475,22 +3493,56 @@ async def apply_px_individual(request: ApplyPXIndividualRequest):
     try:
         results = []
         exitosos = 0
-        
+
+        # Construye una entrada compacta de 3 líneas para añadir a la historia
+        # del personaje. Si no llega `journey_summary` (la crónica IA aún no se
+        # ha generado), el entry sigue siendo válido sin esa parte.
+        def _trim_to_3_lines(text: str) -> str:
+            if not text:
+                return ""
+            lines = [ln.strip() for ln in text.replace("\r", "").split("\n") if ln.strip()]
+            joined = " ".join(lines)
+            # Heurística: corta a ~3 oraciones cortas (separadas por '. ')
+            sentences = [s.strip() for s in joined.split(". ") if s.strip()]
+            picked = sentences[:3]
+            out = ". ".join(picked)
+            if out and not out.endswith("."):
+                out += "."
+            return out
+
+        def _build_history_entry(char_name: str, px: int) -> Optional[str]:
+            origen = request.journey_origen
+            destino = request.journey_destino
+            if not (origen and destino):
+                return None
+            anio = request.anio_te or 2950
+            resumen = _trim_to_3_lines(request.journey_summary or "")
+            partes = [
+                f"En el año {anio} T.E., {char_name} viajó desde {origen} a {destino}",
+            ]
+            entrada = ", ".join(partes)
+            if resumen:
+                entrada += f". {resumen}"
+            else:
+                entrada += "."
+            entrada += f" Esto le otorgó {px}px."
+            return entrada
+
         for char_data in request.characters:
             char_id = char_data.get('character_id')
             px_amount = char_data.get('px_amount', 0)
             char_name = char_data.get('character_name', 'Desconocido')
-            
+
             if not char_id:
                 continue
-            
+
             # Find character in DB
             from bson import ObjectId
             try:
                 character = await db.characters.find_one({"_id": ObjectId(char_id)})
-            except:
+            except Exception:
                 character = await db.characters.find_one({"_id": char_id})
-            
+
             if not character:
                 results.append({
                     "character_id": char_id,
@@ -3499,20 +3551,33 @@ async def apply_px_individual(request: ApplyPXIndividualRequest):
                     "error": "Personaje no encontrado"
                 })
                 continue
-            
+
             # Update XP — el campo oficial en la ficha es `experiencia`.
             # `xp` se mantiene también por compatibilidad legacy.
             current_xp = character.get('experiencia', 0) or 0
             new_xp = current_xp + px_amount
-            
+
+            update_dict: Dict[str, Any] = {
+                "experiencia": new_xp,
+                "xp": new_xp,
+                "updated_at": datetime.now(timezone.utc).isoformat(),
+            }
+
+            history_entry = _build_history_entry(char_name, px_amount)
+            if history_entry:
+                # Anexa la entrada al final del campo `historia` (string).
+                # Conserva el contenido previo separándolo con doble salto de línea.
+                prev = character.get('historia') or ''
+                if prev and not prev.endswith("\n"):
+                    nueva = prev + "\n\n" + history_entry
+                else:
+                    nueva = (prev or '') + history_entry
+                update_dict["historia"] = nueva
+
             try:
                 await db.characters.update_one(
                     {"_id": character["_id"]},
-                    {"$set": {
-                        "experiencia": new_xp,
-                        "xp": new_xp,
-                        "updated_at": datetime.now(timezone.utc).isoformat(),
-                    }}
+                    {"$set": update_dict}
                 )
                 exitosos += 1
                 results.append({
@@ -3521,7 +3586,8 @@ async def apply_px_individual(request: ApplyPXIndividualRequest):
                     "success": True,
                     "xp_anterior": current_xp,
                     "xp_ganado": px_amount,
-                    "xp_nuevo": new_xp
+                    "xp_nuevo": new_xp,
+                    "history_appended": bool(history_entry),
                 })
             except Exception as e:
                 results.append({
@@ -3530,7 +3596,7 @@ async def apply_px_individual(request: ApplyPXIndividualRequest):
                     "success": False,
                     "error": str(e)
                 })
-        
+
         return {
             "success": exitosos > 0,
             "exitosos": exitosos,
@@ -3538,7 +3604,7 @@ async def apply_px_individual(request: ApplyPXIndividualRequest):
             "results": results,
             "journey_description": request.journey_description
         }
-        
+
     except Exception as e:
         return {
             "success": False,

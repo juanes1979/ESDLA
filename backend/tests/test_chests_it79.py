@@ -55,6 +55,8 @@ def throwaway_character(mongo_db):
         ],
         "monturas": [],
         "chests": [],
+        # it82: crear baúl cuesta 1 mp; damos 5 mp al test character
+        "dinero": {"mo": 0, "mp": 5, "me": 0, "mc": 0},
     })
     yield cid
     mongo_db.characters.delete_one({"_id": cid})

@@ -123,6 +123,11 @@ const CultureEditor = ({ culture, races, onSave, onClose, onCopy }) => {
     virtudes_propias: [],  // List of virtue IDs specific to this culture
     copiar_virtudes_de: '',  // Culture ID to copy virtues from
     permite_virtudes_comunes: false,  // Can choose common virtues too
+    // NEW (it82): texto base para el prompt del retrato IA. Permite al DJ
+    // ajustar a su gusto cómo se describirán los personajes de esta cultura
+    // al generar retratos con OpenAI Image. Si está vacío, se usa el
+    // diccionario hardcoded del backend.
+    prompt_imagen_ia: '',
     ...culture
   });
 
@@ -363,6 +368,26 @@ const CultureEditor = ({ culture, races, onSave, onClose, onCopy }) => {
                         onChange={(e) => handleChange('descripcion_riqueza', e.target.value)}
                       />
                     </div>
+                  </div>
+
+                  {/* AI image prompt — editable por el DJ */}
+                  <div className="mt-4 p-3 border border-[hsl(var(--magic-blue))/30] rounded bg-[hsl(var(--magic-blue))/5]">
+                    <Label className="text-[hsl(var(--magic-blue))] font-bold">
+                      🎨 Texto para imagen IA (retrato)
+                    </Label>
+                    <p className="text-xs text-muted-foreground mb-2 mt-1">
+                      Texto base que se usará al generar retratos con IA para personajes de esta
+                      cultura. Si está vacío, se usa la descripción por defecto del sistema.
+                      Ejemplo: <em>“a wise Hobbit of the Shire, with curly chestnut hair, hairy
+                      bare feet, dressed in a green waistcoat and brown breeches”</em>.
+                    </p>
+                    <Textarea
+                      data-testid="cultura-prompt-imagen-ia"
+                      value={formData.prompt_imagen_ia || ''}
+                      onChange={(e) => handleChange('prompt_imagen_ia', e.target.value)}
+                      placeholder="Descripción visual base en inglés (recomendado por el modelo)…"
+                      rows={3}
+                    />
                   </div>
                 </CollapsibleSection>
 

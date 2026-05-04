@@ -18,7 +18,30 @@ from typing import Optional
 from fastapi import HTTPException, Body
 from pydantic import BaseModel
 
-from ._common import router, db, now_utc, serialize_doc
+from ._common import router, db, now_utc, serialize_doc, convert_to_base, convert_from_base
+
+
+# Coste fijo (en monedas base = 1 céntimo de cobre) por crear un baúl en una ubicación nueva.
+# Equivale a 1 mp (1 pieza de plata = 100 unidades base).
+CHEST_CREATION_COST_BASE = 100
+
+
+def _charge_chest_creation(character: dict) -> dict:
+    """Comprueba que haya fondos y devuelve el nuevo dict `dinero`.
+
+    Si el personaje no tiene al menos 1 mp, lanza HTTP 400 con detalle.
+    """
+    dinero = character.get("dinero") or {"mo": 0, "mp": 0, "me": 0, "mc": 0}
+    base = convert_to_base(dinero)
+    if base < CHEST_CREATION_COST_BASE:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "Fondos insuficientes para crear el baúl. "
+                f"Necesitas 1 pieza de plata (mp). Dinero actual: {dinero}."
+            ),
+        )
+    return convert_from_base(base - CHEST_CREATION_COST_BASE)
 
 
 class ChestStoreRequest(BaseModel):
@@ -215,6 +238,13 @@ async def chest_store(character_id: str, body: ChestStoreRequest):
     update, item = _pop_item_from_source(
         character, body.source, body.item_index, body.mount_id, body.cantidad
     )
+
+    existing_idx = _find_chest(character, body.location_id)
+    is_new_chest = existing_idx is None
+    if is_new_chest:
+        nuevo_dinero = _charge_chest_creation(character)
+        update["dinero"] = nuevo_dinero
+
     chests = _push_item_into_chest(
         character.get("chests") or [], body.location_id, location, item
     )
@@ -226,6 +256,8 @@ async def chest_store(character_id: str, body: ChestStoreRequest):
     return {
         "success": True,
         "stored_item": item,
+        "chest_created": is_new_chest,
+        "creation_cost": "1 mp" if is_new_chest else None,
         "character": serialize_doc(updated),
     }
 
@@ -294,6 +326,53 @@ async def chest_retrieve(character_id: str, body: ChestRetrieveRequest):
     return {
         "success": True,
         "retrieved_item": retrieved,
+        "character": serialize_doc(updated),
+    }
+
+
+@router.post("/{character_id}/chest/create")
+async def chest_create(character_id: str, body: dict = Body(...)):
+    """Crea un baúl vacío en una ubicación refugio. Cuesta 1 mp.
+
+    Body: {"location_id": str}
+    Falla con 400 si no hay fondos, 409 si ya existe un baúl en esa ubicación.
+    """
+    location_id = (body or {}).get("location_id")
+    if not location_id:
+        raise HTTPException(400, "location_id requerido")
+
+    character = await db.characters.find_one({"_id": character_id})
+    if not character:
+        raise HTTPException(404, "Personaje no encontrado")
+
+    location = await _resolve_location(location_id)
+    _ensure_safe_haven(location)
+    _ensure_at_location(character, location_id)
+
+    if _find_chest(character, location_id) is not None:
+        raise HTTPException(409, "Ya existe un baúl en esta ubicación")
+
+    nuevo_dinero = _charge_chest_creation(character)
+
+    chests = list(character.get("chests") or [])
+    chests.append({
+        "location_id": location_id,
+        "location_nombre": location.get("nombre"),
+        "location_region": location.get("region"),
+        "items": [],
+        "created_at": now_utc(),
+        "updated_at": now_utc(),
+    })
+
+    await db.characters.update_one(
+        {"_id": character_id},
+        {"$set": {"chests": chests, "dinero": nuevo_dinero, "updated_at": now_utc()}},
+    )
+    updated = await db.characters.find_one({"_id": character_id})
+    return {
+        "success": True,
+        "chest_created": True,
+        "creation_cost": "1 mp",
         "character": serialize_doc(updated),
     }
 
