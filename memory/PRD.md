@@ -1,6 +1,45 @@
 # LOTR 5e RPG - Product Requirements Document
 
-## Current State (2026-05-03)
+## Current State (2026-05-04)
+
+### ✅ Iteración 82 — 4 features de juego + investigación crash Ocupaciones (NUEVO)
+
+**🟢 Coste de creación de Baúl (1 mp):**
+- `POST /api/characters/{id}/chest/store` cobra **1 mp** la **primera vez** que se crea un baúl en una ubicación. Si no hay fondos suficientes → **400** con detalle.
+- Nuevo endpoint `POST /api/characters/{id}/chest/create` para crear baúl explícitamente vacío (mismo coste, **409** si ya existe).
+- Frontend (`EquipmentManagerModal`): toast "Baúl creado en esta ubicación (-1 mp). Guardado: {item}" en la primera guardada.
+
+**🟢 Penalizaciones viaje en solitario / desbalanceado:**
+- Penalización general por papeles múltiples ahora escala: 2 papeles **−5**, 3 papeles **−6**, 4 papeles (viaje en solitario) **−7**. Nuevo helper `getMultiRolePenalty(n)`.
+- `MAX_ROLES_PER_CHARACTER = 4` (antes 2) para permitir viaje en solitario.
+- Nuevo helper `getEventCdBonusForRoles(n)`: 3 papeles → **+2 CD**, 4 papeles → **+3 CD** en eventos. Aplicado en `generateEventAtPosition` (campo `cd_roles_mod`).
+- `applyForcedMarchSaves` (en `useFatigueSystem`): aplica **desventaja (2d20 → menor)** a la TS de CON cuando el miembro tiene **3+ papeles**. Toast detalla `2d20=X/Y → Z`.
+- Crónica final IA (`generate_journey_summary`) ahora recibe `solo_traveler:bool` y `miembro_sobrecargado:dict`. El system prompt instruye a usar **3ª persona del singular** sin colectivos plurales cuando el viajero está realmente solo.
+
+**🟢 Log XP en Historia del personaje al completar viaje:**
+- `POST /api/travel/apply-px-individual` admite ahora `journey_origen`, `journey_destino`, `anio_te` (default 2950), `journey_summary` (resumen IA, opcional).
+- Si origen+destino están presentes, anexa al campo `historia` del personaje:
+  *"En el año YYYY T.E., NOMBRE viajó desde ORIGEN a DESTINO. [resumen 3 líneas]. Esto le otorgó Xpx."*
+- Preserva contenido previo separando con doble salto de línea.
+- Frontend `useJourneyResults.applyPXToCharacters` envía los nuevos campos automáticamente.
+
+**🟢 Texto para imagen IA editable por subcultura (Admin):**
+- `CultureCreate.prompt_imagen_ia: Optional[str]` añadido. `PUT /api/data/cultures/{id}` lo persiste.
+- `CultureEditor.jsx` muestra una textarea destacada **"🎨 Texto para imagen IA (retrato)"** en la sección "Información Básica" (data-testid `cultura-prompt-imagen-ia`).
+- `portrait_routes.build_portrait_prompt` resuelve el prompt custom desde `cultures.prompt_imagen_ia` (case-insensitive sobre `cultura.nombre`). Si está vacío → fallback al diccionario hardcoded.
+
+**🐛 Investigación crash Ocupaciones (NO REPRODUCIDO):**
+- Verificado por screenshot: la lista de ocupaciones, expansión, edición y creación funcionan sin pantalla negra.
+- Limpieza preventiva: `getAllWeapons/getAllArmors/getAllTools` en `OccupationEditor.jsx` ahora deduplican (eliminan warning "key duplicada: Daga").
+
+**Tests:** 9/9 nuevos pytests PASS:
+- `test_chest_creation_cost_it82.py` (5/5)
+- `test_xp_history_log_it82.py` (2/2)
+- `test_portrait_prompt_it82.py` (2/2)
+- Regresión: `test_chests_it79.py` y `test_chests_it79b_regressions.py` actualizados con `dinero=5 mp` en fixture (ahora chest_store requiere fondos).
+- Testing agent (iter74): Backend **18/18 PASS** · Frontend 100% (Ocupaciones renderiza, Culturas modal abre, no errores de consola).
+
+---
 
 ### ✅ Iteración 77b — Fix inconsistencia peso de montura (PDF vs modal)
 
