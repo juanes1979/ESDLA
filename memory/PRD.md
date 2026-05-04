@@ -927,6 +927,42 @@ Decisiones acordadas (`/app/memory/CAMPAIGN_ARCHITECTURE.md`):
   `automateJourney`, `advanceDay`, `generateDayEvent`, `finishDayByDayJourney`,
   `calculateFatigueResults`.
 - Limpieza de código muerto: 23+ imports UI sin usar, 8 imports `components/travel`
+
+**2026-02 · Sesión equipamiento — Bugs fix + Chests system (Fase 1)**
+- Bug fix #1 (códigos públicos): `finalize_character` ahora llama
+  `generate_codigo_publico` y persiste el resultado. Migración masiva ejecutada
+  → 16 fichas pre-existentes rellenadas. DraftMount fantasmas borrados.
+- Bug fix #2a (tirar al camino): `DELETE /equipment/remove` ahora escanea todas
+  las fuentes (`inventario`, `equipo`, `equipo_ocupacion`, `equipo_nivel_vida`,
+  `equipo_trasfondo`, `monturas[*].equipo`, además de armas/armadura/escudos).
+- Bug fix #2b (peso obsoleto): `_compute_weight_summary` extraído a helper.
+  `/equipment/carry` y `/equipment/remove` devuelven `weight_summary`
+  recalculado en la misma respuesta. Frontend aplica `character + weightSummary`
+  atómicamente — race condition resuelta.
+- **Sistema de baúles por ubicación** (nuevo): `/app/backend/routes/character/chests.py`
+  - Estado embebido `character.chests = [{location_id, items: [], ...}]`.
+  - Endpoints: `POST /chest/store`, `POST /chest/retrieve`, `GET /chests`,
+    `DELETE /chest/{location_id}`.
+  - Reglas: sólo se guarda/retira si `ubicacion_actual.id == chest.location_id`;
+    sólo se crea baúl en location con `refugio == True`. Sin capacidad máxima.
+  - `chests` devuelve flag `accesible` para que el frontend bloquee visualmente.
+- **Hook auto-ubicación al terminar viaje**: `/travel/journey/{id}/complete`
+  actualiza `ubicacion_actual` de cada miembro al destino (denormalizado).
+- **Endpoint genérico**: `POST /travel/arrival` para el modo global automatizado
+  que no crea `active_journey`. Mismo efecto.
+- Tests: `/app/backend/tests/test_chests_it79.py` (6/6 PASS).
+
+### Pendiente sesión equipamiento — Fase 2 (frontend)
+- Reescritura de `EquipmentManagerModal.jsx` con el diseño confirmado:
+  - Layout A (cards visuales con anillo de carga grueso + glow).
+  - Layout B (tabla scrolleable independiente, comparte estado con A).
+  - Columnas dinámicas: Equipado · Carga Personal · {monturas[]} · {baúles[]}.
+  - Pill superior con `ubicacion_actual` + badge `Refugio seguro`.
+  - Validación de capacidad antes de mover ítem (toast "Esta montura no puede
+    cargar más peso." y rechazo).
+  - Estado bloqueado/accesible según `ubicacion_actual` vs `chest.location_id`.
+  - Iconos circulares en `/app/frontend/src/assets/equipment/` ya guardados
+    (personaje, mochila, caballo, baúl).
   ahora cubiertos por las views, 9 constantes/helpers huérfanos,
   3 refs (`currentPositionRef/currentEventRef/charactersRef`) y 4 useState
   (`monturas/landTypes/terrainTypes/foodWaterItems`) que sólo escribían en vacío,

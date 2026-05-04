@@ -2497,18 +2497,76 @@ async def add_event_to_journey(journey_id: str, evento: Dict[str, Any]):
 
 @router.post("/journey/{journey_id}/complete")
 async def complete_journey(journey_id: str):
-    """Mark journey as complete and calculate final results"""
+    """Mark journey as complete and calculate final results.
+
+    Side effect: actualiza `ubicacion_actual` de cada personaje participante al
+    destino del viaje, denormalizando los campos clave de la location para que
+    el frontend pueda renderizar el "estás aquí" sin un round-trip extra.
+    """
     journey = await db.active_journeys.find_one({"id": journey_id}, {"_id": 0})
     if not journey:
         raise HTTPException(status_code=404, detail="Viaje no encontrado")
-    
+
     await db.active_journeys.update_one(
         {"id": journey_id},
         {"$set": {"completado": True, "updated_at": datetime.now(timezone.utc).isoformat()}}
     )
-    
+
+    # Auto-actualizar la ubicación de los miembros al destino del viaje.
+    # Si no hay destino_id en config (custom waypoint) se persiste un snapshot
+    # mínimo construido a partir del nombre + coordenadas para que la UI pueda
+    # mostrar al menos el nombre del lugar como "estás aquí".
+    arrived = []
+    try:
+        config = journey.get("config") or {}
+        miembros = config.get("miembros") or []
+        destino_id = config.get("destino_id")
+        destino_nombre = config.get("destino_nombre")
+
+        ubicacion_payload = None
+        if destino_id and not str(destino_id).startswith("custom:"):
+            loc = await db.locations.find_one({"_id": destino_id}) or \
+                  await db.locations.find_one({"id": destino_id})
+            if loc:
+                ubicacion_payload = {
+                    "id": loc.get("id") or loc.get("_id"),
+                    "nombre": loc.get("nombre"),
+                    "region": loc.get("region"),
+                    "tipo": loc.get("tipo"),
+                    "x": loc.get("x"),
+                    "y": loc.get("y"),
+                    "tipo_tierra": loc.get("tipo_tierra") or loc.get("clase_region"),
+                    "terreno": loc.get("terreno"),
+                }
+        if ubicacion_payload is None and destino_nombre:
+            ubicacion_payload = {
+                "id": destino_id or f"custom:{destino_nombre}",
+                "nombre": destino_nombre,
+                "region": None,
+                "tipo": "custom",
+                "x": config.get("destino_x"),
+                "y": config.get("destino_y"),
+            }
+
+        if ubicacion_payload and miembros:
+            character_ids = [m.get("id") for m in miembros if m.get("id")]
+            if character_ids:
+                await db.characters.update_many(
+                    {"_id": {"$in": character_ids}},
+                    {"$set": {
+                        "ubicacion_actual": ubicacion_payload,
+                        "updated_at": datetime.now(timezone.utc),
+                    }},
+                )
+                arrived = character_ids
+    except Exception as e:
+        # No bloquear el cierre del viaje si falla la actualización de ubicación
+        print(f"[complete_journey] aviso: no se pudo actualizar ubicación de miembros: {e}")
+
     return {
         "success": True,
+        "ubicacion_actualizada": bool(arrived),
+        "personajes_movidos": arrived,
         "resumen": {
             "dias_totales": journey.get('dia_actual', 1) - 1 + journey.get('dias_extra', 0) - journey.get('dias_reducidos', 0),
             "casillas_recorridas": journey.get('casillas_recorridas', 0),
@@ -2516,6 +2574,66 @@ async def complete_journey(journey_id: str):
             "px_total": journey.get('px_acumulados', 0),
             "eventos_totales": sum(len(d.get('eventos', [])) for d in journey.get('dias', []))
         }
+    }
+
+
+class ArrivalRequest(BaseModel):
+    """Endpoint genérico para cuando un viaje finaliza fuera del flujo
+    `journey/{id}/complete` (p.ej. modo global automatizado que no crea
+    `active_journey`)."""
+    character_ids: List[str]
+    destination_id: Optional[str] = None
+    destination_nombre: Optional[str] = None
+    destination_x: Optional[float] = None
+    destination_y: Optional[float] = None
+
+
+@router.post("/arrival")
+async def register_arrival(req: ArrivalRequest):
+    """Actualiza `ubicacion_actual` de los personajes al destino tras un viaje
+    sin `active_journey` (p.ej. el modo global automatizado)."""
+    if not req.character_ids:
+        return {"success": True, "personajes_movidos": []}
+
+    ubicacion_payload = None
+    if req.destination_id and not str(req.destination_id).startswith("custom:"):
+        loc = await db.locations.find_one({"_id": req.destination_id}) or \
+              await db.locations.find_one({"id": req.destination_id})
+        if loc:
+            ubicacion_payload = {
+                "id": loc.get("id") or loc.get("_id"),
+                "nombre": loc.get("nombre"),
+                "region": loc.get("region"),
+                "tipo": loc.get("tipo"),
+                "x": loc.get("x"),
+                "y": loc.get("y"),
+                "tipo_tierra": loc.get("tipo_tierra") or loc.get("clase_region"),
+                "terreno": loc.get("terreno"),
+            }
+    if ubicacion_payload is None and req.destination_nombre:
+        ubicacion_payload = {
+            "id": req.destination_id or f"custom:{req.destination_nombre}",
+            "nombre": req.destination_nombre,
+            "region": None,
+            "tipo": "custom",
+            "x": req.destination_x,
+            "y": req.destination_y,
+        }
+
+    if not ubicacion_payload:
+        raise HTTPException(status_code=400, detail="Destino no resoluble")
+
+    await db.characters.update_many(
+        {"_id": {"$in": req.character_ids}},
+        {"$set": {
+            "ubicacion_actual": ubicacion_payload,
+            "updated_at": datetime.now(timezone.utc),
+        }},
+    )
+    return {
+        "success": True,
+        "ubicacion": ubicacion_payload,
+        "personajes_movidos": req.character_ids,
     }
 
 @router.get("/journeys/active")

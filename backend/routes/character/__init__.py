@@ -24,6 +24,7 @@ from . import _common  # noqa: F401  (defines the shared router)
 from . import drafts   # noqa: F401
 from . import core     # noqa: F401
 from . import equipment  # noqa: F401
+from . import chests  # noqa: F401
 
 from ._common import router  # re-export
 
