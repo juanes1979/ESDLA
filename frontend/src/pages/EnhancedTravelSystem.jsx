@@ -41,14 +41,11 @@ import {
   REST_TYPES,
   ROLE_MODIFIER_KEY,
   SKILL_ATTRIBUTES,
-  getFatigueBaseCD,
   calculateRollXP,
   calculateGroupMultiplier,
   getForageCD
 } from '@/components/travel/travelHelpers';
-import { printJourneyDocument as printJourneyDocumentHelper } from '@/components/travel/travelPrint';
 import { summarizeProvisions } from '@/components/travel/inventoryProvisions';
-import { consumeProportionalFood } from '@/components/travel/proportionalFoodConsumption';
 import ResultsView from '@/components/travel/views/ResultsView';
 import GlobalJourneyView from '@/components/travel/views/GlobalJourneyView';
 import DayByDayView from '@/components/travel/views/DayByDayView';
@@ -60,6 +57,8 @@ import { computeMemberSpeed, getRoleModifier as getRoleModifierHelper } from '@/
 import useJourneyProvisions from '@/hooks/useJourneyProvisions';
 import useFatigueSystem from '@/hooks/useFatigueSystem';
 import useJourneyMembers from '@/hooks/useJourneyMembers';
+import useJourneyResults from '@/hooks/useJourneyResults';
+import useJourneyAutomation from '@/hooks/useJourneyAutomation';
 
 
 const EnhancedTravelSystem = () => {
@@ -1774,520 +1773,54 @@ const EnhancedTravelSystem = () => {
   // Bucle independiente que NO depende del estado de React entre iteraciones:
   // tira orientación → calcula posición de evento → genera evento → resuelve →
   // acumula localmente → al final sincroniza estado y muestra resultados.
-  const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+  // =============== JOURNEY AUTOMATION (hook) ===============
+  // `automateJourney`, `advanceDay`, `generateDayEvent`, `finishDayByDayJourney`
+  // y `calculateFatigueResults` viven ahora en `useJourneyAutomation`.
+  const {
+    automateJourney,
+    advanceDay,
+    generateDayEvent, // eslint-disable-line no-unused-vars -- expuesto por compatibilidad interna
+    finishDayByDayJourney,
+    calculateFatigueResults, // eslint-disable-line no-unused-vars -- expuesto por compatibilidad interna
+  } = useJourneyAutomation({
+    config,
+    journeyCalc,
+    journeyWeather,
+    locations,
+    characters,
+    characterXP,
+    dailySummaries,
+    activeJourney,
+    events,
+    currentDayConfig,
+    forcedMarchActive,
+    autoRunning,
+    autoStopRef,
+    modeRef,
+    setAutoRunning,
+    setAutoProgress,
+    setAutoMessage,
+    setAutoSubtitle,
+    setEvents,
+    setOrientationChecks,
+    setCurrentPosition,
+    setMode,
+    setJourneyWeather,
+    setLastOrientationResult,
+    setCharacterXP,
+    setDailySummaries,
+    setActiveJourney,
+    setForcedMarchActive,
+    setCurrentDayConfig,
+    setCurrentEvent,
+    setCharacters,
+    setFatigueResults,
+    consumeDailyProvisions,
+    applyForcedMarchExtraConsumption,
+    applyForcedMarchSaves,
+    getRoleModifier,
+  });
 
-  const automateJourney = async () => {
-    if (autoRunning) {
-      autoStopRef.current = true;
-      return;
-    }
-    if (!journeyCalc?.success) {
-      toast.error('Calcula primero una ruta válida');
-      return;
-    }
-    const guia = config.miembros.find(m => m.papeles?.includes('guia'));
-    if (!guia) {
-      toast.error('Debe haber al menos un Guía asignado');
-      return;
-    }
-
-    setAutoRunning(true);
-    autoStopRef.current = false;
-    setAutoProgress(0);
-    setAutoMessage('Iniciando viaje global…');
-    setAutoSubtitle('Rodando tirada de orientación inicial');
-
-    const totalCasillas = journeyCalc.ruta.casillas || 1;
-    const terreno = journeyCalc?.ruta?.terreno || 'moderado';
-    const tipoTierra = journeyCalc?.ruta?.tipo_tierra || 'tierras_salvajes';
-
-    // Estado local que vive sólo dentro del bucle
-    let localPos = 0;
-    const localEvents = [];
-    const localOrientationChecks = [];
-    const localCharacterXP = { ...characterXP }; // copia para acumular
-    const localSummaries = [...dailySummaries];
-    const guiaTieneMultiplesRoles = guia.papeles && guia.papeles.length > 1;
-
-    // Asegúrate de que la página esté en modo "global" para que el overlay
-    // lo cubra todo (header se mantiene por z-index).
-    if (modeRef.current === 'config') {
-      setEvents([]);
-      setOrientationChecks([]);
-      setCurrentPosition(0);
-      setMode('global');
-    }
-
-    try {
-      // Pre-tira el clima (Markov) si todavía no se hizo
-      if (!journeyWeather || journeyWeather.length === 0) {
-        try {
-          const numDays = Math.max(1, Math.ceil(journeyCalc?.estimaciones?.dias_estimados || totalCasillas));
-          const origRegion = (locations || []).find(l => l.id === config.origenId)?.region || '';
-          const destRegion = (locations || []).find(l => l.id === config.destinoId)?.region || '';
-          const regionsByDay = [];
-          for (let i = 0; i < numDays; i++) {
-            const ratio = numDays > 1 ? i / (numDays - 1) : 0;
-            regionsByDay.push(ratio < 0.5 ? origRegion : destRegion);
-          }
-          const wRes = await api.post('/weather/simulate', {
-            mes: config.mes,
-            dia_inicio: config.diaMes || 1,
-            num_dias: numDays,
-            regiones_por_dia: regionsByDay,
-          });
-          setJourneyWeather(wRes.data?.dias || []);
-        } catch (err) {
-          console.warn('No se pudo rodar el clima del viaje al inicio:', err);
-        }
-      }
-
-      let safetyIter = 0;
-      const safetyMax = totalCasillas + 20;
-
-      while (localPos < totalCasillas && !autoStopRef.current && safetyIter < safetyMax) {
-        safetyIter++;
-
-        const casillasRestantes = totalCasillas - localPos;
-
-        // 1) TIRADA DE ORIENTACIÓN ───────────────────────────────────────────
-        setAutoMessage('Tirada de orientación');
-        setAutoSubtitle(`Casilla ${localPos} de ${totalCasillas}`);
-        let oData;
-        try {
-          const oRes = await api.post('/travel/orientation-check', {
-            modificador_sabiduria: guia.modViajar || guia.modSabiduria || 0,
-            competencia_viajar: guia.competenciaViajar || false,
-            competencia_cartografia: guia.competenciaCartografia || false,
-            competencia_navegacion: false,
-            tiene_mapa: true,
-            viaje_maritimo: false,
-            penalizacion_multiples_papeles: guiaTieneMultiplesRoles,
-            bonus_competencia: 0,
-          }, { params: { casillas_restantes: casillasRestantes } });
-          oData = oRes.data;
-          if (!oData?.success) throw new Error('orientation failed');
-        } catch (e) {
-          console.error('Error orientación (auto):', e);
-          toast.error('Fallo en tirada de orientación. Viaje global interrumpido.');
-          break;
-        }
-
-        // PX del Guía por la orientación
-        const exitoOri = oData.total >= 15;
-        const xpOri = calculateRollXP(15, oData.total, exitoOri, terreno, tipoTierra, oData.d20);
-        const guiaPrev = localCharacterXP[guia.id] || { total: 0, rolls: [] };
-        localCharacterXP[guia.id] = {
-          total: guiaPrev.total + xpOri.pxFinal,
-          rolls: [...guiaPrev.rolls, {
-            type: 'orientacion', cd: 15, tirada: oData.total,
-            exito: exitoOri, ...xpOri, casilla: localPos,
-          }],
-        };
-        localOrientationChecks.push({
-          ...oData, xpResult: xpOri,
-          guiaId: guia.id, guiaNombre: guia.nombre,
-          casilla_actual: localPos, casillas_restantes: casillasRestantes,
-        });
-        setLastOrientationResult({
-          ...oData, xpResult: xpOri,
-          guiaId: guia.id, guiaNombre: guia.nombre,
-        });
-
-        // Bitácora: orientación
-        const diaOri = localPos + 1;
-        localSummaries.push({
-          dia: diaOri,
-          casilla: localPos,
-          tipo: 'orientacion',
-          success: exitoOri,
-          message: `${guia.nombre} estudia el horizonte: tirada ${oData.total} vs CD 15 → ${exitoOri ? 'éxito' : 'fracaso'}. ${oData.detalle || ''}`,
-          clima: (journeyWeather || [])[Math.min(localPos, (journeyWeather || []).length - 1)] || null,
-        });
-
-        // 2) ¿VIAJE COMPLETADO? ──────────────────────────────────────────────
-        if (oData.viaje_completado) {
-          localPos = totalCasillas;
-          setCurrentPosition(totalCasillas);
-          setAutoProgress(100);
-          setAutoMessage('¡Destino alcanzado!');
-          setAutoSubtitle(oData.detalle || 'La compañía completa el viaje sin más eventos.');
-          await sleep(800);
-          break;
-        }
-
-        // 3) POSICIÓN DEL PRÓXIMO EVENTO ─────────────────────────────────────
-        const casillasHasta = Math.max(1, oData.casillas_hasta_evento || 1);
-        const eventPos = Math.min(localPos + casillasHasta, totalCasillas);
-
-        // Bitácora: días intermedios sin incidentes
-        for (let d = localPos + 1; d < eventPos; d++) {
-          const dia = d + 1;
-          const w = (journeyWeather || [])[Math.min(d, (journeyWeather || []).length - 1)];
-          localSummaries.push({
-            dia,
-            casilla: d,
-            tipo: 'marcha',
-            clima: w || null,
-            marchaType: config.ritmo,
-            message: `Día ${dia}: marcha ${config.ritmo} sin incidentes${w?.estado_label ? ` (${w.estado_label})` : ''}.`,
-          });
-        }
-
-        // 4) GENERAR EVENTO EN ESA POSICIÓN ──────────────────────────────────
-        setAutoMessage('Generando acontecimiento');
-        setAutoSubtitle(`Casilla ${eventPos}`);
-        let evData;
-        try {
-          const evRes = await api.post('/travel/generate-event', null, {
-            params: { tipo_tierra: tipoTierra, terreno, estacion: config.estacion },
-          });
-          evData = evRes.data;
-          if (!evData?.success) throw new Error('event failed');
-        } catch (e) {
-          console.error('Error generando evento (auto):', e);
-          // Avanza igualmente para no atascarse
-          localPos = eventPos;
-          setCurrentPosition(localPos);
-          setAutoProgress(Math.min(99, Math.round((localPos / totalCasillas) * 100)));
-          continue;
-        }
-
-        // 5) AUTO-RESOLVER EVENTO ───────────────────────────────────────────
-        const targetRole = evData.objetivo?.papel;
-        const { modifier: evMod, member: targetMember } = getRoleModifier(targetRole);
-        const d20 = Math.floor(Math.random() * 20) + 1;
-        const tirada = d20 + evMod;
-        // Aplica el clima del día concreto al CD del evento.
-        const wDayPre = (journeyWeather || [])[Math.min(eventPos - 1, (journeyWeather || []).length - 1)] || null;
-        const climaLabelPre = (wDayPre?.estado_label || '').toLowerCase();
-        const climaExtremoPre = ['tormenta','vendaval','nieve fuerte','extremo','helada','ventisca','niebla densa']
-          .some(k => climaLabelPre.includes(k));
-        const climaFavPre = ['despejado','soleado','templado','suave','agradable']
-          .some(k => climaLabelPre.includes(k));
-        const climaCdMod = climaExtremoPre ? 2 : (climaFavPre ? -1 : 0);
-        const cd = Math.max(5, (evData.resolucion?.cd || 12) + climaCdMod);
-        const exitoEv = tirada >= cd;
-
-        setAutoMessage(`Resolviendo "${evData.evento?.nombre || 'acontecimiento'}"`);
-        setAutoSubtitle(`${targetMember?.nombre || 'Grupo'} · d20=${d20}+${evMod}=${tirada} vs CD ${cd}`);
-
-        try {
-          await api.post('/travel/resolve-event', null, {
-            params: {
-              evento_id: evData.evento.id,
-              tirada_resolucion: tirada,
-              cd, exito: exitoEv,
-              evento_nombre: evData.evento.nombre,
-              objetivo_papel: targetRole,
-              personaje_nombre: targetMember?.nombre || 'Desconocido',
-            },
-          });
-        } catch (e) {
-          console.warn('resolve-event falló (auto), seguimos:', e);
-        }
-
-        // PX del personaje por el evento
-        if (targetMember) {
-          const xpEv = calculateRollXP(cd, tirada, exitoEv, terreno, tipoTierra, d20);
-          const prev = localCharacterXP[targetMember.id] || { total: 0, rolls: [] };
-          localCharacterXP[targetMember.id] = {
-            total: prev.total + xpEv.pxFinal,
-            rolls: [...prev.rolls, {
-              type: 'evento', eventoNombre: evData.evento.nombre,
-              cd, tirada, exito: exitoEv, ...xpEv, casilla: eventPos,
-            }],
-          };
-        }
-
-        // Narrativa IA (best-effort; no bloqueante)
-        let narrativa = null;
-        try {
-          const wDay = (journeyWeather || [])[Math.min(eventPos - 1, (journeyWeather || []).length - 1)];
-          const climaTxt = wDay
-            ? `${wDay.estado_label}${wDay.region ? ' en ' + wDay.region : ''}`
-            : '';
-          const nRes = await api.post('/travel/generate-narrative', null, {
-            params: {
-              evento_nombre: evData.evento.nombre,
-              exito: exitoEv,
-              consecuencia: exitoEv ? evData.evento.consecuencias_exito : evData.evento.consecuencias_fracaso,
-              personaje_nombre: targetMember?.nombre || 'El grupo',
-              papel: targetRole,
-              tirada, cd,
-              origen: config.origenNombre,
-              destino: config.destinoNombre,
-              terreno,
-              evento_numero: localEvents.length + 1,
-              total_eventos: localEvents.length + 1,
-              dia_actual: eventPos,
-              dias_totales: journeyCalc?.estimaciones?.dias_estimados || 1,
-              notas_maestro: '',
-              clima: climaTxt,
-            },
-          });
-          if (nRes.data?.success) narrativa = nRes.data.narrative;
-        } catch { /* narrativa es opcional */ }
-
-        const wDay = (journeyWeather || [])[Math.min(eventPos - 1, (journeyWeather || []).length - 1)] || null;
-        localEvents.push({
-          ...evData,
-          casilla: eventPos,
-          resuelto: true,
-          tirada,
-          exito: exitoEv,
-          narrativa,
-          orientacion: oData,
-          clima_dia: wDay,
-        });
-
-        // Bitácora: entrada de evento
-        localSummaries.push({
-          dia: eventPos,
-          casilla: eventPos,
-          tipo: 'evento',
-          success: exitoEv,
-          eventName: evData.evento?.nombre,
-          clima: wDay,
-          narrativa,
-          message: `Día ${eventPos}: ¡${evData.evento?.nombre || 'Acontecimiento'}! ${targetMember?.nombre || 'El grupo'} tira ${tirada} vs CD ${cd} → ${exitoEv ? 'éxito' : 'fracaso'}.`,
-        });
-
-        // 6) AVANZA POSICIÓN ────────────────────────────────────────────────
-        localPos = eventPos;
-        setCurrentPosition(localPos);
-        setAutoProgress(Math.min(99, Math.round((localPos / totalCasillas) * 100)));
-
-        // Pequeña pausa para que el usuario perciba avance del overlay
-        await sleep(180);
-      }
-
-      // ── Sincroniza estado al terminar ─────────────────────────────────────
-      setEvents(localEvents);
-      setOrientationChecks(localOrientationChecks);
-      setCharacterXP(localCharacterXP);
-      setCurrentPosition(localPos);
-      setDailySummaries(localSummaries);
-
-      if (autoStopRef.current) {
-        toast.warning('Viaje global detenido por el usuario.');
-      } else if (localPos >= totalCasillas) {
-        setAutoProgress(100);
-        setAutoMessage('Compilando crónica…');
-        setAutoSubtitle('Calculando fatiga y narrativa final');
-        try {
-          await calculateFatigueResults(localEvents);
-        } catch (e) {
-          console.error('Error calculando fatiga final:', e);
-        }
-        toast.success(`Viaje global completado: ${localEvents.length} acontecimientos.`);
-        setMode('results');
-        await sleep(700);
-      } else {
-        toast.warning(`Viaje global interrumpido en la casilla ${localPos}/${totalCasillas}.`);
-      }
-    } catch (e) {
-      console.error('Error en viaje global:', e);
-      toast.error('Error inesperado en el viaje global.');
-    } finally {
-      setAutoRunning(false);
-      autoStopRef.current = false;
-      setTimeout(() => {
-        setAutoProgress(0);
-        setAutoMessage('');
-        setAutoSubtitle('');
-      }, 600);
-    }
-  };
-  
-  // =============== DAY BY DAY FUNCTIONS ===============
-  
-  const advanceDay = async () => {
-    if (!activeJourney) return;
-
-    try {
-      // Una marcha forzada se mantiene activa desde que se activa hasta el
-      // siguiente evento/orientación (o se apaga tras 1 día si el DJ marcó
-      // el checkbox "solo un día"). Si el toggle del día dice true, fuerza
-      // la marcha aunque no estuviera activa antes.
-      const esMarchaForzadaHoy = !!currentDayConfig.marchaForzada || forcedMarchActive;
-
-      const res = await api.post(`/travel/journey/${activeJourney.id}/advance-day`, null, {
-        params: {
-          ritmo: currentDayConfig.ritmo,
-          marcha_forzada_horas: esMarchaForzadaHoy ? 8 : 0,
-        },
-      });
-
-      if (res.data.success) {
-        setActiveJourney(res.data.journey);
-
-        // Consumo diario — base por ritmo + EXTRA si hay marcha forzada.
-        //   Reglas Abr 2026: MF añade +50% comida y x3 agua respecto al ritmo
-        //   base del viaje. Este extra se aplica POR ENCIMA del consumo del hook.
-        consumeDailyProvisions();
-        if (esMarchaForzadaHoy) applyForcedMarchExtraConsumption();
-
-        // ⚡ Salvación CD 15 de fatiga por cada día de marcha forzada.
-        if (esMarchaForzadaHoy) {
-          await applyForcedMarchSaves(res.data.journey?.dia_actual || activeJourney.dia_actual);
-        }
-
-        // Gestión de la persistencia del estado de marcha forzada:
-        //   • Si hoy se activó y el DJ marcó "solo un día" → la apagamos.
-        //   • Si hoy se activó y NO marcó "solo un día"   → persiste hasta el próximo evento.
-        //   • Si ya estaba persistiendo, sigue activa.
-        if (currentDayConfig.marchaForzada) {
-          if (currentDayConfig.marchaForzadaSoloUnDia) {
-            setForcedMarchActive(false);
-          } else {
-            setForcedMarchActive(true);
-          }
-        }
-        // Reset del toggle del día tras aplicarlo (si no es persistente el
-        // DJ puede volver a marcarlo mañana). Mantiene la UI limpia.
-        setCurrentDayConfig(prev => ({
-          ...prev,
-          marchaForzada: false,
-          marchaForzadaSoloUnDia: false,
-        }));
-
-        // Check for event generation (simplified - every 2-3 days)
-        if (res.data.journey.dia_actual % 2 === 0) {
-          await generateDayEvent();
-        }
-
-        if (res.data.completado) {
-          await finishDayByDayJourney();
-        }
-      }
-    } catch (err) {
-      console.error('Error advancing day:', err);
-      toast.error('Error al avanzar día');
-    }
-  };
-
-  // `applyForcedMarchExtraConsumption` y `applyForcedMarchSaves` se obtienen
-  // ahora del hook `useFatigueSystem` (arriba). Se conservan sus call sites
-  // con el mismo nombre — no hay cambio semántico.
-
-  const generateDayEvent = async () => {
-    try {
-      const res = await api.post('/travel/generate-event', null, {
-        params: {
-          tipo_tierra: journeyCalc?.ruta?.tipo_tierra || 'tierras_salvajes',
-          terreno: journeyCalc?.ruta?.terreno || 'campo_abierto',
-          estacion: config.estacion
-        }
-      });
-      
-      if (res.data.success) {
-        const newEvent = {
-          ...res.data,
-          casilla: activeJourney?.casillas_recorridas || 0,
-          resuelto: false
-        };
-        setCurrentEvent(newEvent);
-        setEvents(prev => [...prev, newEvent]);
-        // Un evento corta la persistencia de la marcha forzada (RAW Abr 2026).
-        if (forcedMarchActive) {
-          setForcedMarchActive(false);
-          toast.info('⚡ Marcha forzada interrumpida — ha surgido un evento.');
-        }
-      }
-    } catch (err) {
-      console.error('Error generating event:', err);
-    }
-  };
-  
-  const finishDayByDayJourney = async () => {
-    try {
-      const res = await api.post(`/travel/journey/${activeJourney.id}/complete`);
-      if (res.data.success) {
-        await calculateFatigueResults(events);
-        setMode('results');
-      }
-    } catch (err) {
-      console.error('Error finishing journey:', err);
-    }
-  };
-  
-  // =============== FATIGUE CALCULATION ===============
-
-  // getFatigueBaseCD is imported from travelHelpers.
-
-  const calculateFatigueResults = async (resolvedEvents) => {
-    const results = [];
-    
-    // CD base por terreno del viaje actual
-    const terrenoViaje = journeyCalc?.ruta?.terreno || 'moderado';
-    let fatigueCd = getFatigueBaseCD(terrenoViaje);
-    
-    // Sumar modificadores acumulados de los eventos (terrible desgracia +3, desesperanza +2, etc.)
-    resolvedEvents.forEach(e => {
-      if (e.resultado?.modificadores?.fatiga_cd_increase) {
-        fatigueCd += e.resultado.modificadores.fatiga_cd_increase;
-      } else if (e.evento?.fatigue_cd_increase) {
-        // Algunos eventos guardan el modificador directamente en el objeto evento
-        fatigueCd += e.evento.fatigue_cd_increase;
-      }
-    });
-    
-    // Tirada individual de CON por CADA viajero (los con papel + los
-    // acompañantes). Todos atraviesan el mismo terreno y sufren la misma
-    // fatiga; los acompañantes simplemente no tienen papel asignado.
-    const todosLosViajeros = [
-      ...config.miembros,
-      ...((config.acompanantes || []).map(a => ({ ...a, papeles: a.papeles || [] }))),
-    ];
-    for (const member of todosLosViajeros) {
-      const char = characters.find(c => c.id === member.id);
-      if (!char) continue;
-      
-      const conMod = Math.floor(((char.atributos?.constitucion || 10) - 10) / 2);
-      const mountBonus = member.tieneMontura ? (member.monturaConBonus || 0) : 0;
-      const tieneMultiplesPapeles = (member.papeles?.length || 0) > 1;
-      
-      try {
-        const res = await api.post('/travel/fatigue-save', null, {
-          params: {
-            personaje_nombre: member.nombre,
-            modificador_constitucion: conMod,
-            cd_acumulada: fatigueCd,
-            dias_con_montura: member.tieneMontura ? journeyCalc?.estimaciones?.dias_estimados || 1 : 0,
-            dias_totales: journeyCalc?.estimaciones?.dias_estimados || 1,
-            bonus_montura_con: mountBonus,
-            penalizacion_multiples_papeles: tieneMultiplesPapeles
-          }
-        });
-        
-        // Aplicar el nivel al personaje en BD y en estado local
-        const nivelesGanados = res.data.niveles_cansancio || 0;
-        if (nivelesGanados > 0) {
-          const fatigaActual = Number(char.fatiga || 0);
-          const nuevaFatiga = Math.min(6, fatigaActual + nivelesGanados);
-          try {
-            await api.put(`/characters/${member.id}/fatigue`, { fatiga: nuevaFatiga });
-            setCharacters(prev => prev.map(c => c.id === member.id ? { ...c, fatiga: nuevaFatiga } : c));
-          } catch (e) {
-            console.error('Error aplicando fatiga al personaje:', e);
-          }
-        }
-        
-        results.push({
-          personaje: member.nombre,
-          papel: member.papeles?.length ? member.papeles.join(', ') : 'Acompañante',
-          cd_base: getFatigueBaseCD(terrenoViaje),
-          ...res.data
-        });
-      } catch (err) {
-        console.error('Error calculating fatigue:', err);
-      }
-    }
-    
-    setFatigueResults(results);
-  };
-  
   // =============== MEMBER MANAGEMENT (hook) ===============
 
   const {
@@ -2299,22 +1832,46 @@ const EnhancedTravelSystem = () => {
     toggleAcompananteMount,
   } = useJourneyMembers({ config, setConfig, characters });
 
-  // =============== RESET ===============
-  
-  const resetJourney = () => {
-    setMode('config');
-    setEvents([]);
-    setCurrentEvent(null);
-    setActiveJourney(null);
-    setFatigueResults([]);
-    setJourneyCalc(null);
-    setPxApplied(false);
-    setPxResults(null);
-    setJourneyNarrative(null);
-    setSavedMapImage(null); // Reset saved map image on new journey
-    setDailySummaries([]); // Reset chronicle
-  };
-  
+  // =============== RESULTS / FINAL PHASE (hook) ===============
+
+  const {
+    resetJourney,
+    generateJourneyNarrative,
+    printJourneyDocument,
+    applyPXToCharacters,
+  } = useJourneyResults({
+    config,
+    characters,
+    journeyCalc,
+    events,
+    partyProvisions,
+    journeyChronicle,
+    journeyNarrative,
+    includeChronicleInPDF,
+    characterXP,
+    activeJourney,
+    journeyWeather,
+    currentPosition,
+    nextEventPosition,
+    savedMapImage,
+    mapContainerRef,
+    orientationChecks,
+    fatigueResults,
+    setMode,
+    setEvents,
+    setCurrentEvent,
+    setActiveJourney,
+    setFatigueResults,
+    setJourneyCalc,
+    setPxApplied,
+    setPxResults,
+    setJourneyNarrative,
+    setSavedMapImage,
+    setDailySummaries,
+    setGeneratingNarrative,
+    setApplyingPX,
+  });
+
   // Capture map image when journeyCalc is available and we have coordinates
   useEffect(() => {
     if (journeyCalc?.ruta?.path_coords && mapContainerRef.current && !savedMapImage) {
@@ -2340,295 +1897,6 @@ const EnhancedTravelSystem = () => {
       return () => clearTimeout(timer);
     }
   }, [journeyCalc?.ruta?.path_coords, savedMapImage]);
-  
-  // =============== JOURNEY NARRATIVE & PDF ===============
-  
-  const generateJourneyNarrative = async () => {
-    setGeneratingNarrative(true);
-    try {
-      const res = await api.post('/travel/generate-journey-summary', {
-        origen: config.origenNombre,
-        destino: config.destinoNombre,
-        dias: journeyCalc?.estimaciones?.dias_estimados || 1,
-        // Pasamos el clima REAL del día de cada evento + la narrativa
-        // individual ya generada para que la crónica final encaje con cada
-        // entrada en lugar de inventar tiempo de paso.
-        eventos: events.map(e => ({
-          dia: e.casilla,
-          nombre: e.evento?.nombre,
-          exito: e.exito,
-          tirada: e.tirada,
-          cd: e.resolucion?.cd,
-          consecuencia: e.exito
-            ? e.evento?.consecuencias_exito
-            : e.evento?.consecuencias_fracaso,
-          narrativa_individual: e.narrativa || '',
-          clima: e.clima_dia
-            ? `${e.clima_dia.estado_label || ''}${e.clima_dia.region ? ' (' + e.clima_dia.region + ')' : ''}`.trim()
-            : '',
-        })),
-        // Resumen del clima día a día por si la IA lo necesita.
-        clima_por_dia: (journeyWeather || []).map((w, i) => ({
-          dia: i + 1,
-          estado: w?.estado_label || '',
-          region: w?.region || '',
-        })),
-        personajes: config.miembros.map(m => ({
-          nombre: m.nombre,
-          papel: m.papeles?.[0] || 'viajero'
-        })),
-        px_total: journeyCalc?.estimaciones?.px_total || 0,
-        terrenos: journeyCalc?.ruta?.terrain_summary,
-        // Heridos graves: personajes que cayeron a 0 PG durante el viaje.
-        // Detectados a partir del estado actual de characters (los eventos
-        // tipo Terrible Desgracia ya aplicaron el daño vía PATCH /hp).
-        heridos: (() => {
-          const lista = [];
-          const todos = [
-            ...(config.miembros || []),
-            ...((config.acompanantes || []).map(a => ({ ...a, _esAcompanante: true }))),
-          ];
-          for (const m of todos) {
-            const ch = characters.find(c => c.id === m.id);
-            if (!ch) continue;
-            const pg = Number(ch.puntos_golpe_actual ?? ch.puntos_golpe_max ?? 0);
-            const pgMax = Number(ch.puntos_golpe_max ?? 0);
-            if (pgMax > 0 && pg <= 0) {
-              // Busca el evento "Terrible Desgracia" en el que cayó (si lo hay)
-              const eventoCaida = events.find(e => e.evento?.id === 'event_terrible' && !e.exito);
-              lista.push({
-                nombre: ch.nombre || m.nombre,
-                dia: eventoCaida?.casilla || null,
-                evento: eventoCaida?.evento?.nombre || 'un acontecimiento del viaje',
-                pg_max: pgMax,
-              });
-            }
-          }
-          return lista;
-        })(),
-      });
-      
-      if (res.data.success) {
-        setJourneyNarrative(res.data.narrative);
-      }
-    } catch (err) {
-      console.error('Error generating narrative:', err);
-      toast.error('Error al generar narrativa');
-    } finally {
-      setGeneratingNarrative(false);
-    }
-  };
-  
-  
-  // =============== PRINT JOURNEY DOCUMENT ===============
-
-  const printJourneyDocument = () => printJourneyDocumentHelper({
-    config, journeyCalc, events, orientationChecks,
-    currentPosition, nextEventPosition,
-    savedMapImage, mapContainerRef,
-    characterXP, journeyNarrative, journeyChronicle, includeChronicleInPDF,
-    fatigueResults
-  });
-
-  // Helper: persistir el consumo de provisiones al inventario de cada viajero.
-  // Reparte el consumo total uniformemente entre miembros + acompañantes.
-  // Reduce raciones (incl. packs) y vacía los odres del inventario.
-  const persistProvisionsToInventory = useCallback(async () => {
-    const todosViajeros = [
-      ...config.miembros.filter(m => m.papeles?.length > 0),
-      ...((config.acompanantes || [])),
-    ];
-    if (todosViajeros.length === 0) return { ok: 0, fail: 0 };
-
-    const racionesPorViajero = Math.ceil(
-      (partyProvisions.comidaConsumida || 0) / todosViajeros.length
-    );
-    const gramosPorViajero = racionesPorViajero * 500; // 1 ración = 0.5 kg de comida
-    const litrosPorViajero = Math.ceil(
-      (partyProvisions.aguaConsumida || 0) / todosViajeros.length
-    );
-
-    let ok = 0;
-    let fail = 0;
-
-    for (const m of todosViajeros) {
-      const char = characters.find((c) => c.id === m.id);
-      if (!char || !char.inventario) continue;
-
-      // 1) Restar comida PROPORCIONALMENTE a la masa de cada consumible.
-      //    Se reparte `gramosPorViajero` entre todos los food items.
-      const { inventario: afterFood } = consumeProportionalFood(
-        char.inventario,
-        gramosPorViajero
-      );
-      const newInventario = JSON.parse(JSON.stringify(afterFood));
-
-      // 2) Vaciar odres por orden (uno se vacía a la vez)
-      let litrosPorRestar = litrosPorViajero;
-      for (const item of newInventario) {
-        if (litrosPorRestar <= 0) break;
-        if (!item || !item.nombre) continue;
-        const n = (item.nombre || '').toLowerCase();
-        if (!n.includes('odre')) continue;
-        // capacidad: si tiene "lleno" o "(N L)" → 10 L por defecto
-        const litrosActuales = item.litros_actuales != null
-          ? Number(item.litros_actuales)
-          : 10;
-        const cantidad = Number(item.cantidad || 1);
-        // Vaciar uno a uno
-        let restantes = cantidad;
-        let litrosThisItem = litrosActuales;
-        const odresVaciados = [];
-        while (restantes > 0 && litrosPorRestar > 0) {
-          const take = Math.min(litrosThisItem, litrosPorRestar);
-          litrosThisItem -= take;
-          litrosPorRestar -= take;
-          if (litrosThisItem <= 0) {
-            odresVaciados.push(1);
-            litrosThisItem = litrosActuales; // siguiente odre lleno
-            restantes -= 1;
-          }
-        }
-        // Aplicar cambios: cantidad de odres vaciados → conviértelos a "Odre vacío"
-        const nVaciados = odresVaciados.length;
-        if (nVaciados > 0) {
-          item.cantidad = (item.cantidad || 1) - nVaciados;
-          newInventario.push({
-            nombre: 'Odre vacío',
-            cantidad: nVaciados,
-            categoria: 'equipo_general',
-            peso_kg: 0.5,
-            litros_actuales: 0,
-          });
-        }
-        // Si todavía hay litros parciales en el último odre activo, anotarlos
-        if (restantes > 0 && litrosThisItem !== litrosActuales) {
-          // Renombrar el item: actualizar litros_actuales para los que queden
-          // Best-effort: si había varios odres en el item, separamos uno parcial.
-          item.cantidad = (item.cantidad || 1) - 1;
-          newInventario.push({
-            nombre: `Odre semilleno (${litrosThisItem} L)`,
-            cantidad: 1,
-            categoria: 'equipo_general',
-            peso_kg: 0.5 + litrosThisItem,
-            litros_actuales: litrosThisItem,
-          });
-        }
-      }
-
-      // 3) Limpiar items con cantidad 0
-      const cleaned = newInventario.filter(
-        (it) => it && (it.cantidad == null || Number(it.cantidad) > 0)
-      );
-
-      try {
-        await api.patch(`/characters/${m.id}`, { inventario: cleaned });
-        ok += 1;
-      } catch (err) {
-        console.error(`Error guardando inventario de ${m.nombre}:`, err);
-        fail += 1;
-      }
-    }
-
-    return { ok, fail };
-  }, [config.miembros, config.acompanantes, characters, partyProvisions]);
-
-  // =============== APPLY PX TO CHARACTERS ===============
-  
-  const applyPXToCharacters = async () => {
-    // PX BASE del viaje se reparten entre TODOS los viajeros (con papel +
-    // acompañantes). Las PX por TIRADAS sólo las ganan quienes tiraron.
-    const allTravellers = [
-      ...config.miembros,
-      ...((config.acompanantes || []).map(a => ({ ...a, papeles: a.papeles || [] }))),
-    ];
-    if (allTravellers.length === 0) {
-      toast.error('No hay viajeros');
-      return;
-    }
-    
-    // Calculate base journey PX divided equally among ALL travellers
-    const journeyBasePX = journeyCalc?.estimaciones?.px_total || 0;
-    const pxPerMemberFromJourney = Math.round(journeyBasePX / allTravellers.length);
-    
-    setApplyingPX(true);
-    
-    try {
-      // Calcular multiplicador global por grupo (Tabla 2)
-      const allRolls = Object.values(characterXP).flatMap(c => c.rolls || []);
-      const aciertos = allRolls.filter(r => r.exito).length;
-      const fallos = allRolls.length - aciertos;
-      const groupMult = calculateGroupMultiplier(aciertos, fallos);
-      
-      // Build array of {character_id, px_amount} for ALL travellers.
-      // Acompañantes reciben sólo PX viaje (no tiraron, así que PX rolls = 0).
-      const characterPXList = allTravellers.map(m => {
-        const rollsXP = characterXP[m.id]?.total || 0;
-        const rollsXPAjustado = Math.floor(rollsXP * groupMult.multiplicador);
-        const totalXP = Math.max(0, pxPerMemberFromJourney + rollsXPAjustado);
-        return {
-          character_id: m.id,
-          character_name: m.nombre,
-          px_amount: totalXP,
-          px_journey: pxPerMemberFromJourney,
-          px_rolls: rollsXPAjustado
-        };
-      });
-      
-      const response = await api.post('/travel/apply-px-individual', {
-        characters: characterPXList,
-        journey_id: activeJourney?.id || null,
-        journey_description: `Viaje de ${config.origenNombre} a ${config.destinoNombre}`
-      });
-      
-      if (response.data.success) {
-        setPxApplied(true);
-        setPxResults(response.data);
-        toast.success(`¡PX aplicados a ${response.data.exitosos} personajes!`);
-        // Persist provisions consumption to each character's inventory.
-        try {
-          const persisted = await persistProvisionsToInventory();
-          if (persisted.ok > 0) {
-            toast.success(
-              `Inventarios actualizados: raciones consumidas restadas a ${persisted.ok} viajero(s).`
-            );
-          }
-          if (persisted.fail > 0) {
-            toast.error(`No se pudieron actualizar ${persisted.fail} inventario(s).`);
-          }
-        } catch (provErr) {
-          console.error('Error persisting provisions:', provErr);
-        }
-      } else {
-        toast.error(response.data.message || 'Error al aplicar PX');
-      }
-    } catch (err) {
-      console.error('Error applying PX:', err);
-      // Fallback to old method if new endpoint doesn't exist
-      try {
-        const totalRollsXP = Object.values(characterXP).reduce((sum, c) => sum + (c.total || 0), 0);
-        const avgPX = Math.round((journeyBasePX + totalRollsXP) / allTravellers.length);
-        const response = await api.post('/travel/apply-px', {
-          character_ids: allTravellers.map(m => m.id),
-          px_amount: avgPX,
-          journey_id: activeJourney?.id || null,
-          journey_description: `Viaje de ${config.origenNombre} a ${config.destinoNombre}`
-        });
-        
-        if (response.data.success) {
-          setPxApplied(true);
-          setPxResults(response.data);
-          toast.success(`¡PX aplicados a ${response.data.exitosos} personajes!`);
-        } else {
-          toast.error(response.data.message || 'Error al aplicar PX');
-        }
-      } catch (fallbackErr) {
-        toast.error('Error al aplicar PX a los personajes');
-      }
-    } finally {
-      setApplyingPX(false);
-    }
-  };
   
   // =============== RENDER SECTIONS ===============
   

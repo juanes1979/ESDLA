@@ -919,3 +919,23 @@ Decisiones acordadas (`/app/memory/CAMPAIGN_ARCHITECTURE.md`):
   - `useJourneyAutomation` (automateJourney, advanceDay, finishDayByDayJourney).
   - `useJourneyResults` (generateJourneyNarrative, applyPXToCharacters, printJourneyDocument, resetJourney).
 
+**2026-02 · Refactor Oleada 6 — Automation & Results**
+- Extraído `/app/frontend/src/hooks/useJourneyResults.js` (358 líneas):
+  `resetJourney`, `generateJourneyNarrative`, `printJourneyDocument`,
+  `persistProvisionsToInventory`, `applyPXToCharacters`.
+- Extraído `/app/frontend/src/hooks/useJourneyAutomation.js` (550 líneas):
+  `automateJourney`, `advanceDay`, `generateDayEvent`, `finishDayByDayJourney`,
+  `calculateFatigueResults`.
+- `EnhancedTravelSystem.jsx`: **2919 → 2187 líneas** (−732 adicionales).
+- Total acumulado oleadas 5+6: **3221 → 2187** (−1034 líneas, **−32.1%**).
+- Verificación: lint limpio, smoke `/travel` renderiza ConfigView OK,
+  pytest `test_mount_promotion_it77.py` 3/3 PASS.
+
+### Pendiente de refactor (no prioritario)
+- `resolveCurrentEvent` (~322 líneas) + `performOrientationCheck`
+  (~137 líneas) + `generateEventAtPosition` + `continueAfterEvent`:
+  altísimo acoplamiento con estado global (40+ setters). Extraerlas a un
+  hook requiere plumbing masivo sin reducir complejidad real — se deja
+  como código inline por decisión explícita de ROI.
+
+
