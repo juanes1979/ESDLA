@@ -19,6 +19,20 @@ const MAX_ACOMPANANTES = 10;
  * principal, junto con el listado de `characters` disponibles. Expone todas
  * las funciones de alta/baja/modificación sin tocar estado externo.
  */
+// Resolve the constitution modifier of a mount given heterogenous shapes
+// (number score, string like "13 (+1)", or pre-computed mod field).
+const resolveMonturaConMod = (montura) => {
+  if (!montura) return 0;
+  if (typeof montura.constitucion_mod === 'number') return montura.constitucion_mod;
+  const consRaw = montura.constitucion;
+  if (typeof consRaw === 'string') {
+    const m = consRaw.match(/[+-]?\d+/);
+    return m ? parseInt(m[0], 10) : 0;
+  }
+  if (typeof consRaw === 'number') return Math.floor((consRaw - 10) / 2);
+  return 0;
+};
+
 const useJourneyMembers = ({ config, setConfig, characters }) => {
   const buildMemberPayload = useCallback((char, { papeles }) => {
     const monturaPropia = char.montura
@@ -38,14 +52,19 @@ const useJourneyMembers = ({ config, setConfig, characters }) => {
     const modPercepcion = calcModHabilidad(char, 'Percepción');
     const modExplorar = calcModHabilidad(char, 'Explorar');
 
+    // Si el personaje está marcado como `montado` en su ficha y tiene
+    // montura, el viaje hereda ese estado por defecto (la velocidad de
+    // grupo usará la velocidad de la montura, no la del personaje).
+    const inicioMontado = !!(char.montado && monturaPropia);
+
     return {
       id: char.id,
       nombre: char.nombre,
       raza: char.cultura_nombre || char.cultura || char.raza || 'Desconocida',
       papeles,
-      tieneMontura: false,
-      monturaNombre: null,
-      monturaConBonus: 0,
+      tieneMontura: inicioMontado,
+      monturaNombre: inicioMontado ? monturaPropia.nombre : null,
+      monturaConBonus: inicioMontado ? resolveMonturaConMod(char.montura) : 0,
       monturaPropia,
       velocidadBase,
       modViajar,
@@ -158,21 +177,11 @@ const useJourneyMembers = ({ config, setConfig, characters }) => {
       miembros: prev.miembros.map((m) => {
         if (m.id !== charId) return m;
         if (useMount && m.monturaPropia) {
-          const consRaw = m.monturaPropia.constitucion;
-          let modCon = 0;
-          if (typeof m.monturaPropia.constitucion_mod === 'number') {
-            modCon = m.monturaPropia.constitucion_mod;
-          } else if (typeof consRaw === 'string') {
-            const m2 = consRaw.match(/[+-]?\d+/);
-            modCon = m2 ? parseInt(m2[0], 10) : 0;
-          } else if (typeof consRaw === 'number') {
-            modCon = Math.floor((consRaw - 10) / 2);
-          }
           return {
             ...m,
             tieneMontura: true,
             monturaNombre: m.monturaPropia.nombre,
-            monturaConBonus: modCon,
+            monturaConBonus: resolveMonturaConMod(m.monturaPropia),
           };
         }
         return {
@@ -212,6 +221,8 @@ const useJourneyMembers = ({ config, setConfig, characters }) => {
         }
       : null;
 
+    const inicioMontado = !!(char.montado && monturaPropia);
+
     setConfig((prev) => ({
       ...prev,
       acompanantes: [
@@ -222,8 +233,8 @@ const useJourneyMembers = ({ config, setConfig, characters }) => {
           raza: char.cultura_nombre || char.cultura || char.raza || 'Desconocida',
           velocidadBase: char.velocidad || 9,
           monturaPropia,
-          tieneMontura: !!monturaPropia,
-          monturaNombre: monturaPropia?.nombre || null,
+          tieneMontura: inicioMontado,
+          monturaNombre: inicioMontado ? monturaPropia.nombre : null,
           modSabiduria: getModAtributo(char, 'sabiduria'),
         },
       ],

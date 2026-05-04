@@ -16,7 +16,7 @@ import math
 import pytest
 import requests
 
-BASE_URL = os.environ.get("REACT_APP_BACKEND_URL", "https://journey-roller.preview.emergentagent.com").rstrip("/")
+BASE_URL = os.environ.get("REACT_APP_BACKEND_URL", "https://tavern-chronicles-1.preview.emergentagent.com").rstrip("/")
 API = f"{BASE_URL}/api"
 
 BREE_ID = "loc_131"

@@ -1061,3 +1061,34 @@ Decisiones acordadas (`/app/memory/CAMPAIGN_ARCHITECTURE.md`):
   como código inline por decisión explícita de ROI.
 
 
+
+
+## Iter83 (Feb 2026) — Bug Fix: velocidad de viaje no respeta montura
+
+**Bug reportado por usuario** (Feb 2026):
+Xalan Fuenteoscura (vel base 9m) montado en su poni (vel 12m) en su ficha
+viajaba a 22.5 km/día (9m × 2.5) en vez de 30 km/día (12m × 2.5). Un caballo
+de caminos (14m) debería dar 35 km/día. La velocidad calculada usaba
+siempre `velocidad_base` ignorando el flag `montado` de la ficha.
+
+**Causa raíz**: en `useJourneyMembers.js::buildMemberPayload` el campo
+`tieneMontura` se inicializaba siempre a `false` aunque el personaje
+tuviera `char.montado=true`. El backend (`velocidad_efectiva`) sólo usa
+la velocidad de montura si `tiene_montura=True`.
+
+**Fix aplicado** (`/app/frontend/src/hooks/useJourneyMembers.js`):
+- `buildMemberPayload`: ahora `tieneMontura = !!(char.montado && char.montura)`,
+  inicializa `monturaNombre` y `monturaConBonus` a partir del helper
+  `resolveMonturaConMod` (extraído de `updateMemberMount`).
+- `addAcompanante`: idem — respeta `char.montado` como inicio.
+- `EnhancedTravelSystem.jsx::useEffect` que detectaba cambios de
+  `montado` ahora **sincroniza** `tieneMontura` en `config.miembros` y
+  `config.acompanantes` automáticamente cuando el jugador
+  monta/desmonta en su ficha (no sólo muestra toast).
+
+**Tests**: `/app/backend/tests/test_mount_speed_it83.py` (7/7 PASS):
+poni→12m/30km, caballo→14m/35km, sobrecarga −33%, terreno sin montura.
+
+**Resultado verificable**: poni 12m → 30 km/día ✓, caballo de caminos 14m
+→ 35 km/día ✓, todas las monturas futuras heredan el comportamiento al
+añadir su `velocidad` en metros en la tienda de monturas.

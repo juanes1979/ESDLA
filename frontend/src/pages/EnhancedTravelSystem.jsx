@@ -323,16 +323,53 @@ const EnhancedTravelSystem = () => {
     if (todos.length === 0) return;
 
     let avisos = [];
+    const cambiosIds = new Set();
     todos.forEach(m => {
       const ch = characters.find(c => c.id === m.id);
       if (!ch) return;
       const prev = prevMontadoRef.current[m.id];
       const cur = !!ch.montado;
-      if (prev !== undefined && prev !== cur && journeyActivo) {
-        avisos.push({ nombre: ch.nombre || m.nombre, montado: cur });
+      if (prev !== undefined && prev !== cur) {
+        cambiosIds.add(m.id);
+        if (journeyActivo) {
+          avisos.push({ nombre: ch.nombre || m.nombre, montado: cur });
+        }
       }
       prevMontadoRef.current[m.id] = cur;
     });
+
+    // Sincroniza el flag tieneMontura del viaje con el estado `montado`
+    // de la ficha: si el jugador desmonta/monta en su ficha, el viaje
+    // refleja inmediatamente esa decisión para el cálculo de velocidad.
+    if (cambiosIds.size > 0) {
+      setConfig(prev => ({
+        ...prev,
+        miembros: (prev.miembros || []).map(m => {
+          if (!cambiosIds.has(m.id)) return m;
+          const ch = characters.find(c => c.id === m.id);
+          if (!ch) return m;
+          const cur = !!ch.montado;
+          if (cur && m.monturaPropia) {
+            return {
+              ...m,
+              tieneMontura: true,
+              monturaNombre: m.monturaPropia.nombre,
+            };
+          }
+          return { ...m, tieneMontura: false, monturaNombre: null, monturaConBonus: 0 };
+        }),
+        acompanantes: (prev.acompanantes || []).map(a => {
+          if (!cambiosIds.has(a.id)) return a;
+          const ch = characters.find(c => c.id === a.id);
+          if (!ch) return a;
+          const cur = !!ch.montado;
+          if (cur && a.monturaPropia) {
+            return { ...a, tieneMontura: true, monturaNombre: a.monturaPropia.nombre };
+          }
+          return { ...a, tieneMontura: false, monturaNombre: null };
+        }),
+      }));
+    }
 
     if (avisos.length > 0) {
       // Velocidad efectiva del grupo (mínimo entre todos los miembros).

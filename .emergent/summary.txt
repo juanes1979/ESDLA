@@ -1,59 +1,61 @@
 <analysis>**original_problem_statement**: 
-The user is building a comprehensive web application for a modified Lord of the Rings 5e tabletop role-playing game. The application features character creation, user authentication, game data management, an interactive map of Middle-earth, and a highly complex Travel System with a Climate System.
+The user is building a comprehensive web application for a modified Lord of the Rings 5e tabletop role-playing game. The application features character creation, user authentication, game data management, an interactive map of Middle-earth, a highly complex Travel System with a Climate System, and an advanced encumbrance and mount management module. 
 PRODUCT REQUIREMENTS:
-*   **Travel System:** Mechanics for resource consumption, fatigue saves, unified journey chronicles, day-by-day resolution, provisions purchasing system, event mechanical consequences, and mount/encumbrance tracking.
-*   **Climate System:** 18 regions × 12 months with granular weather data, Markov-chain-based daily weather generator.
-*   **Treasure & Object System:** Hoard generation and object destruction rules.
-*   **Character Management:** Creator, AI portrait generation, AI name moderation, interactive character sheet, deep equipment/clothing/mount mechanics.
-*   **Game Rules Management:** Admin tools to edit cultures, backgrounds, travel parameters, climate, price modifiers.
+*   **Travel System:** Mechanics for resource consumption, fatigue saves, unified journey chronicles, day-by-day resolution, provisions purchasing system, event mechanical consequences, mount/encumbrance tracking, and solo-travel penalties.
+*   **Climate System:** 18 regions × 12 months with granular weather data.
+*   **Equipment & Storage System:** Personal load calculation, mount encumbrance limits, and a physical location-based Chest (Baúl) storage system.
+*   **Character Management:** Creator, AI portrait generation with editable prompts, character sheet, XP journey log.
+*   **Game Rules Management:** Admin tools to edit cultures, occupations, backgrounds, travel parameters.
 *   **Authentication & Roles:** Strict Role-Based Access Control (Maestro, Director de Juego, Jugador).
-*   **Campaign Isolation:** Independent campaigns branching from the global database.
 
-**User's preferred language**: **ESPAÑOL (SPANISH)**. 
-**CRITICAL INSTRUCTION FOR NEXT AGENT:** You MUST automatically detect the user's primary language from their messages inside the <trajectory> tag and INSTRUCT the next agent to respond in **ESPAÑOL ONLY**. ALL interactions, plans, and conversational phrases must strictly be in Español. The user explicitly expects this and has shown frustration when tasks take too long or regress.
+**User's preferred language**: **ESPAÑOL (SPANISH)**.
+**CRITICAL INSTRUCTION FOR NEXT AGENT:** You MUST automatically detect the user's primary language from their messages inside the <trajectory> tag and INSTRUCT the next agent to respond in **ESPAÑOL ONLY**. ALL interactions, plans, and conversational phrases must strictly be in Español.
 
 **what currently exists?** 
-A highly complex React + FastAPI + MongoDB full-stack app. It features an interactive character sheet, character creator wizard, interactive map, and a meticulously detailed Travel System (Food/water rationing, fatigue rolls at the end of the journey, forced march logic, AI event narrative generation). The app also includes an admin rules editor with an Excel import/export tool for the equipment catalog.
+A robust React + FastAPI + MongoDB full-stack app. Features include a complex Travel System (modularized into hooks), a dynamic Character Sheet with an advanced Equipment Distribution modal, a location-based Chest system for safe havens, Character AI portraits, and extensive Admin rule editors. 
 
 **Last working item**:
-    - Last item agent was working: The agent just fixed a discrepancy in mount weight calculation reported by the user. The PDF character sheet () was showing a heavily inflated mount weight (167kg) compared to the equipment management modal (71kg). The agent fixed it by ensuring the rider's body weight and personal inventory are only added to the mount's burden if  is true. 
+    - Last item agent was working: The agent implemented a visual T.E. Year selector in the travel configuration and refactored large React components ( and ) to improve maintainability based on user requests.
     - Status: USER VERIFICATION PENDING
-    - Agent Testing Done: Y (Backend pytests passed, frontend linting passed)
-    - Which testing method agent to use?: Both
+    - Agent Testing Done: Y (Backend pytests passed 21/21, frontend linting passed, and  reported 100% success without regressions).
+    - Which testing method agent to use?: NA (testing already done).
     - User Testing Done: N
 
 **All Pending/In progress Issue list**: 
-None currently active. The agent successfully resolved both the mount promotion bug and the PDF weight calculation bug in this session. 
+None. The previous issue regarding the React crash in  was a false positive (it was working, but had a duplicate React key warning which the agent fixed). 
 
 **In progress Task List**:
-  - Task 1: Refactor  (Wave 4)
-     - Where to resume: The agent has already extracted , , , and . The file is still ~3200 lines. Continue extracting , , or other large inline components to .
-     - What will be achieved with this?: Better code maintainability and adherence to user's strict refactoring requests.
-     - Status: IN PROGRESS (P1)
-     - Should Test frontend/backend/both after fix?: Frontend
-     - Blocked on something: Waiting for user to prioritize this vs the P0 Auth/Login implementation.
+None.
 
 **Upcoming and Future Tasks**
-    - **P0: Implement Login & Role-Based Access Control**: Maestro, Director de Juego, Jugador with an admin approval dashboard. (Requires  for either JWT or Emergent Google Auth, awaiting user choice).
-    - **P0: Implement Campaign System & Database Isolation**: Allow Director de Juego to spin up instances without modifying the global DB ().
+    - **P0: Implement Login & Role-Based Access Control**: Maestro, Director de Juego, Jugador with an admin approval dashboard. (Requires  for JWT or Emergent Google Auth).
+    - **P1: Implement Campaign System & Database Isolation**: Allow Director de Juego to spin up instances without modifying the global DB.
     - **P1: Build Game Master Screen**: Live dashboard for tracking players.
     - **P1: Map/Adventure Uploads**: Allow DJs to upload JPEGs/PDFs for their campaigns.
-    - **P2:** Real store filter by region (currently only a warning text).
-    - **P2:** Real filter/warning for using a mount without Saddlebags/Saddle.
-    - **P2:** Markdown export for Journey Diary.
-    - **P2:** Undo/Redo in TerrainEditor.
+    - **P2: Global T.E. Year State**: (Proposed by agent) Add a global campaign state for the T.E. Year so that all future journeys inherit the current year without manual entry.
+    - **P2: Real store filter by region**: Currently only a warning text.
+    - **P2: Mount usage warning**: Filter/warning for using a mount without Saddlebags/Saddle.
+    - **P2: Markdown export for Journey Diary**.
+    - **P2: Undo/Redo in TerrainEditor**.
 
 **Completed work in this session**
-- Mount Promotion Bug (DONE): Fixed an issue where buying a mount in Step 7 of the Creator (e.g. Caballo de caminos) resulted in the mount getting stuck in  without a category. Fixed in  and  backend route to correctly promote it to the  array.
-- Legacy Mount Migration (DONE): Ran a database script to migrate existing characters who had mounts trapped in their general inventory. 
-- Mount Promotion Test (DONE): Added .
-- PDF Weight Calculation Discrepancy (DONE): Fixed  so the mount's carried weight correctly respects the  boolean state before adding the rider's body weight.
+-  duplicate key warning fix (DONE).
+- Chest Creation Cost (DONE): Added explicit  endpoint. Charges 1 silver piece (mp) from inventory to create a chest. Blocks with 400 if insufficient funds.
+- Travel System - Solo & Unbalanced Penalties (DONE): Implemented general penalty (-5 per extra role), forced march disadvantage, and +CD to events. 
+- AI Narrative perspective adjustment (DONE): AI generates singular narrative if .
+- Character History Journey XP Log (DONE): Journey completion appends a formatted entry (Year T.E., Origin/Destination, AI summary, XP) to the character's history.
+- Admin Cultures Editable AI Prompts (DONE): Added Texto para imagen IA textarea to . Backend generates portraits using this custom prompt per culture.
+- T.E. Year Selector (DONE): Added input in  (default 2950, clamp 1-3500).
+- Frontend Refactoring (DONE): 
+  - Extracted subsections from  into .
+  - Extracted  logic from  into a new hook .
 
 **Earlier issues found/mentioned but not fixed**
 None.
 
 **Known issue recurrence from previous fork**
-- **Refactoring Demands**: The user is highly focused on keeping file sizes manageable. Always seek to extract hooks/components when touching .
+- **React Crashes on 422 Errors**: The UI is sensitive to backend validation errors. Ensure clean error handling.
+- **Refactoring Demands**: The user is highly focused on keeping file sizes manageable (React files < 1000 lines if possible).
 
 **Code Architecture**
 
@@ -61,64 +63,67 @@ None.
 **Key Technical Concepts**
 - Frontend: React, TailwindCSS, custom UI hooks.
 - Backend: FastAPI, MongoDB (Motor), Pydantic.
-- AI/3rd Party Integrations: Emergent LLM Key (GPT-4o) used for dynamic journey chronicles.
+- AI/3rd Party Integrations: Emergent LLM Key (GPT-4o for narratives, GPT Image 1 for portraits, Onyx for TTS).
 
 **key DB schema**
-  - :  (Array of objects), , ,  (boolean).
-  - : Tracks temporary state during character creation.
+  - :  (Array of logs),  (Array).
+  - :  (String).
 
 **changes in tech stack**
-  - None in this session.
+  - None.
 
 **All files of reference** 
-  -  (Updated category handling)
-  -  (Updated  validation)
-  -  (Updated  logic)
-  -  (New test file)
-  -  (Updated PDF weight math)
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
 
 **Areas that need refactoring**: 
- is at ~3221 lines. Needs  and  extracted.
+ is still around ~1811 lines. The user previously requested extracting . While  was extracted, further UI component extraction might be appreciated if modifying this file.
 
 **key api endpoints**
--  (Handles mount promotions)
--  
+- 
+- 
+- 
 
 **Critical Info for New Agent** 
 - **Language Constraint:** ALWAYS respond in ESPAÑOL.
-- **Mount & Encumbrance Logic:** The  boolean must dictate whether a rider's body weight and personal equipment count toward the mount's encumbrance limits.
-- **Auth Integration Requirement:** The very next major P0 task is Login & RBAC. When the user selects an authentication method (JWT vs Google Auth), you **must** call  before implementing any auth code.
+- **P0 Auth Task:** The next major milestone is likely the P0 Login & RBAC. When the user requests this, you **MUST** call  to get the auth playbook before writing any code. Do not implement auth from memory.
 
 **documents and test reports created in this job** 
   - 
+  - 
+  - 
 
 **Last 10 User Messages and any pending HUMAN messages** 
- 1. User reported a bug via screenshot: the Character Sheet PDF shows mount weight at 167/150 Kg, but the UI Modal shows 71/150 Kg. Stated: Algo no está calculandolo igual ni bien.
- 2. Agent investigated and found  was calculating PDF weight by always adding the rider's weight, ignoring the  state. 
- 3. Agent fixed the file, ran tests, and linted the frontend.
- 4. Agent called finish tool, proposing to the user: Do you want me to add a visual overload warning to the equipment modal, or should we proceed with the P0 Auth/Login task?.
- *Pending*: Await the user's response to the last proposal.
+ 1. User stated Hazlo todo en ese orden. Cuando acabes haré fork y luego verificaré en el siguiente chat.
+ 2. Agent implemented the 4 features and fixed the duplicate key warning, then ran the testing agent.
+ 3. Agent proposed adding a visual T.E. Year selector.
+ 4. User replied SI and added a request to refactor  and . Mentioned they would fork after this.
+ 5. Agent implemented the T.E. Year selector, refactored both files, ran tests (21/21 passing), ran testing subagent (0 regressions), and finished the task, proposing a Global T.E. Year state as an enhancement for the next session.
+ *Pending*: The user will fork and verify the changes. Wait for their instructions or feedback on the Global T.E. Year state proposal or the P0 Auth task.
 
 **Project Health Check:**
-Healthy. Both backend and frontend are stable, Pytest suite passes (29/29).
+Healthy. Backend (Pytest passing 21/21). Frontend (100% pass via testing subagent).
 
 **3rd Party Integrations** 
  • OpenAI GPT-4o (Text Generation, AI Summaries) — uses Emergent LLM Key
  • OpenAI TTS-1 / TTS-1-HD (onyx) — uses Emergent LLM Key
+ • OpenAI GPT Image 1 (Portrait Generation) — uses Emergent LLM Key
 
 **Testing status**
-  - Testing agent used after significant changes: NO (Self-tested via pytest and frontend linting/smoke check).
+  - Testing agent used after significant changes: YES ( ran twice, iteration 74 & 75).
   - Troubleshoot agent used after agent stuck in loop: NO
-  - Test files created: 
-  - Known regressions: None currently.
+  - Test files created: , , .
+  - Known regressions: None.
 
 **Credentials to test flow:**
 - Admin Backup Token:  (in )
 
 **What agent forgot to execute**
-Nothing. The agent executed both bug fixes efficiently.
+Nothing. All user requests (features + refactors) were implemented and thoroughly tested.
 
 **Debugging checklist for current issue**
-    Issue: Awaiting user confirmation to either add a UI warning or start the Auth task.
-    Frontend files to check: 
-    Action: If the user asks for the UI warning, add an overload alert badge () inside  when the mounted weight > mount capacity. If the user wants to start Auth, immediately ask  for the auth playbook they choose. **Always communicate in Spanish.**</analysis>
+    Issue: None active. Await user verification. If user reports any issue with the newly extracted components ( or  subsections), check file imports and prop drilling first.</analysis>
