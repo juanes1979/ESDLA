@@ -1031,10 +1031,27 @@ const ConfigView = ({
                                 <Switch
                                   checked={member.tieneMontura}
                                   onCheckedChange={(v) => updateMemberMount(member.id, v)}
+                                  data-testid={`switch-mount-${member.id}`}
                                 />
                                 <span className="text-xs text-muted-foreground">
                                   {member.tieneMontura ? member.monturaPropia.nombre : 'A pie'}
                                 </span>
+                                {!member.tieneMontura && (() => {
+                                  const velPersonaje = Number(member.velocidadBase || 9);
+                                  const velMontura = Number(member.monturaPropia.velocidad || 12);
+                                  const pct = velPersonaje > 0
+                                    ? Math.round(((velMontura - velPersonaje) / velPersonaje) * 100)
+                                    : 0;
+                                  return (
+                                    <span
+                                      className="ml-auto px-2 py-0.5 text-[10px] rounded-full bg-amber-500/15 border border-amber-500/40 text-amber-300 whitespace-nowrap"
+                                      title={`${member.monturaPropia.nombre}: ${velMontura}m vs ${velPersonaje}m a pie`}
+                                      data-testid={`badge-mount-available-${member.id}`}
+                                    >
+                                      🐎 Montura disponible{pct > 0 ? ` · +${pct}% velocidad` : ''}
+                                    </span>
+                                  );
+                                })()}
                               </div>
                             ) : (
                               <span className="text-xs text-muted-foreground italic">Sin montura propia</span>
@@ -1182,6 +1199,20 @@ const ConfigView = ({
                         data-testid={`acompanante-mount-toggle-${a.id}`}
                       />
                       <span className="text-[11px] text-muted-foreground">A caballo</span>
+                      {!a.tieneMontura && (() => {
+                        const vp = Number(a.velocidadBase || 9);
+                        const vm = Number(a.monturaPropia.velocidad || 12);
+                        const pct = vp > 0 ? Math.round(((vm - vp) / vp) * 100) : 0;
+                        return (
+                          <span
+                            className="px-2 py-0.5 text-[10px] rounded-full bg-amber-500/15 border border-amber-500/40 text-amber-300 whitespace-nowrap"
+                            title={`${a.monturaPropia.nombre}: ${vm}m vs ${vp}m a pie`}
+                            data-testid={`badge-mount-available-acomp-${a.id}`}
+                          >
+                            🐎 Disponible{pct > 0 ? ` · +${pct}%` : ''}
+                          </span>
+                        );
+                      })()}
                     </div>
                   )}
                   <Button
