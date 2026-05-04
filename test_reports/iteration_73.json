@@ -1,0 +1,42 @@
+{
+  "summary": "Iter73 (it79 chests + equipment) — Backend 17/19 tests PASS (6/6 chest flow + 11/13 new equipment/weight/journey tests). Confirmed working: GET /characters/{id}/chests con flag accesible, POST /chest/store 403 si no en ubicacion, POST /chest/retrieve 403 si no en ubicacion, POST /travel/arrival actualiza ubicacion_actual, 400 si ubicacion no es refugio, store/retrieve ciclo completo con inventario y cantidad parcial. equipment/remove devuelve weight_summary en la respuesta (OK). equipment/remove escanea inventario, equipo, equipo_ocupacion, equipo_nivel_vida, equipo_trasfondo, armas, monturas[*].equipo (OK). equipment/carry devuelve weight_summary (OK). Encontrados 2 BUGS: (1) equipment/remove NO elimina desde 'escudos' — el scan loop en remove_equipment_from_character solo incluye 5 fuentes de inventario/equipo, no recorre `escudos` aunque el PR lo menciona como requisito. (2) travel/journey/{id}/complete NO actualiza ubicacion_actual cuando los miembros se guardan con `personaje_id` (formato real producido por TravelPartyMember model) — el código lee `m.get('id')` que siempre es None, quedando `character_ids=[]` y `personajes_movidos=[]`. Frontend: DistributionView renderiza correctamente 3 columnas (Equipado / Carga Personal / Caballo de carga) con anillos coloreados (74% amber, 0% verde), banner 'Muy Cargado' activo, sección 'Detalles avanzados' legacy presente. El modal abre sin errores desde /characters → card Mithion → Equipo → Gestionar.",
+  "backend_issues": {
+    "critical": [
+      {"endpoint": "POST /api/travel/journey/{id}/complete", "issue": "No actualiza ubicacion_actual cuando los miembros del journey tienen `personaje_id` (formato real del modelo TravelPartyMember). El endpoint en travel_routes.py:2552 hace `m.get('id')` pero el modelo usa `personaje_id`. Como resultado `personajes_movidos=[]` siempre para journeys creados por el flujo normal de calculate-journey. Fix: usar `m.get('personaje_id') or m.get('id')`.", "priority": "HIGH"},
+      {"endpoint": "DELETE /api/characters/{id}/equipment/remove", "issue": "No elimina ítems almacenados en `escudos`. El endpoint tiene ramas para `armas` (line 404) y `armaduras` (line 412) pero no para `escudos`, y el scan loop de fuentes por nombre (line 421) solo incluye ['inventario', 'equipo', 'equipo_ocupacion', 'equipo_nivel_vida', 'equipo_trasfondo']. Resultado: llamar al endpoint con item_category='escudos' devuelve 404 aunque el ítem esté en `character.escudos`. Fix: añadir rama para 'escudos' similar a 'armas', o incluir 'escudos' en scan_keys.", "priority": "HIGH"}
+    ],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_chests_it79.py",
+    "/app/backend/tests/test_equipment_weight_it79.py",
+    "/app/test_reports/pytest/it79_chests.xml",
+    "/app/test_reports/pytest/it79_equipment.xml"
+  ],
+  "action_items": [
+    "FIX travel_routes.py complete_journey line 2552: usar `m.get('personaje_id') or m.get('id')` para leer el id del miembro. Sin este fix la auto-actualización de ubicacion_actual NO funciona para viajes reales (solo para journeys artificialmente insertados con campo 'id').",
+    "FIX equipment.py remove_equipment_from_character: añadir rama `elif 'escudos' in item_category` o incluir 'escudos' en scan_keys (line 421). Según el requisito 'elimina desde TODAS las fuentes (... escudos)' documentado en el review request."
+  ],
+  "critical_code_review_comments": [
+    "travel_routes.py:2552 — usar un nombre de campo hard-coded (`id`) cuando el contrato pydantic del payload usa otro (`personaje_id`) es una fuente de bugs silenciosos. Sugerido: normalizar con `m.get('personaje_id') or m.get('id') or m.get('character_id')` y/o validar el esquema del journey al insertarlo.",
+    "equipment.py:360-472 — el endpoint de remove tiene ramas especiales hard-coded por item_category (monturas, armas, armaduras) + un scan loop genérico por `inventario/equipo/*`. Los escudos no caben en ninguna rama y el scan no los cubre. Sugerido: unificar a un diccionario de sources {'escudos': get_escudos, 'armas': ..., 'inventario': ...} para que añadir/quitar una fuente no pase desapercibido.",
+    "chests.py backend flow: los tests 6/6 PASS + el 400 non-refugio PASS confirman que la capa de permisos y la validación de refugio están correctas. Buen diseño.",
+    "equipment/remove y equipment/carry ambos devuelven weight_summary — evita la race condition UI→peso obsoleto que motivó el fix. Excelente.",
+    "finalize_character genera codigo_publico — los 13 personajes activos en DB tienen todos codigo_publico no vacío (HOMDUNE2611023, ELFNOLD2622563, etc.), confirmado en /characters UI."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_equipment_weight_it79.py (nuevo)"
+  ],
+  "success_rate": {"backend": "89% (17/19)", "frontend": "100% (modal renderiza, no errores en consola)"},
+  "test_credentials": "N/A (RBAC inactivo)",
+  "seed_data_creation": "TEST_eq79_* y TEST_jc_* character docs + active_journeys TEST — limpiados por fixtures.",
+  "retest_needed": true,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Backend chests flow 6/6 PASS (test_chests_it79.py). Nuevo test_equipment_weight_it79.py añade 13 tests; 2 fallos son bugs reales confirmados (journey/complete personaje_id, remove escudos). Frontend modal DistributionView OK; no verificado Layout B en detalle (fuera de viewport inicial), ni toast 'Esta montura no puede cargar más peso' (requiere crear escenario con montura llena), ni candados 🔒 en baúles bloqueados (Mithion no está en refugio). Personaje para testing UI: cualquiera de /characters (13 personajes, todos con codigo_publico). Modal accesible vía /characters → click card → tab 'Equipo' → botón 'Gestionar'.",
+  "rca of the issue": "(1) journey/complete: `m.get('id')` lee campo inexistente porque el modelo TravelPartyMember (travel_routes.py:123) define el campo como `personaje_id`. El `character_ids` queda vacío y el update_many no afecta a ningún doc. Fix trivial: leer ambos alias. (2) remove escudos: omisión en el catalogue de fuentes del endpoint; corregir añadiendo la rama o usando 'escudos' en scan_keys."
+}

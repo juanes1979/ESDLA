@@ -25,6 +25,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { isNaked, isBarefoot, getActiveClothingByPosition } from '@/utils/clothingState';
 import { getMountUsageStatus } from '@/utils/mountUsage';
+import DistributionView from './DistributionView';
 
 // Category display names
 const CATEGORY_NAMES = {
@@ -105,20 +106,23 @@ const EquipmentManagerModal = ({
   });
   const [showModifiers, setShowModifiers] = useState(false);
 
-  // Load catalog, weight summary and price modifiers
+  // Load catalog, weight summary, price modifiers and chests
+  const [chestsApi, setChestsApi] = useState(null);
   useEffect(() => {
     const loadData = async () => {
       if (!isOpen) return;
       try {
         setLoading(true);
-        const [catalogRes, weightRes, modifiersRes] = await Promise.all([
+        const [catalogRes, weightRes, modifiersRes, chestsRes] = await Promise.all([
           api.get('/data/equipment-catalog'),
           api.get(`/characters/${character.id}/weight-summary`),
           api.get('/data/modificadores-precio'),
+          api.get(`/characters/${character.id}/chests`),
         ]);
         setCatalog(catalogRes.data || {});
         setWeightSummary(weightRes.data);
         setPriceModifiers(modifiersRes.data);
+        setChestsApi(chestsRes.data);
       } catch (err) {
         console.error('Error loading data:', err);
         toast.error('Error al cargar datos');
@@ -259,6 +263,123 @@ const EquipmentManagerModal = ({
     } catch (err) {
       console.error('Error adding equipment:', err);
       toast.error(err.response?.data?.detail || 'Error al añadir equipo');
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  // ============== CHESTS (baúles por ubicación) ==============
+
+  const refreshChests = async () => {
+    try {
+      const res = await api.get(`/characters/${character.id}/chests`);
+      setChestsApi(res.data);
+    } catch (err) {
+      console.error('Error refreshing chests:', err);
+    }
+  };
+
+  const handleStoreInChest = async (item, locationId) => {
+    setProcessing(true);
+    try {
+      const payload = {
+        location_id: locationId,
+        item_index: item.itemIndex,
+        source: item.source === 'mount' ? 'mount' : item.source,
+        mount_id: item.mountId || undefined,
+        cantidad: item.cantidad > 1 ? item.cantidad : undefined,
+      };
+      const res = await api.post(`/characters/${character.id}/chest/store`, payload);
+      onCharacterUpdate(res.data.character);
+      await Promise.all([refreshWeight(), refreshChests()]);
+      toast.success(`Guardado en el baúl: ${item.nombre}`);
+    } catch (err) {
+      const detail = err.response?.data?.detail || 'No se pudo guardar en el baúl';
+      toast.error(detail);
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  const handleRetrieveFromChest = async (item, targetCarrier, targetMountId = null) => {
+    setProcessing(true);
+    try {
+      const payload = {
+        location_id: item.locationId,
+        item_name: item.nombre,
+        target_carrier: targetCarrier,
+        target_mount_id: targetMountId,
+      };
+      const res = await api.post(`/characters/${character.id}/chest/retrieve`, payload);
+      onCharacterUpdate(res.data.character);
+      await Promise.all([refreshWeight(), refreshChests()]);
+      toast.success(`Retirado del baúl: ${item.nombre}`);
+    } catch (err) {
+      const detail = err.response?.data?.detail || 'No se pudo retirar del baúl';
+      toast.error(detail);
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  /**
+   * Handler genérico de la nueva DistributionView. Traduce el portador destino
+   * a la operación de API correspondiente.
+   */
+  const handleDistributionMove = async (item, portador) => {
+    // Destino baúl → store
+    if (portador.kind === 'chest') {
+      return handleStoreInChest(item, portador.locationId);
+    }
+    // Origen baúl → retrieve (a personaje o montura)
+    if (item.source === 'chest') {
+      const targetCarrier = portador.kind === 'mount' ? 'montura' : 'personaje';
+      const targetMountId = portador.kind === 'mount' ? portador.mountId : null;
+      return handleRetrieveFromChest(item, targetCarrier, targetMountId);
+    }
+    // Toggle activo dentro del personaje (equipado ↔ carga personal)
+    if ((portador.kind === 'equipado' || portador.kind === 'personaje') &&
+        (item.portadorId === 'equipado' || item.portadorId === 'personaje')) {
+      const desiredActive = portador.kind === 'equipado';
+      if (item.activa === desiredActive) return;
+      setProcessing(true);
+      try {
+        const res = await api.patch(
+          `/characters/${character.id}/equipment/toggle-active`,
+          null,
+          { params: { item_index: item.itemIndex, source: item.source, activa: desiredActive } }
+        );
+        const updated = res.data?.character || res.data;
+        onCharacterUpdate(updated);
+        if (res.data?.weight_summary) setWeightSummary(res.data.weight_summary);
+        else await refreshWeight();
+      } catch (err) {
+        toast.error(err.response?.data?.detail || 'No se pudo activar/desactivar');
+      } finally {
+        setProcessing(false);
+      }
+      return;
+    }
+    // Carrier change (mount ↔ personaje, mount ↔ mount)
+    setProcessing(true);
+    try {
+      const params = {
+        item_index: item.itemIndex,
+        source: item.source,
+        carried_by: portador.kind === 'mount' ? 'montura' : 'personaje',
+      };
+      if (portador.kind === 'mount') params.mount_id = portador.mountId;
+      const res = await api.patch(
+        `/characters/${character.id}/equipment/carry`,
+        null,
+        { params }
+      );
+      const updated = res.data?.character || res.data;
+      onCharacterUpdate(updated);
+      if (res.data?.weight_summary) setWeightSummary(res.data.weight_summary);
+      else await refreshWeight();
+    } catch (err) {
+      toast.error(err.response?.data?.detail || 'No se pudo mover');
     } finally {
       setProcessing(false);
     }
@@ -1243,8 +1364,21 @@ const EquipmentManagerModal = ({
               </div>
             </div>
           ) : (
-            /* MANAGE EQUIPMENT TAB */
-            <div className="h-[60vh]">
+            /* MANAGE EQUIPMENT TAB — nuevo diseño + legacy plegable */
+            <div className="h-[78vh] overflow-y-auto pr-2" data-testid="equipment-manage-tab">
+              <DistributionView
+                character={character}
+                weightSummary={weightSummary}
+                chestsApi={chestsApi}
+                onMoveItem={handleDistributionMove}
+                processing={processing}
+              />
+
+              <details className="mt-4 border border-border/30 rounded p-3 bg-black/10">
+                <summary className="cursor-pointer text-sm text-[hsl(var(--gold))] font-medium">
+                  Detalles avanzados (renombrar montura, gestionar piezas, tirar al camino…)
+                </summary>
+                <div className="mt-3 h-[55vh]">
               <ScrollArea className="h-full">
                 <div className="space-y-2">
                   {getAllEquipment().length === 0 ? (
@@ -1379,6 +1513,8 @@ const EquipmentManagerModal = ({
                   )}
                 </div>
               </ScrollArea>
+                </div>
+              </details>
             </div>
           )}
         </CardContent>
