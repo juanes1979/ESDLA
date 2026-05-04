@@ -762,6 +762,35 @@ const ConfigView = ({
                 Fecha de salida (1-30). Al terminar el viaje se calculará la fecha de llegada.
               </p>
             </div>
+
+            <div>
+              <Label>Año T.E.</Label>
+              <Input
+                type="text"
+                inputMode="numeric"
+                pattern="[0-9]*"
+                value={config.anioTe ?? ''}
+                onChange={(e) => {
+                  const raw = e.target.value;
+                  if (raw === '') {
+                    setConfig(prev => ({ ...prev, anioTe: '' }));
+                    return;
+                  }
+                  if (!/^\d{1,4}$/.test(raw)) return;
+                  setConfig(prev => ({ ...prev, anioTe: raw }));
+                }}
+                onBlur={() => {
+                  const v = parseInt(config.anioTe, 10);
+                  const clamped = Number.isNaN(v) ? 2950 : Math.max(1, Math.min(3500, v));
+                  setConfig(prev => ({ ...prev, anioTe: clamped }));
+                }}
+                data-testid="journey-year-input"
+              />
+              <p className="text-[10px] text-muted-foreground mt-1">
+                Año de la Tercera Edad. Aparecerá en el log de Historia del personaje (def. 2950).
+              </p>
+            </div>
+
             
             {/* Vista previa del clima en origen y destino para el mes elegido */}
             {(config.origenId || config.destinoId) && (

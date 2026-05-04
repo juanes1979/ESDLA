@@ -12,47 +12,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import api from '@/services/api';
-
-// All available skills
-const ALL_SKILLS = [
-  'Acertijos', 'Acrobacias', 'Atletismo', 'Cazar', 'Engaño', 'Explorar',
-  'Interpretación', 'Intimidación', 'Investigación', 'Juego de manos',
-  'Medicina', 'Naturaleza', 'Percepción', 'Perspicacia', 'Persuasión',
-  'Saber antiguo', 'Sigilo', 'Trato con animales', 'Viajar'
-];
-
-// Available tools (including Pipa)
-const ALL_TOOLS = [
-  'Herramientas de carpintería', 'Herramientas de herrero', 'Herramientas de alfarero',
-  'Herramientas de joyero', 'Herramientas de curtidor', 'Herramientas de zapatero',
-  'Herramientas de tejedor', 'Herramientas de albañil', 'Herramientas de cartógrafo',
-  'Herramientas de cocinero', 'Herramientas de cervecero', 'Herramientas de pintor',
-  'Instrumentos musicales', 'Juegos', 'Pipa', 'Vehículos acuáticos', 'Vehículos terrestres',
-  'Kit de herborista', 'Kit de disfraz', 'Kit de falsificador', 'Kit de navegante',
-  'Suministros de calígrafo', 'Útiles de soplador de vidrio'
-];
-
-// Categories for additional competency selector
-const COMPETENCIA_ADICIONAL_CATEGORIAS = [
-  { value: 'herramientas', label: 'Herramientas', items: [
-    'Herramientas de carpintería', 'Herramientas de herrero', 'Herramientas de alfarero',
-    'Herramientas de joyero', 'Herramientas de curtidor', 'Herramientas de zapatero',
-    'Herramientas de tejedor', 'Herramientas de albañil', 'Herramientas de cartógrafo',
-    'Herramientas de cocinero', 'Herramientas de cervecero', 'Herramientas de pintor',
-    'Kit de herborista', 'Kit de disfraz', 'Kit de falsificador', 'Kit de navegante',
-    'Suministros de calígrafo', 'Útiles de soplador de vidrio', 'Vehículos acuáticos', 'Vehículos terrestres'
-  ]},
-  { value: 'juegos', label: 'Juegos', items: [
-    'Dados', 'Naipes', 'Tablero (Ajedrez)', 'Tablero (Damas)', 'Juego de fichas'
-  ]},
-  { value: 'instrumentos', label: 'Instrumentos musicales', items: [
-    'Arpa', 'Flauta', 'Laúd', 'Lira', 'Cuerno', 'Tambor', 'Gaita', 'Violín', 'Zanfoña'
-  ]},
-  { value: 'pipa', label: 'Pipa', items: ['Pipa'] }
-];
-
-// Attributes
-const ATTRIBUTES = ['fuerza', 'destreza', 'constitucion', 'inteligencia', 'sabiduria', 'carisma'];
+import { ATTRIBUTES } from './culture-editor-sections/cultureEditorConstants';
+import CompetenciesSection from './culture-editor-sections/CompetenciesSection';
+import VirtuesConfigSection from './culture-editor-sections/VirtuesConfigSection';
 
 // Collapsible Section component
 const CollapsibleSection = ({ id, title, isActive, onToggle, children, color = 'gold' }) => (
@@ -369,26 +331,29 @@ const CultureEditor = ({ culture, races, onSave, onClose, onCopy }) => {
                       />
                     </div>
                   </div>
+                </CollapsibleSection>
 
-                  {/* AI image prompt — editable por el DJ */}
-                  <div className="mt-4 p-3 border border-[hsl(var(--magic-blue))/30] rounded bg-[hsl(var(--magic-blue))/5]">
-                    <Label className="text-[hsl(var(--magic-blue))] font-bold">
-                      🎨 Texto para imagen IA (retrato)
-                    </Label>
-                    <p className="text-xs text-muted-foreground mb-2 mt-1">
-                      Texto base que se usará al generar retratos con IA para personajes de esta
-                      cultura. Si está vacío, se usa la descripción por defecto del sistema.
-                      Ejemplo: <em>“a wise Hobbit of the Shire, with curly chestnut hair, hairy
-                      bare feet, dressed in a green waistcoat and brown breeches”</em>.
-                    </p>
-                    <Textarea
-                      data-testid="cultura-prompt-imagen-ia"
-                      value={formData.prompt_imagen_ia || ''}
-                      onChange={(e) => handleChange('prompt_imagen_ia', e.target.value)}
-                      placeholder="Descripción visual base en inglés (recomendado por el modelo)…"
-                      rows={3}
-                    />
-                  </div>
+                {/* AI PORTRAIT PROMPT (editable por el DJ) */}
+                <CollapsibleSection
+                  id="ai-portrait"
+                  title="🎨 Texto para imagen IA (retrato)"
+                  color="magic-blue"
+                  isActive={activeSection === 'ai-portrait'}
+                  onToggle={handleSectionToggle}
+                >
+                  <p className="text-xs text-muted-foreground mb-2">
+                    Texto base que se usará al generar retratos con IA para personajes de esta
+                    cultura. Si está vacío, se usa la descripción por defecto del sistema.
+                    Ejemplo: <em>“a wise Hobbit of the Shire, with curly chestnut hair, hairy
+                    bare feet, dressed in a green waistcoat and brown breeches”</em>.
+                  </p>
+                  <Textarea
+                    data-testid="cultura-prompt-imagen-ia"
+                    value={formData.prompt_imagen_ia || ''}
+                    onChange={(e) => handleChange('prompt_imagen_ia', e.target.value)}
+                    placeholder="Descripción visual base en inglés (recomendado por el modelo)…"
+                    rows={4}
+                  />
                 </CollapsibleSection>
 
                 {/* PHYSICAL CHARACTERISTICS */}
@@ -489,134 +454,11 @@ const CultureEditor = ({ culture, races, onSave, onClose, onCopy }) => {
 
                 {/* COMPETENCIES */}
                 <CollapsibleSection id="competencies" title="Competencias" isActive={activeSection === 'competencies'} onToggle={handleSectionToggle}>
-                  <div className="space-y-4">
-                    {/* Skill Competencies */}
-                    <div>
-                      <Label className="mb-2 block">Competencias en Habilidades (automáticas)</Label>
-                      <div className="grid grid-cols-3 md:grid-cols-5 gap-2">
-                        {ALL_SKILLS.map(skill => (
-                          <div key={skill} className="flex items-center gap-2">
-                            <Checkbox
-                              checked={formData.competencias_habilidades?.includes(skill)}
-                              onCheckedChange={() => toggleArrayItem('competencias_habilidades', skill)}
-                            />
-                            <Label className="text-xs">{skill}</Label>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Skills to Choose */}
-                    <div>
-                      <Label className="mb-2 block">Habilidades a Elegir</Label>
-                      <div className="grid grid-cols-3 md:grid-cols-5 gap-2">
-                        {ALL_SKILLS.map(skill => (
-                          <div key={`choose-${skill}`} className="flex items-center gap-2">
-                            <Checkbox
-                              checked={formData.competencia_habilidad_elegir?.includes(skill)}
-                              onCheckedChange={() => toggleArrayItem('competencia_habilidad_elegir', skill)}
-                            />
-                            <Label className="text-xs">{skill}</Label>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Tool Options */}
-                    <div className="grid md:grid-cols-2 gap-4">
-                      <div>
-                        <Label className="text-sm mb-2 block">Herramientas (Opción 1)</Label>
-                        <div className="max-h-32 overflow-y-auto space-y-1">
-                          {ALL_TOOLS.map(tool => (
-                            <div key={`t1-${tool}`} className="flex items-center gap-1">
-                              <Checkbox
-                                checked={formData.competencia_herramienta_elegir_1?.includes(tool)}
-                                onCheckedChange={() => toggleArrayItem('competencia_herramienta_elegir_1', tool)}
-                              />
-                              <Label className="text-xs">{tool}</Label>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                      <div>
-                        <Label className="text-sm mb-2 block">Herramientas (Opción 2)</Label>
-                        <div className="max-h-32 overflow-y-auto space-y-1">
-                          {ALL_TOOLS.map(tool => (
-                            <div key={`t2-${tool}`} className="flex items-center gap-1">
-                              <Checkbox
-                                checked={formData.competencia_herramienta_elegir_2?.includes(tool)}
-                                onCheckedChange={() => toggleArrayItem('competencia_herramienta_elegir_2', tool)}
-                              />
-                              <Label className="text-xs">{tool}</Label>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Additional Competency - Selector by category */}
-                    <div className="border border-border/30 rounded-lg p-3">
-                      <Label className="mb-2 block">Competencia Adicional (Herramientas/Juegos/Instrumentos/Pipa)</Label>
-                      <div className="grid md:grid-cols-2 gap-4">
-                        <div>
-                          <Label className="text-xs text-muted-foreground mb-1 block">Categoría</Label>
-                          <Select 
-                            value={formData.competencia_adicional_categoria || 'none'} 
-                            onValueChange={(v) => {
-                              handleChange('competencia_adicional_categoria', v === 'none' ? '' : v);
-                              handleChange('competencia_adicional', ''); // Reset item when category changes
-                            }}
-                          >
-                            <SelectTrigger>
-                              <SelectValue placeholder="Seleccionar categoría" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="none">Sin competencia adicional</SelectItem>
-                              {COMPETENCIA_ADICIONAL_CATEGORIAS.map(cat => (
-                                <SelectItem key={cat.value} value={cat.value}>{cat.label}</SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        {formData.competencia_adicional_categoria && formData.competencia_adicional_categoria !== 'pipa' && (
-                          <div>
-                            <Label className="text-xs text-muted-foreground mb-1 block">Elemento específico</Label>
-                            <Select 
-                              value={formData.competencia_adicional || 'none'} 
-                              onValueChange={(v) => handleChange('competencia_adicional', v === 'none' ? '' : v)}
-                            >
-                              <SelectTrigger>
-                                <SelectValue placeholder="Seleccionar..." />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="none">A elegir por el jugador</SelectItem>
-                                {COMPETENCIA_ADICIONAL_CATEGORIAS
-                                  .find(c => c.value === formData.competencia_adicional_categoria)?.items
-                                  .map(item => (
-                                    <SelectItem key={item} value={item}>{item}</SelectItem>
-                                  ))
-                                }
-                              </SelectContent>
-                            </Select>
-                          </div>
-                        )}
-                        {formData.competencia_adicional_categoria === 'pipa' && (
-                          <div className="flex items-center">
-                            <span className="text-sm text-[hsl(var(--gold))]">✓ Competencia en Pipa</span>
-                          </div>
-                        )}
-                      </div>
-                      {formData.competencia_adicional_categoria && (
-                        <p className="text-xs text-muted-foreground mt-2">
-                          Competencia seleccionada: <span className="text-[hsl(var(--gold))]">
-                            {formData.competencia_adicional_categoria === 'pipa' 
-                              ? 'Pipa' 
-                              : formData.competencia_adicional || `${COMPETENCIA_ADICIONAL_CATEGORIAS.find(c => c.value === formData.competencia_adicional_categoria)?.label} (a elegir)`}
-                          </span>
-                        </p>
-                      )}
-                    </div>
-                  </div>
+                  <CompetenciesSection
+                    formData={formData}
+                    handleChange={handleChange}
+                    toggleArrayItem={toggleArrayItem}
+                  />
                 </CollapsibleSection>
 
                 {/* CULTURAL TRAITS */}
@@ -689,86 +531,15 @@ const CultureEditor = ({ culture, races, onSave, onClose, onCopy }) => {
                 {/* VIRTUES CONFIGURATION - NEW */}
                 {formData.tiene_virtud_inicial && (
                   <CollapsibleSection id="virtues" title="Configuración de Virtudes" color="torch-orange" isActive={activeSection === 'virtues'} onToggle={handleSectionToggle}>
-                    <div className="space-y-4">
-                      <p className="text-sm text-muted-foreground">
-                        Esta cultura tiene virtud al nivel 1. Configura qué virtudes puede elegir el jugador.
-                      </p>
-                      
-                      {/* Option: Copy virtues from another culture */}
-                      <div className="bg-black/20 p-3 rounded">
-                        <Label className="mb-2 block">Copiar virtudes de otra cultura</Label>
-                        <Select 
-                          value={formData.copiar_virtudes_de || 'none'} 
-                          onValueChange={(v) => handleChange('copiar_virtudes_de', v === 'none' ? '' : v)}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="No copiar (usar propias)" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="none">No copiar (usar propias)</SelectItem>
-                            {allCultures.filter(c => c.id !== culture?.id).map(c => (
-                              <SelectItem key={c.id} value={c.id}>{c.nombre}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-
-                      {/* Option: Allow common virtues */}
-                      <div className="flex items-center gap-2 bg-black/20 p-3 rounded">
-                        <Checkbox
-                          checked={formData.permite_virtudes_comunes}
-                          onCheckedChange={(c) => handleChange('permite_virtudes_comunes', c)}
-                        />
-                        <div>
-                          <Label>Permite elegir virtudes comunes</Label>
-                          <p className="text-xs text-muted-foreground">
-                            Si está activado, el jugador también puede elegir de las virtudes comunes.
-                          </p>
-                        </div>
-                      </div>
-
-                      {/* Select specific virtues */}
-                      <div className="bg-black/20 p-3 rounded">
-                        <Label className="mb-2 block">Virtudes propias de esta cultura</Label>
-                        <p className="text-xs text-muted-foreground mb-3">
-                          Selecciona las virtudes específicas disponibles para esta cultura.
-                        </p>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-2 max-h-48 overflow-y-auto">
-                          {allVirtues.map(v => (
-                            <div key={v.id} className="flex items-center gap-2">
-                              <Checkbox
-                                checked={formData.virtudes_propias?.includes(v.id)}
-                                onCheckedChange={() => toggleArrayItem('virtudes_propias', v.id)}
-                              />
-                              <div>
-                                <Label className="text-xs">{v.nombre}</Label>
-                                <span className="text-xs text-muted-foreground ml-2">
-                                  ({v.tipo || (v.es_comun ? 'Común' : 'Sin tipo')})
-                                </span>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-
-                      {/* Preview available virtues */}
-                      <div className="bg-[hsl(var(--gold))/10] p-3 rounded">
-                        <Label className="text-[hsl(var(--gold))] mb-2 block">Vista previa: Virtudes disponibles para el jugador</Label>
-                        <div className="flex flex-wrap gap-2">
-                          {getAvailableVirtues().length > 0 ? (
-                            getAvailableVirtues().map(v => (
-                              <span key={v.id} className="text-xs bg-black/30 px-2 py-1 rounded">
-                                {v.nombre}
-                              </span>
-                            ))
-                          ) : (
-                            <span className="text-xs text-muted-foreground">
-                              Ninguna virtud seleccionada. El jugador no podrá elegir virtud inicial.
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    </div>
+                    <VirtuesConfigSection
+                      formData={formData}
+                      handleChange={handleChange}
+                      toggleArrayItem={toggleArrayItem}
+                      allVirtues={allVirtues}
+                      allCultures={allCultures}
+                      cultureId={culture?.id}
+                      getAvailableVirtues={getAvailableVirtues}
+                    />
                   </CollapsibleSection>
                 )}
               </div>

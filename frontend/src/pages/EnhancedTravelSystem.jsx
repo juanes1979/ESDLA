@@ -28,6 +28,7 @@ import useFatigueSystem from '@/hooks/useFatigueSystem';
 import useJourneyMembers from '@/hooks/useJourneyMembers';
 import useJourneyResults from '@/hooks/useJourneyResults';
 import useJourneyAutomation from '@/hooks/useJourneyAutomation';
+import useEventResolution from '@/hooks/useEventResolution';
 
 
 const EnhancedTravelSystem = () => {
@@ -1388,331 +1389,31 @@ const EnhancedTravelSystem = () => {
     setGmNotesEvent('');
   }, [currentEvent]);
   
-  const resolveCurrentEvent = async (tirada) => {
-    if (!currentEvent) return;
-    
-    setResolvingEvent(true);
-    
-    // Find the character with the target role
-    const targetRole = currentEvent.objetivo.papel;
-    const targetMember = config.miembros.find(m => m.papeles?.includes(targetRole));
-    
-    const cd = currentEvent.resolucion.cd;
-    const exito = tirada >= cd;
-    
-    // Calculate XP for the character resolving the event
-    if (targetMember) {
-      const xpResult = calculateRollXP(
-        cd,
-        tirada,
-        exito,
-        journeyCalc?.ruta?.terreno || 'moderado',
-        journeyCalc?.ruta?.tipo_tierra || 'tierras_salvajes',
-        eventDiceRoll?.d20
-      );
-      
-      addCharacterXP(targetMember.id, {
-        type: 'evento',
-        eventoNombre: currentEvent.evento.nombre,
-        cd: cd,
-        tirada: tirada,
-        exito: exito,
-        ...xpResult,
-        casilla: currentEvent.casilla
-      });
-    }
-    
-    try {
-      const res = await api.post('/travel/resolve-event', null, {
-        params: {
-          evento_id: currentEvent.evento.id,
-          tirada_resolucion: tirada,
-          cd: cd,
-          exito: exito,
-          evento_nombre: currentEvent.evento.nombre,
-          objetivo_papel: targetRole,
-          personaje_nombre: targetMember?.nombre || 'Desconocido'
-        }
-      });
-      
-      // Generate AI narrative for the event (non-blocking)
-      let narrativa = null;
-      try {
-        // Calculate event position in journey
-        const resolvedEvents = events.filter(e => e.resuelto).length;
-        const totalEvents = events.length;
-        
-        // Look up the climate for the day where this event is happening
-        const eventDay = Math.max(1, currentEvent.casilla || 1);
-        const wDay = journeyWeather[Math.min(eventDay - 1, journeyWeather.length - 1)];
-        const climaTxt = wDay
-          ? `${wDay.estado_label}${wDay.region ? ' en ' + wDay.region : ''}`
-          : '';
-        
-        const narrativeRes = await api.post('/travel/generate-narrative', null, {
-          params: {
-            evento_nombre: currentEvent.evento.nombre,
-            exito: exito,
-            consecuencia: exito ? currentEvent.evento.consecuencias_exito : currentEvent.evento.consecuencias_fracaso,
-            personaje_nombre: targetMember?.nombre || 'El grupo',
-            papel: targetRole,
-            tirada: tirada,
-            cd: cd,
-            origen: config.origenNombre,
-            destino: config.destinoNombre,
-            terreno: journeyCalc?.ruta?.terreno || 'campo_abierto',
-            evento_numero: resolvedEvents + 1,
-            total_eventos: totalEvents,
-            dia_actual: currentEvent.casilla || 1,
-            dias_totales: journeyCalc?.estimaciones?.dias_estimados || 1,
-            notas_maestro: gmNotesEvent || '',
-            clima: climaTxt,
-          }
-        });
-        if (narrativeRes.data.success) {
-          narrativa = narrativeRes.data.narrative;
-        }
-      } catch (err) {
-        console.log('Narrative generation skipped:', err);
-      }
-      
-      // Capture the weather snapshot for this event's day
-      const eventDayN = Math.max(1, currentEvent.casilla || 1);
-      const eventWeather = journeyWeather[Math.min(eventDayN - 1, journeyWeather.length - 1)] || null;
-      
-      // Update event with result
-      const updatedEvents = events.map(e => {
-        if (e === currentEvent) {
-          return {
-            ...e,
-            resuelto: true,
-            resultado: res.data,
-            tirada: tirada,
-            exito: exito,
-            narrativa: narrativa,
-            gm_notes: gmNotesEvent || '',
-            clima_dia: eventWeather,
-          };
-        }
-        return e;
-      });
-      
-      setEvents(updatedEvents);
+  // =============== EVENT RESOLUTION (hook) ===============
+  // `resolveCurrentEvent` vive ahora en `useEventResolution`.
+  const resolveCurrentEvent = useEventResolution({
+    currentEvent,
+    events,
+    config,
+    characters,
+    journeyCalc,
+    journeyWeather,
+    activeJourney,
+    currentPosition,
+    eventDiceRoll,
+    gmNotesEvent,
+    setEvents,
+    setCurrentEvent,
+    setCharacters,
+    setActiveJourney,
+    setDailySummaries,
+    setResolvingEvent,
+    setGlobalFatigaCD,
+    setFatigaCdBreakdown,
+    addCharacterXP,
+    continueAfterEvent,
+  });
 
-      // ===== APLICAR CONSECUENCIAS MECÁNICAS DEL EVENTO (D&D 5e LOTR) =====
-      const eventoId = currentEvent.evento.id;
-      const mecanicas = []; // textos para la bitácora
-
-      try {
-        // Terrible Desgracia (FALLO): TS de DES; fallo→0 PG, éxito→pierde mitad de PG máx.
-        // Desventaja en otoño/invierno (per reglas).
-        if (eventoId === 'event_terrible' && !exito && targetMember) {
-          const charDb = characters.find(c => c.id === targetMember.id);
-          if (charDb) {
-            const desScore = charDb.atributos?.destreza ?? 10;
-            const desMod = Math.floor((desScore - 10) / 2);
-            const desventaja = currentEvent?.resolucion?.desventaja_salvacion;
-            const r1 = Math.floor(Math.random() * 20) + 1;
-            const r2 = desventaja ? Math.floor(Math.random() * 20) + 1 : null;
-            const sd20 = desventaja ? Math.min(r1, r2) : r1;
-            const sTotal = sd20 + desMod;
-            const cdSalv = cd;
-            const exitoSalv = sTotal >= cdSalv;
-            const pgMax = charDb.puntos_golpe_max || 0;
-            const pgActual = charDb.puntos_golpe_actual ?? pgMax;
-            const danio = exitoSalv ? Math.floor(pgMax / 2) : pgActual;
-            const nuevoPG = Math.max(0, pgActual - danio);
-            try {
-              await api.patch(`/characters/${targetMember.id}/hp`, { hp_change: -danio });
-              setCharacters(prev => prev.map(c => c.id === targetMember.id ? { ...c, puntos_golpe_actual: nuevoPG } : c));
-            } catch (e) { console.error('HP update fail:', e); }
-            const detalleD = desventaja ? `d20(${r1}/${r2}→${sd20})` : `d20(${sd20})`;
-            mecanicas.push(`${targetMember.nombre} hace TS DES: ${detalleD}+${desMod}=${sTotal} vs CD ${cdSalv} → ${exitoSalv ? 'éxito (pierde ' + danio + ' PG)' : 'fallo (cae a 0 PG)'}.`);
-            if (nuevoPG <= 0) {
-              mecanicas.push(`⚠️ ${targetMember.nombre} ha caído inconsciente (0 PG). Necesita curación urgente.`);
-              toast.error(`💀 ${targetMember.nombre} cae INCONSCIENTE (0 PG). Aplica primeros auxilios o un descanso.`, {
-                duration: 7000,
-                style: { background: '#7f1d1d', color: '#fecaca', border: '1px solid #f87171' },
-              });
-            } else {
-              toast(exitoSalv
-                ? `${targetMember.nombre} pierde ${danio} PG.`
-                : `${targetMember.nombre} cae a ${nuevoPG} PG.`,
-                { duration: 4500 });
-            }
-          }
-        }
-
-        // Desesperanza / Decisiones erróneas (FALLO): puntos de Sombra.
-        // Cada personaje afectado hace su propia TS y, si falla, recibe
-        // su propio 1d3 aleatorio INDIVIDUAL (Desesperanza, RAW house-rule
-        // Mayo 2026) o 1 punto fijo (Decisiones erróneas).
-        //   - Desesperanza: TS CARISMA (añade PB si competencia) para resistir.
-        //                    afecta a TODA la compañía (miembros + acompañantes).
-        //                    1d3 por cada uno que falla la TS.
-        //   - Decisiones erróneas: TS SABIDURÍA al objetivo. 1 punto fijo.
-        // Además: Desesperanza SUMA +2 a la CD de fatiga final del viaje
-        // (mostrado en el widget del grupo).
-        if (!exito && (eventoId === 'event_desesperanza' || eventoId === 'event_decisiones')) {
-          const isDesesperanza = eventoId === 'event_desesperanza';
-          const atributoSalvacion = isDesesperanza ? 'carisma' : 'sabiduria';
-          const atributoLabel = isDesesperanza ? 'CAR' : 'SAB';
-          const cdSalv = cd;
-
-          // ➕ Aplicar +2 a la CD de fatiga final + breakdown visual.
-          if (isDesesperanza) {
-            const inc = 2;
-            setGlobalFatigaCD((prev) => (prev || 10) + inc);
-            setFatigaCdBreakdown(prev => [...prev, {
-              motivo: 'Desesperanza',
-              delta: inc,
-              dia: (activeJourney?.dia_actual || currentPosition + 1),
-              casilla: currentPosition,
-            }]);
-            setActiveJourney((prev) => prev
-              ? { ...prev, fatiga_cd_total: (prev.fatiga_cd_total || 10) + inc }
-              : prev);
-            if (activeJourney?.id) {
-              try {
-                await api.patch(`/travel/journey/${activeJourney.id}/fatigue-cd`, null, {
-                  params: { delta: inc, reason: 'Desesperanza' },
-                });
-              } catch (e) { /* non-fatal */ }
-            }
-          }
-
-          // Personajes afectados: Desesperanza → todos (miembros con papel +
-          // acompañantes). Decisiones → sólo el objetivo.
-          const personajesAfectados = isDesesperanza
-            ? [
-                ...(config.miembros || []).filter(m => m.papeles?.length > 0),
-                ...(config.acompanantes || []),
-              ]
-            : (targetMember ? [targetMember] : []);
-
-          if (isDesesperanza) {
-            mecanicas.push(`Desesperanza: cada miembro tira TS CAR (CD ${cdSalv}); los que fallen reciben 1d3 puntos de Sombra (individual).`);
-          }
-
-          for (const m of personajesAfectados) {
-            const charDb = characters.find(c => c.id === m.id);
-            if (!charDb) continue;
-            const score = charDb.atributos?.[atributoSalvacion] ?? 10;
-            const mod = Math.floor((score - 10) / 2);
-            // Competencia: si el personaje tiene proficiency en TS del
-            // atributo (p.ej. Carisma), añade su bonif. de competencia.
-            const compArr = charDb.competencias_salvacion || charDb.salvaciones_competentes || [];
-            const esCompetente = Array.isArray(compArr) && compArr.some(
-              (x) => String(x).toLowerCase().startsWith(atributoSalvacion.slice(0, 3)) ||
-                     String(x).toLowerCase() === atributoSalvacion
-            );
-            const nivel = Number(charDb.nivel || 1);
-            const profBonus = Math.ceil(nivel / 4) + 1; // 5e RAW: nv 1-4 = 2, 5-8 = 3, etc.
-            const totalMod = mod + (esCompetente ? profBonus : 0);
-
-            const desventaja = currentEvent?.resolucion?.desventaja_salvacion;
-            const r1 = Math.floor(Math.random() * 20) + 1;
-            const r2 = desventaja ? Math.floor(Math.random() * 20) + 1 : null;
-            const d20 = desventaja ? Math.min(r1, r2) : r1;
-            const total = d20 + totalMod;
-            const exitoSalv = total >= cdSalv;
-            const detalleD = desventaja ? `d20(${r1}/${r2}→${d20})` : `d20(${d20})`;
-            const compLabel = esCompetente ? ` (+PB ${profBonus})` : '';
-            mecanicas.push(`${m.nombre} TS ${atributoLabel}: ${detalleD}+${totalMod}${compLabel}=${total} vs CD ${cdSalv} → ${exitoSalv ? '✓ resiste' : '✗ falla'}.`);
-
-            if (!exitoSalv) {
-              // 🎲 1d3 INDIVIDUAL para Desesperanza; 1 fijo para Decisiones.
-              const sombraValor = isDesesperanza
-                ? (Math.floor(Math.random() * 3) + 1)
-                : 1;
-              try {
-                await api.patch(`/characters/${m.id}/shadow`, { shadow_change: sombraValor });
-                setCharacters(prev => prev.map(c => c.id === m.id ? { ...c, puntos_sombra: (c.puntos_sombra || 0) + sombraValor } : c));
-              } catch (e) { console.error('Shadow update fail:', e); }
-              mecanicas.push(`  → ${m.nombre} recibe ${sombraValor} punto${sombraValor === 1 ? '' : 's'} de Sombra.`);
-              toast(`${m.nombre}: +${sombraValor} Sombra.`, { duration: 4000 });
-            } else {
-              toast(`${m.nombre} resiste la Sombra.`, { duration: 3000 });
-            }
-          }
-        }
-
-        // Atajo (ÉXITO): reducir 1 día / casillas
-        if (eventoId === 'event_atajo' && exito) {
-          // Avance simbólico: lo registramos y la bitácora muestra "-1 día".
-          // (El motor de viaje no soporta saltos arbitrarios, así que se
-          // refleja como narrativa + entrada en el log.)
-          mecanicas.push('La compañía encuentra un atajo: -1 día.');
-          toast('Atajo encontrado: -1 día de viaje.', { duration: 4000 });
-        }
-
-        // Percance (FALLO): aplicar +2 a la CD de fatiga en vivo.
-        // Antes el comentario decía "ya se aplica vía journey events" pero en
-        // la práctica el panel "CD fatiga" se quedaba en 10.0 hasta el final.
-        // Aquí actualizamos `globalFatigaCD` y el `activeJourney` localmente
-        // para que el HUD lo refleje al instante.
-        if (eventoId === 'event_percance' && !exito) {
-          const inc = 2;
-          mecanicas.push(`Percance: +1 día y +${inc} a la CD de fatiga.`);
-          setGlobalFatigaCD((prev) => (prev || 10) + inc);
-          setFatigaCdBreakdown(prev => [...prev, {
-            motivo: `Percance (${currentEvent?.evento?.nombre || 'evento'})`,
-            delta: inc,
-            dia: (activeJourney?.dia_actual || currentPosition + 1),
-            casilla: currentPosition,
-          }]);
-          setActiveJourney((prev) => prev
-            ? { ...prev, fatiga_cd_total: (prev.fatiga_cd_total || 10) + inc }
-            : prev);
-          // Persist on backend so it survives a refresh / re-open
-          if (activeJourney?.id) {
-            try {
-              await api.patch(`/travel/journey/${activeJourney.id}/fatigue-cd`, null, {
-                params: { delta: inc, reason: `Percance: ${currentEvent?.evento?.nombre || 'evento'}` }
-              });
-            } catch (e) { /* non-fatal: HUD already updated */ }
-          }
-        }
-
-        // Vista agradable (ÉXITO): Inspiración (flag visual)
-        if (eventoId === 'event_vista' && exito) {
-          mecanicas.push('Toda la compañía obtiene Inspiración.');
-          toast('✨ Inspiración para toda la compañía.', { duration: 4000 });
-        }
-      } catch (mechErr) {
-        console.error('Error aplicando mecánicas del evento:', mechErr);
-      }
-
-      // Bitácora: anota la entrada de evento del día (con mecánicas)
-      const diaEvento = (currentEvent.casilla || 1);
-      setDailySummaries(prev => [...prev, {
-        dia: diaEvento,
-        casilla: currentEvent.casilla,
-        tipo: 'evento',
-        success: exito,
-        eventName: currentEvent.evento?.nombre,
-        clima: eventWeather,
-        narrativa: narrativa,
-        mecanicas: mecanicas,
-        message: `Día ${diaEvento}: ¡${currentEvent.evento?.nombre || 'Acontecimiento'}! ${targetMember?.nombre || 'El grupo'} tira ${tirada} vs CD ${cd} → ${exito ? 'éxito' : 'fracaso'}.${mecanicas.length ? ' ' + mecanicas.join(' ') : ''}`,
-      }]);
-
-      // In the new orientation system, after resolving an event we continue journey
-      // No longer looking for "next unresolved" since events are generated one by one
-      setCurrentEvent(null);
-      
-      // Continue with next orientation check - pass updated events explicitly
-      // because React state may not be updated yet due to batching
-      await continueAfterEvent(updatedEvents);
-      
-    } catch (err) {
-      console.error('Error resolving event:', err);
-      toast.error('Error al resolver acontecimiento');
-    } finally {
-      setResolvingEvent(false);
-    }
-  };
-  
   // =============== VIAJE GLOBAL (automated end-to-end journey) ===============
   // Bucle independiente que NO depende del estado de React entre iteraciones:
   // tira orientación → calcula posición de evento → genera evento → resuelve →
