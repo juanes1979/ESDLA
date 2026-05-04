@@ -109,15 +109,53 @@ def build_portrait_prompt(data: PortraitRequest, custom_culture_prompt: Optional
     physical = []
     if data.genero:
         physical.append(f"{data.genero}")
-    if data.edad:
-        if data.edad < 25:
-            physical.append("youthful appearance")
-        elif data.edad < 50:
-            physical.append("in their prime years")
-        elif data.edad < 80:
-            physical.append("mature, experienced features")
-        else:
-            physical.append("aged but wise appearance")
+
+    # Apparent-age mapping: la edad CRONOLÓGICA no equivale a la edad
+    # APARENTE en la Tierra Media. Cada raza tiene su propia escala de
+    # longevidad: elfos inmortales conservan apariencia juvenil, los
+    # dúnedain triplican su esperanza de vida, los enanos viven ~250
+    # años con madurez tardía, los hobbits alcanzan la mayoría de edad
+    # a los 33, y los hombres comunes siguen la escala humana estándar.
+    # Esta función prioriza la RAZA sobre el número de años.
+    raza_lower = ((data.cultura or "") + " " + (data.raza or "")).lower()
+
+    def _appearance_for_race(years: int) -> str:
+        # Elfos: inmortales, siempre 20-30 años humanos.
+        if "alto elfo" in raza_lower or "altos elfos" in raza_lower or "elfo" in raza_lower or "elfos" in raza_lower:
+            return "ageless youthful appearance, smooth unblemished skin, vibrant eyes betraying ancient wisdom but no wrinkles or grey hair"
+        # Dúnedain: triple longevidad. <80 = joven adulto humano; 80-150
+        # = maduro 45-50; >150 = anciano.
+        if "dúnedain" in raza_lower or "dunedain" in raza_lower or "númenor" in raza_lower or "numenor" in raza_lower:
+            if years < 80:
+                return "young adult appearance equivalent to a 30-year-old human, strong frame, no grey hair"
+            if years < 150:
+                return "mature appearance equivalent to a 45-50-year-old human, weathered but vigorous, occasional grey at temples"
+            return "venerable but not frail, equivalent to an aged human elder, long white hair and lined face"
+        # Enanos: 250 años. <40 niño, 40-180 plenitud, >180 anciano.
+        if "enano" in raza_lower or "enanos" in raza_lower or "dwarf" in raza_lower:
+            if years < 40:
+                return "youthful dwarven features, short beard, bright eyes"
+            if years < 180:
+                return "mature dwarf in full prime, thick dark beard with hints of grey, sturdy build"
+            return "elder dwarf with long white braided beard, wise weathered face"
+        # Hobbits: mayoría de edad 33. <33 adolescente, 33-90 adulto, >90 anciano.
+        if "hobbit" in raza_lower or "hobbits" in raza_lower or "comarca" in raza_lower:
+            if years < 33:
+                return "youthful adolescent hobbit appearance, smooth round cheeks"
+            if years < 90:
+                return "robust adult hobbit, ruddy complexion, curly hair without grey"
+            return "elderly hobbit, white hair, kind weathered face"
+        # Hombres comunes (Bree, Lago, Este, Rohan, Gondor común): escala humana.
+        if years < 25:
+            return "youthful appearance"
+        if years < 50:
+            return "in their prime years, vigorous"
+        if years < 70:
+            return "mature, experienced features, some grey hair, fine wrinkles"
+        return "aged but wise appearance, white hair, deeply lined face"
+
+    if data.edad is not None:
+        physical.append(_appearance_for_race(int(data.edad)))
     
     if data.color_ojos:
         physical.append(f"{data.color_ojos} eyes")

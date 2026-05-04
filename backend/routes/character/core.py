@@ -306,6 +306,10 @@ async def update_character(character_id: str, data: dict = Body(...)):
         # la pantalla de la ficha como red de seguridad si la generación
         # durante el wizard falló.
         'portrait_image',
+        # Bloqueo del retrato: una vez `portrait_locked=true`, la UI
+        # impide regenerar/cambiar el retrato. Se establece desde el
+        # botón "Guardar imagen" tras una generación con IA.
+        'portrait_locked',
     ]
     
     update = {"updated_at": now_utc()}

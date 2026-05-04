@@ -2119,12 +2119,18 @@ async def orientation_check(request: OrientationCheckRequest, casillas_restantes
 @router.post("/generate-event")
 async def generate_event(
     tipo_tierra: str = "tierras_salvajes",
-    terreno: str = "campo_abierto", 
-    estacion: str = "verano"
+    terreno: str = "campo_abierto",
+    estacion: str = "verano",
+    tipo_via: Optional[str] = None,
 ):
     """
     Generate a single travel event with dice rolls.
     Returns event type, objective, and CD for resolution.
+
+    `tipo_via` (opcional) indica si la casilla del evento está en
+    camino, sendas o campo abierto; si se proporciona, tiene PRIORIDAD
+    sobre `terreno` para decidir la CD de la prueba (regla:
+    camino → CD 10, campo abierto → CD 15, difícil → CD 20).
     """
     events_table = await get_travel_events()
     objectives = await get_event_objectives()
@@ -2163,12 +2169,30 @@ async def generate_event(
     #   CAMINO        → CD 10
     #   CAMPO ABIERTO → CD 15
     #   TERRENO DIFÍCIL (any "dificil" variant) → CD 20
-    # Fall back to the terrain difficulty table if available.
+    #
+    # Si el frontend envía `tipo_via` (per-casilla / dominante de la
+    # ruta), tiene PRIORIDAD: refleja mejor la realidad del segmento
+    # que el `terreno` topográfico (ej. una ruta plana "fácil" puede
+    # ir POR CAMINO, en cuyo caso la CD debe ser 10, no 15).
+    via_lower = (tipo_via or "").lower()
     t_lower = (terreno or "").lower()
-    if "camino" in t_lower or t_lower in ("gran_camino", "camino_mayor", "camino_menor", "sendas"):
+
+    ROAD_TIPOS = {
+        "camino_real", "gran_camino", "camino_mayor", "camino_menor",
+        "sendas", "senda", "sendero",
+    }
+    DIFICIL_TIPOS = {"terreno_dificil", "muy_dificil", "desalentador"}
+
+    if via_lower in ROAD_TIPOS or "camino" in via_lower or "senda" in via_lower:
         cd_prueba = 10
         terreno_categoria = "camino"
-    elif "dificil" in t_lower or t_lower in ("muy_dificil", "desalentador"):
+    elif via_lower in DIFICIL_TIPOS or "dificil" in via_lower:
+        cd_prueba = 20
+        terreno_categoria = "dificil"
+    elif "camino" in t_lower or t_lower in ("gran_camino", "camino_mayor", "camino_menor", "sendas"):
+        cd_prueba = 10
+        terreno_categoria = "camino"
+    elif "dificil" in t_lower or t_lower in DIFICIL_TIPOS:
         cd_prueba = 20
         terreno_categoria = "dificil"
     else:

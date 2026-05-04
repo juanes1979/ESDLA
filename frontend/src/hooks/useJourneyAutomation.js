@@ -135,6 +135,7 @@ const useJourneyAutomation = ({
         params: {
           tipo_tierra: journeyCalc?.ruta?.tipo_tierra || 'tierras_salvajes',
           terreno: journeyCalc?.ruta?.terreno || 'campo_abierto',
+          tipo_via: journeyCalc?.ruta?.tipo_via || undefined,
           estacion: config.estacion,
         },
       });
@@ -260,6 +261,22 @@ const useJourneyAutomation = ({
       setMode('global');
     }
 
+    // Reset + init del Ojo de Mordor para este viaje. Cada viaje empieza
+    // desde su `initial_value` (calculado por party). Los incrementos
+    // automáticos (nat-1, sombra) se aplicarán durante el bucle global.
+    try {
+      const partyIds = [
+        ...(config.miembros || []).map((m) => m.id),
+        ...((config.acompanantes || []).map((a) => a.id)),
+      ].filter(Boolean);
+      await api.post('/eye/reset?state_id=default');
+      if (partyIds.length > 0) {
+        await api.post('/eye/init?state_id=default', { party_member_ids: partyIds });
+      }
+    } catch (errEye) {
+      console.warn('[automateJourney] Eye reset/init fallo (no bloqueante):', errEye);
+    }
+
     try {
       if (!journeyWeather || journeyWeather.length === 0) {
         try {
@@ -377,7 +394,12 @@ const useJourneyAutomation = ({
         let evData;
         try {
           const evRes = await api.post('/travel/generate-event', null, {
-            params: { tipo_tierra: tipoTierra, terreno, estacion: config.estacion },
+            params: {
+              tipo_tierra: tipoTierra,
+              terreno,
+              tipo_via: journeyCalc?.ruta?.tipo_via || undefined,
+              estacion: config.estacion,
+            },
           });
           evData = evRes.data;
           if (!evData?.success) throw new Error('event failed');

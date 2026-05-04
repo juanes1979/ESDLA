@@ -1,12 +1,17 @@
 /**
- * Character Header - Name, level, culture, experience
+ * Character Header — Name, level, culture, experience.
  *
- * Permite también generar / regenerar el retrato con IA después de la
- * creación. Esto sirve de red de seguridad: si el flujo del wizard falló,
- * el jugador o el DJ pueden volver a generarlo desde la ficha.
+ * Flujo del retrato:
+ *  1. Si `portrait_locked` está activo, el retrato NO puede cambiarse
+ *     (definitivo).
+ *  2. Si NO está bloqueado, al hacer clic se genera una imagen en
+ *     "borrador" (no persiste). El usuario puede:
+ *       - "Guardar" → persiste y bloquea el retrato.
+ *       - "Descartar" → vuelve al retrato anterior y limpia.
+ *       - "Regenerar" → vuelve a llamar a la IA y reemplaza el borrador.
  */
 import { useState } from 'react';
-import { Loader2, RefreshCw, ImageIcon } from 'lucide-react';
+import { Loader2, RefreshCw, ImageIcon, Save, X, Lock } from 'lucide-react';
 import { LevelUpButton } from '@/components/LevelUpModal';
 import { toast } from 'sonner';
 import api from '@/services/api';
@@ -15,9 +20,15 @@ const CharacterHeader = ({ character, onLevelUp, onUpdate }) => {
   const [generating, setGenerating] = useState(false);
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState(null);
+  // Borrador local: imagen generada que aún NO se ha guardado.
+  const [draftPortrait, setDraftPortrait] = useState(null);
+  const [saving, setSaving] = useState(false);
+
+  const isLocked = !!character?.portrait_locked;
+  const displayedImage = draftPortrait || character?.portrait_image || null;
 
   const generatePortrait = async () => {
-    if (!character?.id) return;
+    if (!character?.id || isLocked) return;
     setError(null);
     setGenerating(true);
     setProgress(0);
@@ -43,10 +54,10 @@ const CharacterHeader = ({ character, onLevelUp, onUpdate }) => {
       if (!res.data?.success || !img || typeof img !== 'string' || img.length < 100) {
         throw new Error(res.data?.detail || 'La IA no devolvió imagen.');
       }
-      // Persistir en la ficha del personaje (no en el draft).
-      const patched = await api.patch(`/characters/${character.id}`, { portrait_image: img });
-      if (onUpdate) onUpdate(patched.data);
-      toast.success('Retrato generado y guardado en la ficha.');
+      // Guardar SÓLO en borrador. No persiste hasta que el usuario
+      // pulse "Guardar".
+      setDraftPortrait(img);
+      toast.info('Retrato generado en borrador. Pulsa "Guardar" para fijarlo o "Regenerar" para probar otro.');
     } catch (e) {
       const rawDetail = e.response?.data?.detail;
       let detail;
@@ -71,18 +82,48 @@ const CharacterHeader = ({ character, onLevelUp, onUpdate }) => {
     }
   };
 
+  const saveDraft = async () => {
+    if (!draftPortrait || !character?.id) return;
+    setSaving(true);
+    try {
+      const patched = await api.patch(`/characters/${character.id}`, {
+        portrait_image: draftPortrait,
+        portrait_locked: true,
+      });
+      if (onUpdate) onUpdate(patched.data);
+      setDraftPortrait(null);
+      toast.success('Retrato guardado en la ficha (definitivo).');
+    } catch (e) {
+      console.error('Save portrait error:', e);
+      toast.error('No se pudo guardar el retrato. Inténtalo de nuevo.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const discardDraft = () => {
+    setDraftPortrait(null);
+    setError(null);
+    toast.info('Borrador descartado.');
+  };
+
   return (
     <div className="card-parchment rounded-lg p-6 mb-6">
       <div className="flex items-center gap-6">
-        {/* Portrait + botón generar/regenerar */}
+        {/* Portrait + acciones */}
         <div className="flex flex-col items-center gap-2">
           <div className="relative group">
-            {character.portrait_image ? (
+            {displayedImage ? (
               <img
-                src={`data:image/png;base64,${character.portrait_image}`}
+                src={`data:image/png;base64,${displayedImage}`}
                 alt={`Retrato de ${character.nombre}`}
-                className="w-24 h-24 rounded-full object-cover ring-1 ring-[hsl(var(--gold))/50]"
+                className={`w-24 h-24 rounded-full object-cover ring-1 ${
+                  draftPortrait
+                    ? 'ring-2 ring-amber-400 shadow-amber-400/40 shadow-lg'
+                    : 'ring-[hsl(var(--gold))/50]'
+                }`}
                 style={{ background: 'transparent' }}
+                data-testid="character-portrait-image"
               />
             ) : (
               <div className="w-24 h-24 rounded-full bg-gradient-to-br from-[hsl(var(--gold))/30] to-[hsl(var(--gold))/10] flex items-center justify-center ring-1 ring-[hsl(var(--gold))/50]">
@@ -91,22 +132,42 @@ const CharacterHeader = ({ character, onLevelUp, onUpdate }) => {
                 </span>
               </div>
             )}
-            <button
-              onClick={generatePortrait}
-              disabled={generating}
-              className="absolute inset-0 bg-black/60 rounded-full opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center disabled:opacity-100 disabled:bg-black/70"
-              title={character.portrait_image ? 'Regenerar retrato con IA' : 'Generar retrato con IA'}
-              data-testid="character-regen-portrait-btn"
-            >
-              {generating ? (
-                <Loader2 className="w-6 h-6 animate-spin text-white" />
-              ) : character.portrait_image ? (
-                <RefreshCw className="w-6 h-6 text-white" />
-              ) : (
-                <ImageIcon className="w-6 h-6 text-white" />
-              )}
-            </button>
+
+            {/* Overlay: si está bloqueado muestra candado, si no botón regenerar */}
+            {isLocked && !draftPortrait ? (
+              <div
+                className="absolute -bottom-1 -right-1 bg-[hsl(var(--gold))/80] rounded-full p-1 ring-1 ring-[hsl(var(--gold))]"
+                title="Retrato bloqueado (definitivo)"
+                data-testid="character-portrait-locked-icon"
+              >
+                <Lock className="w-3 h-3 text-black" />
+              </div>
+            ) : (
+              <button
+                onClick={generatePortrait}
+                disabled={generating || saving}
+                className="absolute inset-0 bg-black/60 rounded-full opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center disabled:opacity-100 disabled:bg-black/70"
+                title={
+                  draftPortrait
+                    ? 'Regenerar retrato (borrador)'
+                    : (character.portrait_image ? 'Generar nuevo retrato' : 'Generar retrato con IA')
+                }
+                data-testid="character-regen-portrait-btn"
+              >
+                {generating ? (
+                  <Loader2 className="w-6 h-6 animate-spin text-white" />
+                ) : draftPortrait ? (
+                  <RefreshCw className="w-6 h-6 text-white" />
+                ) : character.portrait_image ? (
+                  <RefreshCw className="w-6 h-6 text-white" />
+                ) : (
+                  <ImageIcon className="w-6 h-6 text-white" />
+                )}
+              </button>
+            )}
           </div>
+
+          {/* Estado: progreso, error o acciones de borrador */}
           {generating && (
             <div className="text-[10px] text-center text-purple-300 bg-purple-500/10 border border-purple-500/30 rounded px-2 py-1 max-w-[160px]"
                  data-testid="character-portrait-progress">
@@ -118,6 +179,35 @@ const CharacterHeader = ({ character, onLevelUp, onUpdate }) => {
             <div className="text-[9px] text-center text-red-300 bg-red-500/10 border border-red-500/30 rounded px-2 py-1 max-w-[160px]">
               {error}
             </div>
+          )}
+          {draftPortrait && !generating && (
+            <div className="flex gap-1.5">
+              <button
+                onClick={saveDraft}
+                disabled={saving}
+                className="flex items-center gap-1 text-[10px] px-2 py-1 rounded bg-emerald-600 hover:bg-emerald-500 text-white disabled:opacity-60"
+                title="Guardar este retrato como definitivo (no podrá cambiarse)"
+                data-testid="character-portrait-save-btn"
+              >
+                {saving ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />}
+                Guardar
+              </button>
+              <button
+                onClick={discardDraft}
+                disabled={saving}
+                className="flex items-center gap-1 text-[10px] px-2 py-1 rounded bg-red-600/70 hover:bg-red-500 text-white disabled:opacity-60"
+                title="Descartar este borrador"
+                data-testid="character-portrait-discard-btn"
+              >
+                <X className="w-3 h-3" />
+                Descartar
+              </button>
+            </div>
+          )}
+          {draftPortrait && (
+            <p className="text-[9px] text-amber-300 italic max-w-[160px] text-center">
+              Borrador sin guardar
+            </p>
           )}
         </div>
 

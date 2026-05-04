@@ -948,6 +948,7 @@ const EnhancedTravelSystem = () => {
         params: {
           tipo_tierra: journeyCalc.ruta.tipo_tierra,
           terreno: journeyCalc.ruta.terreno,
+          tipo_via: journeyCalc.ruta.tipo_via || undefined,
           estacion: config.estacion
         }
       });
@@ -1430,19 +1431,21 @@ const EnhancedTravelSystem = () => {
         setMode('dayByDay');
         toast.success('Viaje iniciado');
 
-        // Sincronizamos el Ojo de Mordor: si la party cambió desde la
-        // última inicialización, recalculamos el valor inicial.
+        // Cada viaje arranca el Ojo de Mordor desde cero: reseteamos
+        // y luego recalculamos el `initial_value` con la party actual
+        // (razas, proficiency≥+4, objetos famosos). Los incrementos
+        // (nat-1, sombra ganada, magia manual del DJ) acumulan a partir
+        // de aquí.
         const partyIds = config.miembros.map((m) => m.id)
-          .concat((config.acompanantes || []).map((a) => a.id));
+          .concat((config.acompanantes || []).map((a) => a.id))
+          .filter(Boolean);
         try {
-          const currentParty = eye.state?.party_member_ids || [];
-          const sameParty = currentParty.length === partyIds.length
-            && partyIds.every((id) => currentParty.includes(id));
-          if (!sameParty || (eye.state?.attention_total ?? 0) === 0) {
+          await eye.reset();
+          if (partyIds.length > 0) {
             await eye.initParty(partyIds);
           }
         } catch (errEye) {
-          console.warn('Eye initParty fallo (no bloqueante)', errEye);
+          console.warn('Eye reset/init fallo (no bloqueante)', errEye);
         }
       } else {
         toast.error(res.data.message || 'Error al iniciar viaje');
@@ -1692,23 +1695,28 @@ const EnhancedTravelSystem = () => {
     <div className="container mx-auto p-4 max-w-4xl">
       <JourneyHeader mode={mode} />
 
-      {/* Eye of Mordor bar — visible siempre que estemos en el sistema de viajes */}
-      <div className="my-3">
-        <EyeAttentionBar
-          state={eye.state}
-          onIncrement={async (payload) => {
-            const res = await eye.increment(payload);
-            return res;
-          }}
-          onTriggerEpisode={async () => {
-            const res = await eye.triggerEpisode();
-            toast(`🌑 Episodio de Revelación disparado. La Atención cae a ${res?.state?.attention_total ?? 0}.`, {
-              duration: 6000,
-            });
-            return res;
-          }}
-        />
-      </div>
+      {/* Eye of Mordor bar — sólo visible cuando hay viaje activo (modo
+          global, día-a-día o resultados). En config no se muestra para
+          evitar confusión: cada viaje se inicia con el contador a 0
+          (recalculado en función de la party). */}
+      {mode !== 'config' && (
+        <div className="my-3">
+          <EyeAttentionBar
+            state={eye.state}
+            onIncrement={async (payload) => {
+              const res = await eye.increment(payload);
+              return res;
+            }}
+            onTriggerEpisode={async () => {
+              const res = await eye.triggerEpisode();
+              toast(`🌑 Episodio de Revelación disparado. La Atención cae a ${res?.state?.attention_total ?? 0}.`, {
+                duration: 6000,
+              });
+              return res;
+            }}
+          />
+        </div>
+      )}
       
       {mode === 'config' && (
         <ConfigView

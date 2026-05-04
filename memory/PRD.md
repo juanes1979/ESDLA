@@ -1192,3 +1192,68 @@ referenciaba `config` antes de su declaración, causando
 `ReferenceError: Cannot access 'config' before initialization` y
 ErrorBoundary "Algo se ha roto en el viaje". Movido después del
 `useState(config)`.
+
+## Iter83 — 4 fixes (CD evento, Ojo reset, retrato guardar, edad por raza)
+
+### 1) Bug CD del evento ignoraba si era por camino
+**Reportado**: "Bree → Hobbiton por camino día 3, mostraba CD 15 en vez
+de CD 10. Reglas: camino → CD 10, campo abierto → CD 15, terreno
+difícil → CD 20."
+
+**Causa raíz**: el endpoint `/travel/generate-event` recibía sólo el
+`terreno` topográfico (ej. "facil"), no la información de si la casilla
+era por camino. Default sin "camino" → CD 15 incorrecto.
+
+**Fix**: añadido parámetro opcional `tipo_via` al endpoint, con
+PRIORIDAD sobre `terreno`. Frontend pasa
+`journeyCalc.ruta.tipo_via` en las 3 llamadas (advance day, modo
+global, generate event manual).
+
+**Tests**: parametrize con 10 tipo_via distintos → cd correcto.
+
+### 2) Botón "Guardar" en retrato del personaje
+**Pedido**: separar generación y persistencia. Si no se guarda, la
+imagen se pierde y se puede volver a generar. Si se guarda, queda
+bloqueada.
+
+**Fix**:
+- Añadido campo `portrait_locked: bool` permitido en
+  `PATCH /api/characters/{id}`.
+- `CharacterHeader.jsx` rediseñado: estado interno `draftPortrait`,
+  botones "Guardar" / "Descartar" / "Regenerar" cuando hay borrador,
+  candado visible cuando `portrait_locked=true`.
+
+### 3) Escala de longevidad por raza en prompt de retrato
+**Pedido**: la edad cronológica no equivale a la apariencia. Aplicar:
+- Elfos (cualquier tipo): siempre 20-30 años humanos, sin canas
+- Dúnedain: triple longevidad (50-80 → joven, 80-150 → maduro, >150 → anciano)
+- Enanos: 250 años (>40 niño, 40-180 plenitud, >180 canas)
+- Hobbits: mayoría 33 (<33 adolescente, 33-90 adulto, >90 anciano)
+- Hombres comunes: escala humana estándar
+
+**Fix**: nueva función `_appearance_for_race(years)` en
+`portrait_routes.py` que prioriza la raza sobre el número absoluto de
+años. Detecta cultura/raza por substring (`elfo`, `dúnedain`, `enano`,
+`hobbit`).
+
+**Tests**: 10 casos cubriendo todas las razas + edades extremas.
+
+### 4) Ojo de Mordor: reset por viaje + sólo visible durante viaje
+**Reportado**: "Al iniciar un nuevo viaje, sin seleccionar integrantes,
+ya pone 1 punto. Cada viaje resetea la cantidad."
+
+**Decisión revisada (era Q1=A desde el principio)**: el contador es
+**por viaje**. Cada viaje arranca desde 0 + initial_value calculado
+por la party. Los incrementos automáticos se aplican durante el viaje;
+el botón "Sumar" lo controla el DJ.
+
+**Fix**:
+- `EnhancedTravelSystem.jsx`: la barra `EyeAttentionBar` SOLO se
+  renderiza cuando `mode !== 'config'` (durante viaje, no en config).
+- `journey/start` (modo día-a-día): `eye.reset()` + `eye.initParty(partyIds)`.
+- `automateJourney` (modo global): mismo comportamiento via POST
+  directo a `/eye/reset` + `/eye/init`.
+
+### Tests
+- `test_cd_evento_y_edad_it83.py`: 21/21 PASS (CD por tipo_via 11
+  parametrizaciones + edad por raza 10 casos).
