@@ -29,6 +29,8 @@ import useJourneyMembers from '@/hooks/useJourneyMembers';
 import useJourneyResults from '@/hooks/useJourneyResults';
 import useJourneyAutomation from '@/hooks/useJourneyAutomation';
 import useEventResolution from '@/hooks/useEventResolution';
+import useEyeOfMordor from '@/hooks/useEyeOfMordor';
+import EyeAttentionBar from '@/components/eye/EyeAttentionBar';
 
 
 const EnhancedTravelSystem = () => {
@@ -37,6 +39,9 @@ const EnhancedTravelSystem = () => {
   // Mode: 'config' | 'global' | 'dayByDay' | 'results'
   const [mode, setMode] = useState('config');
   const [travelMode, setTravelMode] = useState('global'); // 'global' or 'dayByDay'
+
+  // Eye of Mordor — Atención del Enemigo (Fase 1, sin LLM aún)
+  const eye = useEyeOfMordor({ pollWhenActive: true });
   
   // Data from API
   const [locations, setLocations] = useState([]);
@@ -1388,6 +1393,21 @@ const EnhancedTravelSystem = () => {
         setActiveJourney(res.data.journey);
         setMode('dayByDay');
         toast.success('Viaje iniciado');
+
+        // Sincronizamos el Ojo de Mordor: si la party cambió desde la
+        // última inicialización, recalculamos el valor inicial.
+        const partyIds = config.miembros.map((m) => m.id)
+          .concat((config.acompanantes || []).map((a) => a.id));
+        try {
+          const currentParty = eye.state?.party_member_ids || [];
+          const sameParty = currentParty.length === partyIds.length
+            && partyIds.every((id) => currentParty.includes(id));
+          if (!sameParty || (eye.state?.attention_total ?? 0) === 0) {
+            await eye.initParty(partyIds);
+          }
+        } catch (errEye) {
+          console.warn('Eye initParty fallo (no bloqueante)', errEye);
+        }
       } else {
         toast.error(res.data.message || 'Error al iniciar viaje');
       }
@@ -1418,6 +1438,16 @@ const EnhancedTravelSystem = () => {
       modifierSource: roleInfo?.habilidad || 'Sabiduría',
       targetMemberId: member?.id,
     });
+
+    // Hook Ojo de Mordor: nat-1 → +1 Atención
+    if (d20 === 1) {
+      eye.increment({
+        source: 'nat1',
+        characterId: member?.id,
+        characterName: member?.nombre,
+        descripcion: `Tirada natural de 1 al resolver "${currentEvent.evento?.nombre || 'evento'}"`,
+      }).catch(() => {});
+    }
   };
   
   // Clear dice roll + GM notes when event changes
@@ -1449,6 +1479,17 @@ const EnhancedTravelSystem = () => {
     setFatigaCdBreakdown,
     addCharacterXP,
     continueAfterEvent,
+    // Hook Ojo de Mordor: cada punto de Sombra ganado en el viaje suma
+    // Atención al Ojo (delta = puntos de sombra ganados).
+    onShadowGained: ({ characterId, characterName, delta, descripcion }) => {
+      eye.increment({
+        source: 'shadow_gain',
+        delta,
+        characterId,
+        characterName,
+        descripcion,
+      }).catch(() => {});
+    },
   });
 
   // =============== VIAJE GLOBAL (automated end-to-end journey) ===============
@@ -1614,6 +1655,24 @@ const EnhancedTravelSystem = () => {
   return (
     <div className="container mx-auto p-4 max-w-4xl">
       <JourneyHeader mode={mode} />
+
+      {/* Eye of Mordor bar — visible siempre que estemos en el sistema de viajes */}
+      <div className="my-3">
+        <EyeAttentionBar
+          state={eye.state}
+          onIncrement={async (payload) => {
+            const res = await eye.increment(payload);
+            return res;
+          }}
+          onTriggerEpisode={async () => {
+            const res = await eye.triggerEpisode();
+            toast(`🌑 Episodio de Revelación disparado. La Atención cae a ${res?.state?.attention_total ?? 0}.`, {
+              duration: 6000,
+            });
+            return res;
+          }}
+        />
+      </div>
       
       {mode === 'config' && (
         <ConfigView

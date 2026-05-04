@@ -1092,3 +1092,69 @@ poni→12m/30km, caballo→14m/35km, sobrecarga −33%, terreno sin montura.
 **Resultado verificable**: poni 12m → 30 km/día ✓, caballo de caminos 14m
 → 35 km/día ✓, todas las monturas futuras heredan el comportamiento al
 añadir su `velocidad` en metros en la tienda de monturas.
+
+## Iter83 (Feb 2026) — Sistema "Ojo de Mordor" — Fase 1
+
+**Fase 1 (núcleo, sin LLM)**: Implementado contador persistente de
+"Atención del Enemigo" por party con incrementos automáticos en viaje.
+
+### Backend (`/app/backend/routes/eye_routes.py`)
+- Modelo `eye_state` (collection): id, party_member_ids, attention_total,
+  initial_value, last_region_id, last_episode_at, region_overrides,
+  threshold_modifiers, history.
+- 18 regiones auto-clasificadas (5 fronterizas, 9 salvajes, 4 oscuras)
+  con umbrales 18/16/14. Override admin via `/api/eye/region-override`.
+- Cálculo inicial:
+  - Base por raza: SOLO el más alto (hobbits/hombres=0, enanos=1,
+    dúnedain/elfos=2, altos elfos=3)
+  - +1 por cada héroe con bonus competencia ≥ +4 (nivel ≥ 9)
+  - +2 por cada arma/armadura marcada `famoso`/`legendario`
+- Endpoints: GET/POST `/api/eye/state`, `/init`, `/party`,
+  `/region-override`, `/threshold-modifiers`, `/region`, `/increment`,
+  `/trigger-episode`, `/reset`, `/regions/classification`.
+- Source deltas por defecto: nat1=1, magia menor=1/mayor=2/poderosa=3,
+  objeto notable=2.
+
+### Frontend
+- Hook `useEyeOfMordor` (`/app/frontend/src/hooks/useEyeOfMordor.js`):
+  refresh con polling 30s, increment, initParty, triggerEpisode, reset.
+- Componente `EyeAttentionBar`
+  (`/app/frontend/src/components/eye/EyeAttentionBar.jsx`): barra con
+  glow severo según ratio, modal "+Sumar" para magia/objeto/manual,
+  desplegable de "Últimas señales" con historial.
+- Integrado en `EnhancedTravelSystem.jsx`:
+  - Visible desde la pantalla del viaje, siempre presente.
+  - Hook `rollEventDice`: nat-1 → +1 automático.
+  - Hook `useEventResolution.onShadowGained`: cada punto de Sombra
+    ganado en evento desesperanza/decisiones → +N Atención.
+  - `journey/start`: re-inicializa la party del Ojo si cambió.
+
+### Decisiones de diseño
+- Solo se cuentan puntos de Sombra GANADOS durante la aventura, NO el
+  `puntos_sombra` previo del personaje.
+- Reset tras episodio = vuelve a `initial_value` (no a 0).
+- Sin sistema de Campañas → único `state_id="default"` para toda la
+  app; se migrará trivialmente cuando se añada Campañas.
+
+### Tests
+- `/app/backend/tests/test_eye_of_mordor_it83.py` (28/28 PASS):
+  clasificación razas (incl. "altos elfos" antes que "elfos"),
+  clasificación regiones + overrides, umbrales con modificadores,
+  increment + trigger-episode reset to initial_value.
+
+### Pendiente (Fases 2-4)
+- **F2**: `services/eye_resolver.py` con GPT-4o + 8 plantillas de
+  episodios (desventaja global, rechazo social, tentación, traición,
+  fatiga sobrenatural, escape imposible, emboscada, buff enemigo);
+  modal de revisión del DJ antes de aplicar.
+- **F3**: Panel admin: editar party, umbrales, plantillas; checkbox
+  `famoso` en armas/armaduras de tienda.
+- **F4**: Historial paginado, exportación a Diario de Viaje, sync
+  automático de region_id al cambiar de tile en el mapa.
+
+## Iter83 — Bug fix UX: badge "Montura disponible"
+
+Añadido badge visual `🐎 Montura disponible · +X% velocidad` junto al
+switch de montura cuando un personaje viaja a pie pese a tener montura
+en su ficha. También en acompañantes. Mejora descubribilidad para que
+los jugadores no olviden activar la montura.

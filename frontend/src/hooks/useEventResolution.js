@@ -44,6 +44,10 @@ export const useEventResolution = ({
   // helpers
   addCharacterXP,
   continueAfterEvent,
+  // Optional: callback invocado cuando un personaje gana puntos de Sombra
+  // durante el viaje. Lo usa el sistema "Ojo de Mordor" para sumar
+  // Atención por cada punto de Sombra ganado.
+  onShadowGained,
 }) => {
   return useCallback(async (tirada) => {
     if (!currentEvent) return;
@@ -283,6 +287,14 @@ export const useEventResolution = ({
                     c.id === m.id ? { ...c, puntos_sombra: (c.puntos_sombra || 0) + sombraValor } : c
                   )
                 );
+                if (onShadowGained) {
+                  onShadowGained({
+                    characterId: m.id,
+                    characterName: m.nombre,
+                    delta: sombraValor,
+                    descripcion: `${currentEvent?.evento?.nombre || 'Evento'}: ${sombraValor} de Sombra`,
+                  });
+                }
               } catch (e) { console.error('Shadow update fail:', e); }
               mecanicas.push(`  → ${m.nombre} recibe ${sombraValor} punto${sombraValor === 1 ? '' : 's'} de Sombra.`);
               toast(`${m.nombre}: +${sombraValor} Sombra.`, { duration: 4000 });
