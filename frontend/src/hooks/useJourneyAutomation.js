@@ -511,6 +511,42 @@ const useJourneyAutomation = ({
         } catch (e) {
           console.error('Error calculando fatiga final:', e);
         }
+
+        // Sincroniza ubicación de los personajes al destino del viaje.
+        // El modo global no usa `active_journeys`, así que llamamos al
+        // endpoint genérico /travel/arrival con los IDs del config.
+        try {
+          const partyIds = [
+            ...(config.miembros || []).map((m) => m.id),
+            ...((config.acompanantes || []).map((a) => a.id)),
+          ].filter(Boolean);
+          if (partyIds.length && config.destinoId) {
+            await api.post('/travel/arrival', {
+              character_ids: partyIds,
+              destination_id: config.destinoId,
+              destination_nombre: config.destinoNombre,
+              destination_x: config.destinoX,
+              destination_y: config.destinoY,
+            });
+            // Actualiza el state local para que la ficha refleje el cambio
+            // sin requerir un refetch manual.
+            setCharacters((prev) => prev.map((c) => {
+              if (!partyIds.includes(c.id)) return c;
+              return {
+                ...c,
+                ubicacion_actual: {
+                  id: config.destinoId,
+                  nombre: config.destinoNombre,
+                  x: config.destinoX,
+                  y: config.destinoY,
+                },
+              };
+            }));
+          }
+        } catch (errArr) {
+          console.warn('No se pudo sincronizar ubicación tras viaje global:', errArr);
+        }
+
         toast.success(`Viaje global completado: ${localEvents.length} acontecimientos.`);
         setMode('results');
         await sleep(700);

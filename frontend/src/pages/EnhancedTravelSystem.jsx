@@ -311,6 +311,40 @@ const EnhancedTravelSystem = () => {
     }
   }, [config.mes]);
 
+  // Helper: sincroniza la ubicación de los personajes del viaje al destino.
+  // Se invoca desde cada flujo de finalización del viaje (orientation completa,
+  // refugio final, modo día-a-día con/sin active_journey). Idempotente.
+  const syncArrivalToDestination = useCallback(async () => {
+    try {
+      const partyIds = [
+        ...(config.miembros || []).map((m) => m.id),
+        ...((config.acompanantes || []).map((a) => a.id)),
+      ].filter(Boolean);
+      if (!partyIds.length || !config.destinoId) return;
+      await api.post('/travel/arrival', {
+        character_ids: partyIds,
+        destination_id: config.destinoId,
+        destination_nombre: config.destinoNombre,
+        destination_x: config.destinoX,
+        destination_y: config.destinoY,
+      });
+      setCharacters((prev) => prev.map((c) => {
+        if (!partyIds.includes(c.id)) return c;
+        return {
+          ...c,
+          ubicacion_actual: {
+            id: config.destinoId,
+            nombre: config.destinoNombre,
+            x: config.destinoX,
+            y: config.destinoY,
+          },
+        };
+      }));
+    } catch (err) {
+      console.warn('[arrival] sync fallo (no bloqueante):', err);
+    }
+  }, [config.miembros, config.acompanantes, config.destinoId, config.destinoNombre, config.destinoX, config.destinoY]);
+
   // ============== AUTO-RECALC GROUP SPEED WHEN "MONTADO" TOGGLES ==============
   // Cuando un viajero cambia su estado montado/a-pie durante el viaje, recalcula
   // la velocidad del grupo en caliente (sin tocar la ruta) y avisa por toast.
@@ -844,6 +878,7 @@ const EnhancedTravelSystem = () => {
           setAwaitingOrientationCheck(false);
           // Move to results - calculate fatigue first
           await calculateFatigueResults(events);
+          await syncArrivalToDestination();
           setMode('results');
         } else {
           // Calculate next event position
@@ -1214,6 +1249,7 @@ const EnhancedTravelSystem = () => {
       }]);
       
       await calculateFatigueResults(currentEvents);
+      await syncArrivalToDestination();
       setMode('results');
     } else if (shouldEndStage && refuges.length > 0) {
       // Refuge available - offer to rest

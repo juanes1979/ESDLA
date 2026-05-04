@@ -1158,3 +1158,37 @@ Añadido badge visual `🐎 Montura disponible · +X% velocidad` junto al
 switch de montura cuando un personaje viaja a pie pese a tener montura
 en su ficha. También en acompañantes. Mejora descubribilidad para que
 los jugadores no olviden activar la montura.
+
+## Iter83 — Bug fix: ubicación no se actualizaba al terminar viaje en modo Global
+
+**Bug reportado**: tras un viaje Bree → Hobbiton (modo Global, con
+Crónica del Viaje generada), la ficha del personaje seguía mostrando
+"Bree" en "Estás aquí".
+
+**Causa raíz**: el modo Global (`automateJourney` en
+useJourneyAutomation.js) NO crea un `active_journey` en BD. Por eso
+nunca se llamaba a `/travel/journey/{id}/complete` (que es donde se
+actualiza la ubicación). Sólo hacía `setMode('results')` y compilaba
+la crónica, dejando huérfana la sincronización de ubicación.
+
+**Fix aplicado**:
+- Frontend: helper `syncArrivalToDestination` en
+  `EnhancedTravelSystem.jsx` que llama a `POST /api/travel/arrival`
+  con todos los character_ids del config + el destino.
+- Invocado desde los 3 flujos donde se completa el viaje:
+  1. `automateJourney` (modo Global) — useJourneyAutomation.js
+  2. `processOrientation` con `viaje_completado=true` (orientación
+     final que cierra el viaje)
+  3. `handleStageEnd` (refugio final que termina la última etapa)
+- También actualiza el state local de `characters` para que la ficha
+  refleje la nueva ubicación sin requerir refetch.
+
+**Tests**: `/app/backend/tests/test_arrival_location_sync_it83.py`
+(4/4 PASS): destino con location, destino custom (waypoint), lista
+vacía, destino no resoluble → 400.
+
+**Bug colateral encontrado y corregido**: el `useCallback` del helper
+referenciaba `config` antes de su declaración, causando
+`ReferenceError: Cannot access 'config' before initialization` y
+ErrorBoundary "Algo se ha roto en el viaje". Movido después del
+`useState(config)`.
