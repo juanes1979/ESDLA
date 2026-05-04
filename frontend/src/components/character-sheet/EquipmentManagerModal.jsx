@@ -268,6 +268,21 @@ const EquipmentManagerModal = ({
     }
   };
 
+  // Convierte cualquier `detail` de FastAPI (string, lista de validation
+  // errors, dict) en un mensaje legible para `toast.error`. Sin esto un
+  // 422 con `detail: [{loc, msg, ...}]` se intenta renderizar como objeto y
+  // React revienta con "Objects are not valid as a React child".
+  const formatApiError = (err, fallback = 'Error') => {
+    const d = err?.response?.data?.detail;
+    if (!d) return err?.message || fallback;
+    if (typeof d === 'string') return d;
+    if (Array.isArray(d)) {
+      return d.map((e) => e?.msg || JSON.stringify(e)).join(' · ') || fallback;
+    }
+    if (typeof d === 'object') return d.msg || JSON.stringify(d);
+    return String(d);
+  };
+
   // ============== CHESTS (baúles por ubicación) ==============
 
   const refreshChests = async () => {
@@ -294,8 +309,7 @@ const EquipmentManagerModal = ({
       await Promise.all([refreshWeight(), refreshChests()]);
       toast.success(`Guardado en el baúl: ${item.nombre}`);
     } catch (err) {
-      const detail = err.response?.data?.detail || 'No se pudo guardar en el baúl';
-      toast.error(detail);
+      toast.error(formatApiError(err, 'No se pudo guardar en el baúl'));
     } finally {
       setProcessing(false);
     }
@@ -315,8 +329,7 @@ const EquipmentManagerModal = ({
       await Promise.all([refreshWeight(), refreshChests()]);
       toast.success(`Retirado del baúl: ${item.nombre}`);
     } catch (err) {
-      const detail = err.response?.data?.detail || 'No se pudo retirar del baúl';
-      toast.error(detail);
+      toast.error(formatApiError(err, 'No se pudo retirar del baúl'));
     } finally {
       setProcessing(false);
     }
@@ -346,15 +359,14 @@ const EquipmentManagerModal = ({
       try {
         const res = await api.patch(
           `/characters/${character.id}/equipment/toggle-active`,
-          null,
-          { params: { item_index: item.itemIndex, source: item.source, activa: desiredActive } }
+          { item_index: item.itemIndex, source: item.source, activa: desiredActive }
         );
         const updated = res.data?.character || res.data;
         onCharacterUpdate(updated);
         if (res.data?.weight_summary) setWeightSummary(res.data.weight_summary);
         else await refreshWeight();
       } catch (err) {
-        toast.error(err.response?.data?.detail || 'No se pudo activar/desactivar');
+        toast.error(formatApiError(err, 'No se pudo activar/desactivar'));
       } finally {
         setProcessing(false);
       }
@@ -363,23 +375,22 @@ const EquipmentManagerModal = ({
     // Carrier change (mount ↔ personaje, mount ↔ mount)
     setProcessing(true);
     try {
-      const params = {
+      const body = {
         item_index: item.itemIndex,
         source: item.source,
         carried_by: portador.kind === 'mount' ? 'montura' : 'personaje',
       };
-      if (portador.kind === 'mount') params.mount_id = portador.mountId;
+      if (portador.kind === 'mount') body.mount_id = portador.mountId;
       const res = await api.patch(
         `/characters/${character.id}/equipment/carry`,
-        null,
-        { params }
+        body
       );
       const updated = res.data?.character || res.data;
       onCharacterUpdate(updated);
       if (res.data?.weight_summary) setWeightSummary(res.data.weight_summary);
       else await refreshWeight();
     } catch (err) {
-      toast.error(err.response?.data?.detail || 'No se pudo mover');
+      toast.error(formatApiError(err, 'No se pudo mover'));
     } finally {
       setProcessing(false);
     }
@@ -420,7 +431,7 @@ const EquipmentManagerModal = ({
       toast.success(res.data.message);
     } catch (err) {
       console.error('Error removing equipment:', err);
-      toast.error(err.response?.data?.detail || 'Error al tirar el objeto');
+      toast.error(formatApiError(err, 'Error al tirar el objeto'));
     } finally {
       setProcessing(false);
     }

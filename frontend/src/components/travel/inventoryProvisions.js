@@ -137,11 +137,15 @@ export const computeShortfall = (inventario = [], dias = 0) => {
   const racionesNecesarias = dias * RACIONES_POR_DIA;
   const litrosNecesarios = dias * LITROS_AGUA_POR_DIA;
 
-  const racionesFaltantes = Math.max(0, racionesNecesarias - s.raciones);
+  // Usa `diasComidaTotal` para contemplar TODA la comida (packs, consumibles,
+  // comida de posadas) — no sólo los items literalmente llamados "raciones".
+  // Así la verificación previa al viaje y la tienda usan el mismo cómputo.
+  const racionesEquivalentes = Math.floor(s.diasComidaTotal || s.raciones || 0);
+  const racionesFaltantes = Math.max(0, racionesNecesarias - racionesEquivalentes);
   const litrosFaltantes = Math.max(0, litrosNecesarios - s.totalLitros);
 
   return {
-    raciones: s.raciones,
+    raciones: racionesEquivalentes,
     litros: s.totalLitros,
     racionesFaltantes,
     litrosFaltantes,

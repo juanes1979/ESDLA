@@ -275,14 +275,14 @@ const ColumnCard = ({ portador, items, onItemClick }) => {
           <div className={`dv-icon-disc ${portador.locked ? 'dv-icon-locked' : ''}`}>
             <img src={portador.icon} alt={portador.label} draggable="false" />
           </div>
-          {portador.showRing && (
-            <div className={`dv-load-pct dv-load-pct-${ringColor}`}>
-              {Math.round(portador.pct)}%
-            </div>
-          )}
         </div>
         <div className="dv-col-title">{portador.label}</div>
         <div className="dv-col-meta">{portador.sublabel}</div>
+        {portador.showRing && (
+          <div className={`dv-pct-below dv-pct-below-${ringColor}`}>
+            {Math.round(portador.pct)}%
+          </div>
+        )}
         {portador.kind === 'personaje' && (
           <div className={`dv-col-load dv-load-${getRingColor(portador.pct || 0)}`}>
             {portador.current.toFixed(1)} / {portador.capacity || '∞'} kg
@@ -291,11 +291,6 @@ const ColumnCard = ({ portador, items, onItemClick }) => {
         {portador.kind === 'mount' && (
           <div className={`dv-col-load dv-load-${ringColor}`}>
             {portador.current.toFixed(1)} / {portador.capacity || '∞'} kg
-          </div>
-        )}
-        {portador.kind === 'equipado' && (
-          <div className="dv-col-load dv-load-green">
-            {colItems.reduce((s, it) => s + (it.peso || 0) * (it.cantidad || 1), 0).toFixed(1)} kg
           </div>
         )}
       </div>
@@ -671,6 +666,22 @@ const DistributionStyles = () => (
     .dv-load-pct-green { background: var(--green); }
     .dv-load-pct-amber { background: var(--amber); }
     .dv-load-pct-red   { background: var(--red); }
+
+    /* Pastilla de % colocada DEBAJO del círculo (no encima del logo) */
+    .dv-pct-below {
+      display: inline-block;
+      margin-top: 6px;
+      padding: 2px 10px;
+      border-radius: 10px;
+      font-size: 11px;
+      font-weight: 700;
+      color: #fff;
+      letter-spacing: 0.5px;
+      box-shadow: 0 2px 4px rgba(43,29,18,0.25);
+    }
+    .dv-pct-below-green { background: var(--green); }
+    .dv-pct-below-amber { background: var(--amber); }
+    .dv-pct-below-red   { background: var(--red); }
 
     .dv-col-title { margin-top: 8px; font-size: 13px; letter-spacing: 1.5px;
       text-transform: uppercase; color: var(--ink); font-weight: 700; }

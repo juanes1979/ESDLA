@@ -233,8 +233,11 @@ export default function ProvisionsShopDialog({
         tipo: p._tipo,
         dinero,
         meDisp,
-        // Inventario actual
-        invRaciones: summary.raciones,
+        // Inventario actual — usamos `diasComidaTotal` para incluir TODA la
+        // comida (raciones + packs + consumibles + comida_posadas), no sólo
+        // los items literalmente llamados "raciones". Así la verificación
+        // previa al viaje y la tienda muestran el mismo número.
+        invRaciones: Math.floor(summary.diasComidaTotal || summary.raciones || 0),
         invLitros: summary.totalLitros,
         // Lo que falta (en raciones/litros, no en packs)
         racionesFaltantes: shortfall.racionesFaltantes,
