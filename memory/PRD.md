@@ -952,7 +952,7 @@ Decisiones acordadas (`/app/memory/CAMPAIGN_ARCHITECTURE.md`):
   que no crea `active_journey`. Mismo efecto.
 - Tests: `/app/backend/tests/test_chests_it79.py` (6/6 PASS).
 
-### Pendiente sesión equipamiento — Fase 2 (frontend)
+### Pendiente sesión equipamiento — Fase 2 (frontend) ✅ COMPLETADA
 - Reescritura de `EquipmentManagerModal.jsx` con el diseño confirmado:
   - Layout A (cards visuales con anillo de carga grueso + glow).
   - Layout B (tabla scrolleable independiente, comparte estado con A).
@@ -963,6 +963,29 @@ Decisiones acordadas (`/app/memory/CAMPAIGN_ARCHITECTURE.md`):
   - Estado bloqueado/accesible según `ubicacion_actual` vs `chest.location_id`.
   - Iconos circulares en `/app/frontend/src/assets/equipment/` ya guardados
     (personaje, mochila, caballo, baúl).
+
+**2026-02 · Fase 2 frontend equipamiento** ✅
+- Componente nuevo `/app/frontend/src/components/character-sheet/DistributionView.jsx` (~600 LOC)
+  con Layout A (cards con anillos de carga gruesos + glow + % central) y Layout B
+  (tabla con scroll vertical interno + radios circulares). Comparten estado.
+- `EquipmentManagerModal.jsx` integra `DistributionView` en la pestaña de gestión
+  y conserva la UI legacy plegable bajo "Detalles avanzados".
+- Handlers de baúles añadidos (`handleStoreInChest`, `handleRetrieveFromChest`,
+  `handleDistributionMove`) — traducen el portador destino a la operación API.
+- Carga de `/chests` al abrir el modal (4-Promise.all junto a catalog/weight/modifiers).
+- Validación de capacidad de monturas en frontend antes de la llamada API
+  (toast "Esta montura no puede cargar más peso." y rechazo). Backend también valida.
+- Iconos circulares listos en `/app/frontend/src/assets/equipment/`.
+
+**Bugs encontrados por testing agent + fixes (it79b)**
+- `complete_journey` sólo leía `m.get('id')` pero `TravelPartyMember` usa
+  `personaje_id` → la auto-actualización de ubicación nunca disparaba en viajes
+  reales. Fix: leer `personaje_id || id || character_id`.
+- `equipment/remove` no contemplaba la rama `escudos`. Fix: añadida la rama
+  + `escudos` en el scan loop de fuentes.
+- Tests añadidos: `tests/test_chests_it79b_regressions.py` (3/3 PASS).
+- **Total backend tests: 12/12 PASS** (chests + regressions + mount promotion).
+
   ahora cubiertos por las views, 9 constantes/helpers huérfanos,
   3 refs (`currentPositionRef/currentEventRef/charactersRef`) y 4 useState
   (`monturas/landTypes/terrainTypes/foodWaterItems`) que sólo escribían en vacío,

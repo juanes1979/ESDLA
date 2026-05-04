@@ -2549,7 +2549,14 @@ async def complete_journey(journey_id: str):
             }
 
         if ubicacion_payload and miembros:
-            character_ids = [m.get("id") for m in miembros if m.get("id")]
+            # El modelo TravelPartyMember usa `personaje_id`, pero algunos
+            # journeys legacy guardan `id`. Aceptamos ambos para no perder
+            # ningún miembro al sincronizar la ubicación final.
+            character_ids = [
+                m.get("personaje_id") or m.get("id") or m.get("character_id")
+                for m in miembros
+            ]
+            character_ids = [cid for cid in character_ids if cid]
             if character_ids:
                 await db.characters.update_many(
                     {"_id": {"$in": character_ids}},

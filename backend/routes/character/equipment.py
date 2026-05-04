@@ -414,13 +414,21 @@ async def remove_equipment_from_character(
         if isinstance(armadura, dict) and _name_of(armadura) == target:
             update["armadura"] = {}
             removed = True
+    elif "escudos" in item_category:
+        escudos = list(character.get("escudos") or [])
+        for i, esc in enumerate(escudos):
+            if _name_of(esc) == target:
+                escudos.pop(i)
+                removed = True
+                break
+        update["escudos"] = escudos
     
     # Si no se ha eliminado todavía, escanear TODAS las listas de carga
     # posibles (incluido el sub-equipo de cada montura).
     if not removed:
         scan_keys = [
             "inventario", "equipo", "equipo_ocupacion",
-            "equipo_nivel_vida", "equipo_trasfondo",
+            "equipo_nivel_vida", "equipo_trasfondo", "escudos",
         ]
         for key in scan_keys:
             lst = list(character.get(key) or [])
