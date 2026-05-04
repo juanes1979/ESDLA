@@ -82,6 +82,8 @@ RACE_BASE_ATTENTION: Dict[str, int] = {
     "enano": 1,
     "dunedain": 2,
     "dúnedain": 2,
+    "dúnadan": 2,
+    "dunadan": 2,
     "elfos": 2,
     "elfo": 2,
     "altos elfos": 3,

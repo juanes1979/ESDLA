@@ -61,6 +61,10 @@ const useJourneyAutomation = ({
   applyForcedMarchSaves,
   // Utility
   getRoleModifier,
+  // Eye of Mordor helpers (opcional). Se usa para reset/init al
+  // iniciar el viaje y garantizar que la barra refleje el initial_value
+  // (ej. Dúnedain → +2) sin esperar al polling.
+  eye,
 }) => {
   // =============== FATIGUE CALCULATION ===============
   const calculateFatigueResults = useCallback(async (resolvedEvents) => {
@@ -269,9 +273,17 @@ const useJourneyAutomation = ({
         ...(config.miembros || []).map((m) => m.id),
         ...((config.acompanantes || []).map((a) => a.id)),
       ].filter(Boolean);
-      await api.post('/eye/reset?state_id=default');
-      if (partyIds.length > 0) {
-        await api.post('/eye/init?state_id=default', { party_member_ids: partyIds });
+      if (eye?.reset) {
+        await eye.reset();
+        if (partyIds.length > 0 && eye.initParty) {
+          await eye.initParty(partyIds);
+        }
+      } else {
+        // Fallback sin hook (no debería pasar)
+        await api.post('/eye/reset?state_id=default');
+        if (partyIds.length > 0) {
+          await api.post('/eye/init?state_id=default', { party_member_ids: partyIds });
+        }
       }
     } catch (errEye) {
       console.warn('[automateJourney] Eye reset/init fallo (no bloqueante):', errEye);

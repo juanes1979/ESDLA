@@ -944,11 +944,27 @@ const EnhancedTravelSystem = () => {
   // Generate event at a specific position
   const generateEventAtPosition = async (posicion, orientationResult) => {
     try {
+      // Cada día puede caer en un segmento distinto de la ruta. Si el
+      // backend devolvió segments con tipo_via, mapeamos día→segmento
+      // por proporción de distancia. Si no, caemos al tipo_via dominante.
+      const segs = journeyCalc?.ruta?.segments || [];
+      const totalCasillas = (journeyCalc?.casillas?.length) || (journeyCalc?.ruta?.distance_km / 16) || 1;
+      let segTipoVia = journeyCalc?.ruta?.tipo_via || undefined;
+      if (segs.length > 0) {
+        // Mapeo simple: posición (1..N) entre segmentos por km acumulados
+        const totalKm = segs.reduce((acc, s) => acc + (s.distance_km || 0), 0) || 1;
+        const dayKm = (Math.max(1, posicion) / Math.max(1, totalCasillas)) * totalKm;
+        let acc = 0;
+        for (const s of segs) {
+          acc += (s.distance_km || 0);
+          if (acc >= dayKm) { segTipoVia = s.tipo_via || segTipoVia; break; }
+        }
+      }
       const eventRes = await api.post('/travel/generate-event', null, {
         params: {
           tipo_tierra: journeyCalc.ruta.tipo_tierra,
           terreno: journeyCalc.ruta.terreno,
-          tipo_via: journeyCalc.ruta.tipo_via || undefined,
+          tipo_via: segTipoVia,
           estacion: config.estacion
         }
       });
@@ -1581,6 +1597,7 @@ const EnhancedTravelSystem = () => {
     applyForcedMarchExtraConsumption,
     applyForcedMarchSaves,
     getRoleModifier,
+    eye,
   });
 
   // =============== MEMBER MANAGEMENT (hook) ===============

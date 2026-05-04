@@ -175,6 +175,38 @@ const TerrainCorrectionTool = ({ isAdmin }) => {
     toast.info('Cambios descartados');
   };
 
+  // Bulk: aplicar terreno + tipo de tierra a todas las ubicaciones de
+  // una región. Útil cuando se quiere homogeneizar (ej. La Comarca →
+  // tierras_libres + facil para todas sus ubicaciones).
+  const [bulkRegion, setBulkRegion] = useState('');
+  const [bulkTerrain, setBulkTerrain] = useState('');
+  const [bulkLandType, setBulkLandType] = useState('');
+
+  const applyBulkToRegion = () => {
+    if (!bulkRegion) {
+      toast.error('Selecciona una región');
+      return;
+    }
+    if (!bulkTerrain && !bulkLandType) {
+      toast.error('Indica al menos un valor (terreno o tipo de tierra)');
+      return;
+    }
+    const targets = locations.filter(l => l.region === bulkRegion);
+    if (targets.length === 0) {
+      toast.warning(`Sin ubicaciones en "${bulkRegion}"`);
+      return;
+    }
+    const updates = {};
+    targets.forEach(loc => {
+      const ch = { ...(pendingChanges[loc.id] || {}) };
+      if (bulkTerrain) ch.tipo_terreno = bulkTerrain;
+      if (bulkLandType) ch.clase_region = bulkLandType;
+      updates[loc.id] = ch;
+    });
+    setPendingChanges(prev => ({ ...prev, ...updates }));
+    toast.success(`${targets.length} ubicación(es) de "${bulkRegion}" preparadas. Pulsa "Guardar" para aplicar.`);
+  };
+
   // Auto-fix common problems
   const autoFixProblems = async () => {
     const fixes = {};
@@ -346,6 +378,79 @@ const TerrainCorrectionTool = ({ isAdmin }) => {
           </Button>
         </div>
       </div>
+
+      {/* Bulk apply by region */}
+      {isAdmin && (
+        <div className="bg-amber-900/20 border border-amber-500/40 rounded-lg p-4">
+          <h3 className="text-sm font-bold text-amber-300 mb-2 flex items-center gap-2">
+            <MapPin className="h-4 w-4" />
+            Aplicar masivamente a una región
+          </h3>
+          <p className="text-xs text-gray-400 mb-3">
+            Selecciona una región y los valores que quieras imponer a TODAS sus ubicaciones (ej. La Comarca → Tierras Libres + Fácil).
+          </p>
+          <div className="flex flex-wrap items-end gap-3">
+            <div className="flex flex-col">
+              <label className="text-[10px] text-gray-400 mb-1">Región</label>
+              <select
+                value={bulkRegion}
+                onChange={(e) => setBulkRegion(e.target.value)}
+                className="bg-black/60 border border-gray-600 rounded-md px-3 py-2 text-sm text-white min-w-[180px]"
+                data-testid="bulk-region-select"
+              >
+                <option value="">— Selecciona —</option>
+                {regions.map(r => {
+                  const count = locations.filter(l => l.region === r).length;
+                  return <option key={r} value={r}>{r} ({count})</option>;
+                })}
+              </select>
+            </div>
+            <div className="flex flex-col">
+              <label className="text-[10px] text-gray-400 mb-1">Tipo de tierra</label>
+              <select
+                value={bulkLandType}
+                onChange={(e) => setBulkLandType(e.target.value)}
+                className="bg-black/60 border border-gray-600 rounded-md px-3 py-2 text-sm text-white"
+                data-testid="bulk-landtype-select"
+              >
+                <option value="">— Sin cambio —</option>
+                {LAND_TYPE_OPTIONS.map(l => (
+                  <option key={l.value} value={l.value}>{l.label}</option>
+                ))}
+              </select>
+            </div>
+            <div className="flex flex-col">
+              <label className="text-[10px] text-gray-400 mb-1">Dificultad</label>
+              <select
+                value={bulkTerrain}
+                onChange={(e) => setBulkTerrain(e.target.value)}
+                className="bg-black/60 border border-gray-600 rounded-md px-3 py-2 text-sm text-white"
+                data-testid="bulk-terrain-select"
+              >
+                <option value="">— Sin cambio —</option>
+                {TERRAIN_OPTIONS.map(t => (
+                  <option key={t.value} value={t.value}>{t.label}</option>
+                ))}
+              </select>
+            </div>
+            <Button
+              onClick={applyBulkToRegion}
+              disabled={!bulkRegion || (!bulkTerrain && !bulkLandType)}
+              className="bg-amber-600 hover:bg-amber-500 text-black font-semibold"
+              data-testid="bulk-apply-btn"
+            >
+              <Check className="h-4 w-4 mr-1" />
+              Preparar cambios
+            </Button>
+          </div>
+          {bulkRegion && (
+            <p className="text-[11px] text-amber-200/80 mt-2">
+              {locations.filter(l => l.region === bulkRegion).length} ubicación(es) en
+              <span className="font-semibold"> {bulkRegion}</span>. Los cambios se añadirán al pendiente; pulsa &quot;Guardar&quot; arriba para confirmar.
+            </p>
+          )}
+        </div>
+      )}
 
       {/* Legend */}
       <div className="grid grid-cols-2 gap-4">

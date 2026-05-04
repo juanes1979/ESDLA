@@ -1257,3 +1257,67 @@ el botón "Sumar" lo controla el DJ.
 ### Tests
 - `test_cd_evento_y_edad_it83.py`: 21/21 PASS (CD por tipo_via 11
   parametrizaciones + edad por raza 10 casos).
+
+## Iter83b — fixes adicionales (CD via, Dúnedain, bulk terreno, notas para Campañas)
+
+### 1) CD del evento — bug RAÍZ resuelto
+**Causa raíz real**: el pathfinder devuelve `road_type` con nombres
+cortos ('grande', 'mayor', 'menor', 'sendas', 'sendero'), pero el
+backend sólo reconocía 'camino_real'/'carretera'. Por eso TODOS los
+segmentos por camino caían a 'campo_abierto' → CD 15 erróneo.
+
+**Fix en `travel_routes.py`**:
+- `ROAD_TYPE_MAP` con todas las variantes del pathfinder.
+- Cada segmento se enriquece con `tipo_via` (para que el frontend pueda
+  mapear día → segmento → CD del evento de ese día).
+- El `tipo_via` global de la ruta es ahora el DOMINANTE por km
+  acumulados (no el último segmento).
+
+**Fix en frontend (`generateEventAtPosition`)**: mapea posición de día
+al segmento correspondiente por proporción de km y pasa SU `tipo_via`,
+no el dominante.
+
+**Verificado por API**: Bree → Hobbiton ahora reporta
+`tipo_via='camino_real'` y los 5 segmentos llevan camino_mayor/real → CD 10 ✓.
+
+### 2) Dúnedain ahora suma 2 al iniciar el Ojo
+**Problema**: cuando el Dúnedain estaba en la party, la barra del Ojo
+mostraba "0/16" en vez de "2/16" tras iniciar viaje.
+
+**Causa**: el hook `useJourneyAutomation` hacía POST directo a `/eye/init`
+pero el `state` del hook `useEyeOfMordor` no se refrescaba hasta el
+siguiente polling (30s).
+
+**Fix**: pasar `eye` (el hook completo) a `useJourneyAutomation`. Al
+iniciar viaje (modo Global o día-a-día) llama a `eye.reset()` +
+`eye.initParty()`, que internamente hacen `refresh()` y actualizan
+`state` instantáneamente.
+
+**Bonus**: añadidas variantes "dúnadan/dunadan" (singular) al
+diccionario de razas.
+
+### 3) Bulk-edit por región en Corrección de Datos de Terreno
+Nuevo panel ámbar en `TerrainCorrectionTool.jsx`: selector de Región,
+Tipo de tierra, Dificultad, botón "Preparar cambios". Aplica los
+valores a TODAS las ubicaciones de la región seleccionada (ej. La
+Comarca → 21 ubicaciones a Tierras Libres + Fácil con un solo clic).
+Los cambios entran en `pendingChanges` para revisión antes de Guardar.
+
+### 4) Notas para futuras tareas (Campañas)
+**Ojo de Mordor & Campañas**: El estado del Ojo debe migrar a un campo
+dentro del objeto Campaign cuando se implemente:
+- Cada Campaign tiene su propio `eye_state_id` (no el "default").
+- Al iniciar viaje DENTRO de una campaña: el Ojo arranca a 0 + el
+  `umbral_caza_previo` que el DJ haya guardado para esa campaña, MÁS
+  el initial_value calculado por party.
+- Al terminar viaje: persistir `umbral_caza_actual` en la Campaign.
+- Al cerrar campaña: `eye_state` se libera; sólo se resetea el de ESA
+  campaña (otras campañas activas conservan su número independiente).
+
+**Año T.E.**: Cuando exista Campaign, el campo `año_te` se heredará
+del objeto Campaign (campo `año_inicio`). El selector manual del
+ConfigView pasará a ser sólo un override puntual.
+
+### Tests
+- `test_via_dominante_y_dunedain_it83b.py` (4/4 PASS).
+- Total acumulado iter83 + iter83b: **53/53 PASS**.

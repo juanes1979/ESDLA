@@ -1519,24 +1519,47 @@ async def calculate_journey(config: JourneyConfig):
     
     if segments and px_table and px_table.get('filas'):
         terreno_mods = px_table.get('modificadores_terreno', {})
-        
+
+        # Mapping del road_type que devuelve el pathfinder a tipo_via.
+        # El pathfinder usa nombres cortos ('grande', 'mayor', 'menor',
+        # 'sendero', 'sendas') que se corresponden con los tipos de
+        # camino del rulebook. Si la línea trazada por el pathfinder
+        # pasa cerca de un camino oficial (tolerancia que ya aplica el
+        # propio pathfinder), el segmento queda marcado con su
+        # `road_type`; en ese caso debe contar como camino para el CD
+        # de eventos (CD 10), no como campo abierto.
+        ROAD_TYPE_MAP = {
+            'grande': 'camino_real',
+            'gran_camino': 'camino_real',
+            'camino_real': 'camino_real',
+            'carretera': 'camino_real',
+            'mayor': 'camino_mayor',
+            'camino_mayor': 'camino_mayor',
+            'menor': 'camino_menor',
+            'camino_menor': 'camino_menor',
+            'sendas': 'sendas',
+            'senda': 'senda',
+            'sendero': 'sendero',
+        }
+
+        # Acumulamos km por tipo_via para luego elegir el dominante.
+        via_distance: Dict[str, float] = {}
+
         for seg in segments:
             seg_distance_km = seg.get('distance_km', 0)
             seg_terrain = seg.get('terrain', 'moderado')
             seg_land_type = seg.get('land_type', 'tierras_salvajes')
-            seg_road_type = seg.get('road_type', 'campo_abierto')
-            
+            seg_road_type = (seg.get('road_type') or '').lower()
+
             # Determine via type based on road
-            if seg_road_type in ['camino_real', 'carretera']:
-                tipo_via = 'camino_real'
-            elif seg_road_type in ['senda']:
-                tipo_via = 'senda'
-            elif seg_road_type in ['sendero']:
-                tipo_via = 'sendero'
+            if seg_road_type in ROAD_TYPE_MAP:
+                tipo_via = ROAD_TYPE_MAP[seg_road_type]
             elif seg_road_type in ['terreno_dificil', 'montaña', 'pantano']:
                 tipo_via = 'terreno_dificil'
             else:
                 tipo_via = 'campo_abierto'
+
+            via_distance[tipo_via] = via_distance.get(tipo_via, 0) + seg_distance_km
             
             # Get land type column
             tierra_col = tierra_col_map.get(seg_land_type, 'tierras_salvajes')
@@ -1548,6 +1571,12 @@ async def calculate_journey(config: JourneyConfig):
                     px_per_km = fila.get(tierra_col, 0)
                     break
             
+            # Enriquecemos el propio segmento con el tipo_via clasificado.
+            # Esto permite al frontend mapear día → segmento → tipo_via
+            # (regla: "cercanía al camino" la resuelve el pathfinder; si
+            # marcó road_type, el segmento cuenta como camino).
+            seg['tipo_via'] = tipo_via
+
             # Apply terrain modifier
             terreno_mod = terreno_mods.get(seg_terrain, {'multiplicador': 1.0, 'bonus_px_km': 0})
             
@@ -1570,6 +1599,15 @@ async def calculate_journey(config: JourneyConfig):
                 })
             
             px_total += seg_px_total
+
+        # Determinar tipo_via DOMINANTE de la ruta a partir de los km
+        # acumulados por tipo. Esto es lo que se devuelve como
+        # `ruta.tipo_via` y lo que el frontend usa por defecto cuando
+        # no puede mapear día→segmento. Un viaje mayoritariamente por
+        # camino reportará 'camino_real' aunque algún tramo final
+        # caiga en campo abierto.
+        if via_distance:
+            tipo_via = max(via_distance.items(), key=lambda kv: kv[1])[0]
     else:
         # Fallback: old method using dominant terrain/land type
         tipo_tierra = route_data['tipo_tierra']
