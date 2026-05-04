@@ -4,46 +4,15 @@
  * Uses the new travel rules API with editable configurations
  */
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Button } from '@/components/ui/button';
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, SelectGroup, SelectLabel } from '@/components/ui/select';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Switch } from '@/components/ui/switch';
-import { Badge } from '@/components/ui/badge';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Progress } from '@/components/ui/progress';
-import { Textarea } from '@/components/ui/textarea';
-import {
-  Compass, ArrowLeft
-} from 'lucide-react';
 import { toast } from 'sonner';
 import html2canvas from 'html2canvas';
 import api from '@/services/api';
-import PartyFatiguePanel from '@/components/travel/PartyFatiguePanel';
-import CampDialog from '@/components/travel/CampDialog';
-import JourneyDiary from '@/components/travel/JourneyDiary';
-import ProvisionsShopDialog from '@/components/travel/ProvisionsShopDialog';
-import WeatherIndicator from '@/components/travel/WeatherIndicator';
-import SauronEyeOverlay from '@/components/travel/SauronEyeOverlay';
-import JourneyMiniMap from '@/components/travel/JourneyMiniMap';
 import {
   MESES_ELFICOS,
-  SeasonIcon,
-  ROLE_ICONS,
-  ROLE_INFO,
-  hasMultipleRoles,
-  hasPenalty,
-  MULTI_ROLE_PENALTY,
 } from '@/components/travel/travelConstants';
 import {
   REST_TYPES,
-  ROLE_MODIFIER_KEY,
-  SKILL_ATTRIBUTES,
   calculateRollXP,
-  calculateGroupMultiplier,
-  getForageCD
 } from '@/components/travel/travelHelpers';
 import { summarizeProvisions } from '@/components/travel/inventoryProvisions';
 import ResultsView from '@/components/travel/views/ResultsView';
@@ -52,7 +21,6 @@ import DayByDayView from '@/components/travel/views/DayByDayView';
 import ConfigView from '@/components/travel/views/ConfigView';
 import JourneyHeader from '@/components/travel/views/JourneyHeader';
 import JourneyDialogs from '@/components/travel/views/JourneyDialogs';
-import MapPickDialog from '@/components/travel/MapPickDialog';
 import { computeMemberSpeed, getRoleModifier as getRoleModifierHelper } from '@/utils/travelSpeed';
 import useJourneyProvisions from '@/hooks/useJourneyProvisions';
 import useFatigueSystem from '@/hooks/useFatigueSystem';
@@ -74,10 +42,7 @@ const EnhancedTravelSystem = () => {
   const [mapPickFor, setMapPickFor] = useState(null);
   const [locationsByRegion, setLocationsByRegion] = useState({});
   const [characters, setCharacters] = useState([]);
-  const [monturas, setMonturas] = useState([]);
   const [travelRules, setTravelRules] = useState(null);
-  const [landTypes, setLandTypes] = useState([]);
-  const [terrainTypes, setTerrainTypes] = useState([]);
   
   // Journey configuration
   const [config, setConfig] = useState({
@@ -252,9 +217,7 @@ const EnhancedTravelSystem = () => {
     diasSinComida, setDiasSinComida,
     diasSinAgua, setDiasSinAgua,
     checkProvisionsForJourney,
-    initializeProvisions,
     consumeDailyProvisions,
-    refillWaterNearTown,
     performForaging: performForagingHook,
   } = useJourneyProvisions({
     config,
@@ -272,7 +235,6 @@ const EnhancedTravelSystem = () => {
     fatigueChanges, setFatigueChanges,
     fatigueSaveLog, setFatigueSaveLog,
     forcedMarchActive, setForcedMarchActive,
-    addCdModifier,
     applyForcedMarchExtraConsumption,
     applyForcedMarchSaves,
     resetFatigueSystem,
@@ -285,14 +247,9 @@ const EnhancedTravelSystem = () => {
     journeyId: journeyIdForFatigue,
   });
   
-  // Refs to access latest state inside the async automation loop (avoid stale closures)
-  const currentPositionRef = useRef(currentPosition);
-  const currentEventRef = useRef(currentEvent);
-  const charactersRef = useRef(characters);
+  // Ref usado por el bucle automático (`useJourneyAutomation`) para saber si
+  // el componente ya estaba en modo `global` antes de iniciarse.
   const modeRef = useRef('config');
-  useEffect(() => { currentPositionRef.current = currentPosition; }, [currentPosition]);
-  useEffect(() => { currentEventRef.current = currentEvent; }, [currentEvent]);
-  useEffect(() => { charactersRef.current = characters; }, [characters]);
   // Sync mode to ref so async automation loop can see immediate changes
   useEffect(() => { modeRef.current = mode; }, [mode]);
   // Mantiene sincronizado el id de viaje que necesita el hook de fatiga
@@ -304,14 +261,10 @@ const EnhancedTravelSystem = () => {
   useEffect(() => {
     const loadData = async () => {
       try {
-        const [locRes, charRes, mountRes, rulesRes, landsRes, terrainsRes, foodWaterRes, eventsRes] = await Promise.all([
+        const [locRes, charRes, rulesRes, eventsRes] = await Promise.all([
           api.get('/data/locations'),
           api.get('/characters/'),
-          api.get('/data/monturas'),
           api.get('/travel/config/rules'),
-          api.get('/travel/config/land-types'),
-          api.get('/travel/config/terrains'),
-          api.get('/data/equipment-catalog/food-items'),
           api.get('/travel/config/events')
         ]);
         
@@ -332,11 +285,7 @@ const EnhancedTravelSystem = () => {
         setLocationsByRegion(byRegion);
         
         setCharacters(charRes.data?.characters || []);
-        setMonturas(mountRes.data || []);
         setTravelRules(rulesRes.data?.rules || {});
-        setLandTypes(landsRes.data?.land_types || []);
-        setTerrainTypes(terrainsRes.data?.terrains || []);
-        setFoodWaterItems(foodWaterRes.data || { food_items: [], water_items: [] });
         setTravelEvents(eventsRes.data?.events || []);
       } catch (err) {
         console.error('Error loading data:', err);
@@ -1170,19 +1119,6 @@ const EnhancedTravelSystem = () => {
     return results;
   }, [config.miembros, characters, provisionFatigue]);
   
-  // Check if near a water source to refill
-  const checkWaterRefill = useCallback((positionInTiles) => {
-    // Check refuges near current position for water refill
-    const refugiosEnRuta = journeyCalc?.ruta?.refugios_en_ruta || [];
-    const nearbyRefuge = refugiosEnRuta.find(r => Math.abs(r.casilla - positionInTiles) <= 1);
-    
-    if (nearbyRefuge) {
-      refillWaterNearTown(nearbyRefuge.nombre);
-      return true;
-    }
-    return false;
-  }, [journeyCalc?.ruta?.refugios_en_ruta, refillWaterNearTown]);
-
   // After resolving an event, continue with next orientation check
   const continueAfterEvent = async (updatedEvents = null) => {
     // Update current position to event position

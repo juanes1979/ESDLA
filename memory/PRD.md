@@ -926,8 +926,13 @@ Decisiones acordadas (`/app/memory/CAMPAIGN_ARCHITECTURE.md`):
 - Extraído `/app/frontend/src/hooks/useJourneyAutomation.js` (550 líneas):
   `automateJourney`, `advanceDay`, `generateDayEvent`, `finishDayByDayJourney`,
   `calculateFatigueResults`.
-- `EnhancedTravelSystem.jsx`: **2919 → 2187 líneas** (−732 adicionales).
-- Total acumulado oleadas 5+6: **3221 → 2187** (−1034 líneas, **−32.1%**).
+- Limpieza de código muerto: 23+ imports UI sin usar, 8 imports `components/travel`
+  ahora cubiertos por las views, 9 constantes/helpers huérfanos,
+  3 refs (`currentPositionRef/currentEventRef/charactersRef`) y 4 useState
+  (`monturas/landTypes/terrainTypes/foodWaterItems`) que sólo escribían en vacío,
+  4 llamadas API innecesarias en `loadData`, helper `checkWaterRefill` huérfano.
+- `EnhancedTravelSystem.jsx`: **2919 → 2123 líneas** (−796 adicionales).
+- Total acumulado oleadas 5+6: **3221 → 2123** (−1098 líneas, **−34.1%**).
 - Verificación: lint limpio, smoke `/travel` renderiza ConfigView OK,
   pytest `test_mount_promotion_it77.py` 3/3 PASS.
 
