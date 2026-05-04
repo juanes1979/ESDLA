@@ -835,6 +835,21 @@ async def finalize_character(draft_id: str):
     await db.characters.insert_one(character)
     await db.character_drafts.delete_one({"_id": draft_id})
     
+    # Genera el código público único una vez creado y persistido el personaje
+    # (`finalize_character` ya dejaba el documento en BD pero no asignaba este
+    # identificador, por lo que las fichas más recientes aparecían sin él).
+    try:
+        codigo = await generate_codigo_publico(character)
+        await db.characters.update_one(
+            {"_id": character["_id"]},
+            {"$set": {"codigo_publico": codigo, "updated_at": now_utc()}},
+        )
+        character["codigo_publico"] = codigo
+    except Exception as exc:
+        # No bloquear la finalización si el cálculo del código falla; se
+        # podrá rellenar después con /character/{id}/codigo o la migración.
+        print(f"[finalize_character] Aviso: no se pudo asignar código público: {exc}")
+    
     return serialize_doc(character)
 
 

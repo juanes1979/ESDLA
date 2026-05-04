@@ -1,0 +1,597 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<title>Vista previa — Equipamiento estilo Lord of the Rings</title>
+<style>
+  :root {
+    --parchment: #f4e9cf;
+    --parchment-dark: #e6d4a8;
+    --ink: #2b1d12;
+    --ink-soft: #5a4332;
+    --gold: #c9a44c;
+    --gold-soft: #b08a3a;
+    --green: #3a6b3a;
+    --green-soft: #5e8a4f;
+    --red: #8b2e2e;
+    --amber: #b88324;
+    --shadow: 0 4px 14px rgba(43, 29, 18, 0.18);
+  }
+  body {
+    margin: 0;
+    background:
+      radial-gradient(ellipse at top, #f7eed1 0%, #e2cfa3 60%, #c9b07b 100%);
+    font-family: 'Cinzel', 'Trajan Pro', 'Georgia', serif;
+    color: var(--ink);
+    min-height: 100vh;
+    padding: 40px 20px;
+  }
+  .frame {
+    max-width: 1300px;
+    margin: 0 auto;
+    background: var(--parchment);
+    border: 2px solid var(--gold-soft);
+    border-radius: 6px;
+    box-shadow: var(--shadow), inset 0 0 60px rgba(176, 138, 58, 0.08);
+    padding: 32px;
+    position: relative;
+  }
+  .frame::before, .frame::after {
+    content: '❦';
+    position: absolute;
+    color: var(--gold-soft);
+    font-size: 24px;
+    line-height: 1;
+  }
+  .frame::before { top: 8px; left: 14px; }
+  .frame::after { bottom: 8px; right: 14px; }
+
+  h1 {
+    text-align: center;
+    margin: 0 0 6px;
+    font-size: 28px;
+    letter-spacing: 4px;
+    color: var(--ink);
+    text-transform: uppercase;
+  }
+  h1::after {
+    content: '';
+    display: block;
+    width: 120px;
+    height: 1px;
+    background: linear-gradient(to right, transparent, var(--gold), transparent);
+    margin: 10px auto 0;
+  }
+  .subtitle {
+    text-align: center;
+    color: var(--ink-soft);
+    font-style: italic;
+    font-size: 13px;
+    margin-bottom: 24px;
+  }
+
+  .mount-banner {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: linear-gradient(90deg, rgba(201, 164, 76, 0.15), transparent 60%);
+    border-left: 3px solid var(--gold);
+    padding: 10px 14px;
+    border-radius: 4px;
+    margin-bottom: 20px;
+    font-size: 14px;
+  }
+  .mount-banner .label {
+    font-weight: 700;
+    color: var(--ink);
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    font-size: 11px;
+  }
+  .mount-banner .name {
+    color: var(--ink);
+    font-size: 15px;
+  }
+
+  /* Grid columns */
+  .columns {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 18px;
+  }
+  .column {
+    background: rgba(255, 250, 230, 0.55);
+    border: 1px solid var(--gold-soft);
+    border-radius: 8px;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    min-height: 480px;
+  }
+
+  /* Column header */
+  .col-header {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    margin-bottom: 14px;
+    position: relative;
+  }
+  .icon-disc {
+    width: 88px;
+    height: 88px;
+    border-radius: 50%;
+    overflow: hidden;
+    border: 3px solid var(--gold-soft);
+    box-shadow: 0 0 0 4px var(--parchment),
+                0 0 0 5px var(--gold-soft),
+                0 4px 10px rgba(43, 29, 18, 0.3);
+    background: var(--parchment);
+    position: relative;
+  }
+  .icon-disc img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+
+  /* Mount load ring overlay */
+  .load-ring {
+    position: absolute;
+    top: -6px; left: -6px;
+    width: 100px; height: 100px;
+    pointer-events: none;
+  }
+  .load-ring svg { transform: rotate(-90deg); }
+  .load-ring .track  { stroke: rgba(176, 138, 58, 0.25); fill: none; stroke-width: 5; }
+  .load-ring .progress {
+    fill: none; stroke-width: 5; stroke-linecap: round;
+    stroke-dasharray: 295;
+    transition: stroke-dashoffset .4s ease;
+  }
+  .load-ring .progress.green  { stroke: var(--green-soft); }
+  .load-ring .progress.amber  { stroke: var(--amber); }
+  .load-ring .progress.red    { stroke: var(--red); }
+
+  .col-title {
+    margin-top: 12px;
+    font-size: 14px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--ink);
+    font-weight: 700;
+  }
+  .col-meta {
+    font-size: 11px;
+    color: var(--ink-soft);
+    font-style: italic;
+    margin-top: 2px;
+  }
+  .col-load {
+    margin-top: 6px;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 1px;
+  }
+  .col-load.green { color: var(--green); }
+  .col-load.amber { color: var(--amber); }
+  .col-load.red   { color: var(--red); }
+
+  /* Active mount badge */
+  .active-mount-badge {
+    position: absolute;
+    top: -10px; right: 8px;
+    background: var(--gold);
+    color: var(--ink);
+    font-size: 10px;
+    letter-spacing: 1px;
+    padding: 2px 8px;
+    border-radius: 10px;
+    text-transform: uppercase;
+    box-shadow: 0 2px 4px rgba(0,0,0,.2);
+    font-weight: 700;
+  }
+
+  /* Items */
+  .item-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    list-style: none;
+    padding: 0;
+    margin: 8px 0 0;
+    flex: 1;
+  }
+  .item {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 10px;
+    border-radius: 4px;
+    background: rgba(244, 233, 207, 0.6);
+    border: 1px solid rgba(176, 138, 58, 0.35);
+    font-size: 13px;
+    transition: all .15s ease;
+    cursor: pointer;
+  }
+  .item:hover {
+    background: rgba(244, 233, 207, 0.95);
+    border-color: var(--gold-soft);
+  }
+  .item .name {
+    color: var(--ink);
+    font-weight: 600;
+  }
+  .item .meta {
+    font-size: 11px;
+    color: var(--ink-soft);
+    font-style: italic;
+  }
+  .item .weight {
+    font-size: 11px;
+    color: var(--ink-soft);
+  }
+  .item .checkmark {
+    width: 18px; height: 18px;
+    border-radius: 50%;
+    border: 2px solid var(--gold-soft);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--parchment);
+    transition: all .15s ease;
+  }
+  .item.checked {
+    background: linear-gradient(90deg, rgba(201, 164, 76, 0.18), rgba(201, 164, 76, 0.05));
+    border-color: var(--gold);
+    box-shadow: inset 0 0 0 1px rgba(201, 164, 76, 0.4);
+  }
+  .item.checked .checkmark {
+    background: var(--green);
+    border-color: var(--green-soft);
+  }
+  .item.checked .checkmark::after {
+    content: '✓';
+    color: #fff;
+    font-size: 12px;
+    font-weight: 700;
+  }
+
+  .empty-slot {
+    text-align: center;
+    color: var(--ink-soft);
+    font-style: italic;
+    font-size: 12px;
+    padding: 20px 8px;
+    border: 1px dashed rgba(176, 138, 58, 0.45);
+    border-radius: 4px;
+    background: rgba(244, 233, 207, 0.3);
+  }
+
+  /* Item-row alternative: how each piece of equipment shows its row across columns */
+  .equipment-table {
+    margin-top: 28px;
+    background: rgba(255, 250, 230, 0.55);
+    border: 1px solid var(--gold-soft);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+  .table-header {
+    display: grid;
+    grid-template-columns: 2.2fr repeat(4, 1fr);
+    background: linear-gradient(180deg, rgba(201, 164, 76, 0.18), rgba(201, 164, 76, 0.05));
+    padding: 10px 14px;
+    font-size: 11px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--ink);
+    font-weight: 700;
+    border-bottom: 1px solid var(--gold-soft);
+  }
+  .table-row {
+    display: grid;
+    grid-template-columns: 2.2fr repeat(4, 1fr);
+    padding: 10px 14px;
+    align-items: center;
+    border-bottom: 1px solid rgba(176, 138, 58, 0.2);
+    font-size: 13px;
+  }
+  .table-row:last-child { border-bottom: none; }
+  .table-row:hover { background: rgba(244, 233, 207, 0.4); }
+  .table-row .item-name { color: var(--ink); font-weight: 600; }
+  .table-row .item-name small { display:block; font-weight: 400; color: var(--ink-soft); font-size: 11px; font-style: italic; }
+  .radio {
+    width: 22px; height: 22px;
+    border-radius: 50%;
+    border: 2px solid rgba(176, 138, 58, 0.5);
+    background: var(--parchment);
+    margin: 0 auto;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: all .15s;
+  }
+  .radio:hover { border-color: var(--gold); background: rgba(201, 164, 76, 0.1); }
+  .radio.active {
+    background: var(--green);
+    border-color: var(--green-soft);
+    box-shadow: 0 0 8px rgba(58, 107, 58, 0.4);
+  }
+  .radio.active::after {
+    content: '';
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--parchment);
+  }
+  .radio.disabled {
+    background: rgba(176, 138, 58, 0.1);
+    border-color: rgba(176, 138, 58, 0.2);
+    cursor: not-allowed;
+  }
+  .radio.disabled::after { content: '✗'; color: rgba(176, 138, 58, 0.4); font-size: 12px; }
+
+  .layout-label {
+    text-align: center;
+    margin: 28px 0 12px;
+    color: var(--ink);
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 4px;
+    font-weight: 700;
+    position: relative;
+  }
+  .layout-label::before, .layout-label::after {
+    content: '';
+    display: inline-block;
+    width: 60px; height: 1px;
+    background: var(--gold-soft);
+    vertical-align: middle;
+    margin: 0 14px;
+  }
+</style>
+</head>
+<body>
+<div class="frame">
+  <h1>Gestor de Equipamiento</h1>
+  <p class="subtitle">— Vista de Distribución de Carga —</p>
+
+  <!-- Banner: en qué montura se monta -->
+  <div class="mount-banner">
+    <span class="label">Cabalga sobre:</span>
+    <span class="name">🐎 <strong>Asfaloth</strong> · Su carga total cuenta el peso del jinete y su equipo personal.</span>
+  </div>
+
+  <!-- LAYOUT A: Columnas con cards e items dentro -->
+  <div class="layout-label">A · Columnas independientes</div>
+  <div class="columns">
+
+    <!-- COLUMNA 1: Activo/Equipado -->
+    <div class="column">
+      <div class="col-header">
+        <div class="icon-disc">
+          <img src="/static/equipment/icon-personaje.png" alt="Personaje" onerror="this.src='/equipment-preview-icons/personaje.png'"/>
+        </div>
+        <div class="col-title">Equipado</div>
+        <div class="col-meta">Lo que llevo puesto / blandido</div>
+      </div>
+      <ul class="item-list">
+        <li class="item checked">
+          <div>
+            <div class="name">Túnica de viaje</div>
+            <div class="meta">cuerpo · activa</div>
+          </div>
+          <div class="checkmark"></div>
+        </li>
+        <li class="item checked">
+          <div>
+            <div class="name">Capa élfica</div>
+            <div class="meta">hombros · activa</div>
+          </div>
+          <div class="checkmark"></div>
+        </li>
+        <li class="item checked">
+          <div>
+            <div class="name">Botas de cuero</div>
+            <div class="meta">pies · activas</div>
+          </div>
+          <div class="checkmark"></div>
+        </li>
+        <li class="item checked">
+          <div>
+            <div class="name">Espada larga</div>
+            <div class="meta">arma · blandida</div>
+          </div>
+          <div class="checkmark"></div>
+        </li>
+      </ul>
+    </div>
+
+    <!-- COLUMNA 2: Inventario personal -->
+    <div class="column">
+      <div class="col-header">
+        <div class="icon-disc">
+          <img src="/static/equipment/icon-mochila.png" alt="Inventario" onerror="this.src='/equipment-preview-icons/mochila.png'"/>
+        </div>
+        <div class="col-title">Mochila</div>
+        <div class="col-meta">Llevado por el personaje</div>
+        <div class="col-load green">8.2 / 35 kg</div>
+      </div>
+      <ul class="item-list">
+        <li class="item checked">
+          <div>
+            <div class="name">Arco corto</div>
+            <div class="meta">arma · guardada</div>
+          </div>
+          <div class="checkmark"></div>
+        </li>
+        <li class="item checked">
+          <div>
+            <div class="name">Carcaj con 20 flechas</div>
+            <div class="weight">1.5 kg</div>
+          </div>
+          <div class="checkmark"></div>
+        </li>
+        <li class="item checked">
+          <div>
+            <div class="name">Raciones (3)</div>
+            <div class="weight">1.5 kg</div>
+          </div>
+          <div class="checkmark"></div>
+        </li>
+        <li class="item checked">
+          <div>
+            <div class="name">Odre de agua</div>
+            <div class="weight">5 kg</div>
+          </div>
+          <div class="checkmark"></div>
+        </li>
+      </ul>
+    </div>
+
+    <!-- COLUMNA 3: Montura 1 (activa) -->
+    <div class="column">
+      <div class="col-header">
+        <div class="active-mount-badge">Montado</div>
+        <div class="icon-disc" style="position:relative;">
+          <svg class="load-ring" viewBox="0 0 100 100">
+            <circle class="track" cx="50" cy="50" r="47"/>
+            <circle class="progress green" cx="50" cy="50" r="47" stroke-dashoffset="100"/>
+          </svg>
+          <img src="/static/equipment/icon-caballo.png" alt="Asfaloth" onerror="this.src='/equipment-preview-icons/caballo.png'"/>
+        </div>
+        <div class="col-title">Asfaloth</div>
+        <div class="col-meta">Caballo de los Bosques</div>
+        <div class="col-load green">66 / 100 kg · 66%</div>
+      </div>
+      <ul class="item-list">
+        <li class="item checked">
+          <div>
+            <div class="name">Silla de montar</div>
+            <div class="weight">12 kg</div>
+          </div>
+          <div class="checkmark"></div>
+        </li>
+        <li class="item checked">
+          <div>
+            <div class="name">Alforjas</div>
+            <div class="weight">5 kg</div>
+          </div>
+          <div class="checkmark"></div>
+        </li>
+        <li class="item checked">
+          <div>
+            <div class="name">Manta y enseres de campamento</div>
+            <div class="weight">8 kg</div>
+          </div>
+          <div class="checkmark"></div>
+        </li>
+        <li class="empty-slot">+ jinete (21 kg) + equipo (8.2 kg)</li>
+      </ul>
+    </div>
+
+    <!-- COLUMNA 4: Montura 2 (de carga) -->
+    <div class="column">
+      <div class="col-header">
+        <div class="icon-disc" style="position:relative;">
+          <svg class="load-ring" viewBox="0 0 100 100">
+            <circle class="track" cx="50" cy="50" r="47"/>
+            <circle class="progress amber" cx="50" cy="50" r="47" stroke-dashoffset="62"/>
+          </svg>
+          <img src="/static/equipment/icon-caballo.png" alt="Bill" onerror="this.src='/equipment-preview-icons/caballo.png'"/>
+        </div>
+        <div class="col-title">Bill</div>
+        <div class="col-meta">Pony de carga</div>
+        <div class="col-load amber">79 / 100 kg · 79%</div>
+      </div>
+      <ul class="item-list">
+        <li class="item checked">
+          <div>
+            <div class="name">Tienda de campaña</div>
+            <div class="weight">25 kg</div>
+          </div>
+          <div class="checkmark"></div>
+        </li>
+        <li class="item checked">
+          <div>
+            <div class="name">Provisiones (15 raciones)</div>
+            <div class="weight">7.5 kg</div>
+          </div>
+          <div class="checkmark"></div>
+        </li>
+        <li class="item checked">
+          <div>
+            <div class="name">Cuerda y herramientas</div>
+            <div class="weight">12 kg</div>
+          </div>
+          <div class="checkmark"></div>
+        </li>
+        <li class="item checked">
+          <div>
+            <div class="name">Armadura de repuesto</div>
+            <div class="weight">22 kg</div>
+          </div>
+          <div class="checkmark"></div>
+        </li>
+        <li class="item checked">
+          <div>
+            <div class="name">Cofre con monedas</div>
+            <div class="weight">12.5 kg</div>
+          </div>
+          <div class="checkmark"></div>
+        </li>
+      </ul>
+    </div>
+
+  </div>
+
+  <!-- LAYOUT B: tabla con radios — para que el usuario vea la otra opción -->
+  <div class="layout-label">B · Tabla de portadores (radio por fila)</div>
+  <div class="equipment-table">
+    <div class="table-header">
+      <div>Objeto</div>
+      <div style="text-align:center">Equipado</div>
+      <div style="text-align:center">Mochila</div>
+      <div style="text-align:center">Asfaloth</div>
+      <div style="text-align:center">Bill</div>
+    </div>
+    <div class="table-row">
+      <div class="item-name">Capa élfica<small>1.2 kg</small></div>
+      <div><div class="radio active"></div></div>
+      <div><div class="radio"></div></div>
+      <div><div class="radio"></div></div>
+      <div><div class="radio"></div></div>
+    </div>
+    <div class="table-row">
+      <div class="item-name">Arco corto<small>1.0 kg</small></div>
+      <div><div class="radio"></div></div>
+      <div><div class="radio active"></div></div>
+      <div><div class="radio"></div></div>
+      <div><div class="radio"></div></div>
+    </div>
+    <div class="table-row">
+      <div class="item-name">Tienda de campaña<small>25 kg</small></div>
+      <div><div class="radio disabled"></div></div>
+      <div><div class="radio"></div></div>
+      <div><div class="radio"></div></div>
+      <div><div class="radio active"></div></div>
+    </div>
+    <div class="table-row">
+      <div class="item-name">Cofre con monedas<small>12.5 kg</small></div>
+      <div><div class="radio disabled"></div></div>
+      <div><div class="radio"></div></div>
+      <div><div class="radio"></div></div>
+      <div><div class="radio active"></div></div>
+    </div>
+  </div>
+
+  <p class="subtitle" style="margin-top:24px">
+    Cada montura muestra anillo de carga: <span style="color:var(--green);font-weight:700">verde &lt;70%</span> · 
+    <span style="color:var(--amber);font-weight:700">ámbar 70–95%</span> · 
+    <span style="color:var(--red);font-weight:700">rojo &gt;95%</span>. 
+    Si al añadir un ítem se sobrepasaría la capacidad → mensaje "Esta montura no puede cargar más peso." y la asignación se rechaza.
+  </p>
+</div>
+</body>
+</html>

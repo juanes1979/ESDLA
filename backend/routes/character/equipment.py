@@ -364,55 +364,109 @@ async def remove_equipment_from_character(
     item_category: str = Query(...),
     cantidad: int = Query(default=1)
 ):
-    """Remove equipment from a character's inventory"""
+    """Remove equipment from a character's inventory or any carrier source.
+    
+    Searches across all storage locations: inventario, equipo, equipo_ocupacion,
+    equipo_nivel_vida, equipo_trasfondo, armas, armadura, escudos, monturas y el
+    sub-equipo de cada montura (`monturas[i].equipo`). Esto soluciona el bug por
+    el que "Tirar al camino" no eliminaba ítems alojados en una montura.
+    """
     character = await db.characters.find_one({"_id": character_id})
     if not character:
         raise HTTPException(status_code=404, detail="Character not found")
     
     update = {"updated_at": now_utc()}
     removed = False
+    target = item_name.lower().strip()
+    
+    def _name_of(it):
+        if isinstance(it, dict):
+            return (it.get("nombre") or "").lower().strip()
+        return str(it or "").lower().strip()
     
     if item_category == "monturas":
-        # Remove mount
-        if character.get("montura", {}).get("nombre", "").lower() == item_name.lower():
+        # Eliminar montura: buscar primero en monturas[] (campo nuevo) y luego
+        # en el legacy `montura`.
+        monturas_list = list(character.get("monturas") or [])
+        idx = next(
+            (i for i, m in enumerate(monturas_list)
+             if (m.get("nombre_original") or m.get("nombre") or "").lower().strip() == target
+                or (m.get("nombre_personalizado") or "").lower().strip() == target),
+            None,
+        )
+        if idx is not None:
+            monturas_list.pop(idx)
+            update["monturas"] = monturas_list
+            removed = True
+        elif _name_of(character.get("montura") or {}) == target:
             update["montura"] = {}
             removed = True
     elif "armas" in item_category:
-        armas = character.get("armas", [])
+        armas = list(character.get("armas") or [])
         for i, arma in enumerate(armas):
-            nombre = arma.get("nombre") if isinstance(arma, dict) else arma
-            if nombre and nombre.lower() == item_name.lower():
+            if _name_of(arma) == target:
                 armas.pop(i)
                 removed = True
                 break
         update["armas"] = armas
     elif "armaduras" in item_category:
         armadura = character.get("armadura", {})
-        if isinstance(armadura, dict) and armadura.get("nombre", "").lower() == item_name.lower():
+        if isinstance(armadura, dict) and _name_of(armadura) == target:
             update["armadura"] = {}
             removed = True
-    elif item_category == "escudos":
-        equipo = character.get("equipo", [])
-        for i, item in enumerate(equipo):
-            nombre = item.get("nombre") if isinstance(item, dict) else item
-            if nombre and nombre.lower() == item_name.lower():
-                equipo.pop(i)
-                removed = True
-                break
-        update["equipo"] = equipo
-    else:
-        inventario = character.get("inventario", [])
-        for i, item in enumerate(inventario):
-            nombre = item.get("nombre") if isinstance(item, dict) else item
-            if nombre and nombre.lower() == item_name.lower():
-                current_qty = item.get("cantidad", 1) if isinstance(item, dict) else 1
-                if current_qty <= cantidad:
-                    inventario.pop(i)
+    
+    # Si no se ha eliminado todavía, escanear TODAS las listas de carga
+    # posibles (incluido el sub-equipo de cada montura).
+    if not removed:
+        scan_keys = [
+            "inventario", "equipo", "equipo_ocupacion",
+            "equipo_nivel_vida", "equipo_trasfondo",
+        ]
+        for key in scan_keys:
+            lst = list(character.get(key) or [])
+            for i, item in enumerate(lst):
+                if _name_of(item) != target:
+                    continue
+                if isinstance(item, dict):
+                    current_qty = int(item.get("cantidad") or 1)
+                    if current_qty <= cantidad:
+                        lst.pop(i)
+                    else:
+                        item = dict(item)
+                        item["cantidad"] = current_qty - cantidad
+                        lst[i] = item
                 else:
-                    inventario[i]["cantidad"] = current_qty - cantidad
+                    lst.pop(i)
+                update[key] = lst
                 removed = True
                 break
-        update["inventario"] = inventario
+            if removed:
+                break
+        
+        # Si sigue sin encontrarse, recorrer las cargas de cada montura.
+        if not removed:
+            monturas_list = list(character.get("monturas") or [])
+            for m_idx, mount in enumerate(monturas_list):
+                mount_equipo = list(mount.get("equipo") or [])
+                for i, item in enumerate(mount_equipo):
+                    if _name_of(item) != target:
+                        continue
+                    if isinstance(item, dict):
+                        current_qty = int(item.get("cantidad") or 1)
+                        if current_qty <= cantidad:
+                            mount_equipo.pop(i)
+                        else:
+                            item = dict(item)
+                            item["cantidad"] = current_qty - cantidad
+                            mount_equipo[i] = item
+                    else:
+                        mount_equipo.pop(i)
+                    monturas_list[m_idx] = {**mount, "equipo": mount_equipo}
+                    update["monturas"] = monturas_list
+                    removed = True
+                    break
+                if removed:
+                    break
     
     if not removed:
         raise HTTPException(status_code=404, detail=f"Item '{item_name}' not found")
@@ -423,9 +477,13 @@ async def remove_equipment_from_character(
     )
     
     updated = await db.characters.find_one({"_id": character_id})
+    # Recalcular weight_summary y devolverlo en la misma respuesta para evitar
+    # un round-trip extra y la race condition del peso obsoleto en la UI.
+    weight_summary = await _compute_weight_summary(updated)
     return {
         "message": f"Eliminado: {item_name}",
-        "character": serialize_doc(updated)
+        "character": serialize_doc(updated),
+        "weight_summary": weight_summary,
     }
 
 
@@ -621,8 +679,10 @@ async def update_equipment_carrier(character_id: str, data: UpdateEquipmentCarry
     await db.characters.update_one({"_id": character_id}, {"$set": update})
 
     updated = await db.characters.find_one({"_id": character_id})
+    weight_summary = await _compute_weight_summary(updated)
     return {
         "character": serialize_doc(updated),
+        "weight_summary": weight_summary,
         "deactivated": deactivated,
         "item_name": item_name,
         "item_posicion": item_posicion,
@@ -690,23 +750,17 @@ async def toggle_equipment_active(character_id: str, data: ToggleActiveRequest):
     return {"character": serialize_doc(updated), "activa": bool(data.activa), "source": source}
 
 
-@router.get("/{character_id}/weight-summary")
-async def get_character_weight_summary(character_id: str):
+async def _compute_weight_summary(character: dict) -> dict:
+    """Computa el resumen de peso/capacidad del personaje + sus monturas.
+
+    Extraído del endpoint `GET /weight-summary` para que `equipment/remove` y
+    `equipment/carry` lo puedan invocar y devolver el peso recalculado en la
+    misma respuesta (evita la race condition que dejaba el peso obsoleto en la
+    UI tras mover/tirar un objeto).
     """
-    Calculate detailed weight summary for character including mount.
-    Returns:
-    - Total weight carried by character
-    - Total weight on mount
-    - Encumbrance status
-    - Mount's remaining capacity
-    """
-    character = await db.characters.find_one({"_id": character_id})
-    if not character:
-        raise HTTPException(status_code=404, detail="Character not found")
-    
     # Get equipment catalog for weights
     catalog = await db.equipment_catalog.find_one({"_id": "main"})
-    
+
     def get_weight(item_name: str, item_data: dict = None) -> float:
         if item_data and item_data.get("peso_kg"):
             return float(item_data.get("peso_kg", 0))
@@ -924,6 +978,15 @@ async def get_character_weight_summary(character_id: str):
         "monturas_detalle": monturas_detalle,
         "jinete_mount_id": jinete_mount_id,
     }
+
+
+@router.get("/{character_id}/weight-summary")
+async def get_character_weight_summary(character_id: str):
+    """Endpoint público que delega en `_compute_weight_summary`."""
+    character = await db.characters.find_one({"_id": character_id})
+    if not character:
+        raise HTTPException(status_code=404, detail="Character not found")
+    return await _compute_weight_summary(character)
 
 
 @router.patch("/{character_id}/mounted")

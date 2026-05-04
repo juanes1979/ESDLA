@@ -273,8 +273,14 @@ const EquipmentManagerModal = ({
       });
       
       const updatedChar = res.data.character;
+      // Aplicación atómica: peso recalculado viene en la misma respuesta para
+      // evitar la race condition que dejaba el peso obsoleto en pantalla.
       onCharacterUpdate(updatedChar);
-      await refreshWeight();
+      if (res.data.weight_summary) {
+        setWeightSummary(res.data.weight_summary);
+      } else {
+        await refreshWeight();
+      }
 
       // Warnings if the removed item was active and uncovered a body slot / left no active weapons
       if (metaBefore?.activa) {
@@ -312,8 +318,13 @@ const EquipmentManagerModal = ({
 
       const data = res.data || {};
       const updatedChar = data.character || data;
+      // Igual que en remove: aplicar peso atómicamente desde la misma respuesta.
       onCharacterUpdate(updatedChar);
-      await refreshWeight();
+      if (data.weight_summary) {
+        setWeightSummary(data.weight_summary);
+      } else {
+        await refreshWeight();
+      }
 
       // Contextual warnings when moving ACTIVE items to mount
       if (carriedBy === 'montura' && data.deactivated) {
