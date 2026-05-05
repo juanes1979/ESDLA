@@ -773,9 +773,14 @@ const EquipmentSection = ({
                     className="w-full h-10 px-2 bg-background border border-border rounded"
                   >
                     <option value="">Todas</option>
-                    {availableRegions.map(r => (
-                      <option key={r.id} value={r.nombre}>{r.nombre}</option>
-                    ))}
+                    {availableRegions.flatMap(r => [
+                      <option key={r.id} value={r.nombre}>{r.nombre}</option>,
+                      ...((r.subregions || []).map(s => (
+                        <option key={s.id} value={s.nombre}>
+                          {`\u00A0\u00A0└─ ${s.nombre}`}
+                        </option>
+                      ))),
+                    ])}
                   </select>
                 </div>
               </div>

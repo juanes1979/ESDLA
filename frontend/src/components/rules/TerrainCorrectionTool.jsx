@@ -39,6 +39,10 @@ const TerrainCorrectionTool = ({ isAdmin }) => {
   const [filterProblems, setFilterProblems] = useState(false);
   const [pendingChanges, setPendingChanges] = useState({});
   const [regions, setRegions] = useState([]);
+  // Hierarchical region options ordered by DFS over regions/flat tree.
+  // Each entry: { name, depth }. Names not present in the region tree
+  // are appended at the end as orphans (depth=0).
+  const [regionOptionsHier, setRegionOptionsHier] = useState([]);
 
   useEffect(() => {
     loadLocations();
@@ -47,14 +51,46 @@ const TerrainCorrectionTool = ({ isAdmin }) => {
   const loadLocations = async () => {
     try {
       setLoading(true);
-      const response = await api.get('/data/locations');
-      const data = response.data || {};
+      const [locRes, flatRes] = await Promise.all([
+        api.get('/data/locations'),
+        api.get('/data/regions/flat').catch(() => ({ data: { regions: [] } })),
+      ]);
+      const data = locRes.data || {};
       const locs = data.locations || [];
       setLocations(locs);
-      
-      // Extract unique regions
+
       const uniqueRegions = [...new Set(locs.map(l => l.region).filter(Boolean))].sort();
       setRegions(uniqueRegions);
+
+      // Build hierarchical list (DFS) from regions/flat, then append
+      // any orphan region names that exist on locations but not in tree.
+      const flatRegs = flatRes.data?.regions || [];
+      const byId = Object.fromEntries(flatRegs.map(r => [r.id, { ...r, children: [] }]));
+      const roots = [];
+      for (const n of Object.values(byId)) {
+        if (n.parent_id && byId[n.parent_id]) byId[n.parent_id].children.push(n);
+        else roots.push(n);
+      }
+      const sortRec = (arr) => {
+        arr.sort((a, b) => (a.orden || 0) - (b.orden || 0) || (a.nombre || '').localeCompare(b.nombre || ''));
+        arr.forEach(n => sortRec(n.children));
+      };
+      sortRec(roots);
+      const hier = [];
+      const treeNames = new Set();
+      const walk = (nodes, depth) => {
+        for (const n of nodes) {
+          hier.push({ name: n.nombre, depth });
+          treeNames.add(n.nombre);
+          if (n.children?.length) walk(n.children, depth + 1);
+        }
+      };
+      walk(roots, 0);
+      // Orphans (region appears on locations but not in tree)
+      uniqueRegions.forEach(rn => {
+        if (!treeNames.has(rn)) hier.push({ name: rn, depth: 0, orphan: true });
+      });
+      setRegionOptionsHier(hier);
     } catch (err) {
       console.error('Error loading locations:', err);
       toast.error('Error al cargar ubicaciones');
@@ -337,8 +373,10 @@ const TerrainCorrectionTool = ({ isAdmin }) => {
             className="bg-black/50 border border-gray-600 rounded-md px-3 py-2 text-sm text-white"
           >
             <option value="all">Todas las regiones</option>
-            {regions.map(r => (
-              <option key={r} value={r}>{r}</option>
+            {regionOptionsHier.map(r => (
+              <option key={`${r.name}-${r.depth}`} value={r.name}>
+                {`${'\u00A0\u00A0'.repeat(r.depth)}${r.depth > 0 ? '└─ ' : ''}${r.name}${r.orphan ? ' (huérfana)' : ''}`}
+              </option>
             ))}
           </select>
           
@@ -399,9 +437,13 @@ const TerrainCorrectionTool = ({ isAdmin }) => {
                 data-testid="bulk-region-select"
               >
                 <option value="">— Selecciona —</option>
-                {regions.map(r => {
-                  const count = locations.filter(l => l.region === r).length;
-                  return <option key={r} value={r}>{r} ({count})</option>;
+                {regionOptionsHier.map(r => {
+                  const count = locations.filter(l => l.region === r.name).length;
+                  return (
+                    <option key={`${r.name}-${r.depth}`} value={r.name}>
+                      {`${'\u00A0\u00A0'.repeat(r.depth)}${r.depth > 0 ? '└─ ' : ''}${r.name}${r.orphan ? ' (huérfana)' : ''} (${count})`}
+                    </option>
+                  );
                 })}
               </select>
             </div>

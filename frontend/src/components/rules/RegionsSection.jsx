@@ -108,12 +108,14 @@ const LocationRow = ({ loc, depth, isAdmin, regionOptions, onChangeRegion }) => 
           <select
             value={selVal}
             onChange={(e) => setSelVal(e.target.value)}
-            className="h-7 px-1 text-xs bg-background border border-border rounded max-w-[200px]"
+            className="h-7 px-1 text-xs bg-background border border-border rounded min-w-[260px] max-w-[360px]"
             data-testid={`location-region-select-${loc.id}`}
           >
             <option value="">Sin región</option>
             {regionOptions.map(r => (
-              <option key={r.id} value={r.nombre}>{r.nombre}</option>
+              <option key={r.id} value={r.nombre}>
+                {`${'\u00A0\u00A0'.repeat(r.depth || 0)}${(r.depth || 0) > 0 ? '└─ ' : ''}${r.nombre}`}
+              </option>
             ))}
           </select>
           <Button size="sm" onClick={save} disabled={busy} className="h-7 bg-emerald-600 hover:bg-emerald-700 text-xs">
@@ -507,10 +509,20 @@ const RegionsSection = ({ data, isAdmin = false, onRefresh }) => {
     setExpanded(e);
   };
 
-  const regionOptions = useMemo(
-    () => [...flatRegions].sort((a, b) => (a.nombre || '').localeCompare(b.nombre || '')),
-    [flatRegions]
-  );
+  const regionOptions = useMemo(() => {
+    // Flatten the tree as DFS to preserve hierarchy in dropdowns.
+    // Each entry includes `depth` so the option label can render with
+    // indentation (e.g. Eriador → ⤷ Angmar → ⤷ ⤷ Colinas de Angmar).
+    const out = [];
+    const walk = (nodes, depth) => {
+      for (const n of nodes) {
+        out.push({ id: n.id, nombre: n.nombre, depth });
+        if (n.children?.length) walk(n.children, depth + 1);
+      }
+    };
+    walk(tree, 0);
+    return out;
+  }, [tree]);
 
   // ============== RENDER ==============
   return (

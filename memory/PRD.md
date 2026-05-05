@@ -2,7 +2,19 @@
 
 ## Current State (2026-05-05)
 
-### ✅ Iteración 83-bis — Vista en árbol de Regiones + ubicaciones huérfanas (NUEVO)
+### ✅ Iteración 83-ter — Selectores de región con jerarquía visible (NUEVO)
+
+**🟢 Dropdowns de región muestran ahora el árbol con indentación**
+- Cada `<option>` lleva un prefijo `└─ ` y sangrado proporcional a su `depth` (DFS sobre el árbol de regiones), así el usuario ve de un vistazo `Eriador > Angmar > Colinas de Angmar` al elegir.
+- Aplicado a:
+  - `RegionsSection.jsx` — selector de región para reasignar una ubicación (el que el usuario marcó en rojo).
+  - `EquipmentSection.jsx` — filtro "Filtrar por Región" del PDF (top-level + subregiones con sangrado).
+  - `TerrainCorrectionTool.jsx` — filtro "Todas las regiones" + selector "Aplicar masivamente a una región". Las regiones que aparecen sólo en `locations` y no existen como nodo en el árbol se marcan con sufijo `(huérfana)` al final de la lista.
+- Lint frontend: 0 issues.
+
+---
+
+### ✅ Iteración 83-bis — Vista en árbol de Regiones + ubicaciones huérfanas
 
 **🟢 RegionsSection — nueva vista jerárquica recursiva**
 - El listado de regiones en `Reglas → Regiones` ahora se construye sobre `/api/data/regions/flat` y se renderiza como un árbol con profundidad arbitraria (componente `RegionNode` recursivo) en lugar del listado plano de 1 nivel anterior.
