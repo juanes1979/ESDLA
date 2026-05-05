@@ -1321,3 +1321,58 @@ ConfigView pasará a ser sólo un override puntual.
 ### Tests
 - `test_via_dominante_y_dunedain_it83b.py` (4/4 PASS).
 - Total acumulado iter83 + iter83b: **53/53 PASS**.
+
+## Iter83c — Jerarquía de Regiones (drag-and-drop) + bug Dúnedain
+
+### 1) Bug Dúnedain no sumaba 2 al iniciar el Ojo
+**Causa raíz**: `_calculate_initial` en `eye_routes.py` consultaba
+`db.characters.find({"id": {"$in": party_member_ids}})` pero los
+characters usan `_id` (string UUID), no `id` (siempre None). La query
+devolvía 0 resultados → desglose vacío → attention_total=0.
+
+**Fix**: `find({"_id": {"$in": party_member_ids}})`. Mithion Gildorion
+(Dúnedain, ID `1cb2834b...`) ahora suma correctamente +2.
+
+### 2) Sistema jerárquico de regiones con drag-and-drop
+Nueva colección `region_nodes` con árbol N-niveles. Cada nodo tiene
+sus propios `tipo_tierra`, `dificultad`, `clase_region` (NO se
+heredan automáticamente). Cascada manual respeta overrides.
+
+**Backend** (`/app/backend/routes/region_hierarchy_routes.py`):
+- `GET /api/regions/tree` → árbol completo + ubicaciones por nodo + huérfanas
+- `POST /api/regions/node` → crear región/subregión
+- `PATCH /api/regions/node/{id}` → renombrar / cambiar valores (activa
+  override)
+- `PATCH /api/regions/node/{id}/move` → reasignar parent (valida ciclos)
+- `DELETE /api/regions/node/{id}` → elimina (reasigna hijos al abuelo)
+- `POST /api/regions/node/{id}/cascade` → propaga `tipo_tierra` y
+  `dificultad` a TODOS los descendientes (nodos + ubicaciones) que
+  NO tengan `*_override=true`. Devuelve conteo aplicado/saltado.
+- `POST /api/regions/seed-from-locations` → crea automáticamente un
+  nodo por cada `region` única en locations. Idempotente.
+
+**Frontend** (`RegionHierarchyTree.jsx`):
+- `@dnd-kit/core` + `@dnd-kit/sortable` instalados.
+- Lista plana con depth-indent para representar el árbol; cada nodo
+  expandible (▶/▼). Drag-and-drop reasigna parent (drop en otro nodo
+  o en la zona "Raíz").
+- Edición inline de nombre, selectores rápidos de tipo_tierra y
+  dificultad, botones: cascadear ⬇, crear subregión +, renombrar ✏️,
+  eliminar 🗑.
+- Badges visuales: clase de tierra coloreada (verde/ámbar/naranja/rojo/
+  morado), badge "override" cuando el nodo tiene flag manual,
+  contador de ubicaciones y subregiones.
+- Integrado en `TerrainCorrectionTool.jsx` arriba del panel bulk.
+
+### Tests (`test_jerarquia_y_dunedain_it83c.py`) — 6/6 PASS
+- Init Eye con Dúnedain → 2 ✓
+- Crear nodo + subnodo
+- Validación unicidad de nombre (409)
+- Move no permite ciclos (400)
+- Cascade respeta overrides (sólo 1 hijo actualizado de 2)
+- Seed idempotente
+
+### Notas para Campañas
+Cuando exista Campaign, cada campaña podrá tener su propia jerarquía
+(añadir `campaign_id` al `region_node`) o compartirse globalmente —
+TBD por el cliente. Por ahora, una sola jerarquía global.

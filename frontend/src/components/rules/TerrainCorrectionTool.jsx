@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
 import api from '@/services/api';
+import RegionHierarchyTree from './RegionHierarchyTree';
 
 // Valid terrain difficulty values
 const TERRAIN_OPTIONS = [
@@ -378,6 +379,13 @@ const TerrainCorrectionTool = ({ isAdmin }) => {
           </Button>
         </div>
       </div>
+
+      {/* Region hierarchy tree (drag-and-drop) */}
+      {isAdmin && (
+        <div className="bg-black/30 border border-amber-500/30 rounded-lg p-4">
+          <RegionHierarchyTree />
+        </div>
+      )}
 
       {/* Bulk apply by region */}
       {isAdmin && (
