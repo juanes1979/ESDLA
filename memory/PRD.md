@@ -1463,3 +1463,47 @@ evitar errores accidentales por drag-and-drop.
 **Tests** (`test_pending_moves_it83e.py`) — 2/2 PASS:
 - batch de 3 moves consecutivos crea jerarquía A → B → C
 - move a raíz setea parent_id=null
+
+## Iter83f — Editor de jerarquía con toggle + datos unificados
+
+**Pedido del usuario**:
+1. La jerarquía sólo se debe activar si quiero cambiar algo (no
+   siempre visible).
+2. La información de las regiones debe aparecer en los DOS lados
+   (la lista existente y el editor) — misma fuente de datos.
+3. La lista existente ya muestra la jerarquía visualmente (24
+   sub-regiones bajo Eriador, 3 bajo Angmar, etc.) → conservada.
+
+**Cambios**:
+
+### Backend
+- Nuevo endpoint `PATCH /api/data/regions/{id}/move` (en
+  `data_routes.py`) que acepta `parent_id=null` para mover a raíz.
+  El PUT antiguo descartaba valores `None` y por tanto no permitía
+  desanidar.
+- Validación de ciclos al mover: el nuevo padre no puede ser
+  descendiente del nodo activo.
+
+### Frontend
+- `RegionHierarchyTree.jsx` reescrito para usar la colección EXISTENTE
+  `regions` (vía `/data/regions/flat`). Antes consumía
+  `region_nodes` (collection separada) → ambas vistas estaban
+  desincronizadas.
+- El editor solo gestiona MOVE (drag-and-drop). La edición de
+  tipo_terreno / clase_region / nombre / borrar sigue en la lista
+  existente.
+- `RegionsSection.jsx`: editor OCULTO por defecto. Botón
+  **"Editar jerarquía"** (icono Network) en la cabecera lo activa /
+  desactiva. Al guardar cambios, llama a `onRefresh` para que la
+  lista existente se actualice.
+- Cards finas con pin, nombre heading dorado, contador "(N sub)",
+  badges de dificultad (color amarillo→ámbar→rojo según severidad)
+  y tipo de tierra (verde→amarillo→naranja→rosa→rojo según clase).
+- Flujo "pendientes + Guardar/Descartar" preservado.
+
+### Tests (`test_regions_move_it83f.py`) — 5/5 PASS
+- Move a un padre / a raíz (parent_id=null) / evita ciclo
+- No puede ser padre de sí mismo / parent inexistente → 404
+
+**Resultado**: una sola fuente de datos (`regions`), dos vistas
+sincronizadas, editor activable bajo demanda.

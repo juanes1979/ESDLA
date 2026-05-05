@@ -2794,6 +2794,47 @@ async def update_region(region_id: str, region: RegionUpdate):
     return {"message": "Region updated successfully"}
 
 
+class RegionMoveRequest(BaseModel):
+    parent_id: Optional[str] = None  # null = mover a raíz (acepta explícitamente null)
+
+
+@router.patch("/regions/{region_id}/move")
+async def move_region(region_id: str, req: RegionMoveRequest):
+    """
+    Mueve una región dentro de la jerarquía. Acepta `parent_id=null`
+    para mover a raíz (a diferencia del PUT /regions/{id} que descarta
+    los valores None y por tanto no permite "desanidar").
+    Valida que no se cree un ciclo.
+    """
+    region = await db.regions.find_one({"_id": region_id})
+    if not region:
+        raise HTTPException(status_code=404, detail="Region not found")
+    if req.parent_id == region_id:
+        raise HTTPException(status_code=400, detail="Una región no puede ser su propio padre")
+    if req.parent_id:
+        parent = await db.regions.find_one({"_id": req.parent_id})
+        if not parent:
+            raise HTTPException(status_code=404, detail="Parent region not found")
+        # Validar ciclo: el nuevo padre no puede ser descendiente
+        all_regions = await db.regions.find({}, {"_id": 1, "parent_id": 1}).to_list(2000)
+        # construir set de descendientes del nodo
+        descendants = set()
+        stack = [region_id]
+        while stack:
+            cur = stack.pop()
+            for r in all_regions:
+                if r.get("parent_id") == cur:
+                    descendants.add(r["_id"])
+                    stack.append(r["_id"])
+        if req.parent_id in descendants:
+            raise HTTPException(status_code=400, detail="Movimiento crearía un ciclo")
+    await db.regions.update_one(
+        {"_id": region_id},
+        {"$set": {"parent_id": req.parent_id, "updated_at": now_utc()}},
+    )
+    return {"message": "Region moved", "id": region_id, "parent_id": req.parent_id}
+
+
 @router.delete("/regions/{region_id}")
 async def delete_region(region_id: str):
     """Delete a region. If it's a main region, also delete all its sub-regions"""

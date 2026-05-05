@@ -3,7 +3,7 @@
  * Manages regions and sub-regions for the map with terrain and danger class settings
  */
 import { useState } from 'react';
-import { MapPin, Plus, Edit, Trash2, Loader2, ChevronDown, ChevronUp } from 'lucide-react';
+import { MapPin, Plus, Edit, Trash2, Loader2, ChevronDown, ChevronUp, Network } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
@@ -46,6 +46,7 @@ const RegionsSection = ({
   const [isAddingSubregion, setIsAddingSubregion] = useState(false);
   const [loading, setLoading] = useState(false);
   const [expandedRegions, setExpandedRegions] = useState({});
+  const [showHierarchyEditor, setShowHierarchyEditor] = useState(false);
 
   // Toggle region expansion
   const toggleExpand = (regionId) => {
@@ -164,11 +165,13 @@ const RegionsSection = ({
 
   return (
     <div className="space-y-6" data-testid="regions-section">
-      {/* Hierarchy tree (drag-and-drop) — la mejor vista para entender
-          relaciones padre-hijo entre regiones */}
-      {isAdmin && (
-        <div className="card-parchment rounded-lg p-4 border border-amber-500/30">
-          <RegionHierarchyTree />
+      {/* Hierarchy editor — sólo se activa al pulsar "Editar jerarquía" */}
+      {isAdmin && showHierarchyEditor && (
+        <div className="card-parchment rounded-lg p-4 border border-amber-500/40">
+          <RegionHierarchyTree
+            onClose={() => setShowHierarchyEditor(false)}
+            onSaved={() => { onRefresh && onRefresh(); }}
+          />
         </div>
       )}
 
@@ -185,7 +188,7 @@ const RegionsSection = ({
         </div>
         
         {isAdmin && (
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap">
             {regions.length === 0 && (
               <Button
                 variant="outline"
@@ -198,6 +201,16 @@ const RegionsSection = ({
                 Cargar Regiones Iniciales
               </Button>
             )}
+            <Button
+              variant={showHierarchyEditor ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setShowHierarchyEditor(v => !v)}
+              className={showHierarchyEditor ? 'bg-amber-600 hover:bg-amber-500 text-black' : ''}
+              data-testid="toggle-hierarchy-editor-btn"
+            >
+              <Network className="w-4 h-4 mr-1" />
+              {showHierarchyEditor ? 'Ocultar editor de jerarquía' : 'Editar jerarquía'}
+            </Button>
             <Button
               variant="default"
               size="sm"
