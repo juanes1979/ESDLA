@@ -23,8 +23,8 @@ const LocationInfoPanel = ({
   const loc = location;
 
   return (
-    <Card className="absolute top-4 right-4 w-80 card-parchment z-20" data-testid="location-info-panel">
-      <CardHeader className="pb-2">
+    <Card className="absolute top-4 right-4 w-80 card-parchment z-20 max-h-[calc(100vh-2rem)] flex flex-col" data-testid="location-info-panel">
+      <CardHeader className="pb-2 shrink-0">
         <div className="flex justify-between items-start">
           <div>
             <CardTitle className="text-lg text-[hsl(var(--gold))]">
@@ -43,8 +43,15 @@ const LocationInfoPanel = ({
           </Button>
         </div>
       </CardHeader>
-      <CardContent className="space-y-3">
-        <p className="text-sm">{loc.descripcion}</p>
+      <CardContent className="space-y-3 overflow-y-auto">
+        {/* Description ventana de máx ~20 líneas con scroll vertical
+            propio. Se evita que descripciones largas (p. ej. Tunum)
+            empujen los badges fuera del panel. */}
+        {loc.descripcion && (
+          <div className="text-sm whitespace-pre-wrap max-h-[26rem] overflow-y-auto pr-2 border-l-2 border-amber-700/30 pl-3">
+            {loc.descripcion}
+          </div>
+        )}
         
         <div className="flex flex-wrap gap-2">
           <Badge variant="outline">{loc.region}</Badge>

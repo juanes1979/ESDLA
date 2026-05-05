@@ -30,7 +30,7 @@ const RULE_CATEGORIES = [
   { id: 'occupations', name: 'Ocupaciones', icon: Swords, color: 'magic-blue', description: 'Las vocaciones heroicas' },
   { id: 'virtues', name: 'Virtudes', icon: Sparkles, color: 'torch-orange', description: 'Dones especiales por cultura' },
   { id: 'character_creation', name: 'Lógica de Creación', icon: User, color: 'gold', description: 'Dinero y equipo inicial por nivel de vida y ocupación' },
-  { id: 'terrain_correction', name: 'Terrenos', icon: MapPin, color: 'magic-blue', description: 'Corregir datos de terreno de ubicaciones' },
+  { id: 'terrain_correction', name: 'Terrenos y Ubicaciones', icon: MapPin, color: 'magic-blue', description: 'Corregir datos de terreno de ubicaciones' },
   { id: 'equipment', name: 'Precios de Equipo', icon: Package, color: 'gold', description: 'Lista completa con precios y pesos' },
   { id: 'trading_system', name: 'Compra-Venta', icon: Coins, color: 'torch-orange', description: 'Sistema dinámico de negociación con PNJs' },
   { id: 'price_modifiers', name: 'Modificadores de Precio', icon: Coins, color: 'torch-orange', description: 'Ajustes de precio por región, asentamiento y contexto' },

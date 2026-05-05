@@ -2,7 +2,21 @@
 
 ## Current State (2026-05-05)
 
-### ✅ Iteración 83-sextus — Drag & Drop de ubicaciones entre regiones (NUEVO)
+### ✅ Iteración 83-septimus — UI: ajuste panel info ubicación + rename sección (NUEVO)
+
+**🟢 Ajuste visual del panel de info de ubicación (`LocationInfoPanel.jsx`)**
+- Antes: descripciones largas (p. ej. Tunum) hacían crecer el panel hasta empujar fuera del viewport los badges de región / dificultad / clase / peligro y los botones Editar/Eliminar.
+- Ahora:
+  - El `Card` del panel limita su alto a `calc(100vh - 2rem)` y se vuelve flex columna; el `CardContent` tiene `overflow-y-auto` como salvaguarda.
+  - La descripción se renderiza en un contenedor dedicado con `max-h-[26rem]` (≈ 20 líneas) y scroll vertical propio + borde izquierdo ámbar para separarla. `whitespace-pre-wrap` para preservar saltos de línea originales.
+  - Verificado: con la descripción larga de Tunum, el resto de info (Páramos de las tierras brunas, Difícil, tierras salvajes, Peligro: medio, Coordenadas, botones Origen/Destino y Editar/Eliminar) queda totalmente visible.
+
+**🟢 Renombre de sección de Reglas**
+- `Reglas → Terrenos` ahora se llama **`Terrenos y Ubicaciones`** (más representativo del scope: corregir terreno + región/dificultad de las ubicaciones).
+
+---
+
+### ✅ Iteración 83-sextus — Drag & Drop de ubicaciones entre regiones
 
 **🟢 Modo arrastrar ubicaciones en `RegionsSection`**
 - Nuevo botón **"Arrastrar ubicaciones"** en la cabecera (sólo admin) que activa un modo `dnd-kit` similar al editor de jerarquía de regiones.
