@@ -4,12 +4,15 @@
  */
 import { Button } from '@/components/ui/button';
 import { Trash2 } from 'lucide-react';
+import EyeAIPromptEditor from './EyeAIPromptEditor';
 
 const SombraSection = ({ data, isAdmin, onDeleteSenda }) => {
   if (!data) return <p className="text-muted-foreground">No hay datos de Sombra cargados</p>;
 
   return (
     <div className="space-y-6">
+      {/* Eye of Mordor — AI prompt editor (admin) */}
+      <EyeAIPromptEditor isAdmin={isAdmin} />
       {/* PAVOR */}
       <div className="card-parchment rounded-lg p-4">
         <h3 className="font-heading text-lg text-[hsl(var(--destructive))] mb-4 border-b border-[hsl(var(--destructive))/30] pb-2">

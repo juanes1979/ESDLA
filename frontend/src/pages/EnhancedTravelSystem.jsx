@@ -31,6 +31,7 @@ import useJourneyAutomation from '@/hooks/useJourneyAutomation';
 import useEventResolution from '@/hooks/useEventResolution';
 import useEyeOfMordor from '@/hooks/useEyeOfMordor';
 import EyeAttentionBar from '@/components/eye/EyeAttentionBar';
+import RevelationEpisodeModal from '@/components/eye/RevelationEpisodeModal';
 
 
 const EnhancedTravelSystem = () => {
@@ -42,6 +43,7 @@ const EnhancedTravelSystem = () => {
 
   // Eye of Mordor — Atención del Enemigo (Fase 1, sin LLM aún)
   const eye = useEyeOfMordor({ pollWhenActive: true });
+  const [revelationOpen, setRevelationOpen] = useState(false);
   
   // Data from API
   const [locations, setLocations] = useState([]);
@@ -1724,16 +1726,46 @@ const EnhancedTravelSystem = () => {
               const res = await eye.increment(payload);
               return res;
             }}
-            onTriggerEpisode={async () => {
-              const res = await eye.triggerEpisode();
-              toast(`🌑 Episodio de Revelación disparado. La Atención cae a ${res?.state?.attention_total ?? 0}.`, {
-                duration: 6000,
-              });
-              return res;
-            }}
+            onTriggerEpisode={() => setRevelationOpen(true)}
           />
         </div>
       )}
+
+      <RevelationEpisodeModal
+        open={revelationOpen}
+        onClose={() => setRevelationOpen(false)}
+        eyeState={eye.state}
+        journeyContext={{
+          location: journeyCalc?.ruta?.destino || journeyCalc?.ruta?.origen || null,
+          currentThreat: currentEvent?.evento?.nombre || null,
+          partyState: {
+            fatigue: (() => {
+              const promFat = (config?.miembros || [])
+                .map((m) => characters.find((c) => c.id === m.id)?.fatiga ?? 0)
+                .reduce((a, b) => a + b, 0) / Math.max(1, (config?.miembros || []).length);
+              return promFat > 6 ? 'Alta' : promFat > 3 ? 'Moderada' : 'Baja';
+            })(),
+            shadow: (() => {
+              const total = (config?.miembros || [])
+                .map((m) => characters.find((c) => c.id === m.id)?.puntos_sombra ?? 0)
+                .reduce((a, b) => a + b, 0);
+              return total > 8 ? 'Alta' : total > 3 ? 'Moderada' : 'Baja';
+            })(),
+            goal: `Viaje de ${journeyCalc?.ruta?.origen || ''} a ${journeyCalc?.ruta?.destino || ''}`,
+          },
+          recentActions: (events || []).slice(-5).map((ev) => (
+            ev.evento?.nombre || ev.detalle || ''
+          )).filter(Boolean),
+          enemyInfluence: (eye.state?.threshold_info?.region_type === 'oscura')
+            ? 'high'
+            : (eye.state?.threshold_info?.region_type === 'salvaje' ? 'medium' : 'low'),
+        }}
+        onApplied={async () => {
+          // Refresca el state del Ojo
+          await eye.refresh?.();
+        }}
+      />
+      
       
       {mode === 'config' && (
         <ConfigView

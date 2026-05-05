@@ -1376,3 +1376,59 @@ heredan automáticamente). Cascada manual respeta overrides.
 Cuando exista Campaign, cada campaña podrá tener su propia jerarquía
 (añadir `campaign_id` al `region_node`) o compartirse globalmente —
 TBD por el cliente. Por ahora, una sola jerarquía global.
+
+## Iter83d — Mover jerarquía a REGIONES + Ojo Mordor Fase 2 (IA)
+
+### 1) Jerarquía de Regiones movida a REGIONES
+- Eliminada de TerrainCorrectionTool.jsx (TERRENOS).
+- Añadida arriba de RegionsSection.jsx (REGIONES) — encaja conceptualmente.
+- TERRENOS conserva el bulk-edit por región y la corrección masiva.
+
+### 2) Ojo de Mordor Fase 2 — Episodios narrativos con IA
+
+**Backend** (`/app/backend/routes/eye_ai_routes.py`):
+- `GET /api/eye/ai/prompt` — devuelve system_prompt actual + default
+- `POST /api/eye/ai/prompt` — guarda system_prompt editado por DJ
+- `POST /api/eye/ai/prompt/reset` — restaura al default
+- `POST /api/eye/ai/propose-episode` — llama a GPT-4o (vía Emergent LLM
+  Key + emergentintegrations) con context (location, currentThreat,
+  partyState, recentActions, enemyInfluence) y devuelve {event_type,
+  description, mechanical_effect, tone}. Fallback graceful si la IA no
+  devuelve JSON válido.
+- `POST /api/eye/ai/apply-episode` — persiste el episodio confirmado en
+  eye_state.history y resetea attention_total → initial_value.
+- `GET /api/eye/ai/episode-types` — lista los 8 tipos con su efecto
+  mecánico por defecto.
+
+**Modelo**: nueva collection `eye_ai_prompts` con `id="default"` +
+`system_prompt`.
+
+**8 plantillas**: desventaja_global, rechazo_social, tentacion,
+traicion, fatiga_sobrenatural, escape_imposible, emboscada_inevitable,
+buff_enemigo. La IA elige una y ajusta el efecto.
+
+**Frontend**:
+- `RevelationEpisodeModal.jsx`: modal con propuesta editable (event_type,
+  tone via Select; descripción y efecto en Textarea), botones
+  "Regenerar" (vuelve a llamar a la IA), "Aplicar" (POST apply-episode),
+  "Cancelar". Avisa cuando se usa fallback.
+- `EnhancedTravelSystem.jsx`: el botón "Disparar Episodio" de
+  `EyeAttentionBar` ahora abre el modal en vez de hacer reset directo.
+  Construye el `journeyContext` automáticamente con: destino, evento
+  actual como "currentThreat", agregado de fatiga/sombra del grupo,
+  últimas 5 acciones, enemyInfluence según tipo de región.
+- `EyeAIPromptEditor.jsx` (nuevo): textarea grande con el system_prompt,
+  botones "Guardar" + "Restaurar default", desplegables con la lista de
+  variables y los 8 event_type permitidos.
+- Integrado al inicio de `SombraSection.jsx` (Reglas → Sombra).
+
+**Tests** (`test_eye_ai_phase2_it83d.py`) — 5/5 PASS + 1 skipped (LLM live):
+- GET prompt devuelve default
+- POST prompt persiste
+- POST prompt vacío → 400
+- 8 episode_types listados
+- apply-episode resetea atención a initial_value y registra entrada
+  con event_type/description/mechanical_effect en history
+
+**Verificado live con curl**: GPT-4o devolvió "emboscada_inevitable"
+con descripción evocadora correctamente parseada como JSON.

@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
 import api from '@/services/api';
+import RegionHierarchyTree from './RegionHierarchyTree';
 
 // Terrain types (difficulty)
 const TIPOS_TERRENO = [
@@ -163,6 +164,14 @@ const RegionsSection = ({
 
   return (
     <div className="space-y-6" data-testid="regions-section">
+      {/* Hierarchy tree (drag-and-drop) — la mejor vista para entender
+          relaciones padre-hijo entre regiones */}
+      {isAdmin && (
+        <div className="card-parchment rounded-lg p-4 border border-amber-500/30">
+          <RegionHierarchyTree />
+        </div>
+      )}
+
       {/* Header with actions */}
       <div className="flex flex-wrap items-center justify-between gap-4 pb-4 border-b border-border/30">
         <div>
