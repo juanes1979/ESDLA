@@ -6,8 +6,12 @@
  */
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import {
-  MapPin, Plus, Edit, Trash2, Loader2, ChevronDown, ChevronRight, Network, Building2, Sparkles,
+  MapPin, Plus, Edit, Trash2, Loader2, ChevronDown, ChevronRight, Network, Building2, Sparkles, GripVertical, Save, Undo2,
 } from 'lucide-react';
+import {
+  DndContext, PointerSensor, useSensor, useSensors,
+  closestCenter, DragOverlay, useDroppable, useDraggable,
+} from '@dnd-kit/core';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
@@ -76,10 +80,17 @@ const getClaseBadge = (clase) => {
 };
 
 // ============== LOCATION ROW ==============
-const LocationRow = ({ loc, depth, isAdmin, regionOptions, onChangeRegion }) => {
+const LocationRow = ({ loc, depth, isAdmin, regionOptions, onChangeRegion, dragEnabled = false, isPending = false, pendingRegion = null, originalRegion = null }) => {
   const [editing, setEditing] = useState(false);
   const [selVal, setSelVal] = useState(loc.region || '');
   const [busy, setBusy] = useState(false);
+
+  // Draggable hook (only enabled when admin + drag mode is on).
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
+    id: `loc-${loc.id}`,
+    data: { type: 'location', loc },
+    disabled: !dragEnabled,
+  });
 
   const save = async () => {
     setBusy(true);
@@ -91,12 +102,34 @@ const LocationRow = ({ loc, depth, isAdmin, regionOptions, onChangeRegion }) => 
     }
   };
 
+  const containerStyle = {
+    paddingLeft: `${depth * 24 + 36}px`,
+    opacity: isDragging ? 0.3 : 1,
+  };
+
   return (
     <div
-      className="flex items-center gap-2 py-1 px-2 rounded hover:bg-amber-900/10 text-sm"
-      style={{ paddingLeft: `${depth * 24 + 36}px` }}
+      ref={setNodeRef}
+      className={`flex items-center gap-2 py-1 px-2 rounded text-sm ${
+        isPending
+          ? 'bg-amber-900/30 border border-amber-500/60 border-dashed'
+          : 'hover:bg-amber-900/10'
+      } ${dragEnabled ? 'cursor-grab' : ''}`}
+      style={containerStyle}
       data-testid={`location-row-${loc.id}`}
     >
+      {dragEnabled && (
+        <button
+          type="button"
+          {...listeners}
+          {...attributes}
+          className="text-amber-500/60 hover:text-amber-300 cursor-grab active:cursor-grabbing shrink-0"
+          title="Arrastrar a otra región"
+          data-testid={`location-drag-handle-${loc.id}`}
+        >
+          <GripVertical className="w-3.5 h-3.5" />
+        </button>
+      )}
       <Building2 className="w-3.5 h-3.5 text-cyan-400/70 shrink-0" />
       <span className="text-foreground/90 truncate">{loc.nombre}</span>
       {loc.tipo && (
@@ -127,14 +160,23 @@ const LocationRow = ({ loc, depth, isAdmin, regionOptions, onChangeRegion }) => 
         </>
       ) : (
         <>
-          {loc.region ? (
+          {isPending && (
+            <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-700/40 text-amber-100 shrink-0 font-semibold">
+              → {pendingRegion || 'Sin región'}
+            </span>
+          )}
+          {isPending && originalRegion ? (
+            <span className="text-[10px] px-1.5 py-0.5 rounded bg-cyan-900/20 text-cyan-300/60 line-through shrink-0">
+              {originalRegion}
+            </span>
+          ) : loc.region ? (
             <span className="text-[10px] px-1.5 py-0.5 rounded bg-cyan-900/30 text-cyan-200 shrink-0">
               {loc.region}
             </span>
           ) : (
-            <span className="text-[10px] px-1.5 py-0.5 rounded bg-rose-900/40 text-rose-200 shrink-0">Sin región</span>
+            !isPending && <span className="text-[10px] px-1.5 py-0.5 rounded bg-rose-900/40 text-rose-200 shrink-0">Sin región</span>
           )}
-          {isAdmin && (
+          {isAdmin && !dragEnabled && (
             <Button
               variant="ghost"
               size="sm"
@@ -158,6 +200,7 @@ const RegionNode = ({
   loading, updateRegion, updateRegionTerrain, deleteRegion, beginAddSub, openAddSubFor,
   newSubregionName, setNewSubregionName, createRegion, cancelAddSub,
   locationsByRegion, regionOptions, onChangeLocationRegion,
+  dragEnabled = false, pendingMoves = {}, originalRegionByLocId = {},
 }) => {
   const isOpen = expanded[node.id] !== false; // default open
   const subCount = node.children?.length || 0;
@@ -173,12 +216,25 @@ const RegionNode = ({
   }, [node, locationsByRegion]);
   const isEditingName = editingRegion === node.id;
 
+  // Make this region a drop target so a dragged location can be assigned
+  // to it. Only active when drag mode is enabled.
+  const { isOver, setNodeRef: setDropRef } = useDroppable({
+    id: `drop-region-${node.id}`,
+    data: { type: 'drop-region', regionName: node.nombre, regionId: node.id },
+    disabled: !dragEnabled,
+  });
+
   return (
     <div data-testid={`region-node-${node.id}`}>
       <div
-        className={`flex items-center gap-2 py-2 px-3 rounded-md border ${
+        ref={setDropRef}
+        className={`flex items-center gap-2 py-2 px-3 rounded-md border transition-colors ${
           depth === 0 ? 'bg-black/30 border-amber-700/40' : 'bg-black/15 border-border/30'
-        } hover:border-amber-500/50 transition-colors`}
+        } ${
+          isOver
+            ? 'border-amber-400 bg-amber-500/15 ring-2 ring-amber-400/40'
+            : 'hover:border-amber-500/50'
+        }`}
         style={{ marginLeft: `${depth * 20}px` }}
       >
         <button
@@ -325,6 +381,9 @@ const RegionNode = ({
               locationsByRegion={locationsByRegion}
               regionOptions={regionOptions}
               onChangeLocationRegion={onChangeLocationRegion}
+              dragEnabled={dragEnabled}
+              pendingMoves={pendingMoves}
+              originalRegionByLocId={originalRegionByLocId}
             />
           ))}
           {/* Locations of this region */}
@@ -336,6 +395,10 @@ const RegionNode = ({
               isAdmin={isAdmin}
               regionOptions={regionOptions}
               onChangeRegion={onChangeLocationRegion}
+              dragEnabled={dragEnabled}
+              isPending={Object.prototype.hasOwnProperty.call(pendingMoves, loc.id)}
+              pendingRegion={pendingMoves[loc.id]}
+              originalRegion={originalRegionByLocId[loc.id]}
             />
           ))}
         </div>
@@ -363,6 +426,13 @@ const RegionsSection = ({ data, isAdmin = false, onRefresh }) => {
   const [showHierarchyEditor, setShowHierarchyEditor] = useState(false);
   const [showOrphans, setShowOrphans] = useState(true);
 
+  // ===== Drag & drop state for re-assigning locations =====
+  const [dragMode, setDragMode] = useState(false);          // toggled via toolbar
+  const [pendingLocMoves, setPendingLocMoves] = useState({}); // { locId: newRegionName }
+  const [activeDragLoc, setActiveDragLoc] = useState(null);
+  const [savingLocMoves, setSavingLocMoves] = useState(false);
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
+
   const fetchAll = useCallback(async () => {
     setLoadingData(true);
     try {
@@ -389,24 +459,43 @@ const RegionsSection = ({ data, isAdmin = false, onRefresh }) => {
 
   const tree = useMemo(() => buildTree(flatRegions), [flatRegions]);
 
+  // Apply pending moves to locations array — used to render the tree as
+  // it WILL look after saving, so the user gets immediate visual feedback.
+  const effectiveLocations = useMemo(() => {
+    if (!Object.keys(pendingLocMoves).length) return locations;
+    return locations.map(l => (
+      Object.prototype.hasOwnProperty.call(pendingLocMoves, l.id)
+        ? { ...l, region: pendingLocMoves[l.id] }
+        : l
+    ));
+  }, [locations, pendingLocMoves]);
+
+  // Map of locationId → ORIGINAL region (before any pending move). Used
+  // by `LocationRow` to render the strikethrough "old" region badge.
+  const originalRegionByLocId = useMemo(() => {
+    const m = {};
+    locations.forEach(l => { m[l.id] = l.region || ''; });
+    return m;
+  }, [locations]);
+
   const locationsByRegion = useMemo(() => {
     const map = {};
-    locations.forEach(l => {
+    effectiveLocations.forEach(l => {
       const rn = (l.region || '').trim();
       if (!rn) return;
       (map[rn] ||= []).push(l);
     });
     Object.values(map).forEach(arr => arr.sort((a, b) => (a.nombre || '').localeCompare(b.nombre || '')));
     return map;
-  }, [locations]);
+  }, [effectiveLocations]);
 
   const regionNamesSet = useMemo(() => new Set(flatRegions.map(r => r.nombre)), [flatRegions]);
   const orphanLocations = useMemo(
-    () => locations.filter(l => {
+    () => effectiveLocations.filter(l => {
       const rn = (l.region || '').trim();
       return !rn || !regionNamesSet.has(rn);
     }).sort((a, b) => (a.nombre || '').localeCompare(b.nombre || '')),
-    [locations, regionNamesSet]
+    [effectiveLocations, regionNamesSet]
   );
 
   // ============== ACTIONS ==============
@@ -498,6 +587,51 @@ const RegionsSection = ({ data, isAdmin = false, onRefresh }) => {
   };
   const cancelAddSub = () => { setOpenAddSubFor(null); setNewSubregionName(''); };
 
+  // ===== DnD handlers (location → region) =====
+  const handleDragStart = (e) => {
+    setActiveDragLoc(e.active?.data?.current?.loc || null);
+  };
+
+  const handleDragEnd = (e) => {
+    setActiveDragLoc(null);
+    const data = e.active?.data?.current;
+    const overData = e.over?.data?.current;
+    if (!data || data.type !== 'location' || !overData || overData.type !== 'drop-region') return;
+    const loc = data.loc;
+    const targetRegion = overData.regionName;
+    if (!targetRegion || loc.region === targetRegion) return;
+    setPendingLocMoves(p => ({ ...p, [loc.id]: targetRegion }));
+    toast.info('Cambio pendiente. Pulsa "Guardar" para aplicar.', { duration: 1800 });
+  };
+
+  const savePendingLocMoves = async () => {
+    const ids = Object.keys(pendingLocMoves);
+    if (!ids.length) return;
+    setSavingLocMoves(true);
+    let ok = 0, fail = 0;
+    for (const id of ids) {
+      const loc = locations.find(l => l.id === id);
+      if (!loc) { fail++; continue; }
+      try {
+        await api.put(`/data/locations/${id}`, { ...loc, region: pendingLocMoves[id] || '' });
+        ok++;
+      } catch (err) {
+        console.error('Move location fail:', id, err);
+        fail++;
+      }
+    }
+    setSavingLocMoves(false);
+    setPendingLocMoves({});
+    if (fail === 0) toast.success(`${ok} ubicación${ok === 1 ? '' : 'es'} reasignada${ok === 1 ? '' : 's'}`);
+    else toast.warning(`${ok} guardadas, ${fail} fallaron`);
+    await refreshAll();
+  };
+
+  const discardPendingLocMoves = () => {
+    setPendingLocMoves({});
+    toast.info('Cambios pendientes descartados');
+  };
+
   const expandAll = () => {
     const e = {};
     flatRegions.forEach(r => { e[r.id] = true; });
@@ -574,6 +708,22 @@ const RegionsSection = ({ data, isAdmin = false, onRefresh }) => {
               {showHierarchyEditor ? 'Ocultar editor' : 'Editar jerarquía'}
             </Button>
             <Button
+              variant={dragMode ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => {
+                if (dragMode && Object.keys(pendingLocMoves).length > 0) {
+                  if (!window.confirm('Hay cambios pendientes. ¿Salir del modo arrastrar y descartarlos?')) return;
+                  setPendingLocMoves({});
+                }
+                setDragMode(v => !v);
+              }}
+              className={dragMode ? 'bg-amber-600 hover:bg-amber-500 text-black' : ''}
+              data-testid="toggle-locations-drag-mode-btn"
+            >
+              <GripVertical className="w-4 h-4 mr-1" />
+              {dragMode ? 'Salir modo arrastrar' : 'Arrastrar ubicaciones'}
+            </Button>
+            <Button
               variant="default"
               size="sm"
               onClick={() => setIsAddingRegion(true)}
@@ -587,6 +737,45 @@ const RegionsSection = ({ data, isAdmin = false, onRefresh }) => {
           </div>
         )}
       </div>
+
+      {/* Pending moves bar (shown only in drag mode with pending) */}
+      {dragMode && (
+        <div className={`flex items-center justify-between gap-3 p-3 rounded-md border ${Object.keys(pendingLocMoves).length > 0 ? 'border-amber-500/60 bg-amber-900/15' : 'border-border/40 bg-black/30'}`}>
+          <div className="text-xs">
+            {Object.keys(pendingLocMoves).length > 0 ? (
+              <span className="text-amber-200">
+                <span className="font-bold">{Object.keys(pendingLocMoves).length}</span> ubicación(es) con cambios pendientes. Pulsa "Guardar" para aplicar todo de una vez.
+              </span>
+            ) : (
+              <span className="text-muted-foreground">
+                Modo arrastrar activo. Coge una ubicación por el agarre y suéltala sobre la región destino. Los cambios quedarán pendientes hasta pulsar Guardar.
+              </span>
+            )}
+          </div>
+          <div className="flex gap-2 shrink-0">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={discardPendingLocMoves}
+              disabled={Object.keys(pendingLocMoves).length === 0 || savingLocMoves}
+              data-testid="discard-loc-moves-btn"
+            >
+              <Undo2 className="w-3 h-3 mr-1" />
+              Descartar
+            </Button>
+            <Button
+              size="sm"
+              className="bg-emerald-600 hover:bg-emerald-500 text-white font-semibold"
+              onClick={savePendingLocMoves}
+              disabled={Object.keys(pendingLocMoves).length === 0 || savingLocMoves}
+              data-testid="save-loc-moves-btn"
+            >
+              {savingLocMoves ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <Save className="w-3 h-3 mr-1" />}
+              Guardar {Object.keys(pendingLocMoves).length || ''} cambio{Object.keys(pendingLocMoves).length === 1 ? '' : 's'}
+            </Button>
+          </div>
+        </div>
+      )}
 
       {/* Add new main region form */}
       {isAddingRegion && (
@@ -708,33 +897,54 @@ const RegionsSection = ({ data, isAdmin = false, onRefresh }) => {
           {isAdmin && <p className="text-sm mt-2">Haz clic en "Cargar Regiones Iniciales" para empezar con las regiones de la Tierra Media.</p>}
         </div>
       ) : (
-        <div className="space-y-2" data-testid="regions-tree">
-          {tree.map(root => (
-            <RegionNode
-              key={root.id}
-              node={root}
-              depth={0}
-              expanded={expanded}
-              toggle={toggle}
-              isAdmin={isAdmin}
-              editingRegion={editingRegion}
-              setEditingRegion={setEditingRegion}
-              loading={loading}
-              updateRegion={updateRegion}
-              updateRegionTerrain={updateRegionTerrain}
-              deleteRegion={deleteRegion}
-              beginAddSub={beginAddSub}
-              openAddSubFor={openAddSubFor}
-              newSubregionName={newSubregionName}
-              setNewSubregionName={setNewSubregionName}
-              createRegion={createRegion}
-              cancelAddSub={cancelAddSub}
-              locationsByRegion={locationsByRegion}
-              regionOptions={regionOptions}
-              onChangeLocationRegion={onChangeLocationRegion}
-            />
-          ))}
-        </div>
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragStart={handleDragStart}
+          onDragEnd={handleDragEnd}
+        >
+          <div className="space-y-2" data-testid="regions-tree">
+            {tree.map(root => (
+              <RegionNode
+                key={root.id}
+                node={root}
+                depth={0}
+                expanded={expanded}
+                toggle={toggle}
+                isAdmin={isAdmin}
+                editingRegion={editingRegion}
+                setEditingRegion={setEditingRegion}
+                loading={loading}
+                updateRegion={updateRegion}
+                updateRegionTerrain={updateRegionTerrain}
+                deleteRegion={deleteRegion}
+                beginAddSub={beginAddSub}
+                openAddSubFor={openAddSubFor}
+                newSubregionName={newSubregionName}
+                setNewSubregionName={setNewSubregionName}
+                createRegion={createRegion}
+                cancelAddSub={cancelAddSub}
+                locationsByRegion={locationsByRegion}
+                regionOptions={regionOptions}
+                onChangeLocationRegion={onChangeLocationRegion}
+                dragEnabled={dragMode && isAdmin}
+                pendingMoves={pendingLocMoves}
+                originalRegionByLocId={originalRegionByLocId}
+              />
+            ))}
+          </div>
+          <DragOverlay>
+            {activeDragLoc ? (
+              <div className="px-3 py-1.5 rounded-md bg-cyan-900/95 border-2 border-cyan-300 text-cyan-100 text-sm shadow-2xl flex items-center gap-2">
+                <Building2 className="w-4 h-4" />
+                {activeDragLoc.nombre}
+                {activeDragLoc.tipo && (
+                  <span className="text-[10px] italic opacity-70">({String(activeDragLoc.tipo).replace(/_/g, ' ')})</span>
+                )}
+              </div>
+            ) : null}
+          </DragOverlay>
+        </DndContext>
       )}
     </div>
   );

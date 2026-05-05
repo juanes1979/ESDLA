@@ -2,7 +2,25 @@
 
 ## Current State (2026-05-05)
 
-### ✅ Iteración 83-quinquies — Undo/Redo en TerrainEditor + TravelGenerator legacy migrado (NUEVO)
+### ✅ Iteración 83-sextus — Drag & Drop de ubicaciones entre regiones (NUEVO)
+
+**🟢 Modo arrastrar ubicaciones en `RegionsSection`**
+- Nuevo botón **"Arrastrar ubicaciones"** en la cabecera (sólo admin) que activa un modo `dnd-kit` similar al editor de jerarquía de regiones.
+- Cada `LocationRow` muestra un agarre `GripVertical` y se vuelve draggable (`useDraggable`). Cada nodo de región es droppable (`useDroppable`); resalta en ámbar al pasar la ubicación por encima.
+- Los cambios quedan **pendientes** en `pendingLocMoves: { [locId]: newRegionName }` hasta pulsar `Guardar`. Se ven inmediatamente en el árbol porque `effectiveLocations` aplica los pendientes al render.
+- Cada fila pendiente muestra:
+  - Borde discontinuo ámbar.
+  - Badge ámbar `→ Nueva Región` (destino).
+  - Badge cian con strikethrough `Región Antigua` (preservada via `originalRegionByLocId`).
+- **Barra superior con resumen** `N ubicación(es) con cambios pendientes` + botones **Descartar** / **Guardar N cambio(s)**. El guardado hace `PUT /api/data/locations/{id}` por cada pendiente y refresca la lista.
+- Toggle de modo: si hay pendientes y se pulsa "Salir modo arrastrar" se pide confirmación antes de descartarlos.
+- En modo arrastrar se oculta el botón inline "Cambiar/Asignar" (la edición es exclusivamente arrastrando); fuera del modo el botón sigue disponible.
+- `DragOverlay` global muestra una píldora cian con el nombre de la ubicación durante el arrastre.
+- Verificado por screenshot: Alforzaburgo arrastrada de La Comarca → Ered Luin con la fila correcta (badges `→ Ered Luin (Montañas Azules del norte)` + `La Comarca` tachado), pending bar con "Guardar 1 cambio".
+
+---
+
+### ✅ Iteración 83-quinquies — Undo/Redo TerrainEditor + TravelGenerator legacy migrado
 
 **🟢 TerrainEditor — Undo/Redo robusto**
 - Reescrito el sistema de historial: ahora almacena estados POSTERIORES (después de aplicar) y `historyIndex` apunta al estado actual. La lógica `redo` anterior estaba rota porque sólo guardaba estados anteriores.
