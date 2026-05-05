@@ -1,8 +1,30 @@
 # LOTR 5e RPG - Product Requirements Document
 
-## Current State (2026-05-04)
+## Current State (2026-05-05)
 
-### ✅ Iteración 82-bis — Selector año T.E. + refactor (NUEVO)
+### ✅ Iteración 83-bis — Vista en árbol de Regiones + ubicaciones huérfanas (NUEVO)
+
+**🟢 RegionsSection — nueva vista jerárquica recursiva**
+- El listado de regiones en `Reglas → Regiones` ahora se construye sobre `/api/data/regions/flat` y se renderiza como un árbol con profundidad arbitraria (componente `RegionNode` recursivo) en lugar del listado plano de 1 nivel anterior.
+- Al mover Angmar dentro de Eriador desde el editor de jerarquía, Angmar **desaparece automáticamente** del nivel superior y reaparece anidado dentro de Eriador, conservando sus 3 sub-regiones (Colinas de Angmar, Montañas de Angmar, Monte Gram).
+- Cada nodo muestra ahora dos contadores: `N sub (M total)` donde N son hijos directos y M descendientes recursivos; `K/L` ubicaciones (directas/recursivas).
+- Cada región conserva sus selectores inline de Tipo de Terreno y Clase de Región para admin, junto con botones Renombrar / Eliminar / Añadir sub-región. Botones globales **Expandir / Colapsar** todo.
+
+**🟢 Ubicaciones bajo cada región**
+- Las ubicaciones (locations) se muestran directamente bajo el nodo cuya `nombre` coincide con `location.region` (matching por nombre). Se ven en una fila compacta con icono cyan, tipo y badge de región.
+- Botón **"Cambiar"** por ubicación (sólo admin) que abre un `<select>` inline con TODAS las regiones para reasignar; persiste vía `PUT /api/data/locations/{id}`.
+
+**🟢 Sección "Ubicaciones sin región asignada" (huérfanas)**
+- Nuevo panel rojizo en la cabecera con todas las ubicaciones cuyo `region` es vacío o no coincide con ninguna región existente (en mi entorno actual: 11 ubicaciones huérfanas — Angmar, Camino de Harad, Cruce del Poros, Emyn Muil, Fangorn, Fuenteblanca, Gran Río Anduin, Halifirien, Montañas Blancas, Montañas Grises, Senderos de los Muertos).
+- Cada huérfana tiene botón **"Asignar"** que abre el selector de región inline. Tras guardar, recarga regiones y ubicaciones automáticamente.
+
+**Verificación visual:** screenshot confirma `Angmar (3 sub · 2/3 ubic)` anidado bajo Eriador con sus tres sub-regiones (Colinas, Montañas, Monte Gram) + ubicaciones (Carn Dûm, Monte Gundabad) — la jerarquía completa se ve como un esquema.
+
+**Archivos:** `/app/frontend/src/components/rules/RegionsSection.jsx` (reescrito 555→671 líneas, ahora con `RegionNode` recursivo + `LocationRow`).
+
+---
+
+### ✅ Iteración 82-bis — Selector año T.E. + refactor
 
 **🟢 Año T.E. en config viaje:** input numérico junto a "Día del Mes" en `ConfigView`, default 2950, clamp 1-3500, sólo dígitos, helper text. `data-testid="journey-year-input"`. El año fluye automáticamente al log de Historia del personaje.
 
