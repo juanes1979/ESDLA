@@ -1432,3 +1432,34 @@ buff_enemigo. La IA elige una y ajusta el efecto.
 
 **Verificado live con curl**: GPT-4o devolvió "emboscada_inevitable"
 con descripción evocadora correctamente parseada como JSON.
+
+## Iter83e — Rediseño visual de jerarquía: cards grandes + cambios pendientes
+
+**Pedido del usuario**: la lista pequeña no encaja con el estilo de la
+sección REGIONES. Pidió cards grandes (mismo estilo que la lista
+existente) + flujo de cambios pendientes con botón "Guardar" para
+evitar errores accidentales por drag-and-drop.
+
+**Rediseño de `RegionHierarchyTree.jsx`**:
+- Cada nodo es ahora una CARD grande con:
+  - Pin 📍 + nombre en `font-heading text-2xl uppercase` color ámbar
+  - "(N sub-región / N ubicación)" en italic gris
+  - Selectores coloreados para Dificultad (Fácil amarillo / Moderado
+    ámbar / Difícil oro / Muy Difícil ámbar oscuro / Desalentador rojo /
+    Infranqueable piedra) y Tipo de Tierra (Tierras Libres verde,
+    Fronterizas amarillo, Salvajes naranja, Sombra rosa, Oscuras rojo)
+  - Botones edit ✏️, + (subregión), ⬇ (cascada), 🗑 (eliminar)
+- Indentación con conector visual (línea ámbar a la izquierda de las
+  subregiones).
+- **Cambios pendientes**: al arrastrar una región sobre otra (o a
+  raíz), NO se persiste — queda con badge "PENDIENTE" + borde ámbar
+  discontinuo. Aparecen 2 botones nuevos arriba:
+  - **"Descartar (N)"** — limpia los pendientes
+  - **"Guardar N cambio(s)"** — itera los PATCH /move uno a uno
+- Detección de ciclos antes de marcar pendiente.
+- La cascada queda bloqueada mientras haya pendientes (evita estados
+  intermedios inconsistentes).
+
+**Tests** (`test_pending_moves_it83e.py`) — 2/2 PASS:
+- batch de 3 moves consecutivos crea jerarquía A → B → C
+- move a raíz setea parent_id=null
