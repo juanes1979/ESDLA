@@ -1,14 +1,29 @@
-# Test Credentials
+# Test Credentials — LOTR 5e RPG
 
-## Admin Backup / Restore Panel
+## Maestro (admin global)
+- **Email**: `elanillounico_tlotr@proton.me`
+- **Password**: `123456`
+- **Role**: `maestro`
+- **Status**: `aprobado`
 
-URL: `/admin/backup`
+## Notes
+- Login URL: `/login`
+- Register URL: `/register` (new accounts go to `pendiente` status until maestro approves them)
+- Approval dashboard: `/admin/users` (maestro only)
+- JWT token stored in:
+  - `localStorage.lotr5e_token` if "Recordar sesión" is ON (30 days)
+  - `sessionStorage.lotr5e_token` if "Recordar sesión" is OFF (cleared on tab close)
+- Admin Backup token (legacy): `lotr5e_admin_2026` (env: `ADMIN_BACKUP_TOKEN`)
 
-Token (X-Admin-Token header / login form):
-- **`lotr5e_admin_2026`**
+## API Test Examples
+```bash
+# Login
+curl -X POST $API/api/auth/login -H "Content-Type: application/json" \
+  -d '{"email":"elanillounico_tlotr@proton.me","password":"123456","remember_me":true}'
 
-Configurado en `backend/.env` como `ADMIN_BACKUP_TOKEN`. Cambiar si se filtra.
+# /me (replace TOKEN)
+curl $API/api/auth/me -H "Authorization: Bearer TOKEN"
 
-## Otros sistemas
-
-Sin sistema de auth de usuarios todavía (P0 pendiente). El proyecto no tiene login para Maestro / Director de Juego / Jugador aún.
+# List users (maestro only)
+curl $API/api/auth/users -H "Authorization: Bearer TOKEN"
+```

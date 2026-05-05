@@ -25,6 +25,7 @@ from routes.moderation_routes import router as moderation_router
 from routes.eye_routes import router as eye_router
 from routes.eye_ai_routes import router as eye_ai_router
 from routes.region_hierarchy_routes import router as region_hierarchy_router
+from routes.auth_routes import router as auth_router, seed_maestro
 
 
 ROOT_DIR = Path(__file__).parent
@@ -108,6 +109,7 @@ api_router.include_router(moderation_router)
 api_router.include_router(eye_router)
 api_router.include_router(eye_ai_router)
 api_router.include_router(region_hierarchy_router)
+api_router.include_router(auth_router)
 
 # Include the main router in the app
 app.include_router(api_router)
@@ -126,6 +128,15 @@ logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
+
+@app.on_event("startup")
+async def startup_seed():
+    """Seed the maestro user (idempotent) and ensure auth indexes."""
+    try:
+        await seed_maestro(db)
+    except Exception as e:
+        logger.exception("Maestro seed failed: %s", e)
+
 
 @app.on_event("shutdown")
 async def shutdown_db_client():

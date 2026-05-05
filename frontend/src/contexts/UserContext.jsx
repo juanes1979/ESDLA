@@ -1,48 +1,39 @@
 /**
- * User Context - Manages current user state
- * For development: Admin user "Maestro" is active by default
+ * User Context — bridge to AuthContext.
+ *
+ * Exposes the legacy `{ user, isAdmin, login, logout, toggleRole }` shape
+ * that older components consume (e.g. `useUser().isAdmin`). This is now
+ * derived from `AuthContext` so RBAC stays in a single source of truth.
+ *
+ * `isAdmin` is true for staff (maestro / director_de_juego). Pure
+ * `jugador` users will see read-only UI.
  */
-import { createContext, useContext, useState } from 'react';
+import { createContext, useContext } from 'react';
+import { useAuth } from '@/context/AuthContext';
 
 const UserContext = createContext(null);
 
-// Default admin user for development (no login required)
-const DEFAULT_ADMIN_USER = {
-  id: 'maestro-admin',
-  username: 'Maestro',
-  role: 'admin', // 'admin' = Director de juego, 'user' = Usuario
-  isAdmin: true,
-};
-
 export const UserProvider = ({ children }) => {
-  // Start with admin user active by default
-  const [user, setUser] = useState(DEFAULT_ADMIN_USER);
-  
-  const isAdmin = user?.isAdmin || user?.role === 'admin';
-  
-  // For future login implementation
-  const login = (userData) => {
-    setUser({
-      ...userData,
-      isAdmin: userData.role === 'admin',
-    });
-  };
-  
-  const logout = () => {
-    // For development, reset to admin user instead of null
-    setUser(DEFAULT_ADMIN_USER);
-  };
-  
-  // Toggle between admin and regular user for testing
-  const toggleRole = () => {
-    setUser(prev => ({
-      ...prev,
-      role: prev.role === 'admin' ? 'user' : 'admin',
-      isAdmin: prev.role !== 'admin',
-      username: prev.role === 'admin' ? 'Usuario' : 'Maestro',
-    }));
-  };
-  
+  const { user: authUser, logout: authLogout } = useAuth();
+
+  const user = authUser
+    ? {
+        id: authUser.id,
+        username: authUser.name,
+        role: authUser.role === 'jugador' ? 'user' : 'admin',
+        isAdmin: authUser.role !== 'jugador',
+        realRole: authUser.role,
+        email: authUser.email,
+      }
+    : null;
+
+  const isAdmin = !!user?.isAdmin;
+
+  // Legacy login / toggleRole are no-ops now (AuthContext owns it).
+  const login = () => {};
+  const logout = () => authLogout();
+  const toggleRole = () => {};
+
   return (
     <UserContext.Provider value={{ user, isAdmin, login, logout, toggleRole }}>
       {children}

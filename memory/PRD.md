@@ -2,7 +2,44 @@
 
 ## Current State (2026-05-05)
 
-### ✅ Iteración 83-septimus — UI: ajuste panel info ubicación + rename sección (NUEVO)
+### ✅ Iteración 84 — P0 Login + RBAC (NUEVO)
+
+**🟢 Backend — JWT + bcrypt**
+- Nuevos archivos: `/app/backend/auth.py` (helpers `hash_password`, `verify_password`, `create_access_token`, `decode_token`, `get_current_user`, `require_role`), `/app/backend/routes/auth_routes.py` (endpoints).
+- Endpoints expuestos bajo `/api/auth`:
+  - `POST /register` — crea cuenta con `status='pendiente'` y `role='jugador'`.
+  - `POST /login` — devuelve `{token, user, remember_me}`. Rechaza pendientes/rechazados (403). 5 fallos en 10 min ⇒ lockout 15 min (429).
+  - `GET /me` — usuario actual (Bearer token).
+  - `POST /logout` — no-op (JWT stateless).
+  - `GET /users` — listar usuarios (sólo Maestro).
+  - `PATCH /users/{id}` — cambiar rol/status (sólo Maestro).
+  - `DELETE /users/{id}` — eliminar cuenta (sólo Maestro, no auto-eliminación).
+- Tokens: 1 día (sin remember) o 30 días (con remember). Algoritmo HS256, secret en `JWT_SECRET`.
+- **Seed idempotente** del Maestro al startup leyendo `MAESTRO_EMAIL` / `MAESTRO_NAME` / `MAESTRO_PASSWORD`. Si ya existe, sólo se promueve a `maestro/aprobado` sin tocar el password.
+- Índice único en `users.email` y `login_attempts.email`.
+
+**🟢 Frontend — AuthContext + páginas**
+- `AuthContext.jsx` con storage dual: localStorage (Recordar sesión 30d) o sessionStorage (sesión de pestaña). Interceptor en `api.js` adjunta Bearer en cada request; en respuesta 401 se purga el token automáticamente.
+- `LoginPage.jsx` con email + password + checkbox **"Recordar sesión (30 días)"** activado por defecto.
+- `RegisterPage.jsx` — solicita email + nombre + contraseña (mín. 4); muestra confirmación "Cuenta pendiente de aprobación".
+- `ApprovalsPage.jsx` (`/admin/users`) — Pendientes con Aprobar/Rechazar + selector de rol; Cuentas activas con cambio de rol y botón eliminar.
+- `ProtectedRoute.jsx` — guard genérico, soporta restricción por roles. Redirige a `/login` si no hay sesión, muestra "Acceso restringido" si rol insuficiente.
+- `UserContext.jsx` reescrito como puente al AuthContext para no romper componentes legacy que usan `useUser().isAdmin`.
+
+**🟢 Routing y RBAC aplicado**
+- Todas las rutas envueltas en `<ProtectedRoute>`. Las staff-only (`/rules`, `/sheet-editor`, `/map/master`, `/terrain-editor`, `/path-debugger`) requieren `maestro` o `director_de_juego`. `/admin/backup` y `/admin/users` requieren `maestro`.
+- En `HomePage` (top-right) chip con `nombre · rol`, botón **Cuentas** (sólo Maestro) y botón **Salir**. Los enlaces dev (Terrenos/Caminos/Editor) y el medallón "Reglas" se ocultan a `jugador`.
+
+**🟢 Maestro inicial seedeado**
+- Email: `elanillounico_tlotr@proton.me` · Nombre: `Morthwen` · Contraseña: `123456`. (Guardado en `/app/memory/test_credentials.md`.)
+
+**Tests pytest** — `/app/backend/tests/test_auth_it84.py` con 7 tests (login maestro, register pending, approve+login, role-protected list, lockout 5/10min, /me con/sin token). 7/7 PASS.
+
+**Verificación visual end-to-end**: redirección `/` → `/login`; login con Morthwen → HomePage con chip + 6 medallones + dev links; `/admin/users` muestra "Frodo (pendiente)" tras un register API + Aprobar/Rechazar/select rol funcionando.
+
+---
+
+### ✅ Iteración 83-septimus — UI: ajuste panel info ubicación + rename sección
 
 **🟢 Ajuste visual del panel de info de ubicación (`LocationInfoPanel.jsx`)**
 - Antes: descripciones largas (p. ej. Tunum) hacían crecer el panel hasta empujar fuera del viewport los badges de región / dificultad / clase / peligro y los botones Editar/Eliminar.

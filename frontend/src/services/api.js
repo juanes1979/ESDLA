@@ -14,6 +14,31 @@ const api = axios.create({
   },
 });
 
+// === Auth interceptor ===
+// Reads the JWT from localStorage (or sessionStorage) and attaches it
+// as a Bearer token. The token is written by AuthContext on login.
+api.interceptors.request.use((config) => {
+  const token = localStorage.getItem('lotr5e_token') || sessionStorage.getItem('lotr5e_token');
+  if (token) {
+    config.headers = config.headers || {};
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
+
+// On 401 (token expired / invalid), wipe the local token so the
+// AuthContext bounces the user back to /login on the next render.
+api.interceptors.response.use(
+  (r) => r,
+  (err) => {
+    if (err?.response?.status === 401) {
+      localStorage.removeItem('lotr5e_token');
+      sessionStorage.removeItem('lotr5e_token');
+    }
+    return Promise.reject(err);
+  }
+);
+
 // === GAME DATA ===
 
 export const getCultures = async (categoria = null) => {

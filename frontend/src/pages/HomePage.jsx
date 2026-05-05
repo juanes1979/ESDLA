@@ -4,6 +4,8 @@
  */
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { LogOut, ShieldCheck } from 'lucide-react';
+import { useAuth } from '@/context/AuthContext';
 
 // Navigation items with custom images - Arc formation (3 left, 3 right)
 const NAV_ITEMS = [
@@ -33,7 +35,8 @@ const NAV_ITEMS = [
     description: 'Culturas, ocupaciones, equipo y precios.',
     path: '/rules',
     position: { top: '54%', left: '6%' },
-    side: 'left'
+    side: 'left',
+    roles: ['maestro', 'director_de_juego']
   },
   // RIGHT SIDE (top to bottom)
   {
@@ -209,6 +212,7 @@ const FloatingNavIcon = ({ item, onNavigate, index }) => {
 
 const HomePage = () => {
   const navigate = useNavigate();
+  const { user, logout, hasRole } = useAuth();
 
   return (
     <div className="min-h-screen relative overflow-hidden" data-testid="home-page">
@@ -228,16 +232,49 @@ const HomePage = () => {
       
       {/* Navigation Medallions in Arc Formation */}
       <div className="relative z-10 min-h-screen">
-        {NAV_ITEMS.map((item, index) => (
-          <FloatingNavIcon 
-            key={item.id} 
-            item={item} 
-            index={index}
-            onNavigate={navigate}
-          />
-        ))}
+        {NAV_ITEMS
+          .filter(item => !item.roles || (user && item.roles.includes(user.role)))
+          .map((item, index) => (
+            <FloatingNavIcon
+              key={item.id}
+              item={item}
+              index={index}
+              onNavigate={navigate}
+            />
+          ))}
       </div>
       
+      {/* User chip + logout (top-right) */}
+      <div className="absolute top-4 right-4 z-20 flex items-center gap-2">
+        {user && (
+          <>
+            <span className="text-xs text-amber-200/80 px-2 py-1 rounded bg-black/50 border border-amber-700/40">
+              {user.name} · <span className="text-amber-400/80">{user.role}</span>
+            </span>
+            {hasRole('maestro') && (
+              <button
+                onClick={() => navigate('/admin/users')}
+                className="flex items-center gap-1 text-xs px-2 py-1 rounded bg-amber-900/30 border border-amber-700/40 text-amber-200 hover:bg-amber-800/50"
+                data-testid="home-admin-users-btn"
+                title="Gestionar cuentas y roles"
+              >
+                <ShieldCheck className="w-3.5 h-3.5" />
+                Cuentas
+              </button>
+            )}
+            <button
+              onClick={async () => { await logout(); navigate('/login'); }}
+              className="flex items-center gap-1 text-xs px-2 py-1 rounded bg-black/50 border border-rose-700/40 text-rose-200 hover:bg-rose-900/40"
+              data-testid="home-logout-btn"
+              title="Cerrar sesión"
+            >
+              <LogOut className="w-3.5 h-3.5" />
+              Salir
+            </button>
+          </>
+        )}
+      </div>
+
       {/* Subtitle at bottom */}
       <div className="absolute bottom-8 left-0 right-0 z-10 text-center">
         <p className="text-amber-200/50 text-sm font-heading tracking-widest">
@@ -245,30 +282,32 @@ const HomePage = () => {
         </p>
       </div>
       
-      {/* Developer/Debug Links */}
-      <div className="absolute bottom-4 left-4 z-10 flex gap-4">
-        <button
-          onClick={() => navigate('/terrain-editor')}
-          className="text-xs text-gray-600 hover:text-amber-400 transition-colors"
-          title="Editor de Terrenos (temporal)"
-        >
-          Terrenos
-        </button>
-        <button
-          onClick={() => navigate('/path-debugger')}
-          className="text-xs text-gray-600 hover:text-amber-400 transition-colors"
-          title="Depurador de Caminos (temporal)"
-        >
-          Caminos
-        </button>
-        <button
-          onClick={() => navigate('/sheet-editor')}
-          className="text-xs text-gray-600 hover:text-amber-400 transition-colors"
-          data-testid="sheet-editor-link"
-        >
-          Editor
-        </button>
-      </div>
+      {/* Developer/Debug Links — only for staff (Maestro / DJ) */}
+      {hasRole('maestro', 'director_de_juego') && (
+        <div className="absolute bottom-4 left-4 z-10 flex gap-4">
+          <button
+            onClick={() => navigate('/terrain-editor')}
+            className="text-xs text-gray-600 hover:text-amber-400 transition-colors"
+            title="Editor de Terrenos (temporal)"
+          >
+            Terrenos
+          </button>
+          <button
+            onClick={() => navigate('/path-debugger')}
+            className="text-xs text-gray-600 hover:text-amber-400 transition-colors"
+            title="Depurador de Caminos (temporal)"
+          >
+            Caminos
+          </button>
+          <button
+            onClick={() => navigate('/sheet-editor')}
+            className="text-xs text-gray-600 hover:text-amber-400 transition-colors"
+            data-testid="sheet-editor-link"
+          >
+            Editor
+          </button>
+        </div>
+      )}
     </div>
   );
 };
