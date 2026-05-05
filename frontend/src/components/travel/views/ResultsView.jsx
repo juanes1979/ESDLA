@@ -11,7 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import {
   Flag, Heart, Sparkles, Printer, FileText, BookOpen, Package,
-  ArrowLeft, Plus, Check
+  ArrowLeft, Plus, Check, Download
 } from 'lucide-react';
 import { toast } from 'sonner';
 import JourneyMiniMap from '../JourneyMiniMap';
@@ -27,6 +27,7 @@ const ResultsView = ({
   journeyChronicle, journeyNarrative, generatingNarrative, includeChronicleInPDF,
   currentPosition, nextEventPosition, locations,
   mapContainerRef, characters = [],
+  eyeHistory = [],
   setMode, setIncludeChronicleInPDF, setJourneyChronicle,
   applyPXToCharacters, generateJourneyNarrative, printJourneyDocument, resetJourney,
 }) => {
@@ -45,6 +46,85 @@ const ResultsView = ({
   const diasFinales = (journeyCalc?.estimaciones?.dias_estimados || 0) + diasExtra - diasReducidos;
   const eventosExitosos = events.filter(e => e.exito).length;
   const eventosFracasados = events.filter(e => e.resuelto && !e.exito).length;
+
+  // Build a Markdown export of the journey chronicle.
+  const exportMarkdown = () => {
+    const lines = [];
+    const yyyy = config.anioTE || 2950;
+    lines.push(`# Crónica del Viaje — ${config.origenNombre || '?'} → ${config.destinoNombre || '?'}`);
+    lines.push('');
+    lines.push(`**Año:** ${yyyy} T.E.  `);
+    lines.push(`**Estación:** ${config.estacion || '—'}  `);
+    lines.push(`**Días totales:** ${diasFinales}  `);
+    lines.push(`**Distancia:** ${journeyCalc?.estimaciones?.km_totales || journeyCalc?.ruta?.km_totales || '—'} km  `);
+    lines.push('');
+    lines.push('## La Compañía');
+    [...(config.miembros || []), ...(config.acompanantes || [])].forEach(m => {
+      const papel = (m.papeles && m.papeles[0]) || 'acompañante';
+      lines.push(`- ${m.nombre || m.id} — ${papel}`);
+    });
+    lines.push('');
+
+    if (journeyNarrative) {
+      lines.push('## Crónica');
+      lines.push('');
+      lines.push(journeyNarrative);
+      lines.push('');
+    }
+
+    const resolved = (events || []).filter(e => e.resuelto);
+    if (resolved.length > 0) {
+      lines.push('## Diario por Jornadas');
+      lines.push('');
+      resolved.forEach((e, idx) => {
+        const dia = e.dia || idx + 1;
+        const tit = e.tipo || e.titulo || `Evento día ${dia}`;
+        const ok = e.exito ? '✓ Éxito' : '✗ Fallo';
+        lines.push(`### Día ${dia} — ${tit} (${ok})`);
+        if (e.descripcion) lines.push(e.descripcion);
+        if (e.resultado?.narrativa) lines.push(`> ${e.resultado.narrativa}`);
+        lines.push('');
+      });
+    }
+
+    if (pxResults?.por_personaje) {
+      lines.push('## Puntos de Experiencia');
+      lines.push('');
+      lines.push('| Personaje | PX |');
+      lines.push('|---|---:|');
+      Object.entries(pxResults.por_personaje).forEach(([nombre, val]) => {
+        lines.push(`| ${nombre} | ${val} |`);
+      });
+      lines.push('');
+    }
+
+    // Eye of Mordor episodes applied during/after this party's history
+    const episodes = (eyeHistory || []).filter(h => h.source === 'episode_applied');
+    if (episodes.length > 0) {
+      lines.push('## Ojo de Mordor — Episodios de Revelación');
+      lines.push('');
+      episodes.forEach(ep => {
+        const ts = ep.ts ? new Date(ep.ts).toLocaleString('es-ES') : '—';
+        lines.push(`### ${ep.event_label || ep.event_type} (${ts})`);
+        if (ep.description) lines.push(`> ${ep.description}`);
+        if (ep.mechanical_effect) lines.push(`**Efecto mecánico:** ${ep.mechanical_effect}`);
+        lines.push('');
+      });
+    }
+
+    const md = lines.join('\n');
+    const blob = new Blob([md], { type: 'text/markdown;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    const fname = `cronica-${(config.origenNombre || 'viaje').replace(/\s+/g, '_')}-${(config.destinoNombre || 'destino').replace(/\s+/g, '_')}-${yyyy}TE.md`;
+    a.href = url;
+    a.download = fname;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    toast.success(`Crónica exportada: ${fname}`);
+  };
 
   return (
     <div className="space-y-6">
@@ -633,6 +713,16 @@ const ResultsView = ({
             >
               <Printer className="w-4 h-4 mr-2" />
               Imprimir Crónica
+            </Button>
+
+            <Button
+              onClick={exportMarkdown}
+              variant="outline"
+              className="flex-1 border-emerald-500/40 hover:bg-emerald-900/20"
+              data-testid="export-chronicle-md-btn"
+            >
+              <Download className="w-4 h-4 mr-2" />
+              Exportar Markdown
             </Button>
 
             <label className="flex items-center gap-2 px-3 py-2 border border-[hsl(var(--gold))]/30 rounded bg-black/20 cursor-pointer text-xs" data-testid="include-diary-pdf-toggle">

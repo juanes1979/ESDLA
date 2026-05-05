@@ -521,14 +521,40 @@ const TradingSystemSection = ({ isAdmin }) => {
                 data-testid="region-selector"
               >
                 <option value="">-- Seleccionar región --</option>
-                {priceModifiers?.region?.map(r => {
-                  const modPercent = Math.round((r.modificador - 1) * 100);
-                  return (
-                    <option key={r.nombre} value={r.nombre}>
-                      {r.nombre} ({modPercent >= 0 ? '+' : ''}{modPercent}%)
-                    </option>
-                  );
-                })}
+                {(() => {
+                  // Build a depth lookup from `regions` (hierarchical
+                  // 1-level structure). Top-level regions map to depth 0,
+                  // their direct subregions to depth 1.
+                  const depthByName = {};
+                  (regions || []).forEach(top => {
+                    depthByName[top.nombre] = 0;
+                    (top.subregions || []).forEach(sub => { depthByName[sub.nombre] = 1; });
+                  });
+                  // DFS-ordered list using regions tree, then append any
+                  // priceModifier rows whose name doesn't match.
+                  const ordered = [];
+                  (regions || []).forEach(top => {
+                    const r = priceModifiers?.region?.find(rr => rr.nombre === top.nombre);
+                    if (r) ordered.push({ ...r, depth: 0 });
+                    (top.subregions || []).forEach(sub => {
+                      const s = priceModifiers?.region?.find(rr => rr.nombre === sub.nombre);
+                      if (s) ordered.push({ ...s, depth: 1 });
+                    });
+                  });
+                  const seenNames = new Set(ordered.map(o => o.nombre));
+                  (priceModifiers?.region || []).forEach(rr => {
+                    if (!seenNames.has(rr.nombre)) ordered.push({ ...rr, depth: 0, orphan: true });
+                  });
+                  return ordered.map(r => {
+                    const modPercent = Math.round((r.modificador - 1) * 100);
+                    const prefix = `${'\u00A0\u00A0'.repeat(r.depth)}${r.depth > 0 ? '└─ ' : ''}`;
+                    return (
+                      <option key={r.nombre} value={r.nombre}>
+                        {`${prefix}${r.nombre} (${modPercent >= 0 ? '+' : ''}${modPercent}%)`}
+                      </option>
+                    );
+                  });
+                })()}
               </select>
             </div>
 

@@ -29,6 +29,7 @@ const MAP_IMG = '/mapa_jugadores.jpg';
 const LocationWidget = ({ character, onUpdate }) => {
   const [open, setOpen] = useState(false);
   const [locations, setLocations] = useState([]);
+  const [regionTree, setRegionTree] = useState([]); // hierarchical regions
   const [filter, setFilter] = useState('');
   const [saving, setSaving] = useState(false);
 
@@ -38,11 +39,28 @@ const LocationWidget = ({ character, onUpdate }) => {
   useEffect(() => {
     if (!open) return;
     if (locations.length > 0) return;
-    api.get('/data/locations')
-      .then((res) => {
-        const list = res.data?.locations || res.data || [];
+    Promise.all([
+      api.get('/data/locations'),
+      api.get('/data/regions/flat').catch(() => ({ data: { regions: [] } })),
+    ])
+      .then(([locRes, regRes]) => {
+        const list = locRes.data?.locations || locRes.data || [];
         const filtered = list.filter((l) => !l.tipo || SETTLEMENT_TYPES.includes(l.tipo));
         setLocations(filtered);
+        // Build hierarchical region tree
+        const flat = regRes.data?.regions || [];
+        const byId = Object.fromEntries(flat.map(r => [r.id, { ...r, children: [] }]));
+        const roots = [];
+        for (const n of Object.values(byId)) {
+          if (n.parent_id && byId[n.parent_id]) byId[n.parent_id].children.push(n);
+          else roots.push(n);
+        }
+        const sortRec = (arr) => {
+          arr.sort((a, b) => (a.orden || 0) - (b.orden || 0) || (a.nombre || '').localeCompare(b.nombre || ''));
+          arr.forEach(n => sortRec(n.children));
+        };
+        sortRec(roots);
+        setRegionTree(roots);
       })
       .catch(() => toast.error('No se pudieron cargar las ubicaciones'));
   }, [open, locations.length]);
@@ -176,44 +194,64 @@ const LocationWidget = ({ character, onUpdate }) => {
           />
           <div className="overflow-y-auto flex-1 border rounded divide-y">
             {(() => {
-              const filtered = locations.filter((l) => {
-                const f = filter.toLowerCase();
-                if (!f) return true;
-                return (l.nombre || '').toLowerCase().includes(f) ||
-                       (l.region || '').toLowerCase().includes(f);
-              });
+              const f = filter.toLowerCase();
+              const matches = (l) => !f || (l.nombre || '').toLowerCase().includes(f) || (l.region || '').toLowerCase().includes(f);
+              const filtered = locations.filter(matches);
               const grouped = {};
               filtered.forEach((l) => {
                 const r = l.region || 'Otros';
                 grouped[r] = grouped[r] || [];
                 grouped[r].push(l);
               });
-              const regions = Object.keys(grouped).sort();
-              if (!regions.length) {
+              if (!filtered.length) {
                 return <div className="p-3 text-sm text-muted-foreground text-center">Sin resultados.</div>;
               }
-              return regions.map((r) => (
-                <div key={r}>
-                  <div className="bg-[hsl(var(--gold))/10] px-3 py-1 text-[11px] uppercase text-[hsl(var(--gold))]">
-                    {r}
-                  </div>
-                  {grouped[r].map((l) => (
-                    <button
-                      key={l.id}
-                      type="button"
-                      onClick={() => handlePick(l)}
-                      disabled={saving}
-                      className={`w-full text-left px-4 py-2 text-sm flex items-center justify-between hover:bg-[hsl(var(--gold))/10] transition-colors ${
-                        ubicacion?.id === l.id ? 'bg-emerald-900/30 border-l-2 border-emerald-500' : ''
-                      }`}
-                      data-testid={`location-pick-${l.id}`}
+              // Walk hierarchical tree (DFS) to render in order. Regions
+              // not present in the tree (orphans) are appended at the end.
+              const out = [];
+              const renderRegion = (regionName, depth) => {
+                const list = grouped[regionName] || [];
+                if (!list.length) return;
+                out.push(
+                  <div key={`hdr-${regionName}`}>
+                    <div
+                      className="bg-[hsl(var(--gold))/10] py-1 text-[11px] uppercase text-[hsl(var(--gold))]"
+                      style={{ paddingLeft: `${depth * 16 + 12}px` }}
                     >
-                      <span className="font-medium">{l.nombre}</span>
-                      <span className="text-[11px] text-muted-foreground italic">{l.tipo}</span>
-                    </button>
-                  ))}
-                </div>
-              ));
+                      {depth > 0 ? '└─ ' : ''}{regionName}
+                    </div>
+                    {list.map((l) => (
+                      <button
+                        key={l.id}
+                        type="button"
+                        onClick={() => handlePick(l)}
+                        disabled={saving}
+                        className={`w-full text-left py-2 text-sm flex items-center justify-between hover:bg-[hsl(var(--gold))/10] transition-colors ${
+                          ubicacion?.id === l.id ? 'bg-emerald-900/30 border-l-2 border-emerald-500' : ''
+                        }`}
+                        style={{ paddingLeft: `${depth * 16 + 24}px`, paddingRight: '16px' }}
+                        data-testid={`location-pick-${l.id}`}
+                      >
+                        <span className="font-medium">{l.nombre}</span>
+                        <span className="text-[11px] text-muted-foreground italic">{l.tipo}</span>
+                      </button>
+                    ))}
+                  </div>
+                );
+              };
+              const walk = (nodes, depth) => {
+                for (const n of nodes) {
+                  renderRegion(n.nombre, depth);
+                  if (n.children?.length) walk(n.children, depth + 1);
+                }
+              };
+              walk(regionTree, 0);
+              // Orphan regions (in groupings but not in tree)
+              const treeNames = new Set();
+              const collectNames = (nodes) => nodes.forEach(n => { treeNames.add(n.nombre); collectNames(n.children || []); });
+              collectNames(regionTree);
+              Object.keys(grouped).filter(r => !treeNames.has(r)).sort().forEach(r => renderRegion(r, 0));
+              return out;
             })()}
           </div>
           <DialogFooter>

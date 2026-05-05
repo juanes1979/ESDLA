@@ -377,6 +377,26 @@ const MiddleEarthMap = () => {
     const regs = new Set(locations.map(l => l.region));
     return Array.from(regs).sort();
   }, [locations]);
+
+  // Hierarchical region list (DFS) for filter dropdowns. Uses
+  // regionsHierarchy (1-level structure from /data/regions) and appends
+  // any orphans (region names present on locations but not in the tree).
+  const regionOptionsHier = useMemo(() => {
+    const out = [];
+    const seen = new Set();
+    (regionsHierarchy || []).forEach(top => {
+      out.push({ name: top.nombre, depth: 0 });
+      seen.add(top.nombre);
+      (top.subregions || []).forEach(sub => {
+        out.push({ name: sub.nombre, depth: 1 });
+        seen.add(sub.nombre);
+      });
+    });
+    regions.forEach(r => {
+      if (!seen.has(r)) out.push({ name: r, depth: 0, orphan: true });
+    });
+    return out;
+  }, [regionsHierarchy, regions]);
   
   // Get unique types
   const types = useMemo(() => {
@@ -1710,8 +1730,10 @@ const MiddleEarthMap = () => {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Todas</SelectItem>
-                {regions.map(r => (
-                  <SelectItem key={r} value={r}>{r}</SelectItem>
+                {regionOptionsHier.map(r => (
+                  <SelectItem key={`${r.name}-${r.depth}`} value={r.name}>
+                    {`${'\u00A0\u00A0'.repeat(r.depth)}${r.depth > 0 ? '└─ ' : ''}${r.name}${r.orphan ? ' (huérfana)' : ''}`}
+                  </SelectItem>
                 ))}
               </SelectContent>
             </Select>

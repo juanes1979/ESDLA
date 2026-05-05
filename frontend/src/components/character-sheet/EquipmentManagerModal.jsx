@@ -153,15 +153,26 @@ const EquipmentManagerModal = ({
     return total;
   };
 
-  // Filter items based on search
+  // Filter items based on search and (optionally) the character's
+  // current region. The shop filter is enabled by default — items
+  // whose `regiones_disponibles` array is non-empty AND does not
+  // include the character's current region are hidden. Empty / missing
+  // array means "available everywhere". Toggle off to ignore region.
+  const [filterByRegion, setFilterByRegion] = useState(true);
+  const characterRegion = (character?.ubicacion_actual?.region || '').trim();
   const filteredItems = useMemo(() => {
-    const items = catalog[selectedCategory] || [];
+    let items = catalog[selectedCategory] || [];
+    if (filterByRegion && characterRegion) {
+      items = items.filter(it => {
+        const regs = it.regiones_disponibles || [];
+        if (!regs.length) return true; // available everywhere
+        return regs.includes(characterRegion);
+      });
+    }
     if (!searchTerm) return items;
     const term = searchTerm.toLowerCase();
-    return items.filter(item => 
-      item.nombre?.toLowerCase().includes(term)
-    );
-  }, [catalog, selectedCategory, searchTerm]);
+    return items.filter(item => item.nombre?.toLowerCase().includes(term));
+  }, [catalog, selectedCategory, searchTerm, filterByRegion, characterRegion]);
 
   // Get current character money in display format
   const getMoneyDisplay = () => {
@@ -444,6 +455,17 @@ const EquipmentManagerModal = ({
   // Update carrier (character or mount) for ANY equipment source.
   // Fires contextual warnings when moving ACTIVE clothing / armor / weapons to mount.
   const handleUpdateCarrier = async (itemIndex, carriedBy, source = 'inventario', itemMeta = null) => {
+    // Hard gate: cannot load items onto a mount without Alforjas.
+    if (carriedBy === 'montura') {
+      const status = getMountUsageStatus(character);
+      if (!status.canLoad) {
+        toast.error(
+          'No puedes cargar equipo en la montura. Necesitas Alforjas.',
+          { duration: 6000 }
+        );
+        return;
+      }
+    }
     setProcessing(true);
     try {
       const res = await api.patch(`/characters/${character.id}/equipment/carry`, {
@@ -544,6 +566,20 @@ const EquipmentManagerModal = ({
   // Cuando va montado, la montura carga el peso del jinete y de su equipo
   // personal — no sólo el equipo explícitamente cargado en ella.
   const handleToggleMounted = async (montado, mountId = null) => {
+    // Hard gate: if trying to mount, require the rider to actually own
+    // the saddle + bridle accessories (or belong to a culture that can
+    // ride bareback). Previously this was only a warning.
+    if (montado) {
+      const status = getMountUsageStatus(character);
+      if (!status.canRide) {
+        toast.error(
+          `No puedes montar la montura. Te faltan: ${status.missingForRide.join(' y ')}. ` +
+          `(Sólo Elfo, Rohirrim o Dúnedan pueden montar sin silla/bridas.)`,
+          { duration: 8000 }
+        );
+        return;
+      }
+    }
     setProcessing(true);
     try {
       const payload = { montado };
@@ -1145,7 +1181,7 @@ const EquipmentManagerModal = ({
               
               {/* Item List */}
               <div className="col-span-5">
-                <div className="mb-3">
+                <div className="mb-3 space-y-2">
                   <div className="relative">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                     <Input
@@ -1155,6 +1191,19 @@ const EquipmentManagerModal = ({
                       className="pl-9"
                     />
                   </div>
+                  {characterRegion && (
+                    <label className="flex items-center gap-2 text-[11px] text-muted-foreground cursor-pointer" data-testid="shop-region-filter-toggle">
+                      <input
+                        type="checkbox"
+                        checked={filterByRegion}
+                        onChange={(e) => setFilterByRegion(e.target.checked)}
+                        className="accent-[hsl(var(--gold))]"
+                      />
+                      <span>
+                        Sólo objetos disponibles en <span className="text-cyan-300 font-semibold">{characterRegion}</span>
+                      </span>
+                    </label>
+                  )}
                 </div>
                 <ScrollArea className="h-[50vh]">
                   <div className="space-y-1">
@@ -1559,6 +1608,12 @@ const EquipmentManagerModal = ({
                     const picker = mountPickerFor;
                     setMountPickerFor(null);
                     if (picker) {
+                      // Hard gate: requires Alforjas to load on a mount.
+                      const status = getMountUsageStatus(character);
+                      if (!status.canLoad) {
+                        toast.error('No puedes cargar equipo en la montura. Necesitas Alforjas.', { duration: 6000 });
+                        return;
+                      }
                       // Include mount_id in call via custom handler
                       (async () => {
                         setProcessing(true);

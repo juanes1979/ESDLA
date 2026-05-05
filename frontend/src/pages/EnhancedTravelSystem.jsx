@@ -1906,6 +1906,7 @@ const EnhancedTravelSystem = () => {
           locations={locations}
           mapContainerRef={mapContainerRef}
           characters={characters}
+          eyeHistory={eye.state?.history || []}
           setMode={setMode}
           setIncludeChronicleInPDF={setIncludeChronicleInPDF}
           setJourneyChronicle={setJourneyChronicle}

@@ -2,7 +2,33 @@
 
 ## Current State (2026-05-05)
 
-### ✅ Iteración 83-ter — Selectores de región con jerarquía visible (NUEVO)
+### ✅ Iteración 83-quater — P2 batch (NUEVO)
+
+**🟢 Selectores de región con jerarquía extendidos**
+- `LocationWidget.jsx` (cambio de ubicación del personaje): la lista agrupada por región ahora se ordena en DFS sobre el árbol `regions/flat`. Cada cabecera de región se sangra con `└─` por nivel; las regiones huérfanas (no presentes en el árbol) caen al final.
+- `MiddleEarthMap.jsx`: nuevo `regionOptionsHier` (DFS sobre `regionsHierarchy` 1-nivel + orphans) y el `<Select>` de filtro renderiza con sangrado.
+- `TradingSystemSection.jsx`: el `<select>` de "Seleccionar región" para los modificadores de precio se ordena por la jerarquía del árbol (los modifiers cuyos nombres no coinciden con regiones del árbol caen al final como huérfanos).
+- (TravelGenerator legacy queda fuera porque sus regiones vienen de `/data/clima` y no del árbol; pendiente para una próxima migración).
+
+**🟢 Filtro real de uso de montura (P2)**
+- `EquipmentManagerModal.handleToggleMounted`: si el personaje intenta montar y `getMountUsageStatus(...).canRide` es false, se bloquea con `toast.error(...)`. Sólo Elfo / Rohirrim / Dúnedan pueden saltarse Bocado+Bridas+Silla.
+- `handleUpdateCarrier(carriedBy='montura')` y el handler inline del Mount Picker: bloquean cargar equipo en la montura sin Alforjas.
+- Antes era sólo aviso (toast.warning); ahora es un gate que evita el efecto.
+
+**🟢 Filtro real de tienda por región (P2)**
+- En el modal de equipo, nuevo checkbox **"Sólo objetos disponibles en {Región}"** (default ON cuando el personaje tiene `ubicacion_actual.region`). El filtro descarta items cuyo `regiones_disponibles` no esté vacío y no contenga la región actual del personaje. `regiones_disponibles=[]` significa "disponible en todas partes".
+
+**🟢 Crónica de Viaje · Export Markdown (P2)**
+- Nuevo botón **"Exportar Markdown"** en `ResultsView` junto a "Imprimir Crónica". Genera un `.md` con: cabecera (origen→destino, año T.E., estación, días, km), La Compañía (miembros + acompañantes con su papel), narrativa IA, diario por jornadas (eventos resueltos), tabla de PX por personaje y los Episodios de Revelación del Ojo de Mordor (si los hay) con `description` + `mechanical_effect`. Descarga vía Blob + `<a download>`.
+
+**🟢 Ojo de Mordor — Fases 3 & 4 completadas (P2)**
+- **Botones rápidos +1/+2/+3** (magia menor / mayor / poderosa) directos en `EyeAttentionBar` sin abrir modal, llamando a `/api/eye/increment` con source `magic_minor|major|powerful`.
+- **Modal de Historial completo** (botón con icono `History`): tabla con timestamp, fuente (con label legible), Δ con color (rojo positivo / verde negativo), detalle. Filtros rápidos: Todo / Natural 1s / Sombra ganada / Magia (todas) / Objetos / Manual / Episodios. Las filas de episodios resaltan en color rosado e incluyen `description` + `mechanical_effect`.
+- **Episodios exportados a la Crónica**: `EnhancedTravelSystem.jsx` pasa `eye.state.history` a `ResultsView`, que filtra `source==='episode_applied'` y los anexa al Markdown como sección "Ojo de Mordor — Episodios de Revelación".
+
+---
+
+### ✅ Iteración 83-ter — Selectores de región con jerarquía visible
 
 **🟢 Dropdowns de región muestran ahora el árbol con indentación**
 - Cada `<option>` lleva un prefijo `└─ ` y sangrado proporcional a su `depth` (DFS sobre el árbol de regiones), así el usuario ve de un vistazo `Eriador > Angmar > Colinas de Angmar` al elegir.
