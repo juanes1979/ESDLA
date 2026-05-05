@@ -2,7 +2,25 @@
 
 ## Current State (2026-05-05)
 
-### ✅ Iteración 83-quater — P2 batch (NUEVO)
+### ✅ Iteración 83-quinquies — Undo/Redo en TerrainEditor + TravelGenerator legacy migrado (NUEVO)
+
+**🟢 TerrainEditor — Undo/Redo robusto**
+- Reescrito el sistema de historial: ahora almacena estados POSTERIORES (después de aplicar) y `historyIndex` apunta al estado actual. La lógica `redo` anterior estaba rota porque sólo guardaba estados anteriores.
+- `pushHistory(newState)` se invoca en TODOS los puntos de mutación: crear polígono, eliminar, limpiar local, limpiar BD, mover (al `mouseup`).
+- Inicialización: al cargar polígonos del backend se siembra `history=[loadedState]` y `historyIndex=0`, así el primer Undo vuelve al estado de la BD.
+- **Atajos de teclado**: `Ctrl/Cmd+Z` (Undo) y `Ctrl+Y` / `Ctrl+Shift+Z` (Redo). Ignora cuando el foco está en input/textarea/contenteditable.
+- **Botones UI** en la toolbar con `disabled` reactivo (`canUndo`/`canRedo`).
+- HISTORY_MAX = 50 para evitar memoria excesiva en sesiones largas.
+
+**🟢 TravelGenerator legacy — usa el árbol de regiones**
+- Antes el `<Select>` de Región mostraba sólo las 13 regiones climáticas planas (`/data/clima`). Ahora muestra todas las regiones del árbol (`/data/regions/flat`) con sangrado `└─` por nivel (Eriador → La Comarca → Angmar → Colinas de Angmar, etc.).
+- Cada opción precomputa su `climateId` caminando hacia el ancestro top-level cuyo nombre uppercase coincide con un climate id existente. Las opciones sin climate quedan disabled con sufijo `(sin clima)`.
+- `config.region` sigue siendo el climate id (compatible con `/data/clima/{id}`); se añade `config.regionDisplay` con el nombre del nodo seleccionado para que el dropdown sepa qué opción está activa.
+- Texto auxiliar bajo el select: muestra el `Clima:` derivado cuando el nombre del nodo difiere del climate id (p. ej. al elegir "La Comarca" muestra `Clima: ERIADOR`).
+
+---
+
+### ✅ Iteración 83-quater — P2 batch (selectores extendidos + filtros reales + export Markdown + Ojo F3-4)
 
 **🟢 Selectores de región con jerarquía extendidos**
 - `LocationWidget.jsx` (cambio de ubicación del personaje): la lista agrupada por región ahora se ordena en DFS sobre el árbol `regions/flat`. Cada cabecera de región se sangra con `└─` por nivel; las regiones huérfanas (no presentes en el árbol) caen al final.

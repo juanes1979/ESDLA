@@ -78,6 +78,10 @@ const SeasonIcon = ({ estacion }) => {
 const TravelGenerator = () => {
   // Data states
   const [regiones, setRegiones] = useState([]);
+  // Hierarchical region tree (DFS-flattened) for the Region dropdown.
+  // Each entry: { name, depth, climateId } where climateId points to the
+  // closest ancestor that has a matching entry in /data/clima.
+  const [regionTreeFlat, setRegionTreeFlat] = useState([]);
   const [distancias, setDistancias] = useState({ rutas: [], puntos_interes: [] });
   const [monturas, setMonturas] = useState([]);
   const [viajesGuardados, setViajesGuardados] = useState([]);
@@ -263,25 +267,55 @@ const TravelGenerator = () => {
   useEffect(() => {
     const loadData = async () => {
       try {
-        const [regionesRes, distanciasRes, monturasRes, viajesRes, personajesRes, locationsRes] = await Promise.all([
+        const [regionesRes, distanciasRes, monturasRes, viajesRes, personajesRes, locationsRes, regionsFlatRes] = await Promise.all([
           api.get('/data/clima'),
           api.get('/data/distancias'),
           api.get('/data/monturas'),
           api.get('/data/viajes/guardados'),
           api.get('/characters/'),
-          api.get('/data/locations')
+          api.get('/data/locations'),
+          api.get('/data/regions/flat').catch(() => ({ data: { regions: [] } })),
         ]);
-        
-        setRegiones(regionesRes.data || []);
+
+        const climaRegs = regionesRes.data || [];
+        setRegiones(climaRegs);
         setDistancias(distanciasRes.data || { rutas: [], puntos_interes: [] });
         setMonturas(monturasRes.data || []);
         setViajesGuardados(viajesRes.data || []);
         setPersonajes(personajesRes.data?.characters || []);
-        
+
+        // Build hierarchical region list from /data/regions/flat. Each
+        // entry resolves a `climateId` by walking up to the top-level
+        // ancestor and matching its uppercase name against climate ids.
+        const flatRegs = regionsFlatRes.data?.regions || [];
+        const byId = Object.fromEntries(flatRegs.map(r => [r.id, { ...r, children: [] }]));
+        const roots = [];
+        for (const n of Object.values(byId)) {
+          if (n.parent_id && byId[n.parent_id]) byId[n.parent_id].children.push(n);
+          else roots.push(n);
+        }
+        const sortRec = (arr) => {
+          arr.sort((a, b) => (a.orden || 0) - (b.orden || 0) || (a.nombre || '').localeCompare(b.nombre || ''));
+          arr.forEach(n => sortRec(n.children));
+        };
+        sortRec(roots);
+        const climateIds = new Set(climaRegs.map(c => c.id));
+        const flatHier = [];
+        const walk = (nodes, depth, ancestorClimate) => {
+          for (const n of nodes) {
+            const upperName = (n.nombre || '').toUpperCase();
+            const climateId = climateIds.has(upperName) ? upperName : ancestorClimate;
+            flatHier.push({ name: n.nombre, depth, climateId: climateId || null });
+            if (n.children?.length) walk(n.children, depth + 1, climateId);
+          }
+        };
+        walk(roots, 0, null);
+        setRegionTreeFlat(flatHier);
+
         // Process locations by region
         const locations = locationsRes.data?.locations || [];
         setAllLocations(locations);
-        
+
         // Group by region
         const byRegion = {};
         locations.forEach(loc => {
@@ -291,12 +325,12 @@ const TravelGenerator = () => {
           }
           byRegion[region].push(loc);
         });
-        
+
         // Sort locations within each region
         Object.keys(byRegion).forEach(region => {
           byRegion[region].sort((a, b) => a.nombre.localeCompare(b.nombre));
         });
-        
+
         setLocationsByRegion(byRegion);
       } catch (err) {
         console.error('Error loading travel data:', err);
@@ -958,16 +992,40 @@ const TravelGenerator = () => {
           <div className="grid md:grid-cols-3 gap-4">
             <div>
               <Label>Región</Label>
-              <Select value={config.region} onValueChange={(v) => setConfig(prev => ({ ...prev, region: v }))}>
+              <Select
+                value={config.regionDisplay || ''}
+                onValueChange={(v) => {
+                  const opt = regionTreeFlat.find(r => r.name === v);
+                  if (!opt) return;
+                  setConfig(prev => ({
+                    ...prev,
+                    regionDisplay: opt.name,
+                    region: opt.climateId || prev.region,
+                  }));
+                }}
+              >
                 <SelectTrigger>
                   <SelectValue placeholder="Seleccionar región" />
                 </SelectTrigger>
                 <SelectContent>
-                  {regiones.map(r => (
-                    <SelectItem key={r.id} value={r.id}>{r.nombre}</SelectItem>
-                  ))}
+                  {regionTreeFlat.length > 0 ? (
+                    regionTreeFlat.map(r => (
+                      <SelectItem key={r.name} value={r.name} disabled={!r.climateId}>
+                        {`${'\u00A0\u00A0'.repeat(r.depth)}${r.depth > 0 ? '└─ ' : ''}${r.name}${!r.climateId ? ' (sin clima)' : ''}`}
+                      </SelectItem>
+                    ))
+                  ) : (
+                    regiones.map(r => (
+                      <SelectItem key={r.id} value={r.nombre || r.id}>{r.nombre}</SelectItem>
+                    ))
+                  )}
                 </SelectContent>
               </Select>
+              {config.region && config.regionDisplay && config.regionDisplay !== config.region && (
+                <p className="text-[11px] text-muted-foreground mt-1">
+                  Clima: <span className="text-amber-300">{config.region}</span>
+                </p>
+              )}
             </div>
             
             <div>

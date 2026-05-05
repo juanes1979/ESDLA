@@ -80,49 +80,76 @@ const TerrainEditor = () => {
   const [movingPolygonId, setMovingPolygonId] = useState(null);
   const [moveStartCoords, setMoveStartCoords] = useState(null);
 
-  // === Undo / Redo history of drawnPolygons (Iter 68) ===
+  // === Undo / Redo history of drawnPolygons (Iter 83) ===
+  // Stores AFTER-states. cursor (`historyIndex`) points to the index in
+  // `history` that corresponds to the CURRENT drawn polygons.
+  // - undo: cursor-- and restore that state.
+  // - redo: cursor++ and restore that state.
+  // - pushHistory: drop redo branch (anything after cursor), append the
+  //   new state, then advance cursor to the tail.
   const HISTORY_MAX = 50;
-  const [history, setHistory] = useState([]);     // array of polygon snapshots
-  const [historyIndex, setHistoryIndex] = useState(-1);
+  const [history, setHistory] = useState([[]]);
+  const [historyIndex, setHistoryIndex] = useState(0);
 
-  // Push the CURRENT drawnPolygons onto history. Call BEFORE applying a change.
-  const pushHistory = (snapshot) => {
-    const snap = JSON.parse(JSON.stringify(snapshot || []));
+  const pushHistory = useCallback((newState) => {
+    const snap = JSON.parse(JSON.stringify(newState || []));
     setHistory(prev => {
-      // Drop everything after the cursor (redo branch is invalidated)
       const trimmed = prev.slice(0, historyIndex + 1);
       const next = [...trimmed, snap];
-      // Cap size — drop oldest entries
-      if (next.length > HISTORY_MAX) next.shift();
-      // Adjust the cursor to the new tail
-      setHistoryIndex(next.length - 1);
+      if (next.length > HISTORY_MAX) {
+        next.shift();
+        setHistoryIndex(next.length - 1);
+      } else {
+        setHistoryIndex(next.length - 1);
+      }
       return next;
     });
-  };
+  }, [historyIndex]);
 
-  const undo = () => {
-    if (historyIndex < 0) {
+  const canUndo = historyIndex > 0;
+  const canRedo = historyIndex < history.length - 1;
+
+  const undo = useCallback(() => {
+    if (historyIndex <= 0) {
       toast.info('Nada que deshacer.');
       return;
     }
-    const snap = history[historyIndex];
-    setDrawnPolygons(JSON.parse(JSON.stringify(snap || [])));
-    setHistoryIndex(historyIndex - 1);
+    const newIndex = historyIndex - 1;
+    setDrawnPolygons(JSON.parse(JSON.stringify(history[newIndex] || [])));
+    setHistoryIndex(newIndex);
     toast.success('Deshecho.');
-  };
+  }, [history, historyIndex]);
 
-  const redo = () => {
+  const redo = useCallback(() => {
     if (historyIndex >= history.length - 1) {
       toast.info('Nada que rehacer.');
       return;
     }
-    const snap = history[historyIndex + 2]; // +2 because pushHistory stored the BEFORE state
-    if (snap) {
-      setDrawnPolygons(JSON.parse(JSON.stringify(snap)));
-      setHistoryIndex(historyIndex + 1);
-      toast.success('Rehecho.');
-    }
-  };
+    const newIndex = historyIndex + 1;
+    setDrawnPolygons(JSON.parse(JSON.stringify(history[newIndex] || [])));
+    setHistoryIndex(newIndex);
+    toast.success('Rehecho.');
+  }, [history, historyIndex]);
+
+  // Keyboard shortcuts: Ctrl/Cmd+Z (undo) and Ctrl+Y / Ctrl+Shift+Z (redo).
+  useEffect(() => {
+    const onKey = (e) => {
+      const tag = (e.target?.tagName || '').toLowerCase();
+      if (tag === 'input' || tag === 'textarea' || e.target?.isContentEditable) return;
+      const ctrl = e.ctrlKey || e.metaKey;
+      if (!ctrl) return;
+      const k = (e.key || '').toLowerCase();
+      if (k === 'z' && !e.shiftKey) {
+        e.preventDefault();
+        undo();
+      } else if ((k === 'y') || (k === 'z' && e.shiftKey)) {
+        e.preventDefault();
+        redo();
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [undo, redo]);
 
 
   // Load data
@@ -157,6 +184,10 @@ const TerrainEditor = () => {
         const terrainRes = await api.get('/data/terrain-polygons');
         if (terrainRes.data?.polygons && terrainRes.data.polygons.length > 0) {
           setDrawnPolygons(terrainRes.data.polygons);
+          // Initialise history with the loaded state so the first action
+          // can be undone back to the database state.
+          setHistory([JSON.parse(JSON.stringify(terrainRes.data.polygons))]);
+          setHistoryIndex(0);
           toast.success(`Cargados ${terrainRes.data.polygons.length} polígonos de terreno`);
         }
         
@@ -218,6 +249,8 @@ const TerrainEditor = () => {
   const handleMouseUp = () => {
     setIsDragging(false);
     if (movingPolygonId) {
+      // Snapshot the AFTER state so the move can be undone.
+      pushHistory(drawnPolygons);
       toast.success('Polígono movido — recuerda Guardar para persistirlo.');
       setMovingPolygonId(null);
       setMoveStartCoords(null);
@@ -418,7 +451,7 @@ const TerrainEditor = () => {
       points: [...currentPolygon]
     };
     
-    pushHistory(drawnPolygons);
+    pushHistory([...drawnPolygons, newPolygon]);
     setDrawnPolygons(prev => [...prev, newPolygon]);
     setCurrentPolygon([]);
     toast.success(`Polígono creado con ${newPolygon.points.length} puntos`);
@@ -439,7 +472,7 @@ const TerrainEditor = () => {
 
   // Delete a drawn polygon
   const deletePolygon = (polygonId) => {
-    pushHistory(drawnPolygons);
+    pushHistory(drawnPolygons.filter(p => p.id !== polygonId));
     setDrawnPolygons(prev => prev.filter(p => p.id !== polygonId));
     toast.info('Polígono eliminado');
   };
@@ -451,6 +484,7 @@ const TerrainEditor = () => {
       return;
     }
     if (window.confirm(`¿Estás seguro de que quieres borrar ${drawnPolygons.length} polígonos locales?`)) {
+      pushHistory([]);
       setDrawnPolygons([]);
       setCurrentPolygon([]);
       setPaintedCells([]);
@@ -465,6 +499,7 @@ const TerrainEditor = () => {
     }
     try {
       await api.delete('/data/terrain-polygons');
+      pushHistory([]);
       setDrawnPolygons([]);
       toast.success('Polígonos eliminados de la base de datos');
     } catch (err) {
@@ -1007,6 +1042,28 @@ const TerrainEditor = () => {
             <div className="flex items-center gap-2 text-xs bg-black/40 px-2 py-1 rounded">
               <span>Polígonos: <span className="text-amber-400 font-bold">{drawnPolygons.length}</span></span>
             </div>
+
+            {/* Undo / Redo */}
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={undo}
+              disabled={!canUndo}
+              title="Deshacer (Ctrl+Z)"
+              data-testid="terrain-undo-btn"
+            >
+              ↶ Deshacer
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={redo}
+              disabled={!canRedo}
+              title="Rehacer (Ctrl+Y)"
+              data-testid="terrain-redo-btn"
+            >
+              ↷ Rehacer
+            </Button>
             
             {/* Polygon mode controls */}
             {polygonMode && currentPolygon.length > 0 && (
