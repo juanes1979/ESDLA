@@ -1507,3 +1507,27 @@ evitar errores accidentales por drag-and-drop.
 
 **Resultado**: una sola fuente de datos (`regions`), dos vistas
 sincronizadas, editor activable bajo demanda.
+
+## Iter83g — Bug fix: drag-and-drop "movía todas las regiones"
+
+**Reportado**: al arrastrar Angmar para meterlo en Eriador, visualmente
+todas las regiones se movían a la vez.
+
+**Causa raíz**: en `RegionHierarchyTree.jsx` aplicaba `transform` (vía
+useDraggable) DIRECTAMENTE al card original, mientras también
+renderizaba un `DragOverlay`. Esto duplicaba el movimiento: la card
+original se desplazaba físicamente sobre las cards inferiores, dando
+la sensación de que "todas se movían" porque pasaba por encima de
+ellas durante el drag.
+
+**Fix**: el card original ahora SOLO se atenúa (opacity 0.25) cuando
+está siendo arrastrado. El movimiento físico lo gestiona en exclusiva
+el `DragOverlay` (patrón estándar de dnd-kit). Las cards inferiores
+permanecen quietas durante el drag.
+
+Borde con anillo `ring-amber-400/40` cuando un drop target está
+hover, para mejor feedback de dónde se va a anidar.
+
+**Verificación visual**: drag E2E confirmado. Solo Angmar se atenúa,
+DragOverlay flota encima del cursor, soltar sobre Eriador anida
+correctamente con badge "Pendiente" y botones de Guardar/Descartar.

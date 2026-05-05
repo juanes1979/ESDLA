@@ -52,25 +52,28 @@ const CLASE_COLOR = {
 
 // ============== CARD ==============
 const NodeCard = ({ node, depth, expanded, onToggle, isPending, hasChildren, childCount }) => {
-  const { attributes, listeners, setNodeRef: setDragRef, transform, isDragging } = useDraggable({
+  const { attributes, listeners, setNodeRef: setDragRef, isDragging } = useDraggable({
     id: node.id, data: { type: 'node', node },
   });
   const { isOver, setNodeRef: setDropRef } = useDroppable({
     id: `drop-${node.id}`, data: { type: 'drop-into', nodeId: node.id },
   });
-  const style = transform
-    ? { transform: `translate(${transform.x}px, ${transform.y}px)`, opacity: 0.4 }
-    : {};
+  // El movimiento físico lo gestiona el `DragOverlay` global; aquí
+  // sólo atenuamos la card de origen para indicar que se está
+  // arrastrando. NO aplicamos `transform` porque desplazaría la card
+  // sobre las demás del listado y crearía la sensación visual de
+  // "todas las regiones se mueven a la vez".
+  const sourceStyle = isDragging ? { opacity: 0.25 } : {};
 
   return (
     <div ref={setDropRef} style={{ paddingLeft: `${depth * 28}px` }}>
       <div
         ref={setDragRef}
-        style={style}
+        style={sourceStyle}
         className={`relative my-1.5 rounded-lg border overflow-hidden transition-all ${
-          isDragging ? 'border-amber-400 bg-amber-500/15 shadow-xl scale-[0.99]'
+          isDragging ? 'border-amber-400/60'
           : isPending ? 'border-amber-500/70 border-dashed bg-amber-900/20'
-          : isOver ? 'border-amber-400 bg-amber-500/10'
+          : isOver ? 'border-amber-400 bg-amber-500/10 ring-2 ring-amber-400/40'
           : 'border-amber-900/40 bg-black/40 hover:border-amber-700/60'
         }`}
         data-testid={`region-card-${node.id}`}
