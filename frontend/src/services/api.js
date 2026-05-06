@@ -380,6 +380,28 @@ export const myCampaigns = async (status = null) => {
   return response.data;
 };
 
+// === CAMPAIGN EXPERIENCE (Fase 4) ===
+
+export const awardXP = async (runId, { characterId, xpAmount, reason, sessionNumber }) => {
+  const response = await api.post(`/campaign-runs/${runId}/award-xp`, {
+    character_id: characterId,
+    xp_amount: xpAmount,
+    reason: reason || null,
+    session_number: sessionNumber || null,
+  });
+  return response.data;
+};
+
+export const listCampaignExperience = async (runId) => {
+  const response = await api.get(`/campaign-runs/${runId}/experience`);
+  return response.data;
+};
+
+export const characterCampaignHistory = async (characterId) => {
+  const response = await api.get(`/characters/${characterId}/campaign-history`);
+  return response.data;
+};
+
 // Used by the player when joining: list their own characters (eligible).
 // `summary=true` returns minimal fields to keep the payload small (full docs
 // are several MB each because of inventory + chests).

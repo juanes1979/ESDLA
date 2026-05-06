@@ -22,6 +22,7 @@ import {
   UserCheck,
   UserX,
   UserMinus,
+  Sparkles,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import {
@@ -36,6 +37,8 @@ import {
 } from '@/services/api';
 import { Button } from '@/components/ui/button';
 import RuneIgniteOverlay from '@/components/adventures/RuneIgniteOverlay';
+import AwardXPDialog from '@/components/adventures/AwardXPDialog';
+import ScrollOfDeedsReveal from '@/components/adventures/ScrollOfDeedsReveal';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 
@@ -210,12 +213,12 @@ const ORIGIN_LABEL = {
   invitation: 'invitación',
 };
 
-const PlayersTab = ({ players, onAct, igniteId }) => {
+const PlayersTab = ({ players, onAct, igniteId, onAwardXP }) => {
   const pending = players.filter((p) => p.status === 'pending');
   const accepted = players.filter((p) => p.status === 'accepted');
   const closed = players.filter((p) => !['pending', 'accepted'].includes(p.status));
 
-  const renderRow = (p, showAccept = false, showReject = false, showExpel = false) => (
+  const renderRow = (p, showAccept = false, showReject = false, showExpel = false, showXP = false) => (
     <div
       key={p.id}
       className="relative rounded border border-amber-800/30 bg-black/40 p-3"
@@ -227,6 +230,15 @@ const PlayersTab = ({ players, onAct, igniteId }) => {
           <div className="text-amber-200 font-medium">
             {p.character_name || '(personaje sin nombre)'}{' '}
             <span className="text-xs text-amber-300/60">· nivel {p.character_level ?? '?'}</span>
+            {p.status === 'accepted' && (p.xp_pending_total > 0) && (
+              <span
+                className="ml-2 px-2 py-0.5 text-xs rounded bg-emerald-900/50 text-emerald-200"
+                data-testid={`xp-pending-${p.id}`}
+                title="PX pendientes — se consolidan al finalizar"
+              >
+                +{p.xp_pending_total} PX pend.
+              </span>
+            )}
           </div>
           <div className="text-xs text-amber-300/60">
             Jugador: {p.user_name || '—'}
@@ -257,6 +269,17 @@ const PlayersTab = ({ players, onAct, igniteId }) => {
               className="border-rose-700/50 text-rose-200 hover:bg-rose-900/30"
             >
               <UserX className="w-3.5 h-3.5 mr-1" /> Rechazar
+            </Button>
+          )}
+          {showXP && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => onAwardXP(p)}
+              data-testid={`award-xp-${p.id}`}
+              className="border-amber-700/50 text-amber-200 hover:bg-amber-900/30"
+            >
+              <Sparkles className="w-3.5 h-3.5 mr-1" /> Otorgar PX
             </Button>
           )}
           {showExpel && (
@@ -307,7 +330,7 @@ const PlayersTab = ({ players, onAct, igniteId }) => {
           <p className="text-sm text-gray-500 italic">— aún no hay personajes aceptados —</p>
         ) : (
           <div className="space-y-2">
-            {accepted.map((p) => renderRow(p, false, false, true))}
+            {accepted.map((p) => renderRow(p, false, false, true, true))}
           </div>
         )}
       </Section>
@@ -352,7 +375,9 @@ const CampaignHubPage = () => {
   const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState(false);
   const [igniteId, setIgniteId] = useState(null);
-  const [pendingSeen, setPendingSeen] = useState(0); // for new-request animation badge
+  const [pendingSeen, setPendingSeen] = useState(0);
+  const [awardingFor, setAwardingFor] = useState(null);
+  const [scrollEntries, setScrollEntries] = useState(null); // for finish animation
 
   const reload = async () => {
     try {
@@ -436,8 +461,12 @@ const CampaignHubPage = () => {
         pause: pauseCampaignRun,
         finish: finishCampaignRun,
       }[action];
-      await fn(id);
+      const result = await fn(id);
       toast.success(`Campaña ${action === 'activate' ? 'activada' : action === 'pause' ? 'pausada' : 'finalizada'}`);
+      // On finish, the response includes xp_consolidation → trigger scroll animation
+      if (action === 'finish' && Array.isArray(result?.xp_consolidation) && result.xp_consolidation.length > 0) {
+        setScrollEntries(result.xp_consolidation);
+      }
       await reload();
     } catch (err) {
       toast.error(err?.response?.data?.detail || 'Error');
@@ -544,9 +573,30 @@ const CampaignHubPage = () => {
           <InfoTab run={run} onAction={handleAction} onCopyCode={handleCopyCode} copied={copied} />
         )}
         {tab === 'content' && <ContentTab content={content} run={run} />}
-        {tab === 'players' && <PlayersTab players={players} onAct={handlePlayerAct} igniteId={igniteId} />}
+        {tab === 'players' && (
+          <PlayersTab
+            players={players}
+            onAct={handlePlayerAct}
+            igniteId={igniteId}
+            onAwardXP={(p) => setAwardingFor(p)}
+          />
+        )}
         {tab === 'log' && <LogTab log={log} />}
       </div>
+
+      <AwardXPDialog
+        open={!!awardingFor}
+        onClose={() => setAwardingFor(null)}
+        runId={id}
+        player={awardingFor}
+        onAwarded={reload}
+      />
+
+      <ScrollOfDeedsReveal
+        entries={scrollEntries}
+        open={!!scrollEntries}
+        onClose={() => setScrollEntries(null)}
+      />
 
       <style>{`
         @keyframes pendingPulse {

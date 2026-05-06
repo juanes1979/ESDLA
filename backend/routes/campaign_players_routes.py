@@ -296,13 +296,16 @@ async def update_player_status(
                 {"$set": {"active_campaign_run_id": None, "updated_at": now}},
             )
         update["closed_at"] = now
-        # NOTE Fase 4: clear xp_pending_total + history entry here
         log_event = "player_rejected" if target == "rejected" else "player_expelled"
         log_desc = (
             f"Solicitud de {char.get('nombre') if char else 'personaje'} rechazada"
             if target == "rejected"
             else f"{char.get('nombre') if char else 'Personaje'} expulsado de la campaña"
         )
+        # Fase 4: history entry + reset pending XP (only meaningful for previously accepted)
+        if target == "expelled" or cur == "accepted":
+            from routes.campaign_experience_routes import record_history_on_close
+            await record_history_on_close(db, p, run, target)
 
     await db.campaign_players.update_one({"id": player_id}, {"$set": update})
     await db.campaign_log.insert_one({
@@ -372,6 +375,13 @@ async def leave_campaign(player_id: str, user: dict = Depends(get_current_user))
             {"_id": p["character_id"]},
             {"$set": {"active_campaign_run_id": None, "updated_at": now}},
         )
+
+    # Fase 4: history entry (loses pending XP) only if was accepted
+    run = await db.campaign_runs.find_one({"id": p["campaign_run_id"]})
+    if run and p["status"] == "accepted":
+        from routes.campaign_experience_routes import record_history_on_close
+        await record_history_on_close(db, p, run, "abandon")
+
     await db.campaign_players.update_one(
         {"id": player_id},
         {"$set": {"status": "abandon", "closed_at": now}},

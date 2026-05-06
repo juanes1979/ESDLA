@@ -2,6 +2,40 @@
 
 ## Current State (2026-05-06)
 
+### ✅ Iteración 99 — FASE 4: Sistema de PX pendiente + animación "Rollos de Gestas"
+
+**🟢 Backend** (`/app/backend/routes/campaign_experience_routes.py` — NUEVO)
+- Colecciones nuevas: `campaign_experience` (auditoría XP otorgada) y `character_campaign_history` (histórico permanente).
+- **Endpoints**:
+  - `POST /api/campaign-runs/{id}/award-xp` — DJ otorga PX (1-10000) a personaje accepted. Crea entrada `campaign_experience` + suma a `campaign_players.xp_pending_total` + log.
+  - `GET /api/campaign-runs/{id}/experience` — auditoría completa de PX otorgados (DJ/Maestro).
+  - `GET /api/characters/{id}/campaign-history` — histórico de campañas del personaje (owner/Maestro).
+- **`finish_run` ahora consolida**: para cada `accepted` → `+xp_pending_total` a `characters.experiencia` (y legacy `xp`) + libera `active_campaign_run_id` + crea histórico `result=success` + marca player `status=finished`. Devuelve `xp_consolidation: [...]` en la respuesta para alimentar la animación.
+- **`reject/expel/abandon` ahora**: guardan entrada en `character_campaign_history` con `xp_earned=0` (PX pendientes perdidos) y resetean `xp_pending_total` para evitar consolidaciones erróneas.
+- Validaciones: PX sólo en estado `active|paused`, sólo a `accepted`, valor 1-10000, sólo DJ/Maestro.
+
+**🟢 Frontend**
+- 📜 `ScrollOfDeedsReveal.jsx`: animación de rollos de pergamino desplegándose uno por personaje (delay escalonado 320ms), con **varillas doradas** a los lados (gradient con shadow), papel sepia con `paperUnroll` keyframe (scaleX de 0.05→1) y **contador animado** ease-out cubic 1.4s del 0 al `xp_earned`. Frase épica: "Las hazañas se sellan en el pergamino — la experiencia es vuestra".
+- ✨ `AwardXPDialog.jsx`: input numérico + 5 botones rápidos (+25/+50/+100/+200/+500) + motivo opcional. Muestra el pendiente actual del personaje. Aviso de que se consolida al finalizar.
+- `CampaignHubPage > PlayersTab` ahora muestra:
+  - Badge `+X PX pend.` (emerald) junto al nombre del personaje accepted con xp pendiente > 0
+  - Botón "Otorgar PX" en cada personaje accepted
+- `CampaignHubPage > handleAction('finish')` detecta `xp_consolidation` en la respuesta y dispara automáticamente el `<ScrollOfDeedsReveal>`.
+
+**🟢 Tests** — `/app/backend/tests/test_campaign_experience_it99.py` — **8/8 PASS**
+- Award incrementa solo pendiente, NO experiencia del personaje.
+- Validación 422 para amount=0.
+- Award sólo a `accepted` (404 si no).
+- Finish consolida correctamente: experiencia 100 → 350 con +250 pendientes.
+- Histórico creado en finish con `result=success` + adventure_name.
+- Expel pierde PX pendientes (experiencia personaje sin cambio + histórico `result=expelled`, xp_earned=0).
+- Leave voluntario igual (`result=abandon`, xp_earned=0).
+- Player no puede otorgar XP (403).
+
+**Total tests del fork (Fases 1+2+3+4): 39/39 PASS**
+
+---
+
 ### ✅ Iteración 98 — FASE 3: Unión por código + animaciones (badge pulsante + runa élfica)
 
 **🟢 Backend** (`/app/backend/routes/campaign_players_routes.py` — NUEVO)

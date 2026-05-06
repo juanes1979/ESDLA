@@ -313,20 +313,22 @@ async def _transition(db, run_id: str, user: dict, new_status: str, *, allowed_f
         "created_at": now,
     })
 
-    # On finish: release all locked characters, mark accepted players as finished.
-    # NOTE Fase 4 will consolidate xp_pending_total into characters.xp_total here.
+    # On finish: release locked characters + consolidate pending XP +
+    # record history entries. The returned consolidation list is exposed
+    # via the response so the frontend can play the "scroll reveal"
+    # animation per character.
+    consolidation = []
     if new_status == "finished":
-        await db.characters.update_many(
-            {"active_campaign_run_id": run_id},
-            {"$set": {"active_campaign_run_id": None, "updated_at": now}},
-        )
-        await db.campaign_players.update_many(
-            {"campaign_run_id": run_id, "status": "accepted"},
-            {"$set": {"status": "finished", "closed_at": now}},
-        )
+        from routes.campaign_experience_routes import consolidate_xp_on_finish
+        # Need the latest run document for adventure_id/name
+        new_doc_for_finish = await db.campaign_runs.find_one({"id": run_id})
+        consolidation = await consolidate_xp_on_finish(db, new_doc_for_finish)
 
     new_doc = await db.campaign_runs.find_one({"id": run_id})
-    return _serialize(new_doc)
+    out = _serialize(new_doc)
+    if consolidation:
+        out["xp_consolidation"] = consolidation
+    return out
 
 
 @router.post("/{run_id}/activate", response_model=CampaignRunOut)
@@ -341,10 +343,11 @@ async def pause_run(run_id: str, user: dict = Depends(get_current_user)):
     return await _transition(db, run_id, user, "paused", allowed_from={"active"})
 
 
-@router.post("/{run_id}/finish", response_model=CampaignRunOut)
+@router.post("/{run_id}/finish")
 async def finish_run(run_id: str, user: dict = Depends(get_current_user)):
     from server import db
-    # NOTE: Fase 4 will consolidate pending XP into characters here.
+    # Returns a dict that may include `xp_consolidation` (list of
+    # {character_id, character_name, xp_earned}) for the UI animation.
     return await _transition(db, run_id, user, "finished", allowed_from={"active", "paused", "draft"})
 
 
