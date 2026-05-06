@@ -1,8 +1,8 @@
 /**
- * LoginPage — entrada al portal de la Tierra Media.
+ * LoginPage — el Anillo Único como portal de entrada.
  *
- * Estilo: parche de pergamino sobre el mismo fondo épico del Home,
- * rótulo dorado, vignette inferior, marco rúnico simple.
+ * El anillo grabado en élfico arde con un fuego que late, y dentro
+ * de su círculo oscuro vive el formulario.
  */
 import { useState } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
@@ -14,6 +14,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { useAuth } from '@/context/AuthContext';
 
 const HOME_BG = 'https://customer-assets.emergentagent.com/job_fab028bf-4de6-413f-8616-34827bc574a6/artifacts/j31eritq_Fondo.png';
+const RING_PORTAL = 'https://customer-assets.emergentagent.com/job_83678a44-91d5-44d8-bd9c-fd3a28e2ac42/artifacts/6icqwqj5_ENTRADA.png';
 
 const LoginPage = () => {
   const { login } = useAuth();
@@ -43,7 +44,7 @@ const LoginPage = () => {
 
   return (
     <div
-      className="min-h-screen flex items-center justify-center p-6 relative"
+      className="min-h-screen flex items-center justify-center p-6 relative overflow-hidden"
       style={{
         backgroundImage: `url(${HOME_BG})`,
         backgroundSize: 'cover',
@@ -52,120 +53,201 @@ const LoginPage = () => {
       }}
     >
       {/* Velo oscuro para contraste */}
-      <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/55 to-black/70" />
+      <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/65 to-black/75" />
 
-      {/* Resplandor dorado tenue de fondo */}
-      <div
-        className="absolute inset-0 pointer-events-none"
-        style={{
-          background:
-            'radial-gradient(ellipse at center, rgba(251,191,36,0.10) 0%, transparent 55%)',
-        }}
-      />
+      {/* Resplandor naranja palpitante (halo del fuego) */}
+      <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
+        <div className="ring-halo" />
+      </div>
 
-      <div className="relative z-10 w-full max-w-md">
-        {/* Anillo dorado giratorio sutil sobre el cuadro */}
-        <div className="text-center mb-4">
-          <div className="inline-block px-4 py-1 rounded-full border border-amber-700/60 bg-black/40 backdrop-blur-sm">
-            <span className="text-[11px] tracking-[0.4em] text-amber-300/80 uppercase">
-              Lord of the Rings · 5e
-            </span>
-          </div>
+      {/* Banda con título superior */}
+      <div className="absolute top-6 left-1/2 -translate-x-1/2 z-20">
+        <div className="px-5 py-1.5 rounded-full border border-amber-700/60 bg-black/70 backdrop-blur-sm">
+          <span className="text-[11px] tracking-[0.45em] text-amber-300/85 uppercase font-heading">
+            Lord of the Rings · 5e
+          </span>
         </div>
+      </div>
 
+      {/* Portal Anillo */}
+      <div className="relative z-10 w-full max-w-[720px] aspect-square mx-auto">
+        {/* La imagen del Anillo en llamas, palpitando */}
         <div
-          className="rounded-lg p-8 shadow-2xl border border-amber-700/60 bg-stone-950/80 backdrop-blur-md"
+          className="ring-portal absolute inset-0"
           data-testid="login-page"
           style={{
+            backgroundImage: `url(${RING_PORTAL})`,
+            backgroundSize: 'contain',
+            backgroundPosition: 'center',
+            backgroundRepeat: 'no-repeat',
+          }}
+        />
+
+        {/* Disco oscuro que tapa el texto incrustado del anillo y aloja el form. */}
+        <div
+          className="absolute rounded-full overflow-hidden"
+          style={{
+            // Diámetro = 54% del cuadro, centrado. Suficiente para cubrir
+            // el texto "Basado en El señor de los anillos 5e" del centro
+            // de la imagen del anillo.
+            top: '23%', left: '23%', right: '23%', bottom: '23%',
+            background: 'rgb(8,4,2)',
             boxShadow:
-              '0 0 60px -10px rgba(251,191,36,0.25), 0 25px 50px -12px rgba(0,0,0,0.8)',
+              'inset 0 0 60px 6px rgba(0,0,0,0.95), 0 0 26px rgba(255,120,30,0.30)',
           }}
         >
-          <div className="text-center mb-6">
+          <form
+            onSubmit={submit}
+            className="w-full h-full flex flex-col items-center justify-center text-center"
+            style={{ padding: '8% 14%' }}
+          >
             <h1
-              className="font-heading text-4xl text-[hsl(var(--gold))] tracking-wider"
-              style={{ textShadow: '0 0 18px rgba(251,191,36,0.35)' }}
+              className="font-heading text-xl sm:text-[22px] text-[hsl(var(--gold))] tracking-wider leading-none"
+              style={{ textShadow: '0 0 16px rgba(251,191,36,0.55)' }}
             >
               El Anillo Único
             </h1>
-            <p className="text-xs text-amber-200/60 italic mt-2">
+            <p className="text-[10px] text-amber-200/70 italic mt-1 mb-2.5">
               Un Anillo para gobernarlos a todos…
             </p>
-          </div>
 
-          <form onSubmit={submit} className="space-y-4">
-            <div>
-              <Label htmlFor="login-email" className="text-amber-100">Correo electrónico</Label>
-              <Input
-                id="login-email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                autoComplete="email"
-                className="bg-black/40 border-amber-800/40 text-amber-50"
-                data-testid="login-email-input"
-              />
+            <div className="w-full space-y-1.5">
+              <div className="text-left">
+                <Label htmlFor="login-email" className="text-amber-100 text-[10px]">
+                  Correo electrónico
+                </Label>
+                <Input
+                  id="login-email"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                  autoComplete="email"
+                  className="h-7 mt-0.5 bg-black/70 border-amber-700/40 text-amber-50 text-xs"
+                  data-testid="login-email-input"
+                />
+              </div>
+              <div className="text-left">
+                <Label htmlFor="login-password" className="text-amber-100 text-[10px]">
+                  Contraseña
+                </Label>
+                <Input
+                  id="login-password"
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  autoComplete="current-password"
+                  className="h-7 mt-0.5 bg-black/70 border-amber-700/40 text-amber-50 text-xs"
+                  data-testid="login-password-input"
+                />
+              </div>
+
+              <label className="flex items-center justify-center gap-2 text-[10px] text-amber-100/85 cursor-pointer pt-0.5 select-none">
+                <Checkbox
+                  checked={rememberMe}
+                  onCheckedChange={(v) => setRememberMe(!!v)}
+                  data-testid="login-remember-checkbox"
+                  className="h-3 w-3"
+                />
+                <span>Recordar sesión (30 días)</span>
+              </label>
             </div>
-            <div>
-              <Label htmlFor="login-password" className="text-amber-100">Contraseña</Label>
-              <Input
-                id="login-password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                autoComplete="current-password"
-                className="bg-black/40 border-amber-800/40 text-amber-50"
-                data-testid="login-password-input"
-              />
-            </div>
-            <label className="flex items-center gap-2 text-sm cursor-pointer select-none text-amber-100/90">
-              <Checkbox
-                checked={rememberMe}
-                onCheckedChange={(v) => setRememberMe(!!v)}
-                data-testid="login-remember-checkbox"
-              />
-              <span>Recordar sesión (30 días)</span>
-            </label>
 
             {error && (
               <div
-                className="flex items-start gap-2 p-3 rounded border border-rose-500/40 bg-rose-950/40 text-rose-200 text-sm"
+                className="flex items-start gap-1.5 mt-2 px-2 py-1 rounded border border-rose-500/50 bg-rose-950/80 text-rose-200 text-[10px] w-full"
                 data-testid="login-error"
               >
-                <ShieldAlert className="w-4 h-4 mt-0.5 shrink-0" />
-                <span>{error}</span>
+                <ShieldAlert className="w-3 h-3 mt-0.5 shrink-0" />
+                <span className="text-left leading-tight">{error}</span>
               </div>
             )}
 
             <Button
               type="submit"
               disabled={busy}
-              className="w-full bg-[hsl(var(--gold))] hover:bg-amber-300 text-black font-semibold tracking-wide"
+              className="mt-2.5 h-8 px-5 rounded-full bg-[hsl(var(--gold))] hover:bg-amber-300 text-black font-semibold tracking-wide text-sm shadow-[0_0_22px_rgba(251,191,36,0.6)]"
               data-testid="login-submit-btn"
             >
-              {busy ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <LogIn className="w-4 h-4 mr-2" />}
+              {busy ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <LogIn className="w-3.5 h-3.5 mr-1.5" />}
               Entrar
             </Button>
+
+            <p className="text-[10px] text-amber-200/70 mt-1.5">
+              ¿No tienes cuenta?{' '}
+              <Link
+                to="/register"
+                className="text-[hsl(var(--gold))] underline hover:text-amber-300"
+                data-testid="login-go-register-link"
+              >
+                Solicita acceso
+              </Link>
+            </p>
           </form>
-
-          <p className="text-sm text-center text-amber-200/70 mt-6">
-            ¿No tienes cuenta?{' '}
-            <Link
-              to="/register"
-              className="text-[hsl(var(--gold))] underline hover:text-amber-300"
-              data-testid="login-go-register-link"
-            >
-              Solicita acceso
-            </Link>
-          </p>
         </div>
-
-        <p className="text-center text-[10px] tracking-[0.3em] text-amber-200/40 mt-6 uppercase">
-          La Tierra Media te espera
-        </p>
       </div>
+
+      {/* Pie */}
+      <p className="absolute bottom-6 left-0 right-0 text-center text-[10px] tracking-[0.4em] text-amber-200/55 uppercase z-10">
+        La Tierra Media te espera
+      </p>
+
+      {/* Animaciones del fuego — pulso + flicker. */}
+      <style>{`
+        @keyframes ringPulse {
+          0%, 100% {
+            transform: scale(1);
+            filter: brightness(1) saturate(1.05);
+          }
+          50% {
+            transform: scale(1.025);
+            filter: brightness(1.18) saturate(1.25);
+          }
+        }
+        @keyframes ringFlicker {
+          0%, 100% { opacity: 1; }
+          37%      { opacity: 0.92; }
+          63%      { opacity: 0.97; }
+          78%      { opacity: 0.88; }
+        }
+        @keyframes haloPulse {
+          0%, 100% {
+            transform: scale(1);
+            opacity: 0.55;
+          }
+          50% {
+            transform: scale(1.08);
+            opacity: 0.85;
+          }
+        }
+        .ring-portal {
+          animation: ringPulse 3.4s ease-in-out infinite,
+                     ringFlicker 0.45s steps(2, end) infinite;
+          transform-origin: center;
+          will-change: transform, filter, opacity;
+          filter: drop-shadow(0 0 38px rgba(255,120,30,0.55))
+                  drop-shadow(0 0 80px rgba(255,80,10,0.35));
+        }
+        .ring-halo {
+          width: 760px;
+          height: 760px;
+          max-width: 90vmin;
+          max-height: 90vmin;
+          border-radius: 9999px;
+          background:
+            radial-gradient(circle,
+              rgba(255,150,40,0.55) 0%,
+              rgba(255,90,20,0.30) 38%,
+              rgba(180,40,0,0.10) 60%,
+              transparent 72%);
+          filter: blur(28px);
+          animation: haloPulse 3.4s ease-in-out infinite;
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .ring-portal, .ring-halo { animation: none !important; }
+        }
+      `}</style>
     </div>
   );
 };
