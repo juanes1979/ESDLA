@@ -480,7 +480,7 @@ const TreasureSystemSection = () => {
           setArmorsList(validArmors);
         }
       } catch (err) {
-        console.log('Loading default treasure config', err);
+        console.warn('Loading default treasure config', err);
       } finally {
         setLoadingConfig(false);
       }

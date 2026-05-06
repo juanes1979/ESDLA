@@ -47,7 +47,6 @@ const InteractiveCharacterSheet = () => {
       try {
         setLoading(true);
         setError(null);
-        console.log('Loading character with ID:', characterId);
         
         // Load character, equipment catalog, and positions in parallel
         const [characterData, catalogRes, positionsRes] = await Promise.all([
@@ -56,7 +55,6 @@ const InteractiveCharacterSheet = () => {
           api.get('/data/sheet-positions')
         ]);
         
-        console.log('Character data loaded:', characterData);
         setCharacter(characterData);
         const catalog = catalogRes.data || {};
         setWeaponCatalog(catalog.armas || []);

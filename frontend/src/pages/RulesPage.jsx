@@ -3059,9 +3059,8 @@ const RulesPage = () => {
             const virtuesRes = await api.get('/data/virtues');
             setData(virtuesRes.data);
           }}
-          onEdit={(virtue) => {
+          onEdit={(_virtue) => {
             // TODO: implement virtue editor
-            console.log('Edit virtue:', virtue);
           }}
         />;
       

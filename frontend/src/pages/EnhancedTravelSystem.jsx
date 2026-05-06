@@ -1669,7 +1669,6 @@ const EnhancedTravelSystem = () => {
           });
           const dataUrl = canvas.toDataURL('image/png', 0.9);
           setSavedMapImage(dataUrl);
-          console.log('Map image auto-captured');
         } catch (err) {
           console.error('Error auto-capturing map:', err);
         }

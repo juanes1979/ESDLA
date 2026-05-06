@@ -4,7 +4,7 @@ iter83 — Tests de los fixes de la sesión:
   • Prompt de retrato respeta la escala de longevidad por raza.
 """
 import pytest
-from backend.routes.portrait_routes import build_portrait_prompt, PortraitRequest
+from routes.portrait_routes import build_portrait_prompt, PortraitRequest
 
 
 # ============== EDAD POR RAZA ==============

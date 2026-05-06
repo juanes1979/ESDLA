@@ -29,7 +29,7 @@ def test_dominante_por_km_acumulados():
 
 def test_dunedain_da_base_2():
     """Cualquier Dúnedain (singular o plural, con/sin tilde) debe sumar 2."""
-    from backend.routes.eye_routes import _classify_race
+    from routes.eye_routes import _classify_race
     assert _classify_race('Dúnedain del Norte') == 2
     assert _classify_race('Dunedain') == 2
     assert _classify_race('Dúnadan solitario') == 2
@@ -39,7 +39,7 @@ def test_dunedain_da_base_2():
 
 def test_grupo_mixto_usa_max_de_party():
     """Grupo Hobbit(0) + Hombre(0) + Dúnedain(2) → max=2."""
-    from backend.routes.eye_routes import _classify_race
+    from routes.eye_routes import _classify_race
     party_races = ['Hobbits de la Comarca', 'Hombres de Bree', 'Dunedain del Norte']
     bases = [_classify_race(r) for r in party_races]
     assert max(bases) == 2

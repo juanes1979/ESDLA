@@ -195,7 +195,7 @@ const TerrainEditor = () => {
         // setPaintedCells is now only for temporary brush strokes
         
       } catch (err) {
-        console.log('Loading terrain data:', err);
+        console.warn('Loading terrain data:', err);
       } finally {
         setLoading(false);
       }

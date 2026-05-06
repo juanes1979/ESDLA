@@ -1173,9 +1173,7 @@ const MiddleEarthMap = () => {
         y: newLocationCoords.y,
       };
       
-      console.log('Creating location:', locationToCreate);
       const res = await api.post('/data/locations', locationToCreate);
-      console.log('Response:', res.data);
       
       // Add to local state with the ID from the response
       const newLoc = { 

@@ -2,7 +2,7 @@
 Tests del Sistema Ojo de Mordor — Fase 1 (núcleo, sin LLM).
 """
 import pytest
-from backend.routes.eye_routes import (
+from routes.eye_routes import (
     _classify_race,
     _calc_threshold,
     _resolve_region_type,
@@ -127,7 +127,7 @@ class TestRegions18:
 @pytest.mark.asyncio
 class TestIncrementFlow:
     async def test_increment_nat1_aplica_delta_1(self, monkeypatch):
-        from backend.routes import eye_routes as er
+        from routes import eye_routes as er
 
         # Mock DB
         store = {}
@@ -163,7 +163,7 @@ class TestIncrementFlow:
         assert len(result["state"]["history"]) == 1
 
     async def test_trigger_episode_resetea_a_initial(self, monkeypatch):
-        from backend.routes import eye_routes as er
+        from routes import eye_routes as er
 
         store = {
             "test2": {

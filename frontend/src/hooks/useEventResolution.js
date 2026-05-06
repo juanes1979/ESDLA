@@ -130,7 +130,7 @@ export const useEventResolution = ({
           narrativa = narrativeRes.data.narrative;
         }
       } catch (err) {
-        console.log('Narrative generation skipped:', err);
+        console.warn('Narrative generation skipped:', err);
       }
 
       // 3) Snapshot del clima del día

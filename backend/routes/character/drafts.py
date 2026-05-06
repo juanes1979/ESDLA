@@ -3,6 +3,9 @@ Character drafts & creation wizard endpoints (steps 1-9, finalize, portrait).
 Extracted from character_routes.py during the iter95 refactor.
 """
 from fastapi import HTTPException, Body, Depends
+import logging
+
+logger = logging.getLogger(__name__)
 from typing import Optional, List, Dict, Any
 from pydantic import BaseModel
 from datetime import datetime, timezone
@@ -863,7 +866,7 @@ async def finalize_character(draft_id: str, user: dict = Depends(get_current_use
     except Exception as exc:
         # No bloquear la finalización si el cálculo del código falla; se
         # podrá rellenar después con /character/{id}/codigo o la migración.
-        print(f"[finalize_character] Aviso: no se pudo asignar código público: {exc}")
+        logger.warning(f"[finalize_character] aviso: no se pudo asignar código público: {exc}")
     
     return serialize_doc(character)
 

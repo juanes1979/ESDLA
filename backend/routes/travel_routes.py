@@ -3,6 +3,9 @@ Travel System Routes - LOTR 5e RPG
 Complete travel mechanics with editable rules and tables
 """
 from fastapi import APIRouter, HTTPException, Body
+import logging
+
+logger = logging.getLogger(__name__)
 from motor.motor_asyncio import AsyncIOMotorClient
 from pydantic import BaseModel, Field
 from typing import List, Optional, Dict, Any
@@ -1350,7 +1353,7 @@ async def calculate_journey(config: JourneyConfig):
                     "warnings": ["Ruta directa calculada. El pathfinding detallado no está disponible."]
                 }
     except Exception as e:
-        print(f"Error getting route: {e}")
+        logger.error(f"Error getting route: {e}")
         import traceback
         traceback.print_exc()
     
@@ -2630,7 +2633,7 @@ async def complete_journey(journey_id: str):
                 arrived = character_ids
     except Exception as e:
         # No bloquear el cierre del viaje si falla la actualización de ubicación
-        print(f"[complete_journey] aviso: no se pudo actualizar ubicación de miembros: {e}")
+        logger.warning(f"[complete_journey] aviso: no se pudo actualizar ubicación de miembros: {e}")
 
     return {
         "success": True,

@@ -4,6 +4,9 @@ Generates settlement names based on prefix + root + suffix patterns
 Adapted by region and predominant race type
 """
 from fastapi import APIRouter
+import logging
+
+logger = logging.getLogger(__name__)
 import random
 from typing import List, Optional
 from pydantic import BaseModel
@@ -362,7 +365,7 @@ Responde SOLO con la historia, sin introducción ni explicación."""
         
     except Exception as e:
         import traceback
-        print(f"Error generating history: {e}")
+        logger.error(f"Error generating history: {e}")
         traceback.print_exc()
         return {
             "nombre": request.nombre,

@@ -5,7 +5,7 @@ del grupo debe ser la de la montura (no la base del personaje).
 Bug original: Xalan Fuenteoscura (vel 9m) montado en Poni (vel 12m) → el
 sistema mostraba 22.5 km/día (9m × 2.5) en vez de 30 km/día (12m × 2.5).
 """
-from backend.routes.travel_routes import TravelPartyMember
+from routes.travel_routes import TravelPartyMember
 
 
 def _member(*, vel_base, mount_speed=0, has_mount=False):

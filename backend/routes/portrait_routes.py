@@ -3,6 +3,9 @@ Character Portrait Generator
 Generates AI-powered character portraits using OpenAI GPT Image 1
 """
 import os
+import logging
+
+logger = logging.getLogger(__name__)
 import base64
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
@@ -202,7 +205,7 @@ async def generate_portrait(request: PortraitRequest):
 
         # Build the prompt
         prompt = build_portrait_prompt(request, custom_culture_prompt=custom_culture_prompt)
-        print(f"Generating portrait for {request.nombre} with prompt: {prompt[:200]}...")
+        logger.info(f"Generating portrait for {request.nombre} with prompt: {prompt[:200]}...")
         
         # Initialize the image generator
         image_gen = OpenAIImageGeneration(api_key=api_key)
@@ -226,10 +229,10 @@ async def generate_portrait(request: PortraitRequest):
             raise HTTPException(status_code=500, detail="No image was generated")
             
     except ImportError as e:
-        print(f"Import error: {e}")
+        logger.error(f"Import error: {e}")
         raise HTTPException(status_code=500, detail="Image generation library not available")
     except Exception as e:
-        print(f"Error generating portrait: {e}")
+        logger.error(f"Error generating portrait: {e}")
         import traceback
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))

@@ -333,7 +333,7 @@ const ObjectInteractionSection = () => {
         }
       } catch (err) {
         // Use defaults if API fails
-        console.log('Using default materials');
+        console.warn('Using default materials');
       }
     };
     loadMaterials();
