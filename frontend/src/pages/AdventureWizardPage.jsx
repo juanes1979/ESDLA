@@ -40,6 +40,9 @@ import { useAuth } from '@/context/AuthContext';
 import { Field, TextInput, TextArea, Select, StepCard } from '@/components/adventures/WizardFields';
 import AdventurePreview from '@/components/adventures/AdventurePreview';
 import CampaignActivatedDialog from '@/components/adventures/CampaignActivatedDialog';
+import AuthenticatedImage from '@/components/AuthenticatedImage';
+import LocationPickerField from '@/components/adventures/LocationPickerField';
+import NPCStatBlockEditor from '@/components/adventures/NPCStatBlockEditor';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const MAX_IMAGE_BYTES = 0.5 * 1024 * 1024; // 0.5 MB
@@ -63,10 +66,31 @@ const SEASONS = [
   { value: 'invierno', label: 'Invierno' },
 ];
 
+const SEASON_LABEL = {
+  primavera: 'Primavera',
+  verano: 'Verano',
+  otono: 'Otoño',
+  invierno: 'Invierno',
+};
+
+const deriveSeason = (month) => {
+  const m = Number(month);
+  if (!m) return null;
+  if (m >= 3 && m <= 5) return 'primavera';
+  if (m >= 6 && m <= 8) return 'verano';
+  if (m >= 9 && m <= 11) return 'otono';
+  return 'invierno';
+};
+
 // ============================================================================
 // Step components
 // ============================================================================
-const Step1Basic = ({ adv, setField, locationOptions, onUploadCover, uploadingCover }) => (
+const Step1Basic = ({ adv, setField, locationOptions, locations, onUploadCover, uploadingCover }) => {
+  const derivedSeason = deriveSeason(adv.month);
+  const seasonHint = derivedSeason
+    ? `Estación auto: ${SEASON_LABEL[derivedSeason]} (puedes cambiarla al activar la campaña).`
+    : 'Si dejas mes vacío, la estación se elegirá al activar la campaña.';
+  return (
   <StepCard
     title="Datos básicos"
     description="Nombre, imagen de carátula, año T.E. y ubicación principal."
@@ -84,9 +108,8 @@ const Step1Basic = ({ adv, setField, locationOptions, onUploadCover, uploadingCo
     <Field label="Imagen de carátula (≤ 0.5 MB)" hint="Formatos: PNG, JPG, WEBP">
       <div className="flex items-center gap-3">
         {adv.image_file_id ? (
-          
-          <img
-            src={`${BACKEND_URL}/api/storage/download/${adv.image_file_id}`}
+          <AuthenticatedImage
+            fileId={adv.image_file_id}
             alt="cover"
             className="w-24 h-24 object-cover rounded border border-amber-800/40"
           />
@@ -113,7 +136,7 @@ const Step1Basic = ({ adv, setField, locationOptions, onUploadCover, uploadingCo
       </div>
     </Field>
 
-    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
       <Field label="Año T.E." testid="year">
         <TextInput
           type="number"
@@ -125,15 +148,7 @@ const Step1Basic = ({ adv, setField, locationOptions, onUploadCover, uploadingCo
           max={3500}
         />
       </Field>
-      <Field label="Estación" testid="season">
-        <Select
-          value={adv.season}
-          onChange={(v) => setField('season', v)}
-          options={SEASONS}
-          testid="adv-season-select"
-        />
-      </Field>
-      <Field label="Mes (1-12)" testid="month">
+      <Field label="Mes (1-12)" testid="month" hint={seasonHint}>
         <TextInput
           type="number"
           value={adv.month}
@@ -155,24 +170,39 @@ const Step1Basic = ({ adv, setField, locationOptions, onUploadCover, uploadingCo
       </Field>
     </div>
 
-    <Field label="Ubicación principal" hint="Opcional. Selecciona del listado.">
-      <Select
-        value={adv.location_id}
-        onChange={(v) => {
-          const loc = locationOptions.find((l) => l.value === v);
-          setField('location_id', v);
-          setField('location_name', loc?.locationName || null);
-          setField('region', loc?.region || null);
+    <Field
+      label="Ubicación principal"
+      hint="Busca por nombre o región, o pulsa Mapa para marcar un punto."
+    >
+      <LocationPickerField
+        locations={locations}
+        value={
+          adv.location_id || adv.location_name
+            ? {
+                location_id: adv.location_id,
+                location_name: adv.location_name,
+                region: adv.region,
+              }
+            : null
+        }
+        onChange={(picked) => {
+          setField('location_id', picked?.location_id || null);
+          setField('location_name', picked?.location_name || null);
+          setField('region', picked?.region || null);
         }}
-        options={locationOptions}
-        testid="adv-location-select"
-        placeholder="Sin ubicación específica"
+        placeholder="Buscar ubicación o marcar en el mapa…"
+        testidPrefix="adv-location"
       />
     </Field>
   </StepCard>
-);
+  );
+};
 
-const Step2Premise = ({ adv, setField }) => (
+const Step2Premise = ({ adv, setField, bestiary }) => {
+  const patronOptions = (bestiary || [])
+    .filter((b) => b.categoria === 'pnj')
+    .map((b) => ({ value: b.id, label: b.nombre }));
+  return (
   <StepCard title="Premisa" description="¿Qué pasa, por qué les importa, quién lo cuenta?">
     <Field label="¿Qué? — Gancho / estado del mundo" required>
       <TextArea
@@ -192,15 +222,28 @@ const Step2Premise = ({ adv, setField }) => (
         testid="adv-motivation"
       />
     </Field>
-    <Field label="Mecenas (opcional, nombre)">
-      <TextInput
-        value={adv.patron_name}
-        onChange={(v) => setField('patron_name', v)}
-        placeholder="Aragorn, Gandalf, Lord Elrond…"
-        testid="adv-patron-name"
+    <Field
+      label="Mecenas (PNJ del bestiario, opcional)"
+      hint="Si lo eliges, se creará automáticamente una relación mecenas↔personaje cuando aceptes jugadores en una campaña activa."
+    >
+      <Select
+        value={adv.patron_id || ''}
+        onChange={(v) => {
+          if (!v) {
+            setField('patron_id', null);
+            setField('patron_name', null);
+          } else {
+            const npc = (bestiary || []).find((b) => b.id === v);
+            setField('patron_id', v);
+            setField('patron_name', npc?.nombre || null);
+          }
+        }}
+        options={patronOptions}
+        placeholder="Sin mecenas"
+        testid="adv-patron-select"
       />
     </Field>
-    {!adv.patron_name && (
+    {!adv.patron_id && (
       <Field label="¿Quién presenta la aventura? (si no hay mecenas)">
         <TextArea
           value={adv.presenter_text}
@@ -242,28 +285,206 @@ const Step2Premise = ({ adv, setField }) => (
       </div>
     </div>
   </StepCard>
-);
+  );
+};
 
-const Step3Background = ({ adv, setField }) => (
-  <StepCard title="Trasfondo y viaje" description="Notas para el DJ.">
-    <Field label="Trasfondo del lugar" hint="Por qué es interesante o peligroso.">
-      <TextArea
-        value={adv.background}
-        onChange={(v) => setField('background', v)}
-        rows={6}
-        testid="adv-background"
-      />
-    </Field>
-    <Field label="Acontecimientos de viaje" hint="Encuentros / accidentes posibles durante el viaje.">
-      <TextArea
-        value={adv.travel_events_text}
-        onChange={(v) => setField('travel_events_text', v)}
-        rows={5}
-        testid="adv-travel-events"
-      />
-    </Field>
-  </StepCard>
-);
+const MAX_TRAVEL_STOPS = 5;
+
+const Step3Background = ({ adv, setField, locations }) => {
+  const stops = adv.travel_route || [];
+  const events = adv.travel_events || [];
+
+  const updateStop = (idx, picked) => {
+    const next = [...stops];
+    if (!picked) {
+      next.splice(idx, 1);
+    } else {
+      next[idx] = { ...(next[idx] || {}), ...picked };
+    }
+    setField('travel_route', next);
+  };
+  const addStop = () => {
+    if (stops.length >= MAX_TRAVEL_STOPS) {
+      toast.error(`Máximo ${MAX_TRAVEL_STOPS} paradas`);
+      return;
+    }
+    setField('travel_route', [
+      ...stops,
+      { id: undefined, location_id: null, location_name: null, region: null },
+    ]);
+  };
+
+  const updateEvent = (idx, key, val) => {
+    const next = [...events];
+    next[idx] = { ...next[idx], [key]: val };
+    setField('travel_events', next);
+  };
+  const addEvent = () =>
+    setField('travel_events', [...events, { title: '', description: '' }]);
+  const removeEvent = (idx) =>
+    setField('travel_events', events.filter((_, i) => i !== idx));
+
+  return (
+    <StepCard title="Trasfondo y viaje" description="Notas para el DJ.">
+      <Field label="Trasfondo del lugar" hint="Por qué es interesante o peligroso.">
+        <TextArea
+          value={adv.background}
+          onChange={(v) => setField('background', v)}
+          rows={6}
+          testid="adv-background"
+        />
+      </Field>
+
+      <div className="mt-4 mb-4 p-3 rounded border border-amber-800/30 bg-black/30">
+        <div className="flex items-center justify-between mb-2">
+          <h3 className="text-sm font-medium text-amber-200">
+            Paradas intermedias del viaje ({stops.length}/{MAX_TRAVEL_STOPS})
+          </h3>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={addStop}
+            disabled={stops.length >= MAX_TRAVEL_STOPS}
+            data-testid="travel-stop-add"
+            className="border-amber-700/50 text-amber-200 hover:bg-amber-900/30"
+          >
+            <Plus className="w-3.5 h-3.5 mr-1" /> Añadir parada
+          </Button>
+        </div>
+        <p className="text-xs text-amber-300/50 mb-3">
+          Hasta {MAX_TRAVEL_STOPS} paradas entre origen y destino. Origen y destino se eligen
+          al activar la campaña. Cada parada se elige del listado o marcando un punto en el mapa.
+        </p>
+        {stops.length === 0 && (
+          <p className="text-xs italic text-amber-300/40">
+            Sin paradas. Pulsa "Añadir parada" para empezar la ruta.
+          </p>
+        )}
+        {stops.map((s, idx) => (
+          <div key={s.id || idx} className="mb-2 flex items-start gap-2" data-testid={`travel-stop-${idx}`}>
+            <span className="text-amber-300/70 text-sm pt-2 w-8 text-right">#{idx + 1}</span>
+            <div className="flex-1">
+              <LocationPickerField
+                locations={locations}
+                value={
+                  s.location_name
+                    ? { location_id: s.location_id, location_name: s.location_name, region: s.region }
+                    : null
+                }
+                onChange={(picked) => updateStop(idx, picked)}
+                testidPrefix={`travel-stop-${idx}`}
+                placeholder={`Buscar parada #${idx + 1}…`}
+              />
+              <input
+                value={s.note || ''}
+                onChange={(e) => {
+                  const next = [...stops];
+                  next[idx] = { ...next[idx], note: e.target.value };
+                  setField('travel_route', next);
+                }}
+                placeholder="Nota (opcional)"
+                data-testid={`travel-stop-note-${idx}`}
+                className="w-full mt-1 px-2 py-1 bg-black/60 border border-amber-800/40 rounded text-amber-100 text-xs"
+              />
+            </div>
+            <button
+              onClick={() => updateStop(idx, null)}
+              className="p-1.5 rounded bg-rose-900/60 text-rose-100 hover:bg-rose-700"
+              data-testid={`travel-stop-remove-${idx}`}
+              aria-label="Eliminar parada"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        ))}
+      </div>
+
+      <div className="mt-4 p-3 rounded border border-amber-800/30 bg-black/30">
+        <div className="flex items-center justify-between mb-2">
+          <h3 className="text-sm font-medium text-amber-200">
+            Acontecimientos de viaje ({events.length})
+          </h3>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={addEvent}
+            data-testid="travel-event-add"
+            className="border-amber-700/50 text-amber-200 hover:bg-amber-900/30"
+          >
+            <Plus className="w-3.5 h-3.5 mr-1" /> Añadir acontecimiento
+          </Button>
+        </div>
+        {events.length === 0 && (
+          <p className="text-xs italic text-amber-300/40 mb-2">
+            Sin acontecimientos. Añade tantos encuentros, accidentes o presagios como necesites.
+          </p>
+        )}
+        {events.map((ev, idx) => (
+          <div
+            key={ev.id || idx}
+            className="mb-2 p-2 rounded border border-amber-800/30 bg-black/40 flex gap-2 items-start"
+            data-testid={`travel-event-${idx}`}
+          >
+            <span className="text-amber-300/70 text-sm pt-1 w-8 text-right">#{idx + 1}</span>
+            <div className="flex-1 space-y-1">
+              <input
+                value={ev.title || ''}
+                onChange={(e) => updateEvent(idx, 'title', e.target.value)}
+                placeholder="Título (p. ej. Emboscada en el vado)"
+                data-testid={`travel-event-title-${idx}`}
+                className="w-full px-2 py-1 bg-black/60 border border-amber-800/40 rounded text-amber-100"
+              />
+              <textarea
+                value={ev.description || ''}
+                onChange={(e) => updateEvent(idx, 'description', e.target.value)}
+                placeholder="Descripción"
+                rows={3}
+                data-testid={`travel-event-desc-${idx}`}
+                className="w-full px-2 py-1 bg-black/60 border border-amber-800/40 rounded text-amber-100 text-sm resize-y"
+              />
+            </div>
+            <button
+              onClick={() => removeEvent(idx)}
+              className="p-1.5 rounded bg-rose-900/60 text-rose-100 hover:bg-rose-700"
+              data-testid={`travel-event-remove-${idx}`}
+              aria-label="Eliminar"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        ))}
+        {adv.travel_events_text && (
+          <details className="mt-3 text-xs">
+            <summary className="text-amber-300/60 cursor-pointer">
+              Notas legacy (texto único — migrar a la lista superior cuando puedas)
+            </summary>
+            <TextArea
+              value={adv.travel_events_text}
+              onChange={(v) => setField('travel_events_text', v)}
+              rows={3}
+              testid="adv-travel-events-legacy"
+            />
+          </details>
+        )}
+        {!adv.travel_events_text && events.length === 0 && (
+          <details className="mt-3 text-xs">
+            <summary className="text-amber-300/60 cursor-pointer">
+              ¿Prefieres un único bloque de texto? (legacy)
+            </summary>
+            <TextArea
+              value={adv.travel_events_text || ''}
+              onChange={(v) => setField('travel_events_text', v)}
+              rows={3}
+              testid="adv-travel-events-legacy"
+            />
+          </details>
+        )}
+      </div>
+    </StepCard>
+  );
+};
 
 const Step4Maps = ({ adv, setField, onUploadMap, uploadingMap }) => {
   const handleAdd = async (e) => {
@@ -305,9 +526,8 @@ const Step4Maps = ({ adv, setField, onUploadMap, uploadingMap }) => {
               className="relative rounded border border-amber-800/40 overflow-hidden bg-black/40"
               data-testid={`map-tile-${idx}`}
             >
-              
-              <img
-                src={`${BACKEND_URL}/api/storage/download/${m.file_id}`}
+              <AuthenticatedImage
+                fileId={m.file_id}
                 alt={m.description || `mapa-${idx}`}
                 className="w-full h-32 object-cover"
               />
@@ -339,7 +559,9 @@ const Step4Maps = ({ adv, setField, onUploadMap, uploadingMap }) => {
   );
 };
 
-const Step5Environments = ({ adv, setField }) => {
+const MAX_ENV_IMAGES = 5;
+
+const Step5Environments = ({ adv, setField, onUploadEnvImage, uploadingEnvIdx }) => {
   const envs = adv.environments || [];
   const update = (idx, key, value) => {
     const next = [...envs];
@@ -349,15 +571,23 @@ const Step5Environments = ({ adv, setField }) => {
   const addEnv = () => {
     setField('environments', [
       ...envs,
-      { title: '', description: '', order_index: envs.length },
+      { title: '', description: '', order_index: envs.length, images: [] },
     ]);
   };
   const remove = (idx) => setField('environments', envs.filter((_, i) => i !== idx));
+  const removeImg = (envIdx, imgIdx) => {
+    const next = [...envs];
+    next[envIdx] = {
+      ...next[envIdx],
+      images: (next[envIdx].images || []).filter((_, i) => i !== imgIdx),
+    };
+    setField('environments', next);
+  };
 
   return (
     <StepCard
       title={`Entornos (${envs.length})`}
-      description="Lista numerada de entornos clave del módulo."
+      description="Lista numerada de entornos clave. Hasta 5 imágenes por entorno."
     >
       {envs.map((e, idx) => (
         <div
@@ -389,9 +619,61 @@ const Step5Environments = ({ adv, setField }) => {
             onChange={(ev) => update(idx, 'description', ev.target.value)}
             placeholder="Descripción"
             rows={3}
-            className="w-full px-2 py-1 bg-black/60 border border-amber-800/40 rounded text-amber-100 resize-y"
+            className="w-full px-2 py-1 bg-black/60 border border-amber-800/40 rounded text-amber-100 resize-y mb-2"
             data-testid={`env-desc-${idx}`}
           />
+
+          {/* Imágenes del entorno */}
+          <div className="mt-2">
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-xs text-amber-300/70">
+                Imágenes ({(e.images || []).length}/{MAX_ENV_IMAGES})
+              </span>
+              <input
+                type="file"
+                accept="image/*"
+                multiple
+                onChange={(ev) => {
+                  const files = Array.from(ev.target.files || []);
+                  ev.target.value = '';
+                  onUploadEnvImage(idx, files);
+                }}
+                disabled={uploadingEnvIdx === idx || (e.images || []).length >= MAX_ENV_IMAGES}
+                data-testid={`env-img-upload-${idx}`}
+                className="text-xs text-amber-300/80"
+              />
+            </div>
+            {uploadingEnvIdx === idx && (
+              <p className="text-xs text-amber-300/60 mb-1">
+                <Loader2 className="w-3 h-3 inline animate-spin" /> Subiendo…
+              </p>
+            )}
+            {(e.images || []).length > 0 && (
+              <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
+                {(e.images || []).map((img, j) => (
+                  <div
+                    key={img.id || j}
+                    className="relative rounded overflow-hidden border border-amber-800/40"
+                    data-testid={`env-img-${idx}-${j}`}
+                  >
+                    <AuthenticatedImage
+                      fileId={img.file_id}
+                      alt={img.description || `entorno-${idx}-${j}`}
+                      className="w-full h-20 object-cover"
+                    />
+                    <button
+                      onClick={() => removeImg(idx, j)}
+                      className="absolute top-1 right-1 p-1 rounded bg-rose-900/80 text-rose-100 hover:bg-rose-700"
+                      data-testid={`env-img-remove-${idx}-${j}`}
+                      aria-label="Eliminar"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       ))}
       <Button
@@ -470,6 +752,7 @@ const Step6Intrigues = ({ adv, setField }) => {
 const Step7NPCs = ({ adv, setField, bestiary }) => {
   const items = adv.npcs || [];
   const [search, setSearch] = useState('');
+  const [openCustomIdx, setOpenCustomIdx] = useState(null);
   const filtered = useMemo(() => {
     if (!search) return bestiary;
     const q = search.toLowerCase();
@@ -496,12 +779,38 @@ const Step7NPCs = ({ adv, setField, bestiary }) => {
           }
         : { name: '', bestiary_id: null, bestiary_categoria: null, history: '', special: '' },
     ]);
+  const addCustom = () => {
+    setField('npcs', [
+      ...items,
+      {
+        name: '',
+        bestiary_id: null,
+        bestiary_categoria: null,
+        history: '',
+        special: '',
+        custom_stats: {
+          tipo: '',
+          tamanio: 'Mediano',
+          alineamiento: '',
+          clase_armadura: 10,
+          puntos_golpe: 1,
+          velocidad: 9,
+          atributos: { fuerza: 10, destreza: 10, constitucion: 10, inteligencia: 10, sabiduria: 10, carisma: 10 },
+          desafio: '',
+          especiales: [],
+          armas: [],
+          reacciones: [],
+        },
+      },
+    ]);
+    setOpenCustomIdx(items.length);
+  };
   const remove = (idx) => setField('npcs', items.filter((_, i) => i !== idx));
 
   return (
     <StepCard
       title={`PNJs (${items.length})`}
-      description="Selecciona del bestiario o añade uno libremente."
+      description="Selecciona del bestiario, añade uno libre, o crea uno completo desde cero."
     >
       <div className="mb-4 p-3 rounded border border-amber-800/30 bg-black/30">
         <div className="flex items-center gap-2 mb-2">
@@ -527,15 +836,26 @@ const Step7NPCs = ({ adv, setField, bestiary }) => {
             </button>
           ))}
         </div>
-        <Button
-          onClick={() => add()}
-          variant="outline"
-          size="sm"
-          className="border-amber-700/50 text-amber-200 hover:bg-amber-900/30 mt-2"
-          data-testid="npc-add-blank-btn"
-        >
-          <Plus className="w-3.5 h-3.5 mr-1" /> Añadir PNJ libre
-        </Button>
+        <div className="flex flex-wrap gap-2 mt-2">
+          <Button
+            onClick={() => add()}
+            variant="outline"
+            size="sm"
+            className="border-amber-700/50 text-amber-200 hover:bg-amber-900/30"
+            data-testid="npc-add-blank-btn"
+          >
+            <Plus className="w-3.5 h-3.5 mr-1" /> Añadir PNJ libre
+          </Button>
+          <Button
+            onClick={addCustom}
+            variant="outline"
+            size="sm"
+            className="border-emerald-700/50 text-emerald-200 hover:bg-emerald-900/30"
+            data-testid="npc-add-custom-btn"
+          >
+            <Sparkles className="w-3.5 h-3.5 mr-1" /> Crear PNJ desde 0 (combate)
+          </Button>
+        </div>
       </div>
 
       {items.map((n, idx) => (
@@ -555,6 +875,11 @@ const Step7NPCs = ({ adv, setField, bestiary }) => {
             {n.bestiary_categoria && (
               <span className="text-xs text-amber-400/70 px-2 py-0.5 rounded bg-amber-900/30">
                 {n.bestiary_categoria}
+              </span>
+            )}
+            {n.custom_stats && (
+              <span className="text-xs text-emerald-300 px-2 py-0.5 rounded bg-emerald-900/30">
+                A medida
               </span>
             )}
             <button
@@ -581,6 +906,50 @@ const Step7NPCs = ({ adv, setField, bestiary }) => {
             className="w-full px-2 py-1 bg-black/60 border border-amber-800/40 rounded text-amber-100"
             data-testid={`npc-special-${idx}`}
           />
+
+          {/* Bloque a medida */}
+          {n.custom_stats !== undefined && n.custom_stats !== null ? (
+            <div className="mt-2">
+              <button
+                type="button"
+                onClick={() => setOpenCustomIdx(openCustomIdx === idx ? null : idx)}
+                className="text-xs text-emerald-300 underline mb-2"
+                data-testid={`npc-toggle-custom-${idx}`}
+              >
+                {openCustomIdx === idx ? '▼ Ocultar bloque de combate' : '▶ Mostrar bloque de combate'}
+              </button>
+              {openCustomIdx === idx && (
+                <NPCStatBlockEditor
+                  value={n.custom_stats || {}}
+                  onChange={(val) => update(idx, 'custom_stats', val)}
+                  idPrefix={`npc-block-${idx}`}
+                />
+              )}
+            </div>
+          ) : (
+            !n.bestiary_id && (
+              <button
+                type="button"
+                onClick={() => {
+                  update(idx, 'custom_stats', {
+                    tipo: '',
+                    tamanio: 'Mediano',
+                    clase_armadura: 10,
+                    puntos_golpe: 1,
+                    velocidad: 9,
+                    atributos: { fuerza: 10, destreza: 10, constitucion: 10, inteligencia: 10, sabiduria: 10, carisma: 10 },
+                    especiales: [],
+                    armas: [],
+                  });
+                  setOpenCustomIdx(idx);
+                }}
+                className="text-xs text-emerald-300 mt-2 underline"
+                data-testid={`npc-promote-custom-${idx}`}
+              >
+                + Convertir en PNJ con bloque de combate
+              </button>
+            )
+          )}
         </div>
       ))}
     </StepCard>
@@ -694,8 +1063,10 @@ const AdventureWizardPage = () => {
   const [showPreview, setShowPreview] = useState(false);
   const [bestiary, setBestiary] = useState([]);
   const [locationOptions, setLocationOptions] = useState([]);
+  const [locationsRaw, setLocationsRaw] = useState([]);
   const [uploadingCover, setUploadingCover] = useState(false);
   const [uploadingMap, setUploadingMap] = useState(false);
+  const [uploadingEnvIdx, setUploadingEnvIdx] = useState(null);
   const [dirty, setDirty] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [activatedRun, setActivatedRun] = useState(null);
@@ -713,6 +1084,7 @@ const AdventureWizardPage = () => {
         ]);
         if (!alive) return;
         setAdv(a);
+        setLocationsRaw(locs || []);
         setLocationOptions(
           (locs || []).map((l) => ({
             value: l.id,
@@ -779,6 +1151,8 @@ const AdventureWizardPage = () => {
         ancient_lore_text: adv.ancient_lore_text,
         background: adv.background,
         travel_events_text: adv.travel_events_text,
+        travel_events: adv.travel_events || [],
+        travel_route: adv.travel_route || [],
         environments: adv.environments || [],
         intrigues: adv.intrigues || [],
         npcs: adv.npcs || [],
@@ -839,6 +1213,35 @@ const AdventureWizardPage = () => {
       toast.error(err?.response?.data?.detail || 'Error subiendo mapa');
     } finally {
       setUploadingMap(false);
+    }
+  };
+
+  const handleUploadEnvImage = async (envIdx, files) => {
+    if (!files?.length) return;
+    setUploadingEnvIdx(envIdx);
+    try {
+      const current = adv.environments || [];
+      const env = current[envIdx];
+      const newImgs = [...(env.images || [])];
+      for (const f of files) {
+        if (newImgs.length >= 5) {
+          toast.error('Máximo 5 imágenes por entorno');
+          break;
+        }
+        if (f.size > MAX_IMAGE_BYTES) {
+          toast.error(`"${f.name}" supera 0.5 MB`);
+          continue;
+        }
+        const res = await uploadAdventureImage(f, { description: `env-${id}-${envIdx}` });
+        newImgs.push({ file_id: res.file_id, path: res.path, description: '' });
+      }
+      const next = [...current];
+      next[envIdx] = { ...env, images: newImgs };
+      setField('environments', next);
+    } catch (err) {
+      toast.error(err?.response?.data?.detail || 'Error subiendo imagen de entorno');
+    } finally {
+      setUploadingEnvIdx(null);
     }
   };
 
@@ -992,12 +1395,13 @@ const AdventureWizardPage = () => {
               adv={adv}
               setField={setField}
               locationOptions={locationOptions}
+              locations={locationsRaw}
               onUploadCover={handleUploadCover}
               uploadingCover={uploadingCover}
             />
           )}
-          {activeStep === 'premise' && <Step2Premise adv={adv} setField={setField} />}
-          {activeStep === 'background' && <Step3Background adv={adv} setField={setField} />}
+          {activeStep === 'premise' && <Step2Premise adv={adv} setField={setField} bestiary={bestiary} />}
+          {activeStep === 'background' && <Step3Background adv={adv} setField={setField} locations={locationsRaw} />}
           {activeStep === 'maps' && (
             <Step4Maps
               adv={adv}
@@ -1006,7 +1410,14 @@ const AdventureWizardPage = () => {
               uploadingMap={uploadingMap}
             />
           )}
-          {activeStep === 'environments' && <Step5Environments adv={adv} setField={setField} />}
+          {activeStep === 'environments' && (
+            <Step5Environments
+              adv={adv}
+              setField={setField}
+              onUploadEnvImage={handleUploadEnvImage}
+              uploadingEnvIdx={uploadingEnvIdx}
+            />
+          )}
           {activeStep === 'intrigues' && <Step6Intrigues adv={adv} setField={setField} />}
           {activeStep === 'npcs' && (
             <Step7NPCs adv={adv} setField={setField} bestiary={bestiary} />

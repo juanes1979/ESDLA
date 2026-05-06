@@ -68,6 +68,8 @@ class CampaignRunOut(BaseModel):
     max_characters_per_player: Optional[int] = None
     recommended_level_min: Optional[int] = None
     recommended_level_max: Optional[int] = None
+    patron_id: Optional[str] = None
+    patron_name: Optional[str] = None
 
 
 class CampaignContentOut(BaseModel):
@@ -131,6 +133,8 @@ async def _clone_adventure_into_run(db, adventure: dict, run_id: str) -> None:
         ("intrigues", "campaign_intrigues"),
         ("npcs", "campaign_npcs"),
         ("maps", "campaign_maps"),
+        ("travel_events", "campaign_travel_events"),
+        ("travel_route", "campaign_travel_route"),
     ]
     for src_key, coll_name in targets:
         items = adventure.get(src_key) or []
@@ -142,6 +146,11 @@ async def _clone_adventure_into_run(db, adventure: dict, run_id: str) -> None:
             d["id"] = str(uuid.uuid4())
             d["campaign_run_id"] = run_id
             d["created_at"] = now
+            # For environments, regenerate ids of nested images too
+            if src_key == "environments" and isinstance(d.get("images"), list):
+                d["images"] = [
+                    {**img, "id": str(uuid.uuid4())} for img in d["images"]
+                ]
             docs.append(d)
         if docs:
             await db[coll_name].insert_many(docs)
@@ -197,6 +206,9 @@ async def generate_run_from_adventure(
         "max_characters_per_player": adv.get("max_characters_per_player"),
         "recommended_level_min": adv.get("recommended_level_min"),
         "recommended_level_max": adv.get("recommended_level_max"),
+        # Patron snapshot — used at player accept to wire NPC↔character relationship
+        "patron_id": adv.get("patron_id"),
+        "patron_name": adv.get("patron_name"),
     }
     await db.campaign_runs.insert_one(run_doc)
     await _clone_adventure_into_run(db, adv, run_id)

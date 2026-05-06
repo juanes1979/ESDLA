@@ -13,13 +13,14 @@
  */
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Plus, Copy, Pencil, Trash2, Globe2, Lock, Loader2, Compass } from 'lucide-react';
+import { ArrowLeft, Plus, Copy, Pencil, Trash2, Globe2, Lock, Loader2, Compass, ScrollText } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   listAdventures,
   createAdventure,
   cloneAdventure,
   deleteAdventure,
+  getAdventure,
 } from '@/services/api';
 import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -33,39 +34,66 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import AdventurePreview from '@/components/adventures/AdventurePreview';
+import AuthenticatedImage from '@/components/AuthenticatedImage';
 
-const AdventureCard = ({ adv, isMine, onEdit, onClone, onDelete }) => (
+const AdventureCard = ({ adv, isMine, onEdit, onClone, onDelete, onOpenDossier }) => (
   <div
     className="rounded-xl border border-amber-700/40 bg-black/60 backdrop-blur-sm p-5 hover:border-amber-500/60 transition-colors"
     data-testid={`adventure-card-${adv.id}`}
   >
-    <div className="flex items-start justify-between gap-3">
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2 mb-1">
-          {adv.is_public ? (
-            <Globe2 className="w-4 h-4 text-emerald-400 shrink-0" />
-          ) : (
-            <Lock className="w-4 h-4 text-amber-300/80 shrink-0" />
-          )}
-          <h3 className="font-heading text-lg text-amber-200 truncate" title={adv.name}>
-            {adv.name}
-          </h3>
+    <div className="flex items-start gap-3">
+      {adv.image_file_id && (
+        <div className="shrink-0">
+          <AuthenticatedImage
+            fileId={adv.image_file_id}
+            alt={adv.name}
+            className="w-20 h-20 object-cover rounded border border-amber-800/40"
+          />
         </div>
-        <p className="text-xs text-amber-300/60 mb-2">
-          DJ: {adv.creator_name || '—'} · Jugadores máx.: {adv.max_players}
-          {adv.recommended_level_min || adv.recommended_level_max ? (
-            <> · Nivel {adv.recommended_level_min ?? '?'}–{adv.recommended_level_max ?? '?'}</>
-          ) : null}
-        </p>
-        {adv.description ? (
-          <p className="text-sm text-gray-300/90 line-clamp-3">{adv.description}</p>
-        ) : (
-          <p className="text-sm italic text-gray-500">(sin descripción)</p>
-        )}
+      )}
+      <div className="flex-1 min-w-0">
+        <button
+          type="button"
+          onClick={() => onOpenDossier(adv)}
+          data-testid={`open-dossier-${adv.id}`}
+          className="text-left w-full group"
+        >
+          <div className="flex items-center gap-2 mb-1">
+            {adv.is_public ? (
+              <Globe2 className="w-4 h-4 text-emerald-400 shrink-0" />
+            ) : (
+              <Lock className="w-4 h-4 text-amber-300/80 shrink-0" />
+            )}
+            <h3 className="font-heading text-lg text-amber-200 truncate group-hover:text-amber-100 group-hover:underline" title={adv.name}>
+              {adv.name}
+            </h3>
+          </div>
+          <p className="text-xs text-amber-300/60 mb-2">
+            DJ: {adv.creator_name || '—'} · Jugadores máx.: {adv.max_players}
+            {adv.recommended_level_min || adv.recommended_level_max ? (
+              <> · Nivel {adv.recommended_level_min ?? '?'}–{adv.recommended_level_max ?? '?'}</>
+            ) : null}
+          </p>
+          {adv.description ? (
+            <p className="text-sm text-gray-300/90 line-clamp-3 group-hover:text-gray-200">{adv.description}</p>
+          ) : (
+            <p className="text-sm italic text-gray-500">(sin descripción — pulsa para abrir el dossier)</p>
+          )}
+        </button>
       </div>
     </div>
 
     <div className="flex flex-wrap gap-2 mt-4">
+      <Button
+        size="sm"
+        variant="outline"
+        onClick={() => onOpenDossier(adv)}
+        data-testid={`dossier-btn-${adv.id}`}
+        className="border-amber-700/50 text-amber-200 hover:bg-amber-900/30"
+      >
+        <ScrollText className="w-3.5 h-3.5 mr-1" /> Ver dossier
+      </Button>
       {isMine ? (
         <>
           <Button
@@ -119,6 +147,8 @@ const AdventuresListPage = () => {
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
   const [toDelete, setToDelete] = useState(null);
+  const [dossierAdv, setDossierAdv] = useState(null);
+  const [loadingDossier, setLoadingDossier] = useState(false);
 
   const isStaff = user?.role === 'maestro' || user?.role === 'director_de_juego';
 
@@ -184,6 +214,18 @@ const AdventuresListPage = () => {
       await reload();
     } catch (err) {
       toast.error(err?.response?.data?.detail || 'No se pudo eliminar');
+    }
+  };
+
+  const handleOpenDossier = async (adv) => {
+    setLoadingDossier(true);
+    try {
+      const full = await getAdventure(adv.id);
+      setDossierAdv(full);
+    } catch (err) {
+      toast.error(err?.response?.data?.detail || 'No se pudo cargar el dossier');
+    } finally {
+      setLoadingDossier(false);
     }
   };
 
@@ -301,6 +343,7 @@ const AdventuresListPage = () => {
                 onEdit={(a) => navigate(`/aventuras/${a.id}`)}
                 onClone={handleClone}
                 onDelete={setToDelete}
+                onOpenDossier={handleOpenDossier}
               />
             ))}
           </div>
@@ -329,6 +372,18 @@ const AdventuresListPage = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <AdventurePreview
+        adv={dossierAdv}
+        open={!!dossierAdv}
+        onClose={() => setDossierAdv(null)}
+        mode="dossier"
+      />
+      {loadingDossier && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 pointer-events-none">
+          <Loader2 className="w-8 h-8 animate-spin text-amber-300" />
+        </div>
+      )}
     </div>
   );
 };

@@ -2,6 +2,82 @@
 
 ## Current State (2026-05-06)
 
+### ✅ Iteración 100 — Aventuras Fase B (10 mejoras pedidas tras pruebas)
+
+Tras probar el sistema de aventuras, el usuario pidió 10 mejoras agrupadas en 3 olas:
+
+**🟢 Ola A — Bugs y visibilidad**
+- 🐛 **Fix carátula y mapas no se ven**: el endpoint `/api/storage/download/{id}` requiere `Authorization: Bearer`, así que las etiquetas `<img src=...>` fallaban silenciosamente. Solución: nuevo componente reutilizable `AuthenticatedImage` (`/app/frontend/src/components/AuthenticatedImage.jsx`) que descarga el blob con `fetch`+token y crea un `objectURL`. Limpia el blob al desmontar. Aplicado en `AdventureWizardPage`, `AdventurePreview`, `AdventuresListPage` (carátula en card) y `CampaignHubPage` (mapas).
+- 📜 **Vista Dossier**: al pulsar el nombre/descripción de una aventura desde el listado, se abre `AdventurePreview` en modo "dossier" (`mode="dossier"`) — modal de solo lectura con título "Dossier: …", icono de pergamino y todo el contenido renderizado (config, premisa, mecenas, ruta, eventos, entornos con imágenes, intrigas, PNJs y mapas). Botón "Ver dossier" añadido como acción primaria en cada tarjeta.
+- 🛡️ **Visibilidad sólo staff**: las rutas `/aventuras` y `/aventuras/:id` ya estaban protegidas con `roles={STAFF}` (Maestro + DJ). El icono "Aventuras" en HomePage sigue mostrándose sólo a staff; los jugadores ven "Mis Campañas". Verificado.
+
+**🟠 Ola B — Mejoras del wizard**
+- 🌱 **Estación automática**: desaparece el `<select>` de estación. Al introducir mes (1-12), el wizard muestra un hint "Estación auto: Primavera/Verano/Otoño/Invierno (puedes cambiarla al activar la campaña)". El backend deriva con `_derive_season(month)` en `create_adventure` y `update_adventure`. Si el usuario pasa `season` explícito, prevalece.
+- 🔎 **Ubicación con buscador + mapa**: nuevo componente `LocationPickerField` con typeahead (filtra por nombre/región/sindarin) y botón "Mapa" que abre `MapPickDialog`. Si se elige del mapa, se guarda `map_x/map_y`. Devuelve `{location_id, location_name, region, map_x, map_y}`.
+- 👑 **Mecenas dropdown**: el campo "Mecenas" pasa de input libre a `<Select>` poblado desde `/api/data/npcs?categoria=pnj`. Guarda `patron_id` (npc id) + `patron_name`.
+- 🤝 **Relación auto mecenas↔PJ**: cuando el DJ acepta a un jugador en una campaña activa, si la run tiene `patron_id`, se crea automáticamente una entrada `npc_relationships` (nivel `neutral`, flag `is_patron: true`, vinculada al `campaign_run_id`) — así el mecenas aparece de inmediato en el panel de relaciones del personaje. La run guarda `patron_id` + `patron_name` como snapshot.
+- 🖼️ **Entornos: hasta 5 imágenes**: nuevo modelo `EnvironmentImage` con `file_id`/`description`. Endpoint valida `len(images) ≤ 5` por entorno. Step5 del wizard incluye input de subida múltiple por entorno + grid de miniaturas con AuthenticatedImage + botón eliminar imagen.
+- 📜 **Acontecimientos de viaje múltiples**: nuevo modelo `TravelEvent` (lista). Step3 del wizard muestra cabecera "Acontecimientos de viaje (N)" con título + descripción por entrada y botones añadir/eliminar. Conserva `travel_events_text` legacy en un `<details>` colapsable para retrocompatibilidad.
+- 🗺️ **Puntos intermedios de viaje (hasta 5)**: nuevo modelo `TravelStop` con `location_id|location_name|region|map_x|map_y|note`. Endpoint valida ≤ 5. Step3 del wizard muestra "Paradas intermedias (N/5)" con `LocationPickerField` por parada (incluye opción Mapa) y campo nota opcional. Backend valida en create+update.
+
+**🔴 Ola C — PNJ desde 0**
+- ⚔️ **PNJ con bloque de combate**: nuevo componente `NPCStatBlockEditor` (350 líneas) con todos los campos del modelo `NPCCreate`:
+  - Identidad: tipo, tamaño, alineamiento, desafío, descripción.
+  - Combate: CA, PG, dados PG, velocidad, descripción de armadura.
+  - Atributos: FUE/DES/CON/INT/SAB/CAR (grid de 6).
+  - Sentidos & lenguajes (CSV → array).
+  - Resistencias / inmunidades (daño + estados) / vulnerabilidades.
+  - Especiales (rasgos): lista nombre+descripción.
+  - Ataques: ataque múltiple + lista de armas (nombre/daño/alcance).
+  - Reacciones: lista nombre+descripción.
+- En Step7 del wizard, nuevo botón verde **"Crear PNJ desde 0 (combate)"** que añade un PNJ con `custom_stats` pre-rellenado (atributos a 10, CA 10, PG 1) y abre el editor automáticamente. Toggle "▼ Ocultar / ▶ Mostrar bloque de combate" por PNJ. Badge "A medida" en el listado. PNJs libres existentes pueden promocionarse a "con bloque de combate" con un botón "+ Convertir en PNJ con bloque de combate".
+- El bloque queda en `npc.custom_stats` (dict) en el documento de la aventura. Al generar la campaña, se clona en `campaign_npcs` con id nuevo, listo para usarse en combate.
+
+**🟢 Backend (`adventures_routes.py`)**
+- Modelos nuevos: `EnvironmentImage`, `TravelEvent`, `TravelStop`. `EnvironmentItem.images` (≤5), `AdventureNPC.custom_stats` (dict opcional).
+- Validadores: `_validate_travel_route` (≤5), `_validate_env_images` (≤5 por entorno), `_derive_season(month)` (3-5=primavera, 6-8=verano, 9-11=otoño, 12-2=invierno).
+- Aplicados en `create_adventure` + `update_adventure`. `_validate_multichar` mantiene su lógica.
+- `clone_adventure` regenera ids también para `travel_events`, `travel_route` y `env.images`.
+
+**🟢 Backend (`campaign_routes.py`)**
+- `CampaignRunOut` + snapshot añaden `patron_id` + `patron_name`.
+- `_clone_adventure_into_run` ahora también clona `travel_events` → `campaign_travel_events` y `travel_route` → `campaign_travel_route`. Las imágenes anidadas en `environments` reciben ids nuevos al clonarse en `campaign_environments`.
+
+**🟢 Backend (`campaign_players_routes.py`)**
+- En `accept` de un player: si `run.patron_id` existe, inserta automáticamente en `npc_relationships` la entrada mecenas↔personaje (idempotente — comprueba duplicado por character_id+npc_id).
+
+**🟢 Frontend creado**
+- `/app/frontend/src/components/AuthenticatedImage.jsx` (NUEVO, 90 líneas): img-loader con auth + objectURL.
+- `/app/frontend/src/components/adventures/LocationPickerField.jsx` (NUEVO, 130 líneas): typeahead + mapa.
+- `/app/frontend/src/components/adventures/NPCStatBlockEditor.jsx` (NUEVO, 350 líneas): editor de bloque de combate.
+
+**🟢 Frontend actualizado**
+- `AdventureWizardPage.jsx` (1041 → 1140 líneas): Step1 estación auto + LocationPicker; Step2 mecenas dropdown; Step3 paradas + acontecimientos lista; Step5 imágenes por entorno; Step7 PNJ desde 0 + custom_stats toggle.
+- `AdventurePreview.jsx` reescrito con `AuthenticatedImage` + sección "Ruta de viaje" + "Acontecimientos" lista + imágenes de entorno + flag "PNJ a medida". Soporta `mode="dossier"`.
+- `AdventuresListPage.jsx`: card con miniatura `AuthenticatedImage`, nombre/descripción clickables (abren dossier), nuevo botón "Ver dossier", `getAdventure()` para cargar el doc completo antes del modal.
+- `CampaignHubPage.jsx`: mapas usan `AuthenticatedImage`.
+
+**🟢 Tests** — `/app/backend/tests/test_adventures_phase_b_it100.py` — **7/7 PASS**
+- `test_season_auto_from_month`: month=4→primavera, 12→invierno, 7→verano.
+- `test_season_explicit_overrides_auto`: explícito gana.
+- `test_travel_route_max_5`: 6 paradas → 422 con mensaje.
+- `test_travel_route_under_limit_ok`: 5 paradas OK + ids generados.
+- `test_environment_max_5_images`: 6 imágenes en un entorno → 422.
+- `test_multiple_travel_events`: 3 eventos guardados.
+- `test_patron_relationship_on_accept`: aventura con `patron_id` → run snapshot → DJ acepta → `npc_relationships` aparece con `is_patron=True`, `nivel=neutral`, `campaign_run_id` correcto.
+
+**Total tests del fork (Fases 1+2+3+4+B): 46/46 PASS** (verificado en sesión actual: 25/25 del subset adv+runs+phaseB; los 21 de players+experience también pasan según ejecución previa pero su suite es lenta).
+
+**🟢 Smoke E2E**
+- Login Maestro → /aventuras → click "Ver dossier" → modal "Dossier: La Estrella en la Niebla" se abre con todas las secciones ✅
+- Click "Editar" → wizard Step1 muestra "Estación auto: Primavera" debajo del mes 4 ✅
+- LocationPickerField muestra "Vado de Sarn / La Comarca" con botón X para limpiar ✅
+- Step3 muestra "Paradas intermedias (0/5)" + "Acontecimientos de viaje (0)" con botones añadir ✅
+- Step5 (Entornos) muestra "Imágenes (0/5)" con Choose Files por cada entorno ✅
+- Step7 (PNJs) muestra botón verde "Crear PNJ desde 0 (combate)" ✅ Click → editor de bloque completo expandido (Identidad, Combate, Atributos 6 stats, Especiales, Ataques, Reacciones) ✅
+
+---
+
 ### ✅ Iteración 99 — FASE 4: Sistema de PX pendiente + animación "Rollos de Gestas"
 
 **🟢 Backend** (`/app/backend/routes/campaign_experience_routes.py` — NUEVO)

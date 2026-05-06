@@ -37,12 +37,21 @@ router = APIRouter(prefix="/adventures", tags=["adventures"])
 # ============================================================================
 # Pydantic models
 # ============================================================================
+class EnvironmentImage(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    file_id: str
+    path: Optional[str] = None
+    description: Optional[str] = None
+
+
 class EnvironmentItem(BaseModel):
     model_config = ConfigDict(extra="ignore")
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     title: str
     description: str = ""
     order_index: int = 0
+    images: List[EnvironmentImage] = Field(default_factory=list)  # max 5 — validated below
 
 
 class IntrigueItem(BaseModel):
@@ -52,9 +61,33 @@ class IntrigueItem(BaseModel):
     linked_plot: Optional[str] = None
 
 
+class TravelEvent(BaseModel):
+    """A discrete travel event in the adventure (replaces the single
+    `travel_events_text` textarea)."""
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    title: str = ""
+    description: str = ""
+
+
+class TravelStop(BaseModel):
+    """Intermediate stop of the planned route. Either a real location id or
+    a free-text custom point picked on the map. Up to 5 stops."""
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    location_id: Optional[str] = None  # null when picked from the map
+    location_name: Optional[str] = None
+    region: Optional[str] = None
+    map_x: Optional[float] = None
+    map_y: Optional[float] = None
+    note: Optional[str] = None
+
+
 class AdventureNPC(BaseModel):
     """An NPC entry attached to the adventure. `bestiary_id` is the npcs._id
-    when picked from the bestiary; otherwise free-text."""
+    when picked from the bestiary; otherwise free-text, optionally with a
+    full custom stat block in `custom_stats` (used directly during combat in
+    a campaign run)."""
     model_config = ConfigDict(extra="ignore")
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     name: str
@@ -62,6 +95,7 @@ class AdventureNPC(BaseModel):
     bestiary_categoria: Optional[str] = None  # "malignos" | "pnj" | "animales" | "especiales"
     history: Optional[str] = None
     special: Optional[str] = None
+    custom_stats: Optional[dict] = None  # NPCCreate-shaped dict if created from scratch
 
 
 class AdventureMap(BaseModel):
@@ -103,7 +137,9 @@ class AdventureBase(BaseModel):
 
     # Step 3 — Background & travel
     background: Optional[str] = None
-    travel_events_text: Optional[str] = None
+    travel_events_text: Optional[str] = None  # legacy single-textarea (kept for backward compatibility)
+    travel_events: List[TravelEvent] = Field(default_factory=list)
+    travel_route: List[TravelStop] = Field(default_factory=list)  # up to 5 stops
 
     # Step 5/6 — Lists
     environments: List[EnvironmentItem] = Field(default_factory=list)
@@ -153,6 +189,8 @@ class AdventureUpdate(BaseModel):
     ancient_lore_text: Optional[str] = None
     background: Optional[str] = None
     travel_events_text: Optional[str] = None
+    travel_events: Optional[List[TravelEvent]] = None
+    travel_route: Optional[List[TravelStop]] = None
     environments: Optional[List[EnvironmentItem]] = None
     intrigues: Optional[List[IntrigueItem]] = None
     npcs: Optional[List[AdventureNPC]] = None
@@ -211,6 +249,42 @@ def _validate_multichar(payload: dict):
             )
 
 
+def _validate_travel_route(payload: dict):
+    route = payload.get("travel_route") or []
+    if len(route) > 5:
+        raise HTTPException(status_code=422, detail="La ruta admite hasta 5 paradas intermedias")
+
+
+def _validate_env_images(payload: dict):
+    for env in payload.get("environments") or []:
+        imgs = env.get("images") or []
+        if len(imgs) > 5:
+            raise HTTPException(
+                status_code=422,
+                detail=f"Cada entorno admite hasta 5 imágenes (entorno '{env.get('title') or '?'}')",
+            )
+
+
+def _derive_season(month):
+    """Derive Spanish-named season from a month number (1-12). Hemisferio
+    norte (Tierra Media)."""
+    if not month:
+        return None
+    try:
+        m = int(month)
+    except (TypeError, ValueError):
+        return None
+    if m in (3, 4, 5):
+        return "primavera"
+    if m in (6, 7, 8):
+        return "verano"
+    if m in (9, 10, 11):
+        return "otono"
+    if m in (12, 1, 2):
+        return "invierno"
+    return None
+
+
 def _serialize(doc: dict) -> dict:
     """Strip _id and ensure datetimes are ISO strings."""
     out = {k: v for k, v in doc.items() if k != "_id"}
@@ -234,6 +308,12 @@ async def create_adventure(
 
     body = payload.model_dump()
     _validate_multichar(body)
+    _validate_travel_route(body)
+    _validate_env_images(body)
+
+    # Auto-derive season from month if season not provided
+    if not body.get("season") and body.get("month"):
+        body["season"] = _derive_season(body.get("month"))
 
     now = datetime.now(timezone.utc).isoformat()
     doc = {
@@ -306,6 +386,14 @@ async def update_adventure(
 
     merged = {**adv, **update_fields}
     _validate_multichar(merged)
+    _validate_travel_route(merged)
+    _validate_env_images(merged)
+
+    # Auto-derive season when month changes and season was not explicitly set
+    if "month" in update_fields and not update_fields.get("season") and not merged.get("season"):
+        derived = _derive_season(update_fields.get("month"))
+        if derived:
+            update_fields["season"] = derived
 
     update_fields["updated_at"] = datetime.now(timezone.utc).isoformat()
     await db.adventures.update_one({"id": adventure_id}, {"$set": update_fields})
@@ -344,9 +432,13 @@ async def clone_adventure(adventure_id: str, user: dict = Depends(get_current_us
     now = datetime.now(timezone.utc).isoformat()
     base = {k: v for k, v in src.items() if k not in ("_id", "id", "creator_dm_id", "creator_name", "created_at", "updated_at", "cloned_from")}
     # Force new ids for nested lists to avoid collisions
-    for key in ("environments", "intrigues", "npcs", "maps"):
+    for key in ("environments", "intrigues", "npcs", "maps", "travel_events", "travel_route"):
         if base.get(key):
             base[key] = [{**item, "id": str(uuid.uuid4())} for item in base[key]]
+    # Environment images also need new ids
+    for env in base.get("environments") or []:
+        if env.get("images"):
+            env["images"] = [{**img, "id": str(uuid.uuid4())} for img in env["images"]]
 
     doc = {
         **base,

@@ -1,9 +1,16 @@
 /**
- * Modal de previsualización de la aventura completa.
- * Muestra todo lo añadido hasta el momento (read-only).
+ * Modal de previsualización / "Dossier" de la aventura completa (read-only).
+ * Se reutiliza como Dossier desde la lista de aventuras.
+ *
+ * Props:
+ *   adv          aventura completa (con npcs, environments, maps, etc.)
+ *   open / onClose
+ *   backendUrl   reservado por compatibilidad (no se usa para imágenes)
+ *   mode         'preview' (wizard) | 'dossier' (lista)
  */
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Globe2, Lock } from 'lucide-react';
+import { Globe2, Lock, ScrollText } from 'lucide-react';
+import AuthenticatedImage from '@/components/AuthenticatedImage';
 
 const SEASONS = {
   primavera: 'Primavera',
@@ -17,7 +24,7 @@ const Section = ({ title, children }) => (
     <h3 className="font-heading text-lg text-amber-300 mb-2 border-b border-amber-700/30 pb-1">
       {title}
     </h3>
-    <div className="text-sm text-gray-200">{children}</div>
+    <div className="text-sm text-gray-200 whitespace-pre-wrap">{children}</div>
   </div>
 );
 
@@ -30,34 +37,32 @@ const formatDate = (adv) => {
   return parts.join(' · ') || '—';
 };
 
-const AdventurePreview = ({ adv, open, onClose, backendUrl }) => {
+const AdventurePreview = ({ adv, open, onClose, mode = 'preview' }) => {
   if (!adv) return null;
-
-  const coverUrl = adv.image_file_id
-    ? `${backendUrl}/api/storage/download/${adv.image_file_id}`
-    : null;
+  const isDossier = mode === 'dossier';
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
       <DialogContent
-        className="max-w-3xl max-h-[88vh] overflow-y-auto bg-black/95 border-amber-700/50"
+        className={`max-w-3xl max-h-[88vh] overflow-y-auto ${isDossier ? 'bg-[#1a120a]/95' : 'bg-black/95'} border-amber-700/50`}
         data-testid="adventure-preview-modal"
       >
         <DialogHeader>
           <DialogTitle className="font-heading text-3xl text-amber-300 flex items-center gap-2">
-            {adv.is_public ? (
+            {isDossier ? (
+              <ScrollText className="w-6 h-6 text-amber-400" />
+            ) : adv.is_public ? (
               <Globe2 className="w-5 h-5 text-emerald-400" />
             ) : (
               <Lock className="w-5 h-5 text-amber-300/80" />
             )}
-            {adv.name || '(sin nombre)'}
+            {isDossier ? `Dossier: ${adv.name || '(sin nombre)'}` : (adv.name || '(sin nombre)')}
           </DialogTitle>
         </DialogHeader>
 
-        {coverUrl && (
-          
-          <img
-            src={coverUrl}
+        {adv.image_file_id && (
+          <AuthenticatedImage
+            fileId={adv.image_file_id}
             alt={adv.name}
             className="w-full max-h-72 object-cover rounded-lg border border-amber-800/40"
           />
@@ -95,17 +100,57 @@ const AdventurePreview = ({ adv, open, onClose, backendUrl }) => {
           </Section>
         )}
         {adv.background && <Section title="Trasfondo (DJ)">{adv.background}</Section>}
-        {adv.travel_events_text && (
-          <Section title="Acontecimientos de viaje">{adv.travel_events_text}</Section>
+
+        {adv.travel_route?.length > 0 && (
+          <Section title={`Ruta de viaje (${adv.travel_route.length} parada${adv.travel_route.length === 1 ? '' : 's'})`}>
+            <ol className="list-decimal pl-5 space-y-1">
+              {adv.travel_route.map((stop, i) => (
+                <li key={stop.id || i}>
+                  <span className="text-amber-200 font-medium">{stop.location_name || '(sin ubicación)'}</span>
+                  {stop.region && <span className="text-amber-300/60"> · {stop.region}</span>}
+                  {stop.note && <span className="text-gray-300/80"> — {stop.note}</span>}
+                </li>
+              ))}
+            </ol>
+          </Section>
+        )}
+
+        {Array.isArray(adv.travel_events) && adv.travel_events.length > 0 ? (
+          <Section title={`Acontecimientos de viaje (${adv.travel_events.length})`}>
+            <ul className="list-disc pl-5 space-y-2">
+              {adv.travel_events.map((ev, i) => (
+                <li key={ev.id || i}>
+                  <span className="text-amber-200 font-medium">{ev.title || `Acontecimiento ${i + 1}`}</span>
+                  {ev.description && <p className="text-gray-300/90">{ev.description}</p>}
+                </li>
+              ))}
+            </ul>
+          </Section>
+        ) : (
+          adv.travel_events_text && (
+            <Section title="Acontecimientos de viaje">{adv.travel_events_text}</Section>
+          )
         )}
 
         {adv.environments?.length > 0 && (
           <Section title={`Entornos (${adv.environments.length})`}>
-            <ol className="list-decimal pl-5 space-y-2">
+            <ol className="list-decimal pl-5 space-y-3">
               {adv.environments.map((e, i) => (
                 <li key={e.id || i}>
                   <span className="text-amber-200 font-medium">{e.title}</span>
                   {e.description && <p className="text-gray-300/90">{e.description}</p>}
+                  {e.images?.length > 0 && (
+                    <div className="grid grid-cols-3 sm:grid-cols-5 gap-2 mt-2">
+                      {e.images.map((img, j) => (
+                        <AuthenticatedImage
+                          key={img.id || j}
+                          fileId={img.file_id}
+                          alt={img.description || `entorno-${i}-${j}`}
+                          className="w-full h-20 object-cover rounded border border-amber-800/40"
+                        />
+                      ))}
+                    </div>
+                  )}
                 </li>
               ))}
             </ol>
@@ -136,6 +181,9 @@ const AdventurePreview = ({ adv, open, onClose, backendUrl }) => {
                   {n.bestiary_categoria && (
                     <span className="text-amber-300/50"> · {n.bestiary_categoria}</span>
                   )}
+                  {n.custom_stats && (
+                    <p className="text-emerald-300/70 text-xs">PNJ creado a medida</p>
+                  )}
                   {n.history && <p className="text-gray-300/90">{n.history}</p>}
                   {n.special && (
                     <p className="text-amber-300/70 italic">⚡ {n.special}</p>
@@ -154,9 +202,8 @@ const AdventurePreview = ({ adv, open, onClose, backendUrl }) => {
                   key={m.id || i}
                   className="rounded border border-amber-800/40 overflow-hidden"
                 >
-                  
-                  <img
-                    src={`${backendUrl}/api/storage/download/${m.file_id}`}
+                  <AuthenticatedImage
+                    fileId={m.file_id}
                     alt={m.description || `mapa-${i}`}
                     className="w-full h-32 object-cover"
                   />

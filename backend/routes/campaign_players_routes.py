@@ -287,6 +287,34 @@ async def update_player_status(
         log_event = "player_accepted"
         log_desc = f"{char.get('nombre')} aceptado en la campaña"
 
+        # If the campaign has a patron NPC, auto-create a neutral relationship
+        # between this character and the patron NPC. This makes the patron
+        # show up in the character's "relations" panel from minute one.
+        patron_id = run.get("patron_id")
+        if patron_id:
+            existing_rel = await db.npc_relationships.find_one({
+                "character_id": p["character_id"],
+                "npc_id": patron_id,
+            })
+            if not existing_rel:
+                await db.npc_relationships.insert_one({
+                    "_id": str(uuid.uuid4()),
+                    "character_id": p["character_id"],
+                    "npc_id": patron_id,
+                    "nivel": "neutral",
+                    "penalizacion_precio": 0,
+                    "dias_sin_comercio": 0,
+                    "historial": [{
+                        "tipo": "mecenas",
+                        "descripcion": f"Mecenas de la campaña «{run.get('adventure_name', '')}»",
+                        "fecha": now,
+                    }],
+                    "is_patron": True,
+                    "campaign_run_id": run["id"],
+                    "created_at": now,
+                    "updated_at": now,
+                })
+
     elif target in ("rejected", "expelled"):
         # If the character was locked by THIS run, release it
         char = await db.characters.find_one({"_id": p["character_id"]})

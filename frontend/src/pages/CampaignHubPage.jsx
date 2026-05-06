@@ -44,6 +44,7 @@ import { Button } from '@/components/ui/button';
 import RuneIgniteOverlay from '@/components/adventures/RuneIgniteOverlay';
 import AwardXPDialog from '@/components/adventures/AwardXPDialog';
 import ScrollOfDeedsReveal from '@/components/adventures/ScrollOfDeedsReveal';
+import AuthenticatedImage from '@/components/AuthenticatedImage';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 
@@ -212,8 +213,8 @@ const ContentTab = ({ content, run }) => (
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
         {content.maps.map((m) => (
           <div key={m.id} className="rounded border border-amber-800/40 overflow-hidden">
-            <img
-              src={`${BACKEND_URL}/api/storage/download/${m.file_id}`}
+            <AuthenticatedImage
+              fileId={m.file_id}
               alt={m.description || 'mapa'}
               className="w-full h-32 object-cover"
             />
