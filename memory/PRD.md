@@ -2,6 +2,47 @@
 
 ## Current State (2026-05-06)
 
+### ✅ Iteración 97 — FASE 2: Sistema de Campañas Activas + animación "Anillo Forjado"
+
+**🟢 Backend** (`/app/backend/routes/campaign_routes.py` — NUEVO)
+- Modelo `campaign_runs` (instancias vivas) + colecciones de contenido clonado:
+  `campaign_environments`, `campaign_intrigues`, `campaign_npcs`, `campaign_maps`, `campaign_log`.
+- **Generador de código discreto**: 8 chars del alfabeto base32 sin caracteres ambiguos (`23456789ABCDEFGHJKMNPQRSTUVWXYZ` — no `0/O/1/I/L`). Índice único en BD. Reintenta hasta 20 veces ante colisión (espacio ≈10¹²).
+- **Endpoints**:
+  - `POST /api/campaign-runs/from-adventure/{id}` — clona el contenido y genera código.
+  - `GET /api/campaign-runs?scope=mine|all&status=…` — listado del DJ (Maestro ve todo con `scope=all`).
+  - `GET /api/campaign-runs/{id}` / `/content` / `/log`.
+  - `POST /api/campaign-runs/{id}/activate|pause|finish` — máquina de estados.
+  - `DELETE /api/campaign-runs/{id}` — elimina + cascada del contenido + log.
+- **Máquina de estados** estricta: `draft → active`, `active ↔ paused`, `(any non-finished) → finished`. Las transiciones inválidas devuelven 400 con mensaje claro.
+- **Snapshot** desde la aventura: el run guarda copia de `description`, `motivation_text`, `image_file_id`, `year`, `season`, `location_name`, `region`, `max_players`, `allow_multi_characters`, `recommended_level_*` para que el hub no necesite re-fetch.
+- **Cloning**: cada item de la aventura (entornos/intrigas/PNJs/mapas) se inserta en su colección `campaign_*` con un **id nuevo** + `campaign_run_id` + `created_at`. La aventura original NUNCA se contamina.
+- **Logging automático**: cada creación + transición añade entrada en `campaign_log`.
+
+**🟢 Frontend**
+- `ForgedRingReveal.jsx`: componente cinemático con anillo dorado (gradiente cónico animado, halo ámbar pulsante, 28 chispas circulares con `keyframes`) y código grabado letra a letra (180 ms/char) con `text-shadow` ámbar/naranja. Inscripción "Un código para gobernarlos a todos…".
+- `CampaignActivatedDialog.jsx`: modal post-creación con la animación + 3 acciones: Copiar (clipboard + toast), Publicar en tablón (placeholder Fase 5), Ir al panel.
+- `AdventureWizardPage`: nuevo botón **"Generar Campaña"** en cabecera (gradiente ámbar-naranja, icono Sparkles, `disabled` si hay cambios sin guardar). Al hacer click → POST → muestra el dialog.
+- `CampaignsListPage` (`/campanas`): tarjetas por campaña con código copiable, badge de estado, botones Activar/Pausar/Reanudar/Finalizar/Eliminar; filtros por estado.
+- `CampaignHubPage` (`/campanas/:id`): cabecera persistente con código + estado; 4 tabs (Información, Contenido, Jugadores [placeholder Fase 3], Registro).
+- `AdventuresListPage`: botón "Mis Campañas" en cabecera para acceso rápido.
+- Rutas registradas en `App.js`.
+
+**🟢 Tests** — `/app/backend/tests/test_campaign_runs_it97.py` — **8/8 PASS**
+- Generación con clonado de contenido (entornos/intrigas/npcs) + ids regenerados + `campaign_run_id` correcto.
+- Códigos de 8 chars sin caracteres ambiguos.
+- Máquina de estados completa (draft→active→paused→active→finished, finished irreversible).
+- Transiciones inválidas (draft→paused) devuelven 400.
+- Códigos únicos al generar múltiples runs de la misma aventura.
+- DJ no propietario no puede ver run ajena (403).
+- Log registra creación + transiciones.
+- DELETE limpia colecciones de contenido en cascada.
+- Jugador no puede generar runs (403).
+
+**Total tests del fork (Fases 1+2): 18/18 PASS**
+
+---
+
 ### ✅ Iteración 96 — FASE 1: Sistema de Aventuras (CRUD + Wizard)
 
 **🎯 Inicio del gran fork "Aventuras & Campañas"** — separación estricta entre `Aventura` (plantilla estática reutilizable) y futura `Campaña activa` (instancia viva). Esta iteración implementa **sólo la Aventura** (Fase 1 de 5).

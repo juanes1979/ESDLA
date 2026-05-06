@@ -28,6 +28,8 @@ import RegisterPage from "@/pages/RegisterPage";
 import ApprovalsPage from "@/pages/ApprovalsPage";
 import AdventuresListPage from "@/pages/AdventuresListPage";
 import AdventureWizardPage from "@/pages/AdventureWizardPage";
+import CampaignsListPage from "@/pages/CampaignsListPage";
+import CampaignHubPage from "@/pages/CampaignHubPage";
 import { CharacterCreatorWizard } from "@/components/character-creator";
 
 // Role groups
@@ -61,6 +63,8 @@ function App() {
               <Route path="/rules" element={<ProtectedRoute roles={STAFF}><RulesPage /></ProtectedRoute>} />
               <Route path="/aventuras" element={<ProtectedRoute roles={STAFF}><AdventuresListPage /></ProtectedRoute>} />
               <Route path="/aventuras/:id" element={<ProtectedRoute roles={STAFF}><AdventureWizardPage /></ProtectedRoute>} />
+              <Route path="/campanas" element={<ProtectedRoute roles={STAFF}><CampaignsListPage /></ProtectedRoute>} />
+              <Route path="/campanas/:id" element={<ProtectedRoute roles={STAFF}><CampaignHubPage /></ProtectedRoute>} />
               <Route path="/sheet-editor" element={<ProtectedRoute roles={STAFF}><SheetPositionEditor /></ProtectedRoute>} />
               <Route path="/map/master" element={<ProtectedRoute roles={STAFF}><MiddleEarthMap /></ProtectedRoute>} />
               <Route path="/terrain-editor" element={<ProtectedRoute roles={STAFF}><TerrainEditor /></ProtectedRoute>} />

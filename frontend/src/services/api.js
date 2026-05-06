@@ -300,3 +300,52 @@ export const uploadAdventureImage = async (file, { description } = {}) => {
   return response.data; // { file_id, path, ... }
 };
 
+// === CAMPAIGN RUNS (Fase 2) ===
+
+export const generateCampaignRun = async (adventureId) => {
+  const response = await api.post(`/campaign-runs/from-adventure/${adventureId}`);
+  return response.data;
+};
+
+export const listCampaignRuns = async (scope = 'mine', status = null) => {
+  const params = { scope };
+  if (status) params.status = status;
+  const response = await api.get('/campaign-runs', { params });
+  return response.data;
+};
+
+export const getCampaignRun = async (id) => {
+  const response = await api.get(`/campaign-runs/${id}`);
+  return response.data;
+};
+
+export const getCampaignContent = async (id) => {
+  const response = await api.get(`/campaign-runs/${id}/content`);
+  return response.data;
+};
+
+export const getCampaignLog = async (id) => {
+  const response = await api.get(`/campaign-runs/${id}/log`);
+  return response.data;
+};
+
+export const activateCampaignRun = async (id) => {
+  const response = await api.post(`/campaign-runs/${id}/activate`);
+  return response.data;
+};
+
+export const pauseCampaignRun = async (id) => {
+  const response = await api.post(`/campaign-runs/${id}/pause`);
+  return response.data;
+};
+
+export const finishCampaignRun = async (id) => {
+  const response = await api.post(`/campaign-runs/${id}/finish`);
+  return response.data;
+};
+
+export const deleteCampaignRun = async (id) => {
+  const response = await api.delete(`/campaign-runs/${id}`);
+  return response.data;
+};
+

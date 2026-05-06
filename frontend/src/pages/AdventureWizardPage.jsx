@@ -24,6 +24,7 @@ import {
   X,
   Globe2,
   Lock,
+  Sparkles,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
@@ -33,10 +34,12 @@ import {
   uploadAdventureImage,
   getBestiary,
   getLocations,
+  generateCampaignRun,
 } from '@/services/api';
 import { useAuth } from '@/context/AuthContext';
 import { Field, TextInput, TextArea, Select, StepCard } from '@/components/adventures/WizardFields';
 import AdventurePreview from '@/components/adventures/AdventurePreview';
+import CampaignActivatedDialog from '@/components/adventures/CampaignActivatedDialog';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const MAX_IMAGE_BYTES = 0.5 * 1024 * 1024; // 0.5 MB
@@ -694,6 +697,8 @@ const AdventureWizardPage = () => {
   const [uploadingCover, setUploadingCover] = useState(false);
   const [uploadingMap, setUploadingMap] = useState(false);
   const [dirty, setDirty] = useState(false);
+  const [generating, setGenerating] = useState(false);
+  const [activatedRun, setActivatedRun] = useState(null);
 
   // Initial load
   useEffect(() => {
@@ -837,6 +842,22 @@ const AdventureWizardPage = () => {
     }
   };
 
+  const handleGenerateRun = async () => {
+    if (dirty) {
+      toast.error('Guarda los cambios antes de generar la campaña');
+      return;
+    }
+    setGenerating(true);
+    try {
+      const run = await generateCampaignRun(id);
+      setActivatedRun(run);
+    } catch (err) {
+      toast.error(err?.response?.data?.detail || 'No se pudo generar la campaña');
+    } finally {
+      setGenerating(false);
+    }
+  };
+
   if (loading || !adv) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-black">
@@ -917,6 +938,23 @@ const AdventureWizardPage = () => {
                   Guardar
                 </Button>
               )}
+              {canEdit && (
+                <Button
+                  size="sm"
+                  onClick={handleGenerateRun}
+                  disabled={generating || dirty}
+                  className="bg-gradient-to-r from-amber-600 to-orange-700 hover:from-amber-500 hover:to-orange-600 text-amber-50 border border-amber-400/50 shadow-lg shadow-amber-700/30"
+                  data-testid="generate-run-btn"
+                  title={dirty ? 'Guarda primero' : 'Crear instancia jugable'}
+                >
+                  {generating ? (
+                    <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                  ) : (
+                    <Sparkles className="w-4 h-4 mr-1" />
+                  )}
+                  Generar Campaña
+                </Button>
+              )}
             </div>
           </div>
         </div>
@@ -989,6 +1027,12 @@ const AdventureWizardPage = () => {
         open={showPreview}
         onClose={() => setShowPreview(false)}
         backendUrl={BACKEND_URL}
+      />
+
+      <CampaignActivatedDialog
+        run={activatedRun}
+        open={!!activatedRun}
+        onClose={() => setActivatedRun(null)}
       />
     </div>
   );

@@ -13,7 +13,7 @@
  */
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Plus, Copy, Pencil, Trash2, Globe2, Lock, Loader2 } from 'lucide-react';
+import { ArrowLeft, Plus, Copy, Pencil, Trash2, Globe2, Lock, Loader2, Compass } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   listAdventures,
@@ -218,19 +218,29 @@ const AdventuresListPage = () => {
             </h1>
           </div>
           {isStaff && (
-            <Button
-              onClick={handleCreate}
-              disabled={creating}
-              data-testid="new-adventure-btn"
-              className="bg-amber-700 hover:bg-amber-600 text-amber-50 border border-amber-500/40"
-            >
-              {creating ? (
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-              ) : (
-                <Plus className="w-4 h-4 mr-2" />
-              )}
-              Nueva aventura
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button
+                onClick={() => navigate('/campanas')}
+                variant="outline"
+                data-testid="goto-campaigns-btn"
+                className="border-amber-700/50 text-amber-200 hover:bg-amber-900/30"
+              >
+                <Compass className="w-4 h-4 mr-2" /> Mis Campañas
+              </Button>
+              <Button
+                onClick={handleCreate}
+                disabled={creating}
+                data-testid="new-adventure-btn"
+                className="bg-amber-700 hover:bg-amber-600 text-amber-50 border border-amber-500/40"
+              >
+                {creating ? (
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                ) : (
+                  <Plus className="w-4 h-4 mr-2" />
+                )}
+                Nueva aventura
+              </Button>
+            </div>
           )}
         </div>
 
