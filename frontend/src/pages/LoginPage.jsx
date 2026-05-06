@@ -70,24 +70,25 @@ const LoginPage = () => {
       </div>
 
       {/* Portal Anillo */}
-      <div className="relative z-10 w-full max-w-[720px] aspect-square mx-auto">
+      <div className="relative z-10 w-full max-w-[660px] aspect-square mx-auto">
         {/* La imagen del Anillo en llamas, palpitando.
-            Máscara radial con fade muy gradual: el anillo se funde con
-            el fondo sin bordes duros y sin altar. NO usamos drop-shadow
-            sobre el PNG porque dibujaría un halo cuadrado siguiendo la
-            silueta original del archivo en lugar de la máscara. */}
+            Reducida al 88% para que las letras del texto interno de la
+            imagen queden bien tapadas por el disco oscuro. Posición
+            ligeramente desplazada hacia arriba (44%) porque el centro
+            óptico del anillo en la imagen NO coincide con el centro
+            geométrico del PNG (la base con altar lo desplaza). */}
         <div
           className="ring-portal absolute inset-0"
           data-testid="login-page"
           style={{
             backgroundImage: `url(${RING_PORTAL})`,
-            backgroundSize: 'contain',
-            backgroundPosition: 'center',
+            backgroundSize: '88% 88%',
+            backgroundPosition: 'center 44%',
             backgroundRepeat: 'no-repeat',
             WebkitMaskImage:
-              'radial-gradient(circle at 50% 46%, #000 36%, rgba(0,0,0,0.85) 46%, transparent 60%)',
+              'radial-gradient(circle at 50% 44%, #000 32%, rgba(0,0,0,0.85) 42%, transparent 54%)',
             maskImage:
-              'radial-gradient(circle at 50% 46%, #000 36%, rgba(0,0,0,0.85) 46%, transparent 60%)',
+              'radial-gradient(circle at 50% 44%, #000 32%, rgba(0,0,0,0.85) 42%, transparent 54%)',
             WebkitMaskRepeat: 'no-repeat',
             maskRepeat: 'no-repeat',
           }}
@@ -96,14 +97,14 @@ const LoginPage = () => {
         {/* Disco oscuro que tapa el texto incrustado del anillo y aloja el form.
             Palpita SINCRONIZADO con el anillo (misma animación ringPulse) para
             que el agujero central del anillo y el disco coincidan en todo
-            momento. */}
+            momento. Centro vertical desplazado a 44% para alinearse con el
+            centro óptico del anillo. */}
         <div
           className="ring-portal-inner absolute rounded-full overflow-hidden"
           style={{
-            // Diámetro = 54% del cuadro, centrado. Suficiente para cubrir
-            // el texto "Basado en El señor de los anillos 5e" del centro
-            // de la imagen del anillo.
-            top: '23%', left: '23%', right: '23%', bottom: '23%',
+            // Centrado en (50%, 44%) con diámetro ~46% del cuadro.
+            // Tapa por completo el texto interno del anillo.
+            top: '21%', left: '27%', right: '27%', bottom: '29%',
             background: 'rgb(8,4,2)',
             boxShadow:
               'inset 0 0 60px 6px rgba(0,0,0,0.95), 0 0 26px rgba(255,120,30,0.30)',
