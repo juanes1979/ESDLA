@@ -2,6 +2,18 @@
 
 ## Current State (2026-05-06)
 
+### ✅ Iteración 86 — Tareas previas al fork de Aventuras
+- 🎨 Añadido el icono **"Aventura"** al HomePage (lateral izquierdo, marcado `comingSoon`/Pronto). Imagen `Aventura.png`. Las posiciones de los iconos izquierdos se ajustan a 12% / 32% / 50% / 72% para mantener la formación en arco.
+- 🏪 **Filtro de tienda por nivel de asentamiento (TradingSystemSection)**: simplificado a los 5 tipos canónicos (`aldea`, `pueblo`, `villa`, `ciudad`, `capital`) que coinciden con el tagging de `item.nivel_asentamiento`. Eliminados los duplicados `ciudad_pequena` / `ciudad_grande`. Filtrado estricto: ya no se muestra todo en `capital`. Búsqueda exacta del modificador de precio (evita que "Ciudad" levantara "Ciudad pequeña").
+- 📜 **Botón "Expandir descripción"** en `LocationInfoPanel`: abre un modal a 88vh con texto de tamaño `text-base`, ideal para descripciones largas (Tunum, Minas Tirith, etc.). data-testid: `expand-description-btn` / `expanded-description-modal`.
+- 🕒 **Last access en lista de usuarios**: el `POST /auth/login` actualiza `users.last_access` con un timestamp ISO (UTC). `_serialize_user` y `UserOut` exponen `last_access`. `ApprovalsPage` muestra "Último acceso: DD/MM/YYYY HH:MM" debajo del email (data-testid `user-last-access-{id}`).
+
+**🟢 Tests**
+- 17/17 backend pytests pasando (`test_auth_it84.py` 7/7, `test_ownership.py` 10/10).
+- Smoke test e2e: login Maestro → HomePage muestra los 4 iconos de la izquierda incluyendo "Aventuras (Pronto)".
+
+---
+
 ### ✅ Iteración 85 — Auth UX polish + Aislamiento por usuario (NUEVO)
 
 **🟢 Bugs de Auth corregidos**

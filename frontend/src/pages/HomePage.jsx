@@ -34,9 +34,19 @@ const NAV_ITEMS = [
     title: 'Reglas',
     description: 'Culturas, ocupaciones, equipo y precios.',
     path: '/rules',
-    position: { top: '54%', left: '6%' },
+    position: { top: '50%', left: '6%' },
     side: 'left',
     roles: ['maestro', 'director_de_juego']
+  },
+  {
+    id: 'aventura',
+    image: 'https://customer-assets.emergentagent.com/job_83678a44-91d5-44d8-bd9c-fd3a28e2ac42/artifacts/96t25ngc_Aventura.png',
+    title: 'Aventuras',
+    description: 'Crea, gestiona y juega aventuras y campañas en la Tierra Media.',
+    path: '/aventuras',
+    position: { top: '72%', left: '3%' },
+    side: 'left',
+    comingSoon: true,
   },
   // RIGHT SIDE (top to bottom)
   {

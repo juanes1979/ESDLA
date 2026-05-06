@@ -262,6 +262,19 @@ const RoleSection = ({ title, subtitle, art, accent = 'amber', users, renderRow 
   </section>
 );
 
+// Format a stored ISO date as "DD/MM/YYYY HH:MM" or return em-dash.
+const fmtAccess = (iso) => {
+  if (!iso) return '—';
+  try {
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return '—';
+    const pad = (n) => String(n).padStart(2, '0');
+    return `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  } catch {
+    return '—';
+  }
+};
+
 const UserHeader = ({ user }) => (
   <div className="flex-1 min-w-0">
     <div className="flex items-center gap-2 flex-wrap">
@@ -285,6 +298,13 @@ const UserHeader = ({ user }) => (
       )}
     </div>
     <div className="text-xs text-amber-200/60 truncate">{user.email}</div>
+    <div
+      className="text-[10px] text-amber-200/45 mt-0.5"
+      title={user.last_access || 'Sin registros de acceso'}
+      data-testid={`user-last-access-${user.id}`}
+    >
+      Último acceso: <span className="text-amber-200/70">{fmtAccess(user.last_access)}</span>
+    </div>
   </div>
 );
 

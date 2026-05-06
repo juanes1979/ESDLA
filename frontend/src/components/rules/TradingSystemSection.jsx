@@ -47,23 +47,23 @@ const formatCurrency = (amount, currency = 'mp') => {
   return `${amount.toFixed(2)} ${currency}`;
 };
 
-// Settlement levels hierarchy (higher number = more availability)
+// Settlement levels hierarchy (higher number = more availability).
+// Canonical types matching the DB tagging used by EquipmentSection
+// (`item.nivel_asentamiento` is one of these strings).
 const SETTLEMENT_LEVELS = {
   'aldea': 1,
   'pueblo': 2,
-  'ciudad_pequena': 3,
+  'villa': 3,
   'ciudad': 4,
-  'ciudad_grande': 5,
-  'capital': 6,
+  'capital': 5,
 };
 
 const SETTLEMENT_LEVEL_NAMES = {
   1: 'Aldea',
-  2: 'Pueblo', 
-  3: 'Ciudad Pequeña',
+  2: 'Pueblo',
+  3: 'Villa',
   4: 'Ciudad',
-  5: 'Ciudad Grande',
-  6: 'Capital',
+  5: 'Capital',
 };
 
 // ============================================================================
@@ -132,13 +132,13 @@ const TradingSystemSection = ({ isAdmin }) => {
     const selectedRegion = calcForm.region;
     const selectedSettlement = calcForm.tipo_asentamiento;
 
-    // Map our settlement type keys to the values in the database
+    // Map our settlement type keys to the values in the database.
+    // Now both sides use the same canonical names, so the mapping is identity.
     const settlementKeyToDbValue = {
       'aldea': 'aldea',
       'pueblo': 'pueblo',
-      'ciudad_pequena': 'villa',
+      'villa': 'villa',
       'ciudad': 'ciudad',
-      'ciudad_grande': 'ciudad',
       'capital': 'capital',
     };
     
@@ -155,14 +155,11 @@ const TradingSystemSection = ({ isAdmin }) => {
         return false;
       }
       
-      // Filter by settlement level - item must be available at this settlement type
+      // Filter by settlement level - item must be available at this settlement type.
+      // Strict: only show items whose `nivel_asentamiento` array explicitly
+      // includes the selected settlement type.
       if (selectedSettlement && item.nivel_asentamiento && Array.isArray(item.nivel_asentamiento)) {
-        const isAvailable = item.nivel_asentamiento.some(s => 
-          s === dbSettlementValue || 
-          s === 'capital' || // capital has everything
-          (dbSettlementValue === 'capital') // if user selected capital, show everything
-        );
-        if (!isAvailable) {
+        if (!item.nivel_asentamiento.includes(dbSettlementValue)) {
           return false;
         }
       }
@@ -566,8 +563,10 @@ const TradingSystemSection = ({ isAdmin }) => {
                 value={calcForm.tipo_asentamiento}
                 onChange={(e) => {
                   const settlementType = e.target.value;
-                  const settlementData = priceModifiers?.asentamiento?.find(a => 
-                    a.nombre.toLowerCase().includes(settlementType.replace(/_/g, ' '))
+                  // Exact-match on canonical asentamiento name to avoid
+                  // "Ciudad" matching "Ciudad pequeña" first.
+                  const settlementData = priceModifiers?.asentamiento?.find(a =>
+                    a.nombre.trim().toLowerCase() === settlementType.toLowerCase()
                   );
                   const level = SETTLEMENT_LEVELS[settlementType] || 4;
                   // Convert multiplier to percentage
@@ -587,8 +586,8 @@ const TradingSystemSection = ({ isAdmin }) => {
               >
                 <option value="">-- Seleccionar tipo --</option>
                 {Object.entries(SETTLEMENT_LEVELS).map(([key, level]) => {
-                  const settlementData = priceModifiers?.asentamiento?.find(a => 
-                    a.nombre.toLowerCase().includes(key.replace(/_/g, ' '))
+                  const settlementData = priceModifiers?.asentamiento?.find(a =>
+                    a.nombre.trim().toLowerCase() === key.toLowerCase()
                   );
                   const modPercent = settlementData ? Math.round((settlementData.modificador - 1) * 100) : 0;
                   return (

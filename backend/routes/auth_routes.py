@@ -60,6 +60,7 @@ class UserOut(BaseModel):
     role: str
     status: str
     created_at: str
+    last_access: Optional[str] = None
     requested_role: Optional[str] = None
     is_protected: bool = False
 
@@ -76,6 +77,7 @@ def _serialize_user(u: dict) -> dict:
         "role": u.get("role", "jugador"),
         "status": u.get("status", "pendiente"),
         "created_at": u.get("created_at", ""),
+        "last_access": u.get("last_access"),
         "requested_role": u.get("requested_role"),
         # Marca al Maestro semilla (Morthwen) como intocable.
         "is_protected": (u.get("email", "").lower().strip() == _maestro_email()),
@@ -166,6 +168,13 @@ async def login(data: LoginIn):
     if user.get("status") == "rechazado":
         raise HTTPException(status_code=403, detail="Cuenta rechazada")
     await _clear_attempts(db, email)
+    # Track last access — used by the Maestro UI to detect inactive accounts.
+    now_iso = datetime.now(timezone.utc).isoformat()
+    await db.users.update_one(
+        {"id": user["id"]},
+        {"$set": {"last_access": now_iso}},
+    )
+    user["last_access"] = now_iso
     token = create_access_token(user["id"], user["email"], user.get("role", "jugador"), remember_me=data.remember_me)
     return {"token": token, "user": _serialize_user(user), "remember_me": data.remember_me}
 
