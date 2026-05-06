@@ -93,9 +93,12 @@ const LoginPage = () => {
           }}
         />
 
-        {/* Disco oscuro que tapa el texto incrustado del anillo y aloja el form. */}
+        {/* Disco oscuro que tapa el texto incrustado del anillo y aloja el form.
+            Palpita SINCRONIZADO con el anillo (misma animación ringPulse) para
+            que el agujero central del anillo y el disco coincidan en todo
+            momento. */}
         <div
-          className="absolute rounded-full overflow-hidden"
+          className="ring-portal-inner absolute rounded-full overflow-hidden"
           style={{
             // Diámetro = 54% del cuadro, centrado. Suficiente para cubrir
             // el texto "Basado en El señor de los anillos 5e" del centro
@@ -112,16 +115,13 @@ const LoginPage = () => {
             style={{ padding: '8% 14%' }}
           >
             <h1
-              className="font-heading text-xl sm:text-[22px] text-[hsl(var(--gold))] tracking-wider leading-none"
-              style={{ textShadow: '0 0 16px rgba(251,191,36,0.55)' }}
+              className="font-heading text-base sm:text-lg text-[hsl(var(--gold))] tracking-wide leading-tight px-2"
+              style={{ textShadow: '0 0 14px rgba(251,191,36,0.45)' }}
             >
-              El Anillo Único
+              Basado en El señor de los anillos 5e
             </h1>
-            <p className="text-[10px] text-amber-200/70 italic mt-1 mb-2.5">
-              Un Anillo para gobernarlos a todos…
-            </p>
 
-            <div className="w-full space-y-1.5">
+            <div className="w-full space-y-1.5 mt-3">
               <div className="text-left">
                 <Label htmlFor="login-email" className="text-amber-100 text-[10px]">
                   Correo electrónico
@@ -241,6 +241,14 @@ const LoginPage = () => {
              marco visible al palpitar. El resplandor naranja se hace
              con .ring-halo y un radial-gradient detrás. */
         }
+        /* El disco interior palpita en sincronía con el anillo para que el
+           agujero central no se "desencuadre" durante la animación. Sólo
+           replica el scale, no el flicker ni el cambio de brillo. */
+        .ring-portal-inner {
+          animation: ringPulse 3.4s ease-in-out infinite;
+          transform-origin: center;
+          will-change: transform;
+        }
         .ring-halo {
           width: 760px;
           height: 760px;
@@ -258,7 +266,7 @@ const LoginPage = () => {
           animation: haloPulse 3.4s ease-in-out infinite;
         }
         @media (prefers-reduced-motion: reduce) {
-          .ring-portal, .ring-halo { animation: none !important; }
+          .ring-portal, .ring-portal-inner, .ring-halo { animation: none !important; }
         }
       `}</style>
     </div>
