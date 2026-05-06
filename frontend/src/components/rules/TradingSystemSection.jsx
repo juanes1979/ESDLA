@@ -1043,6 +1043,14 @@ const TradingSystemSection = ({ isAdmin }) => {
           </div>
         </div>
 
+        {/* Region modifiers — fully editable hierarchy with parent-to-child inheritance */}
+        <RegionModifiersPanel
+          regions={regions}
+          priceModifiers={priceModifiers}
+          isAdmin={isAdmin}
+          onSaved={loadPriceModifiers}
+        />
+
         {sections.map(section => (
           <div key={section.id} className="bg-black/20 rounded-lg border border-border/30">
             <button
@@ -1467,3 +1475,186 @@ const NpcEditorModal = ({ npc, config, onSave, onClose }) => {
 };
 
 export default TradingSystemSection;
+
+
+// ============================================================================
+// REGION MODIFIERS PANEL — editable hierarchy with parent-to-child inheritance
+// ============================================================================
+
+const RegionModifiersPanel = ({ regions, priceModifiers, isAdmin, onSaved }) => {
+  const [open, setOpen] = useState(false);
+  const [pctByName, setPctByName] = useState({}); // { regionName: integer pct }
+  const [saving, setSaving] = useState(false);
+  const [dirty, setDirty] = useState(false);
+
+  // Build a flat list of {nombre, depth, parent} from the regions hierarchy.
+  const flat = useMemo(() => {
+    const out = [];
+    (regions || []).forEach(top => {
+      out.push({ nombre: top.nombre, depth: 0, parent: null });
+      (top.subregions || []).forEach(sub => {
+        out.push({ nombre: sub.nombre, depth: 1, parent: top.nombre });
+      });
+    });
+    return out;
+  }, [regions]);
+
+  // Initialise/reset local state when the source data changes.
+  useEffect(() => {
+    if (!flat.length) return;
+    const modByName = new Map();
+    (priceModifiers?.region || []).forEach(rr => {
+      if (rr?.nombre) modByName.set(rr.nombre.trim().toLowerCase(), rr.modificador);
+    });
+    const next = {};
+    flat.forEach(row => {
+      const m = modByName.get(row.nombre.trim().toLowerCase());
+      next[row.nombre] = m !== undefined ? Math.round((m - 1) * 100) : 0;
+    });
+    setPctByName(next);
+    setDirty(false);
+  }, [flat, priceModifiers]);
+
+  const setPct = (nombre, value) => {
+    const n = Number.parseInt(value, 10);
+    setPctByName(prev => ({ ...prev, [nombre]: Number.isFinite(n) ? n : 0 }));
+    setDirty(true);
+  };
+
+  // Apply parent's % to all of its direct subregions.
+  const inheritToChildren = (parentName) => {
+    const parentPct = pctByName[parentName] ?? 0;
+    const children = flat.filter(r => r.parent === parentName);
+    if (children.length === 0) {
+      toast.info(`"${parentName}" no tiene sub-regiones`);
+      return;
+    }
+    setPctByName(prev => {
+      const next = { ...prev };
+      children.forEach(c => { next[c.nombre] = parentPct; });
+      return next;
+    });
+    setDirty(true);
+    toast.success(`Aplicado ${parentPct >= 0 ? '+' : ''}${parentPct}% a ${children.length} sub-región(es) de "${parentName}"`);
+  };
+
+  const save = async () => {
+    setSaving(true);
+    try {
+      const items = flat.map(r => ({
+        nombre: r.nombre,
+        modificador: 1 + ((pctByName[r.nombre] ?? 0) / 100),
+        descripcion: '',
+      }));
+      await api.put('/data/modificadores-precio/region', { items });
+      toast.success(`Guardados ${items.length} modificadores de región`);
+      setDirty(false);
+      onSaved?.();
+    } catch (err) {
+      toast.error(err?.response?.data?.detail || 'Error al guardar modificadores');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="bg-black/20 rounded-lg border border-[hsl(var(--gold))]/30">
+      <button
+        onClick={() => setOpen(o => !o)}
+        className="w-full flex justify-between items-center p-4 text-left"
+        data-testid="region-modifiers-toggle"
+      >
+        <div>
+          <span className="font-medium text-[hsl(var(--gold))]">Modificadores por Región</span>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            Define el % de más/menos por cada región. Los valores se heredan a las sub-regiones con el botón ↓.
+          </p>
+        </div>
+        {open ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
+      </button>
+
+      {open && (
+        <div className="px-4 pb-4 space-y-2">
+          {flat.length === 0 ? (
+            <p className="text-sm text-muted-foreground italic px-2 py-3">
+              No hay regiones cargadas. Ve a Reglas → Regiones para crearlas primero.
+            </p>
+          ) : (
+            <>
+              <div className="max-h-[28rem] overflow-y-auto pr-1 border border-border/30 rounded">
+                {flat.map(row => {
+                  const pct = pctByName[row.nombre] ?? 0;
+                  const isParent = row.depth === 0;
+                  const childCount = isParent
+                    ? flat.filter(r => r.parent === row.nombre).length
+                    : 0;
+                  return (
+                    <div
+                      key={`${row.depth}-${row.nombre}`}
+                      className={`flex items-center gap-2 px-3 py-1.5 ${
+                        row.depth === 0 ? 'bg-black/30' : 'bg-black/10'
+                      } border-b border-border/20`}
+                      data-testid={`region-mod-row-${row.nombre}`}
+                    >
+                      <span
+                        className={`flex-1 text-sm truncate ${
+                          isParent ? 'font-medium text-amber-100' : 'text-amber-200/80'
+                        }`}
+                      >
+                        {row.depth > 0 && <span className="text-muted-foreground">└─ </span>}
+                        {row.nombre}
+                      </span>
+                      <div className="flex items-center gap-1">
+                        <Input
+                          type="number"
+                          step={1}
+                          value={pct}
+                          onChange={(e) => setPct(row.nombre, e.target.value)}
+                          className="w-20 h-8 text-right"
+                          disabled={!isAdmin}
+                          data-testid={`region-mod-input-${row.nombre}`}
+                        />
+                        <span className="text-xs text-muted-foreground w-4">%</span>
+                      </div>
+                      {isAdmin && isParent && childCount > 0 && (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => inheritToChildren(row.nombre)}
+                          className="h-7 text-xs text-amber-300 hover:bg-amber-900/30"
+                          title={`Aplicar ${pct >= 0 ? '+' : ''}${pct}% a las ${childCount} sub-región(es)`}
+                          data-testid={`inherit-to-children-${row.nombre}`}
+                        >
+                          ↓ Heredar ({childCount})
+                        </Button>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+
+              {isAdmin && (
+                <div className="flex items-center justify-between pt-2">
+                  <p className="text-xs text-muted-foreground italic">
+                    {dirty ? '● Hay cambios sin guardar' : 'Sin cambios pendientes'}
+                  </p>
+                  <Button
+                    size="sm"
+                    onClick={save}
+                    disabled={!dirty || saving}
+                    className="bg-[hsl(var(--torch-orange))] text-black hover:bg-[hsl(var(--torch-orange))]/90"
+                    data-testid="region-mods-save-btn"
+                  >
+                    {saving ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />}
+                    Guardar modificadores
+                  </Button>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
+

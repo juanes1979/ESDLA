@@ -4167,6 +4167,53 @@ async def update_price_modifier(category: str, index: int, data: dict = Body(...
     return {"message": "Modifier updated"}
 
 
+@router.put("/modificadores-precio/{category}")
+async def replace_price_modifier_category(category: str, data: dict = Body(...)):
+    """
+    Replace the full list for a price modifier category.
+
+    Body: {"items": [{"nombre": str, "modificador": float, "descripcion": str?}]}
+
+    Used by the Compra-Venta config tab to bulk-save the per-region %.
+    """
+    if category not in ["region", "asentamiento", "relacion", "contexto"]:
+        raise HTTPException(status_code=400, detail="Invalid category")
+
+    items = data.get("items")
+    if not isinstance(items, list):
+        raise HTTPException(status_code=400, detail="`items` debe ser una lista")
+
+    cleaned = []
+    seen = set()
+    for it in items:
+        nombre = (it.get("nombre") or "").strip()
+        if not nombre:
+            continue
+        key = nombre.lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        try:
+            modificador = float(it.get("modificador", 1.0))
+        except (TypeError, ValueError):
+            modificador = 1.0
+        cleaned.append({
+            "nombre": nombre,
+            "modificador": modificador,
+            "descripcion": (it.get("descripcion") or "").strip(),
+        })
+
+    existing = await db.price_modifiers.find_one({"_id": "main"})
+    if not existing:
+        await db.price_modifiers.insert_one({"_id": "main", **DEFAULT_PRICE_MODIFIERS})
+
+    await db.price_modifiers.update_one(
+        {"_id": "main"},
+        {"$set": {category: cleaned, "updated_at": now_utc()}},
+    )
+    return {"message": f"Modifier list `{category}` replaced", "count": len(cleaned)}
+
+
 @router.post("/modificadores-precio/{category}")
 async def add_price_modifier(category: str, data: dict = Body(...)):
     """Add a new price modifier to a category"""
