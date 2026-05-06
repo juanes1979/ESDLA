@@ -71,7 +71,10 @@ const LoginPage = () => {
 
       {/* Portal Anillo */}
       <div className="relative z-10 w-full max-w-[720px] aspect-square mx-auto">
-        {/* La imagen del Anillo en llamas, palpitando */}
+        {/* La imagen del Anillo en llamas, palpitando.
+            Usamos una máscara radial para recortar el altar de piedra
+            y los bordes cuadrados del PNG, dejando sólo el anillo
+            con sus llamas. */}
         <div
           className="ring-portal absolute inset-0"
           data-testid="login-page"
@@ -80,6 +83,10 @@ const LoginPage = () => {
             backgroundSize: 'contain',
             backgroundPosition: 'center',
             backgroundRepeat: 'no-repeat',
+            WebkitMaskImage:
+              'radial-gradient(ellipse 56% 52% at 50% 44%, #000 78%, transparent 96%)',
+            maskImage:
+              'radial-gradient(ellipse 56% 52% at 50% 44%, #000 78%, transparent 96%)',
           }}
         />
 
