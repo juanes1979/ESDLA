@@ -1,17 +1,41 @@
 /**
  * ApprovalsPage — panel del Maestro para aprobar/rechazar usuarios y
- * cambiar roles.
+ * cambiar roles. Vista organizada en 4 bloques (Pendientes / Maestro /
+ * DJ / Jugador) con las ilustraciones de rol como cabecera.
+ *
+ * Reglas de negocio aplicadas:
+ *   - Sólo se puede asignar el rol "jugador" o "director_de_juego"
+ *     (nunca "maestro" desde la UI).
+ *   - El Maestro Supremo (semilla MAESTRO_EMAIL → flag is_protected) no
+ *     se puede modificar ni eliminar: aparece bloqueado con badge.
  */
 import { useEffect, useState, useCallback } from 'react';
-import { Loader2, CheckCircle2, XCircle, RefreshCw, UserMinus, Shield, Hammer, User as UserIcon } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import {
+  Loader2, CheckCircle2, XCircle, RefreshCw, UserMinus,
+  ArrowLeft, ShieldCheck, Lock,
+} from 'lucide-react';
 import { toast } from 'sonner';
 import api from '@/services/api';
 import { Button } from '@/components/ui/button';
 
-const ROLE_OPTIONS = [
-  { value: 'jugador', label: 'Jugador', icon: UserIcon },
-  { value: 'director_de_juego', label: 'Director de Juego', icon: Hammer },
-  { value: 'maestro', label: 'Maestro', icon: Shield },
+// Las 3 ilustraciones de rol (suministradas por el usuario).
+const ROLE_ART = {
+  maestro: 'https://customer-assets.emergentagent.com/job_83678a44-91d5-44d8-bd9c-fd3a28e2ac42/artifacts/bjm5u1qq_Maestro%20del%20Saber.png',
+  director_de_juego: 'https://customer-assets.emergentagent.com/job_83678a44-91d5-44d8-bd9c-fd3a28e2ac42/artifacts/rs2rjagb_Director%20de%20Juego.png',
+  jugador: 'https://customer-assets.emergentagent.com/job_83678a44-91d5-44d8-bd9c-fd3a28e2ac42/artifacts/79cbxatu_Jugador.png',
+};
+
+const ROLE_LABEL = {
+  maestro: 'Maestro del Saber',
+  director_de_juego: 'Director de Juego',
+  jugador: 'Jugador',
+};
+
+// Sólo estos dos roles son asignables vía API (jamás "maestro").
+const ASSIGNABLE_ROLES = [
+  { value: 'jugador', label: 'Jugador' },
+  { value: 'director_de_juego', label: 'Director de Juego' },
 ];
 
 const STATUS_BADGE = {
@@ -21,6 +45,7 @@ const STATUS_BADGE = {
 };
 
 const ApprovalsPage = () => {
+  const navigate = useNavigate();
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState(null);
@@ -66,88 +91,215 @@ const ApprovalsPage = () => {
     }
   };
 
+  // Particionar por rol/estado.
   const pending = users.filter(u => u.status === 'pendiente');
-  const others = users.filter(u => u.status !== 'pendiente');
+  const maestros = users.filter(u => u.status !== 'pendiente' && u.role === 'maestro');
+  const djs = users.filter(u => u.status !== 'pendiente' && u.role === 'director_de_juego');
+  const jugadores = users.filter(u => u.status !== 'pendiente' && u.role === 'jugador');
 
   return (
-    <div className="container mx-auto p-6 max-w-5xl" data-testid="approvals-page">
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-3xl font-heading text-[hsl(var(--gold))]">Cuentas y roles</h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            Aprueba nuevos accesos y asigna rol (Maestro / DJ / Jugador).
-          </p>
+    <div
+      className="min-h-screen relative"
+      data-testid="approvals-page"
+      style={{
+        backgroundImage: 'url(https://customer-assets.emergentagent.com/job_fab028bf-4de6-413f-8616-34827bc574a6/artifacts/j31eritq_Fondo.png)',
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        backgroundRepeat: 'no-repeat',
+        backgroundAttachment: 'fixed',
+      }}
+    >
+      <div className="absolute inset-0 bg-black/65" />
+
+      <div className="relative z-10 container mx-auto p-6 max-w-6xl">
+        {/* Header con botón Volver */}
+        <div className="flex items-center justify-between mb-8">
+          <div className="flex items-center gap-4">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => navigate('/')}
+              className="border-amber-700/50 text-amber-100 hover:bg-amber-900/30"
+              data-testid="approvals-back-btn"
+            >
+              <ArrowLeft className="w-4 h-4 mr-1" />
+              Volver
+            </Button>
+            <div>
+              <h1 className="text-3xl font-heading text-[hsl(var(--gold))]">Cuentas y roles</h1>
+              <p className="text-sm text-amber-200/70 mt-1 italic">
+                Aprueba accesos y asigna rol — Director de Juego o Jugador.
+              </p>
+            </div>
+          </div>
+          <Button variant="outline" size="sm" onClick={load} disabled={loading}>
+            <RefreshCw className={`w-4 h-4 mr-1 ${loading ? 'animate-spin' : ''}`} />
+            Refrescar
+          </Button>
         </div>
-        <Button variant="outline" size="sm" onClick={load} disabled={loading}>
-          <RefreshCw className={`w-4 h-4 mr-1 ${loading ? 'animate-spin' : ''}`} />
-          Refrescar
-        </Button>
+
+        {loading && users.length === 0 && (
+          <div className="flex justify-center py-12">
+            <Loader2 className="w-8 h-8 animate-spin text-amber-400" />
+          </div>
+        )}
+
+        {/* Pendientes */}
+        <RoleSection
+          title={`Pendientes (${pending.length})`}
+          subtitle="Usuarios esperando ser aprobados por el Maestro."
+          accent="amber"
+          users={pending}
+          renderRow={(u) => (
+            <PendingRow
+              key={u.id}
+              user={u}
+              busy={busyId === u.id}
+              onApprove={(role) => patch(u.id, { status: 'aprobado', role })}
+              onReject={() => patch(u.id, { status: 'rechazado' })}
+              onDelete={() => remove(u.id, u.name)}
+            />
+          )}
+        />
+
+        {/* Maestro del Saber */}
+        <RoleSection
+          title={`Maestro del Saber (${maestros.length})`}
+          art={ROLE_ART.maestro}
+          subtitle="El Maestro Supremo guarda el saber. Su rol no puede cambiarse."
+          accent="indigo"
+          users={maestros}
+          renderRow={(u) => (
+            <ActiveRow
+              key={u.id}
+              user={u}
+              busy={busyId === u.id}
+              onRoleChange={(role) => patch(u.id, { role })}
+              onDelete={() => remove(u.id, u.name)}
+            />
+          )}
+        />
+
+        {/* Director de Juego */}
+        <RoleSection
+          title={`Director de Juego (${djs.length})`}
+          art={ROLE_ART.director_de_juego}
+          subtitle="Conducen las aventuras y campañas."
+          accent="emerald"
+          users={djs}
+          renderRow={(u) => (
+            <ActiveRow
+              key={u.id}
+              user={u}
+              busy={busyId === u.id}
+              onRoleChange={(role) => patch(u.id, { role })}
+              onDelete={() => remove(u.id, u.name)}
+            />
+          )}
+        />
+
+        {/* Jugadores */}
+        <RoleSection
+          title={`Jugadores (${jugadores.length})`}
+          art={ROLE_ART.jugador}
+          subtitle="Héroes que recorren la Tierra Media."
+          accent="orange"
+          users={jugadores}
+          renderRow={(u) => (
+            <ActiveRow
+              key={u.id}
+              user={u}
+              busy={busyId === u.id}
+              onRoleChange={(role) => patch(u.id, { role })}
+              onDelete={() => remove(u.id, u.name)}
+            />
+          )}
+        />
       </div>
-
-      {/* Pending */}
-      <section className="mb-8">
-        <h2 className="font-heading text-xl text-amber-300 mb-3">Pendientes ({pending.length})</h2>
-        {pending.length === 0 ? (
-          <p className="text-muted-foreground text-sm italic">No hay solicitudes pendientes.</p>
-        ) : (
-          <div className="space-y-2">
-            {pending.map(u => (
-              <UserRow
-                key={u.id}
-                user={u}
-                onApprove={(role) => patch(u.id, { status: 'aprobado', role })}
-                onReject={() => patch(u.id, { status: 'rechazado' })}
-                onRoleChange={(role) => patch(u.id, { role })}
-                onDelete={() => remove(u.id, u.name)}
-                busy={busyId === u.id}
-                pending
-              />
-            ))}
-          </div>
-        )}
-      </section>
-
-      {/* Others */}
-      <section>
-        <h2 className="font-heading text-xl text-amber-300 mb-3">Cuentas activas ({others.length})</h2>
-        {loading ? (
-          <Loader2 className="w-5 h-5 animate-spin text-amber-400" />
-        ) : (
-          <div className="space-y-2">
-            {others.map(u => (
-              <UserRow
-                key={u.id}
-                user={u}
-                onApprove={(role) => patch(u.id, { status: 'aprobado', role })}
-                onReject={() => patch(u.id, { status: 'rechazado' })}
-                onRoleChange={(role) => patch(u.id, { role })}
-                onDelete={() => remove(u.id, u.name)}
-                busy={busyId === u.id}
-              />
-            ))}
-          </div>
-        )}
-      </section>
     </div>
   );
 };
 
-const UserRow = ({ user, onApprove, onReject, onRoleChange, onDelete, busy, pending = false }) => {
-  const [role, setRole] = useState(user.role || 'jugador');
+// ---------------------------------------------------------------------------
+// Sub-componentes
+// ---------------------------------------------------------------------------
+
+const ACCENT_BORDER = {
+  amber: 'border-amber-700/60',
+  indigo: 'border-indigo-700/60',
+  emerald: 'border-emerald-700/60',
+  orange: 'border-orange-700/60',
+};
+
+const ACCENT_RING = {
+  amber: 'ring-amber-500/40',
+  indigo: 'ring-indigo-500/40',
+  emerald: 'ring-emerald-500/40',
+  orange: 'ring-orange-500/40',
+};
+
+const RoleSection = ({ title, subtitle, art, accent = 'amber', users, renderRow }) => (
+  <section className={`mb-8 rounded-lg border ${ACCENT_BORDER[accent]} bg-black/55 backdrop-blur-sm p-5`}>
+    <div className="flex items-center gap-4 mb-4">
+      {art && (
+        <img
+          src={art}
+          alt=""
+          className={`w-16 h-16 rounded-full object-cover ring-2 ${ACCENT_RING[accent]}`}
+        />
+      )}
+      <div className="min-w-0">
+        <h2 className="font-heading text-2xl text-[hsl(var(--gold))] leading-tight">{title}</h2>
+        {subtitle && <p className="text-xs text-amber-200/60 mt-0.5">{subtitle}</p>}
+      </div>
+    </div>
+
+    {users.length === 0 ? (
+      <p className="text-amber-200/40 text-sm italic px-2 py-3">— Sin usuarios en esta categoría —</p>
+    ) : (
+      <div className="space-y-2">{users.map(renderRow)}</div>
+    )}
+  </section>
+);
+
+const UserHeader = ({ user }) => (
+  <div className="flex-1 min-w-0">
+    <div className="flex items-center gap-2 flex-wrap">
+      <span className="font-medium text-amber-100 truncate">{user.name}</span>
+      <span className={`text-[10px] px-1.5 py-0.5 rounded border ${STATUS_BADGE[user.status] || ''}`}>
+        {user.status}
+      </span>
+      {user.is_protected && (
+        <span
+          className="text-[10px] px-1.5 py-0.5 rounded border border-yellow-500/60 bg-yellow-900/40 text-yellow-100 flex items-center gap-1"
+          title="Maestro Supremo — protegido"
+        >
+          <ShieldCheck className="w-3 h-3" />
+          Maestro Supremo
+        </span>
+      )}
+      {user.requested_role && user.status === 'pendiente' && (
+        <span className="text-[10px] px-1.5 py-0.5 rounded border border-sky-500/40 bg-sky-900/30 text-sky-100">
+          Solicita: {ROLE_LABEL[user.requested_role] || user.requested_role}
+        </span>
+      )}
+    </div>
+    <div className="text-xs text-amber-200/60 truncate">{user.email}</div>
+  </div>
+);
+
+const PendingRow = ({ user, busy, onApprove, onReject, onDelete }) => {
+  // El rol inicial sugerido es el que el usuario solicitó al registrarse.
+  const initialRole = user.requested_role && ASSIGNABLE_ROLES.some(r => r.value === user.requested_role)
+    ? user.requested_role : 'jugador';
+  const [role, setRole] = useState(initialRole);
+
   return (
     <div
-      className="flex items-center gap-3 p-3 rounded-md border border-border/40 bg-black/30"
+      className="flex flex-wrap items-center gap-3 p-3 rounded-md border border-amber-700/30 bg-black/40"
       data-testid={`user-row-${user.id}`}
     >
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2">
-          <span className="font-medium text-amber-100 truncate">{user.name}</span>
-          <span className={`text-[10px] px-1.5 py-0.5 rounded border ${STATUS_BADGE[user.status] || ''}`}>
-            {user.status}
-          </span>
-        </div>
-        <div className="text-xs text-muted-foreground truncate">{user.email}</div>
-      </div>
+      <UserHeader user={user} />
 
       <select
         value={role}
@@ -156,37 +308,81 @@ const UserRow = ({ user, onApprove, onReject, onRoleChange, onDelete, busy, pend
         disabled={busy}
         data-testid={`user-role-select-${user.id}`}
       >
-        {ROLE_OPTIONS.map(r => (
+        {ASSIGNABLE_ROLES.map(r => (
           <option key={r.value} value={r.value}>{r.label}</option>
         ))}
       </select>
 
-      {pending ? (
-        <>
-          <Button
-            size="sm"
-            className="h-8 bg-emerald-600 hover:bg-emerald-500 text-white"
-            onClick={() => onApprove(role)}
-            disabled={busy}
-            data-testid={`approve-btn-${user.id}`}
-          >
-            <CheckCircle2 className="w-3.5 h-3.5 mr-1" />
-            Aprobar
-          </Button>
-          <Button
-            size="sm"
-            variant="outline"
-            className="h-8 border-rose-500/40 text-rose-300 hover:bg-rose-900/30"
-            onClick={onReject}
-            disabled={busy}
-            data-testid={`reject-btn-${user.id}`}
-          >
-            <XCircle className="w-3.5 h-3.5 mr-1" />
-            Rechazar
-          </Button>
-        </>
+      <Button
+        size="sm"
+        className="h-8 bg-emerald-600 hover:bg-emerald-500 text-white"
+        onClick={() => onApprove(role)}
+        disabled={busy}
+        data-testid={`approve-btn-${user.id}`}
+      >
+        <CheckCircle2 className="w-3.5 h-3.5 mr-1" />
+        Aprobar
+      </Button>
+      <Button
+        size="sm"
+        variant="outline"
+        className="h-8 border-rose-500/40 text-rose-300 hover:bg-rose-900/30"
+        onClick={onReject}
+        disabled={busy}
+        data-testid={`reject-btn-${user.id}`}
+      >
+        <XCircle className="w-3.5 h-3.5 mr-1" />
+        Rechazar
+      </Button>
+      <Button
+        size="sm"
+        variant="ghost"
+        className="h-8 text-rose-300 hover:bg-rose-900/30"
+        onClick={onDelete}
+        disabled={busy}
+        data-testid={`delete-user-btn-${user.id}`}
+        title="Eliminar cuenta"
+      >
+        <UserMinus className="w-3.5 h-3.5" />
+      </Button>
+      {busy && <Loader2 className="w-4 h-4 animate-spin text-amber-400" />}
+    </div>
+  );
+};
+
+const ActiveRow = ({ user, busy, onRoleChange, onDelete }) => {
+  const protectedUser = !!user.is_protected;
+  // Sólo "maestro" es no-asignable. Para el resto, permitimos cambiar.
+  // Si el user actual es maestro (protegido), bloqueamos todo.
+  const [role, setRole] = useState(
+    ASSIGNABLE_ROLES.some(r => r.value === user.role) ? user.role : 'jugador'
+  );
+
+  return (
+    <div
+      className="flex flex-wrap items-center gap-3 p-3 rounded-md border border-border/40 bg-black/40"
+      data-testid={`user-row-${user.id}`}
+    >
+      <UserHeader user={user} />
+
+      {protectedUser ? (
+        <span className="flex items-center gap-1 text-xs text-yellow-200/80 italic">
+          <Lock className="w-3.5 h-3.5" />
+          Inmutable
+        </span>
       ) : (
         <>
+          <select
+            value={role}
+            onChange={(e) => setRole(e.target.value)}
+            className="h-8 px-2 text-xs bg-background border border-border rounded"
+            disabled={busy}
+            data-testid={`user-role-select-${user.id}`}
+          >
+            {ASSIGNABLE_ROLES.map(r => (
+              <option key={r.value} value={r.value}>{r.label}</option>
+            ))}
+          </select>
           <Button
             size="sm"
             variant="outline"
@@ -204,6 +400,7 @@ const UserRow = ({ user, onApprove, onReject, onRoleChange, onDelete, busy, pend
             onClick={onDelete}
             disabled={busy}
             data-testid={`delete-user-btn-${user.id}`}
+            title="Eliminar cuenta"
           >
             <UserMinus className="w-3.5 h-3.5" />
           </Button>

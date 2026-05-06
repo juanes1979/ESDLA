@@ -2,7 +2,7 @@
 Character CRUD + HP/fatigue/XP/rests/codigo público + ubicación endpoints.
 Extracted from character_routes.py during the iter95 refactor.
 """
-from fastapi import HTTPException, Body, Query
+from fastapi import HTTPException, Body, Query, Depends
 from typing import Optional, List, Dict, Any
 from pydantic import BaseModel
 from datetime import datetime, timezone
@@ -12,34 +12,45 @@ from ._common import (
     router, db, generate_id, now_utc, serialize_doc, serialize_docs,
     generate_codigo_publico,
     UbicacionUpdateRequest,
+    _owner_filter, _ensure_owner,
 )
+from auth import get_current_user
 
 
 # === CHARACTER MANAGEMENT ENDPOINTS ===
 
 @router.get("/")
-async def list_characters(jugador: Optional[str] = None, campaign_id: Optional[str] = None, include_all: bool = False):
-    """List all characters, optionally filtered"""
+async def list_characters(
+    jugador: Optional[str] = None,
+    campaign_id: Optional[str] = None,
+    include_all: bool = False,
+    user: dict = Depends(get_current_user),
+):
+    """List characters owned by the current user (Maestro sees all)."""
     if include_all:
         query = {"estado": {"$ne": "eliminado"}}
     else:
         query = {"$or": [{"estado": "activo"}, {"estado": {"$exists": False}}]}
-    
+
     if jugador:
         query["jugador"] = jugador
     if campaign_id:
         query["campaign_id"] = campaign_id
-    
+
+    # Filtro de propietario (vacío para Maestro).
+    query.update(_owner_filter(user))
+
     characters = await db.characters.find(query).to_list(100)
     return {"characters": serialize_docs(characters)}
 
 
 @router.get("/{character_id}")
-async def get_character(character_id: str):
-    """Get a specific character by ID"""
+async def get_character(character_id: str, user: dict = Depends(get_current_user)):
+    """Get a specific character by ID (only owner or Maestro)."""
     character = await db.characters.find_one({"_id": character_id})
     if not character:
         raise HTTPException(status_code=404, detail="Character not found")
+    _ensure_owner(character, user, "personaje")
     return serialize_doc(character)
 
 

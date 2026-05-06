@@ -2,7 +2,7 @@
 Character drafts & creation wizard endpoints (steps 1-9, finalize, portrait).
 Extracted from character_routes.py during the iter95 refactor.
 """
-from fastapi import HTTPException, Body
+from fastapi import HTTPException, Body, Depends
 from typing import Optional, List, Dict, Any
 from pydantic import BaseModel
 from datetime import datetime, timezone
@@ -16,25 +16,31 @@ from ._common import (
     CharacterCreateStep4, CharacterCreateStep5, CharacterCreateStep6,
     CharacterCreateStep7, CharacterCreateStep8, CharacterCreateStep9,
     CharacterDraft,
+    _owner_filter, _ensure_owner,
 )
+from auth import get_current_user
 
 
 # === CHARACTER CREATION ENDPOINTS ===
 
 @router.get("/drafts")
-async def list_character_drafts():
-    """List all character drafts"""
-    drafts = await db.character_drafts.find({"estado": "borrador"}).to_list(100)
+async def list_character_drafts(user: dict = Depends(get_current_user)):
+    """List character drafts owned by the current user (Maestro sees all)."""
+    query = {"estado": "borrador"}
+    query.update(_owner_filter(user))
+    drafts = await db.character_drafts.find(query).to_list(100)
     return {"drafts": serialize_docs(drafts)}
 
 
 @router.post("/draft")
-async def create_character_draft():
+async def create_character_draft(user: dict = Depends(get_current_user)):
     """Create a new character draft for the wizard"""
     draft = {
         "_id": generate_id(),
         "paso_actual": 1,
         "estado": "borrador",
+        "owner_id": user.get("id"),
+        "owner_email": user.get("email"),
         "created_at": now_utc(),
         "updated_at": now_utc(),
     }
@@ -43,8 +49,12 @@ async def create_character_draft():
 
 
 @router.delete("/draft/{draft_id}")
-async def delete_character_draft(draft_id: str):
+async def delete_character_draft(draft_id: str, user: dict = Depends(get_current_user)):
     """Delete a character draft"""
+    draft = await db.character_drafts.find_one({"_id": draft_id})
+    if not draft:
+        raise HTTPException(status_code=404, detail="Draft not found")
+    _ensure_owner(draft, user, "borrador")
     result = await db.character_drafts.delete_one({"_id": draft_id})
     if result.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Draft not found")
@@ -52,11 +62,12 @@ async def delete_character_draft(draft_id: str):
 
 
 @router.get("/draft/{draft_id}")
-async def get_character_draft(draft_id: str):
+async def get_character_draft(draft_id: str, user: dict = Depends(get_current_user)):
     """Get current state of a character draft"""
     draft = await db.character_drafts.find_one({"_id": draft_id})
     if not draft:
         raise HTTPException(status_code=404, detail="Draft not found")
+    _ensure_owner(draft, user, "borrador")
     return serialize_doc(draft)
 
 
@@ -562,11 +573,12 @@ async def update_draft_portrait(draft_id: str, data: dict):
 
 
 @router.post("/draft/{draft_id}/finalize")
-async def finalize_character(draft_id: str):
+async def finalize_character(draft_id: str, user: dict = Depends(get_current_user)):
     """Convert a completed draft into a final character"""
     draft = await db.character_drafts.find_one({"_id": draft_id})
     if not draft:
         raise HTTPException(status_code=404, detail="Draft not found")
+    _ensure_owner(draft, user, "borrador")
     
     # Validate draft is complete enough - virtud es opcional (solo 3 culturas la obtienen)
     required_fields = ['nombre', 'cultura_id', 'trasfondo_id', 'ocupacion_id']
@@ -589,6 +601,9 @@ async def finalize_character(draft_id: str):
     
     character = {
         "_id": generate_id(),
+        # Propietario heredado del draft (sólo el dueño y el Maestro pueden ver/editar).
+        "owner_id": draft.get('owner_id') or user.get('id'),
+        "owner_email": draft.get('owner_email') or user.get('email'),
         "nombre": draft['nombre'],
         "jugador": draft.get('jugador'),
         # Culture

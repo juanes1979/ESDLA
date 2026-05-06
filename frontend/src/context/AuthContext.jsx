@@ -64,8 +64,10 @@ export const AuthProvider = ({ children }) => {
     return data.user;
   };
 
-  const register = async (email, name, password) => {
-    const { data } = await api.post('/auth/register', { email, name, password });
+  const register = async (email, name, password, requestedRole = null) => {
+    const payload = { email, name, password };
+    if (requestedRole) payload.requested_role = requestedRole;
+    const { data } = await api.post('/auth/register', payload);
     return data; // pending approval
   };
 

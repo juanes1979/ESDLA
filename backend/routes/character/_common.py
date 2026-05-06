@@ -2,7 +2,7 @@
 Character API Routes
 Endpoints for character creation and management
 """
-from fastapi import APIRouter, HTTPException, Body, Query
+from fastapi import APIRouter, HTTPException, Body, Query, Depends
 from typing import List, Optional, Dict, Any
 from pydantic import BaseModel, Field
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -22,6 +22,28 @@ router = APIRouter(prefix="/characters", tags=["Characters"])
 mongo_url = os.environ['MONGO_URL']
 client = AsyncIOMotorClient(mongo_url)
 db = client[os.environ['DB_NAME']]
+
+
+# === Auth helpers — ownership filter ===
+# Importamos aquí (no a nivel de módulo) para evitar circular import.
+def _owner_filter(user: dict) -> dict:
+    """Devuelve el filtro Mongo a aplicar para que el usuario sólo vea
+    sus recursos. El Maestro (admin) ve todos."""
+    if user.get("role") == "maestro":
+        return {}
+    return {"owner_id": user.get("id")}
+
+
+def _ensure_owner(doc: dict, user: dict, label: str = "recurso"):
+    """Lanza 403 si el documento no pertenece al usuario y éste no es Maestro."""
+    if user.get("role") == "maestro":
+        return
+    owner = doc.get("owner_id")
+    # Documentos legacy sin owner: tratarlos como propiedad del Maestro.
+    if owner is None:
+        raise HTTPException(status_code=403, detail=f"No tienes permiso sobre este {label}")
+    if owner != user.get("id"):
+        raise HTTPException(status_code=403, detail=f"No tienes permiso sobre este {label}")
 
 
 def generate_id():

@@ -1,10 +1,14 @@
 # Test Credentials — LOTR 5e RPG
 
-## Maestro (admin global)
+## Maestro (admin global — Maestro Supremo, INMUTABLE)
 - **Email**: `elanillounico_tlotr@proton.me`
 - **Password**: `123456`
 - **Role**: `maestro`
 - **Status**: `aprobado`
+- **Nombre / Alias**: `Morthwen`
+- ⚠️ **PROTEGIDO**: la API rechaza PATCH/DELETE sobre este usuario (`is_protected: true`).
+- Es el único Maestro del sistema. La API jamás permite asignar `role=maestro`
+  desde el endpoint de aprobaciones — sólo `jugador` o `director_de_juego`.
 
 ## Notes
 - Login URL: `/login`

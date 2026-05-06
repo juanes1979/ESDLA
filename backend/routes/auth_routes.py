@@ -38,6 +38,8 @@ class RegisterIn(BaseModel):
     email: EmailStr
     name: str = Field(min_length=1, max_length=80)
     password: str = Field(min_length=4, max_length=128)
+    # Solicitud de rol (sólo informativa). El Maestro decide al aprobar.
+    requested_role: Optional[str] = None  # 'jugador' | 'director_de_juego'
 
 
 class LoginIn(BaseModel):
@@ -47,7 +49,7 @@ class LoginIn(BaseModel):
 
 
 class UserUpdateIn(BaseModel):
-    role: Optional[str] = None      # 'maestro' | 'director_de_juego' | 'jugador'
+    role: Optional[str] = None      # 'director_de_juego' | 'jugador' (NUNCA 'maestro' por API)
     status: Optional[str] = None    # 'pendiente' | 'aprobado' | 'rechazado'
 
 
@@ -58,6 +60,12 @@ class UserOut(BaseModel):
     role: str
     status: str
     created_at: str
+    requested_role: Optional[str] = None
+    is_protected: bool = False
+
+
+def _maestro_email() -> str:
+    return (os.environ.get("MAESTRO_EMAIL", "") or "").lower().strip()
 
 
 def _serialize_user(u: dict) -> dict:
@@ -68,6 +76,9 @@ def _serialize_user(u: dict) -> dict:
         "role": u.get("role", "jugador"),
         "status": u.get("status", "pendiente"),
         "created_at": u.get("created_at", ""),
+        "requested_role": u.get("requested_role"),
+        # Marca al Maestro semilla (Morthwen) como intocable.
+        "is_protected": (u.get("email", "").lower().strip() == _maestro_email()),
     }
 
 
@@ -124,6 +135,8 @@ async def register(data: RegisterIn):
     existing = await db.users.find_one({"email": email})
     if existing:
         raise HTTPException(status_code=409, detail="Ya existe una cuenta con ese correo")
+    # Sanitizar requested_role — sólo se admite jugador o DJ.
+    req_role = data.requested_role if data.requested_role in ("jugador", "director_de_juego") else "jugador"
     user_id = str(uuid.uuid4())
     user_doc = {
         "id": user_id,
@@ -131,6 +144,7 @@ async def register(data: RegisterIn):
         "name": data.name.strip(),
         "password_hash": hash_password(data.password),
         "role": "jugador",
+        "requested_role": req_role,
         "status": "pendiente",
         "created_at": datetime.now(timezone.utc).isoformat(),
     }
@@ -181,10 +195,17 @@ async def list_users(user: dict = Depends(get_current_user)):
 async def update_user(user_id: str, data: UserUpdateIn, user: dict = Depends(get_current_user)):
     require_role(user, "maestro")
     from server import db
+    target = await db.users.find_one({"id": user_id}, {"_id": 0})
+    if not target:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+    # Maestro semilla protegido: nadie puede cambiar su rol/estado.
+    if target.get("email", "").lower().strip() == _maestro_email():
+        raise HTTPException(status_code=403, detail="El Maestro Supremo no puede modificarse")
     update = {}
     if data.role is not None:
-        if data.role not in ROLES:
-            raise HTTPException(status_code=400, detail=f"Rol inválido. Usa uno de {ROLES}")
+        # Por API NUNCA se puede asignar rol 'maestro'. Sólo jugador o DJ.
+        if data.role not in ("jugador", "director_de_juego"):
+            raise HTTPException(status_code=400, detail="Sólo se puede asignar 'jugador' o 'director_de_juego'")
         update["role"] = data.role
     if data.status is not None:
         if data.status not in STATUSES:
@@ -209,6 +230,9 @@ async def delete_user(user_id: str, user: dict = Depends(get_current_user)):
     if user.get("id") == user_id:
         raise HTTPException(status_code=400, detail="No puedes eliminarte a ti mismo")
     from server import db
+    target = await db.users.find_one({"id": user_id}, {"_id": 0, "email": 1})
+    if target and target.get("email", "").lower().strip() == _maestro_email():
+        raise HTTPException(status_code=403, detail="El Maestro Supremo no puede eliminarse")
     res = await db.users.delete_one({"id": user_id})
     if res.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Usuario no encontrado")

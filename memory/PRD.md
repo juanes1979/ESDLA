@@ -1,21 +1,52 @@
 # LOTR 5e RPG - Product Requirements Document
 
-## Current State (2026-05-05)
+## Current State (2026-05-06)
 
-### ✅ Iteración 84 — P0 Login + RBAC (NUEVO)
+### ✅ Iteración 85 — Auth UX polish + Aislamiento por usuario (NUEVO)
+
+**🟢 Bugs de Auth corregidos**
+- Botón **"← Volver"** en `/admin/users` (ApprovalsPage).
+- En registro nuevo selector **"¿Cómo quieres unirte?"** (Jugador / Director de Juego). Se guarda como `requested_role` (sólo informativo; el Maestro decide al aprobar). Si llega un valor distinto se normaliza a `jugador`.
+- En la API NUNCA se puede asignar el rol `maestro` mediante `PATCH /api/auth/users/{id}` (devuelve 400). Sólo se permite `jugador` o `director_de_juego`.
+- **Maestro Supremo protegido**: el usuario cuyo email coincide con `MAESTRO_EMAIL` (Morthwen) lleva flag `is_protected: true` en la API. PATCH/DELETE sobre él devuelve 403. En la UI aparece con badge "Maestro Supremo / Inmutable" y los controles deshabilitados.
+- **ApprovalsPage rediseñada**: 4 bloques (Pendientes / Maestro del Saber / Director de Juego / Jugadores), cada uno con la ilustración de rol de cabecera y borde de color. Las solicitudes pendientes muestran el `requested_role` como hint.
+- Login con jugador recién creado muestra el rol correcto (verificado vía screenshot e2e).
+
+**🟢 Aislamiento por usuario (multi-tenant ligero)**
+- Nuevo helper `_owner_filter` / `_ensure_owner` en `routes/character/_common.py`: el Maestro ve todo, los demás roles sólo lo suyo.
+- `characters` y `character_drafts` ahora llevan `owner_id` + `owner_email` desde la creación. `finalize_character` propaga al personaje el owner del draft (fallback al usuario actual).
+- Endpoints filtrados por owner: `GET /characters/`, `GET /characters/{id}` (403 si no eres dueño/Maestro), `GET /characters/drafts`, `GET/DELETE /characters/draft/{id}`, `POST /characters/draft/{id}/finalize`.
+- `storage_routes.py`: cada upload registra `metadata.owner_id` y `metadata.owner_email`. `GET /storage/list`, `/storage/tree`, `/storage/file`, `/storage/json`, `/storage/download/{id}`, `DELETE /storage/file/{id}` filtran/validan por owner. Maestro ve todo.
+
+**🟢 LoginPage/RegisterPage estilo LOTR**
+- Fondo épico de la Tierra Media a pantalla completa (mismo del Home), velo oscuro y resplandor dorado tenue. Caja de pergamino con `backdrop-blur` y borde dorado. Tipografía heading dorada con sombra cálida. Slogan "Un Anillo para gobernarlos a todos…".
+- Misma estética en RegisterPage + estado de éxito ("Solicitud enviada").
+
+**🟢 Tests**
+- `/app/backend/tests/test_auth_it84.py` — 7/7 ✅ (sin regresiones).
+- `/app/backend/tests/test_ownership.py` — 10/10 ✅ (NUEVO):
+  - Maestro Supremo flag y bloqueo de cambio.
+  - Rechazo de role=`maestro` por API.
+  - `requested_role` se guarda correctamente y se sanea.
+  - Aislamiento de drafts/characters/storage por owner.
+  - Maestro ve todos los recursos.
+
+---
+
+### ✅ Iteración 84 — P0 Login + RBAC
 
 **🟢 Backend — JWT + bcrypt**
 - Nuevos archivos: `/app/backend/auth.py` (helpers `hash_password`, `verify_password`, `create_access_token`, `decode_token`, `get_current_user`, `require_role`), `/app/backend/routes/auth_routes.py` (endpoints).
 - Endpoints expuestos bajo `/api/auth`:
-  - `POST /register` — crea cuenta con `status='pendiente'` y `role='jugador'`.
+  - `POST /register` — crea cuenta con `status='pendiente'` y `role='jugador'`. Acepta `requested_role` ('jugador'|'director_de_juego').
   - `POST /login` — devuelve `{token, user, remember_me}`. Rechaza pendientes/rechazados (403). 5 fallos en 10 min ⇒ lockout 15 min (429).
   - `GET /me` — usuario actual (Bearer token).
   - `POST /logout` — no-op (JWT stateless).
-  - `GET /users` — listar usuarios (sólo Maestro).
-  - `PATCH /users/{id}` — cambiar rol/status (sólo Maestro).
-  - `DELETE /users/{id}` — eliminar cuenta (sólo Maestro, no auto-eliminación).
+  - `GET /users` — listar usuarios (sólo Maestro). Devuelve `requested_role` y `is_protected`.
+  - `PATCH /users/{id}` — cambiar rol/status (sólo Maestro). NUNCA permite `role=maestro`. Bloquea al Maestro Supremo.
+  - `DELETE /users/{id}` — eliminar cuenta (sólo Maestro, no auto-eliminación, no Maestro Supremo).
 - Tokens: 1 día (sin remember) o 30 días (con remember). Algoritmo HS256, secret en `JWT_SECRET`.
-- **Seed idempotente** del Maestro al startup leyendo `MAESTRO_EMAIL` / `MAESTRO_NAME` / `MAESTRO_PASSWORD`. Si ya existe, sólo se promueve a `maestro/aprobado` sin tocar el password.
+- **Seed idempotente** del Maestro al startup leyendo `MAESTRO_EMAIL` / `MAESTRO_NAME` / `MAESTRO_PASSWORD`.
 - Índice único en `users.email` y `login_attempts.email`.
 
 **🟢 Frontend — AuthContext + páginas**

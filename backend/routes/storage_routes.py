@@ -31,7 +31,7 @@ Hierarchy Structure:
     /assets/
 """
 
-from fastapi import APIRouter, HTTPException, UploadFile, File, Form
+from fastapi import APIRouter, HTTPException, UploadFile, File, Form, Depends
 from fastapi.responses import StreamingResponse
 from motor.motor_asyncio import AsyncIOMotorGridFSBucket
 from datetime import datetime, timezone
@@ -41,7 +41,13 @@ import io
 import json
 import mimetypes
 
+from auth import get_current_user
+
 router = APIRouter()
+
+
+def _is_admin(user: dict) -> bool:
+    return user.get("role") == "maestro"
 
 # ============================================================================
 # HELPER FUNCTIONS
@@ -144,7 +150,8 @@ async def upload_file(
     folder: str = Form("documents"),
     custom_filename: Optional[str] = Form(None),
     description: Optional[str] = Form(None),
-    tags: Optional[str] = Form(None)  # JSON array as string
+    tags: Optional[str] = Form(None),  # JSON array as string
+    user: dict = Depends(get_current_user),
 ):
     """Upload a file to GridFS with hierarchical organization"""
     from server import db
@@ -174,6 +181,8 @@ async def upload_file(
             "original_filename": file.filename,
             "content_type": content_type,
             "path": file_path,
+            "owner_id": user.get("id"),
+            "owner_email": user.get("email"),
             "maestro_id": maestro_id,
             "campaign_id": campaign_id,
             "player_id": player_id,
@@ -219,7 +228,8 @@ async def upload_json_data(
     character_id: Optional[str] = None,
     folder: str = "documents",
     filename: str = "data.json",
-    description: Optional[str] = None
+    description: Optional[str] = None,
+    user: dict = Depends(get_current_user),
 ):
     """Upload JSON data as a file to GridFS"""
     from server import db
@@ -244,6 +254,8 @@ async def upload_json_data(
             "original_filename": filename,
             "content_type": "application/json",
             "path": file_path,
+            "owner_id": user.get("id"),
+            "owner_email": user.get("email"),
             "maestro_id": maestro_id,
             "campaign_id": campaign_id,
             "player_id": player_id,
@@ -281,8 +293,8 @@ async def upload_json_data(
 # ============================================================================
 
 @router.get("/storage/download/{file_id}")
-async def download_file(file_id: str):
-    """Download a file by its ID"""
+async def download_file(file_id: str, user: dict = Depends(get_current_user)):
+    """Download a file by its ID (only owner or Maestro)."""
     from server import db
     
     try:
@@ -292,6 +304,10 @@ async def download_file(file_id: str):
         file_doc = await db.lotr_files.files.find_one({"_id": ObjectId(file_id)})
         if not file_doc:
             raise HTTPException(status_code=404, detail="File not found")
+        
+        owner = file_doc.get("metadata", {}).get("owner_id")
+        if not _is_admin(user) and owner != user.get("id"):
+            raise HTTPException(status_code=403, detail="No tienes permiso para descargar este archivo")
         
         # Stream the file
         stream = await bucket.open_download_stream(ObjectId(file_id))
@@ -307,14 +323,15 @@ async def download_file(file_id: str):
                 "Content-Disposition": f'attachment; filename="{filename}"'
             }
         )
-        
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.get("/storage/file")
-async def get_file_by_path(path: str):
-    """Get a file by its hierarchical path"""
+async def get_file_by_path(path: str, user: dict = Depends(get_current_user)):
+    """Get a file by its hierarchical path (only owner or Maestro)."""
     from server import db
     
     try:
@@ -324,6 +341,10 @@ async def get_file_by_path(path: str):
         file_doc = await db.lotr_files.files.find_one({"metadata.path": path})
         if not file_doc:
             raise HTTPException(status_code=404, detail="File not found")
+        
+        owner = file_doc.get("metadata", {}).get("owner_id")
+        if not _is_admin(user) and owner != user.get("id"):
+            raise HTTPException(status_code=403, detail="No tienes permiso para acceder a este archivo")
         
         # Stream the file
         stream = await bucket.open_download_stream(file_doc["_id"])
@@ -335,14 +356,15 @@ async def get_file_by_path(path: str):
             io.BytesIO(content),
             media_type=content_type
         )
-        
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.get("/storage/json")
-async def get_json_by_path(path: str):
-    """Get JSON data from a file by its path"""
+async def get_json_by_path(path: str, user: dict = Depends(get_current_user)):
+    """Get JSON data from a file by its path (only owner or Maestro)."""
     from server import db
     
     try:
@@ -352,11 +374,16 @@ async def get_json_by_path(path: str):
         if not file_doc:
             raise HTTPException(status_code=404, detail="File not found")
         
+        owner = file_doc.get("metadata", {}).get("owner_id")
+        if not _is_admin(user) and owner != user.get("id"):
+            raise HTTPException(status_code=403, detail="No tienes permiso para acceder a este archivo")
+        
         stream = await bucket.open_download_stream(file_doc["_id"])
         content = await stream.read()
         
         return json.loads(content.decode('utf-8'))
-        
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -372,9 +399,10 @@ async def list_files(
     player_id: Optional[str] = None,
     character_id: Optional[str] = None,
     folder: Optional[str] = None,
-    include_subfolders: bool = True
+    include_subfolders: bool = True,
+    user: dict = Depends(get_current_user),
 ):
-    """List files in a hierarchical location"""
+    """List files in a hierarchical location (filtered by owner unless Maestro)."""
     from server import db
     
     try:
@@ -392,9 +420,10 @@ async def list_files(
         if folder and not include_subfolders:
             query["metadata.folder"] = folder
         
-        # If no filters, list shared files
-        if not query:
-            query["metadata.path"] = {"$regex": "^shared/"}
+        # Filtro de propietario: cualquier usuario que NO sea Maestro sólo
+        # ve los ficheros que él mismo subió.
+        if not _is_admin(user):
+            query["metadata.owner_id"] = user.get("id")
         
         cursor = db.lotr_files.files.find(query)
         files = []
@@ -422,16 +451,20 @@ async def list_files(
 
 
 @router.get("/storage/tree")
-async def get_file_tree(maestro_id: Optional[str] = None):
-    """Get a tree structure of all files for a maestro or shared"""
+async def get_file_tree(
+    maestro_id: Optional[str] = None,
+    user: dict = Depends(get_current_user),
+):
+    """Get a tree structure of all files (filtered by owner unless Maestro)."""
     from server import db
     
     try:
         query = {}
         if maestro_id:
             query["metadata.maestro_id"] = maestro_id
-        else:
-            query["metadata.path"] = {"$regex": "^shared/"}
+        # Filtro de propietario.
+        if not _is_admin(user):
+            query["metadata.owner_id"] = user.get("id")
         
         cursor = db.lotr_files.files.find(query)
         
@@ -470,8 +503,8 @@ async def get_file_tree(maestro_id: Optional[str] = None):
 # ============================================================================
 
 @router.delete("/storage/file/{file_id}")
-async def delete_file(file_id: str):
-    """Delete a file by ID"""
+async def delete_file(file_id: str, user: dict = Depends(get_current_user)):
+    """Delete a file by ID (only owner or Maestro)."""
     from server import db
     
     try:
@@ -482,10 +515,16 @@ async def delete_file(file_id: str):
         if not file_doc:
             raise HTTPException(status_code=404, detail="File not found")
         
+        # Check ownership
+        owner = file_doc.get("metadata", {}).get("owner_id")
+        if not _is_admin(user) and owner != user.get("id"):
+            raise HTTPException(status_code=403, detail="No tienes permiso para borrar este archivo")
+        
         await bucket.delete(ObjectId(file_id))
         
         return {"success": True, "deleted": file_id}
-        
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
