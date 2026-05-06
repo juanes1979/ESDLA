@@ -588,21 +588,64 @@ async def delete_npc(npc_id: str):
 
 @router.get("/trading/relationships")
 async def get_relationships(character_id: str = None, npc_id: str = None):
-    """Get relationships between characters and NPCs"""
+    """
+    Get relationships between characters and NPCs.
+
+    Auto-cleanup: deletes any relationship whose `character_id` no longer
+    matches an existing character (`db.characters.id`) or whose `npc_id`
+    no longer matches an existing NPC (`db.trading_npcs._id`). This keeps
+    the Relaciones tab free of orphan rows pointing to deleted entities.
+    """
     from server import db
-    
+
     query = {}
     if character_id:
         query["character_id"] = character_id
     if npc_id:
         query["npc_id"] = npc_id
-    
+
     relationships = await db.npc_relationships.find(query).to_list(1000)
-    
+
+    # Build sets of valid IDs to detect orphans.
+    valid_char_ids = set()
+    async for c in db.characters.find({}, {"_id": 0, "id": 1}):
+        if c.get("id"):
+            valid_char_ids.add(c["id"])
+    valid_npc_ids = set()
+    async for n in db.trading_npcs.find({}, {"_id": 1}):
+        if n.get("_id"):
+            valid_npc_ids.add(str(n["_id"]))
+
+    orphan_ids = []
+    valid_relationships = []
     for rel in relationships:
+        cid = rel.get("character_id")
+        nid = rel.get("npc_id")
+        is_orphan = (cid not in valid_char_ids) or (nid not in valid_npc_ids)
+        if is_orphan:
+            orphan_ids.append(rel["_id"])
+            continue
         rel["_id"] = str(rel["_id"])
-    
-    return {"relationships": relationships, "total": len(relationships)}
+        valid_relationships.append(rel)
+
+    if orphan_ids:
+        await db.npc_relationships.delete_many({"_id": {"$in": orphan_ids}})
+
+    return {
+        "relationships": valid_relationships,
+        "total": len(valid_relationships),
+        "purged_orphans": len(orphan_ids),
+    }
+
+
+@router.delete("/trading/relationships/{rel_id}")
+async def delete_relationship(rel_id: str):
+    """Delete a single relationship by its `_id`."""
+    from server import db
+    res = await db.npc_relationships.delete_one({"_id": rel_id})
+    if res.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Relación no encontrada")
+    return {"ok": True, "deleted": rel_id}
 
 
 @router.post("/trading/relationships")

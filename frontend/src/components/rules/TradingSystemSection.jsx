@@ -261,8 +261,23 @@ const TradingSystemSection = ({ isAdmin }) => {
     try {
       const res = await api.get('/trading/relationships');
       setRelationships(res.data?.relationships || []);
+      const purged = res.data?.purged_orphans || 0;
+      if (purged > 0) {
+        toast.info(`Se limpiaron ${purged} relación(es) huérfana(s) (PJ o PNJ inexistentes).`);
+      }
     } catch (err) {
       console.error('Error loading relationships:', err);
+    }
+  };
+
+  const deleteRelationship = async (relId) => {
+    if (!window.confirm('¿Eliminar esta relación PJ-PNJ?')) return;
+    try {
+      await api.delete(`/trading/relationships/${relId}`);
+      toast.success('Relación eliminada');
+      await loadRelationships();
+    } catch (err) {
+      toast.error(err?.response?.data?.detail || 'Error al eliminar la relación');
     }
   };
 
@@ -519,34 +534,35 @@ const TradingSystemSection = ({ isAdmin }) => {
               >
                 <option value="">-- Seleccionar región --</option>
                 {(() => {
-                  // Build a depth lookup from `regions` (hierarchical
-                  // 1-level structure). Top-level regions map to depth 0,
-                  // their direct subregions to depth 1.
-                  const depthByName = {};
-                  (regions || []).forEach(top => {
-                    depthByName[top.nombre] = 0;
-                    (top.subregions || []).forEach(sub => { depthByName[sub.nombre] = 1; });
+                  // Build the dropdown walking the actual region hierarchy
+                  // (`regions` from /data/regions). Match the price modifier
+                  // by exact `nombre`; default to 0% when missing. This keeps
+                  // the dropdown in sync with what the user has created in
+                  // Reglas → Regiones (no duplicates, no orphans, full tree).
+                  const modByName = new Map();
+                  (priceModifiers?.region || []).forEach(rr => {
+                    if (rr?.nombre) modByName.set(rr.nombre.trim().toLowerCase(), rr);
                   });
-                  // DFS-ordered list using regions tree, then append any
-                  // priceModifier rows whose name doesn't match.
                   const ordered = [];
                   (regions || []).forEach(top => {
-                    const r = priceModifiers?.region?.find(rr => rr.nombre === top.nombre);
-                    if (r) ordered.push({ ...r, depth: 0 });
-                    (top.subregions || []).forEach(sub => {
-                      const s = priceModifiers?.region?.find(rr => rr.nombre === sub.nombre);
-                      if (s) ordered.push({ ...s, depth: 1 });
+                    ordered.push({
+                      nombre: top.nombre,
+                      modificador: modByName.get((top.nombre || '').trim().toLowerCase())?.modificador ?? 1,
+                      depth: 0,
                     });
-                  });
-                  const seenNames = new Set(ordered.map(o => o.nombre));
-                  (priceModifiers?.region || []).forEach(rr => {
-                    if (!seenNames.has(rr.nombre)) ordered.push({ ...rr, depth: 0, orphan: true });
+                    (top.subregions || []).forEach(sub => {
+                      ordered.push({
+                        nombre: sub.nombre,
+                        modificador: modByName.get((sub.nombre || '').trim().toLowerCase())?.modificador ?? 1,
+                        depth: 1,
+                      });
+                    });
                   });
                   return ordered.map(r => {
                     const modPercent = Math.round((r.modificador - 1) * 100);
                     const prefix = `${'\u00A0\u00A0'.repeat(r.depth)}${r.depth > 0 ? '└─ ' : ''}`;
                     return (
-                      <option key={r.nombre} value={r.nombre}>
+                      <option key={`${r.depth}-${r.nombre}`} value={r.nombre}>
                         {`${prefix}${r.nombre} (${modPercent >= 0 ? '+' : ''}${modPercent}%)`}
                       </option>
                     );
@@ -1199,14 +1215,26 @@ const TradingSystemSection = ({ isAdmin }) => {
                         <p className="text-xs text-muted-foreground">PNJ</p>
                       </div>
                     </div>
-                    <div className="text-right">
-                      <span className="font-bold uppercase">{config?.relationship_levels?.[rel.nivel]?.nombre || rel.nivel}</span>
-                      {rel.penalizacion_precio > 0 && (
-                        <p className="text-xs text-red-400">Penalización: +{rel.penalizacion_precio}%</p>
-                      )}
-                      {rel.dias_sin_comercio > 0 && (
-                        <p className="text-xs text-red-400">Sin comercio: {rel.dias_sin_comercio} días</p>
-                      )}
+                    <div className="flex items-center gap-3">
+                      <div className="text-right">
+                        <span className="font-bold uppercase">{config?.relationship_levels?.[rel.nivel]?.nombre || rel.nivel}</span>
+                        {rel.penalizacion_precio > 0 && (
+                          <p className="text-xs text-red-400">Penalización: +{rel.penalizacion_precio}%</p>
+                        )}
+                        {rel.dias_sin_comercio > 0 && (
+                          <p className="text-xs text-red-400">Sin comercio: {rel.dias_sin_comercio} días</p>
+                        )}
+                      </div>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="text-rose-300 hover:bg-rose-900/30"
+                        onClick={() => deleteRelationship(rel._id)}
+                        data-testid={`delete-relationship-${rel._id}`}
+                        title="Eliminar relación"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
                     </div>
                   </div>
                   
