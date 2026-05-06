@@ -63,7 +63,7 @@ const RegisterPage = () => {
         </div>
       </div>
 
-      <RingPortal staticDisc={false} contentSize="68%">
+      <RingPortal>
         {/* Disco oscuro propio — necesitamos más alto para los 4 campos. */}
         <div
           className="absolute inset-0 rounded-full overflow-hidden"

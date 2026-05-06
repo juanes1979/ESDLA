@@ -8,11 +8,15 @@
  */
 import { useState } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
+import { Loader2, LogIn, ShieldAlert } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import { useAuth } from '@/context/AuthContext';
 
 const HOME_BG = 'https://customer-assets.emergentagent.com/job_fab028bf-4de6-413f-8616-34827bc574a6/artifacts/j31eritq_Fondo.png';
 const RING_FIRE = 'https://customer-assets.emergentagent.com/job_83678a44-91d5-44d8-bd9c-fd3a28e2ac42/artifacts/buvrdsxs_ANILLO.png';
-const STATIC_FORM = 'https://customer-assets.emergentagent.com/job_83678a44-91d5-44d8-bd9c-fd3a28e2ac42/artifacts/ov189tfo_estatico.png';
 
 const LoginPage = () => {
   const { login } = useAuth();
@@ -60,102 +64,123 @@ const LoginPage = () => {
       </div>
 
       <RingPortal>
-        {/* El form interactivo va DENTRO del estatico (que ya está
-            posicionado y dimensionado al agujero del anillo). Las
-            posiciones aquí son % relativos al estatico. */}
-        <form onSubmit={submit} data-testid="login-page" className="absolute inset-0">
-          <input
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-            autoComplete="email"
-            data-testid="login-email-input"
-            aria-label="Correo electrónico"
-            className="absolute font-heading text-amber-100 text-center bg-transparent border-0 outline-none focus:ring-0"
-            style={{
-              left: '15%', right: '15%', top: '42%', height: '6%',
-              fontSize: 'clamp(11px, 1.1vw, 16px)',
-            }}
-          />
-
-          <input
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-            autoComplete="current-password"
-            data-testid="login-password-input"
-            aria-label="Contraseña"
-            className="absolute font-heading text-amber-100 text-center bg-transparent border-0 outline-none focus:ring-0"
-            style={{
-              left: '15%', right: '15%', top: '54%', height: '6%',
-              fontSize: 'clamp(11px, 1.1vw, 16px)',
-            }}
-          />
-
-          <button
-            type="button"
-            onClick={() => setRememberMe(!rememberMe)}
-            data-testid="login-remember-checkbox"
-            aria-label="Recordar sesión 30 días"
-            aria-pressed={rememberMe}
-            className="absolute rounded-full focus:outline-none transition-colors"
-            style={{
-              left: '15%', top: '63%', width: '4%', height: '4%',
-              background: rememberMe ? 'rgba(251,191,36,0.75)' : 'transparent',
-              boxShadow: rememberMe ? '0 0 12px rgba(251,191,36,0.65)' : 'none',
-            }}
-          />
-
-          <button
-            type="submit"
-            disabled={busy}
-            data-testid="login-submit-btn"
-            aria-label="Entrar"
-            className="absolute rounded-full cursor-pointer focus:outline-none transition-opacity hover:opacity-85 disabled:opacity-50"
-            style={{
-              left: '36%', right: '36%', top: '70%', height: '10%',
-              background: 'transparent',
-            }}
+        {/* Disco oscuro propio (HTML, no imagen) que llena exactamente el
+            agujero del anillo. Mismo approach que RegisterPage. */}
+        <div
+          className="absolute inset-0 rounded-full overflow-hidden"
+          style={{
+            background:
+              'radial-gradient(circle at 50% 30%, rgb(28,18,12) 0%, rgb(8,4,2) 65%)',
+            boxShadow:
+              'inset 0 0 60px 6px rgba(0,0,0,0.95), 0 0 26px rgba(255,120,30,0.30)',
+          }}
+        >
+          <form
+            onSubmit={submit}
+            data-testid="login-page"
+            className="w-full h-full flex flex-col items-center justify-center text-center"
+            style={{ padding: '12% 14%' }}
           >
-            {busy && (
-              <span className="font-heading text-black text-sm animate-pulse">…</span>
-            )}
-          </button>
-
-          <Link
-            to="/register"
-            data-testid="login-go-register-link"
-            aria-label="Solicita acceso"
-            className="absolute"
-            style={{ left: '54%', right: '14%', top: '82%', height: '4%' }}
-          />
-
-          {error && (
-            <div
-              className="absolute left-1/2 -translate-x-1/2 px-3 py-1 rounded border border-rose-500/60 bg-rose-950/90 text-rose-100 text-xs whitespace-nowrap shadow-lg"
-              style={{ top: '34%' }}
-              data-testid="login-error"
+            <h1
+              className="font-heading text-[11px] sm:text-xs text-[hsl(var(--gold))] tracking-wide leading-tight"
+              style={{ textShadow: '0 0 14px rgba(251,191,36,0.45)' }}
             >
-              {error}
+              Basado en El señor de los anillos 5e
+            </h1>
+            <p className="text-[8px] text-amber-200/60 italic mt-0.5 mb-2">
+              Un Anillo para gobernarlos a todos…
+            </p>
+
+            <div className="w-full space-y-1">
+              <div className="text-left">
+                <Label htmlFor="login-email" className="text-amber-100 text-[9px]">
+                  Correo electrónico
+                </Label>
+                <Input
+                  id="login-email"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                  autoComplete="email"
+                  className="h-6 mt-0.5 bg-black/70 border-amber-700/40 text-amber-50 text-[11px]"
+                  data-testid="login-email-input"
+                />
+              </div>
+              <div className="text-left">
+                <Label htmlFor="login-password" className="text-amber-100 text-[9px]">
+                  Contraseña
+                </Label>
+                <Input
+                  id="login-password"
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  autoComplete="current-password"
+                  className="h-6 mt-0.5 bg-black/70 border-amber-700/40 text-amber-50 text-[11px]"
+                  data-testid="login-password-input"
+                />
+              </div>
+
+              <label className="flex items-center justify-center gap-2 text-[9px] text-amber-100/85 cursor-pointer pt-0.5 select-none">
+                <Checkbox
+                  checked={rememberMe}
+                  onCheckedChange={(v) => setRememberMe(!!v)}
+                  data-testid="login-remember-checkbox"
+                  className="h-3 w-3"
+                />
+                <span>Recordar sesión (30 días)</span>
+              </label>
             </div>
-          )}
-        </form>
+
+            {error && (
+              <div
+                className="flex items-start gap-1 mt-1.5 px-2 py-0.5 rounded border border-rose-500/50 bg-rose-950/80 text-rose-200 text-[9px] w-full"
+                data-testid="login-error"
+              >
+                <ShieldAlert className="w-2.5 h-2.5 mt-0.5 shrink-0" />
+                <span className="text-left leading-tight">{error}</span>
+              </div>
+            )}
+
+            <Button
+              type="submit"
+              disabled={busy}
+              className="mt-2 h-7 px-4 rounded-full bg-[hsl(var(--gold))] hover:bg-amber-300 text-black font-semibold text-xs shadow-[0_0_22px_rgba(251,191,36,0.6)]"
+              data-testid="login-submit-btn"
+            >
+              {busy ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <LogIn className="w-3 h-3 mr-1" />}
+              Entrar
+            </Button>
+
+            <p className="text-[9px] text-amber-200/70 mt-1.5">
+              ¿No tienes cuenta?{' '}
+              <Link
+                to="/register"
+                className="text-[hsl(var(--gold))] underline hover:text-amber-300"
+                data-testid="login-go-register-link"
+              >
+                Solicita acceso
+              </Link>
+            </p>
+          </form>
+        </div>
       </RingPortal>
     </div>
   );
 };
 
 /**
- * Layout reusable: anillo palpitante + disco estático con el formulario
- * dibujado encima. Ambas imágenes ocupan el mismo cuadro (inset-0)
- * porque están diseñadas para alinearse pixel a pixel.
+ * Layout reusable: anillo palpitante + área central que CALZA EXACTAMENTE
+ * con el agujero del anillo. El `children` se renderiza en un wrapper
+ * absoluto cuyas dimensiones son las medidas reales del agujero
+ * (66.5% × 62.3% del lienzo del anillo, centrado en (50.2%, 47.7%)).
  *
- * Para escenas con más campos (RegisterPage), pasa `staticDisc={false}`
- * y renderiza tu propio disco oscuro como `children`.
+ * El consumidor pasa su propio "disco oscuro" (HTML, no imagen) como
+ * children, así no hay desajustes de padding interno entre PNG y disco.
  */
-export const RingPortal = ({ children, staticDisc = true }) => (
+export const RingPortal = ({ children }) => (
   <div className="relative z-10 w-full max-w-[640px] aspect-square mx-auto">
     {/* Halo naranja palpitante detrás del anillo. */}
     <div
@@ -177,11 +202,9 @@ export const RingPortal = ({ children, staticDisc = true }) => (
       draggable={false}
     />
 
-    {/* Capa 2 — Disco estático con el formulario dibujado.
-        Posicionado y dimensionado para CALZAR EXACTAMENTE en el agujero
-        del anillo: agujero medido = 66.5% × 62.3% del lienzo, centrado
-        en (50.2%, 47.7%). El estatico se contiene en este área y los
-        children (form interactivo) heredan ese mismo wrapper. */}
+    {/* Capa 2 — Wrapper interno calibrado al agujero del anillo
+        (medidas obtenidas por análisis pixel-perfect del PNG). El
+        consumidor pinta su disco oscuro y form como children. */}
     <div
       className="absolute"
       style={{
@@ -191,18 +214,7 @@ export const RingPortal = ({ children, staticDisc = true }) => (
         top: '16.55%',
       }}
     >
-      {staticDisc && (
-        <img
-          src={STATIC_FORM}
-          alt=""
-          aria-hidden
-          className="absolute inset-0 w-full h-full select-none pointer-events-none"
-          draggable={false}
-        />
-      )}
-      {/* Capa 3 — Hot-zones / contenido interactivo. % relativos al
-          rectángulo del agujero del anillo. */}
-      <div className="absolute inset-0">{children}</div>
+      {children}
     </div>
 
     <style>{`
