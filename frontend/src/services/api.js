@@ -349,3 +349,42 @@ export const deleteCampaignRun = async (id) => {
   return response.data;
 };
 
+// === CAMPAIGN PLAYERS (Fase 3: unión por código) ===
+
+export const joinByCode = async (code, characterId) => {
+  const response = await api.post('/campaign-runs/join-by-code', {
+    code,
+    character_id: characterId,
+  });
+  return response.data;
+};
+
+export const listCampaignPlayers = async (runId) => {
+  const response = await api.get(`/campaign-runs/${runId}/players`);
+  return response.data;
+};
+
+export const updatePlayerStatus = async (playerId, status) => {
+  const response = await api.patch(`/campaign-players/${playerId}`, { status });
+  return response.data;
+};
+
+export const leaveCampaign = async (playerId) => {
+  const response = await api.post(`/campaign-players/${playerId}/leave`);
+  return response.data;
+};
+
+export const myCampaigns = async (status = null) => {
+  const params = status ? { status } : {};
+  const response = await api.get('/my/campaigns', { params });
+  return response.data;
+};
+
+// Used by the player when joining: list their own characters (eligible).
+// `summary=true` returns minimal fields to keep the payload small (full docs
+// are several MB each because of inventory + chests).
+export const listMyCharacters = async () => {
+  const response = await api.get('/characters/?summary=true');
+  return response.data.characters || [];
+};
+

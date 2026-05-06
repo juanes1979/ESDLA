@@ -29,6 +29,7 @@ from routes.region_hierarchy_routes import router as region_hierarchy_router
 from routes.auth_routes import router as auth_router, seed_maestro
 from routes.adventures_routes import router as adventures_router
 from routes.campaign_routes import router as campaign_router
+from routes.campaign_players_routes import router as campaign_players_router
 
 
 ROOT_DIR = Path(__file__).parent
@@ -116,6 +117,7 @@ api_router.include_router(region_hierarchy_router)
 api_router.include_router(auth_router)
 api_router.include_router(adventures_router)
 api_router.include_router(campaign_router)
+api_router.include_router(campaign_players_router)
 
 # Include the main router in the app
 app.include_router(api_router)

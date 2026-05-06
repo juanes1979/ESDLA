@@ -312,6 +312,19 @@ async def _transition(db, run_id: str, user: dict, new_status: str, *, allowed_f
         "description": f"Campaña → {new_status}",
         "created_at": now,
     })
+
+    # On finish: release all locked characters, mark accepted players as finished.
+    # NOTE Fase 4 will consolidate xp_pending_total into characters.xp_total here.
+    if new_status == "finished":
+        await db.characters.update_many(
+            {"active_campaign_run_id": run_id},
+            {"$set": {"active_campaign_run_id": None, "updated_at": now}},
+        )
+        await db.campaign_players.update_many(
+            {"campaign_run_id": run_id, "status": "accepted"},
+            {"$set": {"status": "finished", "closed_at": now}},
+        )
+
     new_doc = await db.campaign_runs.find_one({"id": run_id})
     return _serialize(new_doc)
 
@@ -352,7 +365,13 @@ async def delete_run(run_id: str, user: dict = Depends(get_current_user)):
         "campaign_npcs",
         "campaign_maps",
         "campaign_log",
+        "campaign_players",
     ):
         await db[coll].delete_many({"campaign_run_id": run_id})
+    # Release any character still locked to this run
+    await db.characters.update_many(
+        {"active_campaign_run_id": run_id},
+        {"$set": {"active_campaign_run_id": None}},
+    )
     await db.campaign_runs.delete_one({"id": run_id})
     return {"deleted": True, "id": run_id}

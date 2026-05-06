@@ -2,6 +2,54 @@
 
 ## Current State (2026-05-06)
 
+### ✅ Iteración 98 — FASE 3: Unión por código + animaciones (badge pulsante + runa élfica)
+
+**🟢 Backend** (`/app/backend/routes/campaign_players_routes.py` — NUEVO)
+- Endpoints:
+  - `POST /api/campaign-runs/join-by-code` — el jugador introduce código + character_id; se acepta en cualquier caso (mayúsculas/minúsculas), valida estado=`active`, locks de personaje, multi-character cap. Crea entrada `campaign_players` con `status=pending`, `join_origin=code`.
+  - `GET /api/campaign-runs/{id}/players` — DJ ve todas las solicitudes (enriquecidas con character_name/level/culture + user_name).
+  - `PATCH /api/campaign-players/{id}` — DJ accept/reject/expel con máquina de estados estricta (`pending→accepted|rejected`, `accepted→expelled`).
+  - `GET /api/my/campaigns` — vista del jugador. Oculta `campaign_code` salvo si el usuario es el DJ.
+  - `POST /api/campaign-players/{id}/leave` — el jugador abandona voluntariamente.
+- **Lock de personaje**: al `accept` → `character.active_campaign_run_id = run.id`. Al `reject/expel/abandon/finish/delete` → libera. Un personaje sólo puede estar en 1 run a la vez (validado en backend).
+- **Multi-character**: si `allow_multi_characters=False`, un user no puede tener 2 entradas pending+accepted en la misma run; si `True`, cap por `max_characters_per_player`.
+- **Capacidad**: el `accept` valida que `max_players` no se rebasa.
+- **Cleanup automático**: al `finish` se liberan todos los personajes locked y los `accepted` pasan a `finished`. Al `delete` (Maestro) se purgan `campaign_players` y se libera todo.
+- Optimización lateral: nuevo `?summary=true` en `GET /api/characters/` que reduce el payload de **32 MB → 2.8 KB** (sólo id/nombre/nivel/cultura). Usado por el dialog de unión.
+
+**🟢 Frontend**
+- `RuneIgniteOverlay.jsx`: animación SVG de runa élfica (estilo Tengwar) con halo radial dorado y pulse-ring expandiéndose. Duración 1.6 s. Se monta sobre la fila del personaje aceptado.
+- `JoinCampaignDialog.jsx`: input de código (uppercase, monospace, tracking-widest) + select de personajes elegibles (filtra los que ya tienen `active_campaign_run_id`). Toast informa éxito o error.
+- `MyCampaignsPage.jsx` (`/mis-campanas`): tarjetas con todas las campañas del jugador, badge de estado, botón "Unirme con un código", "Cancelar solicitud" o "Abandonar campaña" según estado.
+- `CampaignHubPage` ahora con **PlayersTab funcional**:
+  - Sección "Solicitudes pendientes" con count + botones Aceptar/Rechazar.
+  - Sección "En la campaña" con Expulsar.
+  - Sección "Histórico" para rejected/expelled/abandon/finished.
+  - **Polling cada 8 s** para detectar nuevas solicitudes.
+  - **Toast 🔔 "X nueva(s) solicitud(es) de unión"** cuando llegan estando en otro tab.
+  - **Badge rojo pulsante** (`pendingPulse` keyframes con box-shadow expandiéndose) sobre el tab "Jugadores" mientras hay pending sin revisar.
+  - **Animación rune ignite** sobre la fila del personaje justo al aceptarlo (1.8 s).
+- Icono Aventuras en HomePage ahora dual: "Aventuras" para staff (→ `/aventuras`), "Mis Campañas" para jugadores (→ `/mis-campanas`).
+
+**🟢 Tests** — `/app/backend/tests/test_campaign_players_it98.py` — **13/13 PASS**
+- Join crea pending con `join_origin=code`; acepta minúsculas y espacios.
+- Código inexistente → 404.
+- Run en `draft` rechaza join → 400.
+- Personaje ajeno → 403.
+- Accept fija `active_campaign_run_id` en el personaje.
+- Personaje locked no puede entrar en otra run.
+- `allow_multi_characters=False` → segunda solicitud del mismo user falla.
+- Multi-char con cap=2 → tercera solicitud falla.
+- `max_players=1` → segundo accept devuelve "campaña llena" 400.
+- Expel libera el lock del personaje.
+- `my/campaigns` no expone el código del DJ al jugador.
+- Finish libera TODOS los personajes y marca accepted → finished.
+- Leave voluntario libera el lock y marca abandon.
+
+**Total tests del fork (Fases 1+2+3): 31/31 PASS**
+
+---
+
 ### ✅ Iteración 97 — FASE 2: Sistema de Campañas Activas + animación "Anillo Forjado"
 
 **🟢 Backend** (`/app/backend/routes/campaign_routes.py` — NUEVO)

@@ -19,8 +19,9 @@ import {
   Play,
   Pause,
   Flag,
-  Globe2,
-  Lock,
+  UserCheck,
+  UserX,
+  UserMinus,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import {
@@ -30,8 +31,11 @@ import {
   activateCampaignRun,
   pauseCampaignRun,
   finishCampaignRun,
+  listCampaignPlayers,
+  updatePlayerStatus,
 } from '@/services/api';
 import { Button } from '@/components/ui/button';
+import RuneIgniteOverlay from '@/components/adventures/RuneIgniteOverlay';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 
@@ -191,16 +195,131 @@ const Section = ({ title, children, testid }) => (
   </div>
 );
 
-const PlayersTab = () => (
-  <div className="rounded-xl border border-amber-700/40 bg-black/60 backdrop-blur-sm p-8 text-center" data-testid="players-tab">
-    <Lock className="w-10 h-10 mx-auto text-amber-300/40 mb-3" />
-    <h3 className="font-heading text-xl text-amber-200 mb-2">Próximamente — Fase 3</h3>
-    <p className="text-sm text-amber-300/70 max-w-md mx-auto">
-      La unión de jugadores por código y la gestión de solicitudes (aceptar / rechazar /
-      expulsar) estará disponible en la siguiente fase.
-    </p>
-  </div>
-);
+const STATUS_PLAYER_BADGE = {
+  pending: 'bg-amber-700/70 text-amber-100',
+  accepted: 'bg-emerald-700/70 text-emerald-100',
+  rejected: 'bg-rose-900/70 text-rose-200',
+  expelled: 'bg-rose-900/70 text-rose-200',
+  abandon: 'bg-stone-700/70 text-stone-200',
+  finished: 'bg-stone-700/70 text-stone-200',
+};
+
+const ORIGIN_LABEL = {
+  code: 'código',
+  listing: 'tablón',
+  invitation: 'invitación',
+};
+
+const PlayersTab = ({ players, onAct, igniteId }) => {
+  const pending = players.filter((p) => p.status === 'pending');
+  const accepted = players.filter((p) => p.status === 'accepted');
+  const closed = players.filter((p) => !['pending', 'accepted'].includes(p.status));
+
+  const renderRow = (p, showAccept = false, showReject = false, showExpel = false) => (
+    <div
+      key={p.id}
+      className="relative rounded border border-amber-800/30 bg-black/40 p-3"
+      data-testid={`player-row-${p.id}`}
+    >
+      {igniteId === p.id && <RuneIgniteOverlay onDone={() => {}} />}
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <div className="min-w-0 flex-1">
+          <div className="text-amber-200 font-medium">
+            {p.character_name || '(personaje sin nombre)'}{' '}
+            <span className="text-xs text-amber-300/60">· nivel {p.character_level ?? '?'}</span>
+          </div>
+          <div className="text-xs text-amber-300/60">
+            Jugador: {p.user_name || '—'}
+            {p.character_culture && <> · {p.character_culture}</>}
+            <> · origen: {ORIGIN_LABEL[p.join_origin] || p.join_origin}</>
+          </div>
+        </div>
+        <span className={`text-xs px-2 py-0.5 rounded ${STATUS_PLAYER_BADGE[p.status]}`}>
+          {p.status}
+        </span>
+        <div className="flex gap-1">
+          {showAccept && (
+            <Button
+              size="sm"
+              onClick={() => onAct(p, 'accepted')}
+              data-testid={`accept-player-${p.id}`}
+              className="bg-emerald-700 hover:bg-emerald-600 text-emerald-50"
+            >
+              <UserCheck className="w-3.5 h-3.5 mr-1" /> Aceptar
+            </Button>
+          )}
+          {showReject && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => onAct(p, 'rejected')}
+              data-testid={`reject-player-${p.id}`}
+              className="border-rose-700/50 text-rose-200 hover:bg-rose-900/30"
+            >
+              <UserX className="w-3.5 h-3.5 mr-1" /> Rechazar
+            </Button>
+          )}
+          {showExpel && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => onAct(p, 'expelled')}
+              data-testid={`expel-player-${p.id}`}
+              className="border-rose-700/50 text-rose-200 hover:bg-rose-900/30"
+            >
+              <UserMinus className="w-3.5 h-3.5 mr-1" /> Expulsar
+            </Button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="space-y-4" data-testid="players-tab">
+      <Section
+        title={
+          <>
+            Solicitudes pendientes{' '}
+            {pending.length > 0 && (
+              <span className="ml-2 px-2 py-0.5 text-xs rounded-full bg-rose-700 text-rose-50 align-middle">
+                {pending.length}
+              </span>
+            )}
+          </>
+        }
+        testid="section-pending"
+      >
+        {pending.length === 0 ? (
+          <p className="text-sm text-gray-500 italic">— sin solicitudes pendientes —</p>
+        ) : (
+          <div className="space-y-2">
+            {pending.map((p) => renderRow(p, true, true))}
+          </div>
+        )}
+      </Section>
+
+      <Section
+        title={`En la campaña (${accepted.length})`}
+        testid="section-accepted"
+      >
+        {accepted.length === 0 ? (
+          <p className="text-sm text-gray-500 italic">— aún no hay personajes aceptados —</p>
+        ) : (
+          <div className="space-y-2">
+            {accepted.map((p) => renderRow(p, false, false, true))}
+          </div>
+        )}
+      </Section>
+
+      {closed.length > 0 && (
+        <Section title={`Histórico (${closed.length})`} testid="section-closed">
+          <div className="space-y-2">{closed.map((p) => renderRow(p))}</div>
+        </Section>
+      )}
+    </div>
+  );
+};
 
 const LogTab = ({ log }) => (
   <div className="rounded-xl border border-amber-700/40 bg-black/60 backdrop-blur-sm p-5">
@@ -228,21 +347,25 @@ const CampaignHubPage = () => {
   const [run, setRun] = useState(null);
   const [content, setContent] = useState({ environments: [], intrigues: [], npcs: [], maps: [] });
   const [log, setLog] = useState([]);
+  const [players, setPlayers] = useState([]);
   const [tab, setTab] = useState('info');
   const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState(false);
+  const [igniteId, setIgniteId] = useState(null);
+  const [pendingSeen, setPendingSeen] = useState(0); // for new-request animation badge
 
   const reload = async () => {
-    setLoading(true);
     try {
-      const [r, c, l] = await Promise.all([
+      const [r, c, l, p] = await Promise.all([
         getCampaignRun(id),
         getCampaignContent(id),
         getCampaignLog(id),
+        listCampaignPlayers(id),
       ]);
       setRun(r);
       setContent(c);
       setLog(l);
+      setPlayers(p);
     } catch (err) {
       toast.error(err?.response?.data?.detail || 'Error cargando campaña');
       navigate('/campanas');
@@ -252,9 +375,48 @@ const CampaignHubPage = () => {
   };
 
   useEffect(() => {
+    setLoading(true);
     reload();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
+
+  // Poll players every 8s for new requests (only while page is visible).
+  useEffect(() => {
+    const tick = async () => {
+      if (document.hidden) return;
+      try {
+        const p = await listCampaignPlayers(id);
+        setPlayers(p);
+      } catch {
+        /* silent */
+      }
+    };
+    const interval = setInterval(tick, 8000);
+    return () => clearInterval(interval);
+  }, [id]);
+
+  // Track new pending requests → trigger toast/notification when new ones arrive
+  // and the player is NOT currently viewing the players tab.
+  const pendingCount = players.filter((p) => p.status === 'pending').length;
+  useEffect(() => {
+    if (tab === 'players') {
+      // Mark current count as seen
+      setPendingSeen(pendingCount);
+      return;
+    }
+    if (pendingCount > pendingSeen) {
+      const delta = pendingCount - pendingSeen;
+      toast.message(
+        `🔔 ${delta} nueva${delta > 1 ? 's' : ''} solicitud${delta > 1 ? 'es' : ''} de unión`,
+        { description: 'Pulsa la pestaña Jugadores para revisarla.' },
+      );
+      setPendingSeen(pendingCount);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingCount, tab]);
+
+  const newPendingCount = tab === 'players' ? 0 : Math.max(0, pendingCount - pendingSeen);
+  const hasUnseenPending = newPendingCount > 0 || (tab !== 'players' && pendingCount > 0);
 
   const handleCopyCode = async () => {
     try {
@@ -276,6 +438,25 @@ const CampaignHubPage = () => {
       }[action];
       await fn(id);
       toast.success(`Campaña ${action === 'activate' ? 'activada' : action === 'pause' ? 'pausada' : 'finalizada'}`);
+      await reload();
+    } catch (err) {
+      toast.error(err?.response?.data?.detail || 'Error');
+    }
+  };
+
+  const handlePlayerAct = async (player, status) => {
+    try {
+      await updatePlayerStatus(player.id, status);
+      if (status === 'accepted') {
+        // Trigger the "rune ignites" overlay on this row
+        setIgniteId(player.id);
+        setTimeout(() => setIgniteId(null), 1800);
+        toast.success(`${player.character_name} aceptado en la campaña`);
+      } else if (status === 'rejected') {
+        toast.message('Solicitud rechazada');
+      } else if (status === 'expelled') {
+        toast.message('Personaje expulsado');
+      }
       await reload();
     } catch (err) {
       toast.error(err?.response?.data?.detail || 'Error');
@@ -331,29 +512,51 @@ const CampaignHubPage = () => {
         </div>
 
         <div className="flex flex-wrap gap-1 mb-4">
-          {TABS.map((t) => (
-            <button
-              key={t.id}
-              onClick={() => setTab(t.id)}
-              data-testid={`hub-tab-${t.id}`}
-              className={`px-3 py-1.5 text-sm rounded transition-colors ${
-                tab === t.id
-                  ? 'bg-amber-700 text-amber-50'
-                  : 'bg-black/40 text-amber-300/70 hover:bg-amber-900/30'
-              }`}
-            >
-              {t.label}
-            </button>
-          ))}
+          {TABS.map((t) => {
+            const isPlayersTab = t.id === 'players';
+            const showBadge = isPlayersTab && hasUnseenPending;
+            return (
+              <button
+                key={t.id}
+                onClick={() => setTab(t.id)}
+                data-testid={`hub-tab-${t.id}`}
+                className={`relative px-3 py-1.5 text-sm rounded transition-colors ${
+                  tab === t.id
+                    ? 'bg-amber-700 text-amber-50'
+                    : 'bg-black/40 text-amber-300/70 hover:bg-amber-900/30'
+                }`}
+              >
+                {t.label}
+                {showBadge && (
+                  <span
+                    className="absolute -top-1 -right-1 flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-rose-600 text-rose-50 text-[10px] font-bold pending-badge"
+                    data-testid="pending-badge"
+                  >
+                    {pendingCount}
+                  </span>
+                )}
+              </button>
+            );
+          })}
         </div>
 
         {tab === 'info' && (
           <InfoTab run={run} onAction={handleAction} onCopyCode={handleCopyCode} copied={copied} />
         )}
         {tab === 'content' && <ContentTab content={content} run={run} />}
-        {tab === 'players' && <PlayersTab />}
+        {tab === 'players' && <PlayersTab players={players} onAct={handlePlayerAct} igniteId={igniteId} />}
         {tab === 'log' && <LogTab log={log} />}
       </div>
+
+      <style>{`
+        @keyframes pendingPulse {
+          0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(244, 63, 94, 0.7); }
+          50%      { transform: scale(1.15); box-shadow: 0 0 0 6px rgba(244, 63, 94, 0); }
+        }
+        .pending-badge {
+          animation: pendingPulse 1.4s ease-out infinite;
+        }
+      `}</style>
     </div>
   );
 };

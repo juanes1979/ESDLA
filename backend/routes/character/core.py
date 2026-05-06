@@ -24,9 +24,15 @@ async def list_characters(
     jugador: Optional[str] = None,
     campaign_id: Optional[str] = None,
     include_all: bool = False,
+    summary: bool = False,
     user: dict = Depends(get_current_user),
 ):
-    """List characters owned by the current user (Maestro sees all)."""
+    """List characters owned by the current user (Maestro sees all).
+
+    `summary=true` returns only minimal fields (id, nombre, nivel, cultura,
+    active_campaign_run_id) — useful for selectors / pickers where the full
+    document (~MBs of inventory + chests) is overkill.
+    """
     if include_all:
         query = {"estado": {"$ne": "eliminado"}}
     else:
@@ -40,7 +46,16 @@ async def list_characters(
     # Filtro de propietario (vacío para Maestro).
     query.update(_owner_filter(user))
 
-    characters = await db.characters.find(query).to_list(100)
+    if summary:
+        projection = {
+            "_id": 1, "nombre": 1, "nivel": 1, "cultura_nombre": 1,
+            "categoria_cultura": 1, "active_campaign_run_id": 1,
+            "owner_id": 1, "jugador": 1,
+        }
+        cursor = db.characters.find(query, projection).limit(100)
+    else:
+        cursor = db.characters.find(query).limit(100)
+    characters = await cursor.to_list(100)
     return {"characters": serialize_docs(characters)}
 
 

@@ -46,6 +46,17 @@ const NAV_ITEMS = [
     path: '/aventuras',
     position: { top: '72%', left: '3%' },
     side: 'left',
+    roles: ['maestro', 'director_de_juego'],
+  },
+  {
+    id: 'mis-campanas',
+    image: 'https://customer-assets.emergentagent.com/job_83678a44-91d5-44d8-bd9c-fd3a28e2ac42/artifacts/96t25ngc_Aventura.png',
+    title: 'Mis Campañas',
+    description: 'Únete a una campaña con un código y revisa tus solicitudes.',
+    path: '/mis-campanas',
+    position: { top: '72%', left: '3%' },
+    side: 'left',
+    roles: ['jugador'],
   },
   // RIGHT SIDE (top to bottom)
   {
