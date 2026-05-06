@@ -239,3 +239,64 @@ export const generateRandomName = (nameData, gender = 'hombre') => {
 };
 
 export default api;
+
+// === ADVENTURES (Fase 1: Sistema Aventuras & Campañas) ===
+
+export const listAdventures = async (scope = 'all') => {
+  const response = await api.get('/adventures', { params: { scope } });
+  return response.data;
+};
+
+export const getAdventure = async (id) => {
+  const response = await api.get(`/adventures/${id}`);
+  return response.data;
+};
+
+export const createAdventure = async (payload) => {
+  const response = await api.post('/adventures', payload);
+  return response.data;
+};
+
+export const updateAdventure = async (id, payload) => {
+  const response = await api.patch(`/adventures/${id}`, payload);
+  return response.data;
+};
+
+export const deleteAdventure = async (id) => {
+  const response = await api.delete(`/adventures/${id}`);
+  return response.data;
+};
+
+export const cloneAdventure = async (id) => {
+  const response = await api.post(`/adventures/${id}/clone`);
+  return response.data;
+};
+
+// Bestiary picker for the adventure wizard ("PNJs" tab).
+// Returns categories: malignos / pnj / animales / especiales.
+export const getBestiary = async (categoria = null, search = null) => {
+  const params = {};
+  if (categoria) params.categoria = categoria;
+  if (search) params.search = search;
+  const response = await api.get('/data/npcs', { params });
+  return response.data;
+};
+
+// Locations list for the "¿Dónde?" picker.
+export const getLocations = async () => {
+  const response = await api.get('/data/locations');
+  return response.data.locations || response.data;
+};
+
+// Generic file upload (used for adventure cover and maps).
+export const uploadAdventureImage = async (file, { description } = {}) => {
+  const form = new FormData();
+  form.append('file', file);
+  form.append('folder', 'adventures');
+  if (description) form.append('description', description);
+  const response = await api.post('/storage/upload', form, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+  return response.data; // { file_id, path, ... }
+};
+

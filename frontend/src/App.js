@@ -26,6 +26,8 @@ import PathDebugger from "@/pages/PathDebugger";
 import LoginPage from "@/pages/LoginPage";
 import RegisterPage from "@/pages/RegisterPage";
 import ApprovalsPage from "@/pages/ApprovalsPage";
+import AdventuresListPage from "@/pages/AdventuresListPage";
+import AdventureWizardPage from "@/pages/AdventureWizardPage";
 import { CharacterCreatorWizard } from "@/components/character-creator";
 
 // Role groups
@@ -57,6 +59,8 @@ function App() {
 
               {/* Staff-only routes (Maestro + Director de Juego) */}
               <Route path="/rules" element={<ProtectedRoute roles={STAFF}><RulesPage /></ProtectedRoute>} />
+              <Route path="/aventuras" element={<ProtectedRoute roles={STAFF}><AdventuresListPage /></ProtectedRoute>} />
+              <Route path="/aventuras/:id" element={<ProtectedRoute roles={STAFF}><AdventureWizardPage /></ProtectedRoute>} />
               <Route path="/sheet-editor" element={<ProtectedRoute roles={STAFF}><SheetPositionEditor /></ProtectedRoute>} />
               <Route path="/map/master" element={<ProtectedRoute roles={STAFF}><MiddleEarthMap /></ProtectedRoute>} />
               <Route path="/terrain-editor" element={<ProtectedRoute roles={STAFF}><TerrainEditor /></ProtectedRoute>} />

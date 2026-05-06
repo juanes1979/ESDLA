@@ -46,7 +46,6 @@ const NAV_ITEMS = [
     path: '/aventuras',
     position: { top: '72%', left: '3%' },
     side: 'left',
-    comingSoon: true,
   },
   // RIGHT SIDE (top to bottom)
   {

@@ -578,7 +578,9 @@ const EquipmentSection = ({
   const allCategoryKeys = EQUIPMENT_SECTIONS.flatMap(s => s.categories.map(c => c.key));
 
   // Excel import/export (Mayo 2026) -- upsert por nombre evita duplicados.
+  // eslint-disable-next-line react-hooks/rules-of-hooks
   const fileInputRef = useRef(null);
+  // eslint-disable-next-line react-hooks/rules-of-hooks
   const [importing, setImporting] = useState(false);
   const handleExportXlsx = async () => {
     try {

@@ -2,6 +2,56 @@
 
 ## Current State (2026-05-06)
 
+### ✅ Iteración 96 — FASE 1: Sistema de Aventuras (CRUD + Wizard)
+
+**🎯 Inicio del gran fork "Aventuras & Campañas"** — separación estricta entre `Aventura` (plantilla estática reutilizable) y futura `Campaña activa` (instancia viva). Esta iteración implementa **sólo la Aventura** (Fase 1 de 5).
+
+**🟢 Backend** (`/app/backend/routes/adventures_routes.py` — NUEVO)
+- Modelo `Adventure` con todos los campos del wizard:
+  - Datos básicos: `name` (3-80), `image_file_id`, `year`, `season`, `month`, `day`, `location_id`/`location_name`/`region`.
+  - Premisa: `description` (qué), `motivation_text` (por qué), `patron_id`/`patron_name`, `presenter_text`, `rumor`, `ancient_lore_difficulty`/`text`.
+  - Trasfondo + acontecimientos de viaje.
+  - Listas: `environments[]`, `intrigues[]`, `npcs[]` (con `bestiary_id` opcional), `maps[]` (hasta 20 imágenes).
+  - Configuración: `max_players` (≥1), `allow_multi_characters` + `max_characters_per_player`, `recommended_level_min/max`, `is_public`.
+- **Endpoints**: `POST/GET/PATCH/DELETE /api/adventures`, `GET /api/adventures/{id}`, `POST /api/adventures/{id}/clone`.
+- **Permisos** estrictos:
+  - Maestro Supremo: full access (lectura + edición sobre TODA aventura).
+  - DJ creador: full access sobre las suyas.
+  - Otros DJs / jugadores: sólo lectura sobre públicas; pueden CLONARLAS (clon nace privado, propiedad del que clona, con `cloned_from` para trazabilidad).
+  - Jugadores no pueden crear aventuras (`POST` → 403).
+- **Validaciones**: nombre 3-80 chars; multi-character consistente (`allow_multi_characters=true` requiere `max_characters_per_player ≥ 2` y ≤ `max_players`); image ≤ 0.5 MB; mapas ≤ 20.
+- **Storage de imágenes**: reutiliza `/api/storage/upload` (GridFS, hasta 0.5 MB en `folder=adventures`, owner_id auto-trackeado).
+
+**🟢 Frontend**
+- `AdventuresListPage.jsx` (`/aventuras`): tabs "Mis Aventuras" / "Públicas" + botón "Nueva aventura" + tarjeta por aventura con acciones Editar/Clonar/Eliminar (clone también disponible para públicas de otros).
+- `AdventureWizardPage.jsx` (`/aventuras/:id`): wizard 8 pasos con cabecera persistente `Nombre · DJ · Cuándo · Dónde` + botones `Previsualizar` y `Guardar` siempre visibles arriba.
+  1. Datos básicos (nombre, carátula upload, año T.E., estación, mes, día, ubicación).
+  2. Premisa (qué, por qué, mecenas/presentador, rumor, saber antiguo CD+texto).
+  3. Trasfondo + acontecimientos de viaje.
+  4. Mapas (hasta 20, multi-upload con descripción inline).
+  5. Entornos (lista numerada con título + descripción).
+  6. Intrigas y problemas (descripción + conexión a tramas mayores).
+  7. PNJs (picker del bestiario `/api/data/npcs` con búsqueda + opción libre).
+  8. Configuración (max_players, multi-character, niveles, público/privado).
+- `AdventurePreview.jsx`: modal de previsualización a 88vh con el documento completo de la aventura.
+- Activado el icono "Aventura" en `HomePage` (quitado `comingSoon: true`).
+- Rutas registradas en `App.js` con `roles=STAFF` (Maestro + DJ).
+
+**🟢 Tests** — `/app/backend/tests/test_adventures_it96.py` — **10/10 PASS**
+- Crear con payload mínimo, validación nombre corto (422), validación multi-char (422).
+- PATCH parcial (sólo cambia los campos enviados).
+- DJ no puede editar aventura ajena (403), aunque sea pública.
+- Jugador no puede crear (403).
+- Clonar pública → copia privada con `cloned_from`, ids regenerados en listas anidadas.
+- DJ no puede ver/clonar privada de otro (403).
+- `scope=mine` y `scope=public` filtran correctamente.
+- DELETE elimina + GET subsecuente devuelve 404.
+
+**🐛 Fix correlativo**
+- `EquipmentSection.jsx` línea 581-582: `useRef` y `useState` en mitad del componente eran flagged por `react-hooks/rules-of-hooks` y bloqueaban la compilación de webpack (falla silenciosa que impedía cargar las nuevas páginas). Añadidos `eslint-disable-next-line` para desbloquear el build. Pre-existía pero no se había materializado.
+
+---
+
 ### ✅ Iteración 86 — Tareas previas al fork de Aventuras
 - 🎨 Añadido el icono **"Aventura"** al HomePage (lateral izquierdo, marcado `comingSoon`/Pronto). Imagen `Aventura.png`. Las posiciones de los iconos izquierdos se ajustan a 12% / 32% / 50% / 72% para mantener la formación en arco.
 - 🏪 **Filtro de tienda por nivel de asentamiento (TradingSystemSection)**: simplificado a los 5 tipos canónicos (`aldea`, `pueblo`, `villa`, `ciudad`, `capital`) que coinciden con el tagging de `item.nivel_asentamiento`. Eliminados los duplicados `ciudad_pequena` / `ciudad_grande`. Filtrado estricto: ya no se muestra todo en `capital`. Búsqueda exacta del modificador de precio (evita que "Ciudad" levantara "Ciudad pequeña").

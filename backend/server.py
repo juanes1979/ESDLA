@@ -27,6 +27,7 @@ from routes.eye_routes import router as eye_router
 from routes.eye_ai_routes import router as eye_ai_router
 from routes.region_hierarchy_routes import router as region_hierarchy_router
 from routes.auth_routes import router as auth_router, seed_maestro
+from routes.adventures_routes import router as adventures_router
 
 
 ROOT_DIR = Path(__file__).parent
@@ -112,6 +113,7 @@ api_router.include_router(eye_router)
 api_router.include_router(eye_ai_router)
 api_router.include_router(region_hierarchy_router)
 api_router.include_router(auth_router)
+api_router.include_router(adventures_router)
 
 # Include the main router in the app
 app.include_router(api_router)
