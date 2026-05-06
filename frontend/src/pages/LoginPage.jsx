@@ -55,14 +55,6 @@ const LoginPage = () => {
     >
       <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/55 to-black/70" />
 
-      <div className="absolute top-6 left-1/2 -translate-x-1/2 z-30">
-        <div className="px-5 py-1.5 rounded-full border border-amber-700/60 bg-black/70 backdrop-blur-sm">
-          <span className="text-[11px] tracking-[0.45em] text-amber-300/85 uppercase font-heading">
-            Lord of the Rings · 5e
-          </span>
-        </div>
-      </div>
-
       <RingPortal>
         {/* Disco oscuro propio (HTML, no imagen) que llena exactamente el
             agujero del anillo. Mismo approach que RegisterPage. */}
@@ -82,14 +74,15 @@ const LoginPage = () => {
             style={{ padding: '12% 14%' }}
           >
             <h1
-              className="font-heading text-[11px] sm:text-xs text-[hsl(var(--gold))] tracking-wide leading-tight"
-              style={{ textShadow: '0 0 14px rgba(251,191,36,0.45)' }}
+              className="text-base sm:text-lg text-[hsl(var(--gold))] leading-tight mb-3"
+              style={{
+                fontFamily: '"Cinzel Decorative", "MedievalSharp", serif',
+                letterSpacing: '0.04em',
+                textShadow: '0 0 14px rgba(251,191,36,0.55), 0 0 28px rgba(251,140,40,0.35)',
+              }}
             >
               Basado en El señor de los anillos 5e
             </h1>
-            <p className="text-[8px] text-amber-200/60 italic mt-0.5 mb-2">
-              Un Anillo para gobernarlos a todos…
-            </p>
 
             <div className="w-full space-y-1">
               <div className="text-left">
