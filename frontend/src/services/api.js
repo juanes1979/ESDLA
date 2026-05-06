@@ -402,6 +402,89 @@ export const characterCampaignHistory = async (characterId) => {
   return response.data;
 };
 
+// === MARKETPLACE / TABLÓN (Fase 5) ===
+
+export const createCampaignListing = async (campaignRunId, opts = {}) => {
+  const r = await api.post('/campaign-listings', {
+    campaign_run_id: campaignRunId,
+    listing_description: opts.description || null,
+    recommended_level_min: opts.levelMin || null,
+    recommended_level_max: opts.levelMax || null,
+  });
+  return r.data;
+};
+
+export const updateCampaignListing = async (listingId, body) => {
+  const r = await api.patch(`/campaign-listings/${listingId}`, body);
+  return r.data;
+};
+
+export const deleteCampaignListing = async (listingId) => {
+  const r = await api.delete(`/campaign-listings/${listingId}`);
+  return r.data;
+};
+
+export const listCampaignListings = async (filters = {}) => {
+  const r = await api.get('/campaign-listings', { params: filters });
+  return r.data;
+};
+
+export const getCampaignListing = async (listingId) => {
+  const r = await api.get(`/campaign-listings/${listingId}`);
+  return r.data;
+};
+
+export const requestJoinFromListing = async (listingId, characterId) => {
+  const r = await api.post(`/campaign-listings/${listingId}/request-join`, {
+    character_id: characterId,
+  });
+  return r.data;
+};
+
+export const upsertPlayerAvailability = async (body) => {
+  // body = {character_id, is_available, preferences_text?, preferred_level_min?, preferred_level_max?}
+  const r = await api.put('/player-availability', body);
+  return r.data;
+};
+
+export const myAvailability = async () => {
+  const r = await api.get('/player-availability/mine');
+  return r.data;
+};
+
+export const listAvailablePlayers = async () => {
+  const r = await api.get('/player-availability');
+  return r.data;
+};
+
+export const createInvitation = async (body) => {
+  const r = await api.post('/campaign-invitations', body);
+  return r.data;
+};
+
+export const myInvitations = async () => {
+  const r = await api.get('/campaign-invitations/mine');
+  return r.data;
+};
+
+export const sentInvitations = async () => {
+  const r = await api.get('/campaign-invitations/sent');
+  return r.data;
+};
+
+export const respondInvitation = async (invId, status, characterId = null) => {
+  const r = await api.patch(`/campaign-invitations/${invId}/respond`, {
+    status,
+    character_id: characterId,
+  });
+  return r.data;
+};
+
+export const cancelInvitation = async (invId) => {
+  const r = await api.delete(`/campaign-invitations/${invId}`);
+  return r.data;
+};
+
 // Used by the player when joining: list their own characters (eligible).
 // `summary=true` returns minimal fields to keep the payload small (full docs
 // are several MB each because of inventory + chests).

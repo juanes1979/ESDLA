@@ -32,8 +32,17 @@ const CampaignActivatedDialog = ({ run, open, onClose }) => {
     }
   };
 
-  const handlePublish = () => {
-    toast.message('El tablón estará disponible en la Fase 5');
+  const handlePublish = async () => {
+    try {
+      // Run must be active for listing — but it's still draft when this dialog
+      // shows. Activate first if needed, then publish.
+      // The hub page will handle activation; here we just give a friendly hint.
+      toast.message(
+        'Activa primero la campaña en el panel y allí pulsa "Publicar en tablón".',
+      );
+    } catch (err) {
+      toast.error(err?.response?.data?.detail || 'Error');
+    }
   };
 
   const handleGoToHub = () => {
@@ -80,11 +89,10 @@ const CampaignActivatedDialog = ({ run, open, onClose }) => {
             variant="outline"
             onClick={handlePublish}
             data-testid="publish-btn"
-            className="border-amber-700/50 text-amber-200/70 hover:bg-amber-900/30"
-            disabled
-            title="Disponible en la Fase 5 (Tablón)"
+            className="border-amber-700/50 text-amber-200 hover:bg-amber-900/30"
+            title="Activa la campaña y publica desde el panel"
           >
-            <Megaphone className="w-4 h-4 mr-1" /> Publicar (pronto)
+            <Megaphone className="w-4 h-4 mr-1" /> Publicar en tablón
           </Button>
           <Button
             onClick={handleGoToHub}

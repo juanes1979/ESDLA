@@ -149,13 +149,23 @@ const MyCampaignsPage = () => {
               Mis Campañas
             </h1>
           </div>
-          <Button
-            onClick={() => setShowJoin(true)}
-            data-testid="join-campaign-btn"
-            className="bg-amber-700 hover:bg-amber-600 text-amber-50 border border-amber-500/40"
-          >
-            <KeyRound className="w-4 h-4 mr-2" /> Unirme con un código
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              onClick={() => navigate('/tablon')}
+              variant="outline"
+              data-testid="goto-board-btn"
+              className="border-amber-700/50 text-amber-200 hover:bg-amber-900/30"
+            >
+              📜 Tablón
+            </Button>
+            <Button
+              onClick={() => setShowJoin(true)}
+              data-testid="join-campaign-btn"
+              className="bg-amber-700 hover:bg-amber-600 text-amber-50 border border-amber-500/40"
+            >
+              <KeyRound className="w-4 h-4 mr-2" /> Unirme con un código
+            </Button>
+          </div>
         </div>
 
         {loading ? (

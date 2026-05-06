@@ -23,6 +23,8 @@ import {
   UserX,
   UserMinus,
   Sparkles,
+  Megaphone,
+  MegaphoneOff,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import {
@@ -34,6 +36,9 @@ import {
   finishCampaignRun,
   listCampaignPlayers,
   updatePlayerStatus,
+  createCampaignListing,
+  deleteCampaignListing,
+  listCampaignListings,
 } from '@/services/api';
 import { Button } from '@/components/ui/button';
 import RuneIgniteOverlay from '@/components/adventures/RuneIgniteOverlay';
@@ -56,7 +61,7 @@ const TABS = [
   { id: 'log', label: 'Registro' },
 ];
 
-const InfoTab = ({ run, onAction, onCopyCode, copied }) => (
+const InfoTab = ({ run, onAction, onCopyCode, copied, listing, onPublish, onUnpublish }) => (
   <div className="space-y-5">
     <div className="rounded-xl border border-amber-700/40 bg-black/60 backdrop-blur-sm p-6">
       <div className="flex items-center justify-between gap-3 flex-wrap">
@@ -83,6 +88,39 @@ const InfoTab = ({ run, onAction, onCopyCode, copied }) => (
         Este código <strong>no se publica</strong> nunca en el tablón. Compártelo solo
         con quien quieras que pueda unirse.
       </p>
+    </div>
+
+    {/* Tablón */}
+    <div className="rounded-xl border border-amber-700/40 bg-black/60 backdrop-blur-sm p-6">
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <div>
+          <h3 className="font-heading text-xl text-amber-300 mb-1">Tablón público</h3>
+          <p className="text-xs text-amber-300/60">
+            {listing
+              ? `Publicado · ${listing.slots_available}/${listing.max_players} plazas · estado ${listing.listing_status}`
+              : 'Esta campaña no está publicada en el tablón.'}
+          </p>
+        </div>
+        {listing ? (
+          <Button
+            onClick={onUnpublish}
+            variant="outline"
+            data-testid="unpublish-btn"
+            className="border-rose-700/50 text-rose-200 hover:bg-rose-900/30"
+          >
+            <MegaphoneOff className="w-4 h-4 mr-1" /> Despublicar
+          </Button>
+        ) : (
+          <Button
+            onClick={onPublish}
+            disabled={run.status !== 'active'}
+            data-testid="publish-hub-btn"
+            className="bg-amber-700 hover:bg-amber-600 text-amber-50"
+          >
+            <Megaphone className="w-4 h-4 mr-1" /> Publicar en tablón
+          </Button>
+        )}
+      </div>
     </div>
 
     <div className="rounded-xl border border-amber-700/40 bg-black/60 backdrop-blur-sm p-6">
@@ -377,20 +415,25 @@ const CampaignHubPage = () => {
   const [igniteId, setIgniteId] = useState(null);
   const [pendingSeen, setPendingSeen] = useState(0);
   const [awardingFor, setAwardingFor] = useState(null);
-  const [scrollEntries, setScrollEntries] = useState(null); // for finish animation
+  const [scrollEntries, setScrollEntries] = useState(null);
+  const [listing, setListing] = useState(null);
 
   const reload = async () => {
     try {
-      const [r, c, l, p] = await Promise.all([
+      const [r, c, l, p, lst] = await Promise.all([
         getCampaignRun(id),
         getCampaignContent(id),
         getCampaignLog(id),
         listCampaignPlayers(id),
+        listCampaignListings({ only_open: false }).catch(() => []),
       ]);
       setRun(r);
       setContent(c);
       setLog(l);
       setPlayers(p);
+      // find listing for THIS run (if any)
+      const mine = (lst || []).find((x) => x.campaign_run_id === id);
+      setListing(mine || null);
     } catch (err) {
       toast.error(err?.response?.data?.detail || 'Error cargando campaña');
       navigate('/campanas');
@@ -467,6 +510,31 @@ const CampaignHubPage = () => {
       if (action === 'finish' && Array.isArray(result?.xp_consolidation) && result.xp_consolidation.length > 0) {
         setScrollEntries(result.xp_consolidation);
       }
+      await reload();
+    } catch (err) {
+      toast.error(err?.response?.data?.detail || 'Error');
+    }
+  };
+
+  const handlePublish = async () => {
+    try {
+      await createCampaignListing(id, {
+        description: run.description ? run.description.slice(0, 250) : null,
+        levelMin: run.recommended_level_min,
+        levelMax: run.recommended_level_max,
+      });
+      toast.success('Campaña publicada en el tablón');
+      await reload();
+    } catch (err) {
+      toast.error(err?.response?.data?.detail || 'Error');
+    }
+  };
+
+  const handleUnpublish = async () => {
+    if (!listing) return;
+    try {
+      await deleteCampaignListing(listing.id);
+      toast.success('Campaña retirada del tablón');
       await reload();
     } catch (err) {
       toast.error(err?.response?.data?.detail || 'Error');
@@ -570,7 +638,15 @@ const CampaignHubPage = () => {
         </div>
 
         {tab === 'info' && (
-          <InfoTab run={run} onAction={handleAction} onCopyCode={handleCopyCode} copied={copied} />
+          <InfoTab
+            run={run}
+            onAction={handleAction}
+            onCopyCode={handleCopyCode}
+            copied={copied}
+            listing={listing}
+            onPublish={handlePublish}
+            onUnpublish={handleUnpublish}
+          />
         )}
         {tab === 'content' && <ContentTab content={content} run={run} />}
         {tab === 'players' && (
