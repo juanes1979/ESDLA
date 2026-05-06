@@ -1,20 +1,25 @@
 /**
- * LoginPage — el Anillo Único como portal de entrada.
+ * LoginPage — portal del Anillo Único.
  *
- * El anillo grabado en élfico arde con un fuego que late, y dentro
- * de su círculo oscuro vive el formulario.
+ * Composición en dos capas:
+ *   1. ANILLO.png  → anillo en llamas, palpita.
+ *   2. estatico.png → disco con el formulario (título + labels + inputs
+ *      dibujados + botón + textos), inmóvil. Es la imagen oficial del
+ *      formulario. Encima posicionamos inputs/checkbox/botón/link
+ *      reales (transparentes) para que el formulario sea funcional.
+ *
+ * Reglas:
+ *   - estatico.png NO se mueve.
+ *   - ANILLO.png palpita pero su círculo interior nunca se hace mayor
+ *     que el disco visible de estatico.png (queda detrás).
  */
 import { useState } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
-import { Loader2, LogIn, ShieldAlert } from 'lucide-react';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Button } from '@/components/ui/button';
-import { Checkbox } from '@/components/ui/checkbox';
 import { useAuth } from '@/context/AuthContext';
 
 const HOME_BG = 'https://customer-assets.emergentagent.com/job_fab028bf-4de6-413f-8616-34827bc574a6/artifacts/j31eritq_Fondo.png';
-const RING_PORTAL = 'https://customer-assets.emergentagent.com/job_83678a44-91d5-44d8-bd9c-fd3a28e2ac42/artifacts/6icqwqj5_ENTRADA.png';
+const RING_FIRE = 'https://customer-assets.emergentagent.com/job_83678a44-91d5-44d8-bd9c-fd3a28e2ac42/artifacts/buvrdsxs_ANILLO.png';
+const STATIC_FORM = 'https://customer-assets.emergentagent.com/job_83678a44-91d5-44d8-bd9c-fd3a28e2ac42/artifacts/ov189tfo_estatico.png';
 
 const LoginPage = () => {
   const { login } = useAuth();
@@ -49,19 +54,12 @@ const LoginPage = () => {
         backgroundImage: `url(${HOME_BG})`,
         backgroundSize: 'cover',
         backgroundPosition: 'center',
-        backgroundRepeat: 'no-repeat',
       }}
     >
-      {/* Velo oscuro para contraste */}
-      <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/65 to-black/75" />
+      <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/55 to-black/70" />
 
-      {/* Resplandor naranja palpitante (halo del fuego) */}
-      <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
-        <div className="ring-halo" />
-      </div>
-
-      {/* Banda con título superior */}
-      <div className="absolute top-6 left-1/2 -translate-x-1/2 z-20">
+      {/* Banda título superior */}
+      <div className="absolute top-6 left-1/2 -translate-x-1/2 z-30">
         <div className="px-5 py-1.5 rounded-full border border-amber-700/60 bg-black/70 backdrop-blur-sm">
           <span className="text-[11px] tracking-[0.45em] text-amber-300/85 uppercase font-heading">
             Lord of the Rings · 5e
@@ -69,209 +67,194 @@ const LoginPage = () => {
         </div>
       </div>
 
-      {/* Portal Anillo */}
-      <div className="relative z-10 w-full max-w-[660px] aspect-square mx-auto">
-        {/* La imagen del Anillo en llamas, palpitando.
-            Reducida al 88% para que las letras del texto interno de la
-            imagen queden bien tapadas por el disco oscuro. Posición
-            ligeramente desplazada hacia arriba (44%) porque el centro
-            óptico del anillo en la imagen NO coincide con el centro
-            geométrico del PNG (la base con altar lo desplaza). */}
-        <div
-          className="ring-portal absolute inset-0"
-          data-testid="login-page"
-          style={{
-            backgroundImage: `url(${RING_PORTAL})`,
-            backgroundSize: '88% 88%',
-            backgroundPosition: 'center 44%',
-            backgroundRepeat: 'no-repeat',
-            WebkitMaskImage:
-              'radial-gradient(circle at 50% 44%, #000 32%, rgba(0,0,0,0.85) 42%, transparent 54%)',
-            maskImage:
-              'radial-gradient(circle at 50% 44%, #000 32%, rgba(0,0,0,0.85) 42%, transparent 54%)',
-            WebkitMaskRepeat: 'no-repeat',
-            maskRepeat: 'no-repeat',
-          }}
-        />
+      <RingPortal>
+        <form onSubmit={submit} data-testid="login-page" className="w-full h-full relative">
+          {/* Hot-zones alineadas con los elementos dibujados en estatico.png.
+              Coordenadas medidas sobre la imagen original. */}
 
-        {/* Disco oscuro que tapa el texto incrustado del anillo y aloja el form.
-            Palpita SINCRONIZADO con el anillo (misma animación ringPulse) para
-            que el agujero central del anillo y el disco coincidan en todo
-            momento. Centro vertical desplazado a 44% para alinearse con el
-            centro óptico del anillo. */}
-        <div
-          className="ring-portal-inner absolute rounded-full overflow-hidden"
-          style={{
-            // Centrado en (50%, 44%) con diámetro ~46% del cuadro.
-            // Tapa por completo el texto interno del anillo.
-            top: '21%', left: '27%', right: '27%', bottom: '29%',
-            background: 'rgb(8,4,2)',
-            boxShadow:
-              'inset 0 0 60px 6px rgba(0,0,0,0.95), 0 0 26px rgba(255,120,30,0.30)',
-          }}
-        >
-          <form
-            onSubmit={submit}
-            className="w-full h-full flex flex-col items-center justify-center text-center"
-            style={{ padding: '8% 14%' }}
+          <input
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+            autoComplete="email"
+            data-testid="login-email-input"
+            aria-label="Correo electrónico"
+            className="absolute font-heading text-amber-100 text-center bg-transparent border-0 outline-none focus:ring-0 placeholder:text-transparent"
+            style={{
+              left: '21%', right: '21%', top: '38%', height: '7%',
+              fontSize: 'clamp(11px, 1.1vw, 16px)',
+            }}
+          />
+
+          <input
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+            autoComplete="current-password"
+            data-testid="login-password-input"
+            aria-label="Contraseña"
+            className="absolute font-heading text-amber-100 text-center bg-transparent border-0 outline-none focus:ring-0"
+            style={{
+              left: '21%', right: '21%', top: '52%', height: '7%',
+              fontSize: 'clamp(11px, 1.1vw, 16px)',
+            }}
+          />
+
+          <button
+            type="button"
+            onClick={() => setRememberMe(!rememberMe)}
+            data-testid="login-remember-checkbox"
+            aria-label="Recordar sesión 30 días"
+            aria-pressed={rememberMe}
+            className="absolute rounded-full focus:outline-none transition-colors"
+            style={{
+              left: '21%', top: '63.5%', width: '4.5%', height: '4.5%',
+              background: rememberMe ? 'rgba(251,191,36,0.7)' : 'transparent',
+              boxShadow: rememberMe ? '0 0 14px rgba(251,191,36,0.65)' : 'none',
+            }}
+          />
+
+          <button
+            type="submit"
+            disabled={busy}
+            data-testid="login-submit-btn"
+            aria-label="Entrar"
+            className="absolute rounded-full cursor-pointer focus:outline-none transition-opacity hover:opacity-85 disabled:opacity-50"
+            style={{
+              left: '38%', right: '38%', top: '71%', height: '11%',
+              background: 'transparent',
+            }}
           >
-            <h1
-              className="font-heading text-base sm:text-lg text-[hsl(var(--gold))] tracking-wide leading-tight px-2"
-              style={{ textShadow: '0 0 14px rgba(251,191,36,0.45)' }}
-            >
-              Basado en El señor de los anillos 5e
-            </h1>
-
-            <div className="w-full space-y-1.5 mt-3">
-              <div className="text-left">
-                <Label htmlFor="login-email" className="text-amber-100 text-[10px]">
-                  Correo electrónico
-                </Label>
-                <Input
-                  id="login-email"
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                  autoComplete="email"
-                  className="h-7 mt-0.5 bg-black/70 border-amber-700/40 text-amber-50 text-xs"
-                  data-testid="login-email-input"
-                />
-              </div>
-              <div className="text-left">
-                <Label htmlFor="login-password" className="text-amber-100 text-[10px]">
-                  Contraseña
-                </Label>
-                <Input
-                  id="login-password"
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                  autoComplete="current-password"
-                  className="h-7 mt-0.5 bg-black/70 border-amber-700/40 text-amber-50 text-xs"
-                  data-testid="login-password-input"
-                />
-              </div>
-
-              <label className="flex items-center justify-center gap-2 text-[10px] text-amber-100/85 cursor-pointer pt-0.5 select-none">
-                <Checkbox
-                  checked={rememberMe}
-                  onCheckedChange={(v) => setRememberMe(!!v)}
-                  data-testid="login-remember-checkbox"
-                  className="h-3 w-3"
-                />
-                <span>Recordar sesión (30 días)</span>
-              </label>
-            </div>
-
-            {error && (
-              <div
-                className="flex items-start gap-1.5 mt-2 px-2 py-1 rounded border border-rose-500/50 bg-rose-950/80 text-rose-200 text-[10px] w-full"
-                data-testid="login-error"
-              >
-                <ShieldAlert className="w-3 h-3 mt-0.5 shrink-0" />
-                <span className="text-left leading-tight">{error}</span>
-              </div>
+            {busy && (
+              <span className="font-heading text-black text-sm animate-pulse">…</span>
             )}
+          </button>
 
-            <Button
-              type="submit"
-              disabled={busy}
-              className="mt-2.5 h-8 px-5 rounded-full bg-[hsl(var(--gold))] hover:bg-amber-300 text-black font-semibold tracking-wide text-sm shadow-[0_0_22px_rgba(251,191,36,0.6)]"
-              data-testid="login-submit-btn"
+          <Link
+            to="/register"
+            data-testid="login-go-register-link"
+            aria-label="Solicita acceso"
+            className="absolute"
+            style={{ left: '54%', right: '14%', top: '85%', height: '5%' }}
+          />
+
+          {error && (
+            <div
+              className="absolute left-1/2 -translate-x-1/2 px-3 py-1 rounded border border-rose-500/60 bg-rose-950/90 text-rose-100 text-xs whitespace-nowrap shadow-lg"
+              style={{ top: '28%' }}
+              data-testid="login-error"
             >
-              {busy ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <LogIn className="w-3.5 h-3.5 mr-1.5" />}
-              Entrar
-            </Button>
-
-            <p className="text-[10px] text-amber-200/70 mt-1.5">
-              ¿No tienes cuenta?{' '}
-              <Link
-                to="/register"
-                className="text-[hsl(var(--gold))] underline hover:text-amber-300"
-                data-testid="login-go-register-link"
-              >
-                Solicita acceso
-              </Link>
-            </p>
-          </form>
-        </div>
-      </div>
-
-      {/* Pie */}
-      <p className="absolute bottom-6 left-0 right-0 text-center text-[10px] tracking-[0.4em] text-amber-200/55 uppercase z-10">
-        La Tierra Media te espera
-      </p>
-
-      {/* Animaciones del fuego — pulso + flicker. */}
-      <style>{`
-        @keyframes ringPulse {
-          0%, 100% {
-            transform: scale(1);
-            filter: brightness(1) saturate(1.05);
-          }
-          50% {
-            transform: scale(1.025);
-            filter: brightness(1.18) saturate(1.25);
-          }
-        }
-        @keyframes ringFlicker {
-          0%, 100% { opacity: 1; }
-          37%      { opacity: 0.92; }
-          63%      { opacity: 0.97; }
-          78%      { opacity: 0.88; }
-        }
-        @keyframes haloPulse {
-          0%, 100% {
-            transform: scale(1);
-            opacity: 0.55;
-          }
-          50% {
-            transform: scale(1.08);
-            opacity: 0.85;
-          }
-        }
-        .ring-portal {
-          animation: ringPulse 3.4s ease-in-out infinite,
-                     ringFlicker 0.45s steps(2, end) infinite;
-          transform-origin: center;
-          will-change: transform, filter, opacity;
-          /* IMPORTANTE: NO usamos filter:drop-shadow aquí porque pintaría
-             un halo siguiendo la silueta CUADRADA del PNG, creando un
-             marco visible al palpitar. El resplandor naranja se hace
-             con .ring-halo y un radial-gradient detrás. */
-        }
-        /* El disco interior palpita en sincronía con el anillo para que el
-           agujero central no se "desencuadre" durante la animación. Sólo
-           replica el scale, no el flicker ni el cambio de brillo. */
-        .ring-portal-inner {
-          animation: ringPulse 3.4s ease-in-out infinite;
-          transform-origin: center;
-          will-change: transform;
-        }
-        .ring-halo {
-          width: 760px;
-          height: 760px;
-          max-width: 90vmin;
-          max-height: 90vmin;
-          border-radius: 9999px;
-          background:
-            radial-gradient(circle,
-              rgba(255,140,40,0.55) 0%,
-              rgba(255,90,20,0.32) 30%,
-              rgba(255,70,10,0.18) 48%,
-              rgba(180,40,0,0.05) 60%,
-              transparent 75%);
-          filter: blur(34px);
-          animation: haloPulse 3.4s ease-in-out infinite;
-        }
-        @media (prefers-reduced-motion: reduce) {
-          .ring-portal, .ring-portal-inner, .ring-halo { animation: none !important; }
-        }
-      `}</style>
+              {error}
+            </div>
+          )}
+        </form>
+      </RingPortal>
     </div>
   );
 };
+
+/**
+ * Layout reusable: anillo palpitante de fondo + área central donde
+ * `children` se renderiza dentro del agujero del anillo. Por defecto
+ * incluye el disco estático con el formulario de login dibujado
+ * (estatico.png); pásale `staticDisc={false}` para usar otro fondo
+ * (por ejemplo en RegisterPage donde necesitamos más campos).
+ */
+export const RingPortal = ({ children, staticDisc = true, contentSize = '64%' }) => (
+  <div className="relative z-10 w-full max-w-[640px] aspect-square mx-auto">
+    {/* Halo naranja palpitante detrás del anillo. */}
+    <div
+      aria-hidden
+      className="ring-halo absolute inset-0 m-auto pointer-events-none"
+      style={{
+        background:
+          'radial-gradient(circle at 50% 50%, rgba(255,140,40,0.55) 0%, rgba(255,90,20,0.32) 30%, rgba(180,40,0,0.10) 55%, transparent 72%)',
+        filter: 'blur(28px)',
+      }}
+    />
+
+    {/* Capa 1 — ANILLO en llamas (palpita). */}
+    <img
+      src={RING_FIRE}
+      alt=""
+      aria-hidden
+      className="ring-fire absolute inset-0 w-full h-full select-none pointer-events-none"
+      draggable={false}
+    />
+
+    {/* Capa 2 — Disco estático con el formulario de login dibujado.
+        Sólo visible si staticDisc=true. */}
+    {staticDisc && (
+      <img
+        src={STATIC_FORM}
+        alt=""
+        aria-hidden
+        className="absolute select-none pointer-events-none"
+        draggable={false}
+        style={{
+          width: contentSize,
+          top: '50%',
+          left: '50%',
+          transform: 'translate(-50%, -50%)',
+        }}
+      />
+    )}
+
+    {/* Capa 3 — Hot-zones / contenido interactivo. Mismo tamaño que el
+        disco para que las posiciones en porcentaje del children sean
+        consistentes entre login y register. */}
+    <div
+      className="absolute"
+      style={{
+        width: contentSize,
+        top: '50%',
+        left: '50%',
+        transform: 'translate(-50%, -50%)',
+        aspectRatio: '1 / 1',
+      }}
+    >
+      {children}
+    </div>
+
+    <style>{`
+      @keyframes ringFirePulse {
+        0%, 100% {
+          transform: scale(1);
+          filter: brightness(1) saturate(1.05);
+          opacity: 1;
+        }
+        50% {
+          transform: scale(1.022);
+          filter: brightness(1.18) saturate(1.25);
+          opacity: 0.96;
+        }
+      }
+      @keyframes ringFireFlicker {
+        0%, 100% { opacity: 1; }
+        37% { opacity: 0.92; }
+        63% { opacity: 0.97; }
+        78% { opacity: 0.88; }
+      }
+      @keyframes haloPulse {
+        0%, 100% { transform: scale(1); opacity: 0.55; }
+        50%      { transform: scale(1.10); opacity: 0.85; }
+      }
+      .ring-fire {
+        animation: ringFirePulse 3.4s ease-in-out infinite,
+                   ringFireFlicker 0.45s steps(2, end) infinite;
+        transform-origin: center;
+        will-change: transform, filter, opacity;
+      }
+      .ring-halo {
+        animation: haloPulse 3.4s ease-in-out infinite;
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .ring-fire, .ring-halo { animation: none !important; }
+      }
+    `}</style>
+  </div>
+);
 
 export default LoginPage;
