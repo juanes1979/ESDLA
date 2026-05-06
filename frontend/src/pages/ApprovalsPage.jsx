@@ -13,7 +13,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Loader2, CheckCircle2, XCircle, RefreshCw, UserMinus,
-  ArrowLeft, ShieldCheck, Lock,
+  ArrowLeft, ShieldCheck, Lock, Sparkles,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import api from '@/services/api';
@@ -91,6 +91,38 @@ const ApprovalsPage = () => {
     }
   };
 
+  const cleanupDb = async () => {
+    // 1) Dry-run para previsualizar.
+    let preview;
+    try {
+      const { data } = await api.post('/admin/maintenance/cleanup?dry_run=true');
+      preview = data;
+    } catch (err) {
+      toast.error(err?.response?.data?.detail || 'No se pudo consultar el estado de la BD');
+      return;
+    }
+    if (preview.total_purged === 0) {
+      toast.success('La base de datos ya está limpia. Nada que purgar.');
+      return;
+    }
+    const lines = Object.entries(preview.details)
+      .filter(([, v]) => v > 0)
+      .map(([k, v]) => `  • ${k}: ${v}`)
+      .join('\n');
+    const ok = window.confirm(
+      `Se van a purgar ${preview.total_purged} registros huérfanos:\n\n${lines}\n\n¿Confirmar?`
+    );
+    if (!ok) return;
+    // 2) Ejecutar de verdad.
+    try {
+      const { data } = await api.post('/admin/maintenance/cleanup');
+      toast.success(`BD limpia: ${data.total_purged} registros purgados`);
+      await load();
+    } catch (err) {
+      toast.error(err?.response?.data?.detail || 'Error al limpiar BD');
+    }
+  };
+
   // Particionar por rol/estado.
   const pending = users.filter(u => u.status === 'pendiente');
   const maestros = users.filter(u => u.status !== 'pendiente' && u.role === 'maestro');
@@ -135,6 +167,17 @@ const ApprovalsPage = () => {
           <Button variant="outline" size="sm" onClick={load} disabled={loading}>
             <RefreshCw className={`w-4 h-4 mr-1 ${loading ? 'animate-spin' : ''}`} />
             Refrescar
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={cleanupDb}
+            className="border-amber-700/50 text-amber-200 hover:bg-amber-900/30"
+            data-testid="cleanup-db-btn"
+            title="Purga personajes/drafts/relaciones huérfanas y datos de prueba"
+          >
+            <Sparkles className="w-4 h-4 mr-1" />
+            Limpiar BD
           </Button>
         </div>
 

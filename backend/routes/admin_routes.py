@@ -190,3 +190,94 @@ async def admin_verify_token(x_admin_token: Optional[str] = Header(None)) -> Dic
     enabling destructive UI."""
     _check_admin_token(x_admin_token)
     return {"valid": True}
+
+
+
+# ============================================================================
+# MAINTENANCE — Purge orphan rows on demand (Maestro only via JWT)
+# ============================================================================
+from auth import get_current_user, require_role  # noqa: E402
+from fastapi import Depends  # noqa: E402
+
+
+@router.post("/maintenance/cleanup")
+async def maintenance_cleanup(
+    dry_run: bool = False,
+    user: dict = Depends(get_current_user),
+):
+    """
+    Purge orphan rows across the database. Maestro only.
+
+    Removes:
+      - `characters` whose `owner_id` is missing/empty or points to a deleted user.
+      - `characters` whose `nombre` or `id` starts with "test" (case-insensitive).
+      - `character_drafts` with the same rules.
+      - `npc_relationships` whose `character_id` or `npc_id` no longer exists.
+      - `login_attempts` older than 30 days.
+
+    Pass `?dry_run=true` to get the counts WITHOUT deleting anything.
+    """
+    require_role(user, "maestro")
+
+    valid_user_ids = {u["id"] async for u in db.users.find({}, {"_id": 0, "id": 1}) if u.get("id")}
+    valid_char_ids = {c["id"] async for c in db.characters.find({}, {"_id": 0, "id": 1}) if c.get("id")}
+    valid_npc_ids = {str(n["_id"]) async for n in db.trading_npcs.find({}, {"_id": 1}) if n.get("_id")}
+
+    test_filter = {
+        "$or": [
+            {"nombre": {"$regex": "^test", "$options": "i"}},
+            {"id": {"$regex": "^test_", "$options": "i"}},
+        ]
+    }
+    no_owner_filter = {
+        "$or": [
+            {"owner_id": {"$exists": False}},
+            {"owner_id": None},
+            {"owner_id": ""},
+        ]
+    }
+    bad_owner_filter = (
+        {"owner_id": {"$nin": list(valid_user_ids)}}
+        if valid_user_ids else {"owner_id": {"$exists": True}}
+    )
+    rel_orphan_filter = {
+        "$or": [
+            {"character_id": {"$nin": list(valid_char_ids)}},
+            {"npc_id": {"$nin": list(valid_npc_ids)}},
+        ]
+    }
+    from datetime import timedelta
+    cutoff = (datetime.now(timezone.utc) - timedelta(days=30)).isoformat()
+    old_attempts_filter = {
+        "$or": [
+            {"first_attempt": {"$lt": cutoff}},
+            {"first_attempt": {"$exists": False}},
+        ]
+    }
+
+    targets = {
+        "characters_test": (db.characters, test_filter),
+        "characters_no_owner": (db.characters, no_owner_filter),
+        "characters_bad_owner": (db.characters, bad_owner_filter),
+        "drafts_test": (db.character_drafts, test_filter),
+        "drafts_no_owner": (db.character_drafts, no_owner_filter),
+        "drafts_bad_owner": (db.character_drafts, bad_owner_filter),
+        "relationships_orphan": (db.npc_relationships, rel_orphan_filter),
+        "login_attempts_old": (db.login_attempts, old_attempts_filter),
+    }
+
+    report = {}
+    total = 0
+    for name, (col, flt) in targets.items():
+        count = await col.count_documents(flt)
+        report[name] = count
+        total += count
+        if not dry_run and count > 0:
+            await col.delete_many(flt)
+
+    return {
+        "dry_run": dry_run,
+        "total_purged": total,
+        "details": report,
+        "executed_at": datetime.now(timezone.utc).isoformat(),
+    }
