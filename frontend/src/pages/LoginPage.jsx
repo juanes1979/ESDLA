@@ -1,17 +1,10 @@
 /**
  * LoginPage — portal del Anillo Único.
  *
- * Composición en dos capas:
- *   1. ANILLO.png  → anillo en llamas, palpita.
- *   2. estatico.png → disco con el formulario (título + labels + inputs
- *      dibujados + botón + textos), inmóvil. Es la imagen oficial del
- *      formulario. Encima posicionamos inputs/checkbox/botón/link
- *      reales (transparentes) para que el formulario sea funcional.
- *
- * Reglas:
- *   - estatico.png NO se mueve.
- *   - ANILLO.png palpita pero su círculo interior nunca se hace mayor
- *     que el disco visible de estatico.png (queda detrás).
+ * IMPORTANTE: ANILLO.png y estatico.png están diseñadas para coincidir
+ * EXACTAMENTE cuando se renderizan al MISMO tamaño. El agujero del
+ * anillo se alinea pixel a pixel con el disco oscuro del estatico.
+ * Por eso ambas imágenes ocupan inset-0 (100% del cuadro contenedor).
  */
 import { useState } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
@@ -58,7 +51,6 @@ const LoginPage = () => {
     >
       <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/55 to-black/70" />
 
-      {/* Banda título superior */}
       <div className="absolute top-6 left-1/2 -translate-x-1/2 z-30">
         <div className="px-5 py-1.5 rounded-full border border-amber-700/60 bg-black/70 backdrop-blur-sm">
           <span className="text-[11px] tracking-[0.45em] text-amber-300/85 uppercase font-heading">
@@ -68,10 +60,10 @@ const LoginPage = () => {
       </div>
 
       <RingPortal>
-        <form onSubmit={submit} data-testid="login-page" className="w-full h-full relative">
-          {/* Hot-zones alineadas con los elementos dibujados en estatico.png.
-              Coordenadas medidas sobre la imagen original. */}
-
+        {/* El form interactivo va DENTRO del estatico (que ya está
+            posicionado y dimensionado al agujero del anillo). Las
+            posiciones aquí son % relativos al estatico. */}
+        <form onSubmit={submit} data-testid="login-page" className="absolute inset-0">
           <input
             type="email"
             value={email}
@@ -80,9 +72,9 @@ const LoginPage = () => {
             autoComplete="email"
             data-testid="login-email-input"
             aria-label="Correo electrónico"
-            className="absolute font-heading text-amber-100 text-center bg-transparent border-0 outline-none focus:ring-0 placeholder:text-transparent"
+            className="absolute font-heading text-amber-100 text-center bg-transparent border-0 outline-none focus:ring-0"
             style={{
-              left: '21%', right: '21%', top: '38%', height: '7%',
+              left: '15%', right: '15%', top: '42%', height: '6%',
               fontSize: 'clamp(11px, 1.1vw, 16px)',
             }}
           />
@@ -97,7 +89,7 @@ const LoginPage = () => {
             aria-label="Contraseña"
             className="absolute font-heading text-amber-100 text-center bg-transparent border-0 outline-none focus:ring-0"
             style={{
-              left: '21%', right: '21%', top: '52%', height: '7%',
+              left: '15%', right: '15%', top: '54%', height: '6%',
               fontSize: 'clamp(11px, 1.1vw, 16px)',
             }}
           />
@@ -110,9 +102,9 @@ const LoginPage = () => {
             aria-pressed={rememberMe}
             className="absolute rounded-full focus:outline-none transition-colors"
             style={{
-              left: '21%', top: '63.5%', width: '4.5%', height: '4.5%',
-              background: rememberMe ? 'rgba(251,191,36,0.7)' : 'transparent',
-              boxShadow: rememberMe ? '0 0 14px rgba(251,191,36,0.65)' : 'none',
+              left: '15%', top: '63%', width: '4%', height: '4%',
+              background: rememberMe ? 'rgba(251,191,36,0.75)' : 'transparent',
+              boxShadow: rememberMe ? '0 0 12px rgba(251,191,36,0.65)' : 'none',
             }}
           />
 
@@ -123,7 +115,7 @@ const LoginPage = () => {
             aria-label="Entrar"
             className="absolute rounded-full cursor-pointer focus:outline-none transition-opacity hover:opacity-85 disabled:opacity-50"
             style={{
-              left: '38%', right: '38%', top: '71%', height: '11%',
+              left: '36%', right: '36%', top: '70%', height: '10%',
               background: 'transparent',
             }}
           >
@@ -137,13 +129,13 @@ const LoginPage = () => {
             data-testid="login-go-register-link"
             aria-label="Solicita acceso"
             className="absolute"
-            style={{ left: '54%', right: '14%', top: '85%', height: '5%' }}
+            style={{ left: '54%', right: '14%', top: '82%', height: '4%' }}
           />
 
           {error && (
             <div
               className="absolute left-1/2 -translate-x-1/2 px-3 py-1 rounded border border-rose-500/60 bg-rose-950/90 text-rose-100 text-xs whitespace-nowrap shadow-lg"
-              style={{ top: '28%' }}
+              style={{ top: '34%' }}
               data-testid="login-error"
             >
               {error}
@@ -156,13 +148,14 @@ const LoginPage = () => {
 };
 
 /**
- * Layout reusable: anillo palpitante de fondo + área central donde
- * `children` se renderiza dentro del agujero del anillo. Por defecto
- * incluye el disco estático con el formulario de login dibujado
- * (estatico.png); pásale `staticDisc={false}` para usar otro fondo
- * (por ejemplo en RegisterPage donde necesitamos más campos).
+ * Layout reusable: anillo palpitante + disco estático con el formulario
+ * dibujado encima. Ambas imágenes ocupan el mismo cuadro (inset-0)
+ * porque están diseñadas para alinearse pixel a pixel.
+ *
+ * Para escenas con más campos (RegisterPage), pasa `staticDisc={false}`
+ * y renderiza tu propio disco oscuro como `children`.
  */
-export const RingPortal = ({ children, staticDisc = true, contentSize = '64%' }) => (
+export const RingPortal = ({ children, staticDisc = true }) => (
   <div className="relative z-10 w-full max-w-[640px] aspect-square mx-auto">
     {/* Halo naranja palpitante detrás del anillo. */}
     <div
@@ -184,38 +177,32 @@ export const RingPortal = ({ children, staticDisc = true, contentSize = '64%' })
       draggable={false}
     />
 
-    {/* Capa 2 — Disco estático con el formulario de login dibujado.
-        Sólo visible si staticDisc=true. */}
-    {staticDisc && (
-      <img
-        src={STATIC_FORM}
-        alt=""
-        aria-hidden
-        className="absolute select-none pointer-events-none"
-        draggable={false}
-        style={{
-          width: contentSize,
-          top: '50%',
-          left: '50%',
-          transform: 'translate(-50%, -50%)',
-        }}
-      />
-    )}
-
-    {/* Capa 3 — Hot-zones / contenido interactivo. Mismo tamaño que el
-        disco para que las posiciones en porcentaje del children sean
-        consistentes entre login y register. */}
+    {/* Capa 2 — Disco estático con el formulario dibujado.
+        Posicionado y dimensionado para CALZAR EXACTAMENTE en el agujero
+        del anillo: agujero medido = 66.5% × 62.3% del lienzo, centrado
+        en (50.2%, 47.7%). El estatico se contiene en este área y los
+        children (form interactivo) heredan ese mismo wrapper. */}
     <div
       className="absolute"
       style={{
-        width: contentSize,
-        top: '50%',
-        left: '50%',
-        transform: 'translate(-50%, -50%)',
-        aspectRatio: '1 / 1',
+        width: '66.5%',
+        height: '62.3%',
+        left: '16.95%',
+        top: '16.55%',
       }}
     >
-      {children}
+      {staticDisc && (
+        <img
+          src={STATIC_FORM}
+          alt=""
+          aria-hidden
+          className="absolute inset-0 w-full h-full select-none pointer-events-none"
+          draggable={false}
+        />
+      )}
+      {/* Capa 3 — Hot-zones / contenido interactivo. % relativos al
+          rectángulo del agujero del anillo. */}
+      <div className="absolute inset-0">{children}</div>
     </div>
 
     <style>{`
