@@ -72,9 +72,10 @@ const LoginPage = () => {
       {/* Portal Anillo */}
       <div className="relative z-10 w-full max-w-[720px] aspect-square mx-auto">
         {/* La imagen del Anillo en llamas, palpitando.
-            Usamos una máscara radial para recortar el altar de piedra
-            y los bordes cuadrados del PNG, dejando sólo el anillo
-            con sus llamas. */}
+            Máscara radial con fade muy gradual: el anillo se funde con
+            el fondo sin bordes duros y sin altar. NO usamos drop-shadow
+            sobre el PNG porque dibujaría un halo cuadrado siguiendo la
+            silueta original del archivo en lugar de la máscara. */}
         <div
           className="ring-portal absolute inset-0"
           data-testid="login-page"
@@ -84,9 +85,11 @@ const LoginPage = () => {
             backgroundPosition: 'center',
             backgroundRepeat: 'no-repeat',
             WebkitMaskImage:
-              'radial-gradient(ellipse 56% 52% at 50% 44%, #000 78%, transparent 96%)',
+              'radial-gradient(circle at 50% 46%, #000 36%, rgba(0,0,0,0.85) 46%, transparent 60%)',
             maskImage:
-              'radial-gradient(ellipse 56% 52% at 50% 44%, #000 78%, transparent 96%)',
+              'radial-gradient(circle at 50% 46%, #000 36%, rgba(0,0,0,0.85) 46%, transparent 60%)',
+            WebkitMaskRepeat: 'no-repeat',
+            maskRepeat: 'no-repeat',
           }}
         />
 
@@ -233,8 +236,10 @@ const LoginPage = () => {
                      ringFlicker 0.45s steps(2, end) infinite;
           transform-origin: center;
           will-change: transform, filter, opacity;
-          filter: drop-shadow(0 0 38px rgba(255,120,30,0.55))
-                  drop-shadow(0 0 80px rgba(255,80,10,0.35));
+          /* IMPORTANTE: NO usamos filter:drop-shadow aquí porque pintaría
+             un halo siguiendo la silueta CUADRADA del PNG, creando un
+             marco visible al palpitar. El resplandor naranja se hace
+             con .ring-halo y un radial-gradient detrás. */
         }
         .ring-halo {
           width: 760px;
@@ -244,11 +249,12 @@ const LoginPage = () => {
           border-radius: 9999px;
           background:
             radial-gradient(circle,
-              rgba(255,150,40,0.55) 0%,
-              rgba(255,90,20,0.30) 38%,
-              rgba(180,40,0,0.10) 60%,
-              transparent 72%);
-          filter: blur(28px);
+              rgba(255,140,40,0.55) 0%,
+              rgba(255,90,20,0.32) 30%,
+              rgba(255,70,10,0.18) 48%,
+              rgba(180,40,0,0.05) 60%,
+              transparent 75%);
+          filter: blur(34px);
           animation: haloPulse 3.4s ease-in-out infinite;
         }
         @media (prefers-reduced-motion: reduce) {
