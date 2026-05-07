@@ -116,7 +116,7 @@ class AdventureBase(BaseModel):
 
     # Step 1 — Basic
     name: str = Field(..., min_length=3, max_length=80)
-    image_file_id: Optional[str] = None  # GridFS id (cover image, ≤0.5 MB)
+    image_file_id: Optional[str] = None  # GridFS id (cover image, ≤5 MB)
     image_path: Optional[str] = None
     year: Optional[int] = None  # year T.E.
     season: Optional[Literal["primavera", "verano", "otono", "invierno"]] = None

@@ -49,7 +49,7 @@ import NPCStatBlockEditor from '@/components/adventures/NPCStatBlockEditor';
 import NPCStatBlockPreview from '@/components/adventures/NPCStatBlockPreview';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
-const MAX_IMAGE_BYTES = 0.5 * 1024 * 1024; // 0.5 MB
+const MAX_IMAGE_BYTES = 5 * 1024 * 1024; // 5 MB
 const MAX_MAPS = 20;
 
 const STEPS = [
@@ -109,7 +109,7 @@ const Step1Basic = ({ adv, setField, locationOptions, locations, onUploadCover, 
       />
     </Field>
 
-    <Field label="Imagen de carátula (≤ 0.5 MB)" hint="Formatos: PNG, JPG, WEBP">
+    <Field label="Imagen de carátula (≤ 5 MB)" hint="Formatos: PNG, JPG, WEBP">
       <div className="flex items-center gap-3">
         {adv.image_file_id ? (
           <AuthenticatedImage
@@ -447,7 +447,7 @@ const Step4Maps = ({ adv, setField, onUploadMap, uploadingMap }) => {
   return (
     <StepCard
       title={`Mapas (${adv.maps?.length || 0}/${MAX_MAPS})`}
-      description="Hasta 20 imágenes. Cada una ≤ 0.5 MB."
+      description="Hasta 20 imágenes. Cada una ≤ 5 MB."
     >
       <input
         type="file"
@@ -1357,7 +1357,7 @@ const AdventureWizardPage = () => {
     const f = e.target.files?.[0];
     if (!f) return;
     if (f.size > MAX_IMAGE_BYTES) {
-      toast.error(`La imagen supera 0.5 MB (${(f.size / 1024).toFixed(0)} KB)`);
+      toast.error(`La imagen supera 5 MB (${(f.size / (1024 * 1024)).toFixed(2)} MB)`);
       e.target.value = '';
       return;
     }
@@ -1377,7 +1377,7 @@ const AdventureWizardPage = () => {
 
   const handleUploadMap = async (file) => {
     if (file.size > MAX_IMAGE_BYTES) {
-      toast.error(`"${file.name}" supera 0.5 MB`);
+      toast.error(`"${file.name}" supera 5 MB`);
       return;
     }
     setUploadingMap(true);
@@ -1407,7 +1407,7 @@ const AdventureWizardPage = () => {
           break;
         }
         if (f.size > MAX_IMAGE_BYTES) {
-          toast.error(`"${f.name}" supera 0.5 MB`);
+          toast.error(`"${f.name}" supera 5 MB`);
           continue;
         }
         const res = await uploadAdventureImage(f, { description: `env-${id}-${envIdx}` });
