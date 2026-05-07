@@ -35,6 +35,7 @@ import {
   getBestiary,
   getLocations,
   getPatrons,
+  getCultures,
   generateCampaignRun,
 } from '@/services/api';
 import { useAuth } from '@/context/AuthContext';
@@ -266,6 +267,18 @@ const Step2Premise = ({ adv, setField, patrons }) => {
         testid="adv-rumor"
       />
     </Field>
+    <Field
+      label="Texto para presentar a los personajes"
+      hint="Si lo rellenas, podrás mostrarlo a los jugadores al inicio de la historia (lectura en voz alta o pasaje impreso)."
+    >
+      <TextArea
+        value={adv.presentation_text}
+        onChange={(v) => setField('presentation_text', v)}
+        placeholder="«Hace ya cinco generaciones que las gentes del valle hablan de la luz azul que brilla sobre las nieblas del Sarn…»"
+        rows={5}
+        testid="adv-presentation-text"
+      />
+    </Field>
     <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
       <Field label="Saber Antiguo — CD INT" hint="Prueba (no TS)">
         <TextInput
@@ -292,31 +305,8 @@ const Step2Premise = ({ adv, setField, patrons }) => {
   );
 };
 
-const MAX_TRAVEL_STOPS = 5;
-
 const Step3Background = ({ adv, setField, locations }) => {
-  const stops = adv.travel_route || [];
   const events = adv.travel_events || [];
-
-  const updateStop = (idx, picked) => {
-    const next = [...stops];
-    if (!picked) {
-      next.splice(idx, 1);
-    } else {
-      next[idx] = { ...(next[idx] || {}), ...picked };
-    }
-    setField('travel_route', next);
-  };
-  const addStop = () => {
-    if (stops.length >= MAX_TRAVEL_STOPS) {
-      toast.error(`Máximo ${MAX_TRAVEL_STOPS} paradas`);
-      return;
-    }
-    setField('travel_route', [
-      ...stops,
-      { id: undefined, location_id: null, location_name: null, region: null },
-    ]);
-  };
 
   const updateEvent = (idx, key, val) => {
     const next = [...events];
@@ -324,7 +314,7 @@ const Step3Background = ({ adv, setField, locations }) => {
     setField('travel_events', next);
   };
   const addEvent = () =>
-    setField('travel_events', [...events, { title: '', description: '' }]);
+    setField('travel_events', [...events, { title: '', description: '', player_notes: '' }]);
   const removeEvent = (idx) =>
     setField('travel_events', events.filter((_, i) => i !== idx));
 
@@ -338,71 +328,6 @@ const Step3Background = ({ adv, setField, locations }) => {
           testid="adv-background"
         />
       </Field>
-
-      <div className="mt-4 mb-4 p-3 rounded border border-amber-800/30 bg-black/30">
-        <div className="flex items-center justify-between mb-2">
-          <h3 className="text-sm font-medium text-amber-200">
-            Paradas intermedias del viaje ({stops.length}/{MAX_TRAVEL_STOPS})
-          </h3>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={addStop}
-            disabled={stops.length >= MAX_TRAVEL_STOPS}
-            data-testid="travel-stop-add"
-            className="border-amber-700/50 text-amber-200 hover:bg-amber-900/30"
-          >
-            <Plus className="w-3.5 h-3.5 mr-1" /> Añadir parada
-          </Button>
-        </div>
-        <p className="text-xs text-amber-300/50 mb-3">
-          Hasta {MAX_TRAVEL_STOPS} paradas entre origen y destino. Origen y destino se eligen
-          al activar la campaña. Cada parada se elige del listado o marcando un punto en el mapa.
-        </p>
-        {stops.length === 0 && (
-          <p className="text-xs italic text-amber-300/40">
-            Sin paradas. Pulsa "Añadir parada" para empezar la ruta.
-          </p>
-        )}
-        {stops.map((s, idx) => (
-          <div key={s.id || idx} className="mb-2 flex items-start gap-2" data-testid={`travel-stop-${idx}`}>
-            <span className="text-amber-300/70 text-sm pt-2 w-8 text-right">#{idx + 1}</span>
-            <div className="flex-1">
-              <LocationPickerField
-                locations={locations}
-                value={
-                  s.location_name
-                    ? { location_id: s.location_id, location_name: s.location_name, region: s.region }
-                    : null
-                }
-                onChange={(picked) => updateStop(idx, picked)}
-                testidPrefix={`travel-stop-${idx}`}
-                placeholder={`Buscar parada #${idx + 1}…`}
-              />
-              <input
-                value={s.note || ''}
-                onChange={(e) => {
-                  const next = [...stops];
-                  next[idx] = { ...next[idx], note: e.target.value };
-                  setField('travel_route', next);
-                }}
-                placeholder="Nota (opcional)"
-                data-testid={`travel-stop-note-${idx}`}
-                className="w-full mt-1 px-2 py-1 bg-black/60 border border-amber-800/40 rounded text-amber-100 text-xs"
-              />
-            </div>
-            <button
-              onClick={() => updateStop(idx, null)}
-              className="p-1.5 rounded bg-rose-900/60 text-rose-100 hover:bg-rose-700"
-              data-testid={`travel-stop-remove-${idx}`}
-              aria-label="Eliminar parada"
-            >
-              <Trash2 className="w-3.5 h-3.5" />
-            </button>
-          </div>
-        ))}
-      </div>
 
       <div className="mt-4 p-3 rounded border border-amber-800/30 bg-black/30">
         <div className="flex items-center justify-between mb-2">
@@ -443,10 +368,18 @@ const Step3Background = ({ adv, setField, locations }) => {
               <textarea
                 value={ev.description || ''}
                 onChange={(e) => updateEvent(idx, 'description', e.target.value)}
-                placeholder="Descripción"
+                placeholder="Descripción para el DJ"
                 rows={3}
                 data-testid={`travel-event-desc-${idx}`}
                 className="w-full px-2 py-1 bg-black/60 border border-amber-800/40 rounded text-amber-100 text-sm resize-y"
+              />
+              <textarea
+                value={ev.player_notes || ''}
+                onChange={(e) => updateEvent(idx, 'player_notes', e.target.value)}
+                placeholder="Notas para los personajes (mostrables a discreción del DJ)"
+                rows={2}
+                data-testid={`travel-event-player-notes-${idx}`}
+                className="w-full px-2 py-1 bg-emerald-950/30 border border-emerald-800/40 rounded text-emerald-100 text-sm resize-y"
               />
             </div>
             <button
@@ -486,6 +419,12 @@ const Step3Background = ({ adv, setField, locations }) => {
           </details>
         )}
       </div>
+
+      <p className="mt-3 text-xs text-amber-300/50 italic">
+        Las paradas intermedias entre origen y destino se configuran ahora en el{' '}
+        <strong>Generador de Viajes</strong>, ya que dependen de los puntos elegidos al activar
+        la campaña.
+      </p>
     </StepCard>
   );
 };
@@ -960,10 +899,39 @@ const Step7NPCs = ({ adv, setField, bestiary }) => {
   );
 };
 
-const Step8Config = ({ adv, setField }) => (
+const Step8Config = ({ adv, setField, cultures }) => {
+  const cultureList = cultures || [];
+  const allowedCulIds = adv.allowed_culture_ids || [];
+  const allowedSubs = adv.allowed_subcultures || [];
+
+  // Build a flat list of subcultures (each as "Cultura — Subcultura")
+  const subcultureOptions = [];
+  for (const c of cultureList) {
+    for (const sub of c.subculturas || c.subcultures || []) {
+      subcultureOptions.push({
+        value: `${c.id || c._id}::${sub.nombre || sub.name || sub}`,
+        label: `${c.nombre || c.name} — ${sub.nombre || sub.name || sub}`,
+      });
+    }
+  }
+
+  const toggleCulture = (cid) => {
+    const next = allowedCulIds.includes(cid)
+      ? allowedCulIds.filter((x) => x !== cid)
+      : [...allowedCulIds, cid];
+    setField('allowed_culture_ids', next);
+  };
+  const toggleSubculture = (key) => {
+    const next = allowedSubs.includes(key)
+      ? allowedSubs.filter((x) => x !== key)
+      : [...allowedSubs, key];
+    setField('allowed_subcultures', next);
+  };
+
+  return (
   <StepCard
     title="Configuración"
-    description="Jugadores, niveles, visibilidad. Esto se aplicará al generar Campaña."
+    description="Jugadores, niveles, restricciones de raza/cultura, visibilidad. Esto se aplicará al generar Campaña."
   >
     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
       <Field label="Jugadores máximos" required>
@@ -1028,6 +996,97 @@ const Step8Config = ({ adv, setField }) => (
       </Field>
     </div>
 
+    <div className="mt-4 p-3 rounded border border-amber-800/30 bg-black/30">
+      <h3 className="text-sm font-medium text-amber-200 mb-2">
+        Restricciones de raza/cultura (opcional)
+      </h3>
+      <p className="text-xs text-amber-300/60 mb-3">
+        Si dejas vacío, cualquier personaje puede unirse. Selecciona culturas concretas para
+        limitar (p. ej. sólo Hobbits) o subculturas específicas (p. ej. sólo Hobbits de los
+        Pies Peludos).
+      </p>
+
+      <div className="mb-3">
+        <div className="text-xs text-amber-300/80 mb-1">Culturas permitidas:</div>
+        <div className="flex flex-wrap gap-2">
+          {cultureList.map((c) => {
+            const cid = c.id || c._id;
+            const checked = allowedCulIds.includes(cid);
+            return (
+              <button
+                type="button"
+                key={cid}
+                onClick={() => toggleCulture(cid)}
+                data-testid={`adv-allowed-cul-${cid}`}
+                className={`px-2 py-1 text-xs rounded border transition-colors ${
+                  checked
+                    ? 'bg-amber-700/60 border-amber-500 text-amber-50'
+                    : 'bg-black/40 border-amber-800/40 text-amber-300/80 hover:border-amber-600'
+                }`}
+              >
+                {checked && '✓ '}
+                {c.nombre || c.name}
+              </button>
+            );
+          })}
+          {cultureList.length === 0 && (
+            <p className="text-xs italic text-amber-300/40">
+              (Cargando culturas…)
+            </p>
+          )}
+        </div>
+        {allowedCulIds.length > 0 && (
+          <button
+            type="button"
+            onClick={() => setField('allowed_culture_ids', [])}
+            className="mt-1 text-xs text-amber-300/70 underline"
+            data-testid="adv-clear-cultures"
+          >
+            Limpiar selección
+          </button>
+        )}
+      </div>
+
+      {subcultureOptions.length > 0 && (
+        <div>
+          <div className="text-xs text-amber-300/80 mb-1">
+            Subculturas permitidas (opcional, además de o en lugar de la cultura):
+          </div>
+          <div className="flex flex-wrap gap-1 max-h-48 overflow-y-auto">
+            {subcultureOptions.map((opt) => {
+              const checked = allowedSubs.includes(opt.value);
+              return (
+                <button
+                  type="button"
+                  key={opt.value}
+                  onClick={() => toggleSubculture(opt.value)}
+                  data-testid={`adv-allowed-sub-${opt.value}`}
+                  className={`px-2 py-0.5 text-xs rounded border transition-colors ${
+                    checked
+                      ? 'bg-emerald-700/60 border-emerald-500 text-emerald-50'
+                      : 'bg-black/40 border-emerald-800/40 text-emerald-300/80 hover:border-emerald-600'
+                  }`}
+                >
+                  {checked && '✓ '}
+                  {opt.label}
+                </button>
+              );
+            })}
+          </div>
+          {allowedSubs.length > 0 && (
+            <button
+              type="button"
+              onClick={() => setField('allowed_subcultures', [])}
+              className="mt-1 text-xs text-emerald-300/70 underline"
+              data-testid="adv-clear-subs"
+            >
+              Limpiar subculturas
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+
     <Field label="Visibilidad" hint="Pública: otros DJs pueden verla y clonarla. Privada: sólo tú y el Maestro Supremo.">
       <label className="flex items-center gap-3 mt-2">
         <input
@@ -1051,7 +1110,8 @@ const Step8Config = ({ adv, setField }) => (
       </label>
     </Field>
   </StepCard>
-);
+  );
+};
 
 // ============================================================================
 // Main page
@@ -1067,6 +1127,7 @@ const AdventureWizardPage = () => {
   const [showPreview, setShowPreview] = useState(false);
   const [bestiary, setBestiary] = useState([]);
   const [patrons, setPatrons] = useState([]);
+  const [cultures, setCultures] = useState([]);
   const [locationOptions, setLocationOptions] = useState([]);
   const [locationsRaw, setLocationsRaw] = useState([]);
   const [uploadingCover, setUploadingCover] = useState(false);
@@ -1082,16 +1143,18 @@ const AdventureWizardPage = () => {
     const load = async () => {
       try {
         setLoading(true);
-        const [a, locs, beasts, pats] = await Promise.all([
+        const [a, locs, beasts, pats, culs] = await Promise.all([
           getAdventure(id),
           getLocations().catch(() => []),
           getBestiary().catch(() => ({})),
           getPatrons().catch(() => []),
+          getCultures().catch(() => []),
         ]);
         if (!alive) return;
         setAdv(a);
         setLocationsRaw(locs || []);
         setPatrons(pats || []);
+        setCultures(Array.isArray(culs) ? culs : (culs?.cultures || []));
         setLocationOptions(
           (locs || []).map((l) => ({
             value: l.id,
@@ -1154,6 +1217,7 @@ const AdventureWizardPage = () => {
         patron_name: adv.patron_name,
         presenter_text: adv.presenter_text,
         rumor: adv.rumor,
+        presentation_text: adv.presentation_text,
         ancient_lore_difficulty: adv.ancient_lore_difficulty,
         ancient_lore_text: adv.ancient_lore_text,
         background: adv.background,
@@ -1169,6 +1233,8 @@ const AdventureWizardPage = () => {
         max_characters_per_player: adv.max_characters_per_player,
         recommended_level_min: adv.recommended_level_min,
         recommended_level_max: adv.recommended_level_max,
+        allowed_culture_ids: adv.allowed_culture_ids || [],
+        allowed_subcultures: adv.allowed_subcultures || [],
         is_public: adv.is_public,
       };
       const updated = await updateAdventure(id, payload);
@@ -1408,7 +1474,7 @@ const AdventureWizardPage = () => {
             />
           )}
           {activeStep === 'premise' && <Step2Premise adv={adv} setField={setField} patrons={patrons} />}
-          {activeStep === 'background' && <Step3Background adv={adv} setField={setField} locations={locationsRaw} />}
+          {activeStep === 'background' && <Step3Background adv={adv} setField={setField} />}
           {activeStep === 'maps' && (
             <Step4Maps
               adv={adv}
@@ -1429,7 +1495,7 @@ const AdventureWizardPage = () => {
           {activeStep === 'npcs' && (
             <Step7NPCs adv={adv} setField={setField} bestiary={bestiary} />
           )}
-          {activeStep === 'config' && <Step8Config adv={adv} setField={setField} />}
+          {activeStep === 'config' && <Step8Config adv={adv} setField={setField} cultures={cultures} />}
         </div>
 
         {/* Footer save reminder */}

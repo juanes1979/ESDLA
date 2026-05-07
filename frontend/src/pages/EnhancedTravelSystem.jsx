@@ -78,7 +78,10 @@ const EnhancedTravelSystem = () => {
     miembros: [],
     // Acompañantes: viajan con el grupo, NO tienen papel ni hacen tiradas de
     // eventos/orientación/fatiga, pero SÍ cuentan para velocidad y provisiones.
-    acompanantes: []
+    acompanantes: [],
+    // Paradas intermedias del viaje (hasta 5). Cada parada se elige del
+    // listado de ubicaciones o marcando un punto en el mapa.
+    paradas: []
   });
   
   // Search filters for origin/destination
@@ -2010,6 +2013,25 @@ const EnhancedTravelSystem = () => {
               destinoY: loc.custom ? loc.y : null,
             }));
             toast.success(`Destino: ${loc.nombre}`);
+          } else if (typeof mapPickFor === 'string' && mapPickFor.startsWith('parada-')) {
+            const idx = parseInt(mapPickFor.split('-')[1], 10);
+            if (!isNaN(idx)) {
+              setConfig((prev) => {
+                const next = [...(prev.paradas || [])];
+                if (next[idx]) {
+                  next[idx] = {
+                    ...next[idx],
+                    location_id: loc.custom ? '' : loc.id,
+                    location_name: loc.nombre,
+                    region: loc.region || '',
+                    map_x: loc.custom ? loc.x : null,
+                    map_y: loc.custom ? loc.y : null,
+                  };
+                }
+                return { ...prev, paradas: next };
+              });
+              toast.success(`Parada ${idx + 1}: ${loc.nombre}`);
+            }
           }
         }}
       />

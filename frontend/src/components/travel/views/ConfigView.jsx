@@ -221,6 +221,168 @@ const ConfigView = ({
             </div>
           </div>
           
+          {/* Paradas intermedias del viaje (hasta 5) */}
+          <div className="pt-2 border-t border-border/30">
+            <div className="flex items-center justify-between mb-2">
+              <Label className="text-sm flex items-center gap-2">
+                <MapPin className="w-4 h-4 text-amber-400" />
+                Paradas intermedias del viaje ({(config.paradas || []).length}/5)
+              </Label>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={(config.paradas || []).length >= 5}
+                onClick={() =>
+                  setConfig((prev) => ({
+                    ...prev,
+                    paradas: [
+                      ...(prev.paradas || []),
+                      { id: `stop-${Date.now()}`, location_id: '', location_name: '', region: '', map_x: null, map_y: null, note: '' },
+                    ],
+                  }))
+                }
+                data-testid="travel-stop-add-btn"
+              >
+                <Plus className="w-3.5 h-3.5 mr-1" /> Añadir parada
+              </Button>
+            </div>
+            <p className="text-xs text-muted-foreground mb-2">
+              Hasta 5 paradas entre origen y destino. Cada parada se elige del listado o marcando un
+              punto en el mapa.
+            </p>
+            {(config.paradas || []).length === 0 && (
+              <p className="text-xs italic text-muted-foreground/70">
+                Sin paradas. Pulsa "Añadir parada" para empezar la ruta.
+              </p>
+            )}
+            {(config.paradas || []).map((p, idx) => (
+              <div
+                key={p.id || idx}
+                className="mb-2 flex items-start gap-2 p-2 rounded border border-amber-800/30 bg-black/30"
+                data-testid={`travel-stop-row-${idx}`}
+              >
+                <span className="text-amber-300/70 text-sm pt-2 w-8 text-right">#{idx + 1}</span>
+                <div className="flex-1 min-w-0">
+                  {p.location_name || p.map_x !== null ? (
+                    <div className="flex items-center gap-2 px-2 py-1 rounded bg-amber-900/20 border border-amber-700/40">
+                      <MapPin className="w-3.5 h-3.5 text-amber-300 shrink-0" />
+                      <div className="flex-1 min-w-0 text-sm">
+                        <span className="text-amber-100">
+                          {p.location_name || `Punto del mapa (${p.map_x?.toFixed(1)}, ${p.map_y?.toFixed(1)})`}
+                        </span>
+                        {p.region && <span className="text-amber-300/60 text-xs"> · {p.region}</span>}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex gap-2">
+                      <Select
+                        value={p.location_id || ''}
+                        onValueChange={(val) => {
+                          const loc = locations.find((l) => l.id === val);
+                          setConfig((prev) => {
+                            const next = [...(prev.paradas || [])];
+                            next[idx] = {
+                              ...next[idx],
+                              location_id: val,
+                              location_name: loc?.nombre || '',
+                              region: loc?.region || '',
+                              map_x: null,
+                              map_y: null,
+                            };
+                            return { ...prev, paradas: next };
+                          });
+                        }}
+                      >
+                        <SelectTrigger
+                          className="flex-1"
+                          data-testid={`travel-stop-select-${idx}`}
+                        >
+                          <SelectValue placeholder="Buscar parada..." />
+                        </SelectTrigger>
+                        <SelectContent className="max-h-64 overflow-auto">
+                          {locations.slice(0, 200).map((loc) => (
+                            <SelectItem key={loc.id} value={loc.id}>
+                              {loc.nombre}
+                              {loc.region ? ` · ${loc.region}` : ''}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      {openMapPicker && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => openMapPicker(`parada-${idx}`)}
+                          data-testid={`travel-stop-map-btn-${idx}`}
+                          title="Seleccionar del mapa"
+                        >
+                          <MapPin className="w-4 h-4" />
+                        </Button>
+                      )}
+                    </div>
+                  )}
+                  <Input
+                    value={p.note || ''}
+                    onChange={(e) =>
+                      setConfig((prev) => {
+                        const next = [...(prev.paradas || [])];
+                        next[idx] = { ...next[idx], note: e.target.value };
+                        return { ...prev, paradas: next };
+                      })
+                    }
+                    placeholder="Nota (opcional)"
+                    data-testid={`travel-stop-note-${idx}`}
+                    className="mt-1 text-xs h-7"
+                  />
+                </div>
+                <div className="flex flex-col gap-1">
+                  {(p.location_name || p.map_x !== null) && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() =>
+                        setConfig((prev) => {
+                          const next = [...(prev.paradas || [])];
+                          next[idx] = {
+                            ...next[idx],
+                            location_id: '',
+                            location_name: '',
+                            region: '',
+                            map_x: null,
+                            map_y: null,
+                          };
+                          return { ...prev, paradas: next };
+                        })
+                      }
+                      className="h-7 px-2 text-xs"
+                      data-testid={`travel-stop-clear-${idx}`}
+                    >
+                      Cambiar
+                    </Button>
+                  )}
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() =>
+                      setConfig((prev) => ({
+                        ...prev,
+                        paradas: (prev.paradas || []).filter((_, i) => i !== idx),
+                      }))
+                    }
+                    className="h-7 px-2 text-rose-300 hover:text-rose-200 hover:bg-rose-900/30"
+                    data-testid={`travel-stop-remove-${idx}`}
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+
           {/* Route Options */}
           <div className="flex flex-wrap gap-4 pt-2 border-t border-border/30">
             <div className="flex items-center gap-2">

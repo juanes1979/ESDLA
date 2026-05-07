@@ -2,6 +2,58 @@
 
 ## Current State (2026-05-07)
 
+### ✅ Iteración 102 — 4 refinamientos pedidos por el usuario
+
+**1. Texto de presentación a los jugadores (Step Premisa)**
+- Backend: nuevo campo `presentation_text: Optional[str]` en `AdventureBase` y `AdventureUpdate`.
+- Frontend: textarea de 5 filas en Step Premisa, justo debajo de "Rumor", con hint "Si lo rellenas, podrás mostrarlo a los jugadores al inicio de la historia (lectura en voz alta o pasaje impreso)".
+- Incluido en `AdventurePreview` (dossier) y en el payload de `update`.
+
+**2. Notas para los personajes por acontecimiento de viaje**
+- Backend: añadido `player_notes: str = ""` a `TravelEvent`.
+- Frontend: cada acontecimiento del Step Trasfondo muestra ahora 3 campos:
+  - Título
+  - Descripción (DJ — fondo amber)
+  - **Notas para los personajes** (mostrables a discreción del DJ — fondo emerald distintivo)
+- El AdventurePreview no las muestra para evitar spoilers; sólo aparecen en el wizard del DJ.
+
+**3. Paradas intermedias movidas de Aventura → Generador de Viajes**
+- Frontend `AdventureWizardPage` Step3: ELIMINADA la sección "Paradas intermedias del viaje" (junto con `MAX_TRAVEL_STOPS`, `LocationPickerField` para paradas y la prop `locations`). Sustituida por una nota: "Las paradas intermedias entre origen y destino se configuran ahora en el Generador de Viajes…".
+- Backend: el campo `travel_route` se conserva en el modelo de Aventura como legacy (para no romper aventuras existentes; el test `test_travel_route_field_still_accepted_for_legacy` lo verifica).
+- Frontend `EnhancedTravelSystem`: añadido `paradas: []` al state de `config` (junto a origen/destino).
+- Frontend `ConfigView` (Generador de Viajes): nueva sección "Paradas intermedias del viaje (N/5)" entre Origen/Destino y Route Options. Por cada parada:
+  - Selector con todas las ubicaciones del catálogo
+  - Botón "Mapa" que abre el `MapPickDialog` (target `parada-${idx}`)
+  - Input nota opcional
+  - Botón "Cambiar" (para reabrir el selector) y "X" (eliminar)
+  - Máximo 5 paradas, botón "Añadir parada" se deshabilita al llegar al límite
+- En `EnhancedTravelSystem`, el handler `onMapPick` reconoce el target `parada-N` y actualiza la parada correspondiente con `location_id`/`location_name`/`region` (catálogo) o `map_x`/`map_y` (custom) preservando la nota.
+
+**4. Restricciones de raza/subcultura (Step Configuración)**
+- Backend: nuevos campos `allowed_culture_ids: List[str]` y `allowed_subcultures: List[str]` en `AdventureBase` y `AdventureUpdate`. Vacío = sin restricción.
+- Frontend Step8 (`Step8Config`): nueva sección "Restricciones de raza/cultura (opcional)" con:
+  - Hint claro: "Si dejas vacío, cualquier personaje puede unirse. Selecciona culturas concretas para limitar (p. ej. sólo Hobbits) o subculturas específicas (p. ej. sólo Hobbits de los Pies Peludos)".
+  - Botones-tag toggleables por cultura cargados desde `getCultures()` (Elfos, Enanos, Hobbits, Hombres, Dúnedain…). Click → añadir/quitar de `allowed_culture_ids`.
+  - Botones-tag toggleables por subcultura (formato `cultureId::subname`) — color emerald para distinguir.
+  - Botón "Limpiar selección" / "Limpiar subculturas".
+- `getCultures` añadido a las llamadas paralelas del `useEffect` inicial del wizard. La nueva prop `cultures` se pasa a `Step8Config`.
+
+**🟢 Tests** — `test_adventures_refinements_it102.py` — **4/4 PASS**
+- `test_presentation_text_persisted`: round-trip via POST + GET.
+- `test_player_notes_per_event`: 2 eventos con player_notes preservadas (incluyendo string vacía).
+- `test_culture_restrictions_persisted`: lista de culturas + subculturas guardadas y limpiables vía PATCH.
+- `test_travel_route_field_still_accepted_for_legacy`: el campo legacy sigue admitido en el modelo aunque la UI no lo muestre.
+
+**Total backend tests:** 16 nuevos en sesión actual (Fase B + Mecenas + Refinamientos), todos verde.
+
+**🟢 Smoke E2E confirmado**
+- Wizard Premisa: campo nuevo "Texto para presentar a los personajes" con placeholder y hint ✅
+- Wizard Trasfondo: sin paradas; cada acontecimiento muestra el textarea verde "Notas para los personajes (mostrables a discreción del DJ)" ✅
+- Wizard Configuración: sección "Restricciones de raza/cultura (opcional)" con todos los toggles de cultura visible ✅
+- Generador de Viajes: sección "Paradas intermedias del viaje (0/5)" funcional, botón "Añadir parada" produce una nueva fila con selector + botón mapa + nota ✅
+
+---
+
 ### ✅ Iteración 101 — Mecenas como entidad propia (no NPCs)
 
 **Corrección importante**: tras la Fase B, el usuario aclaró que los Mecenas NO son PNJs del bestiario; son entidades narrativas con su propio modelo de juego (puntos de Comunidad, habilidades activables, restricciones territoriales). Adjuntó docx con el sistema completo y los 6 mecenas canónicos (Balin, Bilbo, Círdan, Gandalf, Gilraen, Tom Bombadil & Baya de Oro).

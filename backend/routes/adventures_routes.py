@@ -68,6 +68,7 @@ class TravelEvent(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     title: str = ""
     description: str = ""
+    player_notes: str = ""  # notas que el DJ puede mostrar a los jugadores
 
 
 class TravelStop(BaseModel):
@@ -132,6 +133,7 @@ class AdventureBase(BaseModel):
     patron_name: Optional[str] = None
     presenter_text: Optional[str] = None  # quién presenta si no hay mecenas
     rumor: Optional[str] = None
+    presentation_text: Optional[str] = None  # Texto para presentar a los personajes (DJ → jugadores)
     ancient_lore_difficulty: Optional[int] = Field(default=None, ge=5, le=30)
     ancient_lore_text: Optional[str] = None
 
@@ -139,7 +141,7 @@ class AdventureBase(BaseModel):
     background: Optional[str] = None
     travel_events_text: Optional[str] = None  # legacy single-textarea (kept for backward compatibility)
     travel_events: List[TravelEvent] = Field(default_factory=list)
-    travel_route: List[TravelStop] = Field(default_factory=list)  # up to 5 stops
+    travel_route: List[TravelStop] = Field(default_factory=list)  # legacy — moved to travel generator
 
     # Step 5/6 — Lists
     environments: List[EnvironmentItem] = Field(default_factory=list)
@@ -153,6 +155,9 @@ class AdventureBase(BaseModel):
     max_characters_per_player: Optional[int] = Field(default=None, ge=1, le=20)
     recommended_level_min: Optional[int] = Field(default=None, ge=1, le=20)
     recommended_level_max: Optional[int] = Field(default=None, ge=1, le=20)
+    # Restricciones de cultura — lista de slugs/ids de cultura permitidas. Vacío = sin restricción.
+    allowed_culture_ids: List[str] = Field(default_factory=list)
+    allowed_subcultures: List[str] = Field(default_factory=list)
     is_public: bool = False
 
     @field_validator("max_characters_per_player")
@@ -185,6 +190,7 @@ class AdventureUpdate(BaseModel):
     patron_name: Optional[str] = None
     presenter_text: Optional[str] = None
     rumor: Optional[str] = None
+    presentation_text: Optional[str] = None
     ancient_lore_difficulty: Optional[int] = Field(default=None, ge=5, le=30)
     ancient_lore_text: Optional[str] = None
     background: Optional[str] = None
@@ -200,6 +206,8 @@ class AdventureUpdate(BaseModel):
     max_characters_per_player: Optional[int] = Field(default=None, ge=1, le=20)
     recommended_level_min: Optional[int] = Field(default=None, ge=1, le=20)
     recommended_level_max: Optional[int] = Field(default=None, ge=1, le=20)
+    allowed_culture_ids: Optional[List[str]] = None
+    allowed_subcultures: Optional[List[str]] = None
     is_public: Optional[bool] = None
 
 
