@@ -158,6 +158,7 @@ class AdventureBase(BaseModel):
     # Restricciones de cultura — lista de slugs/ids de cultura permitidas. Vacío = sin restricción.
     allowed_culture_ids: List[str] = Field(default_factory=list)
     allowed_subcultures: List[str] = Field(default_factory=list)
+    xp_pool: Optional[int] = Field(default=None, ge=0)  # PX a repartir entre los personajes
     is_public: bool = False
 
     @field_validator("max_characters_per_player")
@@ -208,6 +209,7 @@ class AdventureUpdate(BaseModel):
     recommended_level_max: Optional[int] = Field(default=None, ge=1, le=20)
     allowed_culture_ids: Optional[List[str]] = None
     allowed_subcultures: Optional[List[str]] = None
+    xp_pool: Optional[int] = Field(default=None, ge=0)
     is_public: Optional[bool] = None
 
 

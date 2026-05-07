@@ -2,6 +2,62 @@
 
 ## Current State (2026-05-07)
 
+### ✅ Iteración 103 — Editor PNJ con labels + ficha estilo libro + XP pool
+
+Tras probar el editor de PNJ, el usuario detectó que los inputs vacíos no tenían etiqueta visible (sólo placeholder), no se mostraba el modificador junto a cada atributo y no había una previsualización con el formato de la ficha del libro.
+
+**🟢 Backend**
+- `AdventureBase` y `AdventureUpdate`: nuevo campo `xp_pool: Optional[int] = Field(ge=0)`. Bote de PX a repartir entre los personajes durante la campaña. Vacío = sin presupuesto cerrado.
+- Modelo de armas / ataques en `custom_stats` ahora soporta `special_text` (efecto adicional visible para el DJ).
+
+**🟢 Frontend `NPCStatBlockEditor.jsx` (reescrito ~430 líneas)**
+- Nuevo helper `attrModifier(value)` exportado que devuelve `floor((v-10)/2)` para reutilización en el preview.
+- Cada input lleva su `<Labeled>` con título y hint contextual:
+  - **IDENTIDAD**: Tipo (raza/especie), Tamaño, Alineamiento, Desafío (nivel de reto + PX), Descripción breve.
+  - **COMBATE**: Clase de Armadura (CA), Puntos de Golpe (PG totales), Dados de Golpe (fórmula PG), Velocidad (metros / asalto), Descripción de armadura.
+  - **ATRIBUTOS**: cabeceras FUE/DES/CON/INT/SAB/CAR con input centrado y, debajo, modificador en color (verde si ≥0, rojo si negativo) actualizado en vivo. Hint "el modificador se calcula automáticamente".
+  - **SENTIDOS & LENGUAJES**: campos coma-separados con placeholders concretos.
+  - **RESISTENCIAS / INMUNIDADES / VULNERABILIDADES**: cuatro campos con ejemplos.
+  - **ESPECIALES (RASGOS)**: hint "capacidades pasivas o automáticas".
+  - **ATAQUES**: nuevo campo por ataque "Característica especial / efecto adicional" (textarea, hint "visible para el DJ durante el combate") que persiste como `weapon.special_text`.
+  - **REACCIONES**: hint "respuestas en turno de otro".
+
+**🟢 Frontend nuevo `NPCStatBlockPreview.jsx`**
+- Renderiza la ficha con el estilo clásico del libro (Jaco, el trol de piedra): fondo `bg-amber-50`, texto `text-stone-900` con tipografía serif, título cursivo en rojo (`text-rose-700`), cabeceras en negrita roja, separadores rojos.
+- Muestra atributos con modificador formateado: "FUE 14 (+2)".
+- Sección **CLASE DE ARMADURA / PUNTOS DE GOLPE / VELOCIDAD** en formato libro.
+- Sección **RESISTENCIA AL DAÑO**, **SENTIDOS**, **IDIOMAS**, **DESAFÍO**.
+- Sección **ESPECIALES (RASGOS)** con cada uno como "NOMBRE. descripción" en mayúsculas/itálica.
+- Sección **ACCIONES** con cada ataque en el patrón: "MORDISCO. *Ataque con arma cuerpo a cuerpo:* alcance 5 pies, un objetivo. *Impacto:* 1d6+2 perforante. [special_text]".
+- Sección **REACCIONES** si hay alguna.
+
+**🟢 Frontend `AdventureWizardPage` Step7 PNJs**
+- Cada PNJ con `custom_stats` muestra DOS toggles: "▼ Editar bloque de combate" y "👁 Ver ficha de combate" — el segundo abre el `NPCStatBlockPreview` debajo del editor para que el DJ vea cómo quedará durante la partida.
+- Para PNJs añadidos del bestiario (con `bestiary_id`) aparece un nuevo botón naranja "✦ Crear PNJ especial sobre esta base":
+  - Llama al nuevo helper `getNpcDetail(bestiary_id)` (`GET /api/data/npcs/{id}`).
+  - Clona los stats reales (atributos, CA, PG, velocidad, sentidos, idiomas, resistencias, especiales, armas con `special_text`, reacciones, ataque múltiple, desafío) en `custom_stats`.
+  - Pone `bestiary_id = null` (deja de ser referencia pura) y abre el editor automáticamente.
+  - Mensaje toast: "Base copiada — modifica lo que quieras".
+
+**🟢 Frontend Step8 Configuración**
+- Nuevo campo "Puntos de experiencia a repartir" con placeholder "p. ej. 1500" y hint "Bote total de PX que el DJ podrá distribuir entre los personajes durante la campaña. Vacío = sin presupuesto cerrado". Persiste como `adv.xp_pool` (Number) en el payload.
+
+**🟢 API helper `getNpcDetail(id)`** añadido a `services/api.js`.
+
+**🟢 Tests** — `test_adventures_npc_xp_it103.py` — **2/2 PASS**
+- `test_xp_pool_persisted`: 1500 guardado, null al actualizar, -5 → 422.
+- `test_npc_custom_stats_with_special_text_per_attack`: NPC con `armas[0].special_text` se persiste correctamente y atributos se mantienen.
+
+**Total backend tests del fork**: 18 nuevos (Fase B + Mecenas + Refinamientos + NPC editor v2), todos verde.
+
+**🟢 Smoke E2E confirmado**
+- Editor: Step7 PNJs → "Crear PNJ desde 0" → todos los inputs etiquetados (Clase de Armadura (CA), Puntos de Golpe (PG totales), Dados de Golpe (fórmula PG), Velocidad (metros/asalto)). Atributos FUE 14, DES 15, CON 13 muestran "(+2) (+2) (+1)" en verde debajo de cada input ✅
+- Ataque "Mordisco" con `special_text` "Si el objetivo es Mediano o menor, TS DES CD 11 o caer derribado." ✅
+- Toggle "Ver ficha de combate" → renderiza la ficha en pergamino con título rojo cursivo "TRACA EL PERRO GUARDIÁN", atributos con (+2)/(+1)/(+0), CLASE DE ARMADURA 13, PUNTOS DE GOLPE 11, VELOCIDAD 12 m, sección ACCIONES con "MORDISCO. *Ataque con arma cuerpo a cuerpo:* alcance 5 pies, un objetivo. *Impacto:* 1d6+2 perforante Si el objetivo es Mediano o menor, TS DES CD 11 o caer derribado." ✅
+- Step8 Config muestra "Puntos de experiencia a repartir" con placeholder "p. ej. 1500" ✅
+
+---
+
 ### ✅ Iteración 102 — 4 refinamientos pedidos por el usuario
 
 **1. Texto de presentación a los jugadores (Step Premisa)**

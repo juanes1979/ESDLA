@@ -33,6 +33,7 @@ import {
   updateAdventure,
   uploadAdventureImage,
   getBestiary,
+  getNpcDetail,
   getLocations,
   getPatrons,
   getCultures,
@@ -45,6 +46,7 @@ import CampaignActivatedDialog from '@/components/adventures/CampaignActivatedDi
 import AuthenticatedImage from '@/components/AuthenticatedImage';
 import LocationPickerField from '@/components/adventures/LocationPickerField';
 import NPCStatBlockEditor from '@/components/adventures/NPCStatBlockEditor';
+import NPCStatBlockPreview from '@/components/adventures/NPCStatBlockPreview';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const MAX_IMAGE_BYTES = 0.5 * 1024 * 1024; // 0.5 MB
@@ -696,6 +698,8 @@ const Step7NPCs = ({ adv, setField, bestiary }) => {
   const items = adv.npcs || [];
   const [search, setSearch] = useState('');
   const [openCustomIdx, setOpenCustomIdx] = useState(null);
+  const [previewIdx, setPreviewIdx] = useState(null);
+  const [loadingBestiaryIdx, setLoadingBestiaryIdx] = useState(null);
   const filtered = useMemo(() => {
     if (!search) return bestiary;
     const q = search.toLowerCase();
@@ -749,6 +753,61 @@ const Step7NPCs = ({ adv, setField, bestiary }) => {
     setOpenCustomIdx(items.length);
   };
   const remove = (idx) => setField('npcs', items.filter((_, i) => i !== idx));
+
+  /**
+   * Toma un PNJ del bestiario que se haya añadido como referencia y clona
+   * sus stats reales en `custom_stats`, marcándolo como PNJ "especial":
+   * a partir de aquí el DJ puede modificar lo que quiera sin afectar al
+   * bestiario original. Útil para versionar variantes de un mismo monstruo.
+   */
+  const buildSpecialFromBestiary = async (idx) => {
+    const target = items[idx];
+    if (!target?.bestiary_id) return;
+    setLoadingBestiaryIdx(idx);
+    try {
+      const detail = await getNpcDetail(target.bestiary_id);
+      const cs = {
+        tipo: detail.tipo || '',
+        tamanio: detail.tamanio || '',
+        alineamiento: detail.alineamiento || '',
+        descripcion: detail.descripcion || '',
+        clase_armadura: detail.clase_armadura ?? 10,
+        descripcion_armadura: detail.descripcion_armadura || '',
+        puntos_golpe: detail.puntos_golpe ?? 1,
+        dados_golpe: detail.dados_golpe || '',
+        velocidad: detail.velocidad ?? 9,
+        atributos: detail.atributos || {
+          fuerza: 10, destreza: 10, constitucion: 10, inteligencia: 10, sabiduria: 10, carisma: 10,
+        },
+        sentidos: detail.sentidos || [],
+        idiomas: detail.idiomas || [],
+        resistencias: detail.resistencias || [],
+        inmunidades_dano: detail.inmunidades_dano || [],
+        inmunidades_estados: detail.inmunidades_estados || [],
+        vulnerabilidades: detail.vulnerabilidades || [],
+        desafio: detail.desafio || '',
+        especiales: detail.especiales || [],
+        armas: (detail.armas || []).map((a) => ({ ...a, special_text: a.special_text || '' })),
+        reacciones: detail.reacciones || [],
+        ataque_multiple: detail.ataque_multiple || '',
+      };
+      const next = [...items];
+      next[idx] = {
+        ...next[idx],
+        // El PNJ ya no es "del bestiario puro" — pasa a ser una variante a medida
+        bestiary_id: null,
+        bestiary_categoria: target.bestiary_categoria,
+        custom_stats: cs,
+      };
+      setField('npcs', next);
+      setOpenCustomIdx(idx);
+      toast.success('Base copiada — modifica lo que quieras');
+    } catch (err) {
+      toast.error(err?.response?.data?.detail || 'No se pudo cargar la base del bestiario');
+    } finally {
+      setLoadingBestiaryIdx(null);
+    }
+  };
 
   return (
     <StepCard
@@ -853,14 +912,24 @@ const Step7NPCs = ({ adv, setField, bestiary }) => {
           {/* Bloque a medida */}
           {n.custom_stats !== undefined && n.custom_stats !== null ? (
             <div className="mt-2">
-              <button
-                type="button"
-                onClick={() => setOpenCustomIdx(openCustomIdx === idx ? null : idx)}
-                className="text-xs text-emerald-300 underline mb-2"
-                data-testid={`npc-toggle-custom-${idx}`}
-              >
-                {openCustomIdx === idx ? '▼ Ocultar bloque de combate' : '▶ Mostrar bloque de combate'}
-              </button>
+              <div className="flex gap-3 mb-2 flex-wrap">
+                <button
+                  type="button"
+                  onClick={() => setOpenCustomIdx(openCustomIdx === idx ? null : idx)}
+                  className="text-xs text-emerald-300 underline"
+                  data-testid={`npc-toggle-custom-${idx}`}
+                >
+                  {openCustomIdx === idx ? '▼ Ocultar bloque de combate' : '▶ Editar bloque de combate'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPreviewIdx(previewIdx === idx ? null : idx)}
+                  className="text-xs text-amber-300 underline"
+                  data-testid={`npc-toggle-preview-${idx}`}
+                >
+                  {previewIdx === idx ? '▼ Ocultar previsualización' : '👁 Ver ficha de combate'}
+                </button>
+              </div>
               {openCustomIdx === idx && (
                 <NPCStatBlockEditor
                   value={n.custom_stats || {}}
@@ -868,9 +937,14 @@ const Step7NPCs = ({ adv, setField, bestiary }) => {
                   idPrefix={`npc-block-${idx}`}
                 />
               )}
+              {previewIdx === idx && (
+                <div className="mt-3">
+                  <NPCStatBlockPreview name={n.name} npc={n.custom_stats || {}} />
+                </div>
+              )}
             </div>
           ) : (
-            !n.bestiary_id && (
+            <div className="flex gap-2 flex-wrap mt-2">
               <button
                 type="button"
                 onClick={() => {
@@ -886,12 +960,25 @@ const Step7NPCs = ({ adv, setField, bestiary }) => {
                   });
                   setOpenCustomIdx(idx);
                 }}
-                className="text-xs text-emerald-300 mt-2 underline"
+                className="text-xs text-emerald-300 underline"
                 data-testid={`npc-promote-custom-${idx}`}
               >
                 + Convertir en PNJ con bloque de combate
               </button>
-            )
+              {n.bestiary_id && (
+                <button
+                  type="button"
+                  onClick={() => buildSpecialFromBestiary(idx)}
+                  disabled={loadingBestiaryIdx === idx}
+                  className="text-xs text-amber-300 underline disabled:opacity-50"
+                  data-testid={`npc-make-special-${idx}`}
+                >
+                  {loadingBestiaryIdx === idx
+                    ? 'Cargando base…'
+                    : '✦ Crear PNJ especial sobre esta base'}
+                </button>
+              )}
+            </div>
           )}
         </div>
       ))}
@@ -995,6 +1082,21 @@ const Step8Config = ({ adv, setField, cultures }) => {
         />
       </Field>
     </div>
+
+    <Field
+      label="Puntos de experiencia a repartir"
+      hint="Bote total de PX que el DJ podrá distribuir entre los personajes durante la campaña. Vacío = sin presupuesto cerrado."
+    >
+      <TextInput
+        type="number"
+        value={adv.xp_pool}
+        onChange={(v) => setField('xp_pool', v)}
+        min={0}
+        max={1000000}
+        testid="adv-xp-pool"
+        placeholder="p. ej. 1500"
+      />
+    </Field>
 
     <div className="mt-4 p-3 rounded border border-amber-800/30 bg-black/30">
       <h3 className="text-sm font-medium text-amber-200 mb-2">
@@ -1235,6 +1337,9 @@ const AdventureWizardPage = () => {
         recommended_level_max: adv.recommended_level_max,
         allowed_culture_ids: adv.allowed_culture_ids || [],
         allowed_subcultures: adv.allowed_subcultures || [],
+        xp_pool: adv.xp_pool === '' || adv.xp_pool === undefined || adv.xp_pool === null
+          ? null
+          : Number(adv.xp_pool),
         is_public: adv.is_public,
       };
       const updated = await updateAdventure(id, payload);

@@ -298,6 +298,12 @@ export const getBestiary = async (categoria = null, search = null) => {
   return response.data;
 };
 
+// Full NPC detail (used when cloning a bestiary entry into a custom NPC).
+export const getNpcDetail = async (id) => {
+  const response = await api.get(`/data/npcs/${id}`);
+  return response.data;
+};
+
 // Locations list for the "¿Dónde?" picker.
 export const getLocations = async () => {
   const response = await api.get('/data/locations');
