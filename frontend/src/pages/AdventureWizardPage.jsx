@@ -34,6 +34,7 @@ import {
   uploadAdventureImage,
   getBestiary,
   getLocations,
+  getPatrons,
   generateCampaignRun,
 } from '@/services/api';
 import { useAuth } from '@/context/AuthContext';
@@ -198,10 +199,13 @@ const Step1Basic = ({ adv, setField, locationOptions, locations, onUploadCover, 
   );
 };
 
-const Step2Premise = ({ adv, setField, bestiary }) => {
-  const patronOptions = (bestiary || [])
-    .filter((b) => b.categoria === 'pnj')
-    .map((b) => ({ value: b.id, label: b.nombre }));
+const Step2Premise = ({ adv, setField, patrons }) => {
+  const patronOptions = (patrons || [])
+    .filter((p) => p.display_name || p.nombre)
+    .map((p) => ({
+      value: p.id,
+      label: `${p.display_name || p.nombre}${p.entity_type ? ` · ${p.entity_type}` : ''}`,
+    }));
   return (
   <StepCard title="Premisa" description="¿Qué pasa, por qué les importa, quién lo cuenta?">
     <Field label="¿Qué? — Gancho / estado del mundo" required>
@@ -223,7 +227,7 @@ const Step2Premise = ({ adv, setField, bestiary }) => {
       />
     </Field>
     <Field
-      label="Mecenas (PNJ del bestiario, opcional)"
+      label="Mecenas (del catálogo de Reglas → Mecenas)"
       hint="Si lo eliges, se creará automáticamente una relación mecenas↔personaje cuando aceptes jugadores en una campaña activa."
     >
       <Select
@@ -233,9 +237,9 @@ const Step2Premise = ({ adv, setField, bestiary }) => {
             setField('patron_id', null);
             setField('patron_name', null);
           } else {
-            const npc = (bestiary || []).find((b) => b.id === v);
+            const p = (patrons || []).find((x) => x.id === v);
             setField('patron_id', v);
-            setField('patron_name', npc?.nombre || null);
+            setField('patron_name', p?.display_name || p?.nombre || null);
           }
         }}
         options={patronOptions}
@@ -1062,6 +1066,7 @@ const AdventureWizardPage = () => {
   const [saving, setSaving] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
   const [bestiary, setBestiary] = useState([]);
+  const [patrons, setPatrons] = useState([]);
   const [locationOptions, setLocationOptions] = useState([]);
   const [locationsRaw, setLocationsRaw] = useState([]);
   const [uploadingCover, setUploadingCover] = useState(false);
@@ -1077,14 +1082,16 @@ const AdventureWizardPage = () => {
     const load = async () => {
       try {
         setLoading(true);
-        const [a, locs, beasts] = await Promise.all([
+        const [a, locs, beasts, pats] = await Promise.all([
           getAdventure(id),
           getLocations().catch(() => []),
           getBestiary().catch(() => ({})),
+          getPatrons().catch(() => []),
         ]);
         if (!alive) return;
         setAdv(a);
         setLocationsRaw(locs || []);
+        setPatrons(pats || []);
         setLocationOptions(
           (locs || []).map((l) => ({
             value: l.id,
@@ -1400,7 +1407,7 @@ const AdventureWizardPage = () => {
               uploadingCover={uploadingCover}
             />
           )}
-          {activeStep === 'premise' && <Step2Premise adv={adv} setField={setField} bestiary={bestiary} />}
+          {activeStep === 'premise' && <Step2Premise adv={adv} setField={setField} patrons={patrons} />}
           {activeStep === 'background' && <Step3Background adv={adv} setField={setField} locations={locationsRaw} />}
           {activeStep === 'maps' && (
             <Step4Maps

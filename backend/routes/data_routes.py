@@ -397,21 +397,7 @@ async def get_art(art_id: str):
 
 
 # === PATRONS ===
-
-@router.get("/patrons")
-async def get_patrons():
-    """Get all patrons/mecenas"""
-    patrons = await db.patrons.find({}).to_list(50)
-    return {"patrons": serialize_docs(patrons)}
-
-
-@router.get("/patrons/{patron_id}")
-async def get_patron(patron_id: str):
-    """Get a specific patron by ID"""
-    patron = await db.patrons.find_one({"_id": patron_id})
-    if not patron:
-        raise HTTPException(status_code=404, detail="Patron not found")
-    return serialize_doc(patron)
+# (CRUD endpoints moved to routes/patrons_routes.py)
 
 
 # === MECENAS (Spanish version of Patrons) ===

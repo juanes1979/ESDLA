@@ -1,6 +1,56 @@
 # LOTR 5e RPG - Product Requirements Document
 
-## Current State (2026-05-06)
+## Current State (2026-05-07)
+
+### ✅ Iteración 101 — Mecenas como entidad propia (no NPCs)
+
+**Corrección importante**: tras la Fase B, el usuario aclaró que los Mecenas NO son PNJs del bestiario; son entidades narrativas con su propio modelo de juego (puntos de Comunidad, habilidades activables, restricciones territoriales). Adjuntó docx con el sistema completo y los 6 mecenas canónicos (Balin, Bilbo, Círdan, Gandalf, Gilraen, Tom Bombadil & Baya de Oro).
+
+**🟢 Backend nuevo (`/app/backend/routes/patrons_routes.py`, ~390 líneas)**
+- Modelos `PatronAbility`, `PatronMeetingBonus`, `PatronBase` (con aliases bidireccionales para coexistir con los 7 mecenas legacy: `display_name`↔`nombre`, `community_bonus_static`↔`puntos_comunidad`).
+- Endpoints CRUD: `GET /api/data/patrons`, `POST /api/data/patrons`, `GET /api/data/patrons/{id}`, `PATCH /api/data/patrons/{id}`, `DELETE /api/data/patrons/{id}`, `POST /api/data/patrons/seed`.
+- Permisos: lectura para cualquier autenticado; create/update sólo Maestro o DJ; delete sólo Maestro.
+- Slug: auto-derivado del nombre si no se proporciona; único por colección.
+- `seed_patrons_if_empty(db)` idempotente: inserta los 6 canónicos si su slug no existe.
+- Llamado desde `server.startup_seed` → al arrancar, los 6 quedan disponibles automáticamente.
+- Helper `_normalize` rellena los aliases cruzados en lectura/escritura para que la UI legacy (Step8Patron del creador de personajes) y la nueva (Reglas → Mecenas, wizard de aventuras) funcionen sin migración destructiva.
+
+**🟢 Backend modificado**
+- `data_routes.py`: eliminados los endpoints duplicados `GET /patrons` y `GET /patrons/{id}` (ahora viven en `patrons_routes.py`). Se mantiene `/data/mecenas` para la colección legacy `mecenas` que usa otra parte del creador.
+- `server.py`: import + `include_router(patrons_router)` + invocación de `seed_patrons_if_empty` en startup.
+
+**🟢 Seed canónico**
+6 mecenas insertados con todos los datos del docx:
+- Balin (+1, Consejo: 1pc tras ataque → d20 extra)
+- Bilbo (+2, bonus al elegirlo: comunidad temporal +1)
+- Círdan (+1, Clarividencia: 1pc tras prueba INT → d20 extra; bonus rumor)
+- Gandalf (+2, Sabiduría del Peregrino: 1pc tras TS → d20 extra)
+- Gilraen (+0, De la gente: 1pc al iniciar viaje, restricción `former_arnor`; bonus rumor)
+- Tom & Baya (+2, Señores: gasta TODOS los pc, restricción `tom_country`)
+
+**🟢 Frontend creado**
+- `/app/frontend/src/components/rules/MecenasSection.jsx` (~390 líneas): listado de tarjetas con corona, nombre, bonus, ámbito, rol, habilidad (coste/trigger/efecto/restricción) y meeting_bonus. Editor modal con todos los campos (nombre, slug, tipo, ocupación, rasgos/idiomas como CSV, dónde, rol, bonus comunidad, fuente, habilidad activable con triggers/efectos en select, restricciones, bonus al elegirlo principal). Botón "Nuevo mecenas" + AlertDialog para eliminación.
+- API helpers en `services/api.js`: `getPatrons()` (devuelve array plano), `createPatron`, `updatePatron`, `deletePatron`.
+
+**🟢 Frontend modificado**
+- `pages/RulesPage.jsx`: nueva categoría `mecenas` con icono `Crown`, antes de Bestiario; case en `renderContent` → `<MecenasSection isAdmin={isAdmin} currentRole={user?.role} />`. Import añadido en index.js.
+- `pages/AdventureWizardPage.jsx` Step2: el dropdown de "Mecenas" ahora lee del catálogo de Mecenas (`getPatrons()`) en lugar del bestiario. Etiqueta actualizada a "Mecenas (del catálogo de Reglas → Mecenas)". Se cargan en paralelo en el useEffect de carga inicial.
+
+**🟢 Tests** — `test_patrons_crud_it101.py` — **5/5 PASS**
+- `test_seed_canonical_patrons_present`: los 6 slugs canónicos existen tras seed.
+- `test_dj_can_create_patron_jugador_cannot`: 403 para jugador, 201 para DJ; auto-slug + alias verificados.
+- `test_update_and_delete_permissions`: DJ puede editar pero NO eliminar; Maestro sí.
+- `test_slug_unique`: 400 al crear slug duplicado.
+- `test_legacy_patron_returns_with_aliases`: legacy sin slug devuelve `display_name` y `community_bonus_static` auto-rellenados.
+
+**Total backend tests**: 51/51 verde (39 originales + 7 Fase B + 5 Mecenas CRUD).
+
+**🟢 Smoke E2E**
+- `/rules` → categoría "Mecenas" → 13 tarjetas (7 legacy + 6 canónicos) ✅
+- Editor modal de "Várin Puño de Hierro" muestra TODOS los campos editables ✅
+- Wizard `/aventuras/:id` → Step Premisa → label "Mecenas (del catálogo de Reglas → Mecenas)" + dropdown poblado ✅
+
+---
 
 ### ✅ Iteración 100 — Aventuras Fase B (10 mejoras pedidas tras pruebas)
 

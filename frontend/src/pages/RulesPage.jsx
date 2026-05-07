@@ -20,7 +20,7 @@ import BackgroundEditor from '@/components/admin/BackgroundEditor';
 import OccupationEditor from '@/components/admin/OccupationEditor';
 import EquipmentEditor from '@/components/admin/EquipmentEditor';
 // Refactored rule section components
-import { SombraSection, CombateSection, SalariosSection, VariosSection, ViajeSection, ComunidadSection, NPCsSection, CriaturasSinNombreSection, BackgroundsSection, CharacterCreationSection, TerrainCorrectionTool, TradingSystemSection, VirtuesSection, ArtesSection, RecompensasSection, EquipmentSection, PriceModifiersSection, RegionsSection, CulturesSection, OccupationsSection, TravelRulesSection, ClimateSection } from '@/components/rules';
+import { SombraSection, CombateSection, SalariosSection, VariosSection, ViajeSection, ComunidadSection, NPCsSection, CriaturasSinNombreSection, BackgroundsSection, CharacterCreationSection, TerrainCorrectionTool, TradingSystemSection, VirtuesSection, ArtesSection, RecompensasSection, EquipmentSection, PriceModifiersSection, RegionsSection, CulturesSection, OccupationsSection, TravelRulesSection, ClimateSection, MecenasSection } from '@/components/rules';
 import ObjectInteractionSection from '@/components/rules/sections/ObjectInteractionSection';
 import TreasureSystemSection from '@/components/rules/sections/TreasureSystemSection';
 
@@ -45,6 +45,7 @@ const RULE_CATEGORIES = [
   { id: 'travel', name: 'Viajes', icon: Map, color: 'gold', description: 'Reglas de exploración' },
   { id: 'travel-rules', name: 'Config. Viajes', icon: Settings, color: 'torch-orange', description: 'Tablas editables de acontecimientos y reglas' },
   { id: 'community', name: 'Comunidad', icon: Users, color: 'magic-blue', description: 'Fase de comunidad, Yule y empresas' },
+  { id: 'mecenas', name: 'Mecenas', icon: Crown, color: 'gold', description: 'Catálogo editable de mecenas y sus ventajas de comunidad' },
   { id: 'npcs', name: 'Bestiario', icon: Moon, color: 'destructive', description: 'Enemigos, PNJ, Animales y Especiales' },
   { id: 'nameless', name: 'Criaturas sin Nombre', icon: Skull, color: 'destructive', description: 'Reglas y generador de criaturas ancestrales' },
   { id: 'regions', name: 'Regiones', icon: MapPin, color: 'magic-blue', description: 'Gestión de regiones y sub-regiones del mapa' },
@@ -3118,6 +3119,9 @@ const RulesPage = () => {
       
       case 'community':
         return <ComunidadSection data={data} />;
+
+      case 'mecenas':
+        return <MecenasSection isAdmin={isAdmin} currentRole={user?.role} />;;
       
       case 'npcs':
         return <NPCsSection data={data} onRefresh={async () => {

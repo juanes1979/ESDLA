@@ -100,7 +100,23 @@ export const getArts = async () => {
 
 export const getPatrons = async () => {
   const response = await api.get('/data/patrons');
-  return response.data.patrons;
+  // New endpoint returns a plain array; legacy returned {patrons: [...]}
+  return Array.isArray(response.data) ? response.data : (response.data?.patrons || []);
+};
+
+export const createPatron = async (payload) => {
+  const response = await api.post('/data/patrons', payload);
+  return response.data;
+};
+
+export const updatePatron = async (id, payload) => {
+  const response = await api.patch(`/data/patrons/${id}`, payload);
+  return response.data;
+};
+
+export const deletePatron = async (id) => {
+  const response = await api.delete(`/data/patrons/${id}`);
+  return response.data;
 };
 
 export const getEquipment = async () => {

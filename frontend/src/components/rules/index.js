@@ -25,3 +25,4 @@ export { default as CulturesSection } from './CulturesSection';
 export { default as OccupationsSection } from './OccupationsSection';
 export { default as TravelRulesSection } from './sections/TravelRulesSection';
 export { default as ClimateSection } from './ClimateSection';
+export { default as MecenasSection } from './MecenasSection';
