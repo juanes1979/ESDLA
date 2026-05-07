@@ -70,6 +70,11 @@ class CampaignRunOut(BaseModel):
     recommended_level_max: Optional[int] = None
     patron_id: Optional[str] = None
     patron_name: Optional[str] = None
+    xp_pool: Optional[int] = None
+    allowed_culture_ids: List[str] = Field(default_factory=list)
+    allowed_subcultures: List[str] = Field(default_factory=list)
+    presentation_text: Optional[str] = None
+    revealed_keys: List[str] = Field(default_factory=list)
 
 
 class CampaignContentOut(BaseModel):
@@ -79,6 +84,7 @@ class CampaignContentOut(BaseModel):
     intrigues: List[dict] = Field(default_factory=list)
     npcs: List[dict] = Field(default_factory=list)
     maps: List[dict] = Field(default_factory=list)
+    travel_events: List[dict] = Field(default_factory=list)
 
 
 # ============================================================================
@@ -209,6 +215,13 @@ async def generate_run_from_adventure(
         # Patron snapshot — used at player accept to wire NPC↔character relationship
         "patron_id": adv.get("patron_id"),
         "patron_name": adv.get("patron_name"),
+        # XP pool y restricciones de cultura — copia del template
+        "xp_pool": adv.get("xp_pool"),
+        "allowed_culture_ids": adv.get("allowed_culture_ids") or [],
+        "allowed_subcultures": adv.get("allowed_subcultures") or [],
+        # Presentation text (mostrable a los jugadores) y estado de revelaciones
+        "presentation_text": adv.get("presentation_text"),
+        "revealed_keys": [],
     }
     await db.campaign_runs.insert_one(run_doc)
     await _clone_adventure_into_run(db, adv, run_id)
@@ -275,9 +288,91 @@ async def get_run_content(run_id: str, user: dict = Depends(get_current_user)):
         ("intrigues", "campaign_intrigues"),
         ("npcs", "campaign_npcs"),
         ("maps", "campaign_maps"),
+        ("travel_events", "campaign_travel_events"),
     ):
         cursor = db[coll].find({"campaign_run_id": run_id})
         out[key] = [_serialize(d) async for d in cursor]
+    return out
+
+
+# ----- Reveal text to players (presentation_text + per-event player_notes) -----
+class RevealBody(BaseModel):
+    """Toggle visibility of a narrative text to players in a campaign run.
+
+    Keys are scoped strings:
+      - "presentation"            -> the run's presentation_text
+      - "event:{event_id}"        -> the player_notes of one travel event
+    """
+    key: str
+    revealed: bool = True
+
+
+@router.post("/{run_id}/reveal")
+async def reveal_text(
+    run_id: str, payload: RevealBody, user: dict = Depends(get_current_user)
+):
+    """DJ or Maestro flips a text key into/out of `revealed_keys` so that
+    accepted players can see it on their dashboard."""
+    from server import db
+    run = await db.campaign_runs.find_one({"id": run_id})
+    if not run:
+        raise HTTPException(status_code=404, detail="Campaña no encontrada")
+    if not _can_edit_run(run, user):
+        raise HTTPException(status_code=403, detail="Sin permiso")
+
+    keys = list(run.get("revealed_keys") or [])
+    if payload.revealed:
+        if payload.key not in keys:
+            keys.append(payload.key)
+    else:
+        keys = [k for k in keys if k != payload.key]
+
+    await db.campaign_runs.update_one(
+        {"id": run_id},
+        {"$set": {"revealed_keys": keys, "updated_at": datetime.now(timezone.utc).isoformat()}},
+    )
+    return {"revealed_keys": keys}
+
+
+@router.get("/{run_id}/revealed")
+async def get_revealed_for_player(run_id: str, user: dict = Depends(get_current_user)):
+    """Devuelve los textos visibles para los jugadores aceptados (y para el DJ).
+    Incluye `presentation_text` y la lista de `travel_events` cuya
+    `player_notes` ha sido revelada."""
+    from server import db
+    run = await db.campaign_runs.find_one({"id": run_id})
+    if not run:
+        raise HTTPException(status_code=404, detail="Campaña no encontrada")
+
+    is_dm = run.get("dm_id") == user.get("id") or user.get("role") == "maestro"
+    if not is_dm:
+        # Player must have an accepted entry to see anything
+        accepted = await db.campaign_players.find_one({
+            "campaign_run_id": run_id,
+            "user_id": user.get("id"),
+            "status": "accepted",
+        })
+        if not accepted:
+            raise HTTPException(status_code=403, detail="Sin permiso")
+
+    revealed = set(run.get("revealed_keys") or [])
+    out = {
+        "revealed_keys": sorted(revealed),
+        "presentation_text": (
+            run.get("presentation_text") if "presentation" in revealed else None
+        ),
+        "events": [],
+    }
+    if any(k.startswith("event:") for k in revealed):
+        cursor = db.campaign_travel_events.find({"campaign_run_id": run_id})
+        async for ev in cursor:
+            ev_id = ev.get("id")
+            if ev_id and f"event:{ev_id}" in revealed:
+                out["events"].append({
+                    "id": ev_id,
+                    "title": ev.get("title"),
+                    "player_notes": ev.get("player_notes"),
+                })
     return out
 
 

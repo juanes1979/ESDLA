@@ -148,6 +148,30 @@ async def join_by_code(payload: JoinByCodeBody, user: dict = Depends(get_current
             detail="Este personaje ya está en otra campaña activa",
         )
 
+    # Cultural restrictions — if the campaign limits cultures or subcultures,
+    # reject characters that don't fit. Empty lists = no restriction.
+    allowed_cul = run.get("allowed_culture_ids") or []
+    allowed_sub = run.get("allowed_subcultures") or []
+    if allowed_cul or allowed_sub:
+        char_cul = char.get("cultura") or char.get("culture_id") or ""
+        char_sub = char.get("subcultura") or char.get("subculture") or ""
+        # Subcultures use the format `cultureId::subname` — match either by
+        # culture id alone or by the composed key.
+        sub_key = f"{char_cul}::{char_sub}" if char_cul and char_sub else None
+        cul_ok = (not allowed_cul) or (char_cul in allowed_cul)
+        sub_ok = (not allowed_sub) or (sub_key and sub_key in allowed_sub)
+        # If both restrictions exist, character must satisfy BOTH:
+        #   - belongs to an allowed culture (if list set)
+        #   - and belongs to an allowed subculture (if list set)
+        if not cul_ok or not sub_ok:
+            raise HTTPException(
+                status_code=403,
+                detail=(
+                    "Tu personaje no cumple con las restricciones de raza/cultura "
+                    "de esta campaña."
+                ),
+            )
+
     # Disallow duplicate request for same (run, character)
     existing = await db.campaign_players.find_one({
         "campaign_run_id": run["id"],

@@ -2,6 +2,62 @@
 
 ## Current State (2026-05-07)
 
+### ✅ Iteración 104 — XP pool conectado, restricción de cultura en join, reveal a jugadores
+
+Tres tareas pedidas tras Fase B/Mecenas/Refinamientos. Todo verde.
+
+**🟢 Backend**
+
+`campaign_routes.py`
+- `CampaignRunOut` y `_clone_adventure_into_run` ahora snapshotean del `adventure`: `xp_pool`, `allowed_culture_ids`, `allowed_subcultures`, `presentation_text` y arrancan con `revealed_keys: []`.
+- `CampaignContentOut` añade `travel_events: List[dict]` para que el ContentTab pueda gestionarlos por evento.
+- Nuevo endpoint `POST /api/campaign-runs/{run_id}/reveal { key, revealed }` — DJ/Maestro togglea visibilidad (idempotente).
+- Nuevo endpoint `GET /api/campaign-runs/{run_id}/revealed` — devuelve `presentation_text` (si key `presentation` está en `revealed_keys`) y la lista de `events: [{id, title, player_notes}]` (si `event:{id}` está revelado). Accesible al DJ, Maestro y a cualquier jugador con entrada `accepted` en la run.
+
+`campaign_experience_routes.py`
+- `award_xp` ahora consulta `xp_pool` del run y, si está fijado (`pool > 0`), suma `pending_total` (de `campaign_players.xp_pending_total`) + `consolidated_total` (de `character_campaign_history.xp_consolidated`). Si la nueva concesión `payload.xp_amount > remaining` → **400** "Excede el bote de PX de la aventura: quedan X de Y".
+- Nuevo endpoint `GET /api/campaign-runs/{run_id}/xp-stats` → `{pool, used, remaining, pending_total, consolidated_total}` para alimentar la barra de progreso.
+
+`campaign_players_routes.py`
+- En `join_by_code`, tras el check de bloqueo del personaje y antes del check de duplicado, se aplica la restricción cultural:
+  - Si `run.allowed_culture_ids` no está vacío → la `cultura` del personaje debe estar en la lista.
+  - Si `run.allowed_subcultures` no está vacío → el formato `{cultura}::{subcultura}` debe estar en la lista.
+  - Ambas condiciones se aplican como AND si están presentes.
+  - Rechazo: **403** "Tu personaje no cumple con las restricciones de raza/cultura de esta campaña."
+
+**🟢 Frontend**
+
+`services/api.js` — añadidos `getXpStats(runId)`, `revealText(runId, key, revealed)`, `getRevealedTexts(runId)`.
+
+`pages/CampaignHubPage.jsx`
+- `reload()` ahora carga también `getXpStats(id)` en paralelo. State: `xpStats`, `togglingPresentation`, `togglingEventId`.
+- **InfoTab nuevo**:
+  - Tarjeta "Texto para presentar a los jugadores" cuando `run.presentation_text` existe: muestra el texto y un botón verde **"📜 Mostrar a jugadores"** (o rojo "Ocultar" si ya está revelado). Confirmación: "Texto visible para los jugadores aceptados".
+  - Tarjeta "Bote de PX de la aventura" cuando `xp_pool > 0`: PX restantes en grande, barra de progreso ámbar→esmeralda con `width = used / pool * 100%`, leyenda "Repartidos: X (pendientes Y · consolidados Z)".
+- **ContentTab nuevo**:
+  - Nueva sección "Acontecimientos de viaje (N)" con cada evento como tarjeta. Cada uno con `description` (DJ) + `player_notes` (verde, sólo visible al DJ). Botón **"📜 Mostrar"** / **"Ocultar"** por evento que llama a `revealText(id, 'event:{id}', !revealed)`. Marca "✓ Visible para los jugadores" cuando está revelado.
+
+`pages/MyCampaignsPage.jsx` (vista del jugador)
+- Cada tarjeta `accepted` ahora tiene un botón **"Ver lo revelado por el DJ"** que abre un modal con:
+  - "Presentación" (si revelada): texto en cursiva con borde ámbar.
+  - "Notas en eventos del viaje": lista verde con cada evento revelado (título + player_notes).
+  - Estado vacío: "El DJ aún no ha revelado nada. Pídele que te lo muestre cuando llegue el momento."
+
+**🟢 Tests** — `test_campaign_pool_culture_reveal_it104.py` — **4/4 PASS**
+- `test_xp_pool_snapshot_and_stats`: aventura con xp_pool=600 → run snapshot + xp-stats devuelve {pool:600, used:0, remaining:600}.
+- `test_award_xp_blocks_when_exceeds_pool`: pool=100, primer award 80 OK, segundo award 30 → 400. Stats reflejan used=80, remaining=20.
+- `test_join_by_code_rejects_wrong_culture`: aventura `allowed_culture_ids=['hobbit']` → personaje elfo 403, hobbit 201.
+- `test_reveal_text_flow`: jugador no ve nada inicialmente; DJ revela `presentation` y `event:{snap_id}`; jugador ve ambos; DJ oculta presentación; jugador deja de verla pero el evento persiste revelado.
+
+**Total backend tests del fork**: 22 nuevos en sesión actual (todos verde).
+
+**🟢 Smoke E2E confirmado**
+- Hub Info: panel "TEXTO PARA PRESENTAR A LOS JUGADORES" con texto en cursiva + botón verde "📜 Mostrar a jugadores" → al pulsar pasa a rojo "Ocultar a jugadores" + leyenda "✓ Visible para los jugadores aceptados" + toast.
+- Hub Info: panel "BOTE DE PX DE LA AVENTURA" con `1500 PX restantes de 1500`, barra de progreso, "Repartidos: 0 (pendientes 0 · consolidados 0)".
+- Hub Contenido: nueva sección "ACONTECIMIENTOS DE VIAJE (1)" con tarjeta "Emboscada en el vado", descripción del DJ, sección verde "NOTAS PARA LOS PERSONAJES: Oís tambores…", botón verde "📜 Mostrar".
+
+---
+
 ### ✅ Iteración 103 — Editor PNJ con labels + ficha estilo libro + XP pool
 
 Tras probar el editor de PNJ, el usuario detectó que los inputs vacíos no tenían etiqueta visible (sólo placeholder), no se mostraba el modificador junto a cada atributo y no había una previsualización con el formato de la ficha del libro.

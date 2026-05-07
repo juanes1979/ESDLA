@@ -8,9 +8,9 @@
  */
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, KeyRound, Loader2, LogOut } from 'lucide-react';
+import { ArrowLeft, KeyRound, Loader2, LogOut, ScrollText, Eye } from 'lucide-react';
 import { toast } from 'sonner';
-import { myCampaigns, leaveCampaign } from '@/services/api';
+import { myCampaigns, leaveCampaign, getRevealedTexts } from '@/services/api';
 import { Button } from '@/components/ui/button';
 import {
   AlertDialog,
@@ -22,6 +22,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import JoinCampaignDialog from '@/components/adventures/JoinCampaignDialog';
 
 const STATUS_BADGE = {
@@ -40,7 +41,7 @@ const RUN_STATUS_LABEL = {
   finished: 'Finalizada',
 };
 
-const Card = ({ row, onLeave }) => (
+const Card = ({ row, onLeave, onShowRevealed }) => (
   <div
     className="rounded-xl border border-amber-700/40 bg-black/60 backdrop-blur-sm p-5"
     data-testid={`my-campaign-${row.id}`}
@@ -70,18 +71,31 @@ const Card = ({ row, onLeave }) => (
       </p>
     )}
 
-    {(row.status === 'pending' || row.status === 'accepted') && (
-      <Button
-        size="sm"
-        variant="outline"
-        onClick={() => onLeave(row)}
-        data-testid={`leave-btn-${row.id}`}
-        className="border-rose-700/50 text-rose-200 hover:bg-rose-900/30"
-      >
-        <LogOut className="w-3.5 h-3.5 mr-1" />
-        {row.status === 'pending' ? 'Cancelar solicitud' : 'Abandonar campaña'}
-      </Button>
-    )}
+    <div className="flex flex-wrap gap-2">
+      {row.status === 'accepted' && (
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={() => onShowRevealed(row)}
+          data-testid={`view-revealed-${row.id}`}
+          className="border-amber-700/50 text-amber-200 hover:bg-amber-900/30"
+        >
+          <ScrollText className="w-3.5 h-3.5 mr-1" /> Ver lo revelado por el DJ
+        </Button>
+      )}
+      {(row.status === 'pending' || row.status === 'accepted') && (
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={() => onLeave(row)}
+          data-testid={`leave-btn-${row.id}`}
+          className="border-rose-700/50 text-rose-200 hover:bg-rose-900/30"
+        >
+          <LogOut className="w-3.5 h-3.5 mr-1" />
+          {row.status === 'pending' ? 'Cancelar solicitud' : 'Abandonar campaña'}
+        </Button>
+      )}
+    </div>
   </div>
 );
 
@@ -91,6 +105,18 @@ const MyCampaignsPage = () => {
   const [loading, setLoading] = useState(true);
   const [showJoin, setShowJoin] = useState(false);
   const [toLeave, setToLeave] = useState(null);
+  const [revealedFor, setRevealedFor] = useState(null); // { row, data, loading }
+
+  const handleShowRevealed = async (row) => {
+    setRevealedFor({ row, data: null, loading: true });
+    try {
+      const data = await getRevealedTexts(row.run.id || row.run_id || row.campaign_run_id);
+      setRevealedFor({ row, data, loading: false });
+    } catch (err) {
+      toast.error(err?.response?.data?.detail || 'No se pudo cargar lo revelado');
+      setRevealedFor(null);
+    }
+  };
 
   const reload = async () => {
     setLoading(true);
@@ -183,7 +209,7 @@ const MyCampaignsPage = () => {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
             {rows.map((r) => (
-              <Card key={r.id} row={r} onLeave={setToLeave} />
+              <Card key={r.id} row={r} onLeave={setToLeave} onShowRevealed={handleShowRevealed} />
             ))}
           </div>
         )}
@@ -215,6 +241,61 @@ const MyCampaignsPage = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <Dialog open={!!revealedFor} onOpenChange={(o) => !o && setRevealedFor(null)}>
+        <DialogContent
+          className="max-w-2xl max-h-[88vh] overflow-y-auto bg-black/95 border-amber-700/50"
+          data-testid="revealed-modal"
+        >
+          <DialogHeader>
+            <DialogTitle className="text-amber-300 font-heading text-2xl flex items-center gap-2">
+              <ScrollText className="w-5 h-5 text-amber-400" />
+              {revealedFor?.row?.run?.adventure_name || 'Aventura'} — revelado por el DJ
+            </DialogTitle>
+          </DialogHeader>
+          {revealedFor?.loading ? (
+            <div className="py-8 text-center text-amber-300">
+              <Loader2 className="w-6 h-6 mx-auto animate-spin" />
+            </div>
+          ) : (
+            <div className="space-y-4 py-2">
+              {revealedFor?.data?.presentation_text ? (
+                <div className="rounded border border-amber-700/40 bg-amber-900/10 p-4">
+                  <h3 className="text-xs uppercase tracking-widest text-amber-300/70 mb-2">
+                    Presentación
+                  </h3>
+                  <p className="text-sm text-gray-100 whitespace-pre-wrap italic">
+                    {revealedFor.data.presentation_text}
+                  </p>
+                </div>
+              ) : null}
+
+              {(revealedFor?.data?.events || []).length > 0 && (
+                <div className="rounded border border-emerald-700/40 bg-emerald-900/10 p-4">
+                  <h3 className="text-xs uppercase tracking-widest text-emerald-300/70 mb-2">
+                    Notas en eventos del viaje
+                  </h3>
+                  <ul className="space-y-3">
+                    {revealedFor.data.events.map((ev) => (
+                      <li key={ev.id} data-testid={`revealed-event-${ev.id}`}>
+                        <div className="text-amber-200 font-medium">{ev.title || 'Acontecimiento'}</div>
+                        <p className="text-sm text-gray-100 whitespace-pre-wrap">{ev.player_notes}</p>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {!revealedFor?.data?.presentation_text &&
+                (revealedFor?.data?.events || []).length === 0 && (
+                  <p className="text-sm italic text-amber-300/60 text-center py-6">
+                    El DJ aún no ha revelado nada. Pídele que te lo muestre cuando llegue el momento.
+                  </p>
+                )}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

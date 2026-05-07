@@ -25,6 +25,9 @@ import {
   Sparkles,
   Megaphone,
   MegaphoneOff,
+  Eye,
+  EyeOff,
+  ScrollText,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import {
@@ -39,6 +42,8 @@ import {
   createCampaignListing,
   deleteCampaignListing,
   listCampaignListings,
+  getXpStats,
+  revealText,
 } from '@/services/api';
 import { Button } from '@/components/ui/button';
 import RuneIgniteOverlay from '@/components/adventures/RuneIgniteOverlay';
@@ -62,7 +67,19 @@ const TABS = [
   { id: 'log', label: 'Registro' },
 ];
 
-const InfoTab = ({ run, onAction, onCopyCode, copied, listing, onPublish, onUnpublish }) => (
+const InfoTab = ({
+  run,
+  onAction,
+  onCopyCode,
+  copied,
+  listing,
+  onPublish,
+  onUnpublish,
+  xpStats,
+  isPresRevealed,
+  onTogglePresentation,
+  togglingPresentation,
+}) => (
   <div className="space-y-5">
     <div className="rounded-xl border border-amber-700/40 bg-black/60 backdrop-blur-sm p-6">
       <div className="flex items-center justify-between gap-3 flex-wrap">
@@ -142,6 +159,75 @@ const InfoTab = ({ run, onAction, onCopyCode, copied, listing, onPublish, onUnpu
       )}
     </div>
 
+    {/* Texto de presentación a los jugadores */}
+    {run.presentation_text && (
+      <div className="rounded-xl border border-amber-700/40 bg-black/60 backdrop-blur-sm p-6" data-testid="presentation-card">
+        <div className="flex items-center justify-between gap-3 mb-3">
+          <h3 className="font-heading text-xl text-amber-300 flex items-center gap-2">
+            <ScrollText className="w-5 h-5 text-amber-400" /> Texto para presentar a los jugadores
+          </h3>
+          <Button
+            onClick={onTogglePresentation}
+            disabled={togglingPresentation}
+            data-testid="toggle-presentation-btn"
+            className={
+              isPresRevealed
+                ? 'bg-rose-700 hover:bg-rose-600 text-rose-50'
+                : 'bg-emerald-700 hover:bg-emerald-600 text-emerald-50'
+            }
+            size="sm"
+          >
+            {togglingPresentation ? (
+              <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+            ) : isPresRevealed ? (
+              <EyeOff className="w-4 h-4 mr-1" />
+            ) : (
+              <Eye className="w-4 h-4 mr-1" />
+            )}
+            {isPresRevealed ? 'Ocultar a jugadores' : '📜 Mostrar a jugadores'}
+          </Button>
+        </div>
+        <p className="text-sm text-gray-200 whitespace-pre-wrap italic border-l-2 border-amber-700/40 pl-3">
+          {run.presentation_text}
+        </p>
+        {isPresRevealed && (
+          <p className="text-xs text-emerald-300/80 mt-2">
+            ✓ Visible para los jugadores aceptados.
+          </p>
+        )}
+      </div>
+    )}
+
+    {/* XP pool */}
+    {xpStats && xpStats.pool && xpStats.pool > 0 && (
+      <div className="rounded-xl border border-amber-700/40 bg-black/60 backdrop-blur-sm p-6" data-testid="xp-pool-card">
+        <h3 className="font-heading text-xl text-amber-300 mb-2">Bote de PX de la aventura</h3>
+        <div className="flex items-baseline gap-4 mb-2">
+          <div className="text-3xl font-bold text-amber-100" data-testid="xp-remaining">
+            {xpStats.remaining}
+          </div>
+          <div className="text-sm text-amber-300/70">
+            PX restantes de <strong className="text-amber-200">{xpStats.pool}</strong>
+          </div>
+        </div>
+        <div className="w-full h-3 rounded-full bg-stone-800 overflow-hidden border border-amber-800/40">
+          <div
+            className="h-full bg-gradient-to-r from-amber-500 to-emerald-500 transition-all duration-500"
+            style={{
+              width: `${Math.min(100, (xpStats.used / xpStats.pool) * 100)}%`,
+            }}
+            data-testid="xp-progress-bar"
+          />
+        </div>
+        <div className="flex justify-between text-xs text-amber-300/60 mt-1">
+          <span>Repartidos: {xpStats.used}</span>
+          <span>
+            (pendientes {xpStats.pending_total} · consolidados {xpStats.consolidated_total})
+          </span>
+        </div>
+      </div>
+    )}
+
     <div className="rounded-xl border border-amber-700/40 bg-black/60 backdrop-blur-sm p-6">
       <h3 className="font-heading text-xl text-amber-300 mb-3">Estado de la campaña</h3>
       <div className="flex items-center gap-3 flex-wrap">
@@ -178,7 +264,10 @@ const InfoTab = ({ run, onAction, onCopyCode, copied, listing, onPublish, onUnpu
   </div>
 );
 
-const ContentTab = ({ content, run }) => (
+const ContentTab = ({ content, run, revealedKeys, onToggleEvent, togglingEventId }) => {
+  const events = content.travel_events || [];
+  const revealed = new Set(revealedKeys || []);
+  return (
   <div className="space-y-4">
     <Section title={`PNJs (${content.npcs.length})`} testid="content-npcs">
       {content.npcs.map((n) => (
@@ -189,6 +278,62 @@ const ContentTab = ({ content, run }) => (
         </div>
       ))}
     </Section>
+    {events.length > 0 && (
+      <Section title={`Acontecimientos de viaje (${events.length})`} testid="content-events">
+        <ul className="space-y-3">
+          {events.map((ev) => {
+            const isRevealed = revealed.has(`event:${ev.id}`);
+            return (
+              <li key={ev.id} className="border border-amber-800/30 rounded p-3 bg-black/40" data-testid={`content-event-${ev.id}`}>
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex-1">
+                    <div className="text-amber-200 font-medium">{ev.title || 'Acontecimiento'}</div>
+                    {ev.description && (
+                      <p className="text-gray-300/90 text-sm mt-1">{ev.description}</p>
+                    )}
+                  </div>
+                  {ev.player_notes && (
+                    <Button
+                      size="sm"
+                      onClick={() => onToggleEvent(ev.id, !isRevealed)}
+                      disabled={togglingEventId === ev.id}
+                      data-testid={`toggle-event-reveal-${ev.id}`}
+                      className={
+                        isRevealed
+                          ? 'bg-rose-700 hover:bg-rose-600 text-rose-50'
+                          : 'bg-emerald-700 hover:bg-emerald-600 text-emerald-50'
+                      }
+                    >
+                      {togglingEventId === ev.id ? (
+                        <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" />
+                      ) : isRevealed ? (
+                        <EyeOff className="w-3.5 h-3.5 mr-1" />
+                      ) : (
+                        <Eye className="w-3.5 h-3.5 mr-1" />
+                      )}
+                      {isRevealed ? 'Ocultar' : '📜 Mostrar'}
+                    </Button>
+                  )}
+                </div>
+                {ev.player_notes && (
+                  <div className="mt-2 pt-2 border-t border-amber-800/30">
+                    <div className="text-xs uppercase tracking-wide text-emerald-300/70 mb-1">
+                      Notas para los personajes:
+                    </div>
+                    <p className="text-sm text-emerald-100/90 whitespace-pre-wrap italic">
+                      {ev.player_notes}
+                    </p>
+                    {isRevealed && (
+                      <p className="text-xs text-emerald-300/80 mt-1">✓ Visible para los jugadores</p>
+                    )}
+                  </div>
+                )}
+              </li>
+            );
+          })}
+        </ul>
+      </Section>
+    )}
     <Section title={`Entornos (${content.environments.length})`} testid="content-environments">
       <ol className="list-decimal pl-5 space-y-2">
         {content.environments.map((e) => (
@@ -228,7 +373,8 @@ const ContentTab = ({ content, run }) => (
       sin tocar el original (próxima fase añadirá edición inline).
     </p>
   </div>
-);
+  );
+};
 
 const Section = ({ title, children, testid }) => (
   <div className="rounded-xl border border-amber-700/40 bg-black/60 backdrop-blur-sm p-5" data-testid={testid}>
@@ -418,20 +564,25 @@ const CampaignHubPage = () => {
   const [awardingFor, setAwardingFor] = useState(null);
   const [scrollEntries, setScrollEntries] = useState(null);
   const [listing, setListing] = useState(null);
+  const [xpStats, setXpStats] = useState(null);
+  const [togglingPresentation, setTogglingPresentation] = useState(false);
+  const [togglingEventId, setTogglingEventId] = useState(null);
 
   const reload = async () => {
     try {
-      const [r, c, l, p, lst] = await Promise.all([
+      const [r, c, l, p, lst, xs] = await Promise.all([
         getCampaignRun(id),
         getCampaignContent(id),
         getCampaignLog(id),
         listCampaignPlayers(id),
         listCampaignListings({ only_open: false }).catch(() => []),
+        getXpStats(id).catch(() => null),
       ]);
       setRun(r);
       setContent(c);
       setLog(l);
       setPlayers(p);
+      setXpStats(xs);
       // find listing for THIS run (if any)
       const mine = (lst || []).find((x) => x.campaign_run_id === id);
       setListing(mine || null);
@@ -440,6 +591,34 @@ const CampaignHubPage = () => {
       navigate('/campanas');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleTogglePresentation = async () => {
+    if (!run) return;
+    const isRevealed = (run.revealed_keys || []).includes('presentation');
+    setTogglingPresentation(true);
+    try {
+      const res = await revealText(id, 'presentation', !isRevealed);
+      setRun((prev) => ({ ...prev, revealed_keys: res.revealed_keys }));
+      toast.success(isRevealed ? 'Texto ocultado a los jugadores' : 'Texto visible para los jugadores');
+    } catch (err) {
+      toast.error(err?.response?.data?.detail || 'No se pudo cambiar la visibilidad');
+    } finally {
+      setTogglingPresentation(false);
+    }
+  };
+
+  const handleToggleEventReveal = async (eventId, revealed) => {
+    setTogglingEventId(eventId);
+    try {
+      const res = await revealText(id, `event:${eventId}`, revealed);
+      setRun((prev) => ({ ...prev, revealed_keys: res.revealed_keys }));
+      toast.success(revealed ? 'Notas visibles para los jugadores' : 'Notas ocultadas');
+    } catch (err) {
+      toast.error(err?.response?.data?.detail || 'No se pudo cambiar la visibilidad');
+    } finally {
+      setTogglingEventId(null);
     }
   };
 
@@ -647,9 +826,21 @@ const CampaignHubPage = () => {
             listing={listing}
             onPublish={handlePublish}
             onUnpublish={handleUnpublish}
+            xpStats={xpStats}
+            isPresRevealed={(run.revealed_keys || []).includes('presentation')}
+            onTogglePresentation={handleTogglePresentation}
+            togglingPresentation={togglingPresentation}
           />
         )}
-        {tab === 'content' && <ContentTab content={content} run={run} />}
+        {tab === 'content' && (
+          <ContentTab
+            content={content}
+            run={run}
+            revealedKeys={run.revealed_keys || []}
+            onToggleEvent={handleToggleEventReveal}
+            togglingEventId={togglingEventId}
+          />
+        )}
         {tab === 'players' && (
           <PlayersTab
             players={players}

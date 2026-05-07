@@ -507,6 +507,22 @@ export const cancelInvitation = async (invId) => {
   return r.data;
 };
 
+// ===== XP pool & reveal text (it104) =====
+export const getXpStats = async (runId) => {
+  const r = await api.get(`/campaign-runs/${runId}/xp-stats`);
+  return r.data;
+};
+
+export const revealText = async (runId, key, revealed) => {
+  const r = await api.post(`/campaign-runs/${runId}/reveal`, { key, revealed });
+  return r.data;
+};
+
+export const getRevealedTexts = async (runId) => {
+  const r = await api.get(`/campaign-runs/${runId}/revealed`);
+  return r.data;
+};
+
 // Used by the player when joining: list their own characters (eligible).
 // `summary=true` returns minimal fields to keep the payload small (full docs
 // are several MB each because of inventory + chests).

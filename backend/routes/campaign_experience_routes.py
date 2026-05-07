@@ -131,6 +131,33 @@ async def award_xp(
     char_name = char.get("nombre") if char else None
     now = datetime.now(timezone.utc).isoformat()
 
+    # Enforce xp_pool: if the run has a budget, the new award cannot push the
+    # total awarded over it. Pending counts as "already spent" from the pool.
+    pool = run.get("xp_pool")
+    if pool is not None and pool > 0:
+        # Sum xp_pending_total across all accepted/pending players (pending PX
+        # already committed) plus consolidated xp from finished history (in
+        # case the campaign is `paused` after a partial close — defensive).
+        agg = await db.campaign_players.aggregate([
+            {"$match": {"campaign_run_id": run_id}},
+            {"$group": {"_id": None, "total": {"$sum": "$xp_pending_total"}}},
+        ]).to_list(1)
+        pending_total = agg[0]["total"] if agg else 0
+        consolidated_agg = await db.character_campaign_history.aggregate([
+            {"$match": {"campaign_run_id": run_id}},
+            {"$group": {"_id": None, "total": {"$sum": "$xp_consolidated"}}},
+        ]).to_list(1)
+        consolidated_total = consolidated_agg[0]["total"] if consolidated_agg else 0
+        used = pending_total + consolidated_total
+        remaining = pool - used
+        if payload.xp_amount > remaining:
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    f"Excede el bote de PX de la aventura: quedan {remaining} de {pool}"
+                ),
+            )
+
     entry = {
         "id": str(uuid.uuid4()),
         "campaign_run_id": run_id,
@@ -174,6 +201,38 @@ async def list_experience(run_id: str, user: dict = Depends(get_current_user)):
 
     cursor = db.campaign_experience.find({"campaign_run_id": run_id}).sort("created_at", -1)
     return [_serialize(d) async for d in cursor]
+
+
+@router.get("/campaign-runs/{run_id}/xp-stats")
+async def xp_stats(run_id: str, user: dict = Depends(get_current_user)):
+    """Devuelve {pool, used, remaining, pending_total, consolidated_total} para
+    pintar la barra de progreso. Accesible al DJ y al Maestro."""
+    from server import db
+    run = await db.campaign_runs.find_one({"id": run_id})
+    if not run:
+        raise HTTPException(status_code=404, detail="Campaña no encontrada")
+    if not (_is_maestro(user) or run.get("dm_id") == user.get("id")):
+        raise HTTPException(status_code=403, detail="Sin permiso")
+
+    pool = run.get("xp_pool")
+    pending_agg = await db.campaign_players.aggregate([
+        {"$match": {"campaign_run_id": run_id}},
+        {"$group": {"_id": None, "total": {"$sum": "$xp_pending_total"}}},
+    ]).to_list(1)
+    pending_total = pending_agg[0]["total"] if pending_agg else 0
+    consolidated_agg = await db.character_campaign_history.aggregate([
+        {"$match": {"campaign_run_id": run_id}},
+        {"$group": {"_id": None, "total": {"$sum": "$xp_consolidated"}}},
+    ]).to_list(1)
+    consolidated_total = consolidated_agg[0]["total"] if consolidated_agg else 0
+    used = pending_total + consolidated_total
+    return {
+        "pool": pool,
+        "pending_total": pending_total,
+        "consolidated_total": consolidated_total,
+        "used": used,
+        "remaining": (pool - used) if (pool is not None) else None,
+    }
 
 
 # ============================================================================
