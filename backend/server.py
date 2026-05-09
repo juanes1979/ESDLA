@@ -33,6 +33,7 @@ from routes.campaign_players_routes import router as campaign_players_router
 from routes.campaign_experience_routes import router as campaign_experience_router
 from routes.campaign_marketplace_routes import router as campaign_marketplace_router
 from routes.patrons_routes import router as patrons_router, seed_patrons_if_empty
+from routes.languages_routes import router as languages_router, seed_languages_if_empty
 
 
 ROOT_DIR = Path(__file__).parent
@@ -124,6 +125,7 @@ api_router.include_router(campaign_players_router)
 api_router.include_router(campaign_experience_router)
 api_router.include_router(campaign_marketplace_router)
 api_router.include_router(patrons_router)
+api_router.include_router(languages_router)
 
 # Include the main router in the app
 app.include_router(api_router)
@@ -154,6 +156,10 @@ async def startup_seed():
         await seed_patrons_if_empty(db)
     except Exception as e:
         logger.exception("Patrons seed failed: %s", e)
+    try:
+        await seed_languages_if_empty(db)
+    except Exception as e:
+        logger.exception("Languages seed failed: %s", e)
 
 
 @app.on_event("shutdown")

@@ -45,22 +45,6 @@ class EnvironmentImage(BaseModel):
     description: Optional[str] = None
 
 
-class EnvironmentItem(BaseModel):
-    model_config = ConfigDict(extra="ignore")
-    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
-    title: str
-    description: str = ""
-    order_index: int = 0
-    images: List[EnvironmentImage] = Field(default_factory=list)  # max 5 — validated below
-
-
-class IntrigueItem(BaseModel):
-    model_config = ConfigDict(extra="ignore")
-    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
-    description: str
-    linked_plot: Optional[str] = None
-
-
 class TravelEvent(BaseModel):
     """A discrete travel event in the adventure (replaces the single
     `travel_events_text` textarea)."""
@@ -69,6 +53,30 @@ class TravelEvent(BaseModel):
     title: str = ""
     description: str = ""
     player_notes: str = ""  # notas que el DJ puede mostrar a los jugadores
+
+
+class EnvironmentItem(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    title: str
+    description: str = ""
+    order_index: int = 0
+    images: List[EnvironmentImage] = Field(default_factory=list)  # max 5 — validated below
+    # Optional location anchor on the player map (search & pick)
+    location_id: Optional[str] = None
+    location_name: Optional[str] = None
+    region: Optional[str] = None
+    map_x: Optional[float] = None
+    map_y: Optional[float] = None
+    # Travel events linked to this specific environment
+    travel_events: List[TravelEvent] = Field(default_factory=list)
+
+
+class IntrigueItem(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    description: str
+    linked_plot: Optional[str] = None
 
 
 class TravelStop(BaseModel):
@@ -125,6 +133,8 @@ class AdventureBase(BaseModel):
     location_id: Optional[str] = None
     location_name: Optional[str] = None
     region: Optional[str] = None
+    map_x: Optional[float] = None
+    map_y: Optional[float] = None
 
     # Step 2 — Premise
     description: Optional[str] = None  # ¿Qué? — gancho/estado del mundo
@@ -185,6 +195,8 @@ class AdventureUpdate(BaseModel):
     location_id: Optional[str] = None
     location_name: Optional[str] = None
     region: Optional[str] = None
+    map_x: Optional[float] = None
+    map_y: Optional[float] = None
     description: Optional[str] = None
     motivation_text: Optional[str] = None
     patron_id: Optional[str] = None
@@ -445,10 +457,12 @@ async def clone_adventure(adventure_id: str, user: dict = Depends(get_current_us
     for key in ("environments", "intrigues", "npcs", "maps", "travel_events", "travel_route"):
         if base.get(key):
             base[key] = [{**item, "id": str(uuid.uuid4())} for item in base[key]]
-    # Environment images also need new ids
+    # Environment images and nested travel events also need new ids
     for env in base.get("environments") or []:
         if env.get("images"):
             env["images"] = [{**img, "id": str(uuid.uuid4())} for img in env["images"]]
+        if env.get("travel_events"):
+            env["travel_events"] = [{**ev, "id": str(uuid.uuid4())} for ev in env["travel_events"]]
 
     doc = {
         **base,

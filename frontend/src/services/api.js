@@ -119,6 +119,27 @@ export const deletePatron = async (id) => {
   return response.data;
 };
 
+// === Languages (editable catalog) ===
+export const getLanguages = async () => {
+  const response = await api.get('/data/languages');
+  return Array.isArray(response.data) ? response.data : [];
+};
+
+export const createLanguage = async (payload) => {
+  const response = await api.post('/data/languages', payload);
+  return response.data;
+};
+
+export const updateLanguage = async (id, payload) => {
+  const response = await api.patch(`/data/languages/${id}`, payload);
+  return response.data;
+};
+
+export const deleteLanguage = async (id) => {
+  const response = await api.delete(`/data/languages/${id}`);
+  return response.data;
+};
+
 export const getEquipment = async () => {
   const response = await api.get('/data/equipment');
   return response.data.equipment;

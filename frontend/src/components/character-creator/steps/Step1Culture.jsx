@@ -11,6 +11,7 @@ import { useState, useEffect } from 'react';
 import { Loader2, Shuffle, ChevronRight, ChevronDown, Check, ShieldAlert, ShieldCheck } from 'lucide-react';
 import { getCultures, getCultureNames, updateDraftStep1, generateRandomName } from '@/services/api';
 import { checkName } from '@/utils/moderation';
+import { useAuth } from '@/context/AuthContext';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -89,6 +90,7 @@ const CHARACTERISTIC_LABELS = {
 };
 
 const Step1Culture = ({ draftId, draft, onComplete, onBack }) => {
+  const { user } = useAuth();
   // Main state
   const [cultures, setCultures] = useState([]);
   const [selectedCategory, setSelectedCategory] = useState(null);
@@ -232,6 +234,16 @@ const Step1Culture = ({ draftId, draft, onComplete, onBack }) => {
     };
     loadCultures();
   }, []);
+
+  // Auto-fill "Nombre del Jugador" with the logged-in user's name (one shot)
+  useEffect(() => {
+    if (user?.name && !playerName) {
+      setPlayerName(user.name);
+      // Pre-validate so the field shows the green checkmark.
+      updateMod('player', { ok: true, error: null, lastValidated: user.name });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user]);
 
   // Filter cultures by category
   const filteredCultures = selectedCategory

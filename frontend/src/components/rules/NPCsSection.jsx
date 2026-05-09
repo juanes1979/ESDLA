@@ -33,6 +33,41 @@ const NPCsSection = ({ data, onRefresh }) => {
     return mod >= 0 ? `+${mod}` : `${mod}`;
   };
 
+  // 5e XP → CR table — used to derive "Desafío" when only `experiencia` is set.
+  const XP_TO_CR = [
+    [0, '0'], [10, '0'], [25, '1/8'], [50, '1/4'], [100, '1/2'],
+    [200, '1'], [450, '2'], [700, '3'], [1100, '4'], [1800, '5'],
+    [2300, '6'], [2900, '7'], [3900, '8'], [5000, '9'], [5900, '10'],
+    [7200, '11'], [8400, '12'], [10000, '13'], [11500, '14'], [13000, '15'],
+    [15000, '16'], [18000, '17'], [20000, '18'], [22000, '19'], [25000, '20'],
+    [33000, '21'], [41000, '22'], [50000, '23'], [62000, '24'], [75000, '25'],
+    [90000, '26'], [105000, '27'], [120000, '28'], [135000, '29'], [155000, '30'],
+  ];
+  const xpToCr = (xp) => {
+    if (xp == null || xp === '') return null;
+    const n = Number(xp);
+    if (!Number.isFinite(n) || n < 0) return null;
+    let chosen = '0';
+    for (const [thresholdXp, cr] of XP_TO_CR) {
+      if (n >= thresholdXp) chosen = cr;
+      else break;
+    }
+    return chosen;
+  };
+  const formatDesafio = (npc) => {
+    // Si tiene desafio explícito (ej. "3 (700 PX)"), usarlo
+    if (npc.desafio && String(npc.desafio).trim()) return npc.desafio;
+    // Derivar desde experiencia
+    const cr = xpToCr(npc.experiencia);
+    if (cr == null) return null;
+    return `${cr} (${npc.experiencia || 0} PX)`;
+  };
+  const formatAlineamiento = (npc) => {
+    const a = (npc.alineamiento || '').trim();
+    if (a) return a;
+    return null; // no mostramos badge si está vacío
+  };
+
   const filterNPCs = (npcs) => {
     if (!searchTerm) return npcs || [];
     return (npcs || []).filter(npc => 
@@ -319,7 +354,14 @@ const NPCsSection = ({ data, onRefresh }) => {
                   </div>
                   <div>
                     <p className="font-bold text-foreground">{npc.nombre}</p>
-                    <p className="text-xs text-muted-foreground">{npc.tipo}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {npc.tipo}
+                      {formatAlineamiento(npc) && (
+                        <span className="ml-2 text-[10px] uppercase tracking-wider text-amber-300/80">
+                          · {formatAlineamiento(npc)}
+                        </span>
+                      )}
+                    </p>
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
@@ -366,6 +408,30 @@ const NPCsSection = ({ data, onRefresh }) => {
                     </Button>
                   </div>
 
+                  {/* Identity badges */}
+                  <div className="flex flex-wrap gap-2 text-xs">
+                    {npc.tipo && (
+                      <Badge variant="outline" className="border-amber-500/30 text-amber-300">
+                        {npc.tipo}
+                      </Badge>
+                    )}
+                    {npc.tamanio && (
+                      <Badge variant="outline" className="border-blue-500/30 text-blue-300">
+                        {npc.tamanio}
+                      </Badge>
+                    )}
+                    {formatAlineamiento(npc) && (
+                      <Badge variant="outline" className="border-purple-500/30 text-purple-300">
+                        {formatAlineamiento(npc)}
+                      </Badge>
+                    )}
+                    {formatDesafio(npc) && (
+                      <Badge variant="outline" className="border-rose-500/30 text-rose-300">
+                        Desafío {formatDesafio(npc)}
+                      </Badge>
+                    )}
+                  </div>
+
                   {/* Description */}
                   {npc.descripcion && (
                     <p className="text-sm text-muted-foreground italic">{npc.descripcion}</p>
@@ -403,8 +469,8 @@ const NPCsSection = ({ data, onRefresh }) => {
                       <Sparkles className="w-4 h-4 mx-auto text-[hsl(var(--gold))]" />
                       <p className="text-xs text-muted-foreground mt-1">PX</p>
                       <p className="text-lg font-bold text-[hsl(var(--gold))]">{npc.experiencia}</p>
-                      {npc.desafio && (
-                        <p className="text-xs text-muted-foreground">Desafío: {npc.desafio}</p>
+                      {formatDesafio(npc) && (
+                        <p className="text-xs text-muted-foreground">Desafío: {formatDesafio(npc)}</p>
                       )}
                     </div>
                     <div className="bg-cyan-500/10 p-2 rounded text-center">

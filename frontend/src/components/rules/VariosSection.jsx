@@ -3,12 +3,19 @@
  * Displays skill checks, exhaustion, inspiration, Eye of Mordor
  */
 import { BookOpen, AlertCircle, Sparkles, Eye, TrendingUp, TrendingDown } from 'lucide-react';
+import IdiomasSection from './IdiomasSection';
 
-const VariosSection = ({ data }) => {
-  if (!data) return <p className="text-muted-foreground">No hay datos de reglas varias</p>;
-
+const VariosSection = ({ data, currentRole }) => {
   return (
     <div className="space-y-6">
+      {/* IDIOMAS — fuente de verdad editable */}
+      <IdiomasSection currentRole={currentRole} />
+
+      {!data && (
+        <p className="text-muted-foreground">No hay datos de reglas varias</p>
+      )}
+      {data && (
+        <>
       {/* PRUEBAS DE HABILIDAD */}
       {data.pruebas_habilidad && (
         <div className="card-parchment rounded-lg p-4">
@@ -328,6 +335,8 @@ const VariosSection = ({ data }) => {
           </h3>
           <p className="text-sm text-muted-foreground">{data.mas_alla_nivel_10.descripcion}</p>
         </div>
+      )}
+        </>
       )}
     </div>
   );

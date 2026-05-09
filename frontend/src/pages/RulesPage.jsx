@@ -3100,7 +3100,7 @@ const RulesPage = () => {
         return <SalariosSection data={data} />;
       
       case 'varios':
-        return <VariosSection data={data} />;
+        return <VariosSection data={data} currentRole={user?.role} />;
       
       case 'combate':
         return <CombateSection data={data} />;

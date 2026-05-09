@@ -1,6 +1,107 @@
 # LOTR 5e RPG - Product Requirements Document
 
-## Current State (2026-05-07)
+## Current State (2026-05-09)
+
+### ✅ Iteración 105 — Olas 1+2: Bestiario, Idiomas, Auto-fill, Wizard 6 pestañas
+
+**Plan acordado con el usuario en Mensaje 619:**
+- Reorganizar wizard de aventuras a 6 pestañas: 1.Datos básicos (incluye Configuración), 2.Trasfondo (incluye Premisa), 3.Entornos (con eventos ligados + sueltos + ubicación opcional), 4.Intrigas, 5.PNJ, 6.Imágenes.
+- Generador avanzado de PNJ (subcultura, Genérico/Especial, IA nombres, retrato B&N).
+- Visual ficha estilo "Saqueador Sureño".
+- Fix Bestiario: Desafío→PX y Alineamiento.
+- Tabla editable de Idiomas en Reglas Varias.
+- Auto-rellenar "Nombre del Jugador".
+- Map preview en Datos básicos.
+
+#### 🟢 Ola 1 (rápida) — completada
+
+**Backend nuevo: `routes/languages_routes.py`** (~210 líneas)
+- Modelos `LanguageBase/Create/Update/Out` con `nombre`, `familia`, `descripcion`, `slug`.
+- Endpoints CRUD `GET/POST/PATCH/DELETE /api/data/languages` + `POST /seed`.
+- Permisos: lectura para cualquier autenticado; create/update sólo Maestro/DJ; delete sólo Maestro.
+- Slug auto-generado del nombre, único en colección.
+- `seed_languages_if_empty(db)` idempotente, inserta los 16 idiomas canónicos (Sindarin, Khuzdul, Quenya, Oestron, Rohírrico, Hobbitiano, Lengua Negra, Adûnaico, Éntico, etc.) agrupados por familia (Humanos, Élficos, Enanos, Hobbits, Antiguos, Oscuros).
+- Llamado en `server.startup_seed`.
+
+**Frontend nuevo: `components/rules/IdiomasSection.jsx`**
+- Lista agrupada por familia con colores (Humanos=ámbar, Élficos=esmeralda, Enanos=naranja, etc.).
+- Editor modal (nombre, familia dropdown, descripción) con validación.
+- Botones Editar (Maestro/DJ) y Eliminar (sólo Maestro) por idioma.
+- Embebida en VariosSection arriba del todo (Reglas → Reglas Varias).
+- Helpers en `services/api.js`: `getLanguages`, `createLanguage`, `updateLanguage`, `deleteLanguage`.
+
+**Frontend `components/rules/NPCsSection.jsx` — fix Bestiario**
+- Helper `xpToCr(xp)` con tabla 5e estándar (0/0, 25/0.125, 50/0.25, 100/0.5, 200/1, 450/2, 700/3, 1100/4… hasta 30=155000PX).
+- `formatDesafio(npc)`: usa `npc.desafio` si está, si no deriva desde `npc.experiencia` como `"<CR> (<XP> PX)"`.
+- `formatAlineamiento(npc)`: muestra alineamiento sólo cuando existe (evita campo vacío).
+- Cabecera de cada NPC ahora muestra alineamiento como subtítulo.
+- Sección expandida añade fila de badges: Tipo · Tamaño · Alineamiento · Desafío.
+
+**Frontend `Step1Culture.jsx` — auto-fill jugador**
+- Importa `useAuth`. Nuevo `useEffect([user])` que rellena `playerName = user.name` cuando está vacío.
+- Pre-marca el campo como validado para que muestre el ícono verde sin re-validar.
+
+**🟢 Tests `test_languages_it105.py` — 5/5 PASS**
+- `test_seed_canonical_languages_present`
+- `test_jugador_cannot_create_language` (403)
+- `test_dj_can_create_and_update_language` (slug auto + alias)
+- `test_slug_unique` (400 al duplicar)
+- `test_dj_cannot_delete_only_maestro_can` (DJ 403, Maestro 200)
+
+#### 🟢 Ola 2 (UI) — completada
+
+**Backend `routes/adventures_routes.py`**
+- `EnvironmentItem` ahora soporta `location_id`, `location_name`, `region`, `map_x`, `map_y` y `travel_events: List[TravelEvent]` para acontecimientos ligados al entorno.
+- `AdventureBase` añade `map_x` y `map_y` a nivel raíz (para guardar coordenadas de ubicación principal cuando se pinche en mapa).
+- `clone_adventure` ahora regenera ids para los `travel_events` anidados de cada entorno.
+
+**Backend `routes/campaign_routes.py`**
+- `_clone_adventure_into_run` regenera ids de `travel_events` anidados al clonar entornos en `campaign_environments`.
+
+**Frontend nuevo: `components/adventures/LocationMiniPreview.jsx`**
+- Mini-mapa 220x140 que enfoca la coordenada de la ubicación seleccionada con un pin ámbar.
+- Resuelve coords desde `value.map_x/map_y` o desde `locations[id].x/y` del catálogo.
+- Muestra "Sin coordenadas registradas" si no hay coords (gracefully).
+
+**Frontend `pages/AdventureWizardPage.jsx` — reorganización a 6 pestañas**
+- `STEPS` reducido de 8 a 6: `basic, background, environments, intrigues, npcs, images`.
+- **Step1BasicAndConfig** (era Step1Basic + Step8Config): incluye nombre, carátula, año/mes/día, ubicación + mini-mapa preview, max_players, multi-personaje, niveles, xp_pool, restricciones cultura/subcultura, visibilidad. Todo en una pestaña con dos sub-cards.
+- **Step2BackgroundAndPremise** (era Step2Premise + parte de Step3): incluye trasfondo (nuevo arriba) + premisa (qué/por qué) + mecenas + presentación + rumor + saber antiguo + presentation_text.
+- **Step3EnvironmentsAndEvents** (era Step5Environments mejorado): cada entorno con título + descripción + ubicación opcional con mini-mapa + imágenes (5 max) + acontecimientos de viaje LIGADOS al entorno (lista anidada). Al final, sección destacada "Acontecimientos de viaje sueltos" para eventos no atados a ningún entorno.
+- **Step4Intrigues** (Step6Intrigues sin cambios) — solo renombrado en UI a "4. Intrigas".
+- **Step5NPCs** (Step7NPCs sin cambios todavía) — etiqueta "5. PNJ".
+- **Step6Images** (era Step4Maps): título y descripción cambiados a "Imágenes" y "Galería general: mapas, retratos, dibujos, esbozos. Hasta 20 imágenes".
+- Eliminados componentes obsoletos: `Step1Basic`, `Step2Premise`, `Step3Background`, `Step4Maps`, `Step5Environments`, `Step8Config`.
+
+**🟢 Tests `test_wizard_reorg_it105b.py` — 2/2 PASS**
+- `test_env_with_location_and_nested_events_persisted`: env con map_x/map_y + 2 travel_events anidados se persiste correctamente. Adventure.map_x/map_y a nivel raíz también funciona.
+- `test_clone_regenerates_env_event_ids`: al clonar una aventura con env.travel_events, los ids se regeneran (no colisionan con la fuente).
+
+**🟢 Smoke E2E confirmado**
+- `/rules` → categoría "Reglas Varias" → sección "IDIOMAS DE LA TIERRA MEDIA" agrupada por familia con 16 idiomas ✅
+- Bestiario → "Saqueador Sureño" expandido → badge "Desafío 1/4 (50 PX)" derivado correctamente ✅
+- Wizard de aventura → 6 pestañas correctas (Datos básicos, Trasfondo, Entornos, Intrigas, PNJ, Imágenes) ✅
+- Step 1 muestra "DATOS BÁSICOS Y CONFIGURACIÓN" unificado con campo de ubicación + mini-mapa preview + sub-card "CONFIGURACIÓN DE LA CAMPAÑA" ✅
+
+**Total tests del fork (Olas 1+2)**: 20/20 PASS — 5 idiomas + 2 wizard reorg + 13 regresión.
+
+---
+
+#### Próximo: Ola 3 (NPC Generator avanzado)
+
+**Pendiente para Ola 3:**
+- Generador "Crear PNJ desde subcultura" con array (14, 13, 12, 10, 10, 9), HP por dado, CA + DEX, idiomas, ocupación
+- Listado de ocupaciones de PNJ "enemigo" derivado de creador de personajes + Reglas → Salarios
+- Genérico vs Especial (auto-numerar genéricos: Saqueador 1, 2, 3…)
+- IA generación de nombres por subcultura/sexo (OpenAI GPT-4o)
+- IA retrato B&N carboncillo con prompt único agregando edad/raza/ojos/cultura/ocupación (OpenAI GPT Image 1)
+- Criatura sin nombre (variante)
+
+**Pendiente para Ola 4 (visual):**
+- Rediseño `NPCStatBlockPreview` matching visual del libro "Saqueador Sureño"
+
+---
+
 
 ### ✅ Iteración 104 — XP pool conectado, restricción de cultura en join, reveal a jugadores
 

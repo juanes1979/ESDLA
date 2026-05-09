@@ -152,11 +152,16 @@ async def _clone_adventure_into_run(db, adventure: dict, run_id: str) -> None:
             d["id"] = str(uuid.uuid4())
             d["campaign_run_id"] = run_id
             d["created_at"] = now
-            # For environments, regenerate ids of nested images too
-            if src_key == "environments" and isinstance(d.get("images"), list):
-                d["images"] = [
-                    {**img, "id": str(uuid.uuid4())} for img in d["images"]
-                ]
+            # For environments, regenerate ids of nested images and travel_events too
+            if src_key == "environments":
+                if isinstance(d.get("images"), list):
+                    d["images"] = [
+                        {**img, "id": str(uuid.uuid4())} for img in d["images"]
+                    ]
+                if isinstance(d.get("travel_events"), list):
+                    d["travel_events"] = [
+                        {**ev, "id": str(uuid.uuid4())} for ev in d["travel_events"]
+                    ]
             docs.append(d)
         if docs:
             await db[coll_name].insert_many(docs)
