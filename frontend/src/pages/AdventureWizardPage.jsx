@@ -1428,7 +1428,12 @@ const Step7NPCs = ({ adv, setField, bestiary }) => {
               )}
               {previewIdx === idx && (
                 <div className="mt-3">
-                  <NPCStatBlockPreview name={n.name} npc={n.custom_stats || {}} />
+                  <NPCStatBlockPreview
+                    name={n.name}
+                    npc={n.custom_stats || {}}
+                    portraitFileId={n.portrait_file_id}
+                    portraitB64={n.portrait_b64}
+                  />
                 </div>
               )}
             </div>

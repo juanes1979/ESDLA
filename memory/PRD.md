@@ -150,16 +150,48 @@ Dos componentes exportados:
 
 ---
 
-#### Próximo: Ola 4 (visual)
+#### 🟢 Ola 4 — Rediseño visual ficha "Saqueador Sureño" (completada)
 
-**Pendiente para Ola 4:**
-- Rediseño `NPCStatBlockPreview` matching visual del libro "Saqueador Sureño":
-  - Encabezado nombre grande + subtítulo cursiva roja
-  - Dado coloreado por atributo (estilo libro)
-  - Tipografía serif + fondo pergamino + separadores rojos
-  - Bloque ataques destacado
+**Frontend `components/adventures/NPCStatBlockPreview.jsx` — reescrito completamente** (~340 líneas)
+
+Ficha estilo libro de rol clásico, replicando la imagen "Saqueador Sureño" del usuario:
+
+- **Borde ornamentado doble**: marco exterior negro grueso + borde ámbar interior, con fondo pergamino texturizado (SVG fractalNoise + degradado).
+- **Cabecera maroon** (gradient stone-900 → stone-800) con borde inferior ámbar grueso:
+  - **Retrato** a la izquierda (file_id de GridFS o base64) con marco ámbar.
+  - **Nombre del PNJ** en el centro, en grandes letras doradas (`#f5d27e`) con `text-shadow` de 3 niveles para outline + sombra dramática, fuente Cinzel/Trajan/Georgia serif, uppercase con tracking ancho.
+  - **Subtítulo** italic ámbar: `tamaño · tipo · alineamiento`.
+  - **4 bloques de combate** a la derecha (CA, PG, VEL, INI) con iconos lucide-react (Award, Heart, Footprints, Zap) y colores diferenciados (ámbar/rosa/esmeralda/cian).
+  - **Badge PX** dorado en la esquina superior derecha con desafío.
+- **Cuerpo**:
+  - Línea de descripción/armadura italic.
+  - **Fila de 6 dados de atributos** coloreados al estilo dado de rol:
+    - **FUE rojo** (`from-red-900 to-red-700`)
+    - **DES esmeralda**
+    - **CON naranja**
+    - **INT cian**
+    - **SAB índigo**
+    - **CAR fucsia**
+    Cada bloque con borde brillante, gradiente vertical, sombra y modificador en paréntesis.
+  - **Sección de Tiradas Salvación / Habilidades / Resistencias / Inmunidades / Sentidos / Idiomas** en grid 2 columnas con etiquetas en rosa-800 uppercase.
+  - **Cabeceras de sección "HABILIDADES ESPECIALES" y "ATAQUES"** con icono lucide (Sparkles, Swords) en rosa-400, banda gradient stone-900, separadores ámbar y tracking 0.2em.
+  - **Ataques en formato fila** con: nombre en bold + bono al impacto + alcance + daño + tipo daño + **chip rounded-pill** ámbar "cuerpo a cuerpo" o "distancia".
+  - **Reacciones** con cabecera Zap.
+- Drop-in replacement: mismas props `(name, npc)` + nuevas opcionales `(portraitFileId, portraitB64)` para el retrato IA generado.
+
+`Step7NPCs` en el wizard pasa ahora `portrait_file_id` y `portrait_b64` a la preview.
+
+**🟢 Smoke E2E confirmado** — Generador → "Khâled el Tuerto" Saqueador → Ver ficha de combate → ficha estilo libro perfecta:
+- KHÂLED EL TUERTO en oro grande con sombra ✅
+- Mediano · Humanoide (Saqueador) cursiva ✅
+- 4 bloques combate (CA 13, PG 9 (1d8+1), VEL 9m, INI +2) ✅
+- Badge 200 PX dorado ✅
+- 6 dados atributos coloreados (FUE 12 rojo, DES 14 esmeralda, CON 13 naranja, INT 9 cian, SAB 10 índigo, CAR 10 fucsia) ✅
+
+**Total tests del fork (Olas 1+2+3+4)**: 25/25 PASS (Ola 4 es puramente visual, sin cambios backend).
 
 ---
+
 
 
 
