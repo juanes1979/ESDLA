@@ -140,6 +140,27 @@ export const deleteLanguage = async (id) => {
   return response.data;
 };
 
+// === NPC Generator ===
+export const getNpcGeneratorOccupations = async () => {
+  const response = await api.get('/npc-generator/occupations');
+  return response.data;
+};
+
+export const generateNpc = async (payload) => {
+  const response = await api.post('/npc-generator/generate', payload);
+  return response.data;
+};
+
+export const generateNpcName = async (payload) => {
+  const response = await api.post('/npc-generator/name', payload);
+  return response.data;
+};
+
+export const generateNpcPortrait = async (payload) => {
+  const response = await api.post('/npc-generator/portrait', payload);
+  return response.data;
+};
+
 export const getEquipment = async () => {
   const response = await api.get('/data/equipment');
   return response.data.equipment;

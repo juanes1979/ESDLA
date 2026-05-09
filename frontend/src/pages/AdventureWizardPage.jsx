@@ -48,6 +48,7 @@ import LocationPickerField from '@/components/adventures/LocationPickerField';
 import LocationMiniPreview from '@/components/adventures/LocationMiniPreview';
 import NPCStatBlockEditor from '@/components/adventures/NPCStatBlockEditor';
 import NPCStatBlockPreview from '@/components/adventures/NPCStatBlockPreview';
+import { BestiaryPickDialog, SubcultureGeneratorDialog } from '@/components/adventures/NPCGeneratorDialogs';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024; // 5 MB
@@ -1019,6 +1020,9 @@ const Step7NPCs = ({ adv, setField, bestiary }) => {
   const [openCustomIdx, setOpenCustomIdx] = useState(null);
   const [previewIdx, setPreviewIdx] = useState(null);
   const [loadingBestiaryIdx, setLoadingBestiaryIdx] = useState(null);
+  // Dialogs
+  const [bestiaryPick, setBestiaryPick] = useState(null); // raw bestiary entry being added
+  const [subGeneratorOpen, setSubGeneratorOpen] = useState(false);
   const filtered = useMemo(() => {
     if (!search) return bestiary;
     const q = search.toLowerCase();
@@ -1032,19 +1036,157 @@ const Step7NPCs = ({ adv, setField, bestiary }) => {
     next[idx] = { ...next[idx], [key]: value };
     setField('npcs', next);
   };
-  const add = (fromBestiary = null) =>
+  const addBlank = () =>
     setField('npcs', [
       ...items,
-      fromBestiary
-        ? {
-            name: fromBestiary.nombre,
-            bestiary_id: fromBestiary.id,
-            bestiary_categoria: fromBestiary.categoria,
+      { name: '', bestiary_id: null, bestiary_categoria: null, history: '', special: '' },
+    ]);
+
+  /**
+   * Añade un PNJ del bestiario en modo Genérico (auto-numerado) o Especial
+   * (con nombre propio editable).
+   */
+  const addFromBestiary = (entry, mode, customName) => {
+    const baseName = entry.nombre;
+    if (mode === 'generico') {
+      // Count existing items with same bestiary_id and auto-number
+      const sameOrigin = items.filter((it) => it.bestiary_id === entry.id);
+      const n = sameOrigin.length + 1;
+      const numberedName = sameOrigin.length === 0 ? baseName : `${baseName} ${n}`;
+      // Also re-number the first if this is the second one
+      if (sameOrigin.length === 1) {
+        const nextItems = items.map((it) =>
+          it.bestiary_id === entry.id && it.npc_mode === 'generico' && it.name === baseName
+            ? { ...it, name: `${baseName} 1` }
+            : it,
+        );
+        setField('npcs', [
+          ...nextItems,
+          {
+            name: numberedName,
+            bestiary_id: entry.id,
+            bestiary_categoria: entry.categoria,
+            npc_mode: 'generico',
             history: '',
             special: '',
-          }
-        : { name: '', bestiary_id: null, bestiary_categoria: null, history: '', special: '' },
+          },
+        ]);
+        return;
+      }
+      setField('npcs', [
+        ...items,
+        {
+          name: numberedName,
+          bestiary_id: entry.id,
+          bestiary_categoria: entry.categoria,
+          npc_mode: 'generico',
+          history: '',
+          special: '',
+        },
+      ]);
+    } else {
+      // Especial: custom name + still references bestiary for stat copy
+      setField('npcs', [
+        ...items,
+        {
+          name: customName || baseName,
+          bestiary_id: entry.id,
+          bestiary_categoria: entry.categoria,
+          npc_mode: 'especial',
+          history: '',
+          special: '',
+        },
+      ]);
+    }
+  };
+
+  /**
+   * Añade un PNJ generado desde subcultura. Convierte el resultado backend
+   * en el formato `custom_stats` que ya entiende NPCStatBlockEditor.
+   */
+  const addGenerated = ({ generated, name, portrait_file_id, portrait_b64, mode }) => {
+    const cs = {
+      tipo: `Humanoide (${generated.subculture_name || generated.culture_name || generated.archetype_label})`,
+      tamanio: 'Mediano',
+      alineamiento: '',
+      descripcion: '',
+      clase_armadura: generated.ca,
+      descripcion_armadura: generated.armor_label + (generated.has_shield ? ' + escudo' : ''),
+      puntos_golpe: generated.hp,
+      dados_golpe: generated.hp_formula,
+      velocidad: generated.speed_m,
+      atributos: {
+        fuerza: generated.atributos.fuerza.valor,
+        destreza: generated.atributos.destreza.valor,
+        constitucion: generated.atributos.constitucion.valor,
+        inteligencia: generated.atributos.inteligencia.valor,
+        sabiduria: generated.atributos.sabiduria.valor,
+        carisma: generated.atributos.carisma.valor,
+      },
+      sentidos: generated.sentidos || [],
+      idiomas: generated.idiomas || [],
+      tiradas_salvacion: generated.tiradas_salvacion || [],
+      habilidades: generated.habilidades || [],
+      desafio: '',
+      experiencia: generated.experiencia,
+      especiales: [],
+      armas: (generated.ataques || []).map((a) => ({
+        nombre: a.nombre,
+        bono_ataque: a.bono,
+        dano: a.dano,
+        tipo_dano: a.tipo,
+        special_text: '',
+      })),
+      reacciones: [],
+      ataque_multiple: '',
+    };
+    // Auto-number generic names
+    let finalName = name;
+    if (mode === 'generico') {
+      const sameKey = generated.archetype_label;
+      const sameOrigin = items.filter((it) => it._gen_archetype === generated.archetype);
+      if (sameOrigin.length > 0) {
+        finalName = `${sameKey} ${sameOrigin.length + 1}`;
+        if (sameOrigin.length === 1) {
+          const nextItems = items.map((it) =>
+            it._gen_archetype === generated.archetype ? { ...it, name: `${sameKey} 1` } : it,
+          );
+          setField('npcs', [
+            ...nextItems,
+            {
+              name: finalName,
+              bestiary_id: null,
+              bestiary_categoria: null,
+              npc_mode: 'generico',
+              _gen_archetype: generated.archetype,
+              history: '',
+              special: '',
+              custom_stats: cs,
+              portrait_file_id: portrait_file_id || null,
+              portrait_b64: portrait_b64 || null,
+            },
+          ]);
+          return;
+        }
+      }
+    }
+    setField('npcs', [
+      ...items,
+      {
+        name: finalName,
+        bestiary_id: null,
+        bestiary_categoria: null,
+        npc_mode: mode || 'especial',
+        _gen_archetype: generated.archetype,
+        history: '',
+        special: '',
+        custom_stats: cs,
+        portrait_file_id: portrait_file_id || null,
+        portrait_b64: portrait_b64 || null,
+      },
     ]);
+  };
+
   const addCustom = () => {
     setField('npcs', [
       ...items,
@@ -1148,7 +1290,7 @@ const Step7NPCs = ({ adv, setField, bestiary }) => {
           {filtered.slice(0, 50).map((b) => (
             <button
               key={b.id}
-              onClick={() => add(b)}
+              onClick={() => setBestiaryPick(b)}
               className="text-left px-2 py-1 text-xs rounded hover:bg-amber-900/30 text-amber-200 border border-amber-800/20"
               data-testid={`bestiary-pick-${b.id}`}
             >
@@ -1159,7 +1301,16 @@ const Step7NPCs = ({ adv, setField, bestiary }) => {
         </div>
         <div className="flex flex-wrap gap-2 mt-2">
           <Button
-            onClick={() => add()}
+            onClick={() => setSubGeneratorOpen(true)}
+            variant="outline"
+            size="sm"
+            className="border-purple-700/50 text-purple-200 hover:bg-purple-900/30"
+            data-testid="npc-generate-from-subculture-btn"
+          >
+            <Sparkles className="w-3.5 h-3.5 mr-1" /> Generar desde subcultura (IA)
+          </Button>
+          <Button
+            onClick={addBlank}
             variant="outline"
             size="sm"
             className="border-amber-700/50 text-amber-200 hover:bg-amber-900/30"
@@ -1178,6 +1329,25 @@ const Step7NPCs = ({ adv, setField, bestiary }) => {
           </Button>
         </div>
       </div>
+
+      {/* === Dialogs === */}
+      <BestiaryPickDialog
+        open={!!bestiaryPick}
+        bestiaryEntry={bestiaryPick}
+        onClose={() => setBestiaryPick(null)}
+        onConfirm={({ mode, name }) => {
+          addFromBestiary(bestiaryPick, mode, name);
+          setBestiaryPick(null);
+        }}
+      />
+      <SubcultureGeneratorDialog
+        open={subGeneratorOpen}
+        onClose={() => setSubGeneratorOpen(false)}
+        onConfirm={(payload) => {
+          addGenerated(payload);
+          setSubGeneratorOpen(false);
+        }}
+      />
 
       {items.map((n, idx) => (
         <div

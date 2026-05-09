@@ -87,20 +87,80 @@
 
 ---
 
-#### Próximo: Ola 3 (NPC Generator avanzado)
+#### 🟢 Ola 3 — Generador Avanzado de PNJ (completada)
 
-**Pendiente para Ola 3:**
-- Generador "Crear PNJ desde subcultura" con array (14, 13, 12, 10, 10, 9), HP por dado, CA + DEX, idiomas, ocupación
-- Listado de ocupaciones de PNJ "enemigo" derivado de creador de personajes + Reglas → Salarios
-- Genérico vs Especial (auto-numerar genéricos: Saqueador 1, 2, 3…)
-- IA generación de nombres por subcultura/sexo (OpenAI GPT-4o)
-- IA retrato B&N carboncillo con prompt único agregando edad/raza/ojos/cultura/ocupación (OpenAI GPT Image 1)
-- Criatura sin nombre (variante)
+**Backend nuevo: `routes/npc_generator_routes.py`** (~520 líneas)
 
-**Pendiente para Ola 4 (visual):**
-- Rediseño `NPCStatBlockPreview` matching visual del libro "Saqueador Sureño"
+Endpoints (`/api/npc-generator/*`):
+- `GET /occupations`: lista combinada de ocupaciones de "PNJ enemigo" (creator + salarios + 19 arquetipos built-in). Marca con ⚔ aquellas que tienen tiradas de salvación reglamentadas (las del creador de personajes).
+- `POST /generate`: produce stat block completo según subcultura/sexo/ocupación/nivel/modo. Aplica:
+  - **Array estándar** `(14, 13, 12, 10, 10, 9)` repartido por la prioridad de atributos del arquetipo (con leve aleatoriedad en los slots inferiores para evitar clones idénticos).
+  - **HP** = nivel 1 → `dado_golpe + CON_mod`, niveles superiores → suma promedio del dado + CON_mod.
+  - **CA** = `10 + DES_mod (capeado por la armadura) + bonus_armadura + 2 si lleva escudo`.
+  - **Equipo** según arquetipo (cota+escudo+espada para Guerrero, cuero+cimitarra+arco corto para Saqueador, etc.).
+  - **TS / Habilidades** según arquetipo.
+  - **Idiomas** = Oestron + idioma cultural (best-effort).
+  - **PX** = derivado de la tabla 5e estándar por nivel.
+- `POST /name`: genera nombre IA usando OpenAI GPT-4o-mini vía Emergent LLM Key. Prompt aglutina cultura + subcultura + sexo + ocupación. Fallback determinista si la IA falla.
+- `POST /portrait`: genera retrato B&N estilo carboncillo usando OpenAI GPT Image 1 vía Emergent LLM Key. Prompt aglutina edad + sexo + cultura + subcultura + ocupación + ojos + pelo + extra + texto IA custom de la subcultura. Persiste el archivo en GridFS y devuelve `file_id` + `image_base64`.
+
+Permisos: `Maestro` y `Director de Juego` pueden generar; `Jugador` recibe 403.
+
+**ARCHETYPES (19 arquetipos) con stats_priority + hp_die + armor + weapons + has_shield + ts + skills**:
+guerrero, campeon, capitan, saqueador, cazador, explorador, espia, asesino, hechicero, mago, sacerdote_oscuro, erudito, campesino, artesano, noble, lider, buscador_tesoros, tesorero, mensajero.
+
+**ARMOR_DATA**: ninguna, tela, cuero, cuero_tach, cota_anillas, cota, placas (con `dex_cap` por armadura).
+
+**NAME_TO_ARCHETYPE**: mapeo de >30 nombres comunes (creator + salarios) a arquetipo apropiado, con resolución directa por slug y por label en español.
+
+**Frontend nuevo: `components/adventures/NPCGeneratorDialogs.jsx`** (~430 líneas)
+
+Dos componentes exportados:
+
+- **`<BestiaryPickDialog>`**: aparece cuando el DJ pulsa una entrada del bestiario. Pregunta:
+  - **Genérico**: se añade como copia rápida con auto-numeración (Saqueador 1, Saqueador 2…).
+  - **Especial**: pide nombre custom y permite editar todo después.
+
+- **`<SubcultureGeneratorDialog>`**: formulario completo con dos columnas:
+  - Form: cultura (catálogo `getCultures`), subcultura, sexo (M/F), nivel, ocupación (de `/npc-generator/occupations`), modo (Genérico/Especial), detalles para retrato (edad/ojos/pelo/extras).
+  - Preview: stat block en directo + botón "Nombre IA" + botón "Generar retrato IA".
+  - Botón "Añadir a la aventura" inserta el PNJ con `custom_stats` poblado en el adventure (compatible con `NPCStatBlockEditor`/`Preview`).
+
+**Frontend `pages/AdventureWizardPage.jsx` — Step7NPCs actualizado**
+
+- Cambiado el `onClick` del bestiario: en lugar de añadir directo, abre `BestiaryPickDialog`.
+- Nuevo botón **"Generar desde subcultura (IA)"** (color púrpura) que abre `SubcultureGeneratorDialog`.
+- Helpers nuevos: `addFromBestiary(entry, mode, name)` con auto-numeración para genéricos; `addGenerated(payload)` que convierte el output del generador en `custom_stats` y aplica auto-numeración por arquetipo.
+- API helpers en `services/api.js`: `getNpcGeneratorOccupations`, `generateNpc`, `generateNpcName`, `generateNpcPortrait`.
+
+**🟢 Tests `test_npc_generator_it106.py` — 5/5 PASS**
+- `test_occupations_list_combined` — combina creator + salarios + archetypes; los del creator traen TS, los de salarios no.
+- `test_generate_saqueador_stats` — stats con DES=14, cuero, cimitarra, arco corto, TS=[DES,INT], PX=200.
+- `test_generate_guerrero_stats_and_shield` — FUE=14, cota, escudo, CA≥17, HP nivel 3 > HP nivel 1.
+- `test_generate_player_forbidden` — jugador 403.
+- `test_ai_name_returns_string` — `/name` devuelve string no vacío.
+
+**🟢 Smoke E2E confirmado**:
+- Wizard → 5.PNJ → 3 botones (Generar IA / Añadir libre / Crear desde 0). ✅
+- Generador desde subcultura: form ↔ stat block en vivo (Saqueador nivel 1 con CA 13, HP 9, atributos, TS, equipo, idiomas). ✅
+- Toast "Stat block generado" tras pulsar Generar. ✅
+- IA `name` validada con curl: "Khalir el Saqueador" (Sureño M Saqueador), "Eledwen la Veloz" (Rohírrico F Capitán). ✅
+
+**Total tests del fork (Olas 1+2+3)**: 25/25 PASS.
 
 ---
+
+#### Próximo: Ola 4 (visual)
+
+**Pendiente para Ola 4:**
+- Rediseño `NPCStatBlockPreview` matching visual del libro "Saqueador Sureño":
+  - Encabezado nombre grande + subtítulo cursiva roja
+  - Dado coloreado por atributo (estilo libro)
+  - Tipografía serif + fondo pergamino + separadores rojos
+  - Bloque ataques destacado
+
+---
+
 
 
 ### ✅ Iteración 104 — XP pool conectado, restricción de cultura en join, reveal a jugadores
