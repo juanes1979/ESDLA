@@ -66,6 +66,36 @@ const ringsToPolys = (multipoly, baseType, baseId) => {
 const MAP_PIXEL_WIDTH = 19791;
 const MAP_PIXEL_HEIGHT = 15133;
 
+/** Subtract `winner`'s geometry from every polygon in `others` so the newest /
+ *  most recently modified polygon always wins overlapping pixels.
+ *  Returns a new flat array of polygons.
+ *  - `winner` is kept untouched in the result (the caller is responsible for
+ *    re-appending it if needed).
+ *  - Polygons of any type — including `winner.type` — get clipped, so the
+ *    overlap rule is strict and visual: last-drawn = on top.
+ *  - If clipping a polygon completely consumes it, the polygon is dropped. */
+const subtractWinnerFromOthers = (others, winner) => {
+  if (!winner || !others?.length) return others || [];
+  let winnerRing;
+  try {
+    winnerRing = polyToRing(winner);
+  } catch (_e) {
+    return others;
+  }
+  const out = [];
+  for (const poly of others) {
+    if (poly.id === winner.id) continue; // never clip self
+    try {
+      const diff = polygonClipping.difference(polyToRing(poly), winnerRing);
+      if (!diff || diff.length === 0) continue; // fully covered → drop
+      out.push(...ringsToPolys(diff, poly.type, poly.id));
+    } catch (_e) {
+      out.push(poly); // fall back: keep original on clipping failure
+    }
+  }
+  return out;
+};
+
 // Terrain difficulty colors
 const TERRAIN_COLORS = {
   facil: { color: '#22c55e', name: 'Fácil', description: 'Caminos bien mantenidos' },
@@ -410,8 +440,17 @@ const TerrainEditor = () => {
   const handleMouseUp = () => {
     setIsDragging(false);
     if (movingPolygonId) {
-      // Snapshot the AFTER state so the move can be undone.
-      pushHistory(drawnPolygons);
+      // After moving, the moved polygon is the "newest" → clip every other
+      // polygon against its new footprint so no overlap remains.
+      setDrawnPolygons((prev) => {
+        const moved = prev.find((p) => p.id === movingPolygonId);
+        if (!moved) return prev;
+        const others = prev.filter((p) => p.id !== movingPolygonId);
+        const clipped = subtractWinnerFromOthers(others, moved);
+        const next = [...clipped, moved];
+        pushHistory(next);
+        return next;
+      });
       toast.success('Polígono movido — recuerda Guardar para persistirlo.');
       setMovingPolygonId(null);
       setMoveStartCoords(null);
@@ -654,11 +693,20 @@ const TerrainEditor = () => {
       type: selectedBrush,
       points: [...currentPolygon]
     };
-    
-    pushHistory([...drawnPolygons, newPolygon]);
-    setDrawnPolygons(prev => [...prev, newPolygon]);
+
+    // "Newest wins": clip the new polygon out of every existing polygon so no
+    // two zones overlap. The freshly drawn shape stays intact on top.
+    const clippedOthers = subtractWinnerFromOthers(drawnPolygons, newPolygon);
+    const nextPolys = [...clippedOthers, newPolygon];
+    pushHistory(nextPolys);
+    setDrawnPolygons(nextPolys);
     setCurrentPolygon([]);
-    toast.success(`Polígono creado con ${newPolygon.points.length} puntos`);
+    const dropped = drawnPolygons.length - clippedOthers.length;
+    if (dropped > 0) {
+      toast.success(`Polígono creado (${newPolygon.points.length} pts). Sobrescribió ${dropped} zona${dropped === 1 ? '' : 's'}.`);
+    } else {
+      toast.success(`Polígono creado con ${newPolygon.points.length} puntos`);
+    }
   };
 
   // Cancel current polygon
