@@ -5,16 +5,62 @@
  * 2. Land Types (Tierras Libres, Salvajes, Sombra, etc.)
  */
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import polygonClipping from 'polygon-clipping';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ArrowLeft, ZoomIn, ZoomOut, Move, Save, Trash2, Plus, Edit3, Download, Eraser } from 'lucide-react';
+import { ArrowLeft, ZoomIn, ZoomOut, Move, Save, Trash2, Plus, Edit3, Download, Eraser, Paintbrush } from 'lucide-react';
 import { toast } from 'sonner';
 import api from '@/services/api';
 import { useNavigate } from 'react-router-dom';
 import { MAESTRO_MAP_URL } from '@/config/mapAssets';
+
+// ===========================================================================
+// Brush helpers — clip polygons with a circular stamp (Iter 107)
+// ===========================================================================
+
+/** Build the perimeter of a circle as a closed ring (GeoJSON-like). */
+const circleRing = (cx, cy, r, sides = 24) => {
+  const ring = [];
+  for (let i = 0; i < sides; i++) {
+    const a = (i / sides) * 2 * Math.PI;
+    ring.push([cx + r * Math.cos(a), cy + r * Math.sin(a)]);
+  }
+  ring.push(ring[0]); // close
+  return [ring]; // single-ring polygon
+};
+
+/** Convert our `{points: [{x,y}]}` representation to GeoJSON-like polygon. */
+const polyToRing = (poly) => {
+  const ring = poly.points.map((p) => [p.x, p.y]);
+  if (ring.length && (ring[0][0] !== ring[ring.length - 1][0] || ring[0][1] !== ring[ring.length - 1][1])) {
+    ring.push(ring[0]);
+  }
+  return [ring];
+};
+
+/** Convert a GeoJSON-like multipolygon back to our flat `{points}` shape.
+ *  Holes are flattened back into outer-only rings (acceptable for our editor —
+ *  if a brush carves a hole inside a big polygon we end up with two outer
+ *  polygons after the split). */
+const ringsToPolys = (multipoly, baseType, baseId) => {
+  const out = [];
+  multipoly.forEach((poly, i) => {
+    poly.forEach((ring, j) => {
+      // Drop the closing duplicate point
+      const cleaned = ring.slice(0, -1);
+      if (cleaned.length < 3) return;
+      out.push({
+        id: `${baseId}_p${i}_${j}_${Math.random().toString(36).slice(2, 7)}`,
+        type: baseType,
+        points: cleaned.map(([x, y]) => ({ x, y })),
+      });
+    });
+  });
+  return out;
+};
 
 // Map dimensions (same as main system)
 const MAP_PIXEL_WIDTH = 19791;
@@ -80,6 +126,16 @@ const TerrainEditor = () => {
   const [movePolygonMode, setMovePolygonMode] = useState(false);
   const [movingPolygonId, setMovingPolygonId] = useState(null);
   const [moveStartCoords, setMoveStartCoords] = useState(null);
+
+  // === Brush mode (Iter 107) — circular stamp that clips/replaces parts
+  //     of existing polygons instead of deleting them whole.
+  //     Two sub-modes: 'erase' (subtract only) and 'paint' (replace by the
+  //     currently selected terrain). ===
+  const [brushMode, setBrushMode] = useState(null); // null | 'erase' | 'paint'
+  const [brushRadius, setBrushRadius] = useState(0.6); // map % (0.2 - 5)
+  const [brushActive, setBrushActive] = useState(false);
+  const [brushCursor, setBrushCursor] = useState(null); // {x, y} in map %
+  const [brushPreStamp, setBrushPreStamp] = useState(null); // history snapshot taken on mousedown
 
   // === Undo / Redo history of drawnPolygons (Iter 83) ===
   // Stores AFTER-states. cursor (`historyIndex`) points to the index in
@@ -152,6 +208,43 @@ const TerrainEditor = () => {
     return () => window.removeEventListener('keydown', onKey);
   }, [undo, redo]);
 
+  // Apply one brush stamp at (cx, cy). In 'erase' mode every polygon that
+  // intersects the brush circle is clipped with `circle - poly`. In 'paint'
+  // mode the circle is added on top as a new polygon of the selected brush
+  // (and any other type underneath is clipped so it doesn't show through).
+  const applyBrushStamp = useCallback((cx, cy) => {
+    if (!brushMode) return;
+    const circle = circleRing(cx, cy, brushRadius, 28);
+    setDrawnPolygons((prev) => {
+      const next = [];
+      for (const poly of prev) {
+        try {
+          // For paint mode: same-type polygons keep their color but get
+          // merged later; we still need to clip them so we don't end up
+          // with overlapping identical shapes.
+          const diff = polygonClipping.difference(polyToRing(poly), circle);
+          if (!diff || diff.length === 0) {
+            // Polygon entirely inside brush → drop it.
+            continue;
+          }
+          next.push(...ringsToPolys(diff, poly.type, poly.id));
+        } catch (_e) {
+          // If clipping fails (degenerate poly etc.), keep the original
+          next.push(poly);
+        }
+      }
+      if (brushMode === 'paint' && selectedBrush) {
+        next.push({
+          id: `brush_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+          type: selectedBrush,
+          points: circle[0].slice(0, -1).map(([x, y]) => ({ x, y })),
+        });
+      }
+      return next;
+    });
+  }, [brushMode, brushRadius, selectedBrush]);
+
+
 
   // Load data
   useEffect(() => {
@@ -204,10 +297,18 @@ const TerrainEditor = () => {
     fetchData();
   }, []);
 
-  // Mouse handlers for pan
+  // Mouse handlers for pan / brush
   const handleMouseDown = (e) => {
-    // Allow pan with left click when NOT in polygon, erase or move mode
-    if (e.button === 0 && !polygonMode && !eraseMode && !movePolygonMode) {
+    // Brush mode takes precedence: start a stroke and snapshot history
+    if (e.button === 0 && brushMode) {
+      const coords = screenToMap(e.clientX, e.clientY);
+      setBrushPreStamp(drawnPolygons); // for history
+      setBrushActive(true);
+      applyBrushStamp(coords.x, coords.y);
+      return;
+    }
+    // Allow pan with left click when NOT in polygon, erase, move or brush mode
+    if (e.button === 0 && !polygonMode && !eraseMode && !movePolygonMode && !brushMode) {
       setIsDragging(true);
       setLastMousePos({ x: e.clientX, y: e.clientY });
     } else if (e.button === 2) {
@@ -244,6 +345,14 @@ const TerrainEditor = () => {
       toast.success('Polígono movido — recuerda Guardar para persistirlo.');
       setMovingPolygonId(null);
       setMoveStartCoords(null);
+    }
+    if (brushActive) {
+      // Snapshot the BEFORE state so a whole brush stroke counts as 1 undo
+      if (brushPreStamp) {
+        pushHistory(drawnPolygons);
+      }
+      setBrushActive(false);
+      setBrushPreStamp(null);
     }
   };
 
@@ -387,12 +496,18 @@ const TerrainEditor = () => {
     });
   };
 
-  // Handle mouse drag for painting / polygon-moving / panning.
-  // (Bug fix: previously the polygon-moving logic lived only in the unused
-  //  handleMouseMove handler, so activating "Mover" never repositioned
-  //  anything. Now we handle all three cases in the same listener that is
-  //  actually bound to the container.)
+  // Handle mouse drag for painting / polygon-moving / panning / brush.
   const handleMouseMoveForPaint = (e) => {
+    // Update brush cursor preview position whenever brush mode is active
+    if (brushMode) {
+      const coords = screenToMap(e.clientX, e.clientY);
+      setBrushCursor(coords);
+      // Continuous stroke while mouse held
+      if (brushActive) {
+        applyBrushStamp(coords.x, coords.y);
+        return;
+      }
+    }
     // 1) Moving a polygon takes precedence over everything else.
     if (movingPolygonId && moveStartCoords) {
       const coords = screenToMap(e.clientX, e.clientY);
@@ -409,7 +524,7 @@ const TerrainEditor = () => {
       return;
     }
     // 2) Pan when dragging and NOT in any drawing mode.
-    if (isDragging && !polygonMode && !eraseMode && !movePolygonMode) {
+    if (isDragging && !polygonMode && !eraseMode && !movePolygonMode && !brushMode) {
       const dx = e.clientX - lastMousePos.x;
       const dy = e.clientY - lastMousePos.y;
       setPan(prev => ({ x: prev.x + dx, y: prev.y + dy }));
@@ -1046,6 +1161,7 @@ const TerrainEditor = () => {
                 setMovePolygonMode(!movePolygonMode);
                 setEraseMode(false);
                 setPolygonMode(false);
+                setBrushMode(null);
                 if (!movePolygonMode) {
                   toast.info('Modo mover activado. Arrastra un polígono para reposicionarlo.');
                 }
@@ -1056,6 +1172,71 @@ const TerrainEditor = () => {
               <Move className="w-4 h-4 mr-1" />
               Mover
             </Button>
+
+            {/* === BRUSH MODES (Iter 107) === */}
+            <Button
+              variant={brushMode === 'erase' ? "default" : "outline"}
+              size="sm"
+              onClick={() => {
+                const next = brushMode === 'erase' ? null : 'erase';
+                setBrushMode(next);
+                setEraseMode(false);
+                setPolygonMode(false);
+                setMovePolygonMode(false);
+                if (next === 'erase') {
+                  toast.info('Pincel BORRAR activado. Pinta sobre las zonas a recortar.');
+                }
+              }}
+              className={brushMode === 'erase' ? 'bg-rose-700' : ''}
+              data-testid="terrain-brush-erase-btn"
+              title="Pincel: recorta trozos de polígonos existentes"
+            >
+              <Eraser className="w-4 h-4 mr-1" />
+              Pincel borrar
+            </Button>
+            <Button
+              variant={brushMode === 'paint' ? "default" : "outline"}
+              size="sm"
+              onClick={() => {
+                if (!selectedBrush) {
+                  toast.error('Selecciona primero un tipo de terreno o tierra.');
+                  return;
+                }
+                const next = brushMode === 'paint' ? null : 'paint';
+                setBrushMode(next);
+                setEraseMode(false);
+                setPolygonMode(false);
+                setMovePolygonMode(false);
+                if (next === 'paint') {
+                  toast.info(`Pincel PINTAR activado con "${selectedBrush}". Pinta encima para reemplazar.`);
+                }
+              }}
+              className={brushMode === 'paint' ? 'bg-emerald-700' : ''}
+              data-testid="terrain-brush-paint-btn"
+              title="Pincel: pinta encima reemplazando lo que haya"
+              disabled={!selectedBrush}
+            >
+              <Paintbrush className="w-4 h-4 mr-1" />
+              Pincel pintar
+            </Button>
+            {brushMode && (
+              <div className="flex items-center gap-2 text-xs bg-black/40 px-2 py-1 rounded">
+                <span className="text-amber-300">Radio:</span>
+                <input
+                  type="range"
+                  min="0.2"
+                  max="5"
+                  step="0.1"
+                  value={brushRadius}
+                  onChange={(e) => setBrushRadius(parseFloat(e.target.value))}
+                  data-testid="terrain-brush-radius-slider"
+                  className="w-24 accent-amber-500"
+                />
+                <span className="text-amber-200 font-mono w-10 text-right">
+                  {brushRadius.toFixed(1)}%
+                </span>
+              </div>
+            )}
             
             {/* Info display */}
             <div className="flex items-center gap-2 text-xs bg-black/40 px-2 py-1 rounded">
@@ -1324,6 +1505,21 @@ const TerrainEditor = () => {
           
           {/* 9. Render current polygon being drawn */}
           {renderCurrentPolygon()}
+
+          {/* 10. Brush cursor preview (Iter 107) */}
+          {brushMode && brushCursor && (
+            <circle
+              cx={(brushCursor.x / 100) * MAP_PIXEL_WIDTH}
+              cy={MAP_PIXEL_HEIGHT - (brushCursor.y / 100) * MAP_PIXEL_HEIGHT}
+              r={(brushRadius / 100) * MAP_PIXEL_WIDTH}
+              fill={brushMode === 'erase' ? 'rgba(244,63,94,0.18)' : 'rgba(16,185,129,0.20)'}
+              stroke={brushMode === 'erase' ? '#f43f5e' : '#10b981'}
+              strokeWidth={20 / zoom}
+              strokeDasharray={`${40 / zoom} ${40 / zoom}`}
+              style={{ pointerEvents: 'none' }}
+              data-testid="terrain-brush-cursor"
+            />
+          )}
         </svg>
       </div>
       
