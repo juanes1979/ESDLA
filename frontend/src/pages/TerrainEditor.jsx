@@ -288,18 +288,28 @@ const TerrainEditor = () => {
       if (!coords) return;
       if (coords.x < 0 || coords.x > 100 || coords.y < 0 || coords.y > 100) return;
       
-      // Check if clicking near the first point to close the polygon
+      // Check if clicking near the first point to close the polygon.
+      // We compare distance in SCREEN PIXELS (not map percent) so the
+      // closure threshold feels the same regardless of the current zoom
+      // level. Previously the threshold was 1.5% of the map which at
+      // normal zoom is ~300 px — that auto-closed small polygons after
+      // 3-4 clicks (Iter 107 bug fix).
       if (currentPolygon.length >= 3) {
         const firstPoint = currentPolygon[0];
-        const distance = Math.sqrt(
-          Math.pow(coords.x - firstPoint.x, 2) + 
-          Math.pow(coords.y - firstPoint.y, 2)
-        );
-        
-        // If close enough to first point, close the polygon
-        if (distance < 1.5) { // 1.5% threshold
-          closePolygon();
-          return;
+        const rect = containerRef.current?.getBoundingClientRect();
+        if (rect) {
+          const fpMapX = (firstPoint.x / 100) * MAP_PIXEL_WIDTH;
+          const fpMapY = MAP_PIXEL_HEIGHT - (firstPoint.y / 100) * MAP_PIXEL_HEIGHT;
+          const fpScreenX = rect.left + pan.x + fpMapX * zoom;
+          const fpScreenY = rect.top + pan.y + fpMapY * zoom;
+          const sdx = e.clientX - fpScreenX;
+          const sdy = e.clientY - fpScreenY;
+          const pixelDist = Math.sqrt(sdx * sdx + sdy * sdy);
+          // ~14 px = the radius of the rendered "1" marker.
+          if (pixelDist < 14) {
+            closePolygon();
+            return;
+          }
         }
       }
       
