@@ -244,6 +244,48 @@ const TerrainEditor = () => {
     });
   }, [brushMode, brushRadius, selectedBrush]);
 
+  // Merge all adjacent/overlapping polygons of the same type into one (or as
+  // few as topologically possible). Runs polygon-clipping.union per type.
+  const mergeSameTypePolygons = useCallback(() => {
+    if (!drawnPolygons.length) {
+      toast.info('No hay polígonos para unir.');
+      return;
+    }
+    const before = drawnPolygons.length;
+    const byType = {};
+    for (const p of drawnPolygons) {
+      if (!byType[p.type]) byType[p.type] = [];
+      byType[p.type].push(p);
+    }
+    const merged = [];
+    for (const [type, polys] of Object.entries(byType)) {
+      if (polys.length === 1) {
+        merged.push(polys[0]);
+        continue;
+      }
+      try {
+        const rings = polys.map(polyToRing);
+        const unified = polygonClipping.union(...rings);
+        if (unified && unified.length) {
+          merged.push(...ringsToPolys(unified, type, `union_${type}`));
+        } else {
+          // Fallback: keep originals if union returned nothing
+          merged.push(...polys);
+        }
+      } catch (e) {
+        console.warn(`Union failed for type ${type}:`, e);
+        merged.push(...polys);
+      }
+    }
+    if (merged.length === before) {
+      toast.info(`Sin cambios: los ${before} polígonos no son contiguos.`);
+      return;
+    }
+    pushHistory(merged);
+    setDrawnPolygons(merged);
+    toast.success(`Unidos: ${before} → ${merged.length} polígonos.`);
+  }, [drawnPolygons, pushHistory]);
+
 
 
   // Load data
@@ -1242,6 +1284,19 @@ const TerrainEditor = () => {
             <div className="flex items-center gap-2 text-xs bg-black/40 px-2 py-1 rounded">
               <span>Polígonos: <span className="text-amber-400 font-bold">{drawnPolygons.length}</span></span>
             </div>
+
+            {/* Merge same-type polygons (Iter 107) */}
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={mergeSameTypePolygons}
+              disabled={drawnPolygons.length < 2}
+              title="Une polígonos del mismo color que se toquen o solapen"
+              data-testid="terrain-merge-btn"
+              className="border-indigo-500/60 text-indigo-200 hover:bg-indigo-900/30"
+            >
+              ⛓ Unir polígonos
+            </Button>
 
             {/* Undo / Redo */}
             <Button
