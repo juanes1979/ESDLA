@@ -1134,9 +1134,9 @@ const TerrainEditor = () => {
   }
 
   return (
-    <div className="min-h-screen bg-[hsl(var(--parchment-dark))] flex flex-col">
+    <div className="h-screen overflow-hidden bg-[hsl(var(--parchment-dark))] flex flex-col">
       {/* Header */}
-      <div className="p-4 border-b border-[hsl(var(--gold))]/20 bg-black/40">
+      <div className="p-4 border-b border-[hsl(var(--gold))]/20 bg-black/40 flex-shrink-0">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
             <Button variant="ghost" onClick={() => navigate('/')}>
@@ -1198,7 +1198,7 @@ const TerrainEditor = () => {
       </div>
       
       {/* Legend and Tools */}
-      <div className="p-3 bg-black/30 border-b border-[hsl(var(--gold))]/10">
+      <div className="p-3 bg-black/30 border-b border-[hsl(var(--gold))]/10 flex-shrink-0">
         <div className="flex flex-wrap items-center gap-3 justify-between">
           {/* Color Legend / Brush Selection */}
           <div className="flex flex-wrap gap-2">
