@@ -209,27 +209,29 @@ const TerrainEditor = () => {
   }, [undo, redo]);
 
   // Apply one brush stamp at (cx, cy). In 'erase' mode every polygon that
-  // intersects the brush circle is clipped with `circle - poly`. In 'paint'
-  // mode the circle is added on top as a new polygon of the selected brush
-  // (and any other type underneath is clipped so it doesn't show through).
+  // intersects the brush circle is clipped with `poly - circle`. In 'paint'
+  // mode we ONLY clip polygons of a DIFFERENT type (so the new paint
+  // replaces them) and add the circle as a fresh polygon of `selectedBrush`.
+  // We deliberately leave same-type polygons untouched so consecutive brush
+  // stamps overlap freely — that way the "Unir polígonos" button can later
+  // collapse them into one big shape without snap-rounding microgaps.
   const applyBrushStamp = useCallback((cx, cy) => {
     if (!brushMode) return;
     const circle = circleRing(cx, cy, brushRadius, 28);
     setDrawnPolygons((prev) => {
       const next = [];
       for (const poly of prev) {
+        // In 'paint' mode keep same-type polygons intact (they will be
+        // unioned later when the user presses "Unir polígonos").
+        if (brushMode === 'paint' && selectedBrush && poly.type === selectedBrush) {
+          next.push(poly);
+          continue;
+        }
         try {
-          // For paint mode: same-type polygons keep their color but get
-          // merged later; we still need to clip them so we don't end up
-          // with overlapping identical shapes.
           const diff = polygonClipping.difference(polyToRing(poly), circle);
-          if (!diff || diff.length === 0) {
-            // Polygon entirely inside brush → drop it.
-            continue;
-          }
+          if (!diff || diff.length === 0) continue; // poly fully inside brush
           next.push(...ringsToPolys(diff, poly.type, poly.id));
         } catch (_e) {
-          // If clipping fails (degenerate poly etc.), keep the original
           next.push(poly);
         }
       }
@@ -246,6 +248,10 @@ const TerrainEditor = () => {
 
   // Merge all adjacent/overlapping polygons of the same type into one (or as
   // few as topologically possible). Runs polygon-clipping.union per type.
+  // To bridge tiny floating-point gaps between adjacent stamps we briefly
+  // inflate each ring by `bleed` units before unioning (no real geometric
+  // expansion — just a coordinate snap that makes neighbouring rings share
+  // boundaries cleanly).
   const mergeSameTypePolygons = useCallback(() => {
     if (!drawnPolygons.length) {
       toast.info('No hay polígonos para unir.');
@@ -257,6 +263,29 @@ const TerrainEditor = () => {
       if (!byType[p.type]) byType[p.type] = [];
       byType[p.type].push(p);
     }
+    // Bleed in MAP-% — 0.01% ≈ 2 map pixels = enough to bridge gaps from
+    // snap rounding but small enough to not visibly distort the result.
+    const BLEED = 0.01;
+    const inflateRing = (poly) => {
+      // Compute polygon centroid
+      let cxSum = 0;
+      let cySum = 0;
+      for (const p of poly.points) {
+        cxSum += p.x;
+        cySum += p.y;
+      }
+      const cx = cxSum / poly.points.length;
+      const cy = cySum / poly.points.length;
+      // Move each vertex AWAY from centroid by BLEED units (radially)
+      const expanded = poly.points.map((p) => {
+        const dx = p.x - cx;
+        const dy = p.y - cy;
+        const len = Math.hypot(dx, dy) || 1;
+        return [p.x + (dx / len) * BLEED, p.y + (dy / len) * BLEED];
+      });
+      expanded.push(expanded[0]);
+      return [expanded];
+    };
     const merged = [];
     for (const [type, polys] of Object.entries(byType)) {
       if (polys.length === 1) {
@@ -264,12 +293,11 @@ const TerrainEditor = () => {
         continue;
       }
       try {
-        const rings = polys.map(polyToRing);
+        const rings = polys.map(inflateRing);
         const unified = polygonClipping.union(...rings);
         if (unified && unified.length) {
           merged.push(...ringsToPolys(unified, type, `union_${type}`));
         } else {
-          // Fallback: keep originals if union returned nothing
           merged.push(...polys);
         }
       } catch (e) {
