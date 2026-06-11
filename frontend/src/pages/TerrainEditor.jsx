@@ -167,12 +167,6 @@ const TerrainEditor = () => {
   const [brushCursor, setBrushCursor] = useState(null); // {x, y} in map %
   const [brushPreStamp, setBrushPreStamp] = useState(null); // history snapshot taken on mousedown
 
-  // === Paint bucket mode (Iter 116) — flood-fills the enclosed empty area
-  //     under the cursor with the selected terrain. Computed via
-  //     polygon-clipping: (bbox - all polys) → pick the component that
-  //     contains the click and isn't the unbounded outer area. ===
-  const [bucketMode, setBucketMode] = useState(false);
-
   // === Undo / Redo history of drawnPolygons (Iter 83) ===
   // Stores AFTER-states. cursor (`historyIndex`) points to the index in
   // `history` that corresponds to the CURRENT drawn polygons.
@@ -350,88 +344,104 @@ const TerrainEditor = () => {
     toast.success(`Unidos: ${before} → ${merged.length} polígonos.`);
   }, [drawnPolygons, pushHistory]);
 
-  // Paint-bucket flood fill. Computes (mapBBox - allPolys) using
-  // polygon-clipping, then picks the empty component that CONTAINS (cx,cy).
-  // The "external" empty component (whose outer ring touches the map borders)
-  // is excluded so the user can't accidentally flood the entire un-painted
-  // area when clicking outside any enclosure.
-  const fillEnclosedAt = useCallback((cx, cy) => {
+  // Paint-bucket flood fill — fills EVERY enclosed empty hole in the map at
+  // once with the selected terrain. Computes (mapBBox - allPolys) using
+  // polygon-clipping, then keeps only the empty components that do NOT
+  // touch the map borders (= they are real enclosed holes). Each such
+  // component (outer ring + every hole inside it) becomes a new polygon of
+  // `selectedBrush`. Existing polygons are clipped via the "newest wins"
+  // rule so no overlap remains.
+  const fillEnclosedHoles = useCallback(() => {
     if (!selectedBrush) {
       toast.error('Selecciona primero un tipo de terreno o tierra para el bote.');
+      return;
+    }
+    if (drawnPolygons.length === 0) {
+      toast.info('No hay zonas dibujadas todavía.');
       return;
     }
     // Map is normalised to a 0..100 %-square in our coord system.
     const bbox = [[[0, 0], [100, 0], [100, 100], [0, 100], [0, 0]]];
     let empty;
     try {
-      if (drawnPolygons.length === 0) {
-        empty = [bbox];
-      } else {
-        const rings = drawnPolygons.map(polyToRing);
-        empty = polygonClipping.difference(bbox, ...rings);
-      }
+      const rings = drawnPolygons.map(polyToRing);
+      empty = polygonClipping.difference(bbox, ...rings);
     } catch (_e) {
-      toast.error('No se pudo calcular el hueco.');
+      toast.error('No se pudo calcular los huecos.');
       return;
     }
     if (!empty || empty.length === 0) {
-      toast.info('No hay huecos disponibles para rellenar.');
+      toast.info('El mapa ya está totalmente cubierto.');
       return;
     }
-    // Ray-cast point-in-ring test (0..100 % coords).
-    const pointInRing = (px, py, ring) => {
-      let inside = false;
-      for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
-        const xi = ring[i][0], yi = ring[i][1];
-        const xj = ring[j][0], yj = ring[j][1];
-        const hit = ((yi > py) !== (yj > py)) &&
-          (px < ((xj - xi) * (py - yi)) / (yj - yi || 1e-9) + xi);
-        if (hit) inside = !inside;
-      }
-      return inside;
-    };
     const touchesBorder = (ring) =>
       ring.some(([x, y]) => x <= 0.05 || x >= 99.95 || y <= 0.05 || y >= 99.95);
-    // Find the component whose outer ring contains the click AND whose holes
-    // do NOT contain the click (= click is really inside the empty area, not
-    // inside a polygon hole punched into that component).
-    let target = null;
+    // Each empty component can be EITHER the unbounded "outside" area (its
+    // outer ring touches the bbox border) OR a truly enclosed hole. Keep
+    // only the enclosed ones. BUT — even the "outside" component can have
+    // holes inside it (e.g. zones surrounded by emptiness with sub-empty
+    // pockets); those sub-holes are ALSO enclosed pockets that the user
+    // wants filled. So we extract holes from the outside component as
+    // additional enclosed pockets.
+    const enclosed = []; // array of rings → each becomes its own filled poly
     for (const poly of empty) {
       const outer = poly[0];
-      if (!pointInRing(cx, cy, outer)) continue;
-      const inHole = poly.slice(1).some((hole) => pointInRing(cx, cy, hole));
-      if (inHole) continue;
-      target = poly;
-      break;
+      const holes = poly.slice(1);
+      if (touchesBorder(outer)) {
+        // Outside component: its holes are zones surrounded by emptiness
+        // (= NOT enclosed by colour) — ignore them. We only want pockets
+        // truly enclosed by drawn polygons. A hole of the OUTSIDE region
+        // is actually a polygon island, not an empty pocket.
+        continue;
+      }
+      // Enclosed empty pocket. Fill its outer ring; ignore inner holes
+      // (those are existing polygons that should remain visible — the
+      // "newest wins" clip step will preserve them under the new fill...
+      // wait, no — newest wins clips OLDER polys to remove overlap.
+      // If we paint a big rectangle that includes existing polys as holes,
+      // after clip those polys disappear. We want to KEEP them visible →
+      // so we explicitly subtract the holes from the new fill polygon.)
+      enclosed.push({ outer, holes });
     }
-    if (!target) {
-      toast.info('Ese punto está dentro de una zona ya definida.');
+    if (enclosed.length === 0) {
+      toast.info('No hay huecos cerrados (todo el vacío toca el borde del mapa).');
       return;
     }
-    if (touchesBorder(target[0])) {
-      toast.error('El hueco no está cerrado (toca el borde del mapa). Pinta alrededor primero.');
-      return;
-    }
-    // Convert all rings (outer + holes) into separate filled polygons.
-    // Outer ring → new fill polygon. Holes inside it → also painted as the
-    // same colour (so an island of "empty" surrounded by colour gets fully
-    // covered including any sub-holes the user can re-carve later).
+    // Build new polygons. For each enclosed pocket we compute
+    // outerRing - holes via polygon-clipping so existing polys nested
+    // inside the pocket remain intact and the new fill never overlaps them.
     const newPolys = [];
-    target.forEach((ring, idx) => {
-      const cleaned = ring.slice(0, -1).map(([x, y]) => ({ x, y }));
-      if (cleaned.length < 3) return;
-      newPolys.push({
-        id: `bucket_${Date.now()}_${idx}_${Math.random().toString(36).slice(2, 6)}`,
-        type: selectedBrush,
-        points: cleaned,
+    for (const { outer, holes } of enclosed) {
+      let result;
+      try {
+        if (holes.length === 0) {
+          result = [[outer]];
+        } else {
+          result = polygonClipping.difference([outer], ...holes.map((h) => [h]));
+        }
+      } catch (_e) {
+        result = [[outer]];
+      }
+      if (!result || result.length === 0) continue;
+      result.forEach((poly, i) => {
+        poly.forEach((ring, j) => {
+          const cleaned = ring.slice(0, -1).map(([x, y]) => ({ x, y }));
+          if (cleaned.length < 3) return;
+          newPolys.push({
+            id: `bucket_${Date.now()}_${i}_${j}_${Math.random().toString(36).slice(2, 6)}`,
+            type: selectedBrush,
+            points: cleaned,
+          });
+        });
       });
-    });
+    }
     if (!newPolys.length) {
-      toast.error('Hueco demasiado pequeño para rellenar.');
+      toast.info('No hay huecos rellenables.');
       return;
     }
-    // The new fill is the "winner" — clip every existing polygon against
-    // the outer ring so the same-zone overlap rule holds.
+    // Safety: the new polys are by construction disjoint from existing
+    // ones, but we still run subtractWinnerFromOthers to guarantee no
+    // overlap (e.g. on rounding edges).
     let working = drawnPolygons;
     for (const np of newPolys) {
       working = subtractWinnerFromOthers(working, np);
@@ -439,7 +449,7 @@ const TerrainEditor = () => {
     const next = [...working, ...newPolys];
     pushHistory(next);
     setDrawnPolygons(next);
-    toast.success('Hueco rellenado.');
+    toast.success(`${newPolys.length} hueco${newPolys.length === 1 ? '' : 's'} rellenado${newPolys.length === 1 ? '' : 's'}.`);
   }, [drawnPolygons, selectedBrush, pushHistory]);
 
 
@@ -505,8 +515,8 @@ const TerrainEditor = () => {
       applyBrushStamp(coords.x, coords.y);
       return;
     }
-    // Allow pan with left click when NOT in polygon, erase, move, brush or bucket mode
-    if (e.button === 0 && !polygonMode && !eraseMode && !movePolygonMode && !brushMode && !bucketMode) {
+    // Allow pan with left click when NOT in polygon, erase, move or brush mode
+    if (e.button === 0 && !polygonMode && !eraseMode && !movePolygonMode && !brushMode) {
       setIsDragging(true);
       setLastMousePos({ x: e.clientX, y: e.clientY });
     } else if (e.button === 2) {
@@ -593,15 +603,6 @@ const TerrainEditor = () => {
 
   // Handle painting on map
   const handleMapClick = (e) => {
-    // Paint-bucket flood fill (handled before polygon-mode so the bucket
-    // doesn't accidentally add a vertex if both were ever active).
-    if (bucketMode) {
-      const coords = screenToMap(e.clientX, e.clientY);
-      if (!coords) return;
-      if (coords.x < 0 || coords.x > 100 || coords.y < 0 || coords.y > 100) return;
-      fillEnclosedAt(coords.x, coords.y);
-      return;
-    }
     // Check polygon mode first
     if (polygonMode) {
       if (!selectedBrush) {
@@ -740,7 +741,7 @@ const TerrainEditor = () => {
       return;
     }
     // 2) Pan when dragging and NOT in any drawing mode.
-    if (isDragging && !polygonMode && !eraseMode && !movePolygonMode && !brushMode && !bucketMode) {
+    if (isDragging && !polygonMode && !eraseMode && !movePolygonMode && !brushMode) {
       const dx = e.clientX - lastMousePos.x;
       const dy = e.clientY - lastMousePos.y;
       setPan(prev => ({ x: prev.x + dx, y: prev.y + dy }));
@@ -1352,7 +1353,6 @@ const TerrainEditor = () => {
                 setPolygonMode(!polygonMode);
                 setEraseMode(false);
                 setMovePolygonMode(false);
-                setBucketMode(false);
                 if (!polygonMode) {
                   toast.info('Modo polígono activado. Haz clic para poner puntos. Cierra haciendo clic cerca del primer punto (verde).');
                 }
@@ -1370,7 +1370,6 @@ const TerrainEditor = () => {
                 setEraseMode(!eraseMode);
                 setPolygonMode(false);
                 setMovePolygonMode(false);
-                setBucketMode(false);
                 if (!eraseMode) {
                   toast.info('Modo borrar activado. Haz clic en un polígono para eliminarlo.');
                 }
@@ -1389,7 +1388,6 @@ const TerrainEditor = () => {
                 setEraseMode(false);
                 setPolygonMode(false);
                 setBrushMode(null);
-                setBucketMode(false);
                 if (!movePolygonMode) {
                   toast.info('Modo mover activado. Arrastra un polígono para reposicionarlo.');
                 }
@@ -1411,7 +1409,6 @@ const TerrainEditor = () => {
                 setEraseMode(false);
                 setPolygonMode(false);
                 setMovePolygonMode(false);
-                setBucketMode(false);
                 if (next === 'erase') {
                   toast.info('Pincel BORRAR activado. Pinta sobre las zonas a recortar.');
                 }
@@ -1436,7 +1433,6 @@ const TerrainEditor = () => {
                 setEraseMode(false);
                 setPolygonMode(false);
                 setMovePolygonMode(false);
-                setBucketMode(false);
                 if (next === 'paint') {
                   toast.info(`Pincel PINTAR activado con "${selectedBrush}". Pinta encima para reemplazar.`);
                 }
@@ -1450,29 +1446,16 @@ const TerrainEditor = () => {
               Pincel pintar
             </Button>
 
-            {/* === PAINT BUCKET (Iter 116) === */}
+            {/* === PAINT BUCKET (Iter 116) — single-shot action button.
+                  Fills ALL enclosed holes with the selected color. === */}
             <Button
-              variant={bucketMode ? "default" : "outline"}
+              variant="outline"
               size="sm"
-              onClick={() => {
-                if (!selectedBrush && !bucketMode) {
-                  toast.error('Selecciona primero un tipo de terreno o tierra.');
-                  return;
-                }
-                const next = !bucketMode;
-                setBucketMode(next);
-                if (next) {
-                  setEraseMode(false);
-                  setPolygonMode(false);
-                  setMovePolygonMode(false);
-                  setBrushMode(null);
-                  toast.info(`Bote activado con "${selectedBrush}". Haz clic dentro de un hueco cerrado para rellenarlo.`);
-                }
-              }}
-              className={bucketMode ? 'bg-sky-700' : ''}
+              onClick={fillEnclosedHoles}
+              className="bg-sky-900/40 hover:bg-sky-700"
               data-testid="terrain-bucket-btn"
-              title="Bote de pintura: rellena el hueco cerrado bajo el cursor"
-              disabled={!selectedBrush && !bucketMode}
+              title="Bote de pintura: rellena de una vez todos los huecos cerrados con el color seleccionado"
+              disabled={!selectedBrush}
             >
               <Droplet className="w-4 h-4 mr-1" />
               Bote
@@ -1702,7 +1685,7 @@ const TerrainEditor = () => {
       {/* Map Container */}
       <div 
         ref={containerRef}
-        className={`flex-1 overflow-hidden ${bucketMode ? 'cursor-crosshair' : polygonMode ? 'cursor-crosshair' : eraseMode ? 'cursor-not-allowed' : 'cursor-grab active:cursor-grabbing'}`}
+        className={`flex-1 overflow-hidden ${polygonMode ? 'cursor-crosshair' : eraseMode ? 'cursor-not-allowed' : 'cursor-grab active:cursor-grabbing'}`}
         style={{ backgroundColor: '#1a1510' }}
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMoveForPaint}
