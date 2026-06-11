@@ -11,9 +11,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import api from '../services/api';
-
-// Player map image URL
-const PLAYER_MAP_URL = 'https://customer-assets.emergentagent.com/job_909fe894-8fcc-49de-857a-11a4a3283302/artifacts/xoxpt6t9_Mapa%20jugadores.png';
+import { PLAYER_MAP_URL } from '../config/mapAssets';
 
 const PlayerMap = () => {
   const navigate = useNavigate();

@@ -18,8 +18,9 @@ import { Button } from '@/components/ui/button';
 import { ZoomIn, ZoomOut, Crosshair, MapPin, X as XIcon, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
 import api from '@/services/api';
+import { PLAYER_MAP_URL } from '@/config/mapAssets';
 
-const MAP_SRC = '/mapa_jugadores.jpg';
+const MAP_SRC = PLAYER_MAP_URL;
 const ZOOM_MIN = 1;
 const ZOOM_MAX = 6;
 const ZOOM_STEP = 0.25;

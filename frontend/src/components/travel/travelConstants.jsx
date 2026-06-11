@@ -9,8 +9,9 @@ import {
 
 // Map URLs and coordinate system
 // Both maps have the same pixel dimensions (19791x15133)
-// Player map loaded from local public folder
-export const PLAYER_MAP_URL = '/mapa_jugadores.jpg';
+// URL centralizada en /config/mapAssets.js para permitir revert fácil.
+import { PLAYER_MAP_URL as _PLAYER_MAP_URL } from '@/config/mapAssets';
+export const PLAYER_MAP_URL = _PLAYER_MAP_URL;
 // Use actual pixel dimensions for coordinate system
 export const MAP_PIXEL_WIDTH = 19791;
 export const MAP_PIXEL_HEIGHT = 15133;

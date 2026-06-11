@@ -32,6 +32,7 @@ import {
   BARRIER_TYPES,
   REGIONS,
 } from '../components/map/mapConstants';
+import { MAESTRO_MAP_URL } from '../config/mapAssets';
 
 // Import map panel components
 import { 
@@ -246,7 +247,7 @@ const MiddleEarthMap = () => {
   const MAP_IMAGES = {
     // Single unified map of Middle-earth (clean version)
     unified: {
-      url: 'https://customer-assets.emergentagent.com/job_c7e3a7c3-5d85-46bd-b91f-9f0c34045f08/artifacts/8bm4010y_Tierra%20Media.jpg',
+      url: MAESTRO_MAP_URL,
     },
     // Individual maps for reference (4-part layout)
     eriador: {

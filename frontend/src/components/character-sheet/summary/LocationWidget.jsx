@@ -11,6 +11,7 @@
 import { useState, useEffect } from 'react';
 import { MapPin, Pencil, Lock, Loader2 } from 'lucide-react';
 import api from '@/services/api';
+import { PLAYER_MAP_URL } from '@/config/mapAssets';
 import { Button } from '@/components/ui/button';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
@@ -24,7 +25,7 @@ const SETTLEMENT_TYPES = [
   'reino_elfico', 'reino_enano', 'casa', 'lugar_especial',
 ];
 
-const MAP_IMG = '/mapa_jugadores.jpg';
+const MAP_IMG = PLAYER_MAP_URL;
 
 const LocationWidget = ({ character, onUpdate }) => {
   const [open, setOpen] = useState(false);

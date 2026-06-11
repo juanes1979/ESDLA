@@ -15,11 +15,12 @@ import { ArrowLeft, ZoomIn, ZoomOut, Play, RotateCcw, ChevronRight, ChevronLeft,
 import { toast } from 'sonner';
 import api from '@/services/api';
 import { useNavigate } from 'react-router-dom';
+import { PLAYER_MAP_URL as _PLAYER_MAP_URL } from '@/config/mapAssets';
 
 // Map dimensions  
 const MAP_PIXEL_WIDTH = 19791;
 const MAP_PIXEL_HEIGHT = 15133;
-const PLAYER_MAP_URL = '/mapa_jugadores.jpg';
+const PLAYER_MAP_URL = _PLAYER_MAP_URL;
 
 // Decision type colors and icons
 const DECISION_CONFIG = {

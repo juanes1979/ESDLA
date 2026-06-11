@@ -14,6 +14,7 @@ import { ArrowLeft, ZoomIn, ZoomOut, Move, Save, Trash2, Plus, Edit3, Download, 
 import { toast } from 'sonner';
 import api from '@/services/api';
 import { useNavigate } from 'react-router-dom';
+import { MAESTRO_MAP_URL } from '@/config/mapAssets';
 
 // Map dimensions (same as main system)
 const MAP_PIXEL_WIDTH = 19791;
@@ -1251,7 +1252,7 @@ const TerrainEditor = () => {
         >
           {/* 1. Map background image - MAPA DEL MAESTRO */}
           <image
-            href="https://customer-assets.emergentagent.com/job_c7e3a7c3-5d85-46bd-b91f-9f0c34045f08/artifacts/8bm4010y_Tierra%20Media.jpg"
+            href={MAESTRO_MAP_URL}
             x={0}
             y={0}
             width={MAP_PIXEL_WIDTH}
