@@ -1354,16 +1354,18 @@ const MiddleEarthMap = () => {
           </text>
         )}
         
-        {/* Label - only visible when zoomed in enough, fixed size on screen */}
+        {/* Label - only visible when zoomed in enough, fixed size on screen.
+            Bumped from ~17px to ~26px screen-equivalent so labels remain
+            legible at any zoom (Iter 107 feedback). */}
         {showLabels && !editMode && zoom > 0.06 && (
           <text
-            y={260 * inverseZoom}
+            y={320 * inverseZoom}
             textAnchor="middle"
             fill="#fff"
-            fontSize={195 * inverseZoom}
+            fontSize={300 * inverseZoom}
             fontWeight="bold"
             stroke="#000"
-            strokeWidth={55 * inverseZoom}
+            strokeWidth={80 * inverseZoom}
             paintOrder="stroke"
             style={{ pointerEvents: 'none' }}
           >
@@ -1374,13 +1376,13 @@ const MiddleEarthMap = () => {
         {/* Label in edit mode - visible when zoomed in, fixed size */}
         {editMode && showLabels && zoom > 0.06 && (
           <text
-            y={210 * inverseZoom}
+            y={270 * inverseZoom}
             textAnchor="middle"
             fill="#fff"
-            fontSize={175 * inverseZoom}
+            fontSize={260 * inverseZoom}
             fontWeight="bold"
             stroke="#000"
-            strokeWidth={45 * inverseZoom}
+            strokeWidth={70 * inverseZoom}
             paintOrder="stroke"
             style={{ pointerEvents: 'none' }}
           >
