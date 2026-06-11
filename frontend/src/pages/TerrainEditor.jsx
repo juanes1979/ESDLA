@@ -224,21 +224,10 @@ const TerrainEditor = () => {
   };
 
   const handleMouseMove = (e) => {
-    // Move polygon dragging takes precedence over pan
-    if (movingPolygonId && moveStartCoords) {
-      const coords = screenToMap(e.clientX, e.clientY);
-      const dx = coords.x - moveStartCoords.x;
-      const dy = coords.y - moveStartCoords.y;
-      setDrawnPolygons(prev => prev.map(p => {
-        if (p.id !== movingPolygonId) return p;
-        return {
-          ...p,
-          points: p.points.map(pt => ({ x: pt.x + dx, y: pt.y + dy })),
-        };
-      }));
-      setMoveStartCoords(coords);
-      return;
-    }
+    // NOTE: legacy handler kept for backward compatibility; the active
+    // listener bound to the container is handleMouseMoveForPaint, which
+    // now also handles polygon-moving. Leaving this in case any future
+    // overlay binds onto it.
     if (isDragging) {
       const dx = e.clientX - lastMousePos.x;
       const dy = e.clientY - lastMousePos.y;
@@ -388,10 +377,29 @@ const TerrainEditor = () => {
     });
   };
 
-  // Handle mouse drag for painting
+  // Handle mouse drag for painting / polygon-moving / panning.
+  // (Bug fix: previously the polygon-moving logic lived only in the unused
+  //  handleMouseMove handler, so activating "Mover" never repositioned
+  //  anything. Now we handle all three cases in the same listener that is
+  //  actually bound to the container.)
   const handleMouseMoveForPaint = (e) => {
-    // Pan when dragging and NOT in any drawing mode
-    if (isDragging && !polygonMode && !eraseMode) {
+    // 1) Moving a polygon takes precedence over everything else.
+    if (movingPolygonId && moveStartCoords) {
+      const coords = screenToMap(e.clientX, e.clientY);
+      const dx = coords.x - moveStartCoords.x;
+      const dy = coords.y - moveStartCoords.y;
+      setDrawnPolygons(prev => prev.map(p => {
+        if (p.id !== movingPolygonId) return p;
+        return {
+          ...p,
+          points: p.points.map(pt => ({ x: pt.x + dx, y: pt.y + dy })),
+        };
+      }));
+      setMoveStartCoords(coords);
+      return;
+    }
+    // 2) Pan when dragging and NOT in any drawing mode.
+    if (isDragging && !polygonMode && !eraseMode && !movePolygonMode) {
       const dx = e.clientX - lastMousePos.x;
       const dy = e.clientY - lastMousePos.y;
       setPan(prev => ({ x: prev.x + dx, y: prev.y + dy }));
