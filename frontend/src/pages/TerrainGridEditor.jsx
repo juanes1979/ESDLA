@@ -21,7 +21,7 @@ import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import {
   ArrowLeft, ZoomIn, ZoomOut, Save, Undo2, Redo2, Paintbrush, Eraser,
-  Droplet, Download, Upload, Layers, Eye, EyeOff,
+  Droplet, Download, Upload, Layers, Eye, EyeOff, Hand,
 } from 'lucide-react';
 import { MAESTRO_MAP_URL } from '@/config/mapAssets';
 
@@ -121,7 +121,7 @@ export default function TerrainGridEditor() {
   // UI state
   const [layer, setLayer] = useState('difficulty'); // 'difficulty' | 'land_type'
   const [selectedId, setSelectedId] = useState(1);
-  const [tool, setTool] = useState('brush'); // 'brush' | 'eraser' | 'bucket'
+  const [tool, setTool] = useState('pan'); // 'pan' | 'brush' | 'eraser' | 'bucket'
   const [brushRadius, setBrushRadius] = useState(10); // in CELLS
   const [opacity, setOpacity] = useState(0.7);
   const [showMap, setShowMap] = useState(true);
@@ -367,8 +367,14 @@ export default function TerrainGridEditor() {
   // ── INPUT HANDLERS ────────────────────────────────────────────────────────
   const handleMouseDown = (e) => {
     if (loading) return;
-    if (e.button === 1 || (e.button === 0 && e.shiftKey)) {
-      // pan
+    // PAN: right-click, middle-click, shift+left-click, or 'pan' tool with left-click.
+    const wantPan =
+      e.button === 1 ||
+      e.button === 2 ||
+      (e.button === 0 && e.shiftKey) ||
+      (e.button === 0 && tool === 'pan');
+    if (wantPan) {
+      e.preventDefault();
       setIsPanning(true);
       panStart.current = { x: e.clientX, y: e.clientY, ox: offset.x, oy: offset.y };
       return;
@@ -488,6 +494,7 @@ export default function TerrainGridEditor() {
         }
         if (e.key === 's') { e.preventDefault(); save(); return; }
       }
+      if (e.key === 'h' || e.key === 'H') setTool('pan');
       if (e.key === 'b' || e.key === 'B') setTool('brush');
       if (e.key === 'e' || e.key === 'E') setTool('eraser');
       if (e.key === 'g' || e.key === 'G') setTool('bucket');
@@ -633,8 +640,13 @@ export default function TerrainGridEditor() {
   const defs = layer === 'difficulty' ? DIFFICULTY : LAND_TYPE;
 
   // Cursor style helper
-  const cursorClass = tool === 'bucket' ? 'cursor-crosshair' :
-    (isPanning ? 'cursor-grabbing' : 'cursor-crosshair');
+  const cursorClass = isPanning
+    ? 'cursor-grabbing'
+    : tool === 'pan'
+      ? 'cursor-grab'
+      : tool === 'bucket'
+        ? 'cursor-crosshair'
+        : 'cursor-crosshair';
 
   // Pan/zoom transform for the layered canvas + map
   const transform = `translate(${offset.x * 100}%, ${offset.y * 100}%) scale(${scale})`;
@@ -704,6 +716,9 @@ export default function TerrainGridEditor() {
 
         {/* Tools */}
         <div className="flex items-center gap-1 border-l border-zinc-700 pl-3">
+          <Button size="sm" variant={tool === 'pan' ? 'default' : 'outline'} onClick={() => setTool('pan')} title="Mover mapa (H)" data-testid="grid-tool-pan">
+            <Hand className="w-4 h-4" />
+          </Button>
           <Button size="sm" variant={tool === 'brush' ? 'default' : 'outline'} onClick={() => setTool('brush')} title="Pincel (B)" data-testid="grid-tool-brush">
             <Paintbrush className="w-4 h-4" />
           </Button>
@@ -831,7 +846,7 @@ export default function TerrainGridEditor() {
         </div>
 
         <div className="absolute bottom-2 right-2 text-xs bg-black/70 text-zinc-300 px-2 py-1 rounded">
-          Atajos: 1-7 color · B/E/G herramientas · L capa · Shift+drag = pan · Rueda = zoom · Ctrl+Z/Y · Ctrl+S
+          Atajos: 1-7 color · H/B/E/G herramientas · L capa · Click der./medio o Shift+drag = pan · Rueda = zoom · Ctrl+Z/Y · Ctrl+S
         </div>
       </div>
     </div>

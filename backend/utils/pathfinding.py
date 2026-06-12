@@ -309,11 +309,14 @@ class MiddleEarthPathfinder:
 
     def _grid_lookup_terrain(self, x: float, y: float) -> Optional[str]:
         """O(1) terrain difficulty lookup on the raster grid. Returns None
-        if the grid isn't loaded or the cell is empty (0)."""
+        if the grid isn't loaded or the cell is empty (0).
+        NOTE: incoming (x, y) follows the legacy CARTESIAN convention
+        (y=0 BOTTOM, y=100 TOP); the grid is stored canvas-style (y=0 TOP),
+        so we flip Y here."""
         if not self._use_grid:
             return None
         cx = max(0, min(self.grid_w - 1, int(round(x * self.grid_w / 100.0))))
-        cy = max(0, min(self.grid_h - 1, int(round(y * self.grid_h / 100.0))))
+        cy = max(0, min(self.grid_h - 1, int(round((100.0 - y) * self.grid_h / 100.0))))
         cell_id = self.terrain_grid[cy * self.grid_w + cx]
         if cell_id == 0:
             return None
@@ -323,7 +326,7 @@ class MiddleEarthPathfinder:
         if not self._use_grid or not self.land_grid:
             return None
         cx = max(0, min(self.grid_w - 1, int(round(x * self.grid_w / 100.0))))
-        cy = max(0, min(self.grid_h - 1, int(round(y * self.grid_h / 100.0))))
+        cy = max(0, min(self.grid_h - 1, int(round((100.0 - y) * self.grid_h / 100.0))))
         cell_id = self.land_grid[cy * self.grid_w + cx]
         if cell_id == 0:
             return None

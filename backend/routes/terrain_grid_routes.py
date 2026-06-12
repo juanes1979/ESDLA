@@ -197,7 +197,10 @@ def _rasterize_polygon(
     h: int,
 ) -> None:
     """Fill `grid` in-place where the polygon (in 0..100 map-% coords) lies.
-    Uses PIL.ImageDraw.polygon — fast, well-tested even-odd rule."""
+    Polygons in the legacy DB use a CARTESIAN convention (y=0 at the BOTTOM
+    of the map, y=100 at the TOP) — the legacy SVG editor renders them with
+    a Y-flip. The grid uses canvas convention (y=0 at TOP), so we apply the
+    same flip here when rasterising."""
     from PIL import Image, ImageDraw
 
     if len(points) < 3:
@@ -205,7 +208,7 @@ def _rasterize_polygon(
     pts_px = [
         (
             max(0, min(w - 1, int(round(p["x"] * w / 100.0)))),
-            max(0, min(h - 1, int(round(p["y"] * h / 100.0)))),
+            max(0, min(h - 1, int(round((100.0 - p["y"]) * h / 100.0)))),
         )
         for p in points
     ]
