@@ -253,8 +253,19 @@ class MiddleEarthPathfinder:
         bloqueante (infranqueable o agua) muestreando puntos intermedios.
         Necesario porque GRID_RESOLUTION=1.0 (~20 km) puede saltar por encima
         de polígonos infranqueables más estrechos que un paso del A*.
+
+        Excepción (Iter 118): si AMBOS extremos del segmento están sobre un
+        camino, el segmento se considera un cruce construido (paso de montaña
+        o puente) y se permite atravesar el polígono bloqueante. El coste
+        real del paso lo aplica el cálculo de step_cost rebajando el terreno
+        infranqueable a `muy_dificil` (paso) o `agua` a `dificil` (puente).
         """
         if not self.terrain_polygons:
+            return False
+        # Roads override impassable terrain — if both endpoints are on a
+        # road, treat the segment as a bridge/mountain pass.
+        if (self._get_road_at_point(from_pos[0], from_pos[1]) is not None
+                and self._get_road_at_point(to_pos[0], to_pos[1]) is not None):
             return False
         BLOCKING = {'infranqueable', 'agua'}
         # Filtrar sólo los polígonos bloqueantes (rendimiento)
@@ -738,7 +749,20 @@ class MiddleEarthPathfinder:
             'agua': float('inf'),
         }
         terrain_mult = TERRAIN_MULT.get(terrain_str, 1.0)
-        
+
+        # Roads override impassable terrain (Iter 118): if we're on a road
+        # and the terrain is infranqueable / agua, treat it as a
+        # constructed crossing — mountain pass or bridge. The terrain
+        # multiplier becomes that of muy_dificil (pass) or dificil (bridge)
+        # so the traveller pays a realistic cost. We keep `terrain_str` as
+        # the underlying terrain so the distance breakdown still reflects
+        # that the route crosses these zones.
+        if terrain_mult == float('inf') and to_road_info is not None:
+            if terrain_str == 'agua':
+                terrain_mult = TERRAIN_MULT['dificil']
+            else:  # 'infranqueable'
+                terrain_mult = TERRAIN_MULT['muy_dificil']
+
         # Check if terrain is impassable
         if terrain_mult == float('inf'):
             return (float('inf'), road_type_str, road_name_str, terrain_str, river_crossing_str)
@@ -1017,8 +1041,13 @@ class MiddleEarthPathfinder:
         estimated_days = total_cost / self.BASE_SPEED_KM_DAY if total_cost > 0 else 0
         
         # Add warnings for difficult terrain
+        # NOTE (Iter 118): the A* only allows crossing 'infranqueable' / 'agua'
+        # terrain when a road exists on it, so any infranqueable distance in
+        # the final route is necessarily a mountain pass / bridge segment.
         if terrain_distances.get('infranqueable', 0) > 0:
-            warnings.append("⚠️ La ruta incluye terreno infranqueable. Se recomienda buscar pasos de montaña.")
+            warnings.append("🛤️ La ruta atraviesa pasos de montaña (terreno infranqueable salvable gracias al camino).")
+        if terrain_distances.get('agua', 0) > 0:
+            warnings.append("🌉 La ruta cruza zonas de agua mediante puentes/vados.")
         if terrain_distances.get('desalentador', 0) > 10:
             warnings.append("⚠️ Gran parte de la ruta atraviesa terreno desalentador.")
         if len(rivers_crossed) > 0:
