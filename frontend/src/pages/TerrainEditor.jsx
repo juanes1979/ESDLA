@@ -280,86 +280,80 @@ const TerrainEditor = () => {
   }, [brushMode, brushRadius, selectedBrush]);
 
   // Merge all adjacent/overlapping polygons of the same type into one (or as
-  // few as topologically possible). Runs polygon-clipping.union per type.
-  // To bridge tiny floating-point gaps between adjacent stamps we briefly
-  // inflate each ring by `bleed` units before unioning (no real geometric
-  // expansion — just a coordinate snap that makes neighbouring rings share
-  // boundaries cleanly).
+  // few as topologically possible) and guarantee that the result NEVER
+  // covers any polygon of a different type.
+  //   Strategy:
+  //     1. Snap every coordinate to a 5-decimal grid (~0.2 px on the real
+  //        map). This collapses near-identical vertices to exactly identical
+  //        values so polygon-clipping.union actually fuses neighbouring
+  //        stamps without needing a centroid-based inflate (the old
+  //        approach inflated polygons radially, which pushed concave/
+  //        irregular yellow shapes into adjacent infranqueable areas — the
+  //        bug the user reported).
+  //     2. Union per type with the snapped rings.
+  //     3. Subtract every polygon of ANY other type from the result so the
+  //        topmost-rendered union can NEVER paint over an existing zone of
+  //        a different type (including types with only 1 polygon — those
+  //        used to be pushed untouched and could still cover others if the
+  //        old data was created before the "newest-wins" rule existed).
   const mergeSameTypePolygons = useCallback(() => {
     if (!drawnPolygons.length) {
       toast.info('No hay polígonos para unir.');
       return;
     }
     const before = drawnPolygons.length;
+    const SNAP = 1e5; // 5 decimals
+    const snap = (v) => Math.round(v * SNAP) / SNAP;
+    const snappedRing = (poly) => {
+      const ring = poly.points.map((p) => [snap(p.x), snap(p.y)]);
+      if (ring.length && (ring[0][0] !== ring[ring.length - 1][0] ||
+                          ring[0][1] !== ring[ring.length - 1][1])) {
+        ring.push(ring[0]);
+      }
+      return [ring];
+    };
     const byType = {};
     for (const p of drawnPolygons) {
       if (!byType[p.type]) byType[p.type] = [];
       byType[p.type].push(p);
     }
-    // Bleed in MAP-% — 0.01% ≈ 2 map pixels = enough to bridge gaps from
-    // snap rounding but small enough to not visibly distort the result.
-    const BLEED = 0.01;
-    const inflateRing = (poly) => {
-      // Compute polygon centroid
-      let cxSum = 0;
-      let cySum = 0;
-      for (const p of poly.points) {
-        cxSum += p.x;
-        cySum += p.y;
-      }
-      const cx = cxSum / poly.points.length;
-      const cy = cySum / poly.points.length;
-      // Move each vertex AWAY from centroid by BLEED units (radially)
-      const expanded = poly.points.map((p) => {
-        const dx = p.x - cx;
-        const dy = p.y - cy;
-        const len = Math.hypot(dx, dy) || 1;
-        return [p.x + (dx / len) * BLEED, p.y + (dy / len) * BLEED];
-      });
-      expanded.push(expanded[0]);
-      return [expanded];
-    };
     const merged = [];
-    // First pass: collect all unioned-by-type results before clipping each
-    // against the others, so the clipping uses the FINAL geometry of every
-    // type (not the pre-union ones). Otherwise A unioned would still be
-    // clipped against B's old fragments instead of B's union, which is fine
-    // mathematically — but we already have direct access to "polys of type
-    // X" so we just use them directly: clip the unified type against ALL
-    // polygons whose type ≠ X. That guarantees the inflated union never
-    // visually covers a polygon of a different type.
     for (const [type, polys] of Object.entries(byType)) {
-      if (polys.length === 1) {
-        merged.push(polys[0]);
-        continue;
-      }
+      let unionedRings;
       try {
-        const rings = polys.map(inflateRing);
-        let unified = polygonClipping.union(...rings);
-        if (!unified || unified.length === 0) {
-          merged.push(...polys);
-          continue;
-        }
-        // Clip against ALL polygons of any other type — they always win.
-        const otherTypeRings = drawnPolygons
-          .filter((p) => p.type !== type)
-          .map(polyToRing);
-        if (otherTypeRings.length > 0) {
-          try {
-            unified = polygonClipping.difference(unified, ...otherTypeRings);
-          } catch (e) {
-            console.warn(`Difference vs other types failed for ${type}:`, e);
-          }
-        }
-        if (unified && unified.length) {
-          merged.push(...ringsToPolys(unified, type, `union_${type}`));
-        } else {
-          // The union was entirely covered by other-type polygons → drop it.
-        }
+        const rings = polys.map(snappedRing);
+        unionedRings = polys.length === 1
+          ? rings[0]
+          : polygonClipping.union(...rings);
       } catch (e) {
         console.warn(`Union failed for type ${type}:`, e);
         merged.push(...polys);
+        continue;
       }
+      if (!unionedRings || unionedRings.length === 0) {
+        merged.push(...polys);
+        continue;
+      }
+      // Subtract every polygon of any OTHER type — they always win the
+      // boundary. We use the ORIGINAL drawnPolygons here (not the merged
+      // ones built up in this loop) because the merged list is incomplete
+      // at this point — but every other-type polygon already exists in
+      // drawnPolygons, so the math is correct.
+      const otherTypeRings = drawnPolygons
+        .filter((p) => p.type !== type)
+        .map(snappedRing);
+      let final = unionedRings;
+      if (otherTypeRings.length > 0) {
+        try {
+          final = polygonClipping.difference(unionedRings, ...otherTypeRings);
+        } catch (e) {
+          console.warn(`Difference vs other types failed for ${type}:`, e);
+        }
+      }
+      if (final && final.length) {
+        merged.push(...ringsToPolys(final, type, `union_${type}`));
+      }
+      // else: entirely covered by other-type polygons → drop.
     }
     if (merged.length === before) {
       toast.info(`Sin cambios: los ${before} polígonos no son contiguos.`);
