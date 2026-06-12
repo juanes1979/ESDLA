@@ -155,6 +155,37 @@ export default function TerrainGridEditor() {
   const offscreenDiffRef = useRef(null); // ImageData buffer (W×H)
   const offscreenLandRef = useRef(null);
   const containerRef = useRef(null);
+  // Wrapper that holds the map + canvas at the REAL map aspect ratio. Sized
+  // by a ResizeObserver so the map is never stretched (Iter 119.1 bugfix).
+  const mapWrapperRef = useRef(null);
+  const MAP_REAL_W = 19791;
+  const MAP_REAL_H = 15133;
+  const MAP_ASPECT = MAP_REAL_W / MAP_REAL_H;
+  const [wrapperSize, setWrapperSize] = useState({ w: 0, h: 0 });
+
+  useEffect(() => {
+    const c = containerRef.current;
+    if (!c) return;
+    const update = () => {
+      const r = c.getBoundingClientRect();
+      if (r.width === 0 || r.height === 0) return;
+      const containerAspect = r.width / r.height;
+      let w, h;
+      if (containerAspect > MAP_ASPECT) {
+        // container is wider than map → height drives the size
+        h = r.height;
+        w = h * MAP_ASPECT;
+      } else {
+        w = r.width;
+        h = w / MAP_ASPECT;
+      }
+      setWrapperSize({ w, h });
+    };
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(c);
+    return () => ro.disconnect();
+  }, [MAP_ASPECT]);
 
   const currentDef = useMemo(
     () => (layer === 'difficulty' ? DIFFICULTY : LAND_TYPE).find((d) => d.id === selectedId)
@@ -311,18 +342,22 @@ export default function TerrainGridEditor() {
   }, [triggerRender]);
 
   // ── COORD CONVERSION ──────────────────────────────────────────────────────
-  // screen px → map% (0..100). Same pan/zoom as the main map editor.
+  // screen px → map% (0..100). Uses the wrapper rect (which holds the real
+  // aspect ratio) so coordinates are correct regardless of the container's
+  // letterboxing.
   const screenToMap = useCallback((clientX, clientY) => {
-    const c = containerRef.current;
-    if (!c) return null;
-    const r = c.getBoundingClientRect();
-    const sx = (clientX - r.left) / r.width; // 0..1 inside container
+    const w = mapWrapperRef.current;
+    if (!w) return null;
+    const r = w.getBoundingClientRect();
+    if (r.width === 0 || r.height === 0) return null;
+    const sx = (clientX - r.left) / r.width;
     const sy = (clientY - r.top) / r.height;
-    // The map is rendered to fit container; with scale/offset:
-    const mapX = ((sx - offset.x) / scale) * 100;
-    const mapY = ((sy - offset.y) / scale) * 100;
-    return { x: mapX, y: mapY };
-  }, [offset, scale]);
+    // The wrapper itself is transformed by scale/offset relative to the
+    // container; we already applied that transform via CSS, so the rect
+    // we read is the FINAL on-screen rect. Hence (sx,sy) is already the
+    // normalised position on the map.
+    return { x: sx * 100, y: sy * 100 };
+  }, []);
 
   const mapToCell = (mx, my) => ({
     cx: Math.max(0, Math.min(W - 1, Math.round((mx / 100) * W))),
@@ -385,10 +420,9 @@ export default function TerrainGridEditor() {
 
   const handleMouseMove = (e) => {
     if (isPanning && panStart.current) {
-      const c = containerRef.current;
-      const r = c.getBoundingClientRect();
-      const dx = (e.clientX - panStart.current.x) / r.width;
-      const dy = (e.clientY - panStart.current.y) / r.height;
+      // offset stored in pixels (Iter 119.1)
+      const dx = e.clientX - panStart.current.x;
+      const dy = e.clientY - panStart.current.y;
       setOffset({ x: panStart.current.ox + dx, y: panStart.current.oy + dy });
       return;
     }
@@ -419,22 +453,28 @@ export default function TerrainGridEditor() {
   };
 
   const handleWheel = (e) => {
-    // Zoom around the cursor.
+    // Zoom around the cursor (Iter 119.1).
     e.preventDefault();
     const c = containerRef.current;
     if (!c) return;
-    const r = c.getBoundingClientRect();
-    const sx = (e.clientX - r.left) / r.width;
-    const sy = (e.clientY - r.top) / r.height;
     const factor = e.deltaY > 0 ? 0.85 : 1.18;
     const newScale = Math.max(0.5, Math.min(20, scale * factor));
-    // Keep the point under the cursor stable
-    const mapX = (sx - offset.x) / scale;
-    const mapY = (sy - offset.y) / scale;
-    const newOx = sx - mapX * newScale;
-    const newOy = sy - mapY * newScale;
+    // Wrapper's current screen-left: (container.w - wrapperSize.w)/2 + offset.x
+    const cw = c.clientWidth;
+    const ch = c.clientHeight;
+    const curLeft = (cw - wrapperSize.w) / 2 + offset.x;
+    const curTop  = (ch - wrapperSize.h) / 2 + offset.y;
+    // Map-pixel under cursor (in wrapper-local untransformed coords):
+    const localX = (e.clientX - curLeft) / scale;
+    const localY = (e.clientY - curTop)  / scale;
+    // After zoom, we want the same map-pixel under the cursor:
+    const newLeft = e.clientX - localX * newScale;
+    const newTop  = e.clientY - localY * newScale;
     setScale(newScale);
-    setOffset({ x: newOx, y: newOy });
+    setOffset({
+      x: newLeft - (cw - wrapperSize.w) / 2,
+      y: newTop  - (ch - wrapperSize.h) / 2,
+    });
   };
 
   // Keyboard shortcuts
@@ -599,6 +639,15 @@ export default function TerrainGridEditor() {
   // Pan/zoom transform for the layered canvas + map
   const transform = `translate(${offset.x * 100}%, ${offset.y * 100}%) scale(${scale})`;
 
+  // Pan/zoom translates and scales the wrapper. Offset is expressed in
+  // wrapper pixels so dragging feels 1:1 with the cursor regardless of zoom.
+  const wrapperLeft = wrapperSize.w
+    ? ((containerRef.current?.clientWidth || 0) - wrapperSize.w) / 2 + offset.x
+    : 0;
+  const wrapperTop = wrapperSize.h
+    ? ((containerRef.current?.clientHeight || 0) - wrapperSize.h) / 2 + offset.y
+    : 0;
+
   return (
     <div className="h-screen overflow-hidden bg-zinc-950 text-zinc-100 flex flex-col">
       {/* HEADER */}
@@ -741,15 +790,24 @@ export default function TerrainGridEditor() {
         data-testid="terrain-grid-canvas-container"
       >
         <div
-          className="absolute inset-0 origin-top-left"
-          style={{ transform, transformOrigin: '0 0', willChange: 'transform' }}
+          ref={mapWrapperRef}
+          className="absolute origin-top-left"
+          style={{
+            left: wrapperLeft,
+            top: wrapperTop,
+            width: wrapperSize.w,
+            height: wrapperSize.h,
+            transform: `scale(${scale})`,
+            transformOrigin: '0 0',
+            willChange: 'transform',
+          }}
         >
           {showMap && (
             <img
               ref={mapImgRef}
               src={MAESTRO_MAP_URL}
               alt="Tierra Media"
-              className="absolute inset-0 w-full h-full object-fill select-none pointer-events-none"
+              className="absolute inset-0 w-full h-full select-none pointer-events-none"
               draggable={false}
             />
           )}
