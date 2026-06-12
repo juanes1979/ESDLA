@@ -162,7 +162,7 @@ const TerrainEditor = () => {
   //     Two sub-modes: 'erase' (subtract only) and 'paint' (replace by the
   //     currently selected terrain). ===
   const [brushMode, setBrushMode] = useState(null); // null | 'erase' | 'paint'
-  const [brushRadius, setBrushRadius] = useState(0.6); // map % (0.2 - 5)
+  const [brushRadius, setBrushRadius] = useState(0.3); // map % (0.05 - 5)
   const [brushActive, setBrushActive] = useState(false);
   const [brushCursor, setBrushCursor] = useState(null); // {x, y} in map %
   const [brushPreStamp, setBrushPreStamp] = useState(null); // history snapshot taken on mousedown
@@ -1565,16 +1565,16 @@ const TerrainEditor = () => {
                 <span className="text-amber-300">Radio:</span>
                 <input
                   type="range"
-                  min="0.2"
+                  min="0.05"
                   max="5"
-                  step="0.1"
+                  step="0.05"
                   value={brushRadius}
                   onChange={(e) => setBrushRadius(parseFloat(e.target.value))}
                   data-testid="terrain-brush-radius-slider"
                   className="w-24 accent-amber-500"
                 />
-                <span className="text-amber-200 font-mono w-10 text-right">
-                  {brushRadius.toFixed(1)}%
+                <span className="text-amber-200 font-mono w-12 text-right">
+                  {brushRadius.toFixed(2)}%
                 </span>
               </div>
             )}
