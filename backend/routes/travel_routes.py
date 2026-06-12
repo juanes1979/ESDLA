@@ -926,7 +926,7 @@ async def debug_pathfinding(config: PathDebugConfig):
     Each step is annotated with terrain, land type, road and river info.
     """
     import math
-    from utils.pathfinding import MiddleEarthPathfinder
+    from utils.pathfinding import MiddleEarthPathfinder, load_terrain_grid_kwargs
 
     KM_PER_PERCENT = 1.974
 
@@ -968,6 +968,7 @@ async def debug_pathfinding(config: PathDebugConfig):
         prefer_roads=config.preferir_caminos,
         avoid_shadow_lands=config.evitar_tierras_sombra,
         avoid_dark_lands=config.evitar_tierras_oscuras,
+        **(await load_terrain_grid_kwargs(db)),
     )
 
     start_coords = (origen.get('x', 0), origen.get('y', 0))
@@ -1199,7 +1200,7 @@ async def calculate_journey(config: JourneyConfig):
             if roads or barriers:
                 debug_info["pathfinding"]["used"] = True
                 # Use pathfinding
-                from utils.pathfinding import MiddleEarthPathfinder
+                from utils.pathfinding import MiddleEarthPathfinder, load_terrain_grid_kwargs
                 
                 # Load terrain polygons
                 terrain_polygons = await get_terrain_polygons()
@@ -1213,7 +1214,8 @@ async def calculate_journey(config: JourneyConfig):
                     terrain_polygons=terrain_polygons,
                     prefer_roads=config.preferir_caminos,
                     avoid_shadow_lands=config.evitar_sombra,
-                    avoid_dark_lands=config.evitar_tierras_oscuras
+                    avoid_dark_lands=config.evitar_tierras_oscuras,
+                    **(await load_terrain_grid_kwargs(db)),
                 )
                 
                 start_coords = (start_loc.get('x', 0), start_loc.get('y', 0))
@@ -1816,7 +1818,7 @@ async def compare_routes(request: RouteComparisonRequest):
     Both routes NEVER cross impassable terrain (infranqueable, agua).
     Both routes respect evitar_sombra and evitar_tierras_oscuras options.
     """
-    from utils.pathfinding import MiddleEarthPathfinder
+    from utils.pathfinding import MiddleEarthPathfinder, load_terrain_grid_kwargs
     
     # Get locations (allow free map points via "custom:" id + explicit coords)
     start_loc = None
@@ -1954,6 +1956,7 @@ async def compare_routes(request: RouteComparisonRequest):
         }
     
     # Calculate ROUTE 1: Safe route (maximizes points - avoids dangerous lands)
+    grid_kwargs = await load_terrain_grid_kwargs(db)
     pathfinder_safe = MiddleEarthPathfinder(
         roads=roads,
         rivers=rivers,
@@ -1963,7 +1966,8 @@ async def compare_routes(request: RouteComparisonRequest):
         prefer_roads=True,  # Prefer roads
         avoid_shadow_lands=request.evitar_sombra,  # Respect user choice
         avoid_dark_lands=request.evitar_tierras_oscuras,  # Respect user choice
-        direct_mode=False  # Use full scoring with land danger penalties
+        direct_mode=False,  # Use full scoring with land danger penalties
+        **grid_kwargs,
     )
     result_roads = pathfinder_safe.find_path(start_coords, end_coords)
     route_with_roads = calculate_route_data(result_roads, "segura")
@@ -1978,7 +1982,8 @@ async def compare_routes(request: RouteComparisonRequest):
         prefer_roads=False,  # No road preference
         avoid_shadow_lands=False,  # Direct route can go through shadow lands
         avoid_dark_lands=False,  # Direct route can go through dark lands
-        direct_mode=True  # Ignores land danger penalties for shortest path
+        direct_mode=True,  # Ignores land danger penalties for shortest path
+        **grid_kwargs,
     )
     result_direct = pathfinder_direct.find_path(start_coords, end_coords)
     route_direct = calculate_route_data(result_direct, "directa")

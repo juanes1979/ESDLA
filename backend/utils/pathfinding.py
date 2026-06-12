@@ -3,11 +3,44 @@ Pathfinding Module for Middle-earth Travel System
 Implements A* algorithm with terrain costs, roads, rivers, and barriers
 """
 
+import base64
 import math
 import heapq
+import zlib
 from typing import List, Dict, Tuple, Optional, Set
 from dataclasses import dataclass, field
 from enum import Enum
+
+
+# Iter 119 — helper used by every route that builds a PathFinder. Loads the
+# raster terrain grid from Mongo and returns the kwargs to forward into
+# `MiddleEarthPathfinder(...)`. Falls back to empty dict if no grid exists.
+async def load_terrain_grid_kwargs(db) -> Dict:
+    """Fetch the raster terrain grid and return it as constructor kwargs.
+    Pass the result via **kwargs to MiddleEarthPathfinder so the pathfinder
+    transparently uses raster lookups when a grid exists."""
+    doc = await db.terrain_grids.find_one({"_id": "main"})
+    if not doc:
+        return {}
+    w = doc.get("width", 0)
+    h = doc.get("height", 0)
+    if not w or not h:
+        return {}
+    try:
+        diff_b64 = doc.get("difficulty_b64", "") or ""
+        land_b64 = doc.get("land_type_b64", "") or ""
+        diff_bytes = zlib.decompress(base64.b64decode(diff_b64)) if diff_b64 else b""
+        land_bytes = zlib.decompress(base64.b64decode(land_b64)) if land_b64 else b""
+    except Exception:
+        return {}
+    if len(diff_bytes) != w * h:
+        return {}
+    return {
+        "terrain_grid": diff_bytes,
+        "land_grid": land_bytes if len(land_bytes) == w * h else None,
+        "grid_width": w,
+        "grid_height": h,
+    }
 
 
 class TerrainType(Enum):
@@ -227,7 +260,12 @@ class MiddleEarthPathfinder:
         avoid_roads: bool = False,
         avoid_shadow_lands: bool = False,
         avoid_dark_lands: bool = False,
-        direct_mode: bool = False  # If True, ignores land danger penalties for shortest path
+        direct_mode: bool = False,  # If True, ignores land danger penalties for shortest path
+        # Iter 119: raster grid (preferred over polygons when available).
+        terrain_grid: Optional[bytes] = None,
+        land_grid: Optional[bytes] = None,
+        grid_width: int = 0,
+        grid_height: int = 0,
     ):
         self.roads = roads
         self.rivers = rivers
@@ -240,43 +278,93 @@ class MiddleEarthPathfinder:
         self.avoid_shadow_lands = avoid_shadow_lands
         self.avoid_dark_lands = avoid_dark_lands
         self.direct_mode = direct_mode  # Direct route ignores land danger
-        
+
+        # Raster terrain (Iter 119) — O(1) per-coordinate lookup.
+        # `terrain_grid` and `land_grid` are flat bytes (row-major uint8).
+        # When present they replace polygon scans for terrain queries.
+        self.terrain_grid = terrain_grid
+        self.land_grid = land_grid
+        self.grid_w = grid_width
+        self.grid_h = grid_height
+        self._use_grid = bool(
+            terrain_grid and grid_width > 0 and grid_height > 0
+            and len(terrain_grid) == grid_width * grid_height
+        )
+
         # Pre-process data for efficient lookup
         self._build_road_network()
         self._build_river_segments()
         self._build_barrier_segments()
         self._build_location_map()
+
+    # Iter 119: cell-id ↔ string maps mirror terrain_grid_routes.py.
+    _DIFFICULTY_BY_ID = {
+        1: 'facil', 2: 'moderado', 3: 'dificil', 4: 'muy_dificil',
+        5: 'desalentador', 6: 'infranqueable', 7: 'agua',
+    }
+    _LAND_TYPE_BY_ID = {
+        1: 'tierras_libres', 2: 'tierras_fronterizas', 3: 'tierras_salvajes',
+        4: 'tierras_sombra', 5: 'tierras_oscuras',
+    }
+
+    def _grid_lookup_terrain(self, x: float, y: float) -> Optional[str]:
+        """O(1) terrain difficulty lookup on the raster grid. Returns None
+        if the grid isn't loaded or the cell is empty (0)."""
+        if not self._use_grid:
+            return None
+        cx = max(0, min(self.grid_w - 1, int(round(x * self.grid_w / 100.0))))
+        cy = max(0, min(self.grid_h - 1, int(round(y * self.grid_h / 100.0))))
+        cell_id = self.terrain_grid[cy * self.grid_w + cx]
+        if cell_id == 0:
+            return None
+        return self._DIFFICULTY_BY_ID.get(cell_id)
+
+    def _grid_lookup_land(self, x: float, y: float) -> Optional[str]:
+        if not self._use_grid or not self.land_grid:
+            return None
+        cx = max(0, min(self.grid_w - 1, int(round(x * self.grid_w / 100.0))))
+        cy = max(0, min(self.grid_h - 1, int(round(y * self.grid_h / 100.0))))
+        cell_id = self.land_grid[cy * self.grid_w + cx]
+        if cell_id == 0:
+            return None
+        return self._LAND_TYPE_BY_ID.get(cell_id)
     
     def _segment_crosses_blocking_polygon(self, from_pos: Tuple[float, float], to_pos: Tuple[float, float]) -> bool:
         """
-        Comprueba si el segmento entre dos posiciones atraviesa algún polígono
+        Comprueba si el segmento entre dos posiciones atraviesa algún terreno
         bloqueante (infranqueable o agua) muestreando puntos intermedios.
-        Necesario porque GRID_RESOLUTION=1.0 (~20 km) puede saltar por encima
-        de polígonos infranqueables más estrechos que un paso del A*.
 
         Excepción (Iter 118): si AMBOS extremos del segmento están sobre un
         camino, el segmento se considera un cruce construido (paso de montaña
-        o puente) y se permite atravesar el polígono bloqueante. El coste
-        real del paso lo aplica el cálculo de step_cost rebajando el terreno
-        infranqueable a `muy_dificil` (paso) o `agua` a `dificil` (puente).
+        o puente) y se permite atravesar el polígono bloqueante.
         """
-        if not self.terrain_polygons:
-            return False
-        # Roads override impassable terrain — if both endpoints are on a
-        # road, treat the segment as a bridge/mountain pass.
+        # Roads override impassable terrain
         if (self._get_road_at_point(from_pos[0], from_pos[1]) is not None
                 and self._get_road_at_point(to_pos[0], to_pos[1]) is not None):
             return False
-        BLOCKING = {'infranqueable', 'agua'}
-        # Filtrar sólo los polígonos bloqueantes (rendimiento)
-        blocking_polys = [p for p in self.terrain_polygons if p.get('type') in BLOCKING]
-        if not blocking_polys:
-            return False
-        # 5 puntos intermedios (sin contar from/to). Suficiente para captar polígonos
-        # de ~5-10 km en un salto diagonal de ~28 km.
+
         n_samples = 5
         fx, fy = from_pos
         tx, ty = to_pos
+
+        # Raster fast path (Iter 119): query the grid at each sample.
+        if self._use_grid:
+            for i in range(1, n_samples + 1):
+                t = i / (n_samples + 1)
+                x = fx + (tx - fx) * t
+                y = fy + (ty - fy) * t
+                tname = self._grid_lookup_terrain(x, y)
+                if tname in ('infranqueable', 'agua'):
+                    return True
+            return False
+
+        # Legacy polygon path
+        if not self.terrain_polygons:
+            return False
+        BLOCKING = {'infranqueable', 'agua'}
+        blocking_polys = [p for p in self.terrain_polygons if p.get('type') in BLOCKING]
+        if not blocking_polys:
+            return False
         for i in range(1, n_samples + 1):
             t = i / (n_samples + 1)
             x = fx + (tx - fx) * t
@@ -309,10 +397,18 @@ class MiddleEarthPathfinder:
         return inside
     
     def get_terrain_from_polygons(self, x: float, y: float) -> str:
-        """Get terrain type at coordinate from polygons, with priority"""
+        """Get terrain type at coordinate, with priority. Uses raster grid
+        when available (Iter 119), else falls back to polygon scan."""
+        # Raster fast path
+        grid_val = self._grid_lookup_terrain(x, y)
+        if grid_val is not None:
+            return grid_val
+        if self._use_grid:
+            # Grid loaded but this cell is empty (0) → default moderado.
+            return "moderado"
+
         if not self.terrain_polygons:
             return "moderado"
-        
         matching = []
         for poly in self.terrain_polygons:
             poly_type = poly.get("type", "")
@@ -334,10 +430,16 @@ class MiddleEarthPathfinder:
         return matching[0]["type"]
     
     def get_land_type_from_polygons(self, x: float, y: float) -> str:
-        """Get land type at coordinate from polygons, with priority"""
+        """Get land type at coordinate. Uses raster grid when available
+        (Iter 119), else falls back to polygon scan."""
+        grid_val = self._grid_lookup_land(x, y)
+        if grid_val is not None:
+            return grid_val
+        if self._use_grid:
+            return "tierras_salvajes"
+
         if not self.terrain_polygons:
             return "tierras_salvajes"
-        
         matching = []
         for poly in self.terrain_polygons:
             poly_type = poly.get("type", "")
