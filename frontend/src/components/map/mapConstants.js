@@ -38,6 +38,7 @@ export const LOCATION_ICONS = {
   ciudad: '🏘️',
   ciudad_puerto: '⚓',
   ciudad_elfica: '✨',
+  ciudad_lago: '🏞️',
   pueblo: '🏠',
   fortaleza: '🏯',
   fortaleza_enemiga: '💀',
@@ -65,18 +66,31 @@ export const LOCATION_ICONS = {
   almenaras: '🔥',
   monumento: '🗿',
   lugar_especial: '⭐',
+  // Iter 121 (Feb 2026) — tipos extra creados durante el juego, ahora con icono
+  cascada: '💦',
+  cueva: '🕳️',
+  isla: '🏝️',
+  llanura: '🌾',
+  mina: '⛏️',
+  paramo: '🌬️',
+  peninsula: '🏖️',
+  puente: '🌁',
+  puerta: '🚪',
+  túmulos: '🪦',
+  valle: '🏞️',
 };
 
 // Human-readable type names
 export const TYPE_NAMES = {
   ciudad_capital: 'Capital',
   ciudad: 'Ciudad',
-  ciudad_puerto: 'Puerto',
+  ciudad_puerto: 'Ciudad Puerto',
   ciudad_elfica: 'Ciudad Élfica',
+  ciudad_lago: 'Ciudad sobre el Lago',
   pueblo: 'Pueblo',
   fortaleza: 'Fortaleza',
   fortaleza_enemiga: 'Fortaleza Enemiga',
-  fortaleza_abandonada: 'Ruinas Fortaleza',
+  fortaleza_abandonada: 'Ruinas de Fortaleza',
   reino_enano: 'Reino Enano',
   reino_elfico: 'Reino Élfico',
   refugio_elfico: 'Refugio Élfico',
@@ -86,7 +100,7 @@ export const TYPE_NAMES = {
   bosque_antiguo: 'Bosque Antiguo',
   bosque_elfico: 'Bosque Élfico',
   bosque_oscuro: 'Bosque Oscuro',
-  cordillera: 'Montañas',
+  cordillera: 'Cordillera',
   volcan: 'Volcán',
   paso_montaña: 'Paso de Montaña',
   colinas: 'Colinas',
@@ -97,17 +111,29 @@ export const TYPE_NAMES = {
   vado: 'Vado',
   camino: 'Camino',
   puerto: 'Puerto',
-  almenaras: 'Almenaras',
+  almenaras: 'Almenara',
   monumento: 'Monumento',
   lugar_especial: 'Lugar Especial',
+  // Feb 2026
+  cascada: 'Cascada',
+  cueva: 'Cueva',
+  isla: 'Isla',
+  llanura: 'Llanura',
+  mina: 'Mina',
+  paramo: 'Páramo',
+  peninsula: 'Península',
+  puente: 'Puente',
+  puerta: 'Puerta',
+  túmulos: 'Túmulos',
+  valle: 'Valle',
 };
 
 // Type categories for filtering
 export const TYPE_CATEGORIES = {
-  settlements: ['ciudad_capital', 'ciudad', 'ciudad_puerto', 'ciudad_elfica', 'pueblo', 'refugio', 'refugio_elfico'],
+  settlements: ['ciudad_capital', 'ciudad', 'ciudad_puerto', 'ciudad_elfica', 'ciudad_lago', 'pueblo', 'refugio', 'refugio_elfico'],
   fortresses: ['fortaleza', 'fortaleza_enemiga', 'fortaleza_abandonada', 'reino_enano', 'reino_elfico'],
-  nature: ['bosque', 'bosque_antiguo', 'bosque_elfico', 'bosque_oscuro', 'cordillera', 'volcan', 'colinas', 'lago', 'rio', 'pantano'],
-  other: ['ruinas', 'region', 'vado', 'camino', 'puerto', 'almenaras', 'paso_montaña', 'monumento', 'lugar_especial'],
+  nature: ['bosque', 'bosque_antiguo', 'bosque_elfico', 'bosque_oscuro', 'cordillera', 'volcan', 'colinas', 'lago', 'rio', 'pantano', 'cascada', 'isla', 'llanura', 'paramo', 'peninsula', 'valle'],
+  other: ['ruinas', 'region', 'vado', 'camino', 'puerto', 'almenaras', 'paso_montaña', 'monumento', 'lugar_especial', 'cueva', 'mina', 'puente', 'puerta', 'túmulos'],
 };
 
 // Road types

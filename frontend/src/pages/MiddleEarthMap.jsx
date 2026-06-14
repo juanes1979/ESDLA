@@ -414,6 +414,80 @@ const MiddleEarthMap = () => {
       return true;
     });
   }, [locations, filterRegion, filterType, searchTerm]);
+
+  // ── Label collision-avoidance (Iter 121, Feb 2026) ──────────────────────
+  // Para cada nivel de zoom calculamos qué etiquetas se pueden mostrar SIN
+  // que se solapen unas a otras. Se ordenan por prioridad (capitales >
+  // ciudades > fortalezas > … > pueblos > regiones) y se hace una pasada
+  // greedy comprobando bounding boxes en coordenadas-mundo.
+  const LABEL_PRIORITY = {
+    ciudad_capital: 100,
+    ciudad_elfica: 95, reino_elfico: 95, reino_enano: 95,
+    ciudad: 90, ciudad_puerto: 85, ciudad_lago: 85,
+    volcan: 80,
+    fortaleza: 75, fortaleza_enemiga: 75,
+    refugio_elfico: 70, refugio: 60,
+    paso_montaña: 65, puerta: 65,
+    puerto: 60,
+    monumento: 58, almenaras: 58, túmulos: 55,
+    fortaleza_abandonada: 55, ruinas: 52,
+    pueblo: 50, mina: 50,
+    vado: 48, puente: 48,
+    lago: 45, isla: 45, peninsula: 42, valle: 42, cascada: 40,
+    cueva: 38, paramo: 35, llanura: 32,
+    bosque_antiguo: 35, bosque_elfico: 35, bosque_oscuro: 35,
+    bosque: 30,
+    cordillera: 25, colinas: 22,
+    rio: 20, camino: 18,
+    region: 15,
+    lugar_especial: 60,
+  };
+
+  const labelVisibleIds = useMemo(() => {
+    if (!showLabels || zoom <= 0.06) return new Set();
+    // Tamaño de la fuente en pixeles-mundo (igual que en renderLocation).
+    const fontSize = 300 / Math.max(0.04, zoom);
+    // Aproximación: cada carácter ocupa ~0.55 × fontSize de ancho.
+    const charW = fontSize * 0.55;
+    // Offset vertical del texto bajo el marcador (igual que renderLocation).
+    const yOffset = 320 / Math.max(0.04, zoom);
+    // Margen entre etiquetas para evitar solapes visuales muy ajustados.
+    const pad = fontSize * 0.15;
+
+    const candidates = filteredLocations
+      .map(loc => {
+        const score = (LABEL_PRIORITY[loc.tipo] ?? 25) + (loc.refugio ? 8 : 0);
+        return { loc, score };
+      })
+      .sort((a, b) => b.score - a.score);
+
+    const acceptedBoxes = [];
+    const acceptedIds = new Set();
+
+    for (const { loc } of candidates) {
+      const px = (loc.x / 100) * MAP_PIXEL_WIDTH;
+      const py = MAP_PIXEL_HEIGHT - (loc.y / 100) * MAP_PIXEL_HEIGHT;
+      const w = Math.max(1, (loc.nombre || '').length) * charW + pad * 2;
+      const h = fontSize * 1.1 + pad * 2;
+      const cx = px;
+      const cy = py + yOffset;
+      const box = [cx - w / 2, cy - h / 2, cx + w / 2, cy + h / 2];
+
+      let collides = false;
+      for (const b of acceptedBoxes) {
+        if (box[0] < b[2] && box[2] > b[0] && box[1] < b[3] && box[3] > b[1]) {
+          collides = true;
+          break;
+        }
+      }
+      if (!collides) {
+        acceptedBoxes.push(box);
+        acceptedIds.add(loc.id);
+      }
+    }
+    return acceptedIds;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filteredLocations, zoom, showLabels, MAP_PIXEL_WIDTH, MAP_PIXEL_HEIGHT]);
   
   // Convert coordinates (percentage 0-100) to absolute pixel position
   const coordToPos = (x, y) => ({
@@ -1354,10 +1428,11 @@ const MiddleEarthMap = () => {
           </text>
         )}
         
-        {/* Label - only visible when zoomed in enough, fixed size on screen.
-            Bumped from ~17px to ~26px screen-equivalent so labels remain
-            legible at any zoom (Iter 107 feedback). */}
-        {showLabels && !editMode && zoom > 0.06 && (
+        {/* Label - only visible when zoomed in enough AND the
+            anti-collision algorithm (Iter 121) decides this one shows.
+            Selected/origin/destination labels always show. */}
+        {showLabels && !editMode && zoom > 0.06 &&
+         (labelVisibleIds.has(loc.id) || isSelected || isOrigin || isDestination) && (
           <text
             y={320 * inverseZoom}
             textAnchor="middle"

@@ -130,6 +130,27 @@ imposibles por diseño.
   devolvía el documento actualizado.
 - `data_routes.py` baja de 4998 → 4617 líneas.
 - Registrado el nuevo router en `server.py`.
+
+## Iter 122 — Tipos de ubicación + Anti-colisión etiquetas (Feb 2026)
+
+### Tipos de ubicación
+- Unificadas 26 ubicaciones con tipos huérfanos a tipos canónicos
+  (aldea→pueblo, bahia→puerto, colina→colinas, paso→paso_montaña, etc.).
+- 16 tipos eliminados; 11 nuevos añadidos con icono y nombre legible en
+  `frontend/src/components/map/mapConstants.js`: cascada, ciudad_lago,
+  cueva, isla, llanura, mina, paramo, peninsula, puente, puerta, túmulos,
+  valle. Total de tipos: 43.
+
+### Anti-colisión de etiquetas en `MiddleEarthMap.jsx`
+- `labelVisibleIds` (useMemo) calcula qué etiquetas se muestran en cada
+  zoom usando bounding boxes y prioridad por tipo.
+- Pasada greedy: ordena por (LABEL_PRIORITY[tipo] + refugio_bonus) desc,
+  acepta si no solapa con ninguna anterior.
+- Excepciones siempre visibles: selección, origen y destino del viaje.
+- El marcador sigue visible aunque la etiqueta se descarte — solo se
+  oculta el texto.
+
+
 - Tests curl: list/create/get/update/copy/delete OK.
 
 
