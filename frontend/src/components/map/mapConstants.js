@@ -78,6 +78,12 @@ export const LOCATION_ICONS = {
   puerta: '🚪',
   túmulos: '🪦',
   valle: '🏞️',
+  // Iter 122 (Feb 2026) — añadidos por petición del usuario
+  aldea: '🏡',
+  granja_aldea: '🧑‍🌾',
+  ruinas_malditas: '☠️',
+  puerto_enemigo: '🏴‍☠️',
+  ciudad_enemiga: '⚔️',
 };
 
 // Human-readable type names
@@ -126,14 +132,20 @@ export const TYPE_NAMES = {
   puerta: 'Puerta',
   túmulos: 'Túmulos',
   valle: 'Valle',
+  // Iter 122
+  aldea: 'Aldea',
+  granja_aldea: 'Granja / Aldea',
+  ruinas_malditas: 'Ruinas Malditas',
+  puerto_enemigo: 'Puerto Enemigo',
+  ciudad_enemiga: 'Ciudad Enemiga',
 };
 
 // Type categories for filtering
 export const TYPE_CATEGORIES = {
-  settlements: ['ciudad_capital', 'ciudad', 'ciudad_puerto', 'ciudad_elfica', 'ciudad_lago', 'pueblo', 'refugio', 'refugio_elfico'],
+  settlements: ['ciudad_capital', 'ciudad', 'ciudad_puerto', 'ciudad_elfica', 'ciudad_lago', 'ciudad_enemiga', 'pueblo', 'aldea', 'granja_aldea', 'refugio', 'refugio_elfico'],
   fortresses: ['fortaleza', 'fortaleza_enemiga', 'fortaleza_abandonada', 'reino_enano', 'reino_elfico'],
   nature: ['bosque', 'bosque_antiguo', 'bosque_elfico', 'bosque_oscuro', 'cordillera', 'volcan', 'colinas', 'lago', 'rio', 'pantano', 'cascada', 'isla', 'llanura', 'paramo', 'peninsula', 'valle'],
-  other: ['ruinas', 'region', 'vado', 'camino', 'puerto', 'almenaras', 'paso_montaña', 'monumento', 'lugar_especial', 'cueva', 'mina', 'puente', 'puerta', 'túmulos'],
+  other: ['ruinas', 'ruinas_malditas', 'region', 'vado', 'camino', 'puerto', 'puerto_enemigo', 'almenaras', 'paso_montaña', 'monumento', 'lugar_especial', 'cueva', 'mina', 'puente', 'puerta', 'túmulos'],
 };
 
 // Road types
