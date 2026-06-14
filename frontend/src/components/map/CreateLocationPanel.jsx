@@ -166,8 +166,8 @@ const CreateLocationPanel = ({
   };
 
   return (
-    <Card className="absolute top-4 right-4 w-96 bg-black/95 border-green-500/50 z-50 max-h-[90vh] overflow-y-auto">
-      <CardHeader className="pb-2">
+    <Card className="absolute top-4 right-4 w-96 bg-black/95 border-green-500/50 z-50 max-h-[90vh] flex flex-col">
+      <CardHeader className="pb-2 shrink-0">
         <div className="flex justify-between items-start">
           <CardTitle className="text-lg text-green-400">
             <Plus className="w-5 h-5 inline mr-1" /> Crear Nueva Ubicación
@@ -177,7 +177,7 @@ const CreateLocationPanel = ({
           </Button>
         </div>
       </CardHeader>
-      <CardContent className="space-y-3">
+      <CardContent className="space-y-3 overflow-y-auto flex-1 min-h-0">
         {/* Position indicator */}
         {newLocationCoords ? (
           <div className="p-2 bg-green-900/30 border border-green-600/50 rounded text-sm text-green-200 flex items-center justify-between">
@@ -404,25 +404,27 @@ const CreateLocationPanel = ({
             placeholder="Descripción de la ubicación..."
           />
         </div>
-        
-        {/* Actions */}
-        <div className="flex gap-2 pt-2 border-t border-border/30">
-          <Button
-            onClick={onCreate}
-            disabled={isCreating || !newLocationData.nombre || !newLocationData.region || !newLocationCoords}
-            className="flex-1 bg-green-600 hover:bg-green-700"
-          >
-            {isCreating ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : <Plus className="w-4 h-4 mr-1" />}
-            Crear Ubicación
-          </Button>
-        </div>
-        
+
         {(!newLocationData.nombre || !newLocationData.region || !newLocationCoords) && (
           <p className="text-xs text-yellow-400">
             * Haz clic en el mapa para seleccionar la ubicación
           </p>
         )}
       </CardContent>
+
+      {/* Sticky footer with action buttons — always visible regardless of
+          scroll position inside the panel (Iter 119.2). */}
+      <div className="shrink-0 px-6 py-3 border-t border-border/30 bg-black/95">
+        <Button
+          onClick={onCreate}
+          disabled={isCreating || !newLocationData.nombre || !newLocationData.region || !newLocationCoords}
+          className="w-full bg-green-600 hover:bg-green-700"
+          data-testid="create-location-submit"
+        >
+          {isCreating ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : <Plus className="w-4 h-4 mr-1" />}
+          Crear Ubicación
+        </Button>
+      </div>
     </Card>
   );
 };
