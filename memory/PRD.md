@@ -105,6 +105,34 @@ imposibles por diseño.
   - Éxito → evento ANULADO (no suma CD).
   - Pifia (1) o fallo por 5+ → vigía gana `+0,5` cansancio personal.
   - 20 natural → éxito por 5+ automático.
+
+## Iter 121 — Limpieza legacy + POC refactor NPC (Feb 2026)
+
+### Limpieza editor de terreno legacy (DONE)
+- Borrado `TerrainEditor.jsx` (1904 líneas) y la ruta `/terrain-editor-legacy` en `App.js`.
+- Eliminados endpoints `/data/terrain-zones`, `/data/terrain-polygons`,
+  `/data/land-type-zones` de `data_routes.py`.
+- `pathfinding.py`: quitado el parámetro `terrain_polygons` y las funciones
+  `_point_in_polygon` / fallbacks. El raster grid es ahora la única fuente
+  de verdad.
+- `travel_routes.py`: eliminado `get_terrain_polygons()`, helpers de
+  polígonos y todas las llamadas. `/api/travel/terrain-at/{x}/{y}` ahora
+  lee directamente del grid.
+- `terrain_grid_routes.py`: eliminado `/migrate-from-polygons` y el helper
+  `_rasterize_polygon`.
+- Colecciones MongoDB `terrain_zones`, `terrain_polygons`, `land_type_zones`
+  y `terrain_polygons_legacy` borradas.
+- Tests obsoletos eliminados de `tests/test_terrain_path_debugger.py`.
+
+### POC refactor data_routes.py — NPCs
+- Creado `routes/npc_routes.py` (263 líneas) con los 6 endpoints NPC
+  (GET list/by-id, POST, PATCH, DELETE, COPY). Bug arreglado: PATCH no
+  devolvía el documento actualizado.
+- `data_routes.py` baja de 4998 → 4617 líneas.
+- Registrado el nuevo router en `server.py`.
+- Tests curl: list/create/get/update/copy/delete OK.
+
+
 - Si TODAS las tiradas son éxito por 5+ → descanso del grupo `-1 CD` (en vez
   de `-0,5`). Se envía como `fatiga_cd_decrement` al endpoint
   `POST /api/travel/journey/{id}/camp`.
