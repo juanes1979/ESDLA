@@ -630,133 +630,54 @@ LAND_TYPE_PRIORITY = {
     'tierras_libres': 1,
 }
 
-def point_in_polygon(x: float, y: float, polygon_points: list) -> bool:
-    """
-    Check if a point (x, y) is inside a polygon using ray casting algorithm.
-    polygon_points is a list of {"x": float, "y": float} dicts.
-    """
-    n = len(polygon_points)
-    if n < 3:
-        return False
-    
-    inside = False
-    j = n - 1
-    
-    for i in range(n):
-        xi = polygon_points[i].get("x", 0)
-        yi = polygon_points[i].get("y", 0)
-        xj = polygon_points[j].get("x", 0)
-        yj = polygon_points[j].get("y", 0)
-        
-        if ((yi > y) != (yj > y)) and (x < (xj - xi) * (y - yi) / (yj - yi) + xi):
-            inside = not inside
-        j = i
-    
-    return inside
-
-async def get_terrain_polygons() -> list:
-    """Get terrain polygons from database"""
-    doc = await db.terrain_polygons.find_one({"_id": "terrain_polygons_data"})
+async def _grid_lookup_cells(x: float, y: float) -> dict:
+    """Return difficulty + land_type names at (x, y) by reading the raster
+    grid. Feb 2026: replaces the legacy polygon-based lookups. Maps the
+    grid's short land-type names to the long names used everywhere else."""
+    from routes.terrain_grid_routes import (
+        GRID_DOC_ID, DIFFICULTY_NAMES, LAND_TYPE_NAMES, _decode_grid,
+    )
+    # The grid uses short names (libres, salvajes, sombra…) — the rest of
+    # the codebase uses tierras_libres, tierras_salvajes, etc.
+    LAND_NORMALIZE = {
+        "libres": "tierras_libres",
+        "fronterizas": "tierras_fronterizas",
+        "salvajes": "tierras_salvajes",
+        "sombra": "tierras_sombra",
+        "tierras_oscuras": "tierras_oscuras",
+    }
+    doc = await db.terrain_grids.find_one({"_id": GRID_DOC_ID})
     if not doc:
-        return []
-    return doc.get("polygons", [])
-
-async def get_terrain_at_coordinate(x: float, y: float) -> Optional[dict]:
-    """
-    Get terrain difficulty at a specific coordinate from terrain polygons.
-    x, y are in percentage coordinates (0-100).
-    If multiple polygons overlap, returns the one with highest priority (most difficult).
-    """
-    polygons = await get_terrain_polygons()
-    if not polygons:
-        return None
-    
-    # Filter terrain polygons (not land type)
-    terrain_types = set(TERRAIN_PRIORITY.keys())
-    
-    # Find all polygons that contain this point
-    matching = []
-    for poly in polygons:
-        poly_type = poly.get("type", "")
-        if poly_type not in terrain_types:
-            continue
-        
-        points = poly.get("points", [])
-        if point_in_polygon(x, y, points):
-            matching.append({
-                "type": poly_type,
-                "priority": TERRAIN_PRIORITY.get(poly_type, 0),
-                "polygon_id": poly.get("id")
-            })
-    
-    if not matching:
-        return None
-    
-    # Return the one with highest priority
-    matching.sort(key=lambda m: m["priority"], reverse=True)
+        return {"terrain": None, "land_type": None}
+    w = doc.get("width", 0)
+    h = doc.get("height", 0)
+    if w <= 0 or h <= 0:
+        return {"terrain": None, "land_type": None}
+    diff = _decode_grid(doc.get("difficulty_b64", ""), w, h)
+    land = _decode_grid(doc.get("land_type_b64", ""), w, h)
+    cx = max(0, min(w - 1, int(round(x * w / 100.0))))
+    cy = max(0, min(h - 1, int(round(y * h / 100.0))))
+    raw_land = LAND_TYPE_NAMES.get(int(land[cy, cx]))
     return {
-        "type": matching[0]["type"],
-        "x": x,
-        "y": y,
-        "polygon_id": matching[0]["polygon_id"]
+        "terrain": DIFFICULTY_NAMES.get(int(diff[cy, cx])),
+        "land_type": LAND_NORMALIZE.get(raw_land, raw_land),
     }
 
-async def get_land_type_at_coordinate(x: float, y: float) -> Optional[dict]:
-    """
-    Get land type at a specific coordinate from terrain polygons.
-    x, y are in percentage coordinates (0-100).
-    If multiple polygons overlap, returns the one with highest priority.
-    Priority: Tierras Oscuras > Sombra > Salvajes > Fronterizas > Libres
-    """
-    polygons = await get_terrain_polygons()
-    if not polygons:
-        return None
-    
-    # Filter land type polygons
-    land_types = set(LAND_TYPE_PRIORITY.keys())
-    
-    # Find all polygons that contain this point
-    matching = []
-    for poly in polygons:
-        poly_type = poly.get("type", "")
-        if poly_type not in land_types:
-            continue
-        
-        points = poly.get("points", [])
-        if point_in_polygon(x, y, points):
-            matching.append({
-                "type": poly_type,
-                "priority": LAND_TYPE_PRIORITY.get(poly_type, 0),
-                "polygon_id": poly.get("id")
-            })
-    
-    if not matching:
-        return None
-    
-    # Return the one with highest priority
-    matching.sort(key=lambda m: m["priority"], reverse=True)
-    return {
-        "type": matching[0]["type"],
-        "x": x,
-        "y": y,
-        "polygon_id": matching[0]["polygon_id"]
-    }
 
 async def get_terrain_and_land_at_coordinate(x: float, y: float) -> dict:
-    """
-    Get both terrain difficulty and land type at a coordinate.
-    Returns combined info for pathfinding calculations.
-    """
-    terrain = await get_terrain_at_coordinate(x, y)
-    land_type = await get_land_type_at_coordinate(x, y)
-    
+    """Returns terrain difficulty and land type at a coordinate, reading the
+    raster grid. Defaults to moderado / tierras_salvajes when the cell is
+    empty (matches the legacy polygon behaviour)."""
+    cell = await _grid_lookup_cells(x, y)
+    terrain = cell.get("terrain") or "moderado"
+    land_type = cell.get("land_type") or "tierras_salvajes"
     return {
         "x": x,
         "y": y,
-        "terrain": terrain.get("type") if terrain else "moderado",  # default
-        "land_type": land_type.get("type") if land_type else "tierras_salvajes",  # default
-        "terrain_priority": TERRAIN_PRIORITY.get(terrain.get("type") if terrain else "moderado", 2),
-        "land_priority": LAND_TYPE_PRIORITY.get(land_type.get("type") if land_type else "tierras_salvajes", 3),
+        "terrain": terrain,
+        "land_type": land_type,
+        "terrain_priority": TERRAIN_PRIORITY.get(terrain, 2),
+        "land_priority": LAND_TYPE_PRIORITY.get(land_type, 3),
     }
 
 # ============== CRUD ENDPOINTS FOR EDITABLE DATA ==============
@@ -947,12 +868,11 @@ async def debug_pathfinding(config: PathDebugConfig):
             detail=f"Origen o destino no encontrado: {config.origen_nombre} → {config.destino_nombre}",
         )
 
-    # Load roads/rivers/barriers/regions/polygons (same as calculate-journey)
+    # Load roads/rivers/barriers/regions (same as calculate-journey)
     roads = await db.roads.find({}).to_list(length=None)
     rivers = await db.rivers.find({}).to_list(length=None)
     barriers = await db.barriers.find({}).to_list(length=None)
     regions = await db.regions.find({}).to_list(length=None)
-    terrain_polygons = await get_terrain_polygons()
     for col in (roads, rivers, barriers, regions):
         for c in col:
             if '_id' in c:
@@ -964,7 +884,6 @@ async def debug_pathfinding(config: PathDebugConfig):
         barriers=barriers,
         locations=locations,
         regions=regions,
-        terrain_polygons=terrain_polygons,
         prefer_roads=config.preferir_caminos,
         avoid_shadow_lands=config.evitar_tierras_sombra,
         avoid_dark_lands=config.evitar_tierras_oscuras,
@@ -1201,17 +1120,12 @@ async def calculate_journey(config: JourneyConfig):
                 debug_info["pathfinding"]["used"] = True
                 # Use pathfinding
                 from utils.pathfinding import MiddleEarthPathfinder, load_terrain_grid_kwargs
-                
-                # Load terrain polygons
-                terrain_polygons = await get_terrain_polygons()
-                debug_info["pathfinding"]["terrain_polygons_count"] = len(terrain_polygons)
-                
+
                 pathfinder = MiddleEarthPathfinder(
                     roads=roads,
                     rivers=rivers,
                     barriers=barriers,
                     locations=all_locations,
-                    terrain_polygons=terrain_polygons,
                     prefer_roads=config.preferir_caminos,
                     avoid_shadow_lands=config.evitar_sombra,
                     avoid_dark_lands=config.evitar_tierras_oscuras,
@@ -1923,8 +1837,7 @@ async def compare_routes(request: RouteComparisonRequest):
     rivers = list(await db.rivers.find({}, {"_id": 0}).to_list(length=1000))
     barriers = list(await db.barriers.find({}, {"_id": 0}).to_list(length=1000))
     all_locations = list(await db.locations.find({}).to_list(length=1000))
-    terrain_polygons = await get_terrain_polygons()
-    
+
     # Clean location IDs
     for loc in all_locations:
         if '_id' in loc:
@@ -2014,7 +1927,6 @@ async def compare_routes(request: RouteComparisonRequest):
         rivers=rivers,
         barriers=barriers,
         locations=all_locations,
-        terrain_polygons=terrain_polygons,
         prefer_roads=True,  # Prefer roads
         avoid_shadow_lands=request.evitar_sombra,  # Respect user choice
         avoid_dark_lands=request.evitar_tierras_oscuras,  # Respect user choice
@@ -2030,7 +1942,6 @@ async def compare_routes(request: RouteComparisonRequest):
         rivers=rivers,
         barriers=barriers,
         locations=all_locations,
-        terrain_polygons=terrain_polygons,
         prefer_roads=False,  # No road preference
         avoid_shadow_lands=False,  # Direct route can go through shadow lands
         avoid_dark_lands=False,  # Direct route can go through dark lands

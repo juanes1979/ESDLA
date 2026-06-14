@@ -21,7 +21,6 @@ import PlayerMap from "@/pages/PlayerMap";
 import FontDemo from "@/pages/FontDemo";
 import StoragePage from "@/pages/StoragePage";
 import AdminBackupPage from "@/pages/AdminBackupPage";
-import TerrainEditor from "@/pages/TerrainEditor";
 import TerrainGridEditor from "@/pages/TerrainGridEditor";
 import PathDebugger from "@/pages/PathDebugger";
 import LoginPage from "@/pages/LoginPage";
@@ -73,7 +72,6 @@ function App() {
               <Route path="/sheet-editor" element={<ProtectedRoute roles={STAFF}><SheetPositionEditor /></ProtectedRoute>} />
               <Route path="/map/master" element={<ProtectedRoute roles={STAFF}><MiddleEarthMap /></ProtectedRoute>} />
               <Route path="/terrain-editor" element={<ProtectedRoute roles={STAFF}><TerrainGridEditor /></ProtectedRoute>} />
-              <Route path="/terrain-editor-legacy" element={<ProtectedRoute roles={STAFF}><TerrainEditor /></ProtectedRoute>} />
               <Route path="/path-debugger" element={<ProtectedRoute roles={STAFF}><PathDebugger /></ProtectedRoute>} />
 
               {/* Maestro-only routes */}

@@ -255,13 +255,12 @@ class MiddleEarthPathfinder:
         barriers: List[Dict],
         locations: List[Dict],
         regions: Optional[List[Dict]] = None,
-        terrain_polygons: Optional[List[Dict]] = None,
         prefer_roads: bool = True,
         avoid_roads: bool = False,
         avoid_shadow_lands: bool = False,
         avoid_dark_lands: bool = False,
         direct_mode: bool = False,  # If True, ignores land danger penalties for shortest path
-        # Iter 119: raster grid (preferred over polygons when available).
+        # Iter 119: raster grid (single source of truth for terrain/land type).
         terrain_grid: Optional[bytes] = None,
         land_grid: Optional[bytes] = None,
         grid_width: int = 0,
@@ -272,16 +271,16 @@ class MiddleEarthPathfinder:
         self.barriers = barriers
         self.locations = locations
         self.regions = regions or []
-        self.terrain_polygons = terrain_polygons or []
         self.prefer_roads = prefer_roads
         self.avoid_roads = avoid_roads  # For fleeing from pursuers
         self.avoid_shadow_lands = avoid_shadow_lands
         self.avoid_dark_lands = avoid_dark_lands
         self.direct_mode = direct_mode  # Direct route ignores land danger
 
-        # Raster terrain (Iter 119) — O(1) per-coordinate lookup.
-        # `terrain_grid` and `land_grid` are flat bytes (row-major uint8).
-        # When present they replace polygon scans for terrain queries.
+        # Raster terrain (Iter 119/120) — O(1) per-coordinate lookup. The
+        # legacy polygon system was removed in Feb 2026; the grid is the sole
+        # source of truth. `terrain_grid` and `land_grid` are flat bytes
+        # (row-major uint8).
         self.terrain_grid = terrain_grid
         self.land_grid = land_grid
         self.grid_w = grid_width
@@ -359,109 +358,25 @@ class MiddleEarthPathfinder:
                 tname = self._grid_lookup_terrain(x, y)
                 if tname in ('infranqueable', 'agua'):
                     return True
-            return False
-
-        # Legacy polygon path
-        if not self.terrain_polygons:
-            return False
-        BLOCKING = {'infranqueable', 'agua'}
-        blocking_polys = [p for p in self.terrain_polygons if p.get('type') in BLOCKING]
-        if not blocking_polys:
-            return False
-        for i in range(1, n_samples + 1):
-            t = i / (n_samples + 1)
-            x = fx + (tx - fx) * t
-            y = fy + (ty - fy) * t
-            for poly in blocking_polys:
-                pts = poly.get('points', [])
-                if pts and self._point_in_polygon(x, y, pts):
-                    return True
         return False
 
-    def _point_in_polygon(self, x: float, y: float, polygon_points: list) -> bool:
-        """Check if point is inside polygon using ray casting"""
-        n = len(polygon_points)
-        if n < 3:
-            return False
-        
-        inside = False
-        j = n - 1
-        
-        for i in range(n):
-            xi = polygon_points[i].get("x", 0)
-            yi = polygon_points[i].get("y", 0)
-            xj = polygon_points[j].get("x", 0)
-            yj = polygon_points[j].get("y", 0)
-            
-            if ((yi > y) != (yj > y)) and (x < (xj - xi) * (y - yi) / (yj - yi) + xi):
-                inside = not inside
-            j = i
-        
-        return inside
-    
     def get_terrain_from_polygons(self, x: float, y: float) -> str:
-        """Get terrain type at coordinate, with priority. Uses raster grid
-        when available (Iter 119), else falls back to polygon scan."""
-        # Raster fast path
+        """Returns terrain type at (x, y) using the raster grid (Feb 2026:
+        legacy polygons removed). Defaults to 'moderado' if no grid loaded
+        or the cell is empty."""
         grid_val = self._grid_lookup_terrain(x, y)
         if grid_val is not None:
             return grid_val
-        if self._use_grid:
-            # Grid loaded but this cell is empty (0) → default moderado.
-            return "moderado"
+        return "moderado"
 
-        if not self.terrain_polygons:
-            return "moderado"
-        matching = []
-        for poly in self.terrain_polygons:
-            poly_type = poly.get("type", "")
-            if poly_type not in self.TERRAIN_PRIORITY:
-                continue
-            
-            points = poly.get("points", [])
-            if self._point_in_polygon(x, y, points):
-                matching.append({
-                    "type": poly_type,
-                    "priority": self.TERRAIN_PRIORITY.get(poly_type, 0)
-                })
-        
-        if not matching:
-            return "moderado"
-        
-        # Return highest priority (most difficult)
-        matching.sort(key=lambda m: m["priority"], reverse=True)
-        return matching[0]["type"]
-    
     def get_land_type_from_polygons(self, x: float, y: float) -> str:
-        """Get land type at coordinate. Uses raster grid when available
-        (Iter 119), else falls back to polygon scan."""
+        """Returns land type at (x, y) using the raster grid (Feb 2026:
+        legacy polygons removed). Defaults to 'tierras_salvajes' if no grid
+        loaded or the cell is empty."""
         grid_val = self._grid_lookup_land(x, y)
         if grid_val is not None:
             return grid_val
-        if self._use_grid:
-            return "tierras_salvajes"
-
-        if not self.terrain_polygons:
-            return "tierras_salvajes"
-        matching = []
-        for poly in self.terrain_polygons:
-            poly_type = poly.get("type", "")
-            if poly_type not in self.LAND_TYPE_PRIORITY:
-                continue
-            
-            points = poly.get("points", [])
-            if self._point_in_polygon(x, y, points):
-                matching.append({
-                    "type": poly_type,
-                    "priority": self.LAND_TYPE_PRIORITY.get(poly_type, 0)
-                })
-        
-        if not matching:
-            return "tierras_salvajes"
-        
-        # Return highest priority
-        matching.sort(key=lambda m: m["priority"], reverse=True)
-        return matching[0]["type"]
+        return "tierras_salvajes"
     
     def _build_road_network(self):
         """Build efficient road lookup structure"""
@@ -768,29 +683,26 @@ class MiddleEarthPathfinder:
         return None
     
     def _get_terrain_at_point(self, x: float, y: float) -> str:
-        """Get terrain type at point - first from polygons, then fallback to locations"""
-        # First check terrain polygons (highest priority)
-        if self.terrain_polygons:
-            polygon_terrain = self.get_terrain_from_polygons(x, y)
-            if polygon_terrain != "moderado":  # Found specific terrain
-                return polygon_terrain
-        
-        # Fallback to location-based terrain
+        """Get terrain type at point — uses the raster grid (Feb 2026: legacy
+        polygons removed). Falls back to nearest known location if the grid
+        is unavailable."""
+        # Raster grid is the source of truth
+        grid_terrain = self.get_terrain_from_polygons(x, y)
+        if grid_terrain != "moderado":
+            return grid_terrain
+
+        # Fallback to location-based terrain (only used if grid is empty)
         grid_key = (round(x), round(y))
-        
         if grid_key in self.location_map:
             return self.location_map[grid_key]['terrain']
-        
-        # Find nearest location
+
         min_dist = float('inf')
         nearest_terrain = 'moderado'
-        
         for loc in self.locations:
             dist = self._distance((x, y), (loc.get('x', 0), loc.get('y', 0)))
             if dist < min_dist:
                 min_dist = dist
                 nearest_terrain = loc.get('tipo_terreno', 'moderado')
-        
         return nearest_terrain
     
     def _calculate_move_cost(
