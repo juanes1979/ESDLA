@@ -148,55 +148,136 @@ export default function CampDialog({
         onCampDayCompleted();
       }
 
-      // 3) Tirada del centinela (Sabiduría/Percepción CD 12)
-      let vigia = null;
+      // 3-4) Tirada(s) del centinela — UNA por cada evento nocturno (Feb 2026)
+      //   - d20 == 1: pifia segura → fallo crítico, vigía +0,5 fatiga personal.
+      //   - d20 == 20: éxito seguro → evento anulado + cuenta como "éxito por 5+".
+      //   - Otros: total = d20 + sab_mod + prof_vigia.
+      //       total >= CD (12)           → ÉXITO, evento anulado.
+      //       total < CD - 4 (fallo por 5+) → vigía +0,5 fatiga personal.
+      //       resto                       → fallo normal, sin penalización extra.
+      //   - Si TODAS las tiradas son éxito por 5+ (o nat 20), el grupo descansa
+      //     -1 CD en vez de -0,5. Si hay al menos un fallo (de cualquier tipo),
+      //     el descanso es -0,5 (RAW).
+      const CD_VIGIA = 12;
+      let vigiaResultados = [];
+      let sentChar = null;
+      let wisMod = 0;
+      let profBonus = 0;
+      let esVigiaProf = false;
       if (sentinelId) {
-        const sentChar = characters.find((c) => c.id === sentinelId);
-        const wisMod = modFromScore(sentChar?.atributos?.sabiduria);
-        // Bonus de competencia si tiene Percepción o papel de 'vigia'
+        sentChar = characters.find((c) => c.id === sentinelId);
+        wisMod = modFromScore(sentChar?.atributos?.sabiduria);
         const miembroInfo = miembros.find((m) => m.id === sentinelId);
-        const esVigiaProf = miembroInfo?.papeles?.includes('vigia') || false;
-        const profBonus = esVigiaProf ? 2 : 0;
-        const d20 = rollDie(20);
-        const total = d20 + wisMod + profBonus;
-        vigia = {
-          nombre: sentChar?.nombre || miembroInfo?.nombre || 'Centinela',
-          d20,
-          mod: wisMod + profBonus,
-          total,
-          cd: 12,
-          exito: total >= 12,
-          esVigiaProf,
-        };
+        esVigiaProf = miembroInfo?.papeles?.includes('vigia') || false;
+        profBonus = esVigiaProf ? 2 : 0;
       }
 
       // 4) Tiradas de eventos nocturnos — escoge aleatoriamente de DEFAULT events
       const nightEvents = [];
       let totalFatigaCdIncrement = 0;
+      let allSentinelGreatSuccess = !!sentinelId && numNightEvents > 0;
+      let sentinelExtraFatiga = 0;
+
       for (let i = 0; i < numNightEvents; i++) {
-        const d20 = rollDie(20);
+        // (a) Tirada del centinela para ESTE evento
+        let watch = null;
+        let watchSuccess = false;
+        let watchGreatSuccess = false;
+        let watchBadFail = false;
+        if (sentinelId) {
+          const d20 = rollDie(20);
+          const total = d20 + wisMod + profBonus;
+          if (d20 === 20) {
+            watchSuccess = true;
+            watchGreatSuccess = true; // nat 20 cuenta como éxito por 5+
+          } else if (d20 === 1) {
+            watchSuccess = false;
+            watchBadFail = true; // pifia = fallo por 5+
+          } else {
+            watchSuccess = total >= CD_VIGIA;
+            watchGreatSuccess = watchSuccess && (total >= CD_VIGIA + 5);
+            watchBadFail = !watchSuccess && (total <= CD_VIGIA - 5);
+          }
+          if (watchBadFail) sentinelExtraFatiga += 0.5;
+          if (!watchGreatSuccess) allSentinelGreatSuccess = false;
+          watch = { d20, mod: wisMod + profBonus, total, cd: CD_VIGIA, exito: watchSuccess, granExito: watchGreatSuccess, malFallo: watchBadFail };
+          vigiaResultados.push(watch);
+        } else {
+          allSentinelGreatSuccess = false;
+        }
+
+        // (b) Tirada del evento (siempre se tira para mostrar el resultado al DJ)
+        const d20ev = rollDie(20);
         const matched = travelEvents.find(
-          (e) => d20 >= (e.d20_min ?? 0) && d20 <= (e.d20_max ?? 0)
+          (e) => d20ev >= (e.d20_min ?? 0) && d20ev <= (e.d20_max ?? 0)
         );
         const evento = matched || {
           nombre: 'Noche tranquila',
           fatigue_cd_increase: 0,
           consecuencias_exito: 'Nada perturba el descanso del grupo.',
         };
+        const baseCdInc = evento.fatigue_cd_increase || 0;
+        // El centinela NEUTRALIZA el evento si lo detectó a tiempo.
+        const finalCdInc = watchSuccess ? 0 : baseCdInc;
         nightEvents.push({
-          d20,
+          d20: d20ev,
           nombre: evento.nombre,
-          fatigue_cd_increase: evento.fatigue_cd_increase || 0,
-          consecuencias: evento.consecuencias_exito || '',
+          fatigue_cd_increase: finalCdInc,
+          fatigue_cd_base: baseCdInc,
+          consecuencias: watchSuccess
+            ? `Centinela alerta. ${evento.consecuencias_exito || ''}`.trim()
+            : (evento.consecuencias_exito || ''),
+          watch,
+          anulado: watchSuccess,
         });
-        totalFatigaCdIncrement += evento.fatigue_cd_increase || 0;
+        totalFatigaCdIncrement += finalCdInc;
       }
 
-      // 5) Llamar al backend para decrementar 0,5 la CD y sumar los incrementos de eventos
+      // Resumen del vigía (informativo para la cabecera)
+      let vigia = null;
+      if (sentinelId && sentChar) {
+        vigia = {
+          nombre: sentChar?.nombre || miembros.find((m) => m.id === sentinelId)?.nombre || 'Centinela',
+          cd: CD_VIGIA,
+          mod: wisMod + profBonus,
+          esVigiaProf,
+          tiradas: vigiaResultados,
+          extraFatiga: sentinelExtraFatiga,
+          granExito: allSentinelGreatSuccess,
+        };
+      }
+
+      // Aplica el +fatiga personal al centinela (si la hubo) directamente al
+      // personaje en BD a través de setCharacters.
+      if (sentinelId && sentinelExtraFatiga > 0 && setCharacters) {
+        setCharacters((prev) => prev.map((c) =>
+          c.id === sentinelId
+            ? { ...c, fatiga: Number(((Number(c.fatiga) || 0) + sentinelExtraFatiga).toFixed(1)) }
+            : c
+        ));
+        // Refleja el cambio también en charResults del vigía
+        const idxSent = charResults.findIndex((cr) => cr.id === sentinelId);
+        if (idxSent >= 0) {
+          charResults[idxSent] = {
+            ...charResults[idxSent],
+            fatigaDespues: Number((charResults[idxSent].fatigaAntes + sentinelExtraFatiga).toFixed(1)),
+            extraFatigaVigia: sentinelExtraFatiga,
+            skipSave: false,
+            skipMotivo: null,
+          };
+        }
+      }
+
+      // 5) Llamar al backend para decrementar la CD y sumar los incrementos
+      // de eventos. El decremento es -1 si TODAS las tiradas del centinela
+      // fueron éxito por 5+, en caso contrario -0,5 (descanso normal).
+      const groupRestDecrement = allSentinelGreatSuccess ? 1.0 : 0.5;
       let fatigaCdNueva = activeJourney?.fatiga_cd_total || 10;
       if (hasBackendJourney) {
         try {
-          const res = await api.post(`/travel/journey/${activeJourney.id}/camp`);
+          const res = await api.post(`/travel/journey/${activeJourney.id}/camp`, {
+            fatiga_cd_decrement: groupRestDecrement,
+          });
           fatigaCdNueva = res.data?.fatiga_cd_nueva ?? fatigaCdNueva;
 
           // Si hubo eventos nocturnos con incremento, registrarlos en el viaje.
@@ -224,9 +305,9 @@ export default function CampDialog({
         }
       } else {
         // Modo Jornada a Jornada (sin viaje en BD): aplicamos efectos
-        // localmente. -0,5 a la CD acumulada + suma de incrementos por
-        // eventos nocturnos. El estado vive en EnhancedTravelSystem.
-        fatigaCdNueva = Math.max(0, fatigaCdNueva - 0.5);
+        // localmente. Descanso -0,5 (o -1 si centinela acertó por 5+ en
+        // todas las tiradas) + suma de incrementos por eventos NO neutralizados.
+        fatigaCdNueva = Math.max(10, fatigaCdNueva - groupRestDecrement);
         for (const ne of nightEvents) {
           fatigaCdNueva += ne.fatigue_cd_increase || 0;
         }
@@ -288,14 +369,6 @@ export default function CampDialog({
                 </p>
                 <ul className="text-xs text-muted-foreground list-disc pl-5 space-y-1">
                   <li>
-                    <strong>-1 nivel de cansancio</strong> automático por miembro. Tirada CON CD 10:
-                    con un <strong>20 natural</strong> la reducción es -2.
-                  </li>
-                  <li>
-                    El <strong>Centinela</strong> recibe la mitad de la recuperación (se acumula
-                    en décimos: -0,5 o -1 con nat20).
-                  </li>
-                  <li>
                     Consumo: <strong>1 ración</strong> y <strong>1 litro de agua</strong> por miembro.
                   </li>
                   <li>
@@ -303,7 +376,17 @@ export default function CampDialog({
                     en {REGION_LABEL[regionKey] || regionKey}.
                   </li>
                   <li>
-                    CD Fatiga acumulada del viaje: <strong>-0,5</strong>.
+                    <strong>Centinela:</strong> tira Sabiduría (Percepción) CD 12 <strong>una vez por evento</strong>.
+                    <ul className="list-[circle] pl-5">
+                      <li>Éxito → evento <em>anulado</em>.</li>
+                      <li>Pifia (1) o fallo por 5+ → el vigía gana <strong>+0,5 cansancio</strong>.</li>
+                      <li>Si <strong>todas</strong> las tiradas son éxito por 5+ → grupo descansa <strong>-1 CD</strong>.</li>
+                      <li>Si hay 20 natural → éxito por 5+ automático. Si hay 1 → pifia segura.</li>
+                    </ul>
+                  </li>
+                  <li>
+                    Descanso del grupo (CD del viaje): <strong>-0,5 CD</strong> (o -1 si el vigía
+                    triunfa por 5+ en todas).
                   </li>
                 </ul>
               </div>
@@ -479,30 +562,63 @@ export default function CampDialog({
                 </p>
               </div>
 
-              {/* Vigía */}
-              {results.vigia && (
+              {/* Vigía — ahora tira UNA vez por cada evento nocturno */}
+              {results.vigia && results.vigia.tiradas?.length > 0 && (
                 <div
                   className={`p-3 rounded border ${
-                    results.vigia.exito
-                      ? 'border-green-500/40 bg-green-500/10'
-                      : 'border-orange-500/40 bg-orange-500/10'
+                    results.vigia.granExito
+                      ? 'border-green-500/60 bg-green-500/15'
+                      : 'border-amber-500/40 bg-amber-500/10'
                   }`}
+                  data-testid="camp-watchman-panel"
                 >
                   <p className="text-xs font-bold flex items-center gap-2 mb-1">
                     <Eye className="w-4 h-4" />
-                    Tirada de Centinela — {results.vigia.nombre}
-                  </p>
-                  <p className="text-xs">
-                    Sabiduría (Percepción): {results.vigia.d20} + {results.vigia.mod} ={' '}
-                    <strong>{results.vigia.total}</strong> vs CD 12 →{' '}
-                    {results.vigia.exito ? (
-                      <span className="text-green-400 font-bold">¡ÉXITO!</span>
-                    ) : (
-                      <span className="text-orange-400 font-bold">
-                        FALLO (posible sorpresa)
-                      </span>
+                    Centinela — {results.vigia.nombre}
+                    {results.vigia.esVigiaProf && (
+                      <Badge variant="outline" className="ml-1 text-[10px]">Vigía profesional (+2)</Badge>
                     )}
                   </p>
+                  <p className="text-[11px] text-muted-foreground mb-2">
+                    Tira <strong>Sabiduría (Percepción) CD {results.vigia.cd}</strong> una vez por
+                    cada evento nocturno. Éxito = evento anulado. Pifia (1) o fallo por 5+ = el vigía
+                    gana +0,5 de cansancio. Si todas las tiradas son éxito por 5+, el grupo descansa
+                    -1 CD.
+                  </p>
+                  <div className="space-y-1">
+                    {results.vigia.tiradas.map((t, i) => (
+                      <div
+                        key={i}
+                        className={`text-xs flex items-center gap-2 p-1 rounded ${
+                          t.granExito ? 'bg-green-500/15 text-green-200'
+                          : t.exito ? 'bg-green-500/10 text-green-200'
+                          : t.malFallo ? 'bg-red-500/15 text-red-200'
+                          : 'bg-orange-500/10 text-orange-200'
+                        }`}
+                      >
+                        <Dice6 className="w-3 h-3" />
+                        <span>Tirada {i + 1}:</span>
+                        <span>d20 ({t.d20}) + {t.mod} = <strong>{t.total}</strong></span>
+                        <span>→</span>
+                        {t.granExito && <strong>¡ÉXITO POR 5+!</strong>}
+                        {!t.granExito && t.exito && <strong>ÉXITO</strong>}
+                        {!t.exito && t.malFallo && <strong>FALLO POR 5+ (+0,5 fatiga al vigía)</strong>}
+                        {!t.exito && !t.malFallo && <strong>FALLO</strong>}
+                        {t.d20 === 20 && <Badge className="bg-green-600 text-[10px]">NAT 20</Badge>}
+                        {t.d20 === 1 && <Badge className="bg-red-600 text-[10px]">PIFIA</Badge>}
+                      </div>
+                    ))}
+                  </div>
+                  {results.vigia.extraFatiga > 0 && (
+                    <p className="text-[11px] text-red-300 mt-2">
+                      +{results.vigia.extraFatiga} fatiga aplicada a <strong>{results.vigia.nombre}</strong>.
+                    </p>
+                  )}
+                  {results.vigia.granExito && (
+                    <p className="text-[11px] text-green-300 mt-2 font-bold">
+                      Descanso reforzado: -1 CD al grupo (en vez de -0,5).
+                    </p>
+                  )}
                 </div>
               )}
 
@@ -577,7 +693,9 @@ export default function CampDialog({
                     <div
                       key={i}
                       className={`p-2 rounded border ${
-                        e.fatigue_cd_increase > 0
+                        e.anulado
+                          ? 'border-green-500/40 bg-green-500/10'
+                          : e.fatigue_cd_increase > 0
                           ? 'border-red-500/40 bg-red-500/10'
                           : 'border-muted bg-black/20'
                       }`}
@@ -587,8 +705,15 @@ export default function CampDialog({
                         <p className="font-medium text-sm flex items-center gap-2">
                           <Dice6 className="w-4 h-4" />
                           {e.nombre}
+                          {e.anulado && (
+                            <Badge className="bg-green-600 text-[10px]">Anulado por el centinela</Badge>
+                          )}
                         </p>
-                        {e.fatigue_cd_increase > 0 ? (
+                        {e.anulado ? (
+                          <Badge variant="outline" className="text-[10px] border-green-500/40 text-green-300">
+                            +0 CD ({e.fatigue_cd_base > 0 ? `evitado +${e.fatigue_cd_base}` : 'sin riesgo'})
+                          </Badge>
+                        ) : e.fatigue_cd_increase > 0 ? (
                           <Badge className="bg-red-600 text-[10px]">
                             +{e.fatigue_cd_increase} CD
                           </Badge>

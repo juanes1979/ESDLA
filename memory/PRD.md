@@ -74,3 +74,40 @@ imposibles por diseño.
 - Compresión: zlib level 6 + base64. ≈40 KB típicos en BD.
 - Pathfinding usa O(1) lookup en rejilla; fallback a polígonos si no hay grid.
 - Photoshop round-trip: PNG con paleta indexada por proximidad (tolerancia 40).
+
+
+## Iter 120 — Viajes, monturas y acampada (Feb 2026)
+
+### Velocidad por segmento (P0)
+- `travel_routes.py::calculate_journey` calcula días **segmento a segmento**:
+  - Velocidad de grupo = `min(velocidad_efectiva)` por tramo (regla del más lento).
+  - Monturas BLOQUEADAS off-road en terreno `infranqueable`, `muy_dificil`,
+    `desalentador` o `agua`. Si el segmento está sobre un camino (gran/menor/
+    senda), las monturas se permiten aunque el terreno subyacente sea hostil.
+  - Respuesta incluye `velocidad_grupo.segmentos_velocidad` (log por tramo) y
+    `velocidad_grupo.km_a_pie_forzado` (km que cada montado tuvo que caminar).
+- `pathfinding.py::_reconstruct_path` ahora aplica el override de carretera
+  también al coste del segmento → evita `inf` en respuestas JSON.
+
+### Trazado del path (P1)
+- `MiddleEarthMap.jsx::renderRoute` usa interpolación cuadrática entre
+  mid-points (Bézier suave) en vez de líneas rectas → camino más natural.
+
+### Clima Rivendel (P2)
+- Ampliados `match_keywords` de las regiones de clima Eriador, Gondor, Rohan,
+  Mordor, Rhovanion, Bosque Negro, Colinas de Hierro y Forodwaith.
+  - 255/255 localizaciones resuelven región climática.
+
+### Acampada — nueva mecánica del centinela (P1)
+- Implementado en `CampDialog.jsx::performCamp`.
+- El centinela tira **una vez por evento nocturno** (Sab/Per CD 12, +2 si
+  papel "vigía"):
+  - Éxito → evento ANULADO (no suma CD).
+  - Pifia (1) o fallo por 5+ → vigía gana `+0,5` cansancio personal.
+  - 20 natural → éxito por 5+ automático.
+- Si TODAS las tiradas son éxito por 5+ → descanso del grupo `-1 CD` (en vez
+  de `-0,5`). Se envía como `fatiga_cd_decrement` al endpoint
+  `POST /api/travel/journey/{id}/camp`.
+- UI: nuevo panel `camp-watchman-panel` con desglose por tirada, NAT20/PIFIA
+  destacados, eventos marcados como "Anulado por el centinela".
+
