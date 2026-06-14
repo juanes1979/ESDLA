@@ -1107,11 +1107,23 @@ class MiddleEarthPathfinder:
                 # Calculate segment cost
                 terrain_mult = TerrainType.from_string(terrain).multiplier
                 road_mult = RoadType.from_string(prev_node.road_type).multiplier
+                # Roads override impassable terrain (same rule as _calculate_move_cost).
+                # If we somehow stored a segment with infranqueable/agua + a road,
+                # treat it as a pass/bridge so cost stays finite.
+                if terrain_mult == float('inf') and prev_node.road_type != 'ninguno':
+                    if terrain == 'agua':
+                        terrain_mult = TerrainType.from_string('dificil').multiplier
+                    else:
+                        terrain_mult = TerrainType.from_string('muy_dificil').multiplier
                 river_mult = 1.0
                 if prev_node.river_crossing:
                     river_mult = RiverType.from_string(prev_node.river_crossing).multiplier
-                
+
                 segment_cost = dist_km * terrain_mult * road_mult * river_mult
+                # Final safety: never let a successful path produce an infinite
+                # segment cost (would break JSON serialisation downstream).
+                if not (segment_cost == segment_cost) or segment_cost == float('inf'):
+                    segment_cost = dist_km  # fall back to raw distance
                 total_cost += segment_cost
                 
                 segments.append(PathSegment(

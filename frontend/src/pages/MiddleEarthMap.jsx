@@ -1395,10 +1395,31 @@ const MiddleEarthMap = () => {
   
   // Render route line
   const renderRoute = () => {
+    // Helper: build a smooth SVG path from a list of points using quadratic
+    // bezier curves between mid-points. Makes the A* grid path look natural
+    // instead of zig-zaggy (Feb 2026).
+    const buildSmoothPathD = (pts) => {
+      if (!pts || pts.length === 0) return '';
+      if (pts.length === 1) return `M ${pts[0].x} ${pts[0].y}`;
+      if (pts.length === 2) return `M ${pts[0].x} ${pts[0].y} L ${pts[1].x} ${pts[1].y}`;
+      let d = `M ${pts[0].x} ${pts[0].y}`;
+      for (let i = 1; i < pts.length - 1; i++) {
+        const curr = pts[i];
+        const next = pts[i + 1];
+        const midX = (curr.x + next.x) / 2;
+        const midY = (curr.y + next.y) / 2;
+        d += ` Q ${curr.x} ${curr.y} ${midX} ${midY}`;
+      }
+      const last = pts[pts.length - 1];
+      const secondLast = pts[pts.length - 2];
+      d += ` Q ${secondLast.x} ${secondLast.y} ${last.x} ${last.y}`;
+      return d;
+    };
+
     // Render calculated pathfinding route if available
     if (calculatedPath && calculatedPath.success && calculatedPath.path?.length > 1 && showCalculatedPath) {
       const pathPoints = calculatedPath.path.map(p => coordToPos(p[0], p[1]));
-      const pathD = pathPoints.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ');
+      const pathD = buildSmoothPathD(pathPoints);
       
       return (
         <g>

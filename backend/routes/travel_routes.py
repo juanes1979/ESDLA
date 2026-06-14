@@ -1262,7 +1262,8 @@ async def calculate_journey(config: JourneyConfig):
                             "terrain": seg.terrain,
                             "road_type": seg.road_type,
                             "river_crossing": seg.river_crossing,
-                            "land_type": seg_land_type
+                            "land_type": seg_land_type,
+                            "travel_cost": seg.travel_cost,
                         })
                     
                     # Build land type summary
@@ -1385,24 +1386,44 @@ async def calculate_journey(config: JourneyConfig):
     BASE_SPEED_METERS = 9  # Standard human
     BASE_KM_DAY = 22.5     # Normal midpoint
     KM_PER_METER_SPEED = 2.5  # 1m of speed = 2.5 km/día at Normal ritmo
-    
-    # Whether riding is allowed in this overall terrain (affects default speed calc)
-    mount_allowed = terrain_config.get('permite_montura', True)
-    
-    # Determine the slowest speed in the group (considering mount allowance)
+
+    # Ritmo modifier factors (relative to Normal base)
+    RITMO_LENTO_FACTOR = 17.5 / 22.5   # ≈ 0.778 → slower (more days)
+    RITMO_RAPIDO_FACTOR = 27.5 / 22.5  # ≈ 1.222 → faster (fewer days)
+
+    # Terrains where you MUST dismount if there is no road covering the segment.
+    # Feb 2026 (user-confirmed): bloquear monturas off-road en Infranqueable,
+    # Muy Difícil y Desalentador. En Difícil sí se puede ir montado.
+    MOUNT_FORBIDDEN_OFFROAD = {'muy_dificil', 'desalentador', 'infranqueable', 'agua'}
+    # road_type values reported by the pathfinder for actual roads
+    ROAD_TYPE_ON_ROAD = {'grande', 'gran_camino', 'camino_real', 'carretera',
+                         'mayor', 'camino_mayor', 'menor', 'camino_menor',
+                         'sendas', 'senda', 'sendero'}
+
+    def _seg_mount_allowed(seg_road_type: str, seg_terrain: str) -> bool:
+        """A segment allows mounted travel if it's on a road (roads act as
+        bridges/passes over hostile terrain) OR the underlying terrain is not
+        in MOUNT_FORBIDDEN_OFFROAD."""
+        rt = (seg_road_type or '').lower().strip()
+        if rt in ROAD_TYPE_ON_ROAD:
+            return True
+        return (seg_terrain or '').lower() not in MOUNT_FORBIDDEN_OFFROAD
+
+    # Whether riding is allowed in this overall terrain (used only for the
+    # display velocity in the UI; the real per-segment math is below).
+    mount_allowed_global = terrain_config.get('permite_montura', True)
+
     tiene_monturas = sum(1 for m in config.miembros if m.tiene_montura)
     total_miembros = len(config.miembros) if config.miembros else 1
     porcentaje_monturas = tiene_monturas / total_miembros if total_miembros > 0 else 0
-    
+
     if config.miembros:
         velocidades = []
         for m in config.miembros:
-            vel_info = m.velocidad_efectiva(mount_allowed=mount_allowed)
+            vel_info = m.velocidad_efectiva(mount_allowed=mount_allowed_global)
             vel_efectiva = vel_info["velocidad"]
             km_dia_miembro = vel_efectiva * KM_PER_METER_SPEED
-            # Velocidad sin estorbo: si va montado, la velocidad teórica
-            # de la montura sin sobrecarga; si va a pie, su velocidad base.
-            if m.tiene_montura and mount_allowed:
+            if m.tiene_montura and mount_allowed_global:
                 vel_sin_estorbo = m.montura_velocidad if m.montura_velocidad > 0 else (m.velocidad_base * 1.40)
             else:
                 vel_sin_estorbo = m.velocidad_base
@@ -1421,11 +1442,6 @@ async def calculate_journey(config: JourneyConfig):
             })
         velocidad_grupo = min(v["velocidad_efectiva"] for v in velocidades)
         miembro_mas_lento = next(v["nombre"] for v in velocidades if v["velocidad_efectiva"] == velocidad_grupo)
-        # Marca quién recibe +5 al cansancio: aquellos cuya velocidad SIN
-        # estorbo es estrictamente mayor que la velocidad del grupo Y que
-        # no son ellos mismos los estorbados (estorbo_metros >= 0). El
-        # +5 compensa a los compañeros forzados a ir lento por culpa de
-        # OTRO miembro estorbado.
         for v in velocidades:
             no_estorbado = (v.get("estorbo_metros", 0) or 0) >= 0
             v["bonus_fatiga"] = 5 if (v["velocidad_sin_estorbo"] > velocidad_grupo and no_estorbado) else 0
@@ -1433,71 +1449,103 @@ async def calculate_journey(config: JourneyConfig):
         velocidad_grupo = BASE_SPEED_METERS
         velocidades = []
         miembro_mas_lento = None
-    
+
     km_por_dia_grupo = velocidad_grupo * KM_PER_METER_SPEED
-    
-    # Check if mounts are allowed in this terrain
-    # (Already handled via velocidad_efectiva(mount_allowed=...) above)
-    
-    # Use pathfinder's estimated days if available (already accounts for terrain costs)
-    # The pathfinder uses BASE_SPEED_KM_DAY = 36 km/day and terrain multipliers
-    # We need to adjust based on actual group speed
-    
-    # Speed ratio: how much faster/slower is the group compared to base
-    ratio_velocidad = km_por_dia_grupo / BASE_KM_DAY  # e.g., 27.5/22.5 = 1.22 for forzado
-    
-    # Ritmo modifier factors (relative to Normal base)
-    RITMO_LENTO_FACTOR = 17.5 / 22.5   # ≈ 0.778 → slower (more days)
-    RITMO_RAPIDO_FACTOR = 27.5 / 22.5  # ≈ 1.222 → faster (fewer days)
-    
-    # Ritmo Rápido partial adaptation (Point 4 confirmed by user):
-    # Si el grupo elige Rápido pero el tipo de tierra no lo permite, el grupo
-    # baja a Normal en ese tramo en vez de bloquear el viaje. Usamos una
-    # aproximación global: si el ritmo es rápido y el tipo_tierra no lo permite,
-    # aplicamos un factor intermedio (promedio de rápido y normal) en vez de
-    # devolver error. La futura implementación segmentada permitirá un cálculo
-    # exacto por tramo.
+
+    # Ritmo Rápido partial adaptation
     rapido_no_permitido_global = False
     if config.ritmo == 'rapido' and not land_config.get('permite_ritmo_rapido', True):
         rapido_no_permitido_global = True
-    
-    if route_data.get('estimated_days_pathfinder'):
-        # El pathfinder calcula "días" usando BASE_SPEED_KM_DAY=36 (5e RAW).
-        # Hay que renormalizarlos a la velocidad real del grupo para obtener
-        # los días que realmente tarda esta compañía. Además, los días no
-        # pueden ser menos que distancia_física / velocidad_grupo (suelo
-        # mínimo físico aunque la ruta sea casi todo carretera).
-        PATHFINDER_BASE_KM_DAY = 36.0
-        dias_terreno = (
-            route_data['estimated_days_pathfinder'] * PATHFINDER_BASE_KM_DAY
-        ) / max(0.1, km_por_dia_grupo)
-        dias_distancia_fisica = (
-            route_data.get('distance_km', 0) / max(0.1, km_por_dia_grupo)
-        )
-        dias_base = max(dias_terreno, dias_distancia_fisica)
+
+    def _ritmo_factor() -> float:
         if config.ritmo == 'lento':
-            dias_base = dias_base / RITMO_LENTO_FACTOR  # more days
-        elif config.ritmo == 'rapido':
+            return RITMO_LENTO_FACTOR
+        if config.ritmo == 'rapido':
             if rapido_no_permitido_global:
-                # Half the journey at fast, half at normal → midpoint factor
-                avg_factor = (RITMO_RAPIDO_FACTOR + 1.0) / 2
-                dias_base = dias_base / avg_factor
-            else:
-                dias_base = dias_base / RITMO_RAPIDO_FACTOR
-    else:
-        # Fallback to distance-based calculation (for direct line paths)
-        distance_km = route_data['distance_km']
-        if config.ritmo == 'lento':
-            dias_base = distance_km / (km_por_dia_grupo * RITMO_LENTO_FACTOR)
-        elif config.ritmo == 'rapido':
-            if rapido_no_permitido_global:
-                avg_factor = (RITMO_RAPIDO_FACTOR + 1.0) / 2
-                dias_base = distance_km / (km_por_dia_grupo * avg_factor)
-            else:
-                dias_base = distance_km / (km_por_dia_grupo * RITMO_RAPIDO_FACTOR)
+                return (RITMO_RAPIDO_FACTOR + 1.0) / 2
+            return RITMO_RAPIDO_FACTOR
+        return 1.0
+
+    ritmo_factor = _ritmo_factor()
+
+    # ============ PER-SEGMENT DAYS (Feb 2026, slowest-member rule) ============
+    # We walk through every PathSegment, decide whether mounts are allowed in
+    # THAT segment (road overrides hostile terrain), compute the slowest
+    # member's effective speed for that segment and accumulate days. This
+    # correctly handles mixed groups (some mounted, some on foot) and stops
+    # mounts from being used off-road through muy_dificil/desalentador/
+    # infranqueable terrain.
+    pf_segments = route_data.get('segments', []) or []
+    segment_speed_log: List[Dict[str, Any]] = []
+    miembros_a_pie_forzado: Dict[str, float] = {}  # nombre → km forzado a pie
+    dias_base = None
+
+    if pf_segments and config.miembros:
+        total_dias_terreno = 0.0
+        total_dias_fisica = 0.0
+        for seg in pf_segments:
+            seg_road = seg.get('road_type', '') or ''
+            seg_ter = seg.get('terrain', 'moderado') or 'moderado'
+            seg_mount = _seg_mount_allowed(seg_road, seg_ter)
+
+            seg_speeds = []
+            for m in config.miembros:
+                vi = m.velocidad_efectiva(mount_allowed=seg_mount)
+                seg_speeds.append({"nombre": m.nombre, "vel": vi["velocidad"], "monta": vi.get("monta", False)})
+                # Si el personaje tiene montura pero el segmento no la permite,
+                # registramos los km que tuvo que caminar.
+                if m.tiene_montura and not seg_mount:
+                    miembros_a_pie_forzado[m.nombre] = miembros_a_pie_forzado.get(m.nombre, 0.0) + seg.get('distance_km', 0)
+
+            seg_group_vel_m = min(s["vel"] for s in seg_speeds)
+            seg_slowest = next(s["nombre"] for s in seg_speeds if s["vel"] == seg_group_vel_m)
+            seg_km_dia = max(1.0, seg_group_vel_m * KM_PER_METER_SPEED * ritmo_factor)
+
+            seg_cost = seg.get('travel_cost', seg.get('distance_km', 0)) or 0
+            seg_dist = seg.get('distance_km', 0) or 0
+            # Sanitize: a successful A* path should never return inf, but if a
+            # river/barrier override produces inf we cap it to the raw
+            # distance so the trip can still be quoted in days.
+            import math as _math
+            if not _math.isfinite(seg_cost):
+                seg_cost = seg_dist
+            if not _math.isfinite(seg_dist):
+                seg_dist = 0
+
+            total_dias_terreno += seg_cost / seg_km_dia
+            total_dias_fisica += seg_dist / seg_km_dia
+
+            seg['mount_allowed'] = seg_mount
+            seg['group_km_per_day'] = round(seg_km_dia, 2)
+            seg['slowest_member'] = seg_slowest
+
+            segment_speed_log.append({
+                "terrain": seg_ter,
+                "road_type": seg_road or "ninguno",
+                "mount_allowed": seg_mount,
+                "distance_km": round(seg_dist, 2),
+                "group_km_per_day": round(seg_km_dia, 2),
+                "slowest_member": seg_slowest,
+            })
+
+        dias_base = max(total_dias_terreno, total_dias_fisica)
+
+    # Fallback: no segments (pathfinder didn't run, e.g. direct line) → use the
+    # old global formula based on dominant terrain.
+    if dias_base is None:
+        if route_data.get('estimated_days_pathfinder'):
+            PATHFINDER_BASE_KM_DAY = 36.0
+            dias_terreno = (
+                route_data['estimated_days_pathfinder'] * PATHFINDER_BASE_KM_DAY
+            ) / max(0.1, km_por_dia_grupo)
+            dias_distancia_fisica = (
+                route_data.get('distance_km', 0) / max(0.1, km_por_dia_grupo)
+            )
+            dias_base = max(dias_terreno, dias_distancia_fisica) / ritmo_factor
         else:
-            dias_base = distance_km / km_por_dia_grupo
-    
+            distance_km = route_data['distance_km']
+            dias_base = distance_km / max(0.1, km_por_dia_grupo * ritmo_factor)
+
     dias_estimados = max(1, round(dias_base))
     
     # Calculate PX for the journey using the complete PX table
@@ -1775,7 +1823,11 @@ async def calculate_journey(config: JourneyConfig):
             "km_por_dia": round(km_por_dia_grupo, 1),
             "miembro_mas_lento": miembro_mas_lento,
             "desglose_velocidades": velocidades if velocidades else None,
-            "monturas_permitidas": terrain_config.get('permite_montura', True)
+            "monturas_permitidas": terrain_config.get('permite_montura', True),
+            # Per-segment breakdown (Feb 2026): which segments forced
+            # dismount and how that affected the group's daily pace.
+            "segmentos_velocidad": segment_speed_log,
+            "km_a_pie_forzado": {k: round(v, 1) for k, v in miembros_a_pie_forzado.items()},
         },
         "config": {
             "ritmo": config.ritmo,
