@@ -32,7 +32,7 @@ const LocationInfoPanel = ({
   return (
     <>
       <Card
-        className="absolute top-4 right-4 w-80 card-parchment z-20 max-h-[calc(100vh-2rem)] flex flex-col"
+        className="absolute top-4 right-4 w-80 card-parchment z-20 max-h-[calc(100%-2rem)] flex flex-col"
         data-testid="location-info-panel"
       >
         <CardHeader className="pb-2 shrink-0">

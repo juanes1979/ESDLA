@@ -64,7 +64,7 @@ const EditLocationPanel = ({
   };
 
   return (
-    <Card className="absolute top-4 right-4 w-96 bg-black/95 border-[hsl(var(--torch-orange))]/50 z-50 max-h-[calc(100vh-2rem)] flex flex-col">
+    <Card className="absolute top-4 right-4 w-96 bg-black/95 border-[hsl(var(--torch-orange))]/50 z-50 max-h-[calc(100%-2rem)] flex flex-col">
       <CardHeader className="pb-2 shrink-0">
         <div className="flex justify-between items-start">
           <CardTitle className="text-lg text-[hsl(var(--torch-orange))]">

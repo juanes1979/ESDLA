@@ -131,7 +131,7 @@ const NameGeneratorPanel = ({ isVisible, onClose, onSelectName, onSelectHistory 
     : {};
 
   return (
-    <Card className="absolute top-4 right-4 w-[420px] bg-black/95 border-[hsl(var(--gold))/30] z-50 max-h-[90vh] overflow-hidden flex flex-col">
+    <Card className="absolute top-4 right-4 w-[420px] bg-black/95 border-[hsl(var(--gold))/30] z-50 max-h-[calc(100%-2rem)] overflow-hidden flex flex-col">
       <CardHeader className="pb-2 flex-shrink-0">
         <div className="flex items-center justify-between">
           <CardTitle className="text-lg text-[hsl(var(--gold))] flex items-center gap-2">
@@ -147,7 +147,7 @@ const NameGeneratorPanel = ({ isVisible, onClose, onSelectName, onSelectHistory 
         </p>
       </CardHeader>
       
-      <CardContent className="space-y-4 overflow-y-auto flex-1">
+      <CardContent className="space-y-4 overflow-y-auto flex-1 min-h-0">
         {/* Region and Race selectors */}
         <div className="grid grid-cols-2 gap-3">
           <div>
