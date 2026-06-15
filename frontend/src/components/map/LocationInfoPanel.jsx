@@ -50,12 +50,13 @@ const LocationInfoPanel = ({
             </Button>
           </div>
         </CardHeader>
-        <CardContent className="space-y-3 overflow-y-auto">
-          {/* Description: max ~20 lines with internal scroll. Long lore is
-              accessible via the "Expandir" button below. */}
+        <CardContent className="space-y-3 overflow-y-auto flex-1 min-h-0">
+          {/* The whole panel scrolls as a single column so the bottom buttons
+              (Origen/Destino/Editar) are always reachable. Long lore can also
+              be opened fullscreen via the "Expandir" button. */}
           {hasDescription && (
             <>
-              <div className="text-sm whitespace-pre-wrap max-h-[26rem] overflow-y-auto pr-2 border-l-2 border-amber-700/30 pl-3">
+              <div className="text-sm whitespace-pre-wrap pr-2 border-l-2 border-amber-700/30 pl-3">
                 {loc.descripcion}
               </div>
               <Button
