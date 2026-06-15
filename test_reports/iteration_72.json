@@ -29,6 +29,6 @@
   "seed_data_creation": "Ninguna permanente; test_move_item crea/borra 'TEST RACIONES' en el catálogo.",
   "retest_needed": false,
   "main_agent_can_self_test": true,
-  "context_for_next_testing_agent": "Para probar el binary forced-march-toggle y applyForcedMarchSaves hay que iniciar un viaje real (origen/destino + miembros + click 'Planificar Ruta' y 'Iniciar Viaje'). En iter72 no se ejecutó el flujo por indicación del main agent. Screens verificadas: /travel (ConfigView), /character/{id} (tabs Resumen y Equipo). Pre-existing failures test_group_speed.py y test_character_sheet_features.py siguen IGNORADOS. El public URL REACT_APP_BACKEND_URL=https://middle-earth-quest-1.preview.emergentagent.com responde 200 en /api/travel/config/rules.",
+  "context_for_next_testing_agent": "Para probar el binary forced-march-toggle y applyForcedMarchSaves hay que iniciar un viaje real (origen/destino + miembros + click 'Planificar Ruta' y 'Iniciar Viaje'). En iter72 no se ejecutó el flujo por indicación del main agent. Screens verificadas: /travel (ConfigView), /character/{id} (tabs Resumen y Equipo). Pre-existing failures test_group_speed.py y test_character_sheet_features.py siguen IGNORADOS. El public URL REACT_APP_BACKEND_URL=https://lotr-campaign-hub-1.preview.emergentagent.com responde 200 en /api/travel/config/rules.",
   "rca of the issue": "N/A — no se detectaron bugs en iter72."
 }

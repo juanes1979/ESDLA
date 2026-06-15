@@ -1,7 +1,7 @@
 """OL3 iter62: PATCH allowed_fields + travel encumbrance bonus_fatiga"""
 import os, requests, pytest
 
-BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', 'https://middle-earth-quest-1.preview.emergentagent.com').rstrip('/')
+BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', 'https://lotr-campaign-hub-1.preview.emergentagent.com').rstrip('/')
 CHAR_ID = "c16a362d-9841-4954-8f70-0dfe02dfe303"
 
 def test_patch_all_new_fields_persist():

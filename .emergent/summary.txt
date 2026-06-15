@@ -1,73 +1,79 @@
-<analysis>**original_problem_statement**: 
-The user is building a comprehensive web application for a modified Lord of the Rings 5e tabletop role-playing game. The application features character creation, user authentication, game data management, an interactive map of Middle-earth, a complex Travel System with Climate System, advanced encumbrance, and the Eye of Mordor tension system.
-PRODUCT REQUIREMENTS:
-*   **Authentication & Roles:** Strict Role-Based Access Control (Maestro, Director de Juego, Jugador) with manual account approvals.
-*   **Travel System:** Mechanics for resource consumption, fatigue saves, unified journey chronicles, mount/encumbrance tracking, CD calculations.
-*   **Eye of Mordor System:** Dynamic tension tracker that increments with nat-1s/shadow points, triggering AI-generated Revelation Episodes.
-*   **Equipment & Storage System:** Personal load calculation, mount encumbrance, and Chest storage.
-*   **Character Management:** AI portrait generation, character sheet.
-*   **Game Rules Management:** Admin tools to edit cultures, occupations, region hierarchies (drag-and-drop), locations, and travel parameters.
+<analysis>Here is the handover summary for the next agent:
 
-**User's preferred language**: **ESPAÑOL (SPANISH)**
-**CRITICAL INSTRUCTION FOR NEXT AGENT:** You MUST automatically detect the user's primary language from their messages inside the <trajectory> tag and INSTRUCT the next agent to respond in **ESPAÑOL ONLY**. ALL interactions, plans, reasoning shared with the user, and conversational phrases must strictly be in Español.
+**original_problem_statement**: 
+The user is building a comprehensive web application for a modified Lord of the Rings 5e tabletop role-playing game. 
+PRODUCT REQUIREMENTS:
+*   **Phase 1-6 (Completed/Ongoing):** Authentication, strict RBAC, fully isolated DB schemas, Advanced NPC generator, Interactive V3 Map, Campaign Hub.
+*   **Terrain & Pathfinding (Recently overhauled):** Legacy vector-based polygon terrain editor has been completely removed in favor of a new Base64 Raster Grid System (1000x768 cells).
+*   **Current Focus:** Refining the Travel/Journey and Camping logic, improving the Map UI (label anti-collision, location types), and meticulously refactoring massive backend files (like ) in preparation for the upcoming Game Master Screen and Campaign Management phase.
+
+**User's preferred language**: **ESPAÑOL DE ESPAÑA**
+**CRITICAL INSTRUCTION FOR NEXT AGENT:** You MUST automatically detect the user's primary language from their messages inside the <trajectory> tag and INSTRUCT the next agent to respond in **ESPAÑOL DE ESPAÑA ONLY**. Use vosotros instead of ustedes, avoid Latin American slang. All interactions, plans, and reasoning shared with the user must strictly adhere to this constraint.
 
 **what currently exists?** 
-A robust React + FastAPI + MongoDB full-stack app. It contains an advanced modular Travel System, dynamic Character Sheets, AI portraits, a location-based Chest system, an Eye of Mordor system (with Phase 3/4 history and manual inputs), advanced hierarchical drag-and-drop management for Regions and Locations, and a **fully functional custom JWT Authentication System with RBAC** (Maestro, DJ, Jugador).
+A robust React + FastAPI + MongoDB full-stack app. Features include a fully functioning Base64 Raster Grid terrain system mapped to A* Pathfinding, an advanced travel/journey calculator with complex rules for mounts/terrain speeds, a camping engine with dynamic night events, and a functional Map UI with zooming, custom icons, and an anti-collision label algorithm. 
 
 **Last working item**:
-    - Last item agent was working: Implementing the **P0 Auth & RBAC System**. Built a custom JWT authentication flow with login, registration, and an admin approval dashboard. New users default to a pendiente state until approved by a Maestro. Protected frontend routes based on roles (e.g., Map and Editors restricted to Maestro/DJ).
+    - Last item agent was working: Refining map location types. Added 5 new types (, , , , ) with emojis in  and successfully reassigned 13 specific locations in the MongoDB using a python script.
     - Status: USER VERIFICATION PENDING
     - Agent Testing Done: Y
-    - Which testing method agent to use?: Backend pytests () and manual screenshot testing for the frontend auth flow.
+    - Which testing method agent to use?:  (MongoDB manipulation checks) and  (UI compilation check).
     - User Testing Done: N
 
 **All Pending/In progress Issue list**: 
-None blocking. Await user verification of the new Login/RBAC system.
+  - Issue 1: **Verify Map UI rendering and Label Anti-Collision with New Location Types (P2)**
+     - Attempted fixes: Implemented label anti-collision in  and updated priority tables for the new location types.
+     - Next debug checklist: Check  to ensure , , etc., are rendering properly on the map and their label visibility behaves correctly at different zoom levels.
+     - Why fix this issue and what will be achieved with the fix? Ensures the new DB data syncs perfectly with the UI improvements.
+     - Status: USER VERIFICATION PENDING
+     - Is recurring issue? N
+     - Should Test frontend/backend/both after fix? Frontend
 
 **In progress Task List**:
-None.
+  - Task 1: **Refactor  (P1)**
+     - Where to resume:  is ~4600 lines. The previous agent successfully completed a POC by extracting the NPC logic into . The user agreed to split the remaining refactoring into sessions. The next planned step is extracting  (locations, regions, roads, rivers, barriers) and .
+     - What will be achieved with this? Huge improvement in backend maintainability before the massive Campaign Phase starts.
+     - Status: IN PROGRESS
+     - Should Test frontend/backend/both after fix? Both (Requires careful regression testing after splitting files).
+     - Blocked on something: Needs user confirmation to start the next batch of refactoring to avoid breaking their current manual testing flow.
 
 **Upcoming and Future Tasks**
-    - **P1: Implement Campaign System & Database Isolation**: Allow Director de Juego to spin up instances without modifying the global DB. The Eye of Mordor state and T.E. Year state will eventually need to be tied to these campaigns.
-    - **P1: Build Game Master Screen**: Live dashboard for tracking players.
+    - **P0: Build Game Master Screen (Pantalla del DJ)**: Live dashboard for tracking players in an active campaign (Initiative, HP, conditions, travel events).
     - **P1: Map/Adventure Uploads**: Allow DJs to upload JPEGs/PDFs for their campaigns.
-    - **P3 (Suggested): Store filter by settlement level**: Filter store items by city/town/village level.
-    - **P3 (Suggested): Expand description button in Map Location Panel**: Open a modal with a large reading view for long location texts.
-    - **P3 (Suggested): Ctrl+S to save in TerrainEditor**.
-    - **P3 (Suggested): Last access field in Users list** to detect inactive accounts.
 
 **Completed work in this session**
-- **P0 Auth & RBAC (DONE)**: Implemented custom JWT auth (, ). Added , , , and  context. Seeded Maestro user.
-- **Hierarchical Region/Location Selectors (DONE)**: Propagated the indented tree-view dropdowns to , , , , and .
-- **Location Drag-and-Drop (DONE)**: Extended  to allow dragging/dropping Locations between Region nodes using .
-- **Location Panel UI (DONE)**: Renamed rule section to TERRENOS Y UBICACIONES and constrained the map's location info popup to max 20 lines with internal scroll.
-- **TerrainEditor Undo/Redo (DONE)**: Fixed the broken Redo by saving after states instead of before states, added buttons, and fixed state updates.
-- **Eye of Mordor Phases 3 & 4 (DONE)**: Added quick magic buttons (+1/+2/+3), history table modal, and markdown export for AI episodes in .
-- **Mount Usage Warnings (DONE)**: Real filter/warning for using a mount without Saddlebags (Alforjas) or Saddle (Silla de monta).
-- **Real Store Filter (DONE)**: Equipment manager now accurately filters items by the selected Region.
+- **Journey Speed Math & Mount Penalties (DONE)**: Modifed  to calculate speed per segment and apply strict penalties for mounts on off-road / hostile terrain.
+- **Journey Path Rendering (DONE)**: Updated  to draw smooth quadratic bezier curves for the journey path line instead of zig-zags.
+- **Camping / Sentinel Logic (DONE)**: Updated  and . Successful sentinel rolls now dynamically decrease/nullify night events and improve fatigue recovery.
+- **Climate Missing Data (DONE)**: Fixed Rivendell and 37 other locations returning NULL weather by expanding keywords in .
+- **Legacy Terrain Cleanup (DONE)**: Deleted , dropped 4 legacy MongoDB collections, and removed all polygon logic from  and .
+- **Export Buttons Removed (DONE)**: Removed Markdown and JSON export buttons from  per user request.
+- **NPC Routes Refactor POC (DONE)**: Extracted NPC endpoints from  into a new  module.
+- **Label Anti-Collision Algorithm (DONE)**: Implemented a priority-based greedy bounding box algorithm in  to prevent overlapping location names.
+- **Map Location Types Update (DONE)**: Added 5 new types with icons and reassigned 13 locations in the database.
 
 **Earlier issues found/mentioned but not fixed**
 None.
 
 **Known issue recurrence from previous fork**
-- **React Crashes on 422 Errors**: The UI is sensitive to backend validation errors. Ensure clean error handling.
-- **ObjectId vs String matching**: Repeated bugs caused by confusing uid=0(root) gid=0(root) groups=0(root) (frontend string) with  (backend ObjectId). Always double check character queries.
-- **Pytest Event Loop / Deprecations**: Ensure  and  are preserved for async backend tests to prevent .
+  - Issue recurrence in previous fork: React Crashes on 422 Errors (Sensitive UI validation).
+  - Recurrence count: 1
+  - Status: RESOLVED (Keep handling backend payloads carefully, especially during refactoring).
 
 **Code Architecture**
 
 
 **Key Technical Concepts**
-- Frontend: React, TailwindCSS, Axios Interceptors (for JWT),  for drag-and-drop.
-- Backend: FastAPI, MongoDB (Motor), Pydantic, PyJWT, bcrypt.
-- AI/3rd Party Integrations: Emergent LLM Key (GPT-4o for narratives, GPT Image 1 for portraits, Onyx for TTS).
+- Frontend: React, TailwindCSS, Canvas (TerrainGridEditor), SVG (MiddleEarthMap).
+- Backend: FastAPI, MongoDB (Motor), A* Pathfinding modified for grid lookups.
+- Custom algorithms: Label anti-collision using greedy bounding-box calculations based on priority rules.
 
 **key DB schema**
-  - : , ,  (maestro/dj/jugador),  (pendiente/aprobado).
-  -  / : Connected hierarchically via  / .
+  - : ,  (Legacy polygon tables removed).
+  - :  field has new enumerations (, , , , ).
 
 **changes in tech stack**
-  - Installed  and  for backend authentication.
+- Complete removal of vector polygon packages and legacy backend logic. App now strictly relies on the new Raster Grid system.
 
 **All files of reference** 
   - 
@@ -76,61 +82,60 @@ None.
   - 
   - 
   - 
-  - 
-  - 
 
 **Areas that need refactoring**: 
- is still large. Continue modularizing if making significant changes there.
+ (>4600 lines). The agent successfully separated NPCs as a proof of concept, but the rest (world data, character data, equipment) remains.
 
 **key api endpoints**
 - 
 - 
 - 
--  (for Maestro approvals)
 
 **Critical Info for New Agent** 
-- **Language Constraint:** ALWAYS respond in ESPAÑOL.
-- **Authentication Is Live:** The app is now protected by JWT. You MUST use the Maestro credentials provided in  to log in and test Maestro/DJ restricted routes.
-- **Axios Interceptor:** The frontend  now automatically attaches the JWT Bearer token to all requests. Do not hardcode tokens in frontend calls.
+- **LANGUAGE STRICTNESS:** You MUST speak in **ESPAÑOL DE ESPAÑA**. Avoid Latin American idioms or verbs completely.
+- **Testing Preference:** The user explicitly requested to test the application manually (lo pruebo yo). Do not run the automated testing agent unless the user gives permission. Use ,  scripts, and  for your own verifications.
+- **Refactoring Strategy:** Do not refactor all of  at once. It was agreed to do it incrementally. Ensure the user's manual tests of the current features pass before proceeding to extract .
 
 **documents and test reports created in this job** 
-  -  (Updated)
-  -  (Updated with new Maestro credentials)
-  -  (Passed 7/7 tests)
+  -  (Updated with new changes and refactored state)
 
 **Last 10 User Messages and any pending HUMAN messages** 
- 1. User verified the location drag-and-drop fix. 
- 2. User requested the Rule section rename to TERRENOS Y UBICACIONES and a max-height with scroll for the map Location info panel.
- 3. Agent implemented the UI changes for the location panel and tested via screenshot.
- 4. User verified visually: Todo ok parece. Seguimos.
- 5. Agent asked for Auth approach (P0 task).
- 6. User instructed: Custom JWT, pending account approval by Maestro, apply roles to existing screens. Provided Maestro credentials ().
- 7. Agent built the auth system via , added JWT backend logic, frontend AuthContext, protected routes, and tested with pytest.
- *Pending*: User verification of the newly built Authentication flow.
+ 1. User answered si to deleting legacy editor and los 6 for refactoring , but specified no to automated testing agent (wants to manual test).
+ 2. Agent successfully removed legacy code and did a POC refactor of . Asked the user if they wanted to continue refactoring today or wait.
+ 3. User ignored the question and requested: unify location types, delete unused ones, and assign icons and Do the Map label anti-collision algorithm.
+ 4. Agent unified location types, implemented anti-collision, and showed the 11 new icons. Asked user if they wanted to revert a few specific locations that were auto-migrated previously.
+ 5. User told the agent to create 5 specific new types: Aldea, Granja/Aldea, Ruinas malditas, Puerto enemigo, Ciudad enemiga.
+ 6. Agent created them. Asked which specific locations to revert to these new types (Option C).
+ 7. User chose Option C.
+ 8. User specified exactly which locations: Pueblo: 1, 28, 32, 37, 38, Aldeas: Resto, Puerto enemigo Umbar, ruinas malditas ambas indicadas.
+ 9. Agent applied the DB updates successfully via python script.
+ *No pending human messages.*
 
 **Project Health Check:**
-Healthy. Backend Auth tests passing 7/7. Frontend correctly routing unauthenticated users to the Login page. 
+Healthy. The old legacy terrain system has been safely ripped out. 
 
 **3rd Party Integrations** 
  • OpenAI GPT-4o (Text Generation) — uses Emergent LLM Key
- • OpenAI TTS-1 / TTS-1-HD (onyx) — uses Emergent LLM Key
  • OpenAI GPT Image 1 (Portrait Generation) — uses Emergent LLM Key
 
 **Testing status**
-  - Testing agent used after significant changes: NO (Relied on custom backend pytests  and exhaustive manual screenshot flow validation).
+  - Testing agent used after significant changes: NO (User requested to test manually).
   - Troubleshoot agent used after agent stuck in loop: NO
-  - Test files created: , , .
-  - Known regressions: None.
+  - Test files created: N/A
+  - Known regressions: None detected.
 
 **Credentials to test flow:**
 - **Maestro User (Full Admin):**
   - Email: 
   - Pass: 
-- **Admin Backup Token:** 
 *(Located in )*
 
 **What agent forgot to execute**
-Nothing. All P0 and P2 tasks were fully successfully implemented and tested.
+The agent did everything requested.
 
 **Debugging checklist for current issue**
-    Issue: None active. Await user verification of the new JWT Auth flow. If the user reports issues with seeing maps/editors, verify the  and  in the DB  collection, and ensure  has the correct  array.</analysis>
+    Issue: No current broken functionality. Next steps are verifying the new map label changes and proceeding with  refactoring incrementally. 
+    Frontend files to check: 
+      - 
+    Backend files to check:
+      - </analysis>
