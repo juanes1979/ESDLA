@@ -64,8 +64,8 @@ const EditLocationPanel = ({
   };
 
   return (
-    <Card className="absolute top-4 right-4 w-96 bg-black/95 border-[hsl(var(--torch-orange))]/50 z-50 max-h-[90vh] overflow-y-auto">
-      <CardHeader className="pb-2">
+    <Card className="absolute top-4 right-4 w-96 bg-black/95 border-[hsl(var(--torch-orange))]/50 z-50 max-h-[calc(100vh-2rem)] flex flex-col">
+      <CardHeader className="pb-2 shrink-0">
         <div className="flex justify-between items-start">
           <CardTitle className="text-lg text-[hsl(var(--torch-orange))]">
             ✏️ Editar: {location.nombre}
@@ -75,7 +75,7 @@ const EditLocationPanel = ({
           </Button>
         </div>
       </CardHeader>
-      <CardContent className="space-y-3">
+      <CardContent className="space-y-3 overflow-y-auto flex-1 min-h-0">
         {/* Name */}
         <div>
           <label className="text-xs text-muted-foreground">Nombre</label>
@@ -273,27 +273,28 @@ const EditLocationPanel = ({
             placeholder="Descripción de la ubicación..."
           />
         </div>
-        
-        {/* Actions */}
-        <div className="flex gap-2 pt-2 border-t border-border/30">
-          <Button
-            onClick={onSave}
-            disabled={isSaving}
-            className="flex-1 bg-green-600 hover:bg-green-700"
-          >
-            {isSaving ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : <Save className="w-4 h-4 mr-1" />}
-            Guardar
-          </Button>
-          <Button
-            onClick={onDelete}
-            disabled={isDeleting}
-            variant="outline"
-            className="text-destructive border-destructive/50 hover:bg-destructive/10"
-          >
-            {isDeleting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
-          </Button>
-        </div>
       </CardContent>
+
+      {/* Sticky footer with action buttons — always visible regardless of
+          scroll position inside the panel. */}
+      <div className="shrink-0 flex gap-2 px-6 py-3 border-t border-border/30 bg-black/95">
+        <Button
+          onClick={onSave}
+          disabled={isSaving}
+          className="flex-1 bg-green-600 hover:bg-green-700"
+        >
+          {isSaving ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : <Save className="w-4 h-4 mr-1" />}
+          Guardar
+        </Button>
+        <Button
+          onClick={onDelete}
+          disabled={isDeleting}
+          variant="outline"
+          className="text-destructive border-destructive/50 hover:bg-destructive/10"
+        >
+          {isDeleting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+        </Button>
+      </div>
     </Card>
   );
 };
