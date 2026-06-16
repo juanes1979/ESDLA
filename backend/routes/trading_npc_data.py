@@ -482,3 +482,104 @@ def elegir_stats_aleatorios(stat_blocks: dict, profesion: str) -> dict:
         "sentidos": list(pool.get("sentidos", []) or []),
         "idiomas": idiomas,
     }
+
+
+# ---------------------------------------------------------------------------
+# MATRICES DE RELACIÓN — valores por defecto (editables desde Configuración)
+#   a) Subcultura del PNJ × Subcultura del personaje
+#   b) Oficio del PNJ × Ocupación del aventurero
+# Los valores son MODIFICADORES (puntos) que afectan a la tirada de negociación.
+# ---------------------------------------------------------------------------
+
+# Relaciones base entre razas (la subcultura hereda salvo override).
+RELACIONES_RAZA = {
+    ("Elfos", "Enanos"): -8,
+    ("Enanos", "Elfos"): -8,
+    ("Elfos", "Hombres"): 2,
+    ("Hombres", "Elfos"): 2,
+    ("Elfos", "Hobbits"): 3,
+    ("Hobbits", "Elfos"): 3,
+    ("Enanos", "Hombres"): 2,
+    ("Hombres", "Enanos"): 2,
+    ("Enanos", "Hobbits"): 1,
+    ("Hobbits", "Enanos"): 1,
+    ("Hombres", "Hobbits"): 3,
+    ("Hobbits", "Hombres"): 3,
+}
+
+# Ajustes finos entre subculturas concretas (se suman al valor por raza).
+OVERRIDES_SUBCULTURA = {
+    ("Dunedain", "Elfos de Lindon"): 6, ("Dunedain", "Elfos Noldor"): 6,
+    ("Elfos Noldor", "Dunedain"): 6, ("Elfos de Lindon", "Dunedain"): 6,
+    ("Elfos Oscuros", "Dunedain"): -6, ("Dunedain", "Elfos Oscuros"): -6,
+}
+
+
+def default_subcultura_mod(raza_a: str, sub_a: str, raza_b: str, sub_b: str) -> int:
+    """Modificador por defecto entre la subcultura del PNJ (a) y la del personaje (b)."""
+    if sub_a and sub_a == sub_b:
+        base = 10  # misma subcultura: afinidad
+    elif raza_a and raza_a == raza_b:
+        base = 5   # misma raza, distinta subcultura
+    else:
+        base = RELACIONES_RAZA.get((raza_a, raza_b), 0)
+    base += OVERRIDES_SUBCULTURA.get((sub_a, sub_b), 0)
+    return max(-30, min(30, base))
+
+
+# Categorías de profesión del PNJ para reputación frente a ocupaciones.
+PROF_CATEGORIAS = {
+    "criminal": {"Delincuente", "Atracador", "Salteador de caminos"},
+    "mercader_respetable": {"Mercader", "Posadero", "Hobbit Posadero",
+                            "Sanador / Herbalista", "Maestro de escuela"},
+    "noble_militar": {"Capitán de la guardia", "Caballero de Gondor",
+                      "Señor de una aldea", "Príncipe o noble", "Arquero de élite"},
+    "artesano": {"Herrero", "Herrero aprendiz", "Carpintero", "Albañil",
+                 "Enano Herrero", "Elfo Artesano"},
+    "erudito": {"Maestro de escuela", "Mago Errante"},
+}
+
+# Reputación de cada ocupación de aventurero frente a cada categoría de PNJ.
+REPUTACION_OCUPACION = {
+    "Buscador de tesoros": {"criminal": 10, "mercader_respetable": -10,
+                            "noble_militar": -5, "artesano": -2, "erudito": 3},
+    "Campeón": {"criminal": -5, "mercader_respetable": 3, "noble_militar": 8,
+                "artesano": 2, "erudito": 0},
+    "Capitán": {"criminal": -8, "mercader_respetable": 4, "noble_militar": 8,
+                "artesano": 2, "erudito": 2},
+    "Erudito": {"criminal": -2, "mercader_respetable": 3, "noble_militar": 2,
+                "artesano": 2, "erudito": 8},
+    "Guardian": {"criminal": -10, "mercader_respetable": 4, "noble_militar": 5,
+                 "artesano": 2, "erudito": 1},
+    "Mensajero": {"criminal": 0, "mercader_respetable": 2, "noble_militar": 3,
+                  "artesano": 1, "erudito": 2},
+}
+
+
+def default_oficio_ocupacion_mod(profesion: str, ocupacion: str) -> int:
+    """Modificador por defecto entre el oficio del PNJ y la ocupación del aventurero."""
+    rep = REPUTACION_OCUPACION.get(ocupacion, {})
+    total = 0
+    for cat, profs in PROF_CATEGORIAS.items():
+        if profesion in profs:
+            total += rep.get(cat, 0)
+    return max(-20, min(20, total))
+
+
+def nivel_desde_relacion(valor: float) -> str:
+    """Convierte la Relacion_Actual numérica (-100..100) en una etiqueta de nivel."""
+    try:
+        v = float(valor or 0)
+    except (TypeError, ValueError):
+        v = 0
+    if v <= -60:
+        return "hostil"
+    if v <= -20:
+        return "desconocido"
+    if v < 20:
+        return "neutral"
+    if v < 50:
+        return "cordial"
+    if v < 80:
+        return "amigo"
+    return "hermandad"

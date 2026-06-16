@@ -346,3 +346,24 @@ Aplica una transacción YA negociada al personaje (reutiliza endpoints de equipo
 ### PENDIENTE (P0 heredado, NO empezado):
 - Bug inversión eje Y en rejilla de terreno (pathfinding rodea montañas fantasma).
 - `ViajeSection.jsx` debe usar config dinámica PX (`/api/travel/config/px-roll-table`).
+
+## Iter 123 — Rediseño Tienda (FASE 1: Matrices + base numérica de relación) (Jun 2026)
+- Petición: rehacer la tienda con flujo nuevo + motor de negociación D100 + relación numérica.
+  Sistema por FASES. El motor D100 SUSTITUYE al de niveles discretos. Validación manual.
+- FASE 1 (hecha + verificada):
+  - BACKEND `trading_npc_data.py`: helpers de valores por defecto de matrices
+    (`default_subcultura_mod` por relaciones de raza + overrides; `default_oficio_ocupacion_mod`
+    por categorías de profesión × reputación de ocupación) y `nivel_desde_relacion(-100..100)`.
+  - BACKEND `trading_routes.py`: `GET/PUT /trading/config/matrices` (+`/reset`) que
+    auto-amplían con subculturas (db.cultures) y ocupaciones (db.occupations, sin TEST_).
+    `create_or_update_relationship` ahora persiste `relacion_actual` (-100..100) y deriva `nivel`.
+  - FRONTEND `TradingSystemSection.jsx`: `RelationshipMatricesPanel` en pestaña Configuración
+    (2 tablas editables, celdas con color, cabeceras/filas sticky). `NpcRelationshipHistory`
+    en el editor de PNJ (lista de personajes con su `relacion_actual` editable + histórico).
+  - Probado: matrices 20×20 y 28×6 con defaults lógicos (Dunedain×Noldor +8, Mercader×Buscador
+    de tesoros −10, Delincuente×Buscador +10). Screenshot OK.
+- FASES PENDIENTES: 2) nuevo flujo de tienda (jugador→ubicación/región→PNJ disponibles→
+  comprar/vender→contexto). 3) motor D100 (Mod_Total, barra de enfado, tabla de resolución,
+  bucle de contraoferta, fatiga, impacto post-venta en relación, efectos >50/<-50).
+  4) tirada de habilidad enfrentada (campo de intención del DJ + IA narra el engaño/perspicacia).
+  5) aplicar oro/inventario reales en el éxito.

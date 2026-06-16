@@ -1311,6 +1311,9 @@ const TradingSystemSection = ({ isAdmin }) => {
         {/* Listas editables de creación de PNJ comerciante */}
         <NpcConfigEditor config={config} setConfig={setConfig} isAdmin={isAdmin} />
 
+        {/* Matrices de relación: subculturas y oficio×ocupación */}
+        <RelationshipMatricesPanel isAdmin={isAdmin} />
+
         {sections.map(section => (
           <div key={section.id} className="bg-black/20 rounded-lg border border-border/30">
             <button
@@ -1674,6 +1677,275 @@ const NpcConfigEditor = ({ config, setConfig, isAdmin }) => {
     </div>
   );
 };
+
+// ============================================================================
+// MATRICES DE RELACIÓN — Subcultura×Subcultura y Oficio×Ocupación
+// ============================================================================
+const RelationshipMatricesPanel = ({ isAdmin }) => {
+  const [open, setOpen] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [data, setData] = useState(null);
+  const [subM, setSubM] = useState({});
+  const [ofiM, setOfiM] = useState({});
+  const ro = !isAdmin;
+
+  const load = async () => {
+    setLoading(true);
+    try {
+      const res = await api.get('/trading/config/matrices');
+      setData(res.data);
+      setSubM(res.data.subcultura_matrix || {});
+      setOfiM(res.data.oficio_ocupacion_matrix || {});
+    } catch (e) { toast.error('Error cargando matrices'); }
+    finally { setLoading(false); }
+  };
+
+  useEffect(() => { load(); }, []);
+
+  const save = async () => {
+    setSaving(true);
+    try {
+      await api.put('/trading/config/matrices', {
+        subcultura_matrix: subM, oficio_ocupacion_matrix: ofiM,
+      });
+      toast.success('Matrices guardadas');
+    } catch (e) { toast.error('Error al guardar matrices'); }
+    finally { setSaving(false); }
+  };
+
+  const resetDefaults = async () => {
+    if (!window.confirm('¿Restablecer ambas matrices a los valores por defecto? Se perderán tus ajustes.')) return;
+    setSaving(true);
+    try {
+      await api.post('/trading/config/matrices/reset');
+      await load();
+      toast.success('Matrices restablecidas');
+    } catch (e) { toast.error('Error al restablecer'); }
+    finally { setSaving(false); }
+  };
+
+  const cellColor = (v) => {
+    const n = Number(v) || 0;
+    if (n > 0) return 'text-emerald-400';
+    if (n < 0) return 'text-red-400';
+    return 'text-muted-foreground';
+  };
+
+  const setSubCell = (a, b, val) => {
+    const n = val === '' || val === '-' ? 0 : parseInt(val, 10);
+    setSubM(prev => ({ ...prev, [a]: { ...(prev[a] || {}), [b]: isNaN(n) ? 0 : n } }));
+  };
+  const setOfiCell = (p, o, val) => {
+    const n = val === '' || val === '-' ? 0 : parseInt(val, 10);
+    setOfiM(prev => ({ ...prev, [p]: { ...(prev[p] || {}), [o]: isNaN(n) ? 0 : n } }));
+  };
+
+  const cellInputCls = "w-12 bg-black/30 border border-border rounded px-1 py-0.5 text-xs text-center";
+
+  const renderMatrix = (rows, cols, matrix, setCell, rowLabel) => (
+    <div className="overflow-auto max-h-[60vh] border border-border/30 rounded">
+      <table className="text-xs border-collapse">
+        <thead className="sticky top-0 z-10">
+          <tr>
+            <th className="sticky left-0 z-20 bg-[hsl(var(--background))] border border-border/30 px-2 py-1 text-left text-[hsl(var(--gold))]">{rowLabel} ↓ / Personaje →</th>
+            {cols.map(c => (
+              <th key={c} className="bg-[hsl(var(--background))] border border-border/30 px-1 py-1 whitespace-nowrap text-muted-foreground" title={c}>
+                <div className="max-w-[90px] truncate">{c}</div>
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map(r => (
+            <tr key={r}>
+              <td className="sticky left-0 z-10 bg-[hsl(var(--background))] border border-border/30 px-2 py-1 whitespace-nowrap text-[hsl(var(--gold))]/90" title={r}>
+                <div className="max-w-[160px] truncate">{r}</div>
+              </td>
+              {cols.map(c => {
+                const v = (matrix[r] || {})[c] ?? 0;
+                return (
+                  <td key={c} className="border border-border/20 px-0.5 py-0.5 text-center">
+                    {ro ? (
+                      <span className={cellColor(v)}>{v}</span>
+                    ) : (
+                      <input type="number" className={`${cellInputCls} ${cellColor(v)}`} value={v}
+                        onChange={(e) => setCell(r, c, e.target.value)}
+                        data-testid={`matrix-cell-${r}-${c}`} />
+                    )}
+                  </td>
+                );
+              })}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+
+  const toggle = (id) => setOpen(o => (o === id ? '' : id));
+
+  const subNames = (data?.subculturas || []).map(s => s.nombre);
+  const ocupaciones = data?.ocupaciones || [];
+  const profesiones = data?.profesiones || [];
+
+  return (
+    <div className="bg-black/20 rounded-lg border border-[hsl(var(--magic-blue))]/30 p-4 space-y-3" data-testid="relationship-matrices-panel">
+      <div className="flex items-center justify-between">
+        <h4 className="font-heading text-[hsl(var(--magic-blue))] flex items-center gap-2"><Handshake className="w-4 h-4" /> Matrices de Relación</h4>
+        {!ro && (
+          <div className="flex gap-2">
+            <Button size="sm" variant="outline" onClick={resetDefaults} disabled={saving || loading} data-testid="matrices-reset-btn">
+              <RefreshCw className="w-4 h-4 mr-1" /> Por defecto
+            </Button>
+            <Button size="sm" onClick={save} disabled={saving || loading}
+              className="bg-[hsl(var(--magic-blue))] hover:bg-[hsl(var(--magic-blue))]/90" data-testid="matrices-save-btn">
+              {saving ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Save className="w-4 h-4 mr-1" />} Guardar matrices
+            </Button>
+          </div>
+        )}
+      </div>
+      <p className="text-xs text-muted-foreground">Modificadores (en puntos) que afectan a la tirada de negociación. Verde = favorable, rojo = desfavorable. Las filas son el PNJ y las columnas el personaje. Se amplían solas al añadir nuevas subculturas, ocupaciones o profesiones.</p>
+
+      {loading ? (
+        <div className="flex items-center gap-2 text-muted-foreground text-sm"><Loader2 className="w-4 h-4 animate-spin" /> Cargando matrices…</div>
+      ) : (
+        <>
+          <div className="bg-black/20 rounded-lg border border-border/30">
+            <button onClick={() => toggle('sub')} className="w-full flex justify-between items-center p-3 text-left">
+              <span className="font-medium text-[hsl(var(--gold))]">Subcultura del PNJ × Subcultura del Personaje <span className="text-xs text-muted-foreground">({subNames.length}×{subNames.length})</span></span>
+              {open === 'sub' ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+            </button>
+            {open === 'sub' && <div className="px-3 pb-3">{renderMatrix(subNames, subNames, subM, setSubCell, 'Subcultura PNJ')}</div>}
+          </div>
+
+          <div className="bg-black/20 rounded-lg border border-border/30">
+            <button onClick={() => toggle('ofi')} className="w-full flex justify-between items-center p-3 text-left">
+              <span className="font-medium text-[hsl(var(--gold))]">Oficio del PNJ × Ocupación del Aventurero <span className="text-xs text-muted-foreground">({profesiones.length}×{ocupaciones.length})</span></span>
+              {open === 'ofi' ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+            </button>
+            {open === 'ofi' && <div className="px-3 pb-3">{renderMatrix(profesiones, ocupaciones, ofiM, setOfiCell, 'Oficio PNJ')}</div>}
+          </div>
+        </>
+      )}
+    </div>
+  );
+};
+
+
+// ============================================================================
+// HISTÓRICO / RELACIÓN PERSONAL del PNJ con cada personaje (Relacion_Actual)
+// ============================================================================
+const NIVEL_LABELS = {
+  hostil: 'Hostil', desconocido: 'Desconocido', neutral: 'Neutral',
+  cordial: 'Cordial', amigo: 'Amigo', hermandad: 'Hermandad',
+};
+const nivelFromValor = (v) => {
+  const n = Number(v) || 0;
+  if (n <= -60) return 'hostil';
+  if (n <= -20) return 'desconocido';
+  if (n < 20) return 'neutral';
+  if (n < 50) return 'cordial';
+  if (n < 80) return 'amigo';
+  return 'hermandad';
+};
+
+const NpcRelationshipHistory = ({ npcId }) => {
+  const [rels, setRels] = useState([]);
+  const [characters, setCharacters] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [savingId, setSavingId] = useState(null);
+  const [addChar, setAddChar] = useState('');
+
+  const load = async () => {
+    setLoading(true);
+    try {
+      const [r, c] = await Promise.all([
+        api.get(`/trading/relationships?npc_id=${npcId}`),
+        api.get('/characters/'),
+      ]);
+      setRels(r.data?.relationships || []);
+      setCharacters(c.data?.characters || c.data || []);
+    } catch (e) { /* noop */ }
+    finally { setLoading(false); }
+  };
+  useEffect(() => { load(); }, [npcId]);
+
+  const charName = (id) => {
+    const c = characters.find(x => (x.id || x._id) === id);
+    return c?.nombre || id;
+  };
+
+  const setLocalVal = (relId, val) => {
+    setRels(prev => prev.map(r => r._id === relId ? { ...r, relacion_actual: val } : r));
+  };
+
+  const saveRel = async (characterId, valor) => {
+    setSavingId(characterId);
+    try {
+      const v = Math.max(-100, Math.min(100, parseInt(valor, 10) || 0));
+      await api.post('/trading/relationships', { character_id: characterId, npc_id: npcId, relacion_actual: v });
+      toast.success('Relación guardada');
+      await load();
+    } catch (e) { toast.error('Error al guardar relación'); }
+    finally { setSavingId(null); }
+  };
+
+  const existingCharIds = new Set(rels.map(r => r.character_id));
+  const addableChars = characters.filter(c => !existingCharIds.has(c.id || c._id));
+
+  return (
+    <div className="bg-black/20 rounded-lg p-3 border border-[hsl(var(--magic-blue))]/30 space-y-2" data-testid="npc-relationship-history">
+      <div className="flex items-center gap-2">
+        <Handshake className="w-4 h-4 text-[hsl(var(--magic-blue))]" />
+        <span className="text-sm font-medium text-[hsl(var(--magic-blue))]">Relación personal / Histórico</span>
+        <span className="text-xs text-muted-foreground">(−100 a 100, neutral = 0)</span>
+      </div>
+
+      {loading ? (
+        <div className="flex items-center gap-2 text-muted-foreground text-xs"><Loader2 className="w-3 h-3 animate-spin" /> Cargando…</div>
+      ) : (
+        <>
+          {rels.length === 0 && <p className="text-xs text-muted-foreground">Aún no hay relaciones registradas con este PNJ.</p>}
+          {rels.map(rel => {
+            const valor = rel.relacion_actual ?? 0;
+            const nivel = nivelFromValor(valor);
+            return (
+              <div key={rel._id} className="flex items-center gap-2 flex-wrap bg-black/20 rounded px-2 py-1.5">
+                <span className="text-sm text-[hsl(var(--gold))] flex-1 min-w-[120px]">{charName(rel.character_id)}</span>
+                <span className="text-xs px-2 py-0.5 rounded bg-black/40 text-muted-foreground">{NIVEL_LABELS[nivel]}</span>
+                <input type="number" min={-100} max={100} value={valor}
+                  onChange={(e) => setLocalVal(rel._id, e.target.value)}
+                  className="w-16 bg-black/30 border border-border rounded px-2 py-1 text-sm text-center"
+                  data-testid={`rel-valor-${rel.character_id}`} />
+                <Button size="sm" variant="outline" onClick={() => saveRel(rel.character_id, valor)} disabled={savingId === rel.character_id}
+                  data-testid={`rel-save-${rel.character_id}`}>
+                  {savingId === rel.character_id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />}
+                </Button>
+                {(rel.historial?.length > 0) && (
+                  <span className="text-xs text-muted-foreground w-full">Histórico: {rel.historial.length} entrada(s)</span>
+                )}
+              </div>
+            );
+          })}
+
+          {addableChars.length > 0 && (
+            <div className="flex items-center gap-2 pt-1">
+              <select value={addChar} onChange={(e) => setAddChar(e.target.value)}
+                className="flex-1 bg-black/30 border border-border rounded px-2 py-1 text-sm" data-testid="rel-add-char-select">
+                <option value="">-- Añadir personaje --</option>
+                {addableChars.map(c => <option key={c.id || c._id} value={c.id || c._id}>{c.nombre}</option>)}
+              </select>
+              <Button size="sm" variant="outline" disabled={!addChar} onClick={() => { saveRel(addChar, 0); setAddChar(''); }}
+                data-testid="rel-add-btn"><Plus className="w-3 h-3 mr-1" /> Añadir</Button>
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+};
+
 
 const NpcEditorModal = ({ npc, config, onSave, onClose }) => {
   const API_URL = process.env.REACT_APP_BACKEND_URL;
@@ -2061,6 +2333,8 @@ const NpcEditorModal = ({ npc, config, onSave, onClose }) => {
             <textarea className="w-full bg-black/30 border border-border rounded px-3 py-2 h-16"
               value={formData.notas} onChange={(e) => set({ notas: e.target.value })} placeholder="Notas del DJ" />
           </div>
+
+          {npc?._id && <NpcRelationshipHistory npcId={npc._id} />}
         </div>
 
         <div className="p-4 border-t border-border/30 flex justify-end gap-2 sticky bottom-0 bg-[hsl(var(--background))]">

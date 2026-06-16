@@ -358,6 +358,125 @@ async def reset_trading_config():
 
 
 # ============================================================================
+# MATRICES DE RELACIÓN (Subculturas y Oficio×Ocupación)
+# ============================================================================
+
+async def _subculturas_actuales():
+    """Lista [{nombre, raza}] de todas las subculturas (db.cultures)."""
+    from server import db
+    out = []
+    async for c in db.cultures.find({}, {"nombre": 1, "raza": 1, "categoria": 1}):
+        nombre = (c.get("nombre") or "").strip()
+        if not nombre:
+            continue
+        raza = (c.get("raza") or c.get("categoria") or "Otros").strip()
+        out.append({"nombre": nombre, "raza": raza})
+    out.sort(key=lambda x: (x["raza"], x["nombre"]))
+    return out
+
+
+async def _ocupaciones_actuales():
+    """Lista de nombres de ocupaciones de aventurero (db.occupations), sin TEST_*."""
+    from server import db
+    out = []
+    async for o in db.occupations.find({}, {"vocacion": 1}):
+        v = (o.get("vocacion") or "").strip()
+        if v and not v.upper().startswith("TEST"):
+            out.append(v)
+    out.sort()
+    return out
+
+
+@router.get("/trading/config/matrices")
+async def get_relationship_matrices():
+    """Devuelve las matrices de relación, fusionando lo guardado con los valores
+    por defecto para cualquier subcultura/ocupación/profesión nueva (auto-amplía)."""
+    from server import db
+    from routes.trading_npc_data import (
+        default_subcultura_mod, default_oficio_ocupacion_mod,
+    )
+    cfg = await get_trading_config()
+    profesiones = cfg.get("npc_profesiones", [])
+    subculturas = await _subculturas_actuales()
+    ocupaciones = await _ocupaciones_actuales()
+
+    config = await db.trading_config.find_one({"_id": "main"}) or {}
+    stored_sub = config.get("subcultura_matrix", {}) or {}
+    stored_ofi = config.get("oficio_ocupacion_matrix", {}) or {}
+
+    # Matriz subcultura × subcultura (PNJ filas, personaje columnas).
+    raza_de = {s["nombre"]: s["raza"] for s in subculturas}
+    sub_matrix = {}
+    for a in subculturas:
+        fila = stored_sub.get(a["nombre"], {})
+        nueva = {}
+        for b in subculturas:
+            if b["nombre"] in fila and fila[b["nombre"]] is not None:
+                nueva[b["nombre"]] = int(fila[b["nombre"]])
+            else:
+                nueva[b["nombre"]] = default_subcultura_mod(
+                    a["raza"], a["nombre"], b["raza"], b["nombre"])
+        sub_matrix[a["nombre"]] = nueva
+
+    # Matriz oficio (profesión PNJ) × ocupación aventurero.
+    ofi_matrix = {}
+    for p in profesiones:
+        fila = stored_ofi.get(p, {})
+        nueva = {}
+        for o in ocupaciones:
+            if o in fila and fila[o] is not None:
+                nueva[o] = int(fila[o])
+            else:
+                nueva[o] = default_oficio_ocupacion_mod(p, o)
+        ofi_matrix[p] = nueva
+
+    return {
+        "subculturas": subculturas,
+        "ocupaciones": ocupaciones,
+        "profesiones": profesiones,
+        "subcultura_matrix": sub_matrix,
+        "oficio_ocupacion_matrix": ofi_matrix,
+    }
+
+
+@router.put("/trading/config/matrices")
+async def update_relationship_matrices(payload: dict = Body(...)):
+    """Guarda las matrices editadas."""
+    from server import db
+    update = {"updated_at": now_utc()}
+    if "subcultura_matrix" in payload:
+        sm = payload["subcultura_matrix"] or {}
+        update["subcultura_matrix"] = {
+            str(a): {str(b): int(v) for b, v in (fila or {}).items()}
+            for a, fila in sm.items()
+        }
+    if "oficio_ocupacion_matrix" in payload:
+        om = payload["oficio_ocupacion_matrix"] or {}
+        update["oficio_ocupacion_matrix"] = {
+            str(p): {str(o): int(v) for o, v in (fila or {}).items()}
+            for p, fila in om.items()
+        }
+    await db.trading_config.update_one(
+        {"_id": "main"}, {"$set": update}, upsert=True,
+    )
+    return {"message": "Matrices guardadas"}
+
+
+@router.post("/trading/config/matrices/reset")
+async def reset_relationship_matrices():
+    """Borra las matrices guardadas para volver a los valores por defecto."""
+    from server import db
+    await db.trading_config.update_one(
+        {"_id": "main"},
+        {"$unset": {"subcultura_matrix": "", "oficio_ocupacion_matrix": ""},
+         "$set": {"updated_at": now_utc()}},
+        upsert=True,
+    )
+    return {"message": "Matrices restablecidas a los valores por defecto"}
+
+
+
+# ============================================================================
 # NPC TEMPLATES (for random generation)
 # ============================================================================
 
@@ -1161,8 +1280,15 @@ async def create_or_update_relationship(data: dict = Body(...)):
     
     if existing:
         # Update existing
+        rel_val = data.get("relacion_actual", existing.get("relacion_actual", 0))
+        try:
+            rel_val = max(-100, min(100, int(rel_val)))
+        except (TypeError, ValueError):
+            rel_val = existing.get("relacion_actual", 0) or 0
+        from routes.trading_npc_data import nivel_desde_relacion
         update_data = {
-            "nivel": data.get("nivel", existing.get("nivel", "neutral")),
+            "relacion_actual": rel_val,
+            "nivel": data.get("nivel", nivel_desde_relacion(rel_val)),
             "penalizacion_precio": data.get("penalizacion_precio", existing.get("penalizacion_precio", 0)),
             "dias_sin_comercio": data.get("dias_sin_comercio", existing.get("dias_sin_comercio", 0)),
             "historial": existing.get("historial", []),
@@ -1184,11 +1310,18 @@ async def create_or_update_relationship(data: dict = Body(...)):
         return {"message": "Relación actualizada", "relationship_id": str(existing["_id"])}
     else:
         # Create new
+        from routes.trading_npc_data import nivel_desde_relacion
+        rel_val = data.get("relacion_actual", 0)
+        try:
+            rel_val = max(-100, min(100, int(rel_val)))
+        except (TypeError, ValueError):
+            rel_val = 0
         relationship = {
             "_id": str(uuid.uuid4()),
             "character_id": character_id,
             "npc_id": npc_id,
-            "nivel": data.get("nivel", "desconocido"),
+            "relacion_actual": rel_val,
+            "nivel": data.get("nivel", nivel_desde_relacion(rel_val)),
             "penalizacion_precio": 0,
             "dias_sin_comercio": 0,
             "historial": [],
