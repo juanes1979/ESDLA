@@ -244,6 +244,7 @@ async def get_trading_config(db=None):
     from routes.trading_npc_data import (
         PROFESIONES, RASGOS_POSITIVOS, RASGOS_NEGATIVOS, MODOS_HABLA,
         EXCLUSION_TAGS_RAZA, EXCLUSION_TAGS_PROFESION,
+        ALINEAMIENTOS, STAT_BLOCKS_POR_PROFESION,
     )
     db = database
 
@@ -264,6 +265,8 @@ async def get_trading_config(db=None):
         "npc_modos_habla": config.get("npc_modos_habla", MODOS_HABLA),
         "npc_exclusion_raza": config.get("npc_exclusion_raza", EXCLUSION_TAGS_RAZA),
         "npc_exclusion_profesion": config.get("npc_exclusion_profesion", EXCLUSION_TAGS_PROFESION),
+        "npc_alineamientos": config.get("npc_alineamientos", ALINEAMIENTOS),
+        "npc_stat_blocks": config.get("npc_stat_blocks", STAT_BLOCKS_POR_PROFESION),
         "updated_at": config.get("updated_at"),
     }
 
@@ -275,6 +278,7 @@ async def update_trading_config(config: dict = Body(...)):
     from routes.trading_npc_data import (
         PROFESIONES, RASGOS_POSITIVOS, RASGOS_NEGATIVOS, MODOS_HABLA,
         EXCLUSION_TAGS_RAZA, EXCLUSION_TAGS_PROFESION,
+        ALINEAMIENTOS, STAT_BLOCKS_POR_PROFESION,
     )
 
     update_data = {
@@ -291,6 +295,8 @@ async def update_trading_config(config: dict = Body(...)):
         "npc_modos_habla": config.get("npc_modos_habla", MODOS_HABLA),
         "npc_exclusion_raza": config.get("npc_exclusion_raza", EXCLUSION_TAGS_RAZA),
         "npc_exclusion_profesion": config.get("npc_exclusion_profesion", EXCLUSION_TAGS_PROFESION),
+        "npc_alineamientos": config.get("npc_alineamientos", ALINEAMIENTOS),
+        "npc_stat_blocks": config.get("npc_stat_blocks", STAT_BLOCKS_POR_PROFESION),
         "updated_at": now_utc()
     }
     
@@ -527,6 +533,25 @@ async def create_npc(npc_data: dict = Body(...)):
         cultura = await _get_culture_by_name(subcultura)
         edad = _calcular_edad(cultura, profesion)
 
+    # --- Alineamiento (nota secreta del DJ): aleatorio si está vacío ---
+    from routes.trading_npc_data import elegir_alineamiento_aleatorio, elegir_stats_aleatorios
+    alineamiento = (npc_data.get("alineamiento") or "").strip()
+    if not alineamiento:
+        alineamiento = elegir_alineamiento_aleatorio(cfg.get("npc_alineamientos"))
+
+    # --- Bloques de estadísticas: aleatorios por profesión si están vacíos ---
+    stat_blocks_cfg = cfg.get("npc_stat_blocks", {})
+    habilidades = npc_data.get("habilidades") or []
+    herramientas = npc_data.get("herramientas") or []
+    sentidos = npc_data.get("sentidos") or []
+    idiomas = npc_data.get("idiomas") or []
+    if not (habilidades or herramientas or sentidos or idiomas):
+        stats = elegir_stats_aleatorios(stat_blocks_cfg, profesion)
+        habilidades = stats["habilidades"]
+        herramientas = stats["herramientas"]
+        sentidos = stats["sentidos"]
+        idiomas = stats["idiomas"]
+
     npc = {
         "_id": str(uuid.uuid4()),
         "codigo_npc": _generate_codigo_npc(nombre),
@@ -545,6 +570,11 @@ async def create_npc(npc_data: dict = Body(...)):
         "rasgo_descripcion": rasgo_desc,
         "modo_hablar": modo_hablar,
         "modo_hablar_desc": modo_hablar_desc,
+        "alineamiento": alineamiento,
+        "habilidades": habilidades,
+        "herramientas": herramientas,
+        "sentidos": sentidos,
+        "idiomas": idiomas,
         "historia": npc_data.get("historia", ""),
         "retrato_file_id": npc_data.get("retrato_file_id"),
         "perfil_comerciante": npc_data.get("perfil_comerciante", "normal"),
@@ -719,6 +749,8 @@ async def get_npc_meta():
         "razas": razas,
         "sexos": ["Masculino", "Femenino"],
         "merchant_profiles": cfg.get("merchant_profiles", DEFAULT_MERCHANT_PROFILES),
+        "alineamientos": cfg.get("npc_alineamientos", []),
+        "stat_blocks": cfg.get("npc_stat_blocks", {}),
     }
 
 
@@ -779,6 +811,14 @@ async def get_valid_rasgos(payload: dict = Body(...)):
     """Devuelve los rasgos (positivos/negativos) compatibles con la raza y profesión."""
     cfg = await get_trading_config()
     return _rasgos_validos_db(cfg, payload.get("raza", ""), payload.get("profesion", ""))
+
+
+@router.post("/trading/npc-meta/stats")
+async def roll_stat_blocks(payload: dict = Body(...)):
+    """Elige al azar habilidades/herramientas/sentidos/idiomas para una profesión."""
+    from routes.trading_npc_data import elegir_stats_aleatorios
+    cfg = await get_trading_config()
+    return elegir_stats_aleatorios(cfg.get("npc_stat_blocks", {}), payload.get("profesion", ""))
 
 
 @router.post("/trading/npcs/generate-name")

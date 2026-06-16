@@ -250,3 +250,235 @@ def descripcion_rasgo(nombre: str):
         if r["nombre"] == nombre:
             return r["descripcion"], "negativo"
     return None, None
+
+
+# ---------------------------------------------------------------------------
+# ALINEAMIENTO (lista cerrada — nota secreta del DJ)
+# Si no se rellena al crear el PNJ, se elige uno al azar.
+# ---------------------------------------------------------------------------
+ALINEAMIENTOS = [
+    "Legal Bueno", "Neutral Bueno", "Caótico Bueno",
+    "Legal Neutral", "Neutral", "Caótico Neutral",
+    "Legal Malvado", "Neutral Malvado", "Caótico Malvado",
+]
+
+
+def elegir_alineamiento_aleatorio(alineamientos=None) -> str:
+    pool = alineamientos or ALINEAMIENTOS
+    return random.choice(pool) if pool else "Neutral"
+
+
+# ---------------------------------------------------------------------------
+# BLOQUES DE ESTADÍSTICAS POR PROFESIÓN
+# Para cada profesión se ofrecen varias opciones de Habilidades, Herramientas,
+# Sentidos e Idiomas. Al crear un PNJ se eligen unas pocas al azar (editable).
+# ---------------------------------------------------------------------------
+STAT_BLOCKS_POR_PROFESION = {
+    "Campesino": {
+        "habilidades": ["Trato con Animales", "Atletismo", "Naturaleza", "Supervivencia"],
+        "herramientas": ["Útiles de granjero", "Herramientas de carpintero", "Vehículos terrestres"],
+        "sentidos": ["Percepción pasiva 10"],
+        "idiomas": ["Oestron (Común)"],
+    },
+    "Leñador": {
+        "habilidades": ["Atletismo", "Supervivencia", "Naturaleza", "Percepción"],
+        "herramientas": ["Herramientas de carpintero", "Útiles de leñador"],
+        "sentidos": ["Percepción pasiva 11"],
+        "idiomas": ["Oestron (Común)"],
+    },
+    "Peón de construcción": {
+        "habilidades": ["Atletismo", "Supervivencia", "Investigación"],
+        "herramientas": ["Herramientas de albañil", "Herramientas de cantero"],
+        "sentidos": ["Percepción pasiva 10"],
+        "idiomas": ["Oestron (Común)"],
+    },
+    "Mozo de cuadra": {
+        "habilidades": ["Trato con Animales", "Atletismo", "Perspicacia"],
+        "herramientas": ["Útiles de establo", "Vehículos terrestres"],
+        "sentidos": ["Percepción pasiva 11"],
+        "idiomas": ["Oestron (Común)"],
+    },
+    "Cazador": {
+        "habilidades": ["Sigilo", "Supervivencia", "Percepción", "Naturaleza"],
+        "herramientas": ["Herramientas de trampero", "Útiles de cazador"],
+        "sentidos": ["Percepción pasiva 13"],
+        "idiomas": ["Oestron (Común)"],
+    },
+    "Herrero aprendiz": {
+        "habilidades": ["Atletismo", "Persuasión", "Investigación"],
+        "herramientas": ["Herramientas de herrero"],
+        "sentidos": ["Percepción pasiva 10"],
+        "idiomas": ["Oestron (Común)"],
+    },
+    "Barquero / Remero": {
+        "habilidades": ["Atletismo", "Supervivencia", "Percepción"],
+        "herramientas": ["Vehículos acuáticos", "Herramientas de navegante"],
+        "sentidos": ["Percepción pasiva 12"],
+        "idiomas": ["Oestron (Común)"],
+    },
+    "Herrero": {
+        "habilidades": ["Atletismo", "Persuasión", "Perspicacia", "Historia"],
+        "herramientas": ["Herramientas de herrero", "Útiles de orfebre"],
+        "sentidos": ["Percepción pasiva 11"],
+        "idiomas": ["Oestron (Común)"],
+    },
+    "Carpintero": {
+        "habilidades": ["Atletismo", "Investigación", "Percepción"],
+        "herramientas": ["Herramientas de carpintero", "Herramientas de ebanista"],
+        "sentidos": ["Percepción pasiva 11"],
+        "idiomas": ["Oestron (Común)"],
+    },
+    "Albañil": {
+        "habilidades": ["Atletismo", "Historia", "Investigación"],
+        "herramientas": ["Herramientas de albañil", "Herramientas de cantero"],
+        "sentidos": ["Percepción pasiva 10"],
+        "idiomas": ["Oestron (Común)"],
+    },
+    "Mercader": {
+        "habilidades": ["Persuasión", "Perspicacia", "Engaño", "Tasación"],
+        "herramientas": ["Útiles de calígrafo", "Vehículos terrestres", "Juego de dados"],
+        "sentidos": ["Percepción pasiva 13"],
+        "idiomas": ["Oestron (Común)", "Sindarin", "Khuzdul"],
+    },
+    "Posadero": {
+        "habilidades": ["Persuasión", "Perspicacia", "Engaño", "Interpretación"],
+        "herramientas": ["Útiles de cocinero", "Útiles de cervecero", "Juego de cartas"],
+        "sentidos": ["Percepción pasiva 12"],
+        "idiomas": ["Oestron (Común)"],
+    },
+    "Explorador / Rastreador": {
+        "habilidades": ["Sigilo", "Supervivencia", "Percepción", "Naturaleza"],
+        "herramientas": ["Herramientas de cartógrafo", "Útiles de cazador"],
+        "sentidos": ["Percepción pasiva 14"],
+        "idiomas": ["Oestron (Común)", "Sindarin"],
+    },
+    "Músico / Juglar": {
+        "habilidades": ["Interpretación", "Persuasión", "Engaño", "Historia"],
+        "herramientas": ["Instrumentos musicales", "Útiles de calígrafo"],
+        "sentidos": ["Percepción pasiva 12"],
+        "idiomas": ["Oestron (Común)", "Sindarin"],
+    },
+    "Sanador / Herbalista": {
+        "habilidades": ["Medicina", "Naturaleza", "Perspicacia", "Religión"],
+        "herramientas": ["Suministros de herbolario", "Equipo de sanador"],
+        "sentidos": ["Percepción pasiva 13"],
+        "idiomas": ["Oestron (Común)"],
+    },
+    "Arquero de élite": {
+        "habilidades": ["Sigilo", "Percepción", "Atletismo", "Supervivencia"],
+        "herramientas": ["Herramientas de arquero", "Útiles de cazador"],
+        "sentidos": ["Percepción pasiva 14"],
+        "idiomas": ["Oestron (Común)"],
+    },
+    "Maestro de escuela": {
+        "habilidades": ["Historia", "Investigación", "Persuasión", "Perspicacia"],
+        "herramientas": ["Útiles de calígrafo"],
+        "sentidos": ["Percepción pasiva 12"],
+        "idiomas": ["Oestron (Común)", "Sindarin", "Quenya"],
+    },
+    "Capitán de la guardia": {
+        "habilidades": ["Atletismo", "Intimidación", "Percepción", "Perspicacia"],
+        "herramientas": ["Juego de dados", "Vehículos terrestres"],
+        "sentidos": ["Percepción pasiva 14"],
+        "idiomas": ["Oestron (Común)", "Sindarin"],
+    },
+    "Caballero de Gondor": {
+        "habilidades": ["Atletismo", "Intimidación", "Historia", "Persuasión"],
+        "herramientas": ["Juego de cartas", "Vehículos terrestres"],
+        "sentidos": ["Percepción pasiva 13"],
+        "idiomas": ["Oestron (Común)", "Sindarin", "Quenya"],
+    },
+    "Señor de una aldea": {
+        "habilidades": ["Persuasión", "Perspicacia", "Historia", "Intimidación"],
+        "herramientas": ["Juego de mesa", "Útiles de calígrafo"],
+        "sentidos": ["Percepción pasiva 12"],
+        "idiomas": ["Oestron (Común)"],
+    },
+    "Príncipe o noble": {
+        "habilidades": ["Persuasión", "Engaño", "Historia", "Intimidación"],
+        "herramientas": ["Juego de cartas", "Útiles de calígrafo"],
+        "sentidos": ["Percepción pasiva 13"],
+        "idiomas": ["Oestron (Común)", "Sindarin", "Quenya"],
+    },
+    "Enano Herrero": {
+        "habilidades": ["Atletismo", "Historia", "Perspicacia", "Investigación"],
+        "herramientas": ["Herramientas de herrero", "Herramientas de joyero", "Herramientas de albañil"],
+        "sentidos": ["Visión en la oscuridad (18 m)", "Percepción pasiva 12"],
+        "idiomas": ["Oestron (Común)", "Khuzdul"],
+    },
+    "Elfo Artesano": {
+        "habilidades": ["Investigación", "Interpretación", "Percepción", "Historia"],
+        "herramientas": ["Herramientas de joyero", "Útiles de orfebre", "Herramientas de ebanista"],
+        "sentidos": ["Sentidos élficos agudos", "Percepción pasiva 14"],
+        "idiomas": ["Oestron (Común)", "Sindarin", "Quenya"],
+    },
+    "Mago Errante": {
+        "habilidades": ["Arcanos", "Historia", "Investigación", "Perspicacia"],
+        "herramientas": ["Útiles de calígrafo", "Suministros de herbolario"],
+        "sentidos": ["Percepción pasiva 13"],
+        "idiomas": ["Oestron (Común)", "Quenya", "Sindarin", "Lengua Negra"],
+    },
+    "Hobbit Posadero": {
+        "habilidades": ["Persuasión", "Perspicacia", "Sigilo", "Engaño"],
+        "herramientas": ["Útiles de cocinero", "Útiles de cervecero"],
+        "sentidos": ["Percepción pasiva 12"],
+        "idiomas": ["Oestron (Común)"],
+    },
+    "Delincuente": {
+        "habilidades": ["Sigilo", "Juego de Manos", "Engaño", "Intimidación"],
+        "herramientas": ["Herramientas de ladrón", "Juego de dados"],
+        "sentidos": ["Percepción pasiva 12"],
+        "idiomas": ["Oestron (Común)", "Jerga de ladrones"],
+    },
+    "Atracador": {
+        "habilidades": ["Intimidación", "Atletismo", "Sigilo", "Engaño"],
+        "herramientas": ["Herramientas de ladrón"],
+        "sentidos": ["Percepción pasiva 12"],
+        "idiomas": ["Oestron (Común)", "Jerga de ladrones"],
+    },
+    "Salteador de caminos": {
+        "habilidades": ["Sigilo", "Supervivencia", "Intimidación", "Percepción"],
+        "herramientas": ["Vehículos terrestres", "Herramientas de trampero"],
+        "sentidos": ["Percepción pasiva 13"],
+        "idiomas": ["Oestron (Común)"],
+    },
+}
+
+# Bloque por defecto para profesiones no mapeadas.
+STAT_BLOCK_DEFECTO = {
+    "habilidades": ["Persuasión", "Perspicacia", "Atletismo", "Percepción"],
+    "herramientas": ["Útiles de calígrafo"],
+    "sentidos": ["Percepción pasiva 10"],
+    "idiomas": ["Oestron (Común)"],
+}
+
+
+def elegir_stats_aleatorios(stat_blocks: dict, profesion: str) -> dict:
+    """Elige al azar un subconjunto coherente de estadísticas para la profesión.
+
+    - Habilidades: 2 al azar (o las que haya).
+    - Herramientas: 1 al azar.
+    - Sentidos: todos los inherentes (suelen ser 1-2).
+    - Idiomas: el primero (Oestron) + 1 extra al azar si existe.
+    """
+    blocks = stat_blocks or STAT_BLOCKS_POR_PROFESION
+    pool = blocks.get((profesion or "").strip()) or STAT_BLOCK_DEFECTO
+
+    def _sample(key, n):
+        opts = list(pool.get(key, []) or [])
+        if not opts:
+            return []
+        return random.sample(opts, min(n, len(opts)))
+
+    idiomas_pool = list(pool.get("idiomas", []) or ["Oestron (Común)"])
+    idiomas = [idiomas_pool[0]] if idiomas_pool else ["Oestron (Común)"]
+    extras = idiomas_pool[1:]
+    if extras and random.random() < 0.6:
+        idiomas.append(random.choice(extras))
+
+    return {
+        "habilidades": _sample("habilidades", 2),
+        "herramientas": _sample("herramientas", 1),
+        "sentidos": list(pool.get("sentidos", []) or []),
+        "idiomas": idiomas,
+    }

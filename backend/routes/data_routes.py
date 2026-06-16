@@ -1113,6 +1113,67 @@ async def update_block_profesiones(payload: dict = Body(...)):
     return {"message": "Profesiones por bloque guardadas", "block_profesiones": clean}
 
 
+# Profesiones por defecto sugeridas para cada bloque/categoría de equipo.
+DEFAULT_BLOCK_PROFESIONES = {
+    "armas_sencillas_cc": ["Herrero", "Herrero aprendiz", "Enano Herrero", "Mercader"],
+    "armas_sencillas_distancia": ["Herrero", "Cazador", "Arquero de élite", "Mercader"],
+    "armas_marciales_cc": ["Herrero", "Enano Herrero", "Caballero de Gondor", "Capitán de la guardia"],
+    "armas_marciales_distancia": ["Herrero", "Arquero de élite", "Cazador", "Enano Herrero"],
+    "armaduras_ligeras": ["Herrero", "Enano Herrero", "Mercader"],
+    "armaduras_medias": ["Herrero", "Enano Herrero"],
+    "armaduras_pesadas": ["Herrero", "Enano Herrero", "Caballero de Gondor"],
+    "escudos": ["Herrero", "Enano Herrero", "Carpintero"],
+    "equipo_general": ["Mercader", "Posadero", "Hobbit Posadero", "Explorador / Rastreador"],
+    "herramientas": ["Herrero", "Carpintero", "Albañil", "Mercader", "Enano Herrero"],
+    "juegos": ["Mercader", "Posadero", "Hobbit Posadero"],
+    "instrumentos_musicales": ["Músico / Juglar", "Mercader", "Elfo Artesano"],
+    "ropa": ["Mercader", "Elfo Artesano"],
+    "consumibles": ["Mercader", "Posadero", "Hobbit Posadero", "Campesino"],
+    "comida_posadas": ["Posadero", "Hobbit Posadero", "Campesino"],
+    "hierbas": ["Sanador / Herbalista", "Explorador / Rastreador"],
+    "venenos": ["Delincuente", "Atracador", "Salteador de caminos", "Sanador / Herbalista"],
+    "monturas": ["Mozo de cuadra", "Mercader"],
+    "accesorios_monturas": ["Mozo de cuadra", "Carpintero", "Mercader"],
+    "transporte_terrestre": ["Carpintero", "Mercader", "Mozo de cuadra"],
+    "transporte_maritimo": ["Barquero / Remero", "Carpintero", "Mercader"],
+    "recursos_desarrollo": ["Albañil", "Peón de construcción", "Mercader", "Leñador", "Señor de una aldea"],
+    "gemas_preciosas": ["Mercader", "Príncipe o noble", "Elfo Artesano"],
+    "gemas_semipreciosas": ["Mercader", "Elfo Artesano"],
+}
+
+
+@router.post("/equipment/block-profesiones/auto-defaults")
+async def auto_assign_block_profesiones(payload: dict = Body(default={})):
+    """Auto-asigna profesiones por defecto a los bloques de equipo.
+
+    payload.solo_vacios (bool, default True): si True, solo rellena los bloques
+    que aún no tienen profesiones asignadas; si False, sobrescribe todos.
+    """
+    solo_vacios = payload.get("solo_vacios", True) if isinstance(payload, dict) else True
+    catalog = await db.equipment_catalog.find_one({"_id": "main"}) or await db.equipment_catalog.find_one({})
+    current = (catalog or {}).get("_block_profesiones", {}) or {}
+
+    result = dict(current)
+    cambiados = 0
+    for cat, profs in DEFAULT_BLOCK_PROFESIONES.items():
+        existente = current.get(cat) or []
+        if solo_vacios and existente:
+            continue
+        result[cat] = list(profs)
+        cambiados += 1
+
+    await db.equipment_catalog.update_one(
+        {"_id": "main"},
+        {"$set": {"_block_profesiones": result, "updated_at": datetime.now(timezone.utc)}},
+        upsert=True,
+    )
+    return {
+        "message": f"Profesiones por defecto asignadas a {cambiados} bloque(s)",
+        "block_profesiones": result,
+        "bloques_actualizados": cambiados,
+    }
+
+
 
 # === FOOD/WATER ITEM MANAGEMENT ===
 

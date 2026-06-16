@@ -321,3 +321,28 @@ Aplica una transacción YA negociada al personaje (reutiliza endpoints de equipo
 - Paneles del mapa: `max-h-[calc(100%-2rem)]` + footer fijo (scroll completo).
 - `PlayerMap.jsx`: filtros (región/tipo/búsqueda) solo-lectura + "Imprimir mapa"
   (PDF A4 horizontal vía @media print, solo el mapa visible).
+
+## Iter 122 — PNJ: Alineamiento secreto + Estadísticas por profesión + Auto-profesiones equipo (Jun 2026)
+- Petición multi-parte del usuario (validación manual). Implementado y probado (curl + screenshot).
+- BACKEND `trading_npc_data.py`: añadido `ALINEAMIENTOS` (lista cerrada 9 opciones),
+  `STAT_BLOCKS_POR_PROFESION` (28 profesiones → pools de Habilidades/Herramientas/
+  Sentidos/Idiomas), helpers `elegir_alineamiento_aleatorio` y `elegir_stats_aleatorios`.
+- BACKEND `trading_routes.py`:
+  - `get/update_trading_config` exponen `npc_alineamientos` y `npc_stat_blocks` (editables).
+  - `get_npc_meta` devuelve `alineamientos` y `stat_blocks`.
+  - `create_npc` auto-rellena `alineamiento` (aleatorio si vacío) y bloques de stats
+    (aleatorios por profesión si vacíos). Nuevo endpoint `POST /trading/npc-meta/stats`
+    (re-tirar stats por profesión).
+- BACKEND `data_routes.py`: `DEFAULT_BLOCK_PROFESIONES` (mapa categoría→profesiones) y
+  endpoint `POST /equipment/block-profesiones/auto-defaults` (param `solo_vacios`).
+- FRONTEND `TradingSystemSection.jsx` (NpcEditorModal): ubicaciones ORDENADAS alfabéticamente;
+  nuevo bloque "Datos secretos del DJ" con select de Alineamiento (cerrado) + editor de
+  Estadísticas con chips toggle por profesión y botón "Tirar". Ficha del PNJ muestra
+  alineamiento (marcado DJ) + habilidades/idiomas. testids: `npc-alineamiento-select`,
+  `npc-reroll-stats-btn`, `npc-stat-<field>-<opt>`, `npc-secret-dj-block`.
+- FRONTEND `EquipmentSection.jsx`: botón admin "Profesiones por defecto"
+  (`auto-assign-block-prof-btn`) que llama al endpoint de auto-asignación.
+
+### PENDIENTE (P0 heredado, NO empezado):
+- Bug inversión eje Y en rejilla de terreno (pathfinding rodea montañas fantasma).
+- `ViajeSection.jsx` debe usar config dinámica PX (`/api/travel/config/px-roll-table`).

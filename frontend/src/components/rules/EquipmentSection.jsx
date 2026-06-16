@@ -165,6 +165,22 @@ const EquipmentSection = ({
     }
   };
 
+  const [autoAssigning, setAutoAssigning] = useState(false);
+  const autoAssignBlockProf = async () => {
+    if (!window.confirm('Se asignarán profesiones por defecto a los bloques que aún estén vacíos (armas → herreros, hierbas → herbalistas, etc.). Los bloques que ya tengas configurados no se tocarán. ¿Continuar?')) return;
+    setAutoAssigning(true);
+    try {
+      const res = await api.post('/data/equipment/block-profesiones/auto-defaults', { solo_vacios: true });
+      if (res.data?.block_profesiones) setBlockProf(res.data.block_profesiones);
+      toast.success(res.data?.message || 'Profesiones por defecto asignadas');
+      onRefresh?.();
+    } catch (err) {
+      toast.error('Error al asignar profesiones por defecto');
+    } finally {
+      setAutoAssigning(false);
+    }
+  };
+
   if (!data) return null;
 
   // Filter data by search term
@@ -781,14 +797,28 @@ const EquipmentSection = ({
         
         {isAdmin && (
           <Button
+            onClick={autoAssignBlockProf}
+            disabled={autoAssigning}
+            variant="outline"
+            className="border-[hsl(var(--gold))]/60 hover:bg-[hsl(var(--gold))]/10"
+            title="Asignar profesiones por defecto a los bloques vacíos (armas → herreros, etc.)"
+            data-testid="auto-assign-block-prof-btn"
+          >
+            {autoAssigning
+              ? <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              : <Users className="w-4 h-4 mr-2 text-[hsl(var(--gold))]" />}
+            Profesiones por defecto
+          </Button>
+        )}
+        {isAdmin && (
+          <Button
             onClick={() => onOpenEquipmentEditor?.()}
             className="btn-fantasy"
           >
             <Plus className="w-4 h-4 mr-2" />
             Crear Equipo
           </Button>
-        )}
-      </div>
+        )}      </div>
 
       {/* Equipment sections */}
       {EQUIPMENT_SECTIONS.map((section, sectionIdx) => {

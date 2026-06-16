@@ -7,7 +7,7 @@ import {
   Loader2, Save, RefreshCw, Plus, Trash2, Edit, ChevronDown, ChevronUp, 
   Coins, Package, User, Users, Settings, Calculator, MessageSquare, 
   Handshake, AlertTriangle, Check, X, Dices, TrendingUp, TrendingDown,
-  ShoppingCart, Store, History, Sparkles, Wand2, Image as ImageIcon
+  ShoppingCart, Store, History, Sparkles, Wand2, Image as ImageIcon, EyeOff
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -1418,6 +1418,18 @@ const TradingSystemSection = ({ isAdmin }) => {
                   {npc.apariencia && (
                     <p className="text-muted-foreground line-clamp-2">{npc.apariencia}</p>
                   )}
+                  {npc.alineamiento && (
+                    <p className="flex items-center gap-1 text-[hsl(var(--torch-orange))]/90">
+                      <EyeOff className="w-3 h-3" />
+                      <span className="text-muted-foreground">Alineamiento (DJ):</span> {npc.alineamiento}
+                    </p>
+                  )}
+                  {(npc.habilidades?.length > 0 || npc.idiomas?.length > 0) && (
+                    <p className="text-muted-foreground/80 line-clamp-2">
+                      {(npc.habilidades || []).join(', ')}
+                      {npc.idiomas?.length > 0 ? ` · Idiomas: ${(npc.idiomas || []).join(', ')}` : ''}
+                    </p>
+                  )}
                 </div>
               </div>
             ))}
@@ -1683,6 +1695,11 @@ const NpcEditorModal = ({ npc, config, onSave, onClose }) => {
     rasgo_descripcion: '',
     modo_hablar: '',
     modo_hablar_desc: '',
+    alineamiento: '',
+    habilidades: [],
+    herramientas: [],
+    sentidos: [],
+    idiomas: [],
     historia: '',
     retrato_file_id: null,
     notas: '',
@@ -1707,7 +1724,9 @@ const NpcEditorModal = ({ npc, config, onSave, onClose }) => {
           api.get('/data/locations'),
         ]);
         setMeta(m.data);
-        setLocations(l.data?.locations || []);
+        setLocations((l.data?.locations || []).slice().sort((a, b) =>
+          (a.nombre || '').localeCompare(b.nombre || '', 'es', { sensitivity: 'base' })
+        ));
       } catch (e) { toast.error('Error cargando datos del PNJ'); }
     })();
   }, []);
@@ -1741,6 +1760,33 @@ const NpcEditorModal = ({ npc, config, onSave, onClose }) => {
   const onSelectRasgo = (nombre) => {
     const found = rasgoOptions.find(r => r.nombre === nombre);
     set({ rasgo: nombre, rasgo_descripcion: found?.descripcion || '' });
+  };
+
+  // --- Bloques de estadísticas (Habilidades / Herramientas / Sentidos / Idiomas) ---
+  const [rollingStats, setRollingStats] = useState(false);
+  const statPools = useMemo(
+    () => (meta?.stat_blocks?.[formData.profesion] || { habilidades: [], herramientas: [], sentidos: [], idiomas: [] }),
+    [meta, formData.profesion]
+  );
+
+  const toggleStat = (field, value) => {
+    const cur = Array.isArray(formData[field]) ? formData[field] : [];
+    set({ [field]: cur.includes(value) ? cur.filter(v => v !== value) : [...cur, value] });
+  };
+
+  const rerollStats = async () => {
+    if (!formData.profesion) { toast.warning('Elige una profesión primero'); return; }
+    setRollingStats(true);
+    try {
+      const res = await api.post('/trading/npc-meta/stats', { profesion: formData.profesion });
+      set({
+        habilidades: res.data?.habilidades || [],
+        herramientas: res.data?.herramientas || [],
+        sentidos: res.data?.sentidos || [],
+        idiomas: res.data?.idiomas || [],
+      });
+    } catch (e) { toast.error('Error al tirar estadísticas'); }
+    finally { setRollingStats(false); }
   };
 
   const handleGenerateName = async () => {
@@ -1918,6 +1964,66 @@ const NpcEditorModal = ({ npc, config, onSave, onClose }) => {
               <option value="Normal">Normal</option>
               {(meta?.modos_habla || []).map(m => <option key={m.nombre} value={m.nombre}>{m.nombre}</option>)}
             </select>
+          </div>
+
+          {/* === BLOQUE SECRETO DEL DJ: Alineamiento + Estadísticas === */}
+          <div className="bg-[hsl(var(--torch-orange))]/5 rounded-lg p-3 border border-[hsl(var(--torch-orange))]/40 space-y-3" data-testid="npc-secret-dj-block">
+            <div className="flex items-center gap-2">
+              <EyeOff className="w-4 h-4 text-[hsl(var(--torch-orange))]" />
+              <span className="text-sm font-medium text-[hsl(var(--torch-orange))]">Datos secretos del DJ</span>
+              <span className="text-xs text-muted-foreground">(el jugador no los ve sin tirada enfrentada)</span>
+            </div>
+
+            {/* Alineamiento (lista cerrada, aleatorio si vacío) */}
+            <div>
+              <label className={labelCls}>Alineamiento <span className="text-xs">(vacío = aleatorio al guardar)</span></label>
+              <select className={selectCls} value={formData.alineamiento}
+                onChange={(e) => set({ alineamiento: e.target.value })} data-testid="npc-alineamiento-select">
+                <option value="">-- Aleatorio al guardar --</option>
+                {(meta?.alineamientos || []).map(a => <option key={a} value={a}>{a}</option>)}
+              </select>
+            </div>
+
+            {/* Bloques de estadísticas por profesión */}
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <label className={labelCls}>Estadísticas <span className="text-xs">(vacío = aleatorio según profesión)</span></label>
+                <Button type="button" size="sm" variant="outline" onClick={rerollStats} disabled={rollingStats || !formData.profesion}
+                  title="Tirar estadísticas al azar para esta profesión" data-testid="npc-reroll-stats-btn">
+                  {rollingStats ? <Loader2 className="w-4 h-4 animate-spin" /> : <Dices className="w-4 h-4" />}
+                  <span className="ml-1 text-xs">Tirar</span>
+                </Button>
+              </div>
+              {!formData.profesion && (
+                <p className="text-xs text-muted-foreground italic">Elige una profesión para ver las opciones de estadísticas.</p>
+              )}
+              {[
+                { field: 'habilidades', label: 'Habilidades' },
+                { field: 'herramientas', label: 'Herramientas' },
+                { field: 'sentidos', label: 'Sentidos' },
+                { field: 'idiomas', label: 'Idiomas' },
+              ].map(({ field, label }) => {
+                const pool = Array.from(new Set([...(statPools[field] || []), ...((formData[field]) || [])]));
+                return (
+                  <div key={field} className="mt-2">
+                    <p className="text-xs text-muted-foreground mb-1">{label}</p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {pool.length === 0 && <span className="text-xs text-muted-foreground italic">—</span>}
+                      {pool.map(opt => {
+                        const active = (formData[field] || []).includes(opt);
+                        return (
+                          <button key={opt} type="button" onClick={() => toggleStat(field, opt)}
+                            className={`text-xs px-2 py-1 rounded border transition-colors ${active ? 'bg-[hsl(var(--torch-orange))]/30 border-[hsl(var(--torch-orange))] text-[hsl(var(--torch-orange))]' : 'bg-black/30 border-border text-muted-foreground hover:border-[hsl(var(--torch-orange))]/50'}`}
+                            data-testid={`npc-stat-${field}-${opt}`}>
+                            {opt}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           </div>
 
           {/* Apariencia + Trasfondo + Retrato */}
