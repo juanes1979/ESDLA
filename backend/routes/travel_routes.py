@@ -1496,17 +1496,19 @@ async def calculate_journey(config: JourneyConfig):
         # `road_type`; en ese caso debe contar como camino para el CD
         # de eventos (CD 10), no como campo abierto.
         ROAD_TYPE_MAP = {
-            'grande': 'camino_real',
-            'gran_camino': 'camino_real',
-            'camino_real': 'camino_real',
-            'carretera': 'camino_real',
+            'grande': 'gran_camino',
+            'gran_camino': 'gran_camino',
+            'camino_real': 'gran_camino',
+            'carretera': 'gran_camino',
             'mayor': 'camino_mayor',
             'camino_mayor': 'camino_mayor',
+            'real': 'camino_mayor',
             'menor': 'camino_menor',
             'camino_menor': 'camino_menor',
+            'secundario': 'camino_menor',
             'sendas': 'sendas',
-            'senda': 'senda',
-            'sendero': 'sendero',
+            'senda': 'sendas',
+            'sendero': 'sendas',
         }
 
         # Acumulamos km por tipo_via para luego elegir el dominante.
@@ -1545,14 +1547,14 @@ async def calculate_journey(config: JourneyConfig):
             seg['tipo_via'] = tipo_via
 
             # Apply terrain modifier
-            terreno_mod = terreno_mods.get(seg_terrain, {'multiplicador': 1.0, 'bonus_px_km': 0})
+            terreno_mod = terreno_mods.get(seg_terrain, {'multiplicador': 1.0, 'bonus_px': 0})
             
             # Calculate PX for this segment
             # NOTA: Los valores de px_per_km son realmente "por casilla" (~16km)
             # Convertimos km a casillas dividiendo por 16
             seg_casillas = seg_distance_km / 16.0
             seg_px_base = px_per_km * seg_casillas
-            seg_px_bonus = terreno_mod.get('bonus_px_km', 0) * seg_casillas
+            seg_px_bonus = terreno_mod.get('bonus_px', 0) * seg_casillas
             seg_px_total = seg_px_base * terreno_mod.get('multiplicador', 1.0) + seg_px_bonus
             
             if seg_px_total > 0:
@@ -1590,12 +1592,12 @@ async def calculate_journey(config: JourneyConfig):
                     break
         
         terreno_mods = px_table.get('modificadores_terreno', {}) if px_table else {}
-        terreno_mod = terreno_mods.get(terreno_tipo, {'multiplicador': 1.0, 'bonus_px_km': 0})
+        terreno_mod = terreno_mods.get(terreno_tipo, {'multiplicador': 1.0, 'bonus_px': 0})
         
         # Convertir km a casillas (~16 km por casilla)
         num_casillas = route_data['distance_km'] / 16.0
         px_base = px_per_casilla * num_casillas
-        px_bonus = terreno_mod.get('bonus_px_km', 0) * num_casillas
+        px_bonus = terreno_mod.get('bonus_px', 0) * num_casillas
         px_total = px_base * terreno_mod.get('multiplicador', 1.0) + px_bonus
     
     # Round PX total
