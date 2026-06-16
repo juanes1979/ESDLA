@@ -473,37 +473,84 @@ async def get_npcs(location: str = None):
 
 @router.post("/trading/npcs")
 async def create_npc(npc_data: dict = Body(...)):
-    """Create a new NPC"""
+    """Create a new merchant NPC (con autorrelleno de nombre, rasgo, modo de habla y edad)."""
     from server import db
-    
+    from routes.trading_npc_data import (
+        elegir_rasgo_aleatorio, elegir_modo_hablar, descripcion_rasgo,
+    )
+
+    raza = npc_data.get("raza", "")
+    subcultura = npc_data.get("subcultura", "")
+    profesion = npc_data.get("profesion", "") or npc_data.get("profesion_comerciante", "")
+    sexo = npc_data.get("sexo", "Masculino")
+
+    # --- Nombre: autogenerar si está vacío ---
+    nombre = (npc_data.get("nombre") or "").strip()
+    if not nombre:
+        try:
+            gen = await generate_npc_merchant_name({
+                "raza": raza, "subcultura": subcultura, "sexo": sexo, "profesion": profesion,
+            })
+            nombre = gen.get("nombre") or f"PNJ-{random.randint(1000, 9999)}"
+        except Exception:
+            nombre = f"PNJ-{random.randint(1000, 9999)}"
+
+    # --- Rasgo único: aleatorio coherente si está vacío ---
+    rasgo = (npc_data.get("rasgo") or "").strip()
+    rasgo_tipo = npc_data.get("rasgo_tipo", "")
+    rasgo_desc = npc_data.get("rasgo_descripcion", "")
+    if not rasgo:
+        elegido = elegir_rasgo_aleatorio(raza, profesion)
+        rasgo, rasgo_tipo, rasgo_desc = elegido["nombre"], elegido["tipo"], elegido["descripcion"]
+    elif not rasgo_desc:
+        desc, tipo = descripcion_rasgo(rasgo)
+        rasgo_desc = desc or ""
+        rasgo_tipo = rasgo_tipo or (tipo or "")
+
+    # --- Modo de hablar: automático si está vacío ---
+    modo_hablar = (npc_data.get("modo_hablar") or "").strip()
+    modo_hablar_desc = npc_data.get("modo_hablar_desc", "")
+    if not modo_hablar:
+        mh = elegir_modo_hablar()
+        modo_hablar, modo_hablar_desc = mh["nombre"], mh["descripcion"]
+
+    # --- Edad: calcular si está vacía ---
+    edad = npc_data.get("edad")
+    if not edad:
+        cultura = await _get_culture_by_name(subcultura)
+        edad = _calcular_edad(cultura, profesion)
+
     npc = {
         "_id": str(uuid.uuid4()),
-        "nombre": npc_data.get("nombre", "PNJ Sin Nombre"),
+        "codigo_npc": _generate_codigo_npc(nombre),
+        "nombre": nombre,
         "apodo": npc_data.get("apodo", ""),
-        "ocupacion": npc_data.get("ocupacion", ""),
-        "profesion_comerciante": npc_data.get("profesion_comerciante", ""),
+        "raza": raza,
+        "subcultura": subcultura,
+        "sexo": sexo,
+        "edad": edad,
+        "profesion": profesion,
+        "profesion_comerciante": profesion,
+        "ocupacion": npc_data.get("ocupacion", profesion),
         "apariencia": npc_data.get("apariencia", ""),
-        "rasgo_positivo": npc_data.get("rasgo_positivo", ""),
-        "rasgo_negativo": npc_data.get("rasgo_negativo", ""),
-        "habilidad_especial": npc_data.get("habilidad_especial", ""),
-        "modo_hablar": npc_data.get("modo_hablar", ""),
-        "personalidad": npc_data.get("personalidad", ""),
-        "conocimiento_util": npc_data.get("conocimiento_util", ""),
-        "vinculo": npc_data.get("vinculo", ""),
-        "defecto_secreto": npc_data.get("defecto_secreto", ""),
-        "alineamiento_moral": npc_data.get("alineamiento_moral", "Neutral"),
-        "alineamiento_etico": npc_data.get("alineamiento_etico", "Neutral"),
+        "rasgo": rasgo,
+        "rasgo_tipo": rasgo_tipo,
+        "rasgo_descripcion": rasgo_desc,
+        "modo_hablar": modo_hablar,
+        "modo_hablar_desc": modo_hablar_desc,
+        "historia": npc_data.get("historia", ""),
+        "retrato_file_id": npc_data.get("retrato_file_id"),
         "perfil_comerciante": npc_data.get("perfil_comerciante", "normal"),
         "ubicacion": npc_data.get("ubicacion", ""),
+        "ubicacion_id": npc_data.get("ubicacion_id", ""),
         "region": npc_data.get("region", ""),
         "inventario": npc_data.get("inventario", ""),
         "notas": npc_data.get("notas", ""),
         "created_at": now_utc(),
-        "updated_at": now_utc()
+        "updated_at": now_utc(),
     }
-    
+
     await db.trading_npcs.insert_one(npc)
-    
     return {"message": "PNJ creado", "npc_id": npc["_id"], "npc": npc}
 
 
@@ -580,6 +627,364 @@ async def delete_npc(npc_id: str):
         raise HTTPException(status_code=404, detail="PNJ no encontrado")
     
     return {"message": "PNJ eliminado"}
+
+
+# ============================================================================
+# NPC MERCHANT CREATION — meta, traits coherence, name/age/profile generation
+# ============================================================================
+import unicodedata as _unicodedata
+import time as _time
+
+PORTRAIT_PROMPT_PREFIX = (
+    "Boceto a lápiz de grafito tradicional, estilo fantasía realista, "
+    "sombreado detallado, retrato de personaje sobre fondo blanco roto. "
+)
+
+
+def _strip_accents_alnum(text: str) -> str:
+    """Quita acentos/caracteres especiales y deja solo letras/números (minúsculas)."""
+    norm = _unicodedata.normalize("NFD", text or "")
+    cleaned = "".join(c for c in norm if _unicodedata.category(c) != "Mn")
+    return "".join(c for c in cleaned if c.isalnum()).lower()
+
+
+def _generate_codigo_npc(nombre: str) -> str:
+    """ID interno único: semilla de tiempo + primer nombre (sin apellidos ni símbolos)."""
+    primer = (nombre or "pnj").strip().split(" ")[0]
+    base = _strip_accents_alnum(primer) or "pnj"
+    return f"{int(_time.time())}_{base}"
+
+
+# Sesgo de edad por profesión (fracción dentro del rango edad_min..edad_max).
+_PROF_EDAD_JOVEN = {"Campesino", "Leñador", "Peón de construcción", "Mozo de cuadra",
+                    "Herrero aprendiz", "Cazador", "Barquero / Remero"}
+_PROF_EDAD_MAYOR = {"Maestro de escuela", "Capitán de la guardia", "Caballero de Gondor",
+                    "Señor de una aldea", "Príncipe o noble", "Enano Herrero",
+                    "Elfo Artesano", "Mago Errante", "Sanador / Herbalista", "Posadero",
+                    "Hobbit Posadero", "Mercader"}
+
+
+def _calcular_edad(cultura: dict, profesion: str) -> int:
+    """Edad coherente según el rango de la subcultura y la veteranía de la profesión."""
+    emin = int((cultura or {}).get("edad_min") or 18)
+    emax = int((cultura or {}).get("edad_max") or 70)
+    if emax <= emin:
+        emax = emin + 40
+    if profesion in _PROF_EDAD_JOVEN:
+        lo, hi = 0.05, 0.30
+    elif profesion in _PROF_EDAD_MAYOR:
+        lo, hi = 0.45, 0.85
+    else:
+        lo, hi = 0.25, 0.55
+    frac = random.uniform(lo, hi)
+    return int(round(emin + frac * (emax - emin)))
+
+
+async def _cultures_grouped():
+    """Agrupa las culturas por raza: {raza: [{nombre, edad_min, edad_max}]}."""
+    from server import db
+    grouped = {}
+    async for c in db.cultures.find({}, {"nombre": 1, "raza": 1, "edad_min": 1, "edad_max": 1}):
+        raza = (c.get("raza") or "Otros").strip()
+        grouped.setdefault(raza, []).append({
+            "nombre": c.get("nombre"),
+            "edad_min": c.get("edad_min"),
+            "edad_max": c.get("edad_max"),
+        })
+    return grouped
+
+
+async def _get_culture_by_name(nombre: str):
+    from server import db
+    if not nombre:
+        return None
+    return await db.cultures.find_one({"nombre": nombre})
+
+
+@router.get("/trading/npc-meta")
+async def get_npc_meta():
+    """Metadatos para crear PNJ comerciante: profesiones, modos de habla, razas/subculturas."""
+    from routes.trading_npc_data import PROFESIONES, MODOS_HABLA
+    razas = await _cultures_grouped()
+    config = await db_safe_config()
+    return {
+        "profesiones": PROFESIONES,
+        "modos_habla": MODOS_HABLA,
+        "razas": razas,
+        "sexos": ["Masculino", "Femenino"],
+        "merchant_profiles": config.get("merchant_profiles", DEFAULT_MERCHANT_PROFILES),
+    }
+
+
+async def db_safe_config():
+    from server import db
+    config = await db.trading_config.find_one({"_id": "main"})
+    return config or {"merchant_profiles": DEFAULT_MERCHANT_PROFILES}
+
+
+@router.post("/trading/npc-meta/rasgos")
+async def get_valid_rasgos(payload: dict = Body(...)):
+    """Devuelve los rasgos (positivos/negativos) compatibles con la raza y profesión."""
+    from routes.trading_npc_data import rasgos_validos
+    raza = payload.get("raza", "")
+    profesion = payload.get("profesion", "")
+    return rasgos_validos(raza, profesion)
+
+
+@router.post("/trading/npcs/generate-name")
+async def generate_npc_merchant_name(payload: dict = Body(...)):
+    """Genera un nombre coherente con la raza/subcultura/sexo/profesión (IA, con fallback)."""
+    raza = payload.get("raza", "")
+    subcultura = payload.get("subcultura", "")
+    sexo = payload.get("sexo", "Masculino")
+    profesion = payload.get("profesion", "")
+    sex_label = "masculino" if str(sexo).lower().startswith("m") else "femenino"
+    try:
+        from emergentintegrations.llm.chat import LlmChat, UserMessage
+        api_key = os.environ.get("EMERGENT_LLM_KEY")
+        if not api_key:
+            raise RuntimeError("EMERGENT_LLM_KEY no configurada")
+        prompt = (
+            f"Inventa UN solo nombre {sex_label} para un PNJ de la Tierra Media.\n"
+            f"Raza: {raza or 'desconocida'}\n"
+            f"Cultura/Subcultura: {subcultura or 'desconocida'}\n"
+            f"Profesión: {profesion or 'sin definir'}\n\n"
+            "Reglas:\n"
+            "- Devuelve SOLO el nombre (puede incluir un apellido), sin texto adicional ni comillas.\n"
+            "- Respeta la fonética de la cultura (sindarin, khuzdul, rohírrico, hobbit, gondoriano…).\n"
+            "- Máximo 3 palabras."
+        )
+        chat = LlmChat(
+            api_key=api_key,
+            session_id=f"npc_name_{uuid.uuid4().hex[:8]}",
+            system_message="Eres un experto en onomástica de la Tierra Media. Generas nombres breves y evocadores.",
+        ).with_model("openai", "gpt-4o-mini")
+        resp = await chat.send_message(UserMessage(text=prompt))
+        name = (resp or "").strip().strip('"').strip("'").split("\n")[0].strip()
+        if not name:
+            raise RuntimeError("Respuesta vacía")
+        return {"nombre": name}
+    except Exception as e:
+        logger.warning("Fallback nombre PNJ: %s", e)
+        seed = _strip_accents_alnum(subcultura or raza or "anon")[:5].capitalize() or "Anor"
+        suf = "ion" if sex_label == "masculino" else "iel"
+        return {"nombre": f"{seed}{suf}", "fallback": True}
+
+
+@router.post("/trading/npcs/generate-profile")
+async def generate_npc_profile(payload: dict = Body(...)):
+    """FASE 2: redacta trasfondo unificado (texto) y genera el retrato (imagen)."""
+    import io, base64
+    npc = payload or {}
+    nombre = npc.get("nombre") or "el comerciante"
+    raza = npc.get("raza", "")
+    subcultura = npc.get("subcultura", "")
+    sexo = npc.get("sexo", "")
+    edad = npc.get("edad", "")
+    profesion = npc.get("profesion", "")
+    ubicacion = npc.get("ubicacion", "")
+    region = npc.get("region", "")
+    rasgo = npc.get("rasgo", "")
+    rasgo_desc = npc.get("rasgo_descripcion", "")
+    modo_hablar = npc.get("modo_hablar", "")
+    apariencia = npc.get("apariencia", "")  # detalles físicos libres del usuario
+
+    historia = None
+    image_base64 = None
+    retrato_file_id = None
+    errors = []
+
+    # --- 1) Trasfondo narrativo unificado ---
+    try:
+        from emergentintegrations.llm.chat import LlmChat, UserMessage
+        api_key = os.environ.get("EMERGENT_LLM_KEY")
+        if not api_key:
+            raise RuntimeError("EMERGENT_LLM_KEY no configurada")
+        prompt = (
+            "Redacta un trasfondo narrativo breve (2-3 párrafos) para un PNJ comerciante de la "
+            "Tierra Media, integrando de forma natural todos estos datos:\n"
+            f"- Nombre: {nombre}\n- Raza: {raza}\n- Cultura: {subcultura}\n- Sexo: {sexo}\n"
+            f"- Edad: {edad}\n- Profesión: {profesion}\n- Ubicación: {ubicacion} ({region})\n"
+            f"- Rasgo de carácter: {rasgo} — {rasgo_desc}\n"
+            f"- Modo de hablar: {modo_hablar}\n"
+            f"- Detalles físicos indicados por el DJ: {apariencia or 'ninguno'}\n\n"
+            "El texto debe ser inmersivo, en español de España, coherente con el tono de El Señor "
+            "de los Anillos, y reflejar su rasgo y forma de hablar. No uses encabezados ni listas."
+        )
+        chat = LlmChat(
+            api_key=api_key,
+            session_id=f"npc_bio_{uuid.uuid4().hex[:8]}",
+            system_message="Eres un escritor de ambientación de la Tierra Media. Redactas trasfondos breves y evocadores.",
+        ).with_model("openai", "gpt-4o")
+        resp = await chat.send_message(UserMessage(text=prompt))
+        historia = (resp or "").strip()
+    except Exception as e:
+        logger.warning("Trasfondo PNJ falló: %s", e)
+        errors.append(f"trasfondo: {e}")
+
+    # --- 2) Retrato (imagen) con prefijo obligatorio ---
+    try:
+        from emergentintegrations.llm.openai.image_generation import OpenAIImageGeneration
+        api_key = os.environ.get("EMERGENT_LLM_KEY")
+        if not api_key:
+            raise RuntimeError("EMERGENT_LLM_KEY no configurada")
+        detalles = (
+            f"{sexo} {raza} ({subcultura}), {edad} años, {profesion}, en {ubicacion}. "
+            f"{apariencia}".strip()
+        )
+        prompt = PORTRAIT_PROMPT_PREFIX + detalles
+        image_gen = OpenAIImageGeneration(api_key=api_key)
+        images = await image_gen.generate_images(prompt=prompt, model="gpt-image-1", number_of_images=1)
+        if images:
+            img_bytes = images[0]
+            image_base64 = base64.b64encode(img_bytes).decode("utf-8")
+            # Persistir en GridFS para servirlo luego
+            try:
+                from server import db
+                from routes.storage_routes import get_gridfs_bucket
+                bucket = get_gridfs_bucket(db)
+                fname = f"npc-portraits/{uuid.uuid4().hex}.png"
+                file_id = await bucket.upload_from_stream(
+                    filename=fname, source=io.BytesIO(img_bytes),
+                    metadata={"content_type": "image/png", "folder": "npc-portraits",
+                              "tags": ["npc", "merchant", "portrait"], "path": fname},
+                )
+                retrato_file_id = str(file_id)
+            except Exception as e_store:
+                logger.warning("No se pudo persistir retrato: %s", e_store)
+    except Exception as e:
+        logger.warning("Retrato PNJ falló: %s", e)
+        errors.append(f"retrato: {e}")
+
+    return {
+        "historia": historia,
+        "image_base64": image_base64,
+        "retrato_file_id": retrato_file_id,
+        "errors": errors,
+    }
+
+
+@router.get("/trading/npcs/{npc_id}/portrait")
+async def get_npc_portrait(npc_id: str):
+    """Sirve el retrato del PNJ (público, para usar en <img>)."""
+    import io
+    from fastapi.responses import StreamingResponse
+    from server import db
+    npc = await db.trading_npcs.find_one({"_id": npc_id})
+    if not npc or not npc.get("retrato_file_id"):
+        raise HTTPException(status_code=404, detail="Sin retrato")
+    try:
+        from bson import ObjectId
+        from routes.storage_routes import get_gridfs_bucket
+        bucket = get_gridfs_bucket(db)
+        stream = await bucket.open_download_stream(ObjectId(npc["retrato_file_id"]))
+        data = await stream.read()
+        return StreamingResponse(io.BytesIO(data), media_type="image/png")
+    except Exception as e:
+        logger.warning("Error sirviendo retrato %s: %s", npc_id, e)
+        raise HTTPException(status_code=404, detail="Retrato no disponible")
+
+
+# ============================================================================
+# FASE 3 — Historial de interacción y despedida
+# ============================================================================
+
+@router.post("/trading/npcs/{npc_id}/interaction")
+async def record_interaction(npc_id: str, payload: dict = Body(...)):
+    """Registra una interacción estructurada en el historial de la relación PNJ↔jugador.
+
+    payload: { character_id, interaccion, impacto_modificador }
+    (La MATEMÁTICA del modificador se programará en la siguiente actualización.)
+    """
+    from server import db
+    character_id = payload.get("character_id")
+    if not character_id:
+        raise HTTPException(status_code=400, detail="character_id requerido")
+
+    entry = {
+        "tipo": "interaccion",
+        "character_id": character_id,
+        "interaccion": payload.get("interaccion", ""),
+        "impacto_modificador": payload.get("impacto_modificador", 0),
+        "fecha": now_utc().isoformat(),
+    }
+
+    rel = await db.npc_relationships.find_one({"character_id": character_id, "npc_id": npc_id})
+    if rel:
+        await db.npc_relationships.update_one(
+            {"_id": rel["_id"]},
+            {"$push": {"historial": entry}, "$set": {"updated_at": now_utc()}},
+        )
+        rel_id = str(rel["_id"])
+    else:
+        rel_id = str(uuid.uuid4())
+        await db.npc_relationships.insert_one({
+            "_id": rel_id, "character_id": character_id, "npc_id": npc_id,
+            "nivel": "desconocido", "penalizacion_precio": 0, "dias_sin_comercio": 0,
+            "historial": [entry], "created_at": now_utc(), "updated_at": now_utc(),
+        })
+    return {"ok": True, "relationship_id": rel_id, "entry": entry}
+
+
+@router.post("/trading/npcs/{npc_id}/farewell")
+async def npc_farewell(npc_id: str, payload: dict = Body(...)):
+    """Genera un texto de despedida acorde al modificador acumulado y al historial."""
+    from server import db
+    character_id = payload.get("character_id")
+    npc = await db.trading_npcs.find_one({"_id": npc_id})
+    if not npc:
+        raise HTTPException(status_code=404, detail="PNJ no encontrado")
+
+    rel = None
+    if character_id:
+        rel = await db.npc_relationships.find_one({"character_id": character_id, "npc_id": npc_id})
+    historial = (rel or {}).get("historial", [])
+    # Modificador acumulado de las interacciones registradas.
+    modificador = sum(float(h.get("impacto_modificador", 0) or 0)
+                      for h in historial if h.get("tipo") == "interaccion")
+    nivel = (rel or {}).get("nivel", "neutral")
+
+    if modificador > 2 or nivel in ("amigo", "hermandad", "cordial"):
+        tono = "buena (cordial, agradecido)"
+    elif modificador < -2 or nivel in ("hostil", "desconocido"):
+        tono = "mala (frío, molesto o desconfiado)"
+    else:
+        tono = "neutra (correcto pero sin afecto)"
+
+    despedida = None
+    try:
+        from emergentintegrations.llm.chat import LlmChat, UserMessage
+        api_key = os.environ.get("EMERGENT_LLM_KEY")
+        if not api_key:
+            raise RuntimeError("EMERGENT_LLM_KEY no configurada")
+        prompt = (
+            f"El comerciante {npc.get('nombre')} ({npc.get('profesion','comerciante')}, "
+            f"{npc.get('subcultura','')}) se despide del cliente al terminar de comerciar.\n"
+            f"Rasgo: {npc.get('rasgo','')} — {npc.get('rasgo_descripcion','')}\n"
+            f"Modo de hablar: {npc.get('modo_hablar','')} ({npc.get('modo_hablar_desc','')})\n"
+            f"Relación final: {tono}.\n\n"
+            "Genera UNA despedida breve (1-2 frases), en español de España, coherente con su rasgo "
+            "y su modo de hablar y con el tono de la relación. Solo el diálogo, sin comillas."
+        )
+        chat = LlmChat(
+            api_key=api_key,
+            session_id=f"npc_bye_{uuid.uuid4().hex[:8]}",
+            system_message="Eres un generador de diálogos para PNJs de la Tierra Media.",
+        ).with_model("openai", "gpt-4o-mini")
+        resp = await chat.send_message(UserMessage(text=prompt))
+        despedida = (resp or "").strip().strip('"')
+    except Exception as e:
+        logger.warning("Despedida PNJ fallback: %s", e)
+        fallback = {
+            "buena (cordial, agradecido)": "Ha sido un placer. ¡Que los caminos te sean propicios!",
+            "mala (frío, molesto o desconfiado)": "Hmpf. La puerta está por ahí.",
+            "neutra (correcto pero sin afecto)": "Buen viaje. Vuelve cuando lo necesites.",
+        }
+        despedida = fallback.get(tono, "Buen viaje.")
+
+    return {"despedida": despedida, "tono": tono, "modificador_acumulado": modificador, "nivel": nivel}
+
+
 
 
 # ============================================================================
@@ -1020,9 +1425,14 @@ async def generate_npc_dialogue_llm(
         
         # Build context for the LLM
         perfil = npc.get("perfil_comerciante", "normal")
-        personalidad = npc.get("personalidad", "")
+        rasgo = npc.get("rasgo", "") or npc.get("personalidad", "")
+        rasgo_desc = npc.get("rasgo_descripcion", "")
         modo_hablar = npc.get("modo_hablar", "")
-        ocupacion = npc.get("ocupacion", "comerciante")
+        modo_hablar_desc = npc.get("modo_hablar_desc", "")
+        ocupacion = npc.get("profesion") or npc.get("ocupacion", "comerciante")
+        subcultura = npc.get("subcultura", "")
+        edad = npc.get("edad", "")
+        historia = (npc.get("historia") or "")[:600]
         
         resultado_tipo = resultado.get("tipo", "rechaza")
         enfado = resultado.get("enfado", None)
@@ -1036,9 +1446,12 @@ async def generate_npc_dialogue_llm(
 
 DATOS DEL PNJ:
 - Ocupación: {ocupacion}
-- Perfil: {perfil}
-- Personalidad: {personalidad}
-- Modo de hablar: {modo_hablar}
+- Cultura/Subcultura: {subcultura}
+- Edad: {edad}
+- Perfil de comerciante: {perfil}
+- Rasgo de carácter: {rasgo} — {rasgo_desc}
+- Modo de hablar: {modo_hablar} ({modo_hablar_desc})
+- Trasfondo: {historia}
 
 SITUACIÓN:
 - El jugador quiere {accion} "{item_nombre}"
@@ -1052,7 +1465,7 @@ RESULTADO DE LA NEGOCIACIÓN:
 {f'- Contraoferta propuesta: {contraoferta:.2f} monedas' if contraoferta else ''}
 
 INSTRUCCIONES:
-Genera UNA SOLA frase corta (máximo 2 oraciones) que el PNJ diría en esta situación, reflejando su personalidad y el resultado de la negociación. 
+Genera UNA SOLA frase corta (máximo 2 oraciones) que el PNJ diría en esta situación, reflejando SU RASGO de carácter y SU MODO DE HABLAR concreto, además del resultado.
 - Si acepta: muestra satisfacción o resignación según el precio
 - Si rechaza: explica brevemente por qué no le interesa
 - Si hace contraoferta: propone el nuevo precio de forma natural

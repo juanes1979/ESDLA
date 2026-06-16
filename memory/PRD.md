@@ -198,6 +198,42 @@ imposibles por diseño.
 - Verificado: Bree→Rivendel ahora da 454 PX (antes 0).
 - PENDIENTE: definir cuántos PX dan los eventos de viaje (hoy 0 por defecto).
 
+## Iter 123 — Reforma del módulo de creación de PNJ comerciante (3 fases) (Jun 2026)
+
+### Datos (`routes/trading_npc_data.py`, NUEVO)
+- 28 PROFESIONES (lista cerrada), 49+ RASGOS_NEGATIVOS y 49+ RASGOS_POSITIVOS
+  (con descripción), 20 MODOS_HABLA.
+- Coherencia por TAGS: cada rasgo lleva tags (suciedad, mala_artesania, caos,
+  antimagia, magia_falsa, violencia, criminal, santo). `EXCLUSION_TAGS_RAZA` y
+  `EXCLUSION_TAGS_PROFESION` prohíben tags incoherentes. Helpers: `rasgos_validos`,
+  `elegir_rasgo_aleatorio`, `elegir_modo_hablar`. Test: `tests/test_trading_npc.py` (6 OK).
+
+### Backend (`trading_routes.py`)
+- `GET /trading/npc-meta` (profesiones, modos_habla, razas+subculturas de `cultures`, sexos, perfiles).
+- `POST /trading/npc-meta/rasgos` {raza, profesion} → rasgos válidos (coherencia).
+- `POST /trading/npcs/generate-name` → nombre IA (gpt-4o-mini) por raza/subcultura/sexo/profesión (con fallback).
+- `POST /trading/npcs/generate-profile` → FASE 2: trasfondo unificado (gpt-4o) + retrato
+  (gpt-image-1) con PREFIJO obligatorio "Boceto a lápiz de grafito tradicional…", guardado en GridFS.
+- `GET /trading/npcs/{id}/portrait` → sirve el retrato (público, para <img>).
+- `POST /trading/npcs/{id}/interaction` y `POST /trading/npcs/{id}/farewell` → FASE 3
+  (historial estructurado en `npc_relationships.historial` + despedida IA según tono).
+- `create_npc` reescrito: persiste raza/subcultura/sexo/edad/profesion/rasgo/modo_hablar/
+  historia/retrato + AUTORRELLENO (nombre IA si vacío, rasgo aleatorio coherente, modo 50/50,
+  edad coherente por `edad_min/max`+veteranía, `codigo_npc` = timestamp + nombre sin símbolos).
+- Diálogo de negociación ahora usa contexto completo (rasgo+desc, modo_hablar+desc, subcultura, edad, historia).
+- NOTA: la MATEMÁTICA del modificador de relación queda para la SIGUIENTE update (como pidió el usuario).
+
+### Frontend (`TradingSystemSection.jsx`)
+- `NpcEditorModal` reescrito: ubicación (selector)→región auto, raza→subcultura cascada, sexo,
+  profesión, rasgo único (toggle Positivo/Negativo + select filtrado por coherencia), modo de
+  hablar (automático), nombre + botón dados + edad auto, "Generar trasfondo + retrato", retrato preview.
+- Calculadora: gate "jugador físicamente presente" — bloquea Calcular si `character.ubicacion_actual.id`
+  ≠ `npc.ubicacion_id` (solo cuando ambos datos existen). Botón "Terminar de comerciar" + despedida IA.
+- VERIFICADO en navegador: región autofill, cascada raza→subcultura, nombre IA, coherencia,
+  guardado e2e (autorrelleno OK), gate de presencia bloqueando.
+- PENDIENTE DE PRUEBA MANUAL (no se pulsó en navegador para ahorrar coste IA): botón
+  "Generar trasfondo + retrato" (imagen) y "Terminar de comerciar" (despedida).
+
 ## Iter 122 — Compra-Venta aplica al personaje + acceso desde Inicio (Jun 2026)
 
 ### Backend — `POST /api/trading/confirm-transaction`

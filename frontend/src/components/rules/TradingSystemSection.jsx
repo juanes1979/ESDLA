@@ -7,7 +7,7 @@ import {
   Loader2, Save, RefreshCw, Plus, Trash2, Edit, ChevronDown, ChevronUp, 
   Coins, Package, User, Users, Settings, Calculator, MessageSquare, 
   Handshake, AlertTriangle, Check, X, Dices, TrendingUp, TrendingDown,
-  ShoppingCart, Store, History, Sparkles
+  ShoppingCart, Store, History, Sparkles, Wand2, Image as ImageIcon
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -120,6 +120,8 @@ const TradingSystemSection = ({ isAdmin }) => {
   const [showPlayerDropdown, setShowPlayerDropdown] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const [confirmWarnings, setConfirmWarnings] = useState(null);
+  const [despedida, setDespedida] = useState(null);
+  const [endingTrade, setEndingTrade] = useState(false);
 
   const filteredCharacters = useMemo(() => {
     const q = playerSearch.toLowerCase().trim();
@@ -135,6 +137,24 @@ const TradingSystemSection = ({ isAdmin }) => {
     () => (characters || []).find(c => c.id === calcForm.character_id) || null,
     [characters, calcForm.character_id]
   );
+
+  const selectedNpc = useMemo(
+    () => (npcs || []).find(n => n._id === calcForm.npc_id) || null,
+    [npcs, calcForm.npc_id]
+  );
+
+  // "Jugador físicamente presente": solo se puede comerciar con un PNJ si el
+  // personaje está en la misma ubicación. Solo bloquea si ambos datos existen.
+  const presenciaError = useMemo(() => {
+    if (!selectedNpc || !selectedCharacter) return null;
+    const npcLoc = selectedNpc.ubicacion_id;
+    const charLoc = selectedCharacter.ubicacion_actual?.id;
+    if (!npcLoc || !charLoc) return null;  // no se puede determinar → no bloquea
+    if (npcLoc !== charLoc) {
+      return `${selectedCharacter.nombre} no está en ${selectedNpc.ubicacion} (está en ${selectedCharacter.ubicacion_actual?.nombre || 'otro lugar'}). No puede comerciar con este PNJ.`;
+    }
+    return null;
+  }, [selectedNpc, selectedCharacter]);
 
   // Flatten equipment for selector (memo at component level)
   const allItems = useMemo(() => {
@@ -422,6 +442,30 @@ const TradingSystemSection = ({ isAdmin }) => {
       toast.error(detail);
     } finally {
       setConfirming(false);
+    }
+  };
+
+  // FASE 3: Terminar de comerciar → registra interacción y pide despedida IA.
+  const terminarComercio = async () => {
+    if (!calcForm.npc_id) { toast.error('Selecciona un PNJ comerciante'); return; }
+    setEndingTrade(true);
+    setDespedida(null);
+    try {
+      if (calcForm.character_id) {
+        await api.post(`/trading/npcs/${calcForm.npc_id}/interaction`, {
+          character_id: calcForm.character_id,
+          interaccion: 'Sesión de comercio finalizada',
+          impacto_modificador: 0,
+        });
+      }
+      const res = await api.post(`/trading/npcs/${calcForm.npc_id}/farewell`, {
+        character_id: calcForm.character_id,
+      });
+      setDespedida(res.data);
+    } catch (e) {
+      toast.error('Error al terminar de comerciar');
+    } finally {
+      setEndingTrade(false);
     }
   };
 
@@ -956,10 +1000,17 @@ const TradingSystemSection = ({ isAdmin }) => {
             </select>
           </div>
 
+          {presenciaError && (
+            <div className="bg-red-900/30 border border-red-600/50 rounded px-3 py-2 text-sm text-red-300 flex items-start gap-2" data-testid="presencia-error">
+              <AlertTriangle className="w-4 h-4 mt-0.5 flex-shrink-0" />
+              {presenciaError}
+            </div>
+          )}
+
           {/* Calculate button */}
           <Button
             onClick={calculateTrade}
-            disabled={calculating}
+            disabled={calculating || !!presenciaError}
             className="w-full bg-[hsl(var(--torch-orange))] hover:bg-[hsl(var(--torch-orange))]/80 text-black font-bold"
             data-testid="calculate-btn"
           >
@@ -1171,6 +1222,23 @@ const TradingSystemSection = ({ isAdmin }) => {
                       )}
                     </div>
                   </div>
+                </div>
+              )}
+
+              {/* FASE 3: Terminar de comerciar + despedida */}
+              {calcForm.npc_id && (
+                <div className="bg-black/20 rounded-lg p-4 border border-border/40" data-testid="trade-end-block">
+                  <Button variant="outline" onClick={terminarComercio} disabled={endingTrade}
+                    className="w-full" data-testid="trade-end-btn">
+                    {endingTrade ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Store className="w-4 h-4 mr-2" />}
+                    Terminar de comerciar
+                  </Button>
+                  {despedida && (
+                    <div className="mt-3 bg-[hsl(var(--gold))]/10 rounded-lg p-3 border border-[hsl(var(--gold))]/30" data-testid="trade-farewell">
+                      <p className="italic">"{despedida.despedida}"</p>
+                      <p className="text-xs text-muted-foreground mt-1">Despedida {despedida.tono}</p>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -1476,30 +1544,110 @@ const TradingSystemSection = ({ isAdmin }) => {
 // ============================================================================
 
 const NpcEditorModal = ({ npc, config, onSave, onClose }) => {
+  const API_URL = process.env.REACT_APP_BACKEND_URL;
   const [formData, setFormData] = useState({
     nombre: '',
     apodo: '',
-    ocupacion: '',
-    profesion_comerciante: '',
-    apariencia: '',
-    rasgo_positivo: '',
-    rasgo_negativo: '',
-    habilidad_especial: '',
-    modo_hablar: '',
-    personalidad: '',
-    conocimiento_util: '',
-    vinculo: '',
-    defecto_secreto: '',
-    alineamiento_moral: 'Neutral',
-    alineamiento_etico: 'Neutral',
+    raza: '',
+    subcultura: '',
+    sexo: 'Masculino',
+    edad: '',
+    profesion: '',
     perfil_comerciante: 'normal',
     ubicacion: '',
+    ubicacion_id: '',
     region: '',
-    inventario: '',
+    apariencia: '',
+    rasgo: '',
+    rasgo_tipo: 'positivo',
+    rasgo_descripcion: '',
+    modo_hablar: '',
+    modo_hablar_desc: '',
+    historia: '',
+    retrato_file_id: null,
     notas: '',
     ...npc,
   });
   const [saving, setSaving] = useState(false);
+  const [meta, setMeta] = useState(null);
+  const [locations, setLocations] = useState([]);
+  const [validRasgos, setValidRasgos] = useState({ positivos: [], negativos: [] });
+  const [genName, setGenName] = useState(false);
+  const [genProfile, setGenProfile] = useState(false);
+  const [imageB64, setImageB64] = useState(null);
+
+  const set = (patch) => setFormData(p => ({ ...p, ...patch }));
+
+  // Cargar metadatos y ubicaciones
+  useEffect(() => {
+    (async () => {
+      try {
+        const [m, l] = await Promise.all([
+          api.get('/trading/npc-meta'),
+          api.get('/data/locations'),
+        ]);
+        setMeta(m.data);
+        setLocations(l.data?.locations || []);
+      } catch (e) { toast.error('Error cargando datos del PNJ'); }
+    })();
+  }, []);
+
+  // Subculturas disponibles para la raza elegida
+  const subculturas = useMemo(
+    () => (meta?.razas?.[formData.raza] || []),
+    [meta, formData.raza]
+  );
+
+  // Cargar rasgos válidos al cambiar raza/profesión
+  useEffect(() => {
+    if (!formData.raza && !formData.profesion) return;
+    (async () => {
+      try {
+        const res = await api.post('/trading/npc-meta/rasgos', {
+          raza: formData.raza, profesion: formData.profesion,
+        });
+        setValidRasgos(res.data || { positivos: [], negativos: [] });
+      } catch (e) { /* noop */ }
+    })();
+  }, [formData.raza, formData.profesion]);
+
+  const rasgoOptions = formData.rasgo_tipo === 'negativo' ? validRasgos.negativos : validRasgos.positivos;
+
+  const onSelectUbicacion = (locId) => {
+    const loc = locations.find(l => l.id === locId);
+    set({ ubicacion_id: locId, ubicacion: loc?.nombre || '', region: loc?.region || '' });
+  };
+
+  const onSelectRasgo = (nombre) => {
+    const found = rasgoOptions.find(r => r.nombre === nombre);
+    set({ rasgo: nombre, rasgo_descripcion: found?.descripcion || '' });
+  };
+
+  const handleGenerateName = async () => {
+    setGenName(true);
+    try {
+      const res = await api.post('/trading/npcs/generate-name', {
+        raza: formData.raza, subcultura: formData.subcultura,
+        sexo: formData.sexo, profesion: formData.profesion,
+      });
+      set({ nombre: res.data?.nombre || '' });
+    } catch (e) { toast.error('Error generando nombre'); }
+    finally { setGenName(false); }
+  };
+
+  const handleGenerateProfile = async () => {
+    setGenProfile(true);
+    try {
+      const res = await api.post('/trading/npcs/generate-profile', { ...formData });
+      if (res.data?.historia) set({ historia: res.data.historia });
+      if (res.data?.retrato_file_id) set({ retrato_file_id: res.data.retrato_file_id });
+      if (res.data?.image_base64) setImageB64(res.data.image_base64);
+      const errs = res.data?.errors || [];
+      if (errs.length) toast.warning('Generado con avisos: ' + errs.join('; '));
+      else toast.success('Trasfondo y retrato generados');
+    } catch (e) { toast.error('Error generando trasfondo/retrato'); }
+    finally { setGenProfile(false); }
+  };
 
   const handleSave = async () => {
     setSaving(true);
@@ -1507,141 +1655,193 @@ const NpcEditorModal = ({ npc, config, onSave, onClose }) => {
     setSaving(false);
   };
 
+  const portraitSrc = imageB64
+    ? `data:image/png;base64,${imageB64}`
+    : (npc?._id && formData.retrato_file_id ? `${API_URL}/api/trading/npcs/${npc._id}/portrait` : null);
+
+  const labelCls = "text-sm text-muted-foreground";
+  const selectCls = "w-full bg-black/30 border border-border rounded px-3 py-2";
+
   return (
-    <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4">
-      <div className="bg-[hsl(var(--background))] border border-[hsl(var(--gold))]/50 rounded-lg w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-        <div className="p-4 border-b border-border/30 flex justify-between items-center sticky top-0 bg-[hsl(var(--background))]">
+    <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4" data-testid="npc-editor-modal">
+      <div className="bg-[hsl(var(--background))] border border-[hsl(var(--gold))]/50 rounded-lg w-full max-w-3xl max-h-[92vh] overflow-y-auto">
+        <div className="p-4 border-b border-border/30 flex justify-between items-center sticky top-0 bg-[hsl(var(--background))] z-10">
           <h2 className="font-heading text-xl text-[hsl(var(--gold))]">
             {npc?._id ? 'Editar PNJ' : 'Nuevo PNJ'}
           </h2>
-          <Button variant="ghost" size="sm" onClick={onClose}>✕</Button>
+          <Button variant="ghost" size="sm" onClick={onClose}><X className="w-4 h-4" /></Button>
         </div>
 
         <div className="p-4 space-y-4">
+          {/* Ubicación + Región */}
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="text-sm text-muted-foreground">Nombre*</label>
-              <Input
-                value={formData.nombre}
-                onChange={(e) => setFormData(p => ({ ...p, nombre: e.target.value }))}
-                placeholder="Nombre del PNJ"
-              />
+              <label className={labelCls}>Ubicación*</label>
+              <select className={selectCls} value={formData.ubicacion_id}
+                onChange={(e) => onSelectUbicacion(e.target.value)} data-testid="npc-ubicacion-select">
+                <option value="">-- Selecciona ubicación --</option>
+                {locations.map(l => (
+                  <option key={l.id} value={l.id}>{l.nombre}{l.region ? ` (${l.region})` : ''}</option>
+                ))}
+              </select>
             </div>
             <div>
-              <label className="text-sm text-muted-foreground">Apodo</label>
-              <Input
-                value={formData.apodo}
-                onChange={(e) => setFormData(p => ({ ...p, apodo: e.target.value }))}
-                placeholder="Apodo o sobrenombre"
-              />
+              <label className={labelCls}>Región (automática)</label>
+              <Input value={formData.region} readOnly disabled placeholder="Se rellena al elegir ubicación" data-testid="npc-region" />
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          {/* Raza + Subcultura + Sexo */}
+          <div className="grid grid-cols-3 gap-4">
             <div>
-              <label className="text-sm text-muted-foreground">Profesión Comerciante</label>
-              <Input
-                value={formData.profesion_comerciante}
-                onChange={(e) => setFormData(p => ({ ...p, profesion_comerciante: e.target.value }))}
-                placeholder="Ej: Herrero, Posadero"
-              />
+              <label className={labelCls}>Raza</label>
+              <select className={selectCls} value={formData.raza}
+                onChange={(e) => set({ raza: e.target.value, subcultura: '' })} data-testid="npc-raza-select">
+                <option value="">-- Raza --</option>
+                {meta && Object.keys(meta.razas || {}).map(r => <option key={r} value={r}>{r}</option>)}
+              </select>
             </div>
             <div>
-              <label className="text-sm text-muted-foreground">Perfil</label>
-              <select
-                className="w-full bg-black/30 border border-border rounded px-3 py-2"
-                value={formData.perfil_comerciante}
-                onChange={(e) => setFormData(p => ({ ...p, perfil_comerciante: e.target.value }))}
-              >
-                {config?.merchant_profiles && Object.entries(config.merchant_profiles).map(([key, val]) => (
-                  <option key={key} value={key}>{val.nombre}</option>
+              <label className={labelCls}>Subcultura</label>
+              <select className={selectCls} value={formData.subcultura}
+                onChange={(e) => set({ subcultura: e.target.value })} disabled={!formData.raza} data-testid="npc-subcultura-select">
+                <option value="">-- Subcultura --</option>
+                {subculturas.map(s => <option key={s.nombre} value={s.nombre}>{s.nombre}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className={labelCls}>Sexo</label>
+              <select className={selectCls} value={formData.sexo}
+                onChange={(e) => set({ sexo: e.target.value })} data-testid="npc-sexo-select">
+                {(meta?.sexos || ['Masculino', 'Femenino']).map(s => <option key={s} value={s}>{s}</option>)}
+              </select>
+            </div>
+          </div>
+
+          {/* Profesión + Perfil */}
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className={labelCls}>Profesión</label>
+              <select className={selectCls} value={formData.profesion}
+                onChange={(e) => set({ profesion: e.target.value })} data-testid="npc-profesion-select">
+                <option value="">-- Profesión --</option>
+                {(meta?.profesiones || []).map(p => <option key={p} value={p}>{p}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className={labelCls}>Perfil comerciante</label>
+              <select className={selectCls} value={formData.perfil_comerciante}
+                onChange={(e) => set({ perfil_comerciante: e.target.value })} data-testid="npc-perfil-select">
+                {config?.merchant_profiles && Object.entries(config.merchant_profiles).map(([k, v]) => (
+                  <option key={k} value={k}>{v.nombre}</option>
                 ))}
               </select>
             </div>
           </div>
 
+          {/* Nombre + Apodo + Edad */}
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="text-sm text-muted-foreground">Ubicación</label>
-              <Input
-                value={formData.ubicacion}
-                onChange={(e) => setFormData(p => ({ ...p, ubicacion: e.target.value }))}
-                placeholder="Ej: Bree, Edoras"
-              />
+              <label className={labelCls}>Nombre <span className="text-xs">(vacío = automático)</span></label>
+              <div className="flex gap-2">
+                <Input value={formData.nombre} onChange={(e) => set({ nombre: e.target.value })}
+                  placeholder="Se autogenera si lo dejas vacío" data-testid="npc-nombre-input" />
+                <Button type="button" variant="outline" onClick={handleGenerateName} disabled={genName}
+                  title="Generar nombre aleatorio" data-testid="npc-generate-name-btn">
+                  {genName ? <Loader2 className="w-4 h-4 animate-spin" /> : <Dices className="w-4 h-4" />}
+                </Button>
+              </div>
             </div>
-            <div>
-              <label className="text-sm text-muted-foreground">Región</label>
-              <Input
-                value={formData.region}
-                onChange={(e) => setFormData(p => ({ ...p, region: e.target.value }))}
-                placeholder="Ej: Eriador, Rohan"
-              />
-            </div>
-          </div>
-
-          <div>
-            <label className="text-sm text-muted-foreground">Apariencia</label>
-            <textarea
-              className="w-full bg-black/30 border border-border rounded px-3 py-2 h-20"
-              value={formData.apariencia}
-              onChange={(e) => setFormData(p => ({ ...p, apariencia: e.target.value }))}
-              placeholder="Descripción física"
-            />
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="text-sm text-muted-foreground">Rasgo Positivo</label>
-              <Input
-                value={formData.rasgo_positivo}
-                onChange={(e) => setFormData(p => ({ ...p, rasgo_positivo: e.target.value }))}
-              />
-            </div>
-            <div>
-              <label className="text-sm text-muted-foreground">Rasgo Negativo</label>
-              <Input
-                value={formData.rasgo_negativo}
-                onChange={(e) => setFormData(p => ({ ...p, rasgo_negativo: e.target.value }))}
-              />
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className={labelCls}>Apodo</label>
+                <Input value={formData.apodo} onChange={(e) => set({ apodo: e.target.value })} placeholder="Opcional" />
+              </div>
+              <div>
+                <label className={labelCls}>Edad <span className="text-xs">(auto)</span></label>
+                <Input type="number" value={formData.edad} onChange={(e) => set({ edad: e.target.value })}
+                  placeholder="Auto" data-testid="npc-edad-input" />
+              </div>
             </div>
           </div>
 
+          {/* Rasgo único */}
+          <div className="bg-black/20 rounded-lg p-3 border border-border/40">
+            <div className="flex items-center justify-between mb-2">
+              <label className={labelCls}>Rasgo único <span className="text-xs">(vacío = aleatorio coherente)</span></label>
+              <div className="flex gap-1">
+                <Button type="button" size="sm" variant={formData.rasgo_tipo === 'positivo' ? 'default' : 'outline'}
+                  onClick={() => set({ rasgo_tipo: 'positivo', rasgo: '', rasgo_descripcion: '' })} data-testid="npc-rasgo-positivo-btn">Positivo</Button>
+                <Button type="button" size="sm" variant={formData.rasgo_tipo === 'negativo' ? 'default' : 'outline'}
+                  onClick={() => set({ rasgo_tipo: 'negativo', rasgo: '', rasgo_descripcion: '' })} data-testid="npc-rasgo-negativo-btn">Negativo</Button>
+              </div>
+            </div>
+            <select className={selectCls} value={formData.rasgo}
+              onChange={(e) => onSelectRasgo(e.target.value)} data-testid="npc-rasgo-select">
+              <option value="">-- Aleatorio al guardar --</option>
+              {rasgoOptions.map(r => <option key={r.nombre} value={r.nombre}>{r.nombre}</option>)}
+            </select>
+            {formData.rasgo_descripcion && (
+              <p className="text-xs text-muted-foreground mt-2 italic" data-testid="npc-rasgo-desc">{formData.rasgo_descripcion}</p>
+            )}
+          </div>
+
+          {/* Modo de hablar */}
           <div>
-            <label className="text-sm text-muted-foreground">Personalidad</label>
-            <Input
-              value={formData.personalidad}
-              onChange={(e) => setFormData(p => ({ ...p, personalidad: e.target.value }))}
-              placeholder="Rasgos de personalidad"
-            />
+            <label className={labelCls}>Modo de hablar <span className="text-xs">(vacío = automático 50/50)</span></label>
+            <select className={selectCls} value={formData.modo_hablar}
+              onChange={(e) => {
+                const sel = (meta?.modos_habla || []).find(m => m.nombre === e.target.value);
+                set({ modo_hablar: e.target.value, modo_hablar_desc: e.target.value === 'Normal' ? 'Habla de forma normal.' : (sel?.descripcion || '') });
+              }} data-testid="npc-modo-hablar-select">
+              <option value="">-- Automático --</option>
+              <option value="Normal">Normal</option>
+              {(meta?.modos_habla || []).map(m => <option key={m.nombre} value={m.nombre}>{m.nombre}</option>)}
+            </select>
+          </div>
+
+          {/* Apariencia + Trasfondo + Retrato */}
+          <div>
+            <div className="flex items-center justify-between mb-1">
+              <label className={labelCls}>Detalles físicos (apariencia)</label>
+              <Button type="button" size="sm" onClick={handleGenerateProfile} disabled={genProfile}
+                className="bg-[hsl(var(--magic-blue))] hover:bg-[hsl(var(--magic-blue))]/90"
+                data-testid="npc-generate-profile-btn">
+                {genProfile ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Wand2 className="w-4 h-4 mr-1" />}
+                Generar trasfondo + retrato
+              </Button>
+            </div>
+            <textarea className="w-full bg-black/30 border border-border rounded px-3 py-2 h-16"
+              value={formData.apariencia} onChange={(e) => set({ apariencia: e.target.value })}
+              placeholder="Ej: cicatriz en la cara, nariz grande, barba trenzada" data-testid="npc-apariencia-input" />
+          </div>
+
+          {portraitSrc && (
+            <div className="flex justify-center">
+              <img src={portraitSrc} alt="Retrato del PNJ" className="max-h-56 rounded-lg border border-[hsl(var(--gold))]/40"
+                data-testid="npc-portrait-preview" />
+            </div>
+          )}
+
+          <div>
+            <label className={labelCls}>Trasfondo / Historia</label>
+            <textarea className="w-full bg-black/30 border border-border rounded px-3 py-2 h-28"
+              value={formData.historia} onChange={(e) => set({ historia: e.target.value })}
+              placeholder="Se redacta con el botón de arriba o puedes escribirlo a mano" data-testid="npc-historia-input" />
           </div>
 
           <div>
-            <label className="text-sm text-muted-foreground">Modo de Hablar</label>
-            <Input
-              value={formData.modo_hablar}
-              onChange={(e) => setFormData(p => ({ ...p, modo_hablar: e.target.value }))}
-              placeholder="Cómo habla el PNJ"
-            />
-          </div>
-
-          <div>
-            <label className="text-sm text-muted-foreground">Notas</label>
-            <textarea
-              className="w-full bg-black/30 border border-border rounded px-3 py-2 h-20"
-              value={formData.notas}
-              onChange={(e) => setFormData(p => ({ ...p, notas: e.target.value }))}
-              placeholder="Notas adicionales"
-            />
+            <label className={labelCls}>Notas</label>
+            <textarea className="w-full bg-black/30 border border-border rounded px-3 py-2 h-16"
+              value={formData.notas} onChange={(e) => set({ notas: e.target.value })} placeholder="Notas del DJ" />
           </div>
         </div>
 
         <div className="p-4 border-t border-border/30 flex justify-end gap-2 sticky bottom-0 bg-[hsl(var(--background))]">
           <Button variant="outline" onClick={onClose}>Cancelar</Button>
-          <Button
-            onClick={handleSave}
-            disabled={saving || !formData.nombre}
+          <Button onClick={handleSave} disabled={saving || !formData.ubicacion_id}
             className="bg-[hsl(var(--torch-orange))] hover:bg-[hsl(var(--torch-orange))]/90 text-black"
-          >
+            data-testid="npc-save-btn">
             {saving ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />}
             Guardar
           </Button>
