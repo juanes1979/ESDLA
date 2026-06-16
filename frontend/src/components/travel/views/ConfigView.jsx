@@ -402,9 +402,34 @@ const ConfigView = ({
             <div className="flex items-center gap-2">
               <Switch
                 checked={config.preferirCaminos}
-                onCheckedChange={(v) => setConfig(prev => ({ ...prev, preferirCaminos: v }))}
+                onCheckedChange={(v) => setConfig(prev => ({ ...prev, preferirCaminos: v, evitarCaminos: v ? false : prev.evitarCaminos }))}
+                data-testid="travel-prefer-roads-switch"
               />
               <Label className="text-sm">Preferir Caminos</Label>
+            </div>
+            <div className="flex items-center gap-2">
+              <Switch
+                checked={config.evitarCaminos}
+                onCheckedChange={(v) => setConfig(prev => ({ ...prev, evitarCaminos: v, preferirCaminos: v ? false : prev.preferirCaminos }))}
+                data-testid="travel-avoid-roads-switch"
+              />
+              <Label className="text-sm">Evitar Caminos (huida)</Label>
+            </div>
+            <div className="flex items-center gap-2">
+              <Switch
+                checked={config.evitarMuyDificil}
+                onCheckedChange={(v) => setConfig(prev => ({ ...prev, evitarMuyDificil: v }))}
+                data-testid="travel-avoid-veryhard-switch"
+              />
+              <Label className="text-sm">Evitar paso Muy Difícil</Label>
+            </div>
+            <div className="flex items-center gap-2">
+              <Switch
+                checked={config.evitarDesalentador}
+                onCheckedChange={(v) => setConfig(prev => ({ ...prev, evitarDesalentador: v }))}
+                data-testid="travel-avoid-daunting-switch"
+              />
+              <Label className="text-sm">Evitar paso Desalentador</Label>
             </div>
           </div>
           

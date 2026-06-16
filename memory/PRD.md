@@ -160,3 +160,47 @@ imposibles por diseño.
 - UI: nuevo panel `camp-watchman-panel` con desglose por tirada, NAT20/PIFIA
   destacados, eventos marcados como "Anulado por el centinela".
 
+
+
+## Iter 120 — Reescala de km, refundición del pathfinder y fix de PX (Jun 2026)
+
+### Escala de distancias
+- `COORD_TO_KM = 28.43` (antes 20) y `KM_PER_PERCENT = 28.43` (antes 1.974).
+  Calibrado para Mithlond→Bree recta = 361,6 km.
+
+### Esquema A — modelo de elección de ruta (`utils/pathfinding.py`)
+`coste = distancia_km × mult_camino × mult_terreno × mult_tierra`
+- **Camino**: grande 1.0 · mayor 1.1 · menor 1.25 · senda 1.5 · ninguno 2.0.
+- **Terreno** (SOLO a campo a través; un camino lo anula → ×1.0): fácil 0.75 ·
+  moderado 1.0 · difícil 1.5 · muy_difícil 2.0 · desalentador 3.0.
+- **Tierra**: libres 0.9 · fronterizas 1.1 · salvajes 1.3 · sombra 2.5 · oscuras 3.5.
+- **Sin barreras**: solo bloquean Infranqueable/Agua y SOLO a campo a través.
+  Un camino/senda sobre infranqueable/agua/río se cruza a la velocidad del camino
+  (terreno bajo ignorado).
+- **Ríos** = agua: infranqueables salvo donde cruza un camino.
+- **Opciones evitar** (penalización ×100 finita → se cruza si no hay otra vía):
+  `avoid_shadow_lands`, `avoid_dark_lands`, `avoid_muy_dificil`, `avoid_desalentador`.
+- **Evitar Caminos** (`avoid_roads`) para huida/modo directo.
+- **Arranque consciente del destino** (`_find_best_nearby_road_point(point, end)`):
+  engancha al camino cercano más próximo que NO aleje del destino → arregla el
+  rodeo Casa Brandi→Casa de Beorn (1613 km → ~788 km).
+- **Tramo final** sumado en `_build_result` para que la distancia llegue al destino.
+- Nuevas casillas en JourneyConfig/PathDebugConfig y en la UI (`ConfigView.jsx`):
+  `evitar_caminos`, `evitar_muy_dificil`, `evitar_desalentador`
+  (testids: `travel-avoid-roads-switch`, `travel-avoid-veryhard-switch`,
+  `travel-avoid-daunting-switch`, `travel-prefer-roads-switch`).
+  Preferir/Evitar Caminos son mutuamente excluyentes.
+
+### Esquema B — fix de PX (`routes/travel_routes.py`)
+- BUG: `ROAD_TYPE_MAP` mapeaba `grande→camino_real`, pero la tabla usa
+  `gran_camino` → 0 PX. Corregido (`grande→gran_camino`, `senda/sendero→sendas`).
+- BUG: el bono de terreno se leía con `bonus_px_km`; la tabla usa `bonus_px`. Corregido.
+- Verificado: Bree→Rivendel ahora da 454 PX (antes 0).
+- PENDIENTE: definir cuántos PX dan los eventos de viaje (hoy 0 por defecto).
+
+### Mapa
+- Eliminado el cálculo de ruta del Mapa del Maestro (vive solo en el Generador).
+- Iconos de ubicación a partir de zoom ≥1200% (fontSize 374×inverseZoom).
+- Paneles del mapa: `max-h-[calc(100%-2rem)]` + footer fijo (scroll completo).
+- `PlayerMap.jsx`: filtros (región/tipo/búsqueda) solo-lectura + "Imprimir mapa"
+  (PDF A4 horizontal vía @media print, solo el mapa visible).

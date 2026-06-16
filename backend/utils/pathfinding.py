@@ -259,6 +259,8 @@ class MiddleEarthPathfinder:
         avoid_roads: bool = False,
         avoid_shadow_lands: bool = False,
         avoid_dark_lands: bool = False,
+        avoid_muy_dificil: bool = False,
+        avoid_desalentador: bool = False,
         direct_mode: bool = False,  # If True, ignores land danger penalties for shortest path
         # Iter 119: raster grid (single source of truth for terrain/land type).
         terrain_grid: Optional[bytes] = None,
@@ -275,6 +277,8 @@ class MiddleEarthPathfinder:
         self.avoid_roads = avoid_roads  # For fleeing from pursuers
         self.avoid_shadow_lands = avoid_shadow_lands
         self.avoid_dark_lands = avoid_dark_lands
+        self.avoid_muy_dificil = avoid_muy_dificil  # Avoid off-road very-hard terrain
+        self.avoid_desalentador = avoid_desalentador  # Avoid off-road daunting terrain
         self.direct_mode = direct_mode  # Direct route ignores land danger
 
         # Raster terrain (Iter 119/120) — O(1) per-coordinate lookup. The
@@ -516,44 +520,51 @@ class MiddleEarthPathfinder:
     def _find_best_nearby_road_point(
         self,
         point: Tuple[float, float],
+        end: Optional[Tuple[float, float]] = None,
         max_distance: float = 3.0
     ) -> Optional[Tuple[float, float]]:
         """
-        Find the best road point near a location.
-        Prefers better road types (grande > mayor > menor > senda).
-        Returns the closest point on the best road found.
+        Find the best road point near the origin to "snap" the start onto.
+        Esquema A, Punto 7: the real distance to the DESTINATION weighs MORE
+        than the snap distance — so we never snap onto a road that takes us
+        FARTHER from the destination (this fixes detours like Casa Brandi).
+        Road category is only a minor tie-breaker.
         """
         road_type_priority = {
-            'grande': 1,
-            'mayor': 2, 
-            'menor': 3,
-            'senda': 4,
-            'sendero': 4,
-            'secundario': 3,
-            'real': 2
+            'grande': 1, 'mayor': 2, 'menor': 3, 'senda': 4,
+            'sendero': 4, 'secundario': 3, 'real': 2,
         }
-        
+
+        # Without a destination we fall back to the nearest best road.
+        origin_to_dest = self._distance(point, end) if end else None
+
         best_point = None
-        best_priority = 999
-        best_distance = max_distance
-        
+        best_score = float('inf')
+
         for segment in self.road_segments:
             road_type = segment.get('type', 'senda')
             priority = road_type_priority.get(road_type, 5)
-            
-            # Find closest point on this segment
-            closest = self._closest_point_on_segment(
-                point, segment['start'], segment['end']
-            )
-            dist = self._distance(point, closest)
-            
-            if dist < max_distance:
-                # Better road type OR same type but closer
-                if priority < best_priority or (priority == best_priority and dist < best_distance):
-                    best_priority = priority
-                    best_distance = dist
-                    best_point = closest
-        
+
+            closest = self._closest_point_on_segment(point, segment['start'], segment['end'])
+            snap_dist = self._distance(point, closest)
+            if snap_dist >= max_distance:
+                continue
+
+            if origin_to_dest is not None:
+                dist_to_dest = self._distance(closest, end)
+                # Never snap to a road that pushes us away from the destination.
+                if dist_to_dest > origin_to_dest + 0.5:
+                    continue
+                # Among valid (non-backward) roads, snap to the NEAREST one so the
+                # start isn't "teleported" forward. Road category is a minor tie-breaker.
+                score = snap_dist + priority * 0.01
+            else:
+                score = priority * 1000 + snap_dist
+
+            if score < best_score:
+                best_score = score
+                best_point = closest
+
         return best_point
     
     def _closest_point_on_segment(
@@ -712,134 +723,116 @@ class MiddleEarthPathfinder:
         to_y: float
     ) -> Tuple[float, str, str, str, Optional[str]]:
         """
-        Calculate movement cost using an INVERSE SCORING SYSTEM.
-        We convert our point system to a cost system where:
-        - Base cost = distance in km
-        - Multiplied by quality factor (better conditions = lower multiplier)
-        
-        Quality hierarchy:
-        - Roads: grande(0.1) < mayor(0.3) < menor(0.5) < senda(0.7) < ninguno(1.0)
-        - Terrain: facil(0.5) < moderado(1.0) < dificil(2.0) < muy_dificil(4.0) < desalentador(8.0)
-        - Land: libres(0.2) < fronterizas(0.5) < salvajes(1.0) < sombra(5.0) < oscuras(10.0)
-        
+        Calculate movement cost. The chosen route minimises total cost,
+        where cost = distance_km × mult_camino × mult_terreno × mult_tierra.
+        Esquema A (final):
+        - Roads:   grande 1.0 · mayor 1.1 · menor 1.25 · senda 1.5 · ninguno 2.0
+        - Terrain (only OFF-road): facil 0.75 · moderado 1.0 · dificil 1.5 ·
+                   muy_dificil 2.0 · desalentador 3.0 (a road CANCELS terrain → 1.0)
+        - Land:    libres 0.9 · fronterizas 1.1 · salvajes 1.3 · sombra 2.5 · oscuras 3.5
+        - No barriers. Only Infranqueable/Agua block, and ONLY off-road
+          (a road/senda crosses anything at the road's own speed).
+
         Returns: (cost, road_type, road_name, terrain_type, river_crossing)
         """
         from_pos = (from_node.x, from_node.y)
         to_pos = (to_x, to_y)
-        
+
         # Base distance in km
         distance_km = self._distance(from_pos, to_pos) * self.COORD_TO_KM
-        
-        # Check for barrier (impassable)
-        if self._check_barrier_crossing(from_pos, to_pos):
-            return (float('inf'), 'ninguno', '', 'infranqueable', None)
 
-        # Check if the segment crosses an infranqueable / agua terrain polygon
-        # (los polígonos pueden ser más pequeños que GRID_RESOLUTION → muestreamos
-        # el segmento para no "saltar por encima" de un bloqueo).
-        if self._segment_crosses_blocking_polygon(from_pos, to_pos):
-            return (float('inf'), 'ninguno', '', 'infranqueable', None)
-        
-        # Get terrain
-        terrain_str = self._get_terrain_at_point(to_x, to_y)
-        
-        # Get road info
+        # Road / senda at the destination point. A road/senda CANCELS whatever
+        # lies underneath (terrain, river, water, impassable): you move at the
+        # ROAD's speed and the underlying terrain does not count at all.
         to_road_info = self._get_road_at_point(to_x, to_y)
+        on_road = to_road_info is not None
         road_type_str = to_road_info['type'] if to_road_info else 'ninguno'
         road_name_str = to_road_info['name'] if to_road_info else ''
-        
-        # Check river crossing
+
+        # Terrain + river + land at destination (kept for the breakdown).
+        terrain_str = self._get_terrain_at_point(to_x, to_y)
         river_crossing = self._check_river_crossing(from_pos, to_pos)
         river_crossing_str = river_crossing['type'] if river_crossing else None
-        
-        # Get land type
         land_type = self.get_land_type_from_polygons(to_x, to_y)
-        
-        # ============ TERRAIN MULTIPLIER (higher = worse terrain) ============
+
+        # ============ TERRAIN MULTIPLIER ============
         TERRAIN_MULT = {
-            'facil': 0.5,
+            'facil': 0.75,
             'moderado': 1.0,
-            'dificil': 2.0,
-            'muy_dificil': 4.0,
-            'desalentador': 8.0,
+            'dificil': 1.5,
+            'muy_dificil': 2.0,
+            'desalentador': 3.0,
             'infranqueable': float('inf'),
             'agua': float('inf'),
         }
-        terrain_mult = TERRAIN_MULT.get(terrain_str, 1.0)
 
-        # Roads override impassable terrain (Iter 118): if we're on a road
-        # and the terrain is infranqueable / agua, treat it as a
-        # constructed crossing — mountain pass or bridge. The terrain
-        # multiplier becomes that of muy_dificil (pass) or dificil (bridge)
-        # so the traveller pays a realistic cost. We keep `terrain_str` as
-        # the underlying terrain so the distance breakdown still reflects
-        # that the route crosses these zones.
-        if terrain_mult == float('inf') and to_road_info is not None:
-            if terrain_str == 'agua':
-                terrain_mult = TERRAIN_MULT['dificil']
-            else:  # 'infranqueable'
-                terrain_mult = TERRAIN_MULT['muy_dificil']
-
-        # Check if terrain is impassable
-        if terrain_mult == float('inf'):
-            return (float('inf'), road_type_str, road_name_str, terrain_str, river_crossing_str)
-        
-        # ============ ROAD MULTIPLIER (lower = better road) ============
-        ROAD_MULT = {
-            'grande': 0.1,      # Grandes Caminos - best (huge bonus)
-            'mayor': 0.25,     # Caminos Mayores
-            'menor': 0.45,     # Caminos Menores
-            'senda': 0.65,     # Sendas
-            'sendero': 0.65,   # Legacy: Sendas
-            'secundario': 0.45, # Legacy: Menores
-            'real': 0.25,      # Legacy: Mayores
-            'ninguno': 1.0,    # Campo a través - base cost
-        }
-        road_mult = ROAD_MULT.get(road_type_str, 1.0)
-        
-        # ============ LAND TYPE MULTIPLIER (higher = more dangerous) ============
-        LAND_MULT = {
-            'tierras_libres': 0.2,      # Safe lands - huge bonus
-            'tierras_fronterizas': 0.5,  # Borderlands
-            'fronterizas': 0.5,          # Legacy
-            'tierras_salvajes': 1.0,     # Wild lands - base
-            'tierras_sombra': 5.0,       # Shadow lands - HEAVY penalty
-            'tierras_oscuras': 10.0,     # Dark lands - VERY HEAVY penalty
-        }
-        land_mult = LAND_MULT.get(land_type, 1.0)
-        
-        # If user explicitly wants to AVOID shadow/dark lands, make them impassable
-        if self.avoid_shadow_lands and land_type == 'tierras_sombra':
-            return (float('inf'), 'ninguno', '', terrain_str, river_crossing_str)
-        if self.avoid_dark_lands and land_type == 'tierras_oscuras':
-            return (float('inf'), 'ninguno', '', terrain_str, river_crossing_str)
-        
-        # In DIRECT MODE, reduce land danger penalties significantly
-        if self.direct_mode:
-            # Direct mode: land danger has much less impact
-            land_mult = max(0.5, land_mult * 0.1)  # Reduce penalty to 10% 
-        
-        # ============ AVOID ROADS MODE ============
-        if self.avoid_roads:
-            if road_type_str != 'ninguno':
-                road_mult = 5.0  # Heavy penalty for using roads when fleeing
-            else:
-                road_mult = 0.5  # Bonus for staying off roads
-        
-        # ============ RIVER CROSSING ============
-        river_mult = 1.0
-        if river_crossing:
-            river = RiverType.from_string(river_crossing['type'])
-            if river == RiverType.INFRANQUEABLE:
+        if on_road:
+            # The road bridges / passes everything → terrain & river ignored.
+            terrain_mult = 1.0
+            river_mult = 1.0
+        else:
+            # Off-road: impassable / water / rivers block the way.
+            if self._segment_crosses_blocking_polygon(from_pos, to_pos):
+                return (float('inf'), 'ninguno', '', 'infranqueable', None)
+            terrain_mult = TERRAIN_MULT.get(terrain_str, 1.0)
+            if terrain_mult == float('inf'):
                 return (float('inf'), road_type_str, road_name_str, terrain_str, river_crossing_str)
+            # Rivers are water → only crossable via a road (handled above).
+            if river_crossing is not None:
+                return (float('inf'), road_type_str, road_name_str, terrain_str, river_crossing_str)
+            river_mult = 1.0
+
+        # ============ ROAD MULTIPLIER ============
+        ROAD_MULT = {
+            'grande': 1.0,
+            'mayor': 1.1,
+            'menor': 1.25,
+            'senda': 1.5,
+            'sendero': 1.5,    # Legacy: Sendas
+            'secundario': 1.25, # Legacy: Menores
+            'real': 1.1,       # Legacy: Mayores
+            'ninguno': 2.0,    # Campo a través
+        }
+        road_mult = ROAD_MULT.get(road_type_str, 2.0)
+
+        # ============ LAND TYPE MULTIPLIER ============
+        LAND_MULT = {
+            'tierras_libres': 0.9,
+            'tierras_fronterizas': 1.1,
+            'fronterizas': 1.1,
+            'tierras_salvajes': 1.3,
+            'tierras_sombra': 2.5,
+            'tierras_oscuras': 3.5,
+        }
+        land_mult = LAND_MULT.get(land_type, 1.3)
+
+        # ============ AVOID OPTIONS (heavy but FINITE → cross only if no other way) ============
+        AVOID_PENALTY = 100.0
+        if self.avoid_shadow_lands and land_type == 'tierras_sombra':
+            land_mult *= AVOID_PENALTY
+        if self.avoid_dark_lands and land_type == 'tierras_oscuras':
+            land_mult *= AVOID_PENALTY
+        # Terrain avoidance only matters off-road (on a road terrain is cancelled).
+        if not on_road:
+            if self.avoid_muy_dificil and terrain_str == 'muy_dificil':
+                terrain_mult *= AVOID_PENALTY
+            if self.avoid_desalentador and terrain_str == 'desalentador':
+                terrain_mult *= AVOID_PENALTY
+
+        # DIRECT MODE: land danger has much less impact (straighter route).
+        if self.direct_mode:
+            land_mult = max(0.8, land_mult * 0.3)
+
+        # ============ AVOID ROADS MODE (flight / direct) ============
+        if self.avoid_roads:
+            if on_road:
+                road_mult *= 5.0   # penalise using roads when fleeing
             else:
-                river_mult = river.multiplier  # 1.5 for vadeable, 3.0 for profundo
-        
-        # ============ CALCULATE TOTAL COST ============
-        # Cost = distance * road_factor * terrain_factor * land_factor * river_factor
-        # Lower cost = better path
+                road_mult = 1.0    # neutral cross-country when fleeing
+
+        # ============ TOTAL COST ============
         total_cost = distance_km * road_mult * terrain_mult * land_mult * river_mult
-        
+
         return (total_cost, road_type_str, road_name_str, terrain_str, river_crossing_str)
     
     def _get_neighbors(self, node: PathNode) -> List[Tuple[float, float]]:
@@ -882,7 +875,7 @@ class MiddleEarthPathfinder:
         # If preferring roads, find the best nearby road connection point
         actual_start = start
         if self.prefer_roads:
-            best_road_point = self._find_best_nearby_road_point(start)
+            best_road_point = self._find_best_nearby_road_point(start, end)
             if best_road_point:
                 actual_start = best_road_point
                 warnings.append(f"Ruta ajustada para comenzar en el camino más cercano")
@@ -1050,6 +1043,17 @@ class MiddleEarthPathfinder:
             
             prev_node = current
             current = current.parent
+        
+        # Add the final leg from the last reached node to the TRUE destination.
+        # A* stops within ~1.5 units of the target, so without this the reported
+        # distance falls short of the real distance to the destination.
+        final_dist = self._distance((end_node.x, end_node.y), target)
+        if final_dist > 0.01:
+            final_km = final_dist * self.COORD_TO_KM
+            total_distance += final_km
+            total_cost += final_km  # neutral cost for the short final approach
+            t = end_node.terrain_type or 'moderado'
+            terrain_distances[t] = terrain_distances.get(t, 0) + final_km
         
         # Filter roads: only include roads with at least 30km or 5% of total distance
         # This filters out roads that are just briefly crossed

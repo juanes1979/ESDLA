@@ -203,6 +203,9 @@ class JourneyConfig(BaseModel):
     destino_y: Optional[float] = None
     evitar_sombra: bool = False  # Avoid shadow/dark lands
     evitar_tierras_oscuras: bool = False
+    evitar_muy_dificil: bool = False  # Avoid off-road very-hard terrain (Muy Difícil)
+    evitar_desalentador: bool = False  # Avoid off-road daunting terrain (Desalentador)
+    evitar_caminos: bool = False  # Avoid roads (flight / direct mode)
     preferir_caminos: bool = True
     ritmo: str = "normal"  # lento, normal, rapido
     mes: str = "Cermië"
@@ -835,6 +838,9 @@ class PathDebugConfig(BaseModel):
     preferir_caminos: bool = True
     evitar_tierras_oscuras: bool = False
     evitar_tierras_sombra: bool = False
+    evitar_caminos: bool = False
+    evitar_muy_dificil: bool = False
+    evitar_desalentador: bool = False
     max_pasos: int = 200  # Safety limit
 
 @router.post("/debug-pathfinding")
@@ -885,8 +891,11 @@ async def debug_pathfinding(config: PathDebugConfig):
         locations=locations,
         regions=regions,
         prefer_roads=config.preferir_caminos,
+        avoid_roads=config.evitar_caminos,
         avoid_shadow_lands=config.evitar_tierras_sombra,
         avoid_dark_lands=config.evitar_tierras_oscuras,
+        avoid_muy_dificil=config.evitar_muy_dificil,
+        avoid_desalentador=config.evitar_desalentador,
         **(await load_terrain_grid_kwargs(db)),
     )
 
@@ -1127,8 +1136,11 @@ async def calculate_journey(config: JourneyConfig):
                     barriers=barriers,
                     locations=all_locations,
                     prefer_roads=config.preferir_caminos,
+                    avoid_roads=config.evitar_caminos,
                     avoid_shadow_lands=config.evitar_sombra,
                     avoid_dark_lands=config.evitar_tierras_oscuras,
+                    avoid_muy_dificil=config.evitar_muy_dificil,
+                    avoid_desalentador=config.evitar_desalentador,
                     **(await load_terrain_grid_kwargs(db)),
                 )
                 
