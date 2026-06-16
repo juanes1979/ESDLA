@@ -1379,14 +1379,14 @@ const MiddleEarthMap = () => {
           />
         )}
         
-        {/* Main marker: a type ICON when zoomed in a lot (≥500%), otherwise a
-            simple coloured dot. The icon replaces the dot so the Maestro can
-            identify location types at high zoom. */}
-        {!editMode && showMasterView && zoom >= 5 ? (
+        {/* Main marker: a small type ICON when zoomed in a lot (≥1200%), otherwise
+            a simple coloured dot. The icon is only slightly bigger than the dot so
+            many close locations stay readable. */}
+        {!editMode && showMasterView && zoom >= 12 ? (
           <text
             textAnchor="middle"
             dominantBaseline="central"
-            fontSize={1100 * inverseZoom}
+            fontSize={220 * inverseZoom}
             style={{ pointerEvents: 'none' }}
           >
             {icon}
