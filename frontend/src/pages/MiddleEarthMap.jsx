@@ -40,7 +40,6 @@ import {
   RiversPanel, 
   BarriersPanel, 
   LocationInfoPanel, 
-  RoutePanel,
   EditLocationPanel,
   CreateLocationPanel,
   NameGeneratorPanel
@@ -351,27 +350,8 @@ const MiddleEarthMap = () => {
     loadBarriers();
   }, []);
   
-  // Calculate route when origin/destination change
-  useEffect(() => {
-    const calculateRoute = async () => {
-      if (routeOrigin && routeDestination && routeOrigin.id !== routeDestination.id) {
-        try {
-          const res = await api.get(`/data/locations/calculate-route/${routeOrigin.id}/${routeDestination.id}`);
-          setRouteInfo(res.data);
-          
-          // Also calculate optimal pathfinding route
-          calculatePathBetweenLocations(routeOrigin.id, routeDestination.id);
-        } catch (err) {
-          console.error('Error calculating route:', err);
-          setRouteInfo(null);
-        }
-      } else {
-        setRouteInfo(null);
-        setCalculatedPath(null);
-      }
-    };
-    calculateRoute();
-  }, [routeOrigin, routeDestination]);
+  // (Route calculation removed from the Master Map — travel is now calculated
+  // only in the Travel Generator. routeOrigin/Destination are no longer set.)
   
   // Get unique regions
   const regions = useMemo(() => {
@@ -1297,17 +1277,9 @@ const MiddleEarthMap = () => {
       return;
     }
     
-    if (e.shiftKey && routeOrigin) {
-      // Shift+click sets destination
-      setRouteDestination(loc);
-    } else if (e.ctrlKey || e.metaKey) {
-      // Ctrl+click sets origin
-      setRouteOrigin(loc);
-      setRouteDestination(null);
-    } else {
-      // Normal click shows info
-      setSelectedLocation(loc);
-    }
+    // Normal click shows info. Route/travel calculation was removed from the
+    // Master Map (it lives in the Travel Generator now).
+    setSelectedLocation(loc);
   };
   
   // Get location color based on settings
@@ -1407,16 +1379,29 @@ const MiddleEarthMap = () => {
           />
         )}
         
-        {/* Main marker - simple dot */}
-        <circle
-          r={markerSize}
-          fill={color}
-          stroke={editMode && isModified ? '#f59e0b' : loc.refugio ? '#22c55e' : '#333'}
-          strokeWidth={(editMode && isModified ? 40 : 20) * inverseZoom}
-          opacity={0.9}
-        />
+        {/* Main marker: a type ICON when zoomed in a lot (≥500%), otherwise a
+            simple coloured dot. The icon replaces the dot so the Maestro can
+            identify location types at high zoom. */}
+        {!editMode && showMasterView && zoom >= 5 ? (
+          <text
+            textAnchor="middle"
+            dominantBaseline="central"
+            fontSize={1100 * inverseZoom}
+            style={{ pointerEvents: 'none' }}
+          >
+            {icon}
+          </text>
+        ) : (
+          <circle
+            r={markerSize}
+            fill={color}
+            stroke={editMode && isModified ? '#f59e0b' : loc.refugio ? '#22c55e' : '#333'}
+            strokeWidth={(editMode && isModified ? 40 : 20) * inverseZoom}
+            opacity={0.9}
+          />
+        )}
         
-        {/* Icon (only when NOT in edit mode and zoom is reasonable) */}
+        {/* Icon overlay at very LOW zoom (overview) - small emoji on the dot */}
         {!editMode && showMasterView && zoom > 0.04 && zoom < 0.2 && (
           <text
             textAnchor="middle"
@@ -2263,8 +2248,8 @@ const MiddleEarthMap = () => {
             </g>
           )}
           
-          {/* Route line */}
-          {renderRoute()}
+          {/* Route line removed: travel/route calculation now lives in the
+              Travel Generator, not the Master Map. */}
           
           {/* Saved Roads */}
           {showRoads && roads.map(road => {
@@ -2532,16 +2517,6 @@ const MiddleEarthMap = () => {
         <LocationInfoPanel
           location={selectedLocation}
           onClose={() => setSelectedLocation(null)}
-          onSetOrigin={(loc) => {
-            setRouteOrigin(loc);
-            setSelectedLocation(null);
-            toast.success(`Origen: ${loc.nombre}`);
-          }}
-          onSetDestination={(loc) => {
-            setRouteDestination(loc);
-            setSelectedLocation(null);
-            toast.success(`Destino: ${loc.nombre}`);
-          }}
           onEdit={startEditingLocation}
           onDelete={deleteLocation}
           showMasterView={showMasterView}
@@ -2603,19 +2578,7 @@ const MiddleEarthMap = () => {
             }
           }}
         />
-        <RoutePanel
-          routeInfo={routeInfo}
-          calculatedPath={calculatedPath}
-          isCalculatingPath={isCalculatingPath}
-          showCalculatedPath={showCalculatedPath}
-          setShowCalculatedPath={setShowCalculatedPath}
-          onClose={() => {
-            setRouteOrigin(null);
-            setRouteDestination(null);
-            setRouteInfo(null);
-            setCalculatedPath(null);
-          }}
-        />
+        {/* Route panel removed: travel calculation lives in the Travel Generator. */}
         
         {/* Road/River/Barrier Management Panels */}
         <RoadsPanel
@@ -2698,7 +2661,7 @@ const MiddleEarthMap = () => {
               ))}
             </div>
             <p className="text-xs text-muted-foreground mt-2">
-              Click = Info | Ctrl+Click = Origen | Shift+Click = Destino
+              Click en una ubicación para ver su información
             </p>
           </CardContent>
         </Card>

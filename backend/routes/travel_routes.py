@@ -849,7 +849,7 @@ async def debug_pathfinding(config: PathDebugConfig):
     import math
     from utils.pathfinding import MiddleEarthPathfinder, load_terrain_grid_kwargs
 
-    KM_PER_PERCENT = 1.974
+    KM_PER_PERCENT = 28.43
 
     def distance(x1, y1, x2, y2):
         return math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2)

@@ -112,18 +112,6 @@ const LocationInfoPanel = ({
             Coordenadas: ({loc.x}, {loc.y})
           </div>
 
-          {/* Route buttons */}
-          <div className="flex gap-2 pt-2 border-t border-border/30">
-            <Button size="sm" variant="outline" onClick={() => onSetOrigin?.(loc)} className="flex-1">
-              <MapPin className="w-3 h-3 mr-1 text-green-400" />
-              Origen
-            </Button>
-            <Button size="sm" variant="outline" onClick={() => onSetDestination?.(loc)} className="flex-1">
-              <MapPin className="w-3 h-3 mr-1 text-red-400" />
-              Destino
-            </Button>
-          </div>
-
           {/* Edit/Delete buttons - Only for Maestro */}
           {showMasterView && (
             <div className="flex gap-2 pt-2 border-t border-border/30">

@@ -181,10 +181,10 @@ class MiddleEarthPathfinder:
     - Land type: libres(0.2) to oscuras(10.0) - safer lands = lower cost
     """
     
-    # Map scale: coordinates are in percentage (0-100) of map
-    # Middle-earth is approximately 2000 km west-to-east
-    # So 1 coordinate unit = ~20 km
-    COORD_TO_KM = 20.0
+    # Map scale: coordinates are in percentage (0-100) of map.
+    # Calibrated so Mithlond→Bree straight line = 361.6 km (user reference):
+    # percent-distance 12.72 × 28.43 ≈ 361.6 km → 1 coordinate unit ≈ 28.43 km.
+    COORD_TO_KM = 28.43
     
     # Grid resolution for pathfinding (larger = faster but less precise)
     # 1.0 gives good balance between precision and performance
