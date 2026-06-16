@@ -1194,3 +1194,178 @@ async def calculate_trade_with_dialogue(params: dict = Body(...)):
         result["dialogo_fuente"] = "fallback"
     
     return result
+
+
+# ============================================================================
+# CONFIRM TRANSACTION — applies the trade to the character (inventory + money)
+# ============================================================================
+
+def _norm(s: str) -> str:
+    import unicodedata as _ud
+    return ''.join(c for c in _ud.normalize('NFD', (s or '').lower()) if _ud.category(c) != 'Mn').strip()
+
+
+def _has_saddlebags(character: dict) -> bool:
+    """True si alguna montura del personaje lleva alforjas."""
+    for m in (character.get("monturas") or []):
+        for it in (m.get("equipo") or []):
+            nombre = it.get("nombre") if isinstance(it, dict) else it
+            if "alforja" in _norm(nombre):
+                return True
+    return False
+
+
+@router.post("/trading/confirm-transaction")
+async def confirm_transaction(payload: dict = Body(...)):
+    """Aplica una transacción de compra/venta YA negociada al personaje.
+
+    - COMPRA: descuenta el dinero acordado y añade el artículo al personaje.
+    - VENTA: elimina el artículo del personaje y suma el dinero acordado.
+
+    Devuelve avisos (mochila/petate, montura, sobrecarga) y el resumen de peso
+    recalculado.
+    """
+    from server import db
+    from routes.character.equipment import (
+        add_equipment_to_character,
+        remove_equipment_from_character,
+        _compute_weight_summary,
+    )
+    from routes.character._common import (
+        AddEquipmentRequest, convert_to_base, convert_from_base, price_to_base,
+    )
+
+    character_id = payload.get("character_id")
+    modo = payload.get("modo", "compra")
+    articulo = payload.get("articulo") or {}
+    cantidad = max(1, int(payload.get("cantidad") or 1))
+    precio_total = float(payload.get("precio_total") or 0)
+    moneda = payload.get("moneda") or "mp"
+
+    if not character_id:
+        raise HTTPException(status_code=400, detail="character_id es requerido")
+    character = await db.characters.find_one({"_id": character_id})
+    if not character:
+        raise HTTPException(status_code=404, detail="Personaje no encontrado")
+
+    nombre = (articulo.get("nombre") or "").strip()
+    if not nombre:
+        raise HTTPException(status_code=400, detail="El artículo no tiene nombre")
+    categoria = articulo.get("categoria_catalogo") or articulo.get("_categoria") or "general"
+    is_mount = (categoria == "monturas")
+    lower = _norm(nombre)
+
+    dinero_actual = character.get("dinero", {"mo": 0, "mp": 0, "me": 0, "mc": 0})
+    dinero_base = convert_to_base(dinero_actual)
+    precio_base_total = price_to_base(precio_total, moneda)
+
+    warnings = []
+    now_iso = datetime.now(timezone.utc).isoformat()
+
+    if modo == "compra":
+        if dinero_base < precio_base_total:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Dinero insuficiente: el coste es {precio_total} {moneda} y el personaje no tiene suficiente.",
+            )
+        # 1) Descontar dinero
+        await db.characters.update_one(
+            {"_id": character_id},
+            {"$set": {"dinero": convert_from_base(dinero_base - precio_base_total), "updated_at": now_iso}},
+        )
+        # 2) Colocar el artículo (sin coste, ya descontado arriba)
+        req = AddEquipmentRequest(
+            item_name=nombre,
+            item_category=categoria,
+            cantidad=cantidad,
+            is_purchase=False,
+            peso_kg=articulo.get("peso_kg"),
+            capacidad_carga=articulo.get("capacidad_carga"),
+        )
+        await add_equipment_to_character(character_id, req)
+        message = f"Compra confirmada: {nombre} ×{cantidad} por {precio_total} {moneda}."
+        if is_mount:
+            warnings.append(
+                "Recuerda equipar la montura: necesita silla de montar, arnés/bocado y bridas. "
+                "Para cargar peso necesita alforjas. Sin silla, solo los Elfos pueden montar con soltura."
+            )
+    else:  # venta
+        mount_equipo_moved = 0
+        if is_mount:
+            monturas = list(character.get("monturas") or [])
+            idx = next(
+                (i for i, m in enumerate(monturas)
+                 if _norm(m.get("nombre_original") or m.get("nombre")) == lower
+                 or _norm(m.get("nombre_personalizado")) == lower),
+                None,
+            )
+            if idx is not None:
+                mequipo = list(monturas[idx].get("equipo") or [])
+                if mequipo:
+                    inv = list(character.get("inventario") or [])
+                    for it in mequipo:
+                        if isinstance(it, dict):
+                            it = {**it, "portado_por": "personaje", "mount_id": None}
+                        inv.append(it)
+                    await db.characters.update_one(
+                        {"_id": character_id},
+                        {"$set": {"inventario": inv, "updated_at": now_iso}},
+                    )
+                    mount_equipo_moved = len(mequipo)
+        # Eliminar el artículo (lanza 404 si no lo tiene)
+        try:
+            await remove_equipment_from_character(
+                character_id, item_name=nombre, item_category=categoria, cantidad=cantidad
+            )
+        except HTTPException as e:
+            if e.status_code == 404:
+                raise HTTPException(status_code=404, detail=f"El personaje no posee '{nombre}' para vender.")
+            raise
+        # Sumar el dinero acordado
+        char_after = await db.characters.find_one({"_id": character_id})
+        dinero_base_after = convert_to_base(char_after.get("dinero", {"mo": 0, "mp": 0, "me": 0, "mc": 0}))
+        await db.characters.update_one(
+            {"_id": character_id},
+            {"$set": {"dinero": convert_from_base(dinero_base_after + precio_base_total), "updated_at": now_iso}},
+        )
+        message = f"Venta confirmada: {nombre} ×{cantidad} por {precio_total} {moneda}."
+        if is_mount:
+            if mount_equipo_moved:
+                warnings.append(f"La carga de la montura ({mount_equipo_moved} objeto/s) pasa ahora al personaje.")
+            warnings.append("Al vender la montura, todo su peso recae sobre el personaje. Revisa el estado de carga.")
+        if "mochila" in lower or "petate" in lower:
+            if not _has_saddlebags(character):
+                warnings.append(
+                    "Sin mochila/petate y sin alforjas en una montura, el personaje solo puede portar lo que lleva "
+                    "equipado. El resto del equipo debería dejarse atrás."
+                )
+
+    # Resumen de peso recalculado + avisos de sobrecarga
+    updated = await db.characters.find_one({"_id": character_id})
+    ws = await _compute_weight_summary(updated)
+    estado = ws.get("estado_carga")
+    peso = ws.get("peso_personaje", 0)
+    if estado == "muy_cargado":
+        warnings.append(
+            f"⚠️ El personaje queda MUY CARGADO ({peso} / {ws.get('limite_muy_cargado')} kg): "
+            "velocidad reducida y desventaja en pruebas/salvaciones de fuerza y destreza."
+        )
+    elif estado == "cargado":
+        warnings.append(f"El personaje queda Cargado ({peso} / {ws.get('limite_cargado')} kg): velocidad reducida.")
+    cap_max = ws.get("capacidad_personaje", 0)
+    if cap_max and peso > cap_max:
+        warnings.append(
+            f"🛑 El peso transportado ({peso} kg) supera la capacidad máxima ({cap_max} kg): "
+            "el personaje NO puede moverse hasta soltar carga."
+        )
+    if ws.get("montura_sobrecargada"):
+        warnings.append("⚠️ La montura está sobrecargada: no puede cargar más peso.")
+
+    from routes.character._common import serialize_doc
+    return {
+        "message": message,
+        "character": serialize_doc(updated),
+        "weight_summary": ws,
+        "dinero": updated.get("dinero"),
+        "warnings": warnings,
+    }

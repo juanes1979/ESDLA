@@ -198,6 +198,38 @@ imposibles por diseño.
 - Verificado: Bree→Rivendel ahora da 454 PX (antes 0).
 - PENDIENTE: definir cuántos PX dan los eventos de viaje (hoy 0 por defecto).
 
+## Iter 122 — Compra-Venta aplica al personaje + acceso desde Inicio (Jun 2026)
+
+### Backend — `POST /api/trading/confirm-transaction`
+Aplica una transacción YA negociada al personaje (reutiliza endpoints de equipo):
+- COMPRA: valida y descuenta dinero (helpers de moneda mo/mp/mc/me) y añade el
+  artículo (`add_equipment_to_character` con is_purchase=False). Aviso si es montura
+  (necesita silla/arnés/alforjas; solo Elfos montan a pelo).
+- VENTA: elimina el artículo (`remove_equipment_from_character`) y suma el dinero.
+  - Venta de MONTURA: mueve su `equipo` al inventario del personaje + avisos de carga.
+  - Venta de mochila/petate: avisa si no hay alforjas en una montura.
+  - Recalcula `_compute_weight_summary` → avisos de Cargado / Muy Cargado / inmóvil
+    (peso > capacidad) / montura sobrecargada.
+- Verificado vía curl: compra (95 mp), venta (conversión exacta a mo/mp), venta de
+  montura con traspaso de carga + MUY CARGADO, venta de mochila sin alforjas.
+
+### Frontend — `TradingSystemSection.jsx`
+- Selector de **jugador** (búsqueda mientras escribo por nombre de personaje/jugador),
+  filtrado por rol vía `/characters/` (Maestro todos, DJ los suyos). testids:
+  `trade-player-search`, `trade-player-dropdown`, `trade-selected-character`.
+- Botón **Confirmar transacción** (aparece con resultado acepta/contraoferta), aplica
+  la operación y muestra los avisos devueltos. testids: `trade-confirm-btn`,
+  `trade-confirm-counter-btn`, `trade-confirm-warnings`.
+- FIX: `/characters` → `/characters/` (evita 307→http = Mixed Content que vaciaba la lista).
+- NOTA: la lógica "espejo" Comprar↔Vender queda APARCADA a petición del usuario
+  (prepara otra forma de tienda).
+
+### Acceso desde pantalla principal
+- Nueva ruta `/comercio` (solo STAFF) con `TradingPage.jsx` (reutiliza la sección).
+- Nuevo medallón "Compra-Venta" en `HomePage` (icono lucide `Coins`, solo Maestro/DJ).
+  `FloatingNavIcon` ahora soporta `item.icon` cuando no hay `item.image`.
+- (En el futuro se integrará en la Pantalla del DJ.)
+
 ## Iter 121 — Fix peso por item en Gestión de Equipamiento (Jun 2026)
 - BUG: en la "Tabla de Portadores" (`DistributionView.jsx`) los objetos sin
   `peso_kg` persistido (Capa de viaje, Muda fina, Cota de anillas, Botas…)

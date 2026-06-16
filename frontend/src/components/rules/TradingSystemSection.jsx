@@ -115,6 +115,27 @@ const TradingSystemSection = ({ isAdmin }) => {
   const [itemSearchQuery, setItemSearchQuery] = useState('');
   const [showItemDropdown, setShowItemDropdown] = useState(false);
 
+  // Player (character) selector state
+  const [playerSearch, setPlayerSearch] = useState('');
+  const [showPlayerDropdown, setShowPlayerDropdown] = useState(false);
+  const [confirming, setConfirming] = useState(false);
+  const [confirmWarnings, setConfirmWarnings] = useState(null);
+
+  const filteredCharacters = useMemo(() => {
+    const q = playerSearch.toLowerCase().trim();
+    const list = characters || [];
+    if (!q) return list.slice(0, 30);
+    return list.filter(c =>
+      (c.nombre || '').toLowerCase().includes(q) ||
+      (c.jugador || '').toLowerCase().includes(q)
+    ).slice(0, 30);
+  }, [characters, playerSearch]);
+
+  const selectedCharacter = useMemo(
+    () => (characters || []).find(c => c.id === calcForm.character_id) || null,
+    [characters, calcForm.character_id]
+  );
+
   // Flatten equipment for selector (memo at component level)
   const allItems = useMemo(() => {
     const items = [];
@@ -241,7 +262,7 @@ const TradingSystemSection = ({ isAdmin }) => {
 
   const loadCharacters = async () => {
     try {
-      const res = await api.get('/characters');
+      const res = await api.get('/characters/');
       setCharacters(res.data?.characters || []);
     } catch (err) {
       console.error('Error loading characters:', err);
@@ -354,11 +375,53 @@ const TradingSystemSection = ({ isAdmin }) => {
       
       const res = await api.post('/trading/calculate-with-dialogue', payload);
       setCalcResult(res.data);
+      setConfirmWarnings(null);
     } catch (err) {
       console.error('Error calculating trade:', err);
       toast.error('Error al calcular');
     } finally {
       setCalculating(false);
+    }
+  };
+
+  // Aplica la transacción negociada al personaje (inventario + dinero).
+  const confirmTransaction = async (precioAcordado) => {
+    if (!calcForm.character_id) {
+      toast.error('Selecciona primero el personaje que realiza la transacción');
+      return;
+    }
+    if (!calcForm.articulo) {
+      toast.error('No hay artículo seleccionado');
+      return;
+    }
+    setConfirming(true);
+    setConfirmWarnings(null);
+    try {
+      const payload = {
+        character_id: calcForm.character_id,
+        modo: calcForm.modo,
+        articulo: {
+          nombre: calcForm.articulo.nombre,
+          categoria_catalogo: calcForm.articulo._categoria || calcForm.categoria,
+          peso_kg: calcForm.articulo.peso_kg,
+          capacidad_carga: calcForm.articulo.capacidad_carga,
+        },
+        cantidad: 1,
+        precio_total: precioAcordado,
+        moneda: 'mp',
+      };
+      const res = await api.post('/trading/confirm-transaction', payload);
+      toast.success(res.data?.message || 'Transacción confirmada');
+      setConfirmWarnings(res.data?.warnings || []);
+      // Actualiza la copia local del personaje para reflejar dinero/peso
+      if (res.data?.character) {
+        setCharacters(prev => prev.map(c => c.id === res.data.character.id ? res.data.character : c));
+      }
+    } catch (err) {
+      const detail = err?.response?.data?.detail || 'Error al confirmar la transacción';
+      toast.error(detail);
+    } finally {
+      setConfirming(false);
     }
   };
 
@@ -497,6 +560,63 @@ const TradingSystemSection = ({ isAdmin }) => {
                 Vender
               </Button>
             </div>
+          </div>
+
+          {/* PLAYER SELECTOR */}
+          <div className="bg-black/20 rounded-lg p-4 border border-[hsl(var(--magic-blue))]/40" data-testid="trade-player-section">
+            <h4 className="text-sm font-medium text-[hsl(var(--magic-blue))] mb-2 flex items-center gap-2">
+              <User className="w-4 h-4" />
+              Personaje que realiza la transacción
+            </h4>
+            {selectedCharacter ? (
+              <div className="flex items-center justify-between gap-2 bg-black/30 rounded px-3 py-2 border border-[hsl(var(--magic-blue))]/30">
+                <div>
+                  <p className="font-medium" data-testid="trade-selected-character">{selectedCharacter.nombre}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {selectedCharacter.jugador ? `Jugador: ${selectedCharacter.jugador}` : 'Sin jugador'}
+                    {selectedCharacter.dinero && ` · ${formatCurrency((selectedCharacter.dinero.mp || 0))} `}
+                  </p>
+                </div>
+                <Button
+                  size="sm" variant="ghost"
+                  onClick={() => { setCalcForm(p => ({ ...p, character_id: null })); setPlayerSearch(''); setConfirmWarnings(null); }}
+                  data-testid="trade-change-character"
+                >
+                  <X className="w-4 h-4 mr-1" /> Cambiar
+                </Button>
+              </div>
+            ) : (
+              <div className="relative">
+                <Input
+                  placeholder="Busca por nombre de personaje o jugador..."
+                  value={playerSearch}
+                  onChange={(e) => { setPlayerSearch(e.target.value); setShowPlayerDropdown(true); }}
+                  onFocus={() => setShowPlayerDropdown(true)}
+                  data-testid="trade-player-search"
+                />
+                {showPlayerDropdown && filteredCharacters.length > 0 && (
+                  <div className="absolute z-30 mt-1 w-full max-h-60 overflow-y-auto bg-[hsl(var(--background))] border border-border rounded shadow-lg" data-testid="trade-player-dropdown">
+                    {filteredCharacters.map((c) => (
+                      <button
+                        key={c.id}
+                        type="button"
+                        className="w-full text-left px-3 py-2 hover:bg-[hsl(var(--magic-blue))]/20 border-b border-border/30"
+                        onClick={() => {
+                          setCalcForm(p => ({ ...p, character_id: c.id }));
+                          setPlayerSearch('');
+                          setShowPlayerDropdown(false);
+                          setConfirmWarnings(null);
+                        }}
+                        data-testid={`trade-player-option-${c.id}`}
+                      >
+                        <span className="font-medium">{c.nombre}</span>
+                        {c.jugador && <span className="text-xs text-muted-foreground ml-2">({c.jugador})</span>}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           {/* LOCATION SECTION - FIRST */}
@@ -977,6 +1097,63 @@ const TradingSystemSection = ({ isAdmin }) => {
                       )}
                     </div>
                   </div>
+                </div>
+              )}
+
+              {/* CONFIRM TRANSACTION */}
+              {calcResult.resultado && ['acepta', 'contraoferta'].includes(calcResult.resultado.tipo) && (
+                <div className="bg-black/20 rounded-lg p-4 border border-[hsl(var(--gold))]/40" data-testid="trade-confirm-block">
+                  {!calcForm.character_id ? (
+                    <p className="text-sm text-amber-300 flex items-center gap-2">
+                      <AlertTriangle className="w-4 h-4" />
+                      Selecciona un personaje arriba para poder confirmar y aplicar la transacción.
+                    </p>
+                  ) : (
+                    <div className="space-y-2">
+                      <p className="text-xs text-muted-foreground">
+                        Al confirmar se {calcForm.modo === 'compra' ? 'añadirá el artículo y se descontará' : 'retirará el artículo y se sumará'} el dinero
+                        a <span className="font-medium text-white">{selectedCharacter?.nombre}</span>.
+                      </p>
+                      {calcResult.resultado.tipo === 'acepta' && (
+                        <Button
+                          className="w-full bg-green-700 hover:bg-green-600"
+                          disabled={confirming}
+                          onClick={() => confirmTransaction(calcResult.oferta)}
+                          data-testid="trade-confirm-btn"
+                        >
+                          {confirming ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Check className="w-4 h-4 mr-2" />}
+                          Confirmar {calcForm.modo === 'compra' ? 'compra' : 'venta'} por {formatCurrency(calcResult.oferta)}
+                        </Button>
+                      )}
+                      {calcResult.resultado.tipo === 'contraoferta' && calcResult.resultado.contraoferta && (
+                        <Button
+                          className="w-full bg-yellow-700 hover:bg-yellow-600"
+                          disabled={confirming}
+                          onClick={() => confirmTransaction(calcResult.resultado.contraoferta)}
+                          data-testid="trade-confirm-counter-btn"
+                        >
+                          {confirming ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Handshake className="w-4 h-4 mr-2" />}
+                          Aceptar contraoferta y confirmar por {formatCurrency(calcResult.resultado.contraoferta)}
+                        </Button>
+                      )}
+                    </div>
+                  )}
+
+                  {confirmWarnings && (
+                    <div className="mt-3 space-y-1" data-testid="trade-confirm-warnings">
+                      {confirmWarnings.length === 0 ? (
+                        <p className="text-xs text-green-400 flex items-center gap-1">
+                          <Check className="w-3 h-3" /> Transacción aplicada sin incidencias.
+                        </p>
+                      ) : (
+                        confirmWarnings.map((w, i) => (
+                          <p key={i} className="text-xs text-amber-300 flex items-start gap-1">
+                            <AlertTriangle className="w-3 h-3 mt-0.5 flex-shrink-0" /> {w}
+                          </p>
+                        ))
+                      )}
+                    </div>
+                  )}
                 </div>
               )}
 

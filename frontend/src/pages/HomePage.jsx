@@ -4,7 +4,7 @@
  */
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { LogOut, ShieldCheck } from 'lucide-react';
+import { LogOut, ShieldCheck, Coins } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 
 // Navigation items with custom images - Arc formation (3 left, 3 right)
@@ -88,6 +88,16 @@ const NAV_ITEMS = [
     // Esta imagen trae un halo blanco horneado; lo recortamos escalando
     // un poco la <img> dentro del contenedor `overflow-hidden`.
     imgScale: 1.12
+  },
+  {
+    id: 'comercio',
+    icon: Coins,
+    title: 'Compra-Venta',
+    description: 'Negocia compras y ventas con PNJs y aplica la transacción al personaje (dinero, inventario, monturas).',
+    path: '/comercio',
+    position: { top: '74%', right: '3%' },
+    side: 'right',
+    roles: ['maestro', 'director_de_juego'],
   }
 ];
 
@@ -148,13 +158,22 @@ const FloatingNavIcon = ({ item, onNavigate, index }) => {
         }}
         data-testid={`nav-icon-${item.id}`}
       >
-        {/* Medallion Image */}
-        <img 
-          src={item.image} 
-          alt={item.title}
-          className="w-full h-full object-cover"
-          style={item.imgScale ? { transform: `scale(${item.imgScale})` } : undefined}
-        />
+        {/* Medallion Image (or lucide icon fallback) */}
+        {item.image ? (
+          <img 
+            src={item.image} 
+            alt={item.title}
+            className="w-full h-full object-cover"
+            style={item.imgScale ? { transform: `scale(${item.imgScale})` } : undefined}
+          />
+        ) : (
+          <div
+            className="w-full h-full flex items-center justify-center"
+            style={{ background: 'radial-gradient(circle at 35% 30%, #3a2a12 0%, #1a1206 70%, #0d0903 100%)' }}
+          >
+            {item.icon && <item.icon className="w-9 h-9 md:w-11 md:h-11 text-[hsl(var(--gold))]" strokeWidth={1.5} />}
+          </div>
+        )}
         
         {/* Coming Soon Badge */}
         {item.comingSoon && (

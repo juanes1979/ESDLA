@@ -32,6 +32,7 @@ import CampaignsListPage from "@/pages/CampaignsListPage";
 import CampaignHubPage from "@/pages/CampaignHubPage";
 import CampaignBoardPage from "@/pages/CampaignBoardPage";
 import MyCampaignsPage from "@/pages/MyCampaignsPage";
+import TradingPage from "@/pages/TradingPage";
 import { CharacterCreatorWizard } from "@/components/character-creator";
 
 // Role groups
@@ -63,6 +64,7 @@ function App() {
 
               {/* Staff-only routes (Maestro + Director de Juego) */}
               <Route path="/rules" element={<ProtectedRoute roles={STAFF}><RulesPage /></ProtectedRoute>} />
+              <Route path="/comercio" element={<ProtectedRoute roles={STAFF}><TradingPage /></ProtectedRoute>} />
               <Route path="/aventuras" element={<ProtectedRoute roles={STAFF}><AdventuresListPage /></ProtectedRoute>} />
               <Route path="/aventuras/:id" element={<ProtectedRoute roles={STAFF}><AdventureWizardPage /></ProtectedRoute>} />
               <Route path="/campanas" element={<ProtectedRoute roles={STAFF}><CampaignsListPage /></ProtectedRoute>} />
