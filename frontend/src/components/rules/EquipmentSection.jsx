@@ -2,8 +2,8 @@
  * Equipment Section Component
  * Displays equipment tables by category with admin editing capabilities
  */
-import { useState, useRef } from 'react';
-import { Plus, Edit, Trash2, Printer, MapPin, Package, Loader2, Check, AlertTriangle, UserPlus, FolderOpen } from 'lucide-react';
+import { useState, useRef, useEffect } from 'react';
+import { Plus, Edit, Trash2, Printer, MapPin, Package, Loader2, Check, AlertTriangle, UserPlus, FolderOpen, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -128,6 +128,42 @@ const EquipmentSection = ({
   // Pending creation availability changes (batched)
   const [pendingCreationChanges, setPendingCreationChanges] = useState({});
   const [savingCreationChanges, setSavingCreationChanges] = useState(false);
+
+  // Profesiones (para asignar quién vende cada equipo)
+  const [npcProfesiones, setNpcProfesiones] = useState([]);
+  const [blockProf, setBlockProf] = useState({});
+  const [savingBlockProf, setSavingBlockProf] = useState(null);
+  const [openBlockProf, setOpenBlockProf] = useState(null);
+
+  useEffect(() => {
+    api.get('/trading/config')
+      .then(r => setNpcProfesiones(r.data?.npc_profesiones || []))
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    if (data?._block_profesiones) setBlockProf(data._block_profesiones);
+  }, [data]);
+
+  const toggleBlockProf = (catKey, prof) => {
+    setBlockProf(prev => {
+      const cur = prev[catKey] || [];
+      const next = cur.includes(prof) ? cur.filter(p => p !== prof) : [...cur, prof];
+      return { ...prev, [catKey]: next };
+    });
+  };
+
+  const saveBlockProf = async (catKey) => {
+    setSavingBlockProf(catKey);
+    try {
+      await api.put('/data/equipment/block-profesiones', { block_profesiones: blockProf });
+      toast.success('Profesiones del bloque guardadas');
+    } catch (err) {
+      toast.error('Error al guardar profesiones del bloque');
+    } finally {
+      setSavingBlockProf(null);
+    }
+  };
 
   if (!data) return null;
 
@@ -450,6 +486,19 @@ const EquipmentSection = ({
               <Button
                 variant="outline"
                 size="sm"
+                onClick={() => setOpenBlockProf(openBlockProf === cat.key ? null : cat.key)}
+                className="h-7 text-xs border-[hsl(var(--gold))]/50 hover:bg-[hsl(var(--gold))]/10"
+                title="Profesiones que pueden vender este bloque"
+                data-testid={`block-prof-toggle-${cat.key}`}
+              >
+                <Users className="w-3 h-3 mr-1 text-[hsl(var(--gold))]" />
+                Profesiones{(blockProf[cat.key]?.length > 0) ? ` (${blockProf[cat.key].length})` : ''}
+              </Button>
+            )}
+            {isAdmin && (
+              <Button
+                variant="outline"
+                size="sm"
                 onClick={() => openCategoryEditor(cat.key, cat.name)}
                 className="h-7 text-xs border-[hsl(var(--torch-orange))]/50 hover:bg-[hsl(var(--torch-orange))]/10"
                 title="Editar disponibilidad por región/asentamiento"
@@ -460,6 +509,27 @@ const EquipmentSection = ({
             )}
           </div>
         </div>
+        {isAdmin && openBlockProf === cat.key && (
+          <div className="mb-3 bg-black/20 rounded p-3 border border-[hsl(var(--gold))]/30" data-testid={`block-prof-panel-${cat.key}`}>
+            <p className="text-xs text-muted-foreground mb-2">Profesiones que venden este bloque por defecto (los objetos sin profesión propia lo heredan). Si lo dejas vacío, lo vende cualquiera.</p>
+            <div className="flex flex-wrap gap-2 mb-2">
+              {npcProfesiones.map(prof => {
+                const active = (blockProf[cat.key] || []).includes(prof);
+                return (
+                  <button key={prof} type="button" onClick={() => toggleBlockProf(cat.key, prof)}
+                    className={`text-xs px-2 py-1 rounded border transition-colors ${active ? 'bg-[hsl(var(--gold))]/30 border-[hsl(var(--gold))] text-[hsl(var(--gold))]' : 'bg-black/30 border-border text-muted-foreground hover:border-[hsl(var(--gold))]/50'}`}
+                    data-testid={`block-prof-${cat.key}-${prof}`}>
+                    {prof}
+                  </button>
+                );
+              })}
+            </div>
+            <Button size="sm" onClick={() => saveBlockProf(cat.key)} disabled={savingBlockProf === cat.key}
+              className="h-7 text-xs bg-[hsl(var(--gold))]/80 text-black" data-testid={`block-prof-save-${cat.key}`}>
+              {savingBlockProf === cat.key ? 'Guardando...' : 'Guardar profesiones del bloque'}
+            </Button>
+          </div>
+        )}
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
@@ -855,6 +925,7 @@ const EquipmentSection = ({
           saving={savingItem}
           availableRegions={availableRegions}
           onChangeCategory={() => { setChangeCatTarget(''); setShowChangeCat(true); }}
+          npcProfesiones={npcProfesiones}
         />
       )}
 
@@ -978,13 +1049,18 @@ const CATEGORY_EXTRA_FIELDS = {
   gemas_semipreciosas: [],
 };
 
-const ItemEditorModal = ({ item, setItem, onSave, onClose, saving, availableRegions, onChangeCategory }) => {
+const ItemEditorModal = ({ item, setItem, onSave, onClose, saving, availableRegions, onChangeCategory, npcProfesiones = [] }) => {
   const updateField = (field, value) => {
     setItem(prev => ({
       ...prev,
       [field]: value,
       _originalNombre: prev._originalNombre || prev.nombre
     }));
+  };
+
+  const toggleProfesion = (prof) => {
+    const current = item.profesiones || [];
+    updateField('profesiones', current.includes(prof) ? current.filter(p => p !== prof) : [...current, prof]);
   };
 
   const toggleSettlement = (level) => {
@@ -1067,6 +1143,23 @@ const ItemEditorModal = ({ item, setItem, onSave, onClose, saving, availableRegi
                   <option value="mo">mo</option>
                 </select>
               </div>
+            </div>
+          </div>
+
+          {/* Profesiones que pueden vender este objeto (herencia: si vacío, hereda del bloque) */}
+          <div className="border-t border-border/30 pt-4" data-testid="item-editor-profesiones">
+            <label className="text-sm text-muted-foreground">Profesiones que lo venden <span className="text-xs">(vacío = hereda del bloque o lo vende cualquiera)</span></label>
+            <div className="flex flex-wrap gap-2 mt-2">
+              {npcProfesiones.map(prof => {
+                const active = (item.profesiones || []).includes(prof);
+                return (
+                  <button key={prof} type="button" onClick={() => toggleProfesion(prof)}
+                    className={`text-xs px-2 py-1 rounded border transition-colors ${active ? 'bg-[hsl(var(--gold))]/30 border-[hsl(var(--gold))] text-[hsl(var(--gold))]' : 'bg-black/30 border-border text-muted-foreground hover:border-[hsl(var(--gold))]/50'}`}
+                    data-testid={`item-prof-${prof}`}>
+                    {prof}
+                  </button>
+                );
+              })}
             </div>
           </div>
 

@@ -219,10 +219,22 @@ const TradingSystemSection = ({ isAdmin }) => {
           return false;
         }
       }
+
+      // Filtro por PROFESIÓN del PNJ: solo el equipo asignado a su profesión.
+      // Herencia: profesiones del objeto > profesiones del bloque. Si no hay
+      // ninguna asignada, lo puede vender cualquiera (compatibilidad).
+      if (selectedNpc?.profesion) {
+        const propias = Array.isArray(item.profesiones) ? item.profesiones : [];
+        const delBloque = (equipment._block_profesiones || {})[item._categoria] || [];
+        const efectivas = propias.length > 0 ? propias : delBloque;
+        if (efectivas.length > 0 && !efectivas.includes(selectedNpc.profesion)) {
+          return false;
+        }
+      }
       
       return true;
     });
-  }, [allItems, itemSearchQuery, calcForm.region, calcForm.tipo_asentamiento]);
+  }, [allItems, itemSearchQuery, calcForm.region, calcForm.tipo_asentamiento, selectedNpc, equipment]);
 
   // Group filtered items by category for display
   const groupedFilteredItems = useMemo(() => {

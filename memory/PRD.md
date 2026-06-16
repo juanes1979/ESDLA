@@ -198,6 +198,31 @@ imposibles por diseño.
 - Verificado: Bree→Rivendel ahora da 454 PX (antes 0).
 - PENDIENTE: definir cuántos PX dan los eventos de viaje (hoy 0 por defecto).
 
+## Iter 125 — Excel completo + Profesión en equipo (quién vende qué) (Jun 2026)
+
+### Punto 1 — Excel del catálogo de equipo (export / plantilla / import)
+- CAUSA del desajuste: el tipo de daño se guarda en `modificador` pero el Excel
+  exportaba `tipo_dano` (vacío). Reescrito para exportar TODOS los campos del sistema.
+- `_equipment_columns()` = columnas base completas + cualquier campo extra hallado en
+  los items (nada se queda fuera). Export, plantilla e import comparten las MISMAS columnas.
+- Campos lista (`profesiones`, `regiones_disponibles`, `nivel_asentamiento`) se serializan
+  con " | " y se reparsean al importar (acepta | , ;). Verificado round-trip export→import.
+- `EquipmentItem` ampliado: profesiones, nivel_asentamiento, regiones_disponibles, ca_bonus,
+  propiedades, tipo_dano, pasajeros, capacidad_kg, es_racion_diaria, unidades_paquete, racion_valor.
+
+### Punto 2 — Profesión en el equipo (filtra qué vende cada PNJ)
+- `profesiones` (multi) por OBJETO (editor de item) y por BLOQUE/categoría (cabecera en
+  "Precios de Equipo"). HERENCIA: objeto usa las suyas; si vacío, hereda las del bloque;
+  si tampoco, lo vende cualquiera (compatibilidad, opción 6b).
+- Backend: `_block_profesiones` en el doc `equipment_catalog`; endpoints
+  `GET/PUT /data/equipment/block-profesiones`; incluido en `/data/equipment-catalog`.
+- Tienda (calculadora Compra-Venta): al elegir un PNJ, `filteredItems` filtra por la
+  profesión del PNJ (profesiones efectivas del objeto/bloque) ADEMÁS del filtro por región.
+- Profesiones = lista editable de PNJ (`npc_profesiones` de `trading_config`).
+- VERIFICADO: export/import/plantilla, persistencia de profesiones por bloque, UI de chips
+  (objeto y bloque) y que el catálogo expone `_block_profesiones`.
+- PENDIENTE DE PRUEBA MANUAL: el filtrado en vivo en la tienda con un PNJ real + bloque asignado.
+
 ## Iter 124 — Listas de creación de PNJ EDITABLES desde Configuración (Jun 2026)
 - Las listas de creación de PNJ (profesiones, rasgos positivos/negativos con
   descripción y tags, modos de hablar, y las reglas de coherencia por raza/profesión)

@@ -1071,7 +1071,10 @@ async def get_equipment_catalog(
     ]
     
     result = {key: catalog.get(key, []) for key in all_keys}
-    
+
+    # Profesiones por bloque (para herencia en la tienda)
+    block_prof = catalog.get("_block_profesiones", {})
+
     # Filter by category if specified
     if categoria and categoria in result:
         result = {categoria: result[categoria]}
@@ -1085,7 +1088,29 @@ async def get_equipment_catalog(
                 if search_lower in item.get('nombre', '').lower()
             ]
     
+    result["_block_profesiones"] = block_prof
     return result
+
+
+@router.get("/equipment/block-profesiones")
+async def get_block_profesiones():
+    """Devuelve las profesiones asignadas por bloque/categoría."""
+    catalog = await db.equipment_catalog.find_one({"_id": "main"}) or await db.equipment_catalog.find_one({})
+    return (catalog or {}).get("_block_profesiones", {})
+
+
+@router.put("/equipment/block-profesiones")
+async def update_block_profesiones(payload: dict = Body(...)):
+    """Guarda el mapa {categoria: [profesiones]} de profesiones por bloque."""
+    data = payload.get("block_profesiones", payload) or {}
+    # Normaliza: solo listas de strings
+    clean = {str(k): [str(p) for p in (v or [])] for k, v in data.items() if isinstance(v, list)}
+    await db.equipment_catalog.update_one(
+        {"_id": "main"},
+        {"$set": {"_block_profesiones": clean, "updated_at": datetime.now(timezone.utc)}},
+        upsert=True,
+    )
+    return {"message": "Profesiones por bloque guardadas", "block_profesiones": clean}
 
 
 
@@ -1633,6 +1658,21 @@ class EquipmentItem(BaseModel):
     capacidad_monta: Optional[str] = None
     # Construction-specific
     m2: Optional[str] = None
+    # Disponibilidad / venta
+    descripcion: Optional[str] = None
+    disponible_creacion: Optional[bool] = None
+    nivel_asentamiento: Optional[List[str]] = None
+    regiones_disponibles: Optional[List[str]] = None
+    profesiones: Optional[List[str]] = None
+    # Otros campos del Excel
+    ca_bonus: Optional[int] = None
+    propiedades: Optional[str] = None
+    tipo_dano: Optional[str] = None
+    pasajeros: Optional[int] = None
+    capacidad_kg: Optional[float] = None
+    es_racion_diaria: Optional[bool] = None
+    unidades_paquete: Optional[int] = None
+    racion_valor: Optional[float] = None
 
 
 @router.post("/equipment")
@@ -4375,22 +4415,66 @@ Escribes textos concisos y evocadores que personalizan trasfondos genéricos sin
 
 EQUIPMENT_XLSX_COLUMNS = [
     # Comunes
-    "nombre", "precio", "moneda", "peso_kg", "descripcion", "comentarios",
+    "nombre", "precio", "moneda", "peso_kg", "descripcion", "comentarios", "otros",
     "disponible_creacion",
-    # Armas / armaduras
-    "dano", "alcance", "ca", "ca_bonus", "propiedades", "tipo_dano",
+    # Armas
+    "dano", "modificador", "alcance", "herida",
+    # Armaduras
+    "ca", "ca_bonus", "propiedades", "tipo_dano",
+    # Hierbas / venenos
+    "forma_preparacion", "efecto",
     # Monturas / transporte
-    "capacidad_carga", "velocidad", "pasajeros",
-    # Comida / consumibles
+    "capacidad_carga", "constitucion", "velocidad", "capacidad_pequeno",
+    "capacidad_mediano", "capacidad_monta", "pasajeros", "capacidad_kg",
+    # Comida / consumibles / construcción
     "es_racion_diaria", "unidades_paquete", "racion_valor", "m2",
-    # Herida
-    "herida",
+    # Disponibilidad y venta
+    "nivel_asentamiento", "regiones_disponibles", "profesiones",
 ]
+
+# Campos que son LISTAS (se serializan separados por " | " en el Excel).
+EQUIPMENT_LIST_COLUMNS = {"nivel_asentamiento", "regiones_disponibles", "profesiones"}
+# Campos booleanos.
+EQUIPMENT_BOOL_COLUMNS = {"disponible_creacion", "es_racion_diaria", "capacidad_pequeno", "capacidad_mediano"}
+# Campos numéricos.
+EQUIPMENT_NUM_COLUMNS = {"precio", "peso_kg", "herida", "ca", "ca_bonus", "capacidad_carga",
+                         "velocidad", "pasajeros", "unidades_paquete", "racion_valor", "capacidad_kg"}
+_EQUIPMENT_INTERNAL_KEYS = {"_id", "updated_at", "version", "_block_profesiones"}
+
+
+def _equipment_columns(catalog: dict) -> list:
+    """Columnas base + cualquier campo extra presente en los items (nada se queda fuera)."""
+    cols = list(EQUIPMENT_XLSX_COLUMNS)
+    seen = set(cols)
+    for cat_key, items in (catalog or {}).items():
+        if cat_key in _EQUIPMENT_INTERNAL_KEYS or not isinstance(items, list):
+            continue
+        for it in items:
+            if not isinstance(it, dict):
+                continue
+            for k in it.keys():
+                if k not in seen:
+                    seen.add(k)
+                    cols.append(k)
+    return cols
+
+
+def _equipment_cell(col: str, value):
+    """Serializa un valor para una celda del Excel."""
+    if value is None:
+        return ""
+    if col in EQUIPMENT_LIST_COLUMNS or isinstance(value, list):
+        return " | ".join(str(x) for x in value) if isinstance(value, list) else str(value)
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    if isinstance(value, dict):
+        return str(value)
+    return value
 
 
 @router.get("/equipment/export-xlsx")
 async def export_equipment_xlsx():
-    """Exporta el catálogo completo a un .xlsx (una hoja por categoría)."""
+    """Exporta el catálogo completo a un .xlsx (una hoja por categoría) con TODOS los campos."""
     import io
     from openpyxl import Workbook
     from openpyxl.styles import Font, PatternFill
@@ -4399,31 +4483,23 @@ async def export_equipment_xlsx():
     if not catalog:
         raise HTTPException(status_code=404, detail="Catálogo no encontrado")
 
+    columns = _equipment_columns(catalog)
     wb = Workbook()
-    # Remove default sheet; we'll add one per category.
     wb.remove(wb.active)
 
     header_font = Font(bold=True, color="FFFFFF")
     header_fill = PatternFill("solid", fgColor="4B5563")
 
     for cat_key, items in catalog.items():
-        if cat_key in ("_id", "updated_at", "version") or not isinstance(items, list):
+        if cat_key in _EQUIPMENT_INTERNAL_KEYS or not isinstance(items, list):
             continue
-        # openpyxl limits sheet names to 31 chars.
         ws = wb.create_sheet(title=cat_key[:31] or "items")
-        ws.append(EQUIPMENT_XLSX_COLUMNS)
+        ws.append(columns)
         for cell in ws[1]:
             cell.font = header_font
             cell.fill = header_fill
         for it in items:
-            row = []
-            for col in EQUIPMENT_XLSX_COLUMNS:
-                v = it.get(col, "")
-                if isinstance(v, (list, dict)):
-                    v = str(v)
-                row.append(v)
-            ws.append(row)
-        # Auto-ish width.
+            ws.append([_equipment_cell(col, it.get(col)) for col in columns])
         for col_cells in ws.columns:
             max_len = max((len(str(c.value)) for c in col_cells if c.value is not None), default=8)
             ws.column_dimensions[col_cells[0].column_letter].width = min(40, max(10, max_len + 2))
@@ -4449,7 +4525,7 @@ async def equipment_template_xlsx():
 
     # Usamos las categorías actuales del catálogo si existen; si no, fallback.
     catalog = await db.equipment_catalog.find_one({"_id": "main"}) or {}
-    cat_keys = [k for k in catalog.keys() if k not in ("_id", "updated_at", "version") and isinstance(catalog.get(k), list)]
+    cat_keys = [k for k in catalog.keys() if k not in _EQUIPMENT_INTERNAL_KEYS and isinstance(catalog.get(k), list)]
     if not cat_keys:
         cat_keys = [
             "armas_sencillas_cc", "armas_marciales_cc", "armaduras_ligeras",
@@ -4463,9 +4539,10 @@ async def equipment_template_xlsx():
     header_font = Font(bold=True, color="FFFFFF")
     header_fill = PatternFill("solid", fgColor="6D28D9")
 
+    columns = _equipment_columns(catalog)
     for cat in cat_keys:
         ws = wb.create_sheet(title=cat[:31])
-        ws.append(EQUIPMENT_XLSX_COLUMNS)
+        ws.append(columns)
         for cell in ws[1]:
             cell.font = header_font
             cell.fill = header_fill
@@ -4475,10 +4552,12 @@ async def equipment_template_xlsx():
             "precio": 10,
             "moneda": "mp",
             "peso_kg": 0.5,
-            "disponible_creacion": True,
+            "disponible_creacion": "true",
             "descripcion": "Descripción opcional del ítem.",
+            "profesiones": "Mercader | Herrero",
+            "regiones_disponibles": "Eriador | Gondor",
         }
-        ws.append([sample.get(c, "") for c in EQUIPMENT_XLSX_COLUMNS])
+        ws.append([sample.get(c, "") for c in columns])
         for col_cells in ws.columns:
             ws.column_dimensions[col_cells[0].column_letter].width = 18
 
@@ -4490,10 +4569,11 @@ async def equipment_template_xlsx():
     readme.append(["• Al importar, cada fila crea o SOBREESCRIBE el ítem con el mismo"])
     readme.append(["  'nombre' dentro de su categoría (comparación case-insensitive)."])
     readme.append(["• Los campos no aplicables a una categoría pueden dejarse vacíos."])
-    readme.append(["• 'disponible_creacion' acepta: true/false/1/0/sí/no."])
-    readme.append(["• 'es_racion_diaria' acepta lo mismo. 1 ración = 1 kg = 1 día."])
+    readme.append(["• Booleanos (disponible_creacion, es_racion_diaria...): true/false/1/0/sí/no."])
+    readme.append(["• Listas (profesiones, regiones_disponibles, nivel_asentamiento, propiedades):"])
+    readme.append(["  separa los valores con ' | ' (barra vertical). Ej: Mercader | Herrero"])
     readme.append([""])
-    readme.append(["Columnas soportadas:"] + EQUIPMENT_XLSX_COLUMNS)
+    readme.append(["Columnas soportadas:"] + columns)
 
     buf = io.BytesIO()
     wb.save(buf)
@@ -4580,16 +4660,19 @@ async def import_equipment_xlsx(file: UploadFile = File(...)):
                 if not h:
                     continue
                 key = h.lower()
-                if key in ("disponible_creacion", "es_racion_diaria"):
+                if key in EQUIPMENT_BOOL_COLUMNS:
                     b = parse_bool(v)
                     if b is not None:
                         item[key] = b
-                elif key in ("precio", "peso_kg", "ca", "ca_bonus", "capacidad_carga",
-                             "velocidad", "pasajeros", "unidades_paquete", "racion_valor",
-                             "herida", "m2"):
+                elif key in EQUIPMENT_NUM_COLUMNS:
                     n = parse_num(v)
                     if n is not None:
                         item[key] = n
+                elif key in EQUIPMENT_LIST_COLUMNS:
+                    if v is not None and str(v).strip() != "":
+                        # Acepta separadores | , ;
+                        raw = str(v).replace(";", "|").replace(",", "|")
+                        item[key] = [p.strip() for p in raw.split("|") if p.strip()]
                 elif v is not None and v != "":
                     item[key] = v
             nombre = str(item.get("nombre", "")).strip()
