@@ -156,6 +156,7 @@ const TravelRulesSection = () => {
   const [landTypes, setLandTypes] = useState([]);
   const [roadTypes, setRoadTypes] = useState([]);
   const [pxTable, setPxTable] = useState(null);
+  const [pxRollTable, setPxRollTable] = useState(null);
   const [rules, setRules] = useState(null);
   
   const [loading, setLoading] = useState(true);
@@ -165,18 +166,20 @@ const TravelRulesSection = () => {
   const [editingLand, setEditingLand] = useState(null);
   const [editingRoad, setEditingRoad] = useState(null);
   const [editingPxTable, setEditingPxTable] = useState(false);
+  const [editingPxRoll, setEditingPxRoll] = useState(false);
   
   // Load all configurations
   useEffect(() => {
     const loadData = async () => {
       try {
-        const [eventsRes, objectivesRes, terrainsRes, landRes, roadRes, pxRes, rulesRes] = await Promise.allSettled([
+        const [eventsRes, objectivesRes, terrainsRes, landRes, roadRes, pxRes, pxRollRes, rulesRes] = await Promise.allSettled([
           api.get('/travel/config/events'),
           api.get('/travel/config/objectives'),
           api.get('/travel/config/terrains'),
           api.get('/travel/config/land-types'),
           api.get('/travel/config/road-types'),
           api.get('/travel/config/px-table'),
+          api.get('/travel/config/px-roll-table'),
           api.get('/travel/config/rules')
         ]);
         
@@ -187,6 +190,7 @@ const TravelRulesSection = () => {
         setLandTypes(landRes.status === 'fulfilled' ? (landRes.value.data?.land_types || []) : []);
         setRoadTypes(roadRes.status === 'fulfilled' ? (roadRes.value.data?.road_types || []) : []);
         setPxTable(pxRes.status === 'fulfilled' ? (pxRes.value.data?.px_table || null) : null);
+        setPxRollTable(pxRollRes.status === 'fulfilled' ? (pxRollRes.value.data?.px_roll_table || null) : null);
         setRules(rulesRes.status === 'fulfilled' ? (rulesRes.value.data?.rules || {}) : {});
         
         // Only show error if ALL requests failed
@@ -937,6 +941,170 @@ const TravelRulesSection = () => {
                         </>
                       ) : (
                         <Button onClick={() => setEditingPxTable(true)}>
+                          <Edit className="w-4 h-4 mr-2" /> Editar Tabla
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* ===== SISTEMA 2: PX por TIRADA de evento (individual) ===== */}
+                {pxRollTable && (
+                  <div className="mt-10 pt-6 border-t-2 border-[hsl(var(--gold))]/40" data-testid="px-roll-table-section">
+                    <h3 className="text-lg font-bold text-[hsl(var(--gold))] mb-1">⭐ Experiencia por Tirada (eventos)</h3>
+                    <p className="text-sm text-muted-foreground mb-4">
+                      PX individuales que gana/pierde el personaje que hace la tirada de un evento.
+                      <br /><code>PX = PX_base × mod_diferencia × mult_terreno × mult_tierras</code> (límite ±{pxRollTable.limite_px}).
+                    </p>
+
+                    {/* PX base por CD */}
+                    <h4 className="font-bold text-[hsl(var(--gold))] mb-2">PX base según CD</h4>
+                    <div className="overflow-x-auto mb-5">
+                      <table className="w-full border-collapse">
+                        <thead>
+                          <tr className="bg-black/30">
+                            <th className="p-2 border border-border/50 text-center">CD</th>
+                            <th className="p-2 border border-border/50 text-left">Dificultad</th>
+                            <th className="p-2 border border-border/50 text-center">Éxito</th>
+                            <th className="p-2 border border-border/50 text-center">Fallo</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {pxRollTable.px_base_por_cd?.map((fila, idx) => (
+                            <tr key={idx} className={idx % 2 === 0 ? 'bg-black/10' : ''}>
+                              <td className="p-2 border border-border/50 text-center font-medium">{fila.cd}</td>
+                              <td className="p-2 border border-border/50">{fila.dificultad}</td>
+                              {['exito', 'fallo'].map((campo) => (
+                                <td key={campo} className="p-1 border border-border/50 text-center">
+                                  {editingPxRoll ? (
+                                    <Input
+                                      type="number"
+                                      className="w-16 h-8 text-center mx-auto"
+                                      value={fila[campo]}
+                                      onChange={(e) => {
+                                        const nf = [...pxRollTable.px_base_por_cd];
+                                        nf[idx] = { ...fila, [campo]: parseInt(e.target.value) || 0 };
+                                        setPxRollTable({ ...pxRollTable, px_base_por_cd: nf });
+                                      }}
+                                      data-testid={`px-roll-cd-${fila.cd}-${campo}`}
+                                    />
+                                  ) : (
+                                    <Badge className={fila[campo] >= 0 ? 'bg-green-600' : 'bg-red-600'}>
+                                      {fila[campo] >= 0 ? '+' : ''}{fila[campo]}
+                                    </Badge>
+                                  )}
+                                </td>
+                              ))}
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+
+                    {/* Modificador por diferencia */}
+                    <h4 className="font-bold text-[hsl(var(--gold))] mb-2">Modificador según diferencia (resultado − CD)</h4>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-5">
+                      {pxRollTable.mod_diferencia?.map((m, idx) => (
+                        <div key={idx} className="p-2 rounded border border-border/50 bg-black/10 text-center">
+                          <p className="text-xs font-medium">{m.label}</p>
+                          {editingPxRoll ? (
+                            <Input
+                              type="number" step="0.1"
+                              className="w-16 h-8 text-center mx-auto mt-1"
+                              value={m.mult}
+                              onChange={(e) => {
+                                const nm = [...pxRollTable.mod_diferencia];
+                                nm[idx] = { ...m, mult: parseFloat(e.target.value) || 0 };
+                                setPxRollTable({ ...pxRollTable, mod_diferencia: nm });
+                              }}
+                              data-testid={`px-roll-dif-${idx}`}
+                            />
+                          ) : (
+                            <Badge className="mt-1 bg-blue-600">×{m.mult}</Badge>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Multiplicadores de terreno y tierras */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-4">
+                      <div>
+                        <h4 className="font-bold text-[hsl(var(--gold))] mb-2">Multiplicador por terreno</h4>
+                        <div className="space-y-1">
+                          {Object.entries(pxRollTable.mult_terreno || {}).map(([k, v]) => (
+                            <div key={k} className="flex items-center justify-between gap-2 p-1.5 rounded bg-black/10 border border-border/40">
+                              <span className="text-sm capitalize">{k.replace('_', ' ')}</span>
+                              {editingPxRoll ? (
+                                <Input
+                                  type="number" step="0.1"
+                                  className="w-20 h-8 text-center"
+                                  value={v}
+                                  onChange={(e) => setPxRollTable({ ...pxRollTable, mult_terreno: { ...pxRollTable.mult_terreno, [k]: parseFloat(e.target.value) || 0 } })}
+                                  data-testid={`px-roll-terreno-${k}`}
+                                />
+                              ) : (<Badge className="bg-orange-600">×{v}</Badge>)}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                      <div>
+                        <h4 className="font-bold text-[hsl(var(--gold))] mb-2">Multiplicador por tierras</h4>
+                        <div className="space-y-1">
+                          {Object.entries(pxRollTable.mult_tierras || {}).map(([k, v]) => (
+                            <div key={k} className="flex items-center justify-between gap-2 p-1.5 rounded bg-black/10 border border-border/40">
+                              <span className="text-sm capitalize">{k.replace('tierras_', 'T. ')}</span>
+                              {editingPxRoll ? (
+                                <Input
+                                  type="number" step="0.1"
+                                  className="w-20 h-8 text-center"
+                                  value={v}
+                                  onChange={(e) => setPxRollTable({ ...pxRollTable, mult_tierras: { ...pxRollTable.mult_tierras, [k]: parseFloat(e.target.value) || 0 } })}
+                                  data-testid={`px-roll-tierra-${k}`}
+                                />
+                              ) : (<Badge className="bg-purple-600">×{v}</Badge>)}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Límite */}
+                    <div className="flex items-center gap-2 mb-4">
+                      <Label className="text-sm font-medium">Límite de PX por tirada (±):</Label>
+                      {editingPxRoll ? (
+                        <Input
+                          type="number"
+                          className="w-20 h-8 text-center"
+                          value={pxRollTable.limite_px}
+                          onChange={(e) => setPxRollTable({ ...pxRollTable, limite_px: parseInt(e.target.value) || 0 })}
+                          data-testid="px-roll-limite"
+                        />
+                      ) : (<Badge className="bg-gray-600">±{pxRollTable.limite_px}</Badge>)}
+                    </div>
+
+                    <div className="flex gap-2">
+                      {editingPxRoll ? (
+                        <>
+                          <Button onClick={async () => {
+                            setSaving(true);
+                            try {
+                              await api.put('/travel/config/px-roll-table', pxRollTable);
+                              setEditingPxRoll(false);
+                              toast.success('Tabla de experiencia por tirada guardada');
+                            } catch (err) {
+                              toast.error('Error al guardar');
+                            } finally {
+                              setSaving(false);
+                            }
+                          }} disabled={saving} data-testid="px-roll-save-btn">
+                            <Save className="w-4 h-4 mr-2" /> Guardar Tabla
+                          </Button>
+                          <Button variant="outline" onClick={() => setEditingPxRoll(false)}>
+                            <X className="w-4 h-4 mr-2" /> Cancelar
+                          </Button>
+                        </>
+                      ) : (
+                        <Button onClick={() => setEditingPxRoll(true)} data-testid="px-roll-edit-btn">
                           <Edit className="w-4 h-4 mr-2" /> Editar Tabla
                         </Button>
                       )}

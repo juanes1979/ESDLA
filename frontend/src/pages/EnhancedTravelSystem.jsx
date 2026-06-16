@@ -14,6 +14,7 @@ import {
 import {
   REST_TYPES,
   calculateRollXP,
+  setRollTableConfig,
 } from '@/components/travel/travelHelpers';
 import { summarizeProvisions } from '@/components/travel/inventoryProvisions';
 import ResultsView from '@/components/travel/views/ResultsView';
@@ -142,6 +143,19 @@ const EnhancedTravelSystem = () => {
   // Individual PX tracking per character based on their rolls
   // { characterId: { total: number, rolls: [{ type, cd, tirada, diff, px, terreno, tierras }] } }
   const [characterXP, setCharacterXP] = useState({});
+
+  // Load the editable per-roll PX table (Sistema 2) so gameplay uses the
+  // values configured in CONFIG. VIAJES instead of the built-in defaults.
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await api.get('/travel/config/px-roll-table');
+        if (res.data?.px_roll_table) setRollTableConfig(res.data.px_roll_table);
+      } catch (err) {
+        // Keep built-in defaults if the config can't be loaded.
+      }
+    })();
+  }, []);
   
   // Journey narrative state
   const [journeyNarrative, setJourneyNarrative] = useState(null);

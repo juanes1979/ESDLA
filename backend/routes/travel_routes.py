@@ -604,6 +604,138 @@ async def get_px_table() -> dict:
         return DEFAULT_PX_TABLE
     return px_table
 
+# ============== SISTEMA 2: PX POR TIRADA DE EVENTO (INDIVIDUAL) ==============
+# Cada tirada de resolución de evento otorga/quita PX SOLO al personaje que tira.
+# PX_final = PX_base(CD, éxito/fallo) × mod_diferencia × mult_terreno × mult_tierras
+# Límite ±12 PX por tirada. Editable en CONFIG. VIAJES.
+DEFAULT_PX_ROLL_TABLE = {
+    "id": "px_roll_table_main",
+    "px_base_por_cd": [
+        {"cd": 10, "dificultad": "Muy fácil", "exito": 1, "fallo": 0},
+        {"cd": 12, "dificultad": "Fácil", "exito": 2, "fallo": -1},
+        {"cd": 14, "dificultad": "Moderada", "exito": 3, "fallo": -1},
+        {"cd": 16, "dificultad": "Difícil", "exito": 4, "fallo": -2},
+        {"cd": 18, "dificultad": "Muy difícil", "exito": 5, "fallo": -2},
+        {"cd": 20, "dificultad": "Extrema", "exito": 6, "fallo": -3},
+    ],
+    "mod_diferencia": [
+        {"min": 10, "max": 9999, "label": "+10 o más", "mult": 2.0},
+        {"min": 5, "max": 9, "label": "+5 a +9", "mult": 1.5},
+        {"min": 1, "max": 4, "label": "+1 a +4", "mult": 1.2},
+        {"min": 0, "max": 0, "label": "0", "mult": 1.0},
+        {"min": -3, "max": -1, "label": "-1 a -3", "mult": 1.0},
+        {"min": -6, "max": -4, "label": "-4 a -6", "mult": 1.2},
+        {"min": -9999, "max": -7, "label": "-7 o más", "mult": 1.5},
+    ],
+    "mult_terreno": {
+        "facil": 0.8,
+        "moderado": 1.0,
+        "dificil": 1.2,
+        "muy_dificil": 1.5,
+        "desalentador": 1.8,
+    },
+    "mult_tierras": {
+        "tierras_libres": 0.8,
+        "tierras_fronterizas": 1.0,
+        "tierras_salvajes": 1.2,
+        "tierras_sombra": 1.5,
+        "tierras_oscuras": 1.8,
+    },
+    "limite_px": 12,
+}
+
+
+async def get_px_roll_table() -> dict:
+    """Get the per-roll (individual) PX table from DB or return defaults."""
+    t = await db.travel_px_roll_table.find_one({"id": "px_roll_table_main"}, {"_id": 0})
+    if not t:
+        await db.travel_px_roll_table.insert_one(dict(DEFAULT_PX_ROLL_TABLE))
+        return DEFAULT_PX_ROLL_TABLE
+    return t
+
+
+def _normalize_terreno_key(terreno: str) -> str:
+    """Map any terrain string to one of: facil/moderado/dificil/muy_dificil/desalentador."""
+    t = (terreno or "").lower()
+    if t in ("facil", "muy_facil"):
+        return "facil"
+    if t in ("dificil", "terreno_dificil"):
+        return "dificil"
+    if t == "muy_dificil":
+        return "muy_dificil"
+    if t == "desalentador":
+        return "desalentador"
+    # camino / campo_abierto / moderado / unknown → moderado (neutral)
+    return "moderado"
+
+
+def _normalize_tierra_key(tierra: str) -> str:
+    t = (tierra or "").lower()
+    if "libre" in t:
+        return "tierras_libres"
+    if "fronteriz" in t:
+        return "tierras_fronterizas"
+    if "salvaje" in t:
+        return "tierras_salvajes"
+    if "sombra" in t:
+        return "tierras_sombra"
+    if "oscura" in t:
+        return "tierras_oscuras"
+    return "tierras_salvajes"
+
+
+def calcular_px_tirada(roll_table: dict, cd: int, tirada_resolucion: int,
+                       exito: bool, terreno: str, tierra: str) -> dict:
+    """
+    Sistema 2: PX individuales por tirada de evento.
+    PX_final = PX_base × mod_diferencia × mult_terreno × mult_tierras (límite ±N).
+    Devuelve un desglose con el PX final (con signo) para el personaje que tiró.
+    """
+    # 1) PX base por CD (fila con el mayor cd <= cd indicado).
+    filas = sorted(roll_table.get("px_base_por_cd", []), key=lambda r: r["cd"])
+    fila = filas[0] if filas else {"exito": 0, "fallo": 0, "cd": 0}
+    for f in filas:
+        if cd >= f["cd"]:
+            fila = f
+    px_base = fila["exito"] if exito else fila["fallo"]
+
+    # 2) Modificador por diferencia (resultado - CD).
+    diferencia = tirada_resolucion - cd
+    mult_dif = 1.0
+    dif_label = "0"
+    for rango in roll_table.get("mod_diferencia", []):
+        if rango["min"] <= diferencia <= rango["max"]:
+            mult_dif = rango["mult"]
+            dif_label = rango.get("label", str(diferencia))
+            break
+
+    # 3) Multiplicadores de terreno y tierras.
+    terr_key = _normalize_terreno_key(terreno)
+    tier_key = _normalize_tierra_key(tierra)
+    mult_terr = roll_table.get("mult_terreno", {}).get(terr_key, 1.0)
+    mult_tier = roll_table.get("mult_tierras", {}).get(tier_key, 1.0)
+
+    # 4) PX final + límite + redondeo.
+    px_raw = px_base * mult_dif * mult_terr * mult_tier
+    limite = abs(roll_table.get("limite_px", 12))
+    px_final = max(-limite, min(limite, round(px_raw)))
+
+    return {
+        "px_final": int(px_final),
+        "px_base": px_base,
+        "diferencia": diferencia,
+        "mult_diferencia": mult_dif,
+        "etiqueta_diferencia": dif_label,
+        "mult_terreno": mult_terr,
+        "mult_tierras": mult_tier,
+        "terreno_usado": terr_key,
+        "tierra_usada": tier_key,
+        "cd": cd,
+        "exito": exito,
+    }
+
+
+
 async def get_travel_rules() -> dict:
     """Get travel rules config from DB or return defaults"""
     rules = await db.travel_rules.find_one({"id": "travel_rules_main"}, {"_id": 0})
@@ -825,6 +957,23 @@ async def update_px_table_config(px_table: dict):
     result = await db.travel_px_table.update_one(
         {"id": "px_table_main"},
         {"$set": px_table},
+        upsert=True
+    )
+    return {"success": True}
+
+@router.get("/config/px-roll-table")
+async def get_px_roll_table_config():
+    """Get the per-roll (individual) PX table (Sistema 2, editable)."""
+    table = await get_px_roll_table()
+    return {"px_roll_table": table}
+
+@router.put("/config/px-roll-table")
+async def update_px_roll_table_config(px_roll_table: dict):
+    """Update the per-roll (individual) PX table."""
+    px_roll_table['id'] = "px_roll_table_main"
+    await db.travel_px_roll_table.update_one(
+        {"id": "px_roll_table_main"},
+        {"$set": px_roll_table},
         upsert=True
     )
     return {"success": True}
@@ -2268,16 +2417,26 @@ async def resolve_event(
     exito: bool,
     evento_nombre: str = "",
     objetivo_papel: str = "",
-    personaje_nombre: str = ""
+    personaje_nombre: str = "",
+    terreno: str = "moderado",
+    tierra: str = "tierras_salvajes"
 ):
     """
     Resolve an event and return consequences.
+    Also computes the INDIVIDUAL PX (Sistema 2) for the character who rolled,
+    based on the CD, the success margin, terrain and land difficulty.
     """
     events_table = await get_travel_events()
     evento = next((e for e in events_table if e['id'] == evento_id), None)
     
     if not evento:
         return {"error": True, "message": "Evento no encontrado"}
+
+    # ── PX individual por tirada (Sistema 2) ──
+    px_roll_table = await get_px_roll_table()
+    px_info = calcular_px_tirada(
+        px_roll_table, cd, tirada_resolucion, exito, terreno, tierra
+    )
     
     resultado = {
         "exito": exito,
@@ -2286,6 +2445,8 @@ async def resolve_event(
         "personaje": personaje_nombre,
         "tirada": tirada_resolucion,
         "cd": cd,
+        "px_individual": px_info["px_final"],
+        "px_desglose": px_info,
         "consecuencias": [],
         "modificadores": {
             "fatiga_cd_increase": evento['fatigue_cd_increase'],

@@ -133,50 +133,89 @@ export const getFatigueBaseCD = (terrain) => {
 };
 
 // =============== XP CALCULATION ===============
-// TABLA 1 — PX base por CD (actualizada 2026-02-24)
-// CD 5-10: 0 PX | 11-14: 2 PX | 15-19: 5 PX | 20-24: 10 PX | 25+: 15 PX
-export const calculateRollXP = (cd, tirada, exito, terreno, tipoTierra, d20Nat) => {
-  let pxBase = 0;
-  if (cd >= 25) pxBase = 15;
-  else if (cd >= 20) pxBase = 10;
-  else if (cd >= 15) pxBase = 5;
-  else if (cd >= 11) pxBase = 2;
-  else pxBase = 0;
+// ── SISTEMA 2: PX por TIRADA de evento (individual) ──
+// PX_final = PX_base(CD) × mod_diferencia × mult_terreno × mult_tierras (límite ±N).
+// La tabla es editable en CONFIG. VIAJES; se carga del backend y se inyecta con
+// setRollTableConfig(). Aquí guardamos los valores por defecto (= imagen de reglas).
+export const DEFAULT_ROLL_TABLE = {
+  px_base_por_cd: [
+    { cd: 10, exito: 1, fallo: 0 },
+    { cd: 12, exito: 2, fallo: -1 },
+    { cd: 14, exito: 3, fallo: -1 },
+    { cd: 16, exito: 4, fallo: -2 },
+    { cd: 18, exito: 5, fallo: -2 },
+    { cd: 20, exito: 6, fallo: -3 },
+  ],
+  mod_diferencia: [
+    { min: 10, max: 9999, mult: 2.0 },
+    { min: 5, max: 9, mult: 1.5 },
+    { min: 1, max: 4, mult: 1.2 },
+    { min: 0, max: 0, mult: 1.0 },
+    { min: -3, max: -1, mult: 1.0 },
+    { min: -6, max: -4, mult: 1.2 },
+    { min: -9999, max: -7, mult: 1.5 },
+  ],
+  mult_terreno: { facil: 0.8, moderado: 1.0, dificil: 1.2, muy_dificil: 1.5, desalentador: 1.8 },
+  mult_tierras: { tierras_libres: 0.8, tierras_fronterizas: 1.0, tierras_salvajes: 1.2, tierras_sombra: 1.5, tierras_oscuras: 1.8 },
+  limite_px: 12,
+};
 
+// Module-level config injected from the backend editable table.
+let _rollTableConfig = DEFAULT_ROLL_TABLE;
+export const setRollTableConfig = (t) => { if (t) _rollTableConfig = t; };
+
+const _normTerreno = (t) => {
+  t = (t || '').toLowerCase();
+  if (t === 'facil' || t === 'muy_facil') return 'facil';
+  if (t === 'dificil' || t === 'terreno_dificil') return 'dificil';
+  if (t === 'muy_dificil') return 'muy_dificil';
+  if (t === 'desalentador') return 'desalentador';
+  return 'moderado';
+};
+const _normTierra = (t) => {
+  t = (t || '').toLowerCase();
+  if (t.includes('libre')) return 'tierras_libres';
+  if (t.includes('fronteriz')) return 'tierras_fronterizas';
+  if (t.includes('salvaje')) return 'tierras_salvajes';
+  if (t.includes('sombra')) return 'tierras_sombra';
+  if (t.includes('oscura')) return 'tierras_oscuras';
+  return 'tierras_salvajes';
+};
+
+export const calculateRollXP = (cd, tirada, exito, terreno, tipoTierra, d20Nat, rollTable) => {
+  const T = rollTable || _rollTableConfig || DEFAULT_ROLL_TABLE;
+
+  // 1) PX base por CD (fila con el mayor cd <= cd indicado).
+  const filas = [...(T.px_base_por_cd || [])].sort((a, b) => a.cd - b.cd);
+  let fila = filas[0] || { exito: 0, fallo: 0 };
+  for (const f of filas) { if (cd >= f.cd) fila = f; }
+  const pxBase = exito ? fila.exito : fila.fallo;
+
+  // 2) Modificador por diferencia (resultado − CD).
   const diferencia = tirada - cd;
-  let pxFinal;
-
-  if (exito) {
-    pxFinal = pxBase;
-  } else {
-    // Fallo: no gana PX base (sólo restaría por pifia natural)
-    pxFinal = 0;
+  let multDif = 1.0;
+  for (const r of (T.mod_diferencia || [])) {
+    if (diferencia >= r.min && diferencia <= r.max) { multDif = r.mult; break; }
   }
 
-  // Modificadores especiales por tirada natural
-  let critico = false;
-  let pifia = false;
-  if (d20Nat === 20) {
-    critico = true;
-    pxFinal += 20; // Crítico: +20 PX extra (se suma al base)
-  } else if (d20Nat === 1) {
-    pifia = true;
-    pxFinal -= 10; // Pifia: -10 PX
-  }
+  // 3) Multiplicadores de terreno y tierras.
+  const multTerr = (T.mult_terreno || {})[_normTerreno(terreno)] ?? 1.0;
+  const multTier = (T.mult_tierras || {})[_normTierra(tipoTierra)] ?? 1.0;
 
-  // No hay multiplicadores de terreno/tierra individuales en la nueva tabla.
-  // El ajuste global del viaje se aplica al final (calculateGroupMultiplier).
+  // 4) PX final + límite + redondeo.
+  let pxFinal = pxBase * multDif * multTerr * multTier;
+  const limite = Math.abs(T.limite_px ?? 12);
+  pxFinal = Math.max(-limite, Math.min(limite, Math.round(pxFinal)));
 
   return {
     pxBase,
     diferencia,
-    pxFinal: Math.round(pxFinal),
-    critico,
-    pifia,
-    // Mantener estos campos por compatibilidad con UI existente
-    multDiferencia: 1,
-    multTerreno: 1,
-    multTierra: 1,
+    pxFinal,
+    critico: d20Nat === 20,
+    pifia: d20Nat === 1,
+    multDiferencia: multDif,
+    multTerreno: multTerr,
+    multTierra: multTier,
   };
 };
 
