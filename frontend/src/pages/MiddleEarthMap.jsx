@@ -1386,7 +1386,7 @@ const MiddleEarthMap = () => {
           <text
             textAnchor="middle"
             dominantBaseline="central"
-            fontSize={220 * inverseZoom}
+            fontSize={374 * inverseZoom}
             style={{ pointerEvents: 'none' }}
           >
             {icon}
