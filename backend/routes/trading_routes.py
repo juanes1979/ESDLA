@@ -241,22 +241,14 @@ DEFAULT_ANGER_CONSEQUENCES = {
 async def get_trading_config(db=None):
     """Get all trading configuration"""
     from server import db as database
+    from routes.trading_npc_data import (
+        PROFESIONES, RASGOS_POSITIVOS, RASGOS_NEGATIVOS, MODOS_HABLA,
+        EXCLUSION_TAGS_RAZA, EXCLUSION_TAGS_PROFESION,
+    )
     db = database
-    
-    config = await db.trading_config.find_one({"_id": "main"})
-    
-    if not config:
-        return {
-            "relationship_levels": DEFAULT_RELATIONSHIP_LEVELS,
-            "blessing_modifiers": DEFAULT_BLESSING_MODIFIERS,
-            "merchant_profiles": DEFAULT_MERCHANT_PROFILES,
-            "historical_contexts": DEFAULT_HISTORICAL_CONTEXTS,
-            "trading_thresholds": DEFAULT_TRADING_THRESHOLDS,
-            "contraoferta_factors": DEFAULT_CONTRAOFERTA_FACTORS,
-            "anger_consequences": DEFAULT_ANGER_CONSEQUENCES,
-            "updated_at": None
-        }
-    
+
+    config = await db.trading_config.find_one({"_id": "main"}) or {}
+
     return {
         "relationship_levels": config.get("relationship_levels", DEFAULT_RELATIONSHIP_LEVELS),
         "blessing_modifiers": config.get("blessing_modifiers", DEFAULT_BLESSING_MODIFIERS),
@@ -265,7 +257,14 @@ async def get_trading_config(db=None):
         "trading_thresholds": config.get("trading_thresholds", DEFAULT_TRADING_THRESHOLDS),
         "contraoferta_factors": config.get("contraoferta_factors", DEFAULT_CONTRAOFERTA_FACTORS),
         "anger_consequences": config.get("anger_consequences", DEFAULT_ANGER_CONSEQUENCES),
-        "updated_at": config.get("updated_at")
+        # --- Listas editables de creación de PNJ comerciante ---
+        "npc_profesiones": config.get("npc_profesiones", PROFESIONES),
+        "npc_rasgos_positivos": config.get("npc_rasgos_positivos", RASGOS_POSITIVOS),
+        "npc_rasgos_negativos": config.get("npc_rasgos_negativos", RASGOS_NEGATIVOS),
+        "npc_modos_habla": config.get("npc_modos_habla", MODOS_HABLA),
+        "npc_exclusion_raza": config.get("npc_exclusion_raza", EXCLUSION_TAGS_RAZA),
+        "npc_exclusion_profesion": config.get("npc_exclusion_profesion", EXCLUSION_TAGS_PROFESION),
+        "updated_at": config.get("updated_at"),
     }
 
 
@@ -273,7 +272,11 @@ async def get_trading_config(db=None):
 async def update_trading_config(config: dict = Body(...)):
     """Update trading configuration"""
     from server import db
-    
+    from routes.trading_npc_data import (
+        PROFESIONES, RASGOS_POSITIVOS, RASGOS_NEGATIVOS, MODOS_HABLA,
+        EXCLUSION_TAGS_RAZA, EXCLUSION_TAGS_PROFESION,
+    )
+
     update_data = {
         "relationship_levels": config.get("relationship_levels", DEFAULT_RELATIONSHIP_LEVELS),
         "blessing_modifiers": config.get("blessing_modifiers", DEFAULT_BLESSING_MODIFIERS),
@@ -282,6 +285,12 @@ async def update_trading_config(config: dict = Body(...)):
         "trading_thresholds": config.get("trading_thresholds", DEFAULT_TRADING_THRESHOLDS),
         "contraoferta_factors": config.get("contraoferta_factors", DEFAULT_CONTRAOFERTA_FACTORS),
         "anger_consequences": config.get("anger_consequences", DEFAULT_ANGER_CONSEQUENCES),
+        "npc_profesiones": config.get("npc_profesiones", PROFESIONES),
+        "npc_rasgos_positivos": config.get("npc_rasgos_positivos", RASGOS_POSITIVOS),
+        "npc_rasgos_negativos": config.get("npc_rasgos_negativos", RASGOS_NEGATIVOS),
+        "npc_modos_habla": config.get("npc_modos_habla", MODOS_HABLA),
+        "npc_exclusion_raza": config.get("npc_exclusion_raza", EXCLUSION_TAGS_RAZA),
+        "npc_exclusion_profesion": config.get("npc_exclusion_profesion", EXCLUSION_TAGS_PROFESION),
         "updated_at": now_utc()
     }
     
@@ -475,9 +484,7 @@ async def get_npcs(location: str = None):
 async def create_npc(npc_data: dict = Body(...)):
     """Create a new merchant NPC (con autorrelleno de nombre, rasgo, modo de habla y edad)."""
     from server import db
-    from routes.trading_npc_data import (
-        elegir_rasgo_aleatorio, elegir_modo_hablar, descripcion_rasgo,
-    )
+    cfg = await get_trading_config()
 
     raza = npc_data.get("raza", "")
     subcultura = npc_data.get("subcultura", "")
@@ -500,10 +507,10 @@ async def create_npc(npc_data: dict = Body(...)):
     rasgo_tipo = npc_data.get("rasgo_tipo", "")
     rasgo_desc = npc_data.get("rasgo_descripcion", "")
     if not rasgo:
-        elegido = elegir_rasgo_aleatorio(raza, profesion)
+        elegido = _elegir_rasgo_db(cfg, raza, profesion)
         rasgo, rasgo_tipo, rasgo_desc = elegido["nombre"], elegido["tipo"], elegido["descripcion"]
     elif not rasgo_desc:
-        desc, tipo = descripcion_rasgo(rasgo)
+        desc, tipo = _descripcion_rasgo_db(cfg, rasgo)
         rasgo_desc = desc or ""
         rasgo_tipo = rasgo_tipo or (tipo or "")
 
@@ -511,7 +518,7 @@ async def create_npc(npc_data: dict = Body(...)):
     modo_hablar = (npc_data.get("modo_hablar") or "").strip()
     modo_hablar_desc = npc_data.get("modo_hablar_desc", "")
     if not modo_hablar:
-        mh = elegir_modo_hablar()
+        mh = _elegir_modo_db(cfg)
         modo_hablar, modo_hablar_desc = mh["nombre"], mh["descripcion"]
 
     # --- Edad: calcular si está vacía ---
@@ -704,31 +711,74 @@ async def _get_culture_by_name(nombre: str):
 @router.get("/trading/npc-meta")
 async def get_npc_meta():
     """Metadatos para crear PNJ comerciante: profesiones, modos de habla, razas/subculturas."""
-    from routes.trading_npc_data import PROFESIONES, MODOS_HABLA
+    cfg = await get_trading_config()
     razas = await _cultures_grouped()
-    config = await db_safe_config()
     return {
-        "profesiones": PROFESIONES,
-        "modos_habla": MODOS_HABLA,
+        "profesiones": cfg.get("npc_profesiones", []),
+        "modos_habla": cfg.get("npc_modos_habla", []),
         "razas": razas,
         "sexos": ["Masculino", "Femenino"],
-        "merchant_profiles": config.get("merchant_profiles", DEFAULT_MERCHANT_PROFILES),
+        "merchant_profiles": cfg.get("merchant_profiles", DEFAULT_MERCHANT_PROFILES),
     }
 
 
-async def db_safe_config():
-    from server import db
-    config = await db.trading_config.find_one({"_id": "main"})
-    return config or {"merchant_profiles": DEFAULT_MERCHANT_PROFILES}
+def _forbidden_tags_db(cfg: dict, raza: str, profesion: str) -> set:
+    from routes.trading_npc_data import PROFESIONES_CRIMINALES
+    tags = set()
+    tags.update(cfg.get("npc_exclusion_raza", {}).get((raza or "").strip(), []))
+    tags.update(cfg.get("npc_exclusion_profesion", {}).get((profesion or "").strip(), []))
+    if (profesion or "").strip() in PROFESIONES_CRIMINALES:
+        tags.add("santo")
+    return tags
+
+
+def _rasgos_validos_db(cfg: dict, raza: str, profesion: str) -> dict:
+    forbidden = _forbidden_tags_db(cfg, raza, profesion)
+
+    def _ok(r):
+        return not (set(r.get("tags", [])) & forbidden)
+
+    return {
+        "positivos": [r for r in cfg.get("npc_rasgos_positivos", []) if _ok(r)],
+        "negativos": [r for r in cfg.get("npc_rasgos_negativos", []) if _ok(r)],
+    }
+
+
+def _elegir_rasgo_db(cfg: dict, raza: str, profesion: str) -> dict:
+    v = _rasgos_validos_db(cfg, raza, profesion)
+    tipo = random.choice(["positivo", "negativo"])
+    pool = v["positivos"] if tipo == "positivo" else v["negativos"]
+    if not pool:
+        pool = v["negativos"] or v["positivos"]
+        tipo = "negativo" if pool is v["negativos"] else "positivo"
+    if not pool:
+        return {"nombre": "", "descripcion": "", "tipo": "positivo"}
+    e = random.choice(pool)
+    return {"nombre": e["nombre"], "descripcion": e.get("descripcion", ""), "tipo": tipo}
+
+
+def _elegir_modo_db(cfg: dict) -> dict:
+    if random.random() < 0.5:
+        return {"nombre": "Normal", "descripcion": "Habla de forma normal, sin rasgos distintivos."}
+    modos = cfg.get("npc_modos_habla", [])
+    return dict(random.choice(modos)) if modos else {"nombre": "Normal", "descripcion": ""}
+
+
+def _descripcion_rasgo_db(cfg: dict, nombre: str):
+    for r in cfg.get("npc_rasgos_positivos", []):
+        if r.get("nombre") == nombre:
+            return r.get("descripcion", ""), "positivo"
+    for r in cfg.get("npc_rasgos_negativos", []):
+        if r.get("nombre") == nombre:
+            return r.get("descripcion", ""), "negativo"
+    return None, None
 
 
 @router.post("/trading/npc-meta/rasgos")
 async def get_valid_rasgos(payload: dict = Body(...)):
     """Devuelve los rasgos (positivos/negativos) compatibles con la raza y profesión."""
-    from routes.trading_npc_data import rasgos_validos
-    raza = payload.get("raza", "")
-    profesion = payload.get("profesion", "")
-    return rasgos_validos(raza, profesion)
+    cfg = await get_trading_config()
+    return _rasgos_validos_db(cfg, payload.get("raza", ""), payload.get("profesion", ""))
 
 
 @router.post("/trading/npcs/generate-name")

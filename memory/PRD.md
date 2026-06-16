@@ -198,6 +198,18 @@ imposibles por diseño.
 - Verificado: Bree→Rivendel ahora da 454 PX (antes 0).
 - PENDIENTE: definir cuántos PX dan los eventos de viaje (hoy 0 por defecto).
 
+## Iter 124 — Listas de creación de PNJ EDITABLES desde Configuración (Jun 2026)
+- Las listas de creación de PNJ (profesiones, rasgos positivos/negativos con
+  descripción y tags, modos de hablar, y las reglas de coherencia por raza/profesión)
+  ahora se guardan en el doc `trading_config` y son EDITABLES (añadir/cambiar/borrar)
+  desde **Compra-Venta → Configuración** (componente `NpcConfigEditor`).
+- Backend: GET/PUT `/trading/config` incluyen `npc_profesiones`, `npc_rasgos_positivos`,
+  `npc_rasgos_negativos`, `npc_modos_habla`, `npc_exclusion_raza`, `npc_exclusion_profesion`
+  (con defaults de `trading_npc_data`). `npc-meta`, `npc-meta/rasgos` y el autorrelleno de
+  `create_npc` leen de la config (funciones `_rasgos_validos_db`, `_elegir_rasgo_db`, etc.).
+- Verificado: editar/guardar una profesión en Configuración se refleja al instante en el
+  editor de PNJ (npc-meta). Se guarda con "Guardar Todo".
+
 ## Iter 123 — Reforma del módulo de creación de PNJ comerciante (3 fases) (Jun 2026)
 
 ### Datos (`routes/trading_npc_data.py`, NUEVO)

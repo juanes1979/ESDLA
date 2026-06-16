@@ -1296,6 +1296,9 @@ const TradingSystemSection = ({ isAdmin }) => {
           onSaved={loadPriceModifiers}
         />
 
+        {/* Listas editables de creación de PNJ comerciante */}
+        <NpcConfigEditor config={config} setConfig={setConfig} isAdmin={isAdmin} />
+
         {sections.map(section => (
           <div key={section.id} className="bg-black/20 rounded-lg border border-border/30">
             <button
@@ -1542,6 +1545,111 @@ const TradingSystemSection = ({ isAdmin }) => {
 // ============================================================================
 // NPC EDITOR MODAL
 // ============================================================================
+
+// ============================================================================
+// EDITOR DE LISTAS DE CREACIÓN DE PNJ (profesiones, rasgos, modos, coherencia)
+// ============================================================================
+const NpcConfigEditor = ({ config, setConfig, isAdmin }) => {
+  const [open, setOpen] = useState('');
+  const ro = !isAdmin;
+  const upd = (key, value) => setConfig(p => ({ ...p, [key]: value }));
+  const inputCls = "bg-black/30 border border-border rounded px-2 py-1 text-sm";
+
+  const toggle = (id) => setOpen(o => (o === id ? '' : id));
+
+  const Section = ({ id, title, count, children }) => (
+    <div className="bg-black/20 rounded-lg border border-border/30">
+      <button onClick={() => toggle(id)} className="w-full flex justify-between items-center p-3 text-left">
+        <span className="font-medium text-[hsl(var(--gold))]">{title} <span className="text-xs text-muted-foreground">({count})</span></span>
+        {open === id ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+      </button>
+      {open === id && <div className="px-3 pb-3 space-y-2">{children}</div>}
+    </div>
+  );
+
+  // --- Lista de strings (Profesiones) ---
+  const renderStringList = (key) => {
+    const list = config[key] || [];
+    return (
+      <>
+        {list.map((val, i) => (
+          <div key={i} className="flex gap-2">
+            <input className={`${inputCls} flex-1`} value={val} disabled={ro}
+              onChange={(e) => { const n = [...list]; n[i] = e.target.value; upd(key, n); }}
+              data-testid={`cfg-${key}-input-${i}`} />
+            {!ro && <Button size="sm" variant="ghost" onClick={() => upd(key, list.filter((_, j) => j !== i))}><Trash2 className="w-4 h-4 text-red-400" /></Button>}
+          </div>
+        ))}
+        {!ro && <Button size="sm" variant="outline" onClick={() => upd(key, [...list, ''])} data-testid={`cfg-${key}-add`}><Plus className="w-4 h-4 mr-1" /> Añadir</Button>}
+      </>
+    );
+  };
+
+  // --- Lista de objetos {nombre, descripcion[, tags]} ---
+  const renderObjList = (key, withTags) => {
+    const list = config[key] || [];
+    const setItem = (i, patch) => { const n = [...list]; n[i] = { ...n[i], ...patch }; upd(key, n); };
+    return (
+      <>
+        {list.map((it, i) => (
+          <div key={i} className="bg-black/20 rounded p-2 border border-border/20 space-y-1">
+            <div className="flex gap-2">
+              <input className={`${inputCls} flex-1`} placeholder="Nombre" value={it.nombre || ''} disabled={ro}
+                onChange={(e) => setItem(i, { nombre: e.target.value })} data-testid={`cfg-${key}-nombre-${i}`} />
+              {!ro && <Button size="sm" variant="ghost" onClick={() => upd(key, list.filter((_, j) => j !== i))}><Trash2 className="w-4 h-4 text-red-400" /></Button>}
+            </div>
+            <textarea className={`${inputCls} w-full h-12`} placeholder="Descripción" value={it.descripcion || ''} disabled={ro}
+              onChange={(e) => setItem(i, { descripcion: e.target.value })} />
+            {withTags && (
+              <input className={`${inputCls} w-full`} placeholder="Tags (coma): suciedad, mala_artesania, criminal, santo..."
+                value={(it.tags || []).join(', ')} disabled={ro}
+                onChange={(e) => setItem(i, { tags: e.target.value.split(',').map(t => t.trim()).filter(Boolean) })} />
+            )}
+          </div>
+        ))}
+        {!ro && <Button size="sm" variant="outline" onClick={() => upd(key, [...list, withTags ? { nombre: '', descripcion: '', tags: [] } : { nombre: '', descripcion: '' }])} data-testid={`cfg-${key}-add`}><Plus className="w-4 h-4 mr-1" /> Añadir</Button>}
+      </>
+    );
+  };
+
+  // --- Mapa de exclusiones {clave: [tags]} ---
+  const renderExclusion = (key, placeholder) => {
+    const map = config[key] || {};
+    const entries = Object.entries(map);
+    const setKeyName = (oldK, newK) => {
+      const n = {}; entries.forEach(([k, v]) => { n[k === oldK ? newK : k] = v; }); upd(key, n);
+    };
+    const setTags = (k, tags) => upd(key, { ...map, [k]: tags });
+    return (
+      <>
+        <p className="text-xs text-muted-foreground">Tags prohibidos por {placeholder}. El rasgo se oculta si comparte algún tag.</p>
+        {entries.map(([k, tags], i) => (
+          <div key={i} className="flex gap-2 items-center">
+            <input className={`${inputCls} w-40`} value={k} disabled={ro} placeholder={placeholder}
+              onChange={(e) => setKeyName(k, e.target.value)} data-testid={`cfg-${key}-key-${i}`} />
+            <input className={`${inputCls} flex-1`} value={(tags || []).join(', ')} disabled={ro} placeholder="tags (coma)"
+              onChange={(e) => setTags(k, e.target.value.split(',').map(t => t.trim()).filter(Boolean))} />
+            {!ro && <Button size="sm" variant="ghost" onClick={() => { const n = { ...map }; delete n[k]; upd(key, n); }}><Trash2 className="w-4 h-4 text-red-400" /></Button>}
+          </div>
+        ))}
+        {!ro && <Button size="sm" variant="outline" onClick={() => upd(key, { ...map, '': [] })} data-testid={`cfg-${key}-add`}><Plus className="w-4 h-4 mr-1" /> Añadir</Button>}
+      </>
+    );
+  };
+
+  return (
+    <div className="bg-black/20 rounded-lg border border-[hsl(var(--gold))]/30 p-4 space-y-3" data-testid="npc-config-editor">
+      <h4 className="font-heading text-[hsl(var(--gold))] flex items-center gap-2"><Users className="w-4 h-4" /> Creación de PNJ Comerciante</h4>
+      <p className="text-xs text-muted-foreground">Edita las listas usadas al crear PNJs. Pulsa "Guardar Todo" arriba para aplicar los cambios.</p>
+      <Section id="prof" title="Profesiones" count={(config.npc_profesiones || []).length}>{renderStringList('npc_profesiones')}</Section>
+      <Section id="pos" title="Rasgos Positivos" count={(config.npc_rasgos_positivos || []).length}>{renderObjList('npc_rasgos_positivos', true)}</Section>
+      <Section id="neg" title="Rasgos Negativos" count={(config.npc_rasgos_negativos || []).length}>{renderObjList('npc_rasgos_negativos', true)}</Section>
+      <Section id="modos" title="Modos de Hablar" count={(config.npc_modos_habla || []).length}>{renderObjList('npc_modos_habla', false)}</Section>
+      <Section id="exr" title="Coherencia: Exclusiones por Raza" count={Object.keys(config.npc_exclusion_raza || {}).length}>{renderExclusion('npc_exclusion_raza', 'raza')}</Section>
+      <Section id="exp" title="Coherencia: Exclusiones por Profesión" count={Object.keys(config.npc_exclusion_profesion || {}).length}>{renderExclusion('npc_exclusion_profesion', 'profesión')}</Section>
+    </div>
+  );
+};
 
 const NpcEditorModal = ({ npc, config, onSave, onClose }) => {
   const API_URL = process.env.REACT_APP_BACKEND_URL;
