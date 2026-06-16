@@ -198,6 +198,18 @@ imposibles por diseño.
 - Verificado: Bree→Rivendel ahora da 454 PX (antes 0).
 - PENDIENTE: definir cuántos PX dan los eventos de viaje (hoy 0 por defecto).
 
+## Iter 121 — Fix peso por item en Gestión de Equipamiento (Jun 2026)
+- BUG: en la "Tabla de Portadores" (`DistributionView.jsx`) los objetos sin
+  `peso_kg` persistido (Capa de viaje, Muda fina, Cota de anillas, Botas…)
+  mostraban `0.00 KG`. El backend (`equipment.py::get_weight`) ya resolvía el
+  peso desde el catálogo, pero el frontend leía `raw.peso_kg` directo.
+- FIX: `EquipmentManagerModal.jsx` construye `catalogWeights` (mapa
+  nombre-normalizado→peso_kg de TODO el catálogo) y lo pasa a
+  `DistributionView`, que resuelve el peso por nombre cuando el item no lo trae.
+- Verificado en navegador: pesos correctos (Mochila 1.35, Cota de anillas 22.30,
+  Odre semilleno 8.90…). NOTA: "Raciones (1 día)" sigue 0.00 por hueco del
+  catálogo (solo existe "Raciones (1 día) (Paquete de 10)"), no es regresión.
+
 ### Mapa
 - Eliminado el cálculo de ruta del Mapa del Maestro (vive solo en el Generador).
 - Iconos de ubicación a partir de zoom ≥1200% (fontSize 374×inverseZoom).

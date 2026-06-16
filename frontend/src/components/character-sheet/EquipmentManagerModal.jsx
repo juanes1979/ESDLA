@@ -174,6 +174,25 @@ const EquipmentManagerModal = ({
     return items.filter(item => item.nombre?.toLowerCase().includes(term));
   }, [catalog, selectedCategory, searchTerm, filterByRegion, characterRegion]);
 
+  // Mapa nombre(normalizado) -> peso_kg desde TODO el catálogo. Permite a la
+  // tabla de portadores mostrar el peso aunque el item no tenga peso_kg persistido.
+  const catalogWeights = useMemo(() => {
+    const map = {};
+    Object.values(catalog || {}).forEach((cat) => {
+      if (!Array.isArray(cat)) return;
+      cat.forEach((it) => {
+        const nombre = it?.nombre;
+        const peso = Number(it?.peso_kg);
+        if (nombre && Number.isFinite(peso) && peso > 0) {
+          const key = String(nombre).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+          if (!(key in map)) map[key] = peso;
+        }
+      });
+    });
+    return map;
+  }, [catalog]);
+
+
   // Get current character money in display format
   const getMoneyDisplay = () => {
     const dinero = character?.dinero || { mo: 0, mp: 0, me: 0, mc: 0 };
@@ -1434,6 +1453,7 @@ const EquipmentManagerModal = ({
                 character={character}
                 weightSummary={weightSummary}
                 chestsApi={chestsApi}
+                catalogWeights={catalogWeights}
                 onMoveItem={handleDistributionMove}
                 processing={processing}
               />

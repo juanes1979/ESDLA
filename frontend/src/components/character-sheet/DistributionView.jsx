@@ -159,15 +159,19 @@ const buildPortadores = (character, weightSummary, chestsApi) => {
  * Cada ítem: { uid, nombre, peso, cantidad, source, itemIndex, mountId, locationId,
  *              portadorId, activa, posicion, raw }
  */
-const buildItems = (character, chestsApi) => {
+const buildItems = (character, chestsApi, weightLookup) => {
   const items = [];
   let uid = 0;
+  const lookup = typeof weightLookup === 'function' ? weightLookup : () => 0;
 
   const pushItem = ({ raw, source, itemIndex, mountId, locationId, kind }) => {
     if (!raw) return;
     const isObj = typeof raw === 'object';
     const nombre = isObj ? (raw.nombre || raw.name || '?') : String(raw);
-    const peso = isObj ? Number(raw.peso_kg || 0) : 0;
+    // El peso del item puede no estar persistido (peso_kg = null); en ese caso
+    // se resuelve desde el catálogo de equipo por nombre (igual que el backend).
+    const pesoRaw = isObj ? Number(raw.peso_kg) : 0;
+    const peso = Number.isFinite(pesoRaw) && pesoRaw > 0 ? pesoRaw : lookup(nombre);
     const cantidad = isObj ? (raw.cantidad ?? 1) : 1;
     const activa = isObj ? !!raw.activa : false;
     const posicion = isObj ? (raw.posicion || null) : null;
@@ -451,18 +455,29 @@ const DistributionView = ({
   character,
   weightSummary,
   chestsApi,
+  catalogWeights,
   onMoveItem,        // (item, targetPortador) => Promise
   processing,
 }) => {
   const [selectedItem, setSelectedItem] = useState(null);
+
+  // Resuelve el peso de un item por nombre desde el catálogo (normalizado).
+  const weightLookup = useMemo(() => {
+    const map = catalogWeights || {};
+    return (nombre) => {
+      if (!nombre) return 0;
+      const key = String(nombre).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+      return Number(map[key] || 0);
+    };
+  }, [catalogWeights]);
 
   const portadores = useMemo(
     () => buildPortadores(character, weightSummary, chestsApi),
     [character, weightSummary, chestsApi]
   );
   const items = useMemo(
-    () => buildItems(character, chestsApi),
-    [character, chestsApi]
+    () => buildItems(character, chestsApi, weightLookup),
+    [character, chestsApi, weightLookup]
   );
 
   const ubic = chestsApi?.ubicacion_actual || character?.ubicacion_actual || null;
