@@ -132,6 +132,7 @@ const EquipmentSection = ({
   // Profesiones (para asignar quién vende cada equipo)
   const [npcProfesiones, setNpcProfesiones] = useState([]);
   const [blockProf, setBlockProf] = useState({});
+  const [blockReg, setBlockReg] = useState({});
   const [savingBlockProf, setSavingBlockProf] = useState(null);
   const [openBlockProf, setOpenBlockProf] = useState(null);
 
@@ -143,6 +144,7 @@ const EquipmentSection = ({
 
   useEffect(() => {
     if (data?._block_profesiones) setBlockProf(data._block_profesiones);
+    if (data?._block_regiones) setBlockReg(data._block_regiones);
   }, [data]);
 
   const toggleBlockProf = (catKey, prof) => {
@@ -272,31 +274,36 @@ const EquipmentSection = ({
     }
   };
 
-  // Open category availability editor
+  // Open category (block) region/settlement default editor
   const openCategoryEditor = (categoryKey, categoryName) => {
     setEditingCategoryKey(categoryKey);
     setEditingCategoryName(categoryName);
-    setCategoryAvailability({ nivel_asentamiento: [], regiones_disponibles: [] });
+    const def = blockReg[categoryKey] || {};
+    setCategoryAvailability({
+      nivel_asentamiento: def.nivel_asentamiento || [],
+      regiones_disponibles: def.regiones_disponibles || [],
+    });
     setShowCategoryEditor(true);
   };
 
-  // Handle save category availability
+  // Guardar regiones/asentamiento por DEFECTO del bloque (no toca los ítems).
+  // Los ítems sin regiones/asentamiento propios heredan estos valores.
   const handleSaveCategoryAvailability = async () => {
     if (!editingCategoryKey) return;
-    
+
     setSavingCategory(true);
     try {
-      const items = data[editingCategoryKey] || [];
-      const updates = items.map(item => ({
-        categoria: editingCategoryKey,
-        nombre: item.nombre,
-        nivel_asentamiento: categoryAvailability.nivel_asentamiento,
-        regiones_disponibles: categoryAvailability.regiones_disponibles
-      }));
-      
-      await api.post('/data/equipment/batch-set-availability', updates);
-      toast.success(`Disponibilidad actualizada para ${updates.length} items en "${editingCategoryName}"`);
-      
+      const nextBlockReg = {
+        ...blockReg,
+        [editingCategoryKey]: {
+          regiones_disponibles: categoryAvailability.regiones_disponibles,
+          nivel_asentamiento: categoryAvailability.nivel_asentamiento,
+        },
+      };
+      await api.put('/data/equipment/block-regiones', { block_regiones: nextBlockReg });
+      setBlockReg(nextBlockReg);
+      toast.success(`Regiones por defecto guardadas para "${editingCategoryName}"`);
+
       onRefresh?.();
       setShowCategoryEditor(false);
       setEditingCategoryKey(null);
@@ -461,6 +468,23 @@ const EquipmentSection = ({
   const renderTable = (cat) => {
     const items = data[cat.key];
     if (!items?.length) return null;
+
+    // Disponibilidad efectiva de un ítem: usa lo propio si lo tiene, si no hereda del bloque.
+    const effectiveAvail = (item) => {
+      const bp = blockProf[cat.key] || [];
+      const br = blockReg[cat.key] || {};
+      const profProp = (item.profesiones || []).length > 0;
+      const regProp = (item.regiones_disponibles || []).length > 0;
+      const setProp = (item.nivel_asentamiento || []).length > 0;
+      return {
+        profesiones: profProp ? item.profesiones : bp,
+        profHereda: !profProp,
+        regiones: regProp ? item.regiones_disponibles : (br.regiones_disponibles || []),
+        regHereda: !regProp,
+        asentamiento: setProp ? item.nivel_asentamiento : (br.nivel_asentamiento || []),
+        setHereda: !setProp,
+      };
+    };
     
     const filtered = filterData(items, searchTerm);
     if (!filtered?.length) return null;
@@ -611,15 +635,32 @@ const EquipmentSection = ({
                   {cat.fields.includes('m2') && <td className="text-center py-2 px-2">{item.m2 || '-'}</td>}
                   {cat.fields.includes('peso_kg') && <td className="text-right py-2 px-2 text-muted-foreground">{item.peso_kg ? `${item.peso_kg} kg` : '-'}</td>}
                   <td className="text-center py-2 px-2">
-                    {item.nivel_asentamiento?.length > 0 ? (
-                      <span className="text-xs text-muted-foreground" title={item.nivel_asentamiento.join(', ')}>
-                        {item.nivel_asentamiento.length === 5 ? '🌍' : 
-                         item.nivel_asentamiento.includes('aldea') ? '🏡' : 
-                         item.nivel_asentamiento.includes('pueblo') ? '🏘️' : 
-                         item.nivel_asentamiento.includes('villa') ? '🏛️' : 
-                         item.nivel_asentamiento.includes('ciudad') ? '🏰' : '👑'}
-                      </span>
-                    ) : '-'}
+                    {(() => {
+                      const ea = effectiveAvail(item);
+                      const asent = ea.asentamiento || [];
+                      const icon = asent.length === 0 ? '🌍'
+                        : asent.length === 5 ? '🌍'
+                        : asent.includes('aldea') ? '🏡'
+                        : asent.includes('pueblo') ? '🏘️'
+                        : asent.includes('villa') ? '🏛️'
+                        : asent.includes('ciudad') ? '🏰' : '👑';
+                      const regTxt = (ea.regiones && ea.regiones.length) ? ea.regiones.join(', ') : 'Todas las regiones';
+                      const profTxt = (ea.profesiones && ea.profesiones.length) ? ea.profesiones.join(', ') : 'Cualquier profesión';
+                      const hereda = ea.regHereda && ea.setHereda && ea.profHereda;
+                      const tipo = hereda ? 'Hereda todo del bloque' :
+                        `${ea.profHereda ? 'Profesiones: hereda' : 'Profesiones: propias'} · ${(ea.regHereda && ea.setHereda) ? 'Regiones: hereda' : 'Regiones: propias'}`;
+                      return (
+                        <span className="inline-flex items-center gap-1 text-xs text-muted-foreground"
+                          title={`${tipo}\nVende: ${profTxt}\nRegión: ${regTxt}\nAsentamiento: ${asent.length ? asent.join(', ') : 'cualquiera'}`}>
+                          <span>{icon}</span>
+                          {hereda ? (
+                            <span className="px-1 rounded bg-blue-900/30 text-blue-300 text-[10px]">hereda</span>
+                          ) : (
+                            <span className="px-1 rounded bg-[hsl(var(--gold))]/20 text-[hsl(var(--gold))] text-[10px]">propio</span>
+                          )}
+                        </span>
+                      );
+                    })()}
                   </td>
                   {isAdmin && (
                     <td className="text-center py-2 px-2">
@@ -956,6 +997,8 @@ const EquipmentSection = ({
           availableRegions={availableRegions}
           onChangeCategory={() => { setChangeCatTarget(''); setShowChangeCat(true); }}
           npcProfesiones={npcProfesiones}
+          blockProfList={blockProf[editingItem.categoria] || []}
+          blockRegDef={blockReg[editingItem.categoria] || {}}
         />
       )}
 
@@ -1079,7 +1122,7 @@ const CATEGORY_EXTRA_FIELDS = {
   gemas_semipreciosas: [],
 };
 
-const ItemEditorModal = ({ item, setItem, onSave, onClose, saving, availableRegions, onChangeCategory, npcProfesiones = [] }) => {
+const ItemEditorModal = ({ item, setItem, onSave, onClose, saving, availableRegions, onChangeCategory, npcProfesiones = [], blockProfList = [], blockRegDef = {} }) => {
   const updateField = (field, value) => {
     setItem(prev => ({
       ...prev,
@@ -1176,9 +1219,25 @@ const ItemEditorModal = ({ item, setItem, onSave, onClose, saving, availableRegi
             </div>
           </div>
 
-          {/* Profesiones que pueden vender este objeto (herencia: si vacío, hereda del bloque) */}
+          {/* Profesiones que pueden vender este objeto (herencia independiente del bloque) */}
           <div className="border-t border-border/30 pt-4" data-testid="item-editor-profesiones">
-            <label className="text-sm text-muted-foreground">Profesiones que lo venden <span className="text-xs">(vacío = hereda del bloque o lo vende cualquiera)</span></label>
+            <div className="flex items-center justify-between gap-2">
+              <label className="text-sm text-muted-foreground">Profesiones que lo venden</label>
+              {(item.profesiones || []).length > 0 ? (
+                <button type="button" onClick={() => updateField('profesiones', [])}
+                  className="text-xs px-2 py-1 rounded border border-blue-500/40 text-blue-300 hover:bg-blue-500/10"
+                  data-testid="item-prof-reset">↩ Volver a heredar del bloque</button>
+              ) : (
+                <span className="text-xs px-2 py-1 rounded bg-blue-900/30 text-blue-300">Hereda del bloque</span>
+              )}
+            </div>
+            {(item.profesiones || []).length === 0 && (
+              <p className="text-xs text-muted-foreground mt-1">
+                {blockProfList.length > 0
+                  ? <>Por defecto lo venden: <span className="text-[hsl(var(--gold))]">{blockProfList.join(', ')}</span>. Marca alguna para personalizar SOLO este ítem.</>
+                  : <>El bloque no tiene profesiones; lo vende cualquiera. Marca alguna para limitarlo a este ítem.</>}
+              </p>
+            )}
             <div className="flex flex-wrap gap-2 mt-2">
               {npcProfesiones.map(prof => {
                 const active = (item.profesiones || []).includes(prof);
@@ -1320,9 +1379,25 @@ const ItemEditorModal = ({ item, setItem, onSave, onClose, saving, availableRegi
             </div>
           </div>
 
-          {/* Settlement availability */}
+          {/* Settlement availability (herencia independiente del bloque) */}
           <div className="border-t border-border/30 pt-4">
-            <h3 className="text-sm font-medium text-[hsl(var(--gold))] mb-3">Disponibilidad por Asentamiento</h3>
+            <div className="flex items-center justify-between gap-2 mb-3">
+              <h3 className="text-sm font-medium text-[hsl(var(--gold))]">Disponibilidad por Asentamiento</h3>
+              {(item.nivel_asentamiento || []).length > 0 ? (
+                <button type="button" onClick={() => updateField('nivel_asentamiento', [])}
+                  className="text-xs px-2 py-1 rounded border border-blue-500/40 text-blue-300 hover:bg-blue-500/10"
+                  data-testid="item-asent-reset">↩ Volver a heredar del bloque</button>
+              ) : (
+                <span className="text-xs px-2 py-1 rounded bg-blue-900/30 text-blue-300">Hereda del bloque</span>
+              )}
+            </div>
+            {(item.nivel_asentamiento || []).length === 0 && (
+              <p className="text-xs text-muted-foreground mb-2">
+                {(blockRegDef.nivel_asentamiento || []).length > 0
+                  ? <>Por defecto: <span className="text-[hsl(var(--gold))]">{blockRegDef.nivel_asentamiento.join(', ')}</span>. Marca alguno para personalizar este ítem.</>
+                  : <>El bloque no restringe el asentamiento. Marca alguno para limitarlo a este ítem.</>}
+              </p>
+            )}
             <div className="flex flex-wrap gap-2">
               {SETTLEMENT_LEVELS.map(level => (
                 <button
@@ -1341,11 +1416,18 @@ const ItemEditorModal = ({ item, setItem, onSave, onClose, saving, availableRegi
             </div>
           </div>
 
-          {/* Region availability */}
+          {/* Region availability (herencia independiente del bloque) */}
           <div className="border-t border-border/30 pt-4">
-            <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center justify-between mb-2">
               <h3 className="text-sm font-medium text-[hsl(var(--magic-blue))]">Disponibilidad por Región</h3>
-              <div className="flex gap-2">
+              <div className="flex gap-2 items-center">
+                {(item.regiones_disponibles || []).length > 0 ? (
+                  <button type="button" onClick={() => updateField('regiones_disponibles', [])}
+                    className="text-xs px-2 py-1 rounded border border-blue-500/40 text-blue-300 hover:bg-blue-500/10"
+                    data-testid="item-reg-reset">↩ Heredar del bloque</button>
+                ) : (
+                  <span className="text-xs px-2 py-1 rounded bg-blue-900/30 text-blue-300">Hereda del bloque</span>
+                )}
                 <Button variant="outline" size="sm" onClick={() => {
                   const allRegions = [];
                   availableRegions.forEach(r => {
@@ -1357,7 +1439,15 @@ const ItemEditorModal = ({ item, setItem, onSave, onClose, saving, availableRegi
                 <Button variant="outline" size="sm" onClick={() => updateField('regiones_disponibles', [])} className="text-xs h-7">Ninguna</Button>
               </div>
             </div>
-            
+            {(item.regiones_disponibles || []).length === 0 && (
+              <p className="text-xs text-muted-foreground mb-2">
+                {(blockRegDef.regiones_disponibles || []).length > 0
+                  ? <>Por defecto se compra en: <span className="text-[hsl(var(--gold))]">{blockRegDef.regiones_disponibles.join(', ')}</span>. Marca alguna para personalizar SOLO este ítem (p. ej. el Elefante solo en Harad).</>
+                  : <>El bloque no restringe región (se compra en todas). Marca alguna para limitarlo a este ítem.</>}
+              </p>
+            )}
+            </div>
+          <div className="border-t-0 pt-0">
             <div className="max-h-48 overflow-y-auto space-y-2 bg-black/10 rounded p-2">
               {availableRegions.map(region => {
                 const regionSelected = (item.regiones_disponibles || []).includes(region.nombre);
@@ -1479,10 +1569,11 @@ const CategoryAvailabilityModal = ({ categoryName, categoryKey, data, availabili
           <div>
             <h2 className="font-heading text-xl text-[hsl(var(--torch-orange))] flex items-center gap-2">
               <Package className="w-5 h-5" />
-              Editar Disponibilidad: {categoryName}
+              Regiones por defecto del bloque: {categoryName}
             </h2>
             <p className="text-sm text-muted-foreground mt-1">
-              Se aplicará a los {itemCount} items de esta categoría
+              Valor por defecto para los {itemCount} ítems de esta categoría. Los ítems con
+              regiones/asentamiento propios (override) NO se ven afectados y mantienen los suyos.
             </p>
           </div>
           <Button variant="ghost" size="sm" onClick={onClose}>✕</Button>

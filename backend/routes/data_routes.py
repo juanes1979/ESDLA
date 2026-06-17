@@ -1074,6 +1074,8 @@ async def get_equipment_catalog(
 
     # Profesiones por bloque (para herencia en la tienda)
     block_prof = catalog.get("_block_profesiones", {})
+    # Regiones/asentamiento por bloque (herencia independiente de las profesiones)
+    block_reg = catalog.get("_block_regiones", {})
 
     # Filter by category if specified
     if categoria and categoria in result:
@@ -1089,6 +1091,7 @@ async def get_equipment_catalog(
             ]
     
     result["_block_profesiones"] = block_prof
+    result["_block_regiones"] = block_reg
     return result
 
 
@@ -1111,6 +1114,38 @@ async def update_block_profesiones(payload: dict = Body(...)):
         upsert=True,
     )
     return {"message": "Profesiones por bloque guardadas", "block_profesiones": clean}
+
+
+@router.get("/equipment/block-regiones")
+async def get_block_regiones():
+    """Devuelve las regiones/asentamientos por defecto de cada bloque/categoría.
+
+    Forma: { categoria: { regiones_disponibles: [...], nivel_asentamiento: [...] } }
+    Los objetos sin regiones/asentamiento propios heredan estos valores del bloque.
+    """
+    catalog = await db.equipment_catalog.find_one({"_id": "main"}) or await db.equipment_catalog.find_one({})
+    return (catalog or {}).get("_block_regiones", {})
+
+
+@router.put("/equipment/block-regiones")
+async def update_block_regiones(payload: dict = Body(...)):
+    """Guarda el mapa {categoria: {regiones_disponibles:[], nivel_asentamiento:[]}}."""
+    data = payload.get("block_regiones", payload) or {}
+    clean = {}
+    for cat, val in data.items():
+        if not isinstance(val, dict):
+            continue
+        clean[str(cat)] = {
+            "regiones_disponibles": [str(r) for r in (val.get("regiones_disponibles") or [])],
+            "nivel_asentamiento": [str(n) for n in (val.get("nivel_asentamiento") or [])],
+        }
+    await db.equipment_catalog.update_one(
+        {"_id": "main"},
+        {"$set": {"_block_regiones": clean, "updated_at": datetime.now(timezone.utc)}},
+        upsert=True,
+    )
+    return {"message": "Regiones por bloque guardadas", "block_regiones": clean}
+
 
 
 # Profesiones por defecto sugeridas para cada bloque/categoría de equipo.
