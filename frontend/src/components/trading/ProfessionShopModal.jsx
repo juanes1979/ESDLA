@@ -19,11 +19,14 @@ const ProfessionShopModal = ({
   categories = [],     // [{ key, name }]
   isAdmin = false,
   onDeselect,          // async (catKey, itemName, prof) => void
+  onDeselectBlock,     // async (catKey, itemNames[], prof) => void
   onClose,
 }) => {
   const [search, setSearch] = useState('');
+  const [itemSearch, setItemSearch] = useState('');
   const [expanded, setExpanded] = useState(null);
   const [busy, setBusy] = useState(null); // `${cat}|${item}|${prof}`
+  const [busyBlock, setBusyBlock] = useState(null); // `${cat}|${prof}`
 
   // profesión → [{ catKey, catName, items: [nombre] }]
   const byProfession = useMemo(() => {
@@ -62,6 +65,20 @@ const ProfessionShopModal = ({
     finally { setBusy(null); }
   };
 
+  const handleDeselectBlock = async (catKey, itemNames, prof) => {
+    const id = `${catKey}|${prof}`;
+    setBusyBlock(id);
+    try { await onDeselectBlock?.(catKey, itemNames, prof); }
+    finally { setBusyBlock(null); }
+  };
+
+  // Filtra los ítems de un bloque por el buscador de ítems.
+  const filterItems = (names) => {
+    const q = itemSearch.toLowerCase().trim();
+    if (!q) return names;
+    return names.filter((n) => n.toLowerCase().includes(q));
+  };
+
   return (
     <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4" data-testid="profession-shop-modal">
       <div className="bg-[hsl(var(--background))] border border-[hsl(var(--gold))]/50 rounded-lg w-full max-w-3xl max-h-[90vh] flex flex-col">
@@ -74,15 +91,22 @@ const ProfessionShopModal = ({
           </button>
         </div>
 
-        <div className="p-4 border-b border-border/30">
-          <div className="relative">
-            <Search className="w-4 h-4 absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground" />
-            <Input value={search} onChange={(e) => setSearch(e.target.value)}
-              placeholder="Buscar profesión…" className="pl-8" data-testid="profshop-search" />
+        <div className="p-4 border-b border-border/30 space-y-2">
+          <div className="grid sm:grid-cols-2 gap-2">
+            <div className="relative">
+              <Search className="w-4 h-4 absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground" />
+              <Input value={search} onChange={(e) => setSearch(e.target.value)}
+                placeholder="Buscar profesión…" className="pl-8" data-testid="profshop-search" />
+            </div>
+            <div className="relative">
+              <Search className="w-4 h-4 absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground" />
+              <Input value={itemSearch} onChange={(e) => setItemSearch(e.target.value)}
+                placeholder="Buscar ítem dentro de la profesión…" className="pl-8" data-testid="profshop-item-search" />
+            </div>
           </div>
           {isAdmin && (
-            <p className="text-xs text-muted-foreground mt-2">
-              Pulsa la ✕ de un ítem para que esa profesión deje de venderlo (se ajusta el override del ítem).
+            <p className="text-xs text-muted-foreground">
+              Pulsa la ✕ de un ítem para que esa profesión deje de venderlo, o «Quitar todos» para vaciar un bloque entero (se ajusta el override de cada ítem).
             </p>
           )}
         </div>
@@ -110,33 +134,56 @@ const ProfessionShopModal = ({
                     {blocks.length === 0 ? (
                       <p className="text-xs text-muted-foreground">No vende ningún ítem.</p>
                     ) : (
-                      blocks.map((b) => (
-                        <div key={b.catKey}>
-                          <p className="text-xs font-medium text-[hsl(var(--magic-blue))] mb-1">{b.catName} <span className="text-muted-foreground">({b.items.length})</span></p>
-                          <div className="flex flex-wrap gap-1.5">
-                            {b.items.map((nombre) => {
-                              const id = `${b.catKey}|${nombre}|${prof}`;
-                              return (
-                                <span key={nombre}
-                                  className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded bg-black/30 border border-border/40"
-                                  data-testid={`profshop-item-${b.catKey}-${nombre}`}>
-                                  {nombre}
-                                  {isAdmin && (
-                                    <button
-                                      onClick={() => handleDeselect(b.catKey, nombre, prof)}
-                                      disabled={busy === id}
-                                      className="text-red-400 hover:text-red-300"
-                                      title={`Quitar "${nombre}" de ${prof}`}
-                                      data-testid={`profshop-remove-${b.catKey}-${nombre}`}>
-                                      {busy === id ? <Loader2 className="w-3 h-3 animate-spin" /> : <X className="w-3 h-3" />}
-                                    </button>
-                                  )}
-                                </span>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      ))
+                      (() => {
+                        const visibleBlocks = blocks
+                          .map((b) => ({ ...b, vis: filterItems(b.items) }))
+                          .filter((b) => b.vis.length > 0);
+                        if (visibleBlocks.length === 0) {
+                          return <p className="text-xs text-muted-foreground">Sin coincidencias para «{itemSearch}».</p>;
+                        }
+                        return visibleBlocks.map((b) => {
+                          const blockId = `${b.catKey}|${prof}`;
+                          return (
+                            <div key={b.catKey}>
+                              <div className="flex items-center justify-between mb-1">
+                                <p className="text-xs font-medium text-[hsl(var(--magic-blue))]">{b.catName} <span className="text-muted-foreground">({b.vis.length})</span></p>
+                                {isAdmin && (
+                                  <button
+                                    onClick={() => handleDeselectBlock(b.catKey, b.vis, prof)}
+                                    disabled={busyBlock === blockId}
+                                    className="text-[10px] px-2 py-0.5 rounded border border-red-500/40 text-red-300 hover:bg-red-500/10 inline-flex items-center gap-1"
+                                    data-testid={`profshop-remove-block-${b.catKey}`}>
+                                    {busyBlock === blockId ? <Loader2 className="w-3 h-3 animate-spin" /> : <X className="w-3 h-3" />}
+                                    Quitar todos
+                                  </button>
+                                )}
+                              </div>
+                              <div className="flex flex-wrap gap-1.5">
+                                {b.vis.map((nombre) => {
+                                  const id = `${b.catKey}|${nombre}|${prof}`;
+                                  return (
+                                    <span key={nombre}
+                                      className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded bg-black/30 border border-border/40"
+                                      data-testid={`profshop-item-${b.catKey}-${nombre}`}>
+                                      {nombre}
+                                      {isAdmin && (
+                                        <button
+                                          onClick={() => handleDeselect(b.catKey, nombre, prof)}
+                                          disabled={busy === id}
+                                          className="text-red-400 hover:text-red-300"
+                                          title={`Quitar "${nombre}" de ${prof}`}
+                                          data-testid={`profshop-remove-${b.catKey}-${nombre}`}>
+                                          {busy === id ? <Loader2 className="w-3 h-3 animate-spin" /> : <X className="w-3 h-3" />}
+                                        </button>
+                                      )}
+                                    </span>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          );
+                        });
+                      })()
                     )}
                   </div>
                 )}

@@ -303,6 +303,27 @@ const EquipmentSection = ({
     }
   };
 
+  // Quitar una profesión de TODOS los ítems de un bloque (botón "Quitar todos").
+  const handleProfDeselectBlock = async (catKey, itemNames, prof) => {
+    const items = data[catKey] || [];
+    let ok = 0;
+    for (const name of itemNames) {
+      const item = items.find(i => i.nombre === name);
+      if (!item) continue;
+      const effective = (item.profesiones && item.profesiones.length)
+        ? item.profesiones
+        : (blockProf[catKey] || []);
+      const base = effective.length ? effective : npcProfesiones;
+      const next = base.filter(p => p !== prof);
+      try {
+        await api.put(`/data/equipment/${catKey}/${encodeURIComponent(name)}`, { profesiones: next });
+        ok += 1;
+      } catch (e) { /* continúa con el resto */ }
+    }
+    toast.success(`Quitados ${ok} ítems de "${prof}"`);
+    onRefresh?.();
+  };
+
   // Orden de columnas dentro de un bloque.
   const NUMERIC_SORT_FIELDS = new Set(['precio', 'peso_kg', 'ca', 'velocidad', 'constitucion', 'capacidad_carga', 'capacidad_kg', 'm2']);
   const handleSort = (catKey, field) => {
@@ -1183,6 +1204,7 @@ const EquipmentSection = ({
           categories={flatCategories}
           isAdmin={isAdmin}
           onDeselect={handleProfDeselect}
+          onDeselectBlock={handleProfDeselectBlock}
           onClose={() => setShowProfShop(false)}
         />
       )}
