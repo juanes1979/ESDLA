@@ -367,3 +367,20 @@ Aplica una transacción YA negociada al personaje (reutiliza endpoints de equipo
   bucle de contraoferta, fatiga, impacto post-venta en relación, efectos >50/<-50).
   4) tirada de habilidad enfrentada (campo de intención del DJ + IA narra el engaño/perspicacia).
   5) aplicar oro/inventario reales en el éxito.
+
+## Iter 124 — Ficha completa del PNJ + 6 características + CA/PG (Jun 2026)
+- Petición: ficha de PNJ más completa (estilo bestiario Mantecona/Saqueador) con RETRATO,
+  TODOS los datos, las 6 características autogeneradas (array 15/13/12/11/9/8 asignado por
+  prioridad según profesión), modificador = ⌊(valor−10)/2⌋, CA=10 sin armadura, PG aleatorios 8-20.
+- BACKEND `trading_npc_data.py`: `ARRAY_CARACTERISTICAS`, `PERFILES_CARACTERISTICAS`,
+  `PROFESION_PERFIL` (28 profesiones→perfil), `modificador_caracteristica`, `generar_caracteristicas`,
+  `generar_pg`.
+- BACKEND `trading_routes.py`: `create_npc` añade `caracteristicas/ca/pg`. `get_npcs` hace relleno
+  PEREZOSO (genera y persiste atributos en PNJ antiguos). Nuevo endpoint
+  `POST /trading/npc-meta/caracteristicas`.
+- FRONTEND `TradingSystemSection.jsx`: nuevo `NpcFichaCard` (retrato + cabecera + fila de
+  atributos CA/PG/6 carac. con modificadores + todos los datos + trasfondo + alineamiento DJ).
+  Grid cambiado a 2 columnas. Editor de PNJ: bloque "Atributos" editable (6 carac.+CA+PG) con
+  botón "Generar". Probado: Mercader→CAR15, Cazador→DES15, ficha Barin Toffin OK (screenshot).
+- SIGUE PENDIENTE: Fase 2 (flujo tienda), Fase 3 (motor D100), Fase 4 (tirada enfrentada+IA),
+  Fase 5 (oro/inventario reales).

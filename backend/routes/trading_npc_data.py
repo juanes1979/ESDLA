@@ -583,3 +583,64 @@ def nivel_desde_relacion(valor: float) -> str:
     if v < 80:
         return "amigo"
     return "hermandad"
+
+
+# ---------------------------------------------------------------------------
+# CARACTERÍSTICAS DEL PNJ (6 atributos D&D 5e) + CA + PG
+# Array estándar 15,13,12,11,9,8 asignado por prioridad según la profesión.
+# Modificador = ⌊(valor − 10) / 2⌋  (tabla oficial).
+# ---------------------------------------------------------------------------
+ARRAY_CARACTERISTICAS = [15, 13, 12, 11, 9, 8]
+CARACTERISTICAS_CLAVES = ["fuerza", "destreza", "constitucion",
+                          "inteligencia", "sabiduria", "carisma"]
+
+# Perfiles de prioridad: orden de atributos de más a menos importante.
+PERFILES_CARACTERISTICAS = {
+    "fisico_fuerza":      ["fuerza", "constitucion", "destreza", "sabiduria", "carisma", "inteligencia"],
+    "fisico_destreza":    ["destreza", "constitucion", "fuerza", "sabiduria", "carisma", "inteligencia"],
+    "social_carisma":     ["carisma", "sabiduria", "inteligencia", "constitucion", "destreza", "fuerza"],
+    "mental_sabiduria":   ["sabiduria", "inteligencia", "carisma", "constitucion", "destreza", "fuerza"],
+    "mental_inteligencia":["inteligencia", "sabiduria", "carisma", "destreza", "constitucion", "fuerza"],
+    "marcial_lider":      ["fuerza", "constitucion", "carisma", "destreza", "sabiduria", "inteligencia"],
+    "artesano_preciso":   ["destreza", "inteligencia", "constitucion", "sabiduria", "fuerza", "carisma"],
+}
+
+# Profesión → perfil de prioridad de características.
+PROFESION_PERFIL = {
+    "Campesino": "fisico_fuerza", "Leñador": "fisico_fuerza",
+    "Peón de construcción": "fisico_fuerza", "Albañil": "fisico_fuerza",
+    "Herrero aprendiz": "fisico_fuerza", "Herrero": "fisico_fuerza",
+    "Enano Herrero": "fisico_fuerza",
+    "Mozo de cuadra": "fisico_destreza", "Cazador": "fisico_destreza",
+    "Barquero / Remero": "fisico_destreza", "Explorador / Rastreador": "fisico_destreza",
+    "Arquero de élite": "fisico_destreza", "Delincuente": "fisico_destreza",
+    "Atracador": "fisico_destreza", "Salteador de caminos": "fisico_destreza",
+    "Mercader": "social_carisma", "Posadero": "social_carisma",
+    "Hobbit Posadero": "social_carisma", "Músico / Juglar": "social_carisma",
+    "Señor de una aldea": "social_carisma", "Príncipe o noble": "social_carisma",
+    "Sanador / Herbalista": "mental_sabiduria", "Maestro de escuela": "mental_sabiduria",
+    "Mago Errante": "mental_inteligencia",
+    "Capitán de la guardia": "marcial_lider", "Caballero de Gondor": "marcial_lider",
+    "Carpintero": "artesano_preciso", "Elfo Artesano": "artesano_preciso",
+}
+
+
+def modificador_caracteristica(valor: int) -> int:
+    """Modificador D&D 5e: ⌊(valor − 10) / 2⌋ (válido también para negativos)."""
+    try:
+        return (int(valor) - 10) // 2
+    except (TypeError, ValueError):
+        return 0
+
+
+def generar_caracteristicas(profesion: str) -> dict:
+    """Asigna el array estándar a las 6 características según el perfil de la profesión."""
+    perfil = PROFESION_PERFIL.get((profesion or "").strip(), "social_carisma")
+    orden = PERFILES_CARACTERISTICAS.get(perfil, CARACTERISTICAS_CLAVES)
+    valores = sorted(ARRAY_CARACTERISTICAS, reverse=True)
+    return {clave: valores[i] for i, clave in enumerate(orden)}
+
+
+def generar_pg() -> int:
+    """Puntos de Golpe aleatorios del PNJ (8 a 20)."""
+    return random.randint(8, 20)

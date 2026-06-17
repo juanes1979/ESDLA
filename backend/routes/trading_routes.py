@@ -591,16 +591,27 @@ async def update_npc_templates(templates: dict = Body(...)):
 async def get_npcs(location: str = None):
     """Get all NPCs or filter by location"""
     from server import db
-    
+    from routes.trading_npc_data import generar_caracteristicas, generar_pg
+
     query = {}
     if location:
         query["ubicacion"] = location
     
     npcs = await db.trading_npcs.find(query).to_list(1000)
     
-    # Convert ObjectId to string
+    # Convert ObjectId to string + relleno perezoso de características/CA/PG.
     for npc in npcs:
         npc["_id"] = str(npc["_id"])
+        patch = {}
+        if not npc.get("caracteristicas"):
+            patch["caracteristicas"] = generar_caracteristicas(npc.get("profesion", ""))
+        if not npc.get("ca"):
+            patch["ca"] = 10
+        if not npc.get("pg"):
+            patch["pg"] = generar_pg()
+        if patch:
+            npc.update(patch)
+            await db.trading_npcs.update_one({"_id": npc["_id"]}, {"$set": patch})
     
     return {"npcs": npcs, "total": len(npcs)}
 
@@ -659,6 +670,7 @@ async def create_npc(npc_data: dict = Body(...)):
         alineamiento = elegir_alineamiento_aleatorio(cfg.get("npc_alineamientos"))
 
     # --- Bloques de estadísticas: aleatorios por profesión si están vacíos ---
+    from routes.trading_npc_data import generar_caracteristicas, generar_pg
     stat_blocks_cfg = cfg.get("npc_stat_blocks", {})
     habilidades = npc_data.get("habilidades") or []
     herramientas = npc_data.get("herramientas") or []
@@ -670,6 +682,11 @@ async def create_npc(npc_data: dict = Body(...)):
         herramientas = stats["herramientas"]
         sentidos = stats["sentidos"]
         idiomas = stats["idiomas"]
+
+    # --- Características (6 atributos) + CA + PG ---
+    caracteristicas = npc_data.get("caracteristicas") or generar_caracteristicas(profesion)
+    ca = npc_data.get("ca") or 10
+    pg = npc_data.get("pg") or generar_pg()
 
     npc = {
         "_id": str(uuid.uuid4()),
@@ -694,6 +711,9 @@ async def create_npc(npc_data: dict = Body(...)):
         "herramientas": herramientas,
         "sentidos": sentidos,
         "idiomas": idiomas,
+        "caracteristicas": caracteristicas,
+        "ca": ca,
+        "pg": pg,
         "historia": npc_data.get("historia", ""),
         "retrato_file_id": npc_data.get("retrato_file_id"),
         "perfil_comerciante": npc_data.get("perfil_comerciante", "normal"),
@@ -938,6 +958,17 @@ async def roll_stat_blocks(payload: dict = Body(...)):
     from routes.trading_npc_data import elegir_stats_aleatorios
     cfg = await get_trading_config()
     return elegir_stats_aleatorios(cfg.get("npc_stat_blocks", {}), payload.get("profesion", ""))
+
+
+@router.post("/trading/npc-meta/caracteristicas")
+async def roll_caracteristicas(payload: dict = Body(...)):
+    """Genera las 6 características (array por profesión), CA=10 y PG aleatorios."""
+    from routes.trading_npc_data import generar_caracteristicas, generar_pg
+    return {
+        "caracteristicas": generar_caracteristicas(payload.get("profesion", "")),
+        "ca": 10,
+        "pg": generar_pg(),
+    }
 
 
 @router.post("/trading/npcs/generate-name")

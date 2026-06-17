@@ -1378,63 +1378,15 @@ const TradingSystemSection = ({ isAdmin }) => {
             <p className="text-sm">Genera uno aleatorio o crea uno nuevo.</p>
           </div>
         ) : (
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid md:grid-cols-2 gap-4">
             {npcs.map(npc => (
-              <div 
-                key={npc._id} 
-                className="bg-black/20 rounded-lg p-4 border border-border/30 hover:border-[hsl(var(--gold))]/50 transition-colors"
-              >
-                <div className="flex justify-between items-start mb-2">
-                  <div>
-                    <h4 className="font-medium text-[hsl(var(--gold))]">{npc.nombre}</h4>
-                    <p className="text-sm text-muted-foreground">{npc.profesion_comerciante || npc.ocupacion}</p>
-                  </div>
-                  <div className="flex gap-1">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-7 w-7 p-0"
-                      onClick={() => { setEditingNpc(npc); setShowNpcEditor(true); }}
-                    >
-                      <Edit className="w-4 h-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-7 w-7 p-0 text-red-400 hover:text-red-300"
-                      onClick={() => deleteNpc(npc._id)}
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
-                  </div>
-                </div>
-                
-                <div className="space-y-1 text-xs">
-                  {npc.ubicacion && (
-                    <p><span className="text-muted-foreground">Ubicación:</span> {npc.ubicacion}</p>
-                  )}
-                  <p><span className="text-muted-foreground">Perfil:</span> 
-                    <span className="ml-1 px-2 py-0.5 rounded bg-black/30">
-                      {config?.merchant_profiles?.[npc.perfil_comerciante]?.nombre || npc.perfil_comerciante}
-                    </span>
-                  </p>
-                  {npc.apariencia && (
-                    <p className="text-muted-foreground line-clamp-2">{npc.apariencia}</p>
-                  )}
-                  {npc.alineamiento && (
-                    <p className="flex items-center gap-1 text-[hsl(var(--torch-orange))]/90">
-                      <EyeOff className="w-3 h-3" />
-                      <span className="text-muted-foreground">Alineamiento (DJ):</span> {npc.alineamiento}
-                    </p>
-                  )}
-                  {(npc.habilidades?.length > 0 || npc.idiomas?.length > 0) && (
-                    <p className="text-muted-foreground/80 line-clamp-2">
-                      {(npc.habilidades || []).join(', ')}
-                      {npc.idiomas?.length > 0 ? ` · Idiomas: ${(npc.idiomas || []).join(', ')}` : ''}
-                    </p>
-                  )}
-                </div>
-              </div>
+              <NpcFichaCard
+                key={npc._id}
+                npc={npc}
+                config={config}
+                onEdit={() => { setEditingNpc(npc); setShowNpcEditor(true); }}
+                onDelete={() => deleteNpc(npc._id)}
+              />
             ))}
           </div>
         )}
@@ -1834,6 +1786,112 @@ const RelationshipMatricesPanel = ({ isAdmin }) => {
 
 
 // ============================================================================
+// FICHA COMPLETA DEL PNJ (estilo bestiario: retrato + atributos + datos)
+// ============================================================================
+const ABILITIES = [
+  { key: 'fuerza', label: 'FUE' },
+  { key: 'destreza', label: 'DES' },
+  { key: 'constitucion', label: 'CON' },
+  { key: 'inteligencia', label: 'INT' },
+  { key: 'sabiduria', label: 'SAB' },
+  { key: 'carisma', label: 'CAR' },
+];
+const abilityMod = (score) => Math.floor(((Number(score) || 10) - 10) / 2);
+const fmtMod = (m) => (m >= 0 ? `+${m}` : `${m}`);
+
+const StatBox = ({ label, value, sub, accent }) => (
+  <div className={`flex flex-col items-center justify-center rounded border px-1.5 py-1 min-w-[44px] ${accent || 'border-border/40 bg-black/30'}`}>
+    <span className="text-[10px] uppercase tracking-wide text-muted-foreground">{label}</span>
+    <span className="text-base font-bold text-[hsl(var(--gold))] leading-none">{value}</span>
+    {sub !== undefined && <span className="text-[10px] text-muted-foreground leading-none mt-0.5">{sub}</span>}
+  </div>
+);
+
+const NpcFichaCard = ({ npc, config, onEdit, onDelete }) => {
+  const API_URL = process.env.REACT_APP_BACKEND_URL;
+  const portraitSrc = npc.retrato_file_id ? `${API_URL}/api/trading/npcs/${npc._id}/portrait` : null;
+  const car = npc.caracteristicas || {};
+  const subtitulo = [npc.raza, npc.subcultura].filter(Boolean).join(' · ');
+  const Line = ({ label, children }) => (
+    <p className="text-xs"><span className="text-muted-foreground">{label}:</span> {children}</p>
+  );
+
+  return (
+    <div className="bg-black/20 rounded-lg border border-border/30 hover:border-[hsl(var(--gold))]/50 transition-colors overflow-hidden flex flex-col"
+      data-testid={`npc-ficha-${npc._id}`}>
+      {/* Cabecera: retrato + nombre + acciones */}
+      <div className="flex gap-3 p-3 border-b border-border/30 bg-gradient-to-r from-black/40 to-transparent">
+        <div className="shrink-0">
+          {portraitSrc ? (
+            <img src={portraitSrc} alt={npc.nombre} className="w-20 h-20 rounded-md object-cover border border-[hsl(var(--gold))]/40"
+              data-testid={`npc-ficha-portrait-${npc._id}`} />
+          ) : (
+            <div className="w-20 h-20 rounded-md border border-border/40 bg-black/40 flex items-center justify-center">
+              <User className="w-8 h-8 text-muted-foreground/50" />
+            </div>
+          )}
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex justify-between items-start gap-2">
+            <div className="min-w-0">
+              <h4 className="font-heading text-lg text-[hsl(var(--gold))] truncate">{npc.nombre}{npc.apodo ? ` "${npc.apodo}"` : ''}</h4>
+              <p className="text-sm text-muted-foreground">{npc.profesion_comerciante || npc.profesion || npc.ocupacion}</p>
+              {subtitulo && <p className="text-xs italic text-muted-foreground/80 truncate">Humanoide ({subtitulo}{npc.edad ? `, ${npc.edad} años` : ''})</p>}
+            </div>
+            <div className="flex gap-1 shrink-0">
+              <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={onEdit} data-testid={`npc-edit-${npc._id}`}><Edit className="w-4 h-4" /></Button>
+              <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-red-400 hover:text-red-300" onClick={onDelete} data-testid={`npc-delete-${npc._id}`}><Trash2 className="w-4 h-4" /></Button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Atributos: CA, PG y las 6 características con sus modificadores */}
+      <div className="flex flex-wrap gap-1.5 p-3 border-b border-border/30">
+        <StatBox label="CA" value={npc.ca ?? 10} accent="border-[hsl(var(--magic-blue))]/50 bg-[hsl(var(--magic-blue))]/10" />
+        <StatBox label="PG" value={npc.pg ?? '—'} accent="border-red-500/40 bg-red-500/10" />
+        {ABILITIES.map(a => (
+          <StatBox key={a.key} label={a.label} value={car[a.key] ?? 10} sub={fmtMod(abilityMod(car[a.key]))} />
+        ))}
+      </div>
+
+      {/* Datos completos */}
+      <div className="p-3 space-y-1 flex-1">
+        <div className="grid grid-cols-2 gap-x-3 gap-y-1">
+          {npc.ubicacion && <Line label="Ubicación">{npc.ubicacion}</Line>}
+          {npc.region && <Line label="Región">{npc.region}</Line>}
+          {npc.sexo && <Line label="Sexo">{npc.sexo}</Line>}
+          <Line label="Perfil">
+            <span className="px-2 py-0.5 rounded bg-black/30">{config?.merchant_profiles?.[npc.perfil_comerciante]?.nombre || npc.perfil_comerciante}</span>
+          </Line>
+        </div>
+
+        {npc.rasgo && (
+          <p className="text-xs"><span className="text-muted-foreground">Rasgo ({npc.rasgo_tipo || '—'}):</span> <span className="text-[hsl(var(--gold))]/90">{npc.rasgo}</span>
+            {npc.rasgo_descripcion && <span className="text-muted-foreground/80 italic"> — {npc.rasgo_descripcion}</span>}</p>
+        )}
+        {npc.modo_hablar && <Line label="Modo de hablar">{npc.modo_hablar}{npc.modo_hablar_desc ? ` (${npc.modo_hablar_desc})` : ''}</Line>}
+        {npc.apariencia && <p className="text-xs text-muted-foreground/90">{npc.apariencia}</p>}
+
+        {(npc.habilidades?.length > 0) && <Line label="Habilidades"><span className="text-foreground/90">{npc.habilidades.join(', ')}</span></Line>}
+        {(npc.herramientas?.length > 0) && <Line label="Herramientas"><span className="text-foreground/90">{npc.herramientas.join(', ')}</span></Line>}
+        {(npc.sentidos?.length > 0) && <Line label="Sentidos"><span className="text-foreground/90">{npc.sentidos.join(', ')}</span></Line>}
+        {(npc.idiomas?.length > 0) && <Line label="Idiomas"><span className="text-foreground/90">{npc.idiomas.join(', ')}</span></Line>}
+
+        {npc.alineamiento && (
+          <p className="text-xs flex items-center gap-1 text-[hsl(var(--torch-orange))]/90">
+            <EyeOff className="w-3 h-3" /> <span className="text-muted-foreground">Alineamiento (DJ):</span> {npc.alineamiento}
+          </p>
+        )}
+        {npc.historia && <p className="text-xs text-muted-foreground/80 italic line-clamp-3 pt-1 border-t border-border/20">{npc.historia}</p>}
+        {npc.notas && <p className="text-xs text-muted-foreground/70"><span className="text-[hsl(var(--torch-orange))]/70">Notas DJ:</span> {npc.notas}</p>}
+      </div>
+    </div>
+  );
+};
+
+
+// ============================================================================
 // HISTÓRICO / RELACIÓN PERSONAL del PNJ con cada personaje (Relacion_Actual)
 // ============================================================================
 const NIVEL_LABELS = {
@@ -1972,6 +2030,9 @@ const NpcEditorModal = ({ npc, config, onSave, onClose }) => {
     herramientas: [],
     sentidos: [],
     idiomas: [],
+    caracteristicas: {},
+    ca: 10,
+    pg: '',
     historia: '',
     retrato_file_id: null,
     notas: '',
@@ -2059,6 +2120,21 @@ const NpcEditorModal = ({ npc, config, onSave, onClose }) => {
       });
     } catch (e) { toast.error('Error al tirar estadísticas'); }
     finally { setRollingStats(false); }
+  };
+
+  const [rollingAttrs, setRollingAttrs] = useState(false);
+  const rerollAtributos = async () => {
+    setRollingAttrs(true);
+    try {
+      const res = await api.post('/trading/npc-meta/caracteristicas', { profesion: formData.profesion });
+      set({ caracteristicas: res.data?.caracteristicas || {}, ca: res.data?.ca ?? 10, pg: res.data?.pg ?? '' });
+    } catch (e) { toast.error('Error al generar atributos'); }
+    finally { setRollingAttrs(false); }
+  };
+  const attrMod = (s) => Math.floor(((Number(s) || 10) - 10) / 2);
+  const setAttr = (key, val) => {
+    const n = parseInt(val, 10);
+    set({ caracteristicas: { ...(formData.caracteristicas || {}), [key]: isNaN(n) ? '' : n } });
   };
 
   const handleGenerateName = async () => {
@@ -2254,6 +2330,40 @@ const NpcEditorModal = ({ npc, config, onSave, onClose }) => {
                 <option value="">-- Aleatorio al guardar --</option>
                 {(meta?.alineamientos || []).map(a => <option key={a} value={a}>{a}</option>)}
               </select>
+            </div>
+
+            {/* Atributos: 6 características + CA + PG */}
+            <div data-testid="npc-atributos-block">
+              <div className="flex items-center justify-between mb-1">
+                <label className={labelCls}>Atributos <span className="text-xs">(array 15/13/12/11/9/8, CA 10, PG 8-20; vacío = auto)</span></label>
+                <Button type="button" size="sm" variant="outline" onClick={rerollAtributos} disabled={rollingAttrs}
+                  title="Regenerar atributos según la profesión" data-testid="npc-reroll-attrs-btn">
+                  {rollingAttrs ? <Loader2 className="w-4 h-4 animate-spin" /> : <Dices className="w-4 h-4" />}
+                  <span className="ml-1 text-xs">Generar</span>
+                </Button>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <div className="flex flex-col items-center">
+                  <span className="text-[10px] uppercase text-[hsl(var(--magic-blue))]">CA</span>
+                  <input type="number" className="w-14 bg-black/30 border border-border rounded px-1 py-1 text-sm text-center"
+                    value={formData.ca} onChange={(e) => set({ ca: parseInt(e.target.value, 10) || 0 })} data-testid="npc-ca-input" />
+                </div>
+                <div className="flex flex-col items-center">
+                  <span className="text-[10px] uppercase text-red-400">PG</span>
+                  <input type="number" className="w-14 bg-black/30 border border-border rounded px-1 py-1 text-sm text-center"
+                    value={formData.pg} onChange={(e) => set({ pg: parseInt(e.target.value, 10) || 0 })} placeholder="auto" data-testid="npc-pg-input" />
+                </div>
+                {[['fuerza','FUE'],['destreza','DES'],['constitucion','CON'],['inteligencia','INT'],['sabiduria','SAB'],['carisma','CAR']].map(([key,lab]) => {
+                  const v = (formData.caracteristicas || {})[key] ?? '';
+                  return (
+                    <div key={key} className="flex flex-col items-center">
+                      <span className="text-[10px] uppercase text-muted-foreground">{lab} {v !== '' ? `(${attrMod(v) >= 0 ? '+' : ''}${attrMod(v)})` : ''}</span>
+                      <input type="number" className="w-14 bg-black/30 border border-border rounded px-1 py-1 text-sm text-center text-[hsl(var(--gold))]"
+                        value={v} onChange={(e) => setAttr(key, e.target.value)} placeholder="auto" data-testid={`npc-attr-${key}`} />
+                    </div>
+                  );
+                })}
+              </div>
             </div>
 
             {/* Bloques de estadísticas por profesión */}
