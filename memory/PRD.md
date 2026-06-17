@@ -384,3 +384,54 @@ Aplica una transacción YA negociada al personaje (reutiliza endpoints de equipo
   botón "Generar". Probado: Mercader→CAR15, Cazador→DES15, ficha Barin Toffin OK (screenshot).
 - SIGUE PENDIENTE: Fase 2 (flujo tienda), Fase 3 (motor D100), Fase 4 (tirada enfrentada+IA),
   Fase 5 (oro/inventario reales).
+
+## Iter 126 — P0 heredados + Bloque A (UI) + Motor de Comercio D100 (Fases 2-5) (Jun 2026)
+
+### P0 heredados RESUELTOS
+- **Eje Y terreno**: el pathfinder (`utils/pathfinding.py::_grid_lookup_terrain/_grid_lookup_land`)
+  YA estaba correcto (flip `(100-y)` añadido en fork previo; verificado empíricamente:
+  Hobbiton/Bree/Minas Tirith→fácil, Carn Dûm→desalentador). La inconsistencia restante
+  estaba en los endpoints DEBUG: `terrain_grid_routes.py /lookup` y
+  `travel_routes.py::_grid_lookup_cells` (alimenta `/terrain-at/{x}/{y}`) NO volteaban Y.
+  Añadido el flip `(100.0 - y)` en ambos → coherentes con el pathfinder y el mapa visual.
+- **ViajeSection.jsx PX dinámica**: la sección "Experiencia por viaje" ahora carga
+  `/api/travel/config/px-roll-table` y renderiza las 4 tablas (PX base por CD, modificador por
+  diferencia, multiplicador terreno, multiplicador tierras) y el límite de PX desde el backend
+  (antes hardcodeado). testids: px-base-cd-table, px-mod-diferencia, px-mult-terreno, px-mult-tierras.
+
+### Bloque A — Ajustes UI
+- Trasfondo IA del PNJ limitado a 150 palabras (prompt + recorte de seguridad en
+  `trading_routes.py::generate_npc_profile`).
+- Ficha de PNJ imprimible en A4 vertical: botón imprimir (testid `npc-print-<id>`) en
+  `NpcFichaCard` + `@media print` en `index.css` (clase `npc-printing`/`npc-print-area`,
+  oculta `.no-print`, expande `line-clamp-3`, fuerza fondo blanco/texto negro).
+- Icono Compra-Venta en Inicio: imagen `Icono comercio.png` con fondo transparente
+  (`object-contain`, sin recorte circular) y animación `firePulse` (drop-shadow naranja
+  pulsante) en `HomePage.jsx`. Eliminado el icono lucide `Coins`.
+
+### Bloque B — Motor de Comercio D100 (NUEVO, Fases 2-5)
+- BACKEND `routes/trading_d100.py` (NUEVO, registrado en server.py):
+  - Config ajustable `trading_config.d100_engine` (GET/PUT `/trading/d100/config`):
+    anger_umbral, anger_factor, tolerancia_base, tolerancia_por_relacion, venta_ratio,
+    d100_base_aceptacion, aceptacion_por_relacion, aceptacion_por_desviacion,
+    margen_contraoferta, opposed_skill_factor, relacion_delta_exito/enfado.
+  - FASE 2 `GET /trading/d100/available-npcs?character_id=` → PNJs presentes en
+    `character.ubicacion_actual` (gate por ubicación). NOTA: characters usan `_id` (UUID).
+  - FASE 3 `POST /trading/d100/negotiate` → relación efectiva (relacion_actual + matriz
+    subcultura + matriz oficio×ocupación), precio de referencia (venta=50% por defecto +
+    contexto histórico), desviación %, tolerancia, barra de enfado (0..100, corta al llegar al
+    umbral), tirada D100 de aceptación, contraoferta.
+  - FASE 4 `POST /trading/d100/opposed-roll` → d20+mod jugador vs d20+mod PNJ (Engaño/
+    Persuasión/Intimidación vs Perspicacia; mod PNJ por SAB/INT), narrativa IA con gpt-4o-mini,
+    `opposed_bonus` que sube la tolerancia de la siguiente ronda.
+  - FASE 5 `POST /trading/d100/close` → persiste `relacion_actual` (+delta) y el historial;
+    el oro/inventario se aplica con el endpoint existente `/trading/confirm-transaction`.
+- FRONTEND `components/trading/TiendaD100.jsx` (NUEVO): pestaña "Tienda D100" (por defecto)
+  en `TradingSystemSection`. Flujo completo con barra de enfado animada, breakdown de la
+  negociación, contraoferta, panel de tirada enfrentada con narrativa, y cierre que aplica todo
+  al personaje. Todos los elementos con data-testid `d100-*`.
+- Tests: `tests/test_trading_d100.py` (4 OK, partes deterministas). Endpoints verificados por
+  curl (negotiate acepta/enfado, opposed con narrativa, close persiste relación, gate Bree↔Rivendel).
+- TESTING AGENT (iteration_76): 11/11 PASS, 100% frontend, sin incidencias.
+- El motor D100 SUSTITUYE al sistema de umbrales discretos; la pestaña "Calculadora" (legacy)
+  se mantiene accesible por compatibilidad.
