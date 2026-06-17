@@ -14,6 +14,7 @@ import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { toast } from 'sonner';
 import TiendaD100 from '@/components/trading/TiendaD100';
+import ConfigCellsEditor from '@/components/trading/ConfigCellsEditor';
 import api from '@/services/api';
 
 // ============================================================================
@@ -1275,13 +1276,13 @@ const TradingSystemSection = ({ isAdmin }) => {
     if (!config) return <div className="text-center py-8"><Loader2 className="w-6 h-6 animate-spin mx-auto" /></div>;
 
     const sections = [
-      { id: 'relationships', title: 'Niveles de Relación', data: config.relationship_levels },
-      { id: 'blessings', title: 'Modificadores de Bendición', data: config.blessing_modifiers },
-      { id: 'merchants', title: 'Perfiles de Comerciante', data: config.merchant_profiles },
-      { id: 'contexts', title: 'Contextos Históricos', data: config.historical_contexts },
-      { id: 'thresholds', title: 'Umbrales de Reacción', data: config.trading_thresholds },
-      { id: 'contraoferta', title: 'Factores de Contraoferta', data: config.contraoferta_factors },
-      { id: 'anger', title: 'Consecuencias del Enfado', data: config.anger_consequences },
+      { id: 'relationships', title: 'Niveles de Relación', data: config.relationship_levels, configKey: 'relationship_levels' },
+      { id: 'blessings', title: 'Modificadores de Bendición', data: config.blessing_modifiers, configKey: 'blessing_modifiers' },
+      { id: 'merchants', title: 'Perfiles de Comerciante', data: config.merchant_profiles, configKey: 'merchant_profiles' },
+      { id: 'contexts', title: 'Contextos Históricos', data: config.historical_contexts, configKey: 'historical_contexts' },
+      { id: 'thresholds', title: 'Umbrales de Reacción', data: config.trading_thresholds, configKey: 'trading_thresholds' },
+      { id: 'contraoferta', title: 'Factores de Contraoferta', data: config.contraoferta_factors, configKey: 'contraoferta_factors' },
+      { id: 'anger', title: 'Consecuencias del Enfado', data: config.anger_consequences, configKey: 'anger_consequences' },
     ];
 
     return (
@@ -1328,12 +1329,14 @@ const TradingSystemSection = ({ isAdmin }) => {
             
             {expandedConfigSection === section.id && (
               <div className="px-4 pb-4">
-                <pre className="text-xs bg-black/30 rounded p-3 overflow-auto max-h-96 text-muted-foreground">
-                  {JSON.stringify(section.data, null, 2)}
-                </pre>
+                <ConfigCellsEditor
+                  data={section.data}
+                  disabled={!isAdmin}
+                  onChange={(newData) => setConfig({ ...config, [section.configKey]: newData })}
+                />
                 {isAdmin && (
-                  <p className="text-xs text-muted-foreground mt-2">
-                    Para editar, modifica el JSON y guarda. Los cambios se aplicarán a todas las transacciones futuras.
+                  <p className="text-xs text-muted-foreground mt-3">
+                    Edita las celdas y pulsa «Guardar Todo». Los cambios se aplicarán a todas las transacciones futuras.
                   </p>
                 )}
               </div>
