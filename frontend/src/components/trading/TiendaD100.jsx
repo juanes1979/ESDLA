@@ -60,6 +60,7 @@ const TiendaD100 = ({ characters = [], equipment = {}, config }) => {
   const [modo, setModo] = useState('compra');
   const [itemSearch, setItemSearch] = useState('');
   const [item, setItem] = useState(null);
+  const [itemFocused, setItemFocused] = useState(false);
   const [precioBase, setPrecioBase] = useState(0);
   const [contexto, setContexto] = useState('');
 
@@ -111,11 +112,11 @@ const TiendaD100 = ({ characters = [], equipment = {}, config }) => {
   const npcRegion = charLoc?.region || null;
   const filteredItems = useMemo(() => {
     const q = itemSearch.toLowerCase().trim();
-    if (!q) return [];
     const blockProf = equipment?._block_profesiones || {};
     const blockReg = equipment?._block_regiones || {};
     return allItems.filter((it) => {
-      if (!it.nombre.toLowerCase().includes(q)) return false;
+      // Filtro por texto (sólo si hay búsqueda; vacío = mostrar todos los disponibles).
+      if (q && !it.nombre.toLowerCase().includes(q)) return false;
 
       // Profesión del PNJ: profesiones del objeto > del bloque. Si no hay
       // ninguna asignada, lo vende cualquiera (compatibilidad).
@@ -144,7 +145,7 @@ const TiendaD100 = ({ characters = [], equipment = {}, config }) => {
       }
 
       return true;
-    }).slice(0, 12);
+    }).slice(0, 50);
   }, [itemSearch, allItems, npc, npcRegion, equipment]);
 
   const resetNegotiation = () => {
@@ -426,11 +427,13 @@ const TiendaD100 = ({ characters = [], equipment = {}, config }) => {
             <div className="relative">
               <label className="text-xs text-muted-foreground">Artículo</label>
               <Input value={itemSearch} onChange={(e) => { setItemSearch(e.target.value); setItem(null); }}
+                onFocus={() => setItemFocused(true)}
+                onBlur={() => setTimeout(() => setItemFocused(false), 150)}
                 placeholder="Buscar artículo del catálogo…" data-testid="d100-item-search" />
-              {itemSearch && !item && filteredItems.length > 0 && (
+              {itemFocused && !item && filteredItems.length > 0 && (
                 <div className="absolute z-20 mt-1 w-full bg-black/95 border border-border rounded-md max-h-56 overflow-auto" data-testid="d100-item-dropdown">
                   {filteredItems.map((it) => (
-                    <button key={`${it._categoria}-${it.nombre}`} onClick={() => selectItem(it)}
+                    <button key={`${it._categoria}-${it.nombre}`} onMouseDown={(e) => { e.preventDefault(); selectItem(it); setItemFocused(false); }}
                       className="w-full text-left px-3 py-2 hover:bg-white/10 text-sm flex justify-between"
                       data-testid={`d100-item-opt-${it.nombre}`}>
                       <span>{it.nombre}</span>
