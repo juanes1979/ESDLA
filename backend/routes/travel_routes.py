@@ -790,8 +790,11 @@ async def _grid_lookup_cells(x: float, y: float) -> dict:
         return {"terrain": None, "land_type": None}
     diff = _decode_grid(doc.get("difficulty_b64", ""), w, h)
     land = _decode_grid(doc.get("land_type_b64", ""), w, h)
+    # (x, y) follow the CARTESIAN map convention (y=0 BOTTOM, y=100 TOP,
+    # like db.locations). The grid is stored canvas-style (row 0 = TOP),
+    # so flip Y to stay consistent with the pathfinder's grid lookup.
     cx = max(0, min(w - 1, int(round(x * w / 100.0))))
-    cy = max(0, min(h - 1, int(round(y * h / 100.0))))
+    cy = max(0, min(h - 1, int(round((100.0 - y) * h / 100.0))))
     raw_land = LAND_TYPE_NAMES.get(int(land[cy, cx]))
     return {
         "terrain": DIFFICULTY_NAMES.get(int(diff[cy, cx])),

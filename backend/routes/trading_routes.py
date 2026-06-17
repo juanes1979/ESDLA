@@ -1041,15 +1041,16 @@ async def generate_npc_profile(payload: dict = Body(...)):
         if not api_key:
             raise RuntimeError("EMERGENT_LLM_KEY no configurada")
         prompt = (
-            "Redacta un trasfondo narrativo breve (2-3 párrafos) para un PNJ comerciante de la "
-            "Tierra Media, integrando de forma natural todos estos datos:\n"
+            "Redacta un trasfondo narrativo breve (MÁXIMO 150 palabras, 1-2 párrafos) para un "
+            "PNJ comerciante de la Tierra Media, integrando de forma natural todos estos datos:\n"
             f"- Nombre: {nombre}\n- Raza: {raza}\n- Cultura: {subcultura}\n- Sexo: {sexo}\n"
             f"- Edad: {edad}\n- Profesión: {profesion}\n- Ubicación: {ubicacion} ({region})\n"
             f"- Rasgo de carácter: {rasgo} — {rasgo_desc}\n"
             f"- Modo de hablar: {modo_hablar}\n"
             f"- Detalles físicos indicados por el DJ: {apariencia or 'ninguno'}\n\n"
             "El texto debe ser inmersivo, en español de España, coherente con el tono de El Señor "
-            "de los Anillos, y reflejar su rasgo y forma de hablar. No uses encabezados ni listas."
+            "de los Anillos, y reflejar su rasgo y forma de hablar. No uses encabezados ni listas. "
+            "IMPORTANTE: no superes las 150 palabras en total."
         )
         chat = LlmChat(
             api_key=api_key,
@@ -1058,6 +1059,10 @@ async def generate_npc_profile(payload: dict = Body(...)):
         ).with_model("openai", "gpt-4o")
         resp = await chat.send_message(UserMessage(text=prompt))
         historia = (resp or "").strip()
+        # Red de seguridad: recorta a 150 palabras como máximo.
+        _palabras = historia.split()
+        if len(_palabras) > 150:
+            historia = " ".join(_palabras[:150]).rstrip(",;:") + "…"
     except Exception as e:
         logger.warning("Trasfondo PNJ falló: %s", e)
         errors.append(f"trasfondo: {e}")

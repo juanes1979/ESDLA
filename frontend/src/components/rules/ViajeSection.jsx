@@ -2,9 +2,38 @@
  * Viaje (Travel) Rules Section
  * Displays travel rules: roles, sequence, fatigue, events
  */
+import { useState, useEffect } from 'react';
 import { Map, Users, Clock, Footprints, AlertTriangle } from 'lucide-react';
+import api from '@/services/api';
+
+// Etiquetas legibles para las claves del terreno/tierras de la tabla de PX.
+const TERRENO_LABELS = {
+  facil: 'Fácil', moderado: 'Moderado', dificil: 'Difícil',
+  muy_dificil: 'Muy Difícil', desalentador: 'Desalentador',
+};
+const TIERRA_LABELS = {
+  tierras_libres: 'T. Libres', tierras_fronterizas: 'T. Fronterizas',
+  tierras_salvajes: 'T. Salvajes', tierras_sombra: 'T. Sombra',
+  tierras_oscuras: 'T. Oscuras',
+};
+const multColor = (m) =>
+  m < 1 ? 'text-green-400' : m === 1 ? 'text-yellow-400' :
+  m <= 1.3 ? 'text-orange-400' : 'text-red-500';
 
 const ViajeSection = ({ data }) => {
+  // Tabla de PX por tirada (Sistema 2), editable por el DJ en CONFIG. VIAJES.
+  // Se carga dinámicamente para que esta página de reglas refleje siempre la
+  // configuración real en vez de valores hardcodeados.
+  const [pxTable, setPxTable] = useState(null);
+
+  useEffect(() => {
+    let active = true;
+    api.get('/travel/config/px-roll-table')
+      .then((res) => { if (active) setPxTable(res.data?.px_roll_table || null); })
+      .catch(() => { if (active) setPxTable(null); });
+    return () => { active = false; };
+  }, []);
+
   if (!data) return <p className="text-muted-foreground">No hay datos de Viaje cargados</p>;
 
   return (
@@ -287,15 +316,15 @@ const ViajeSection = ({ data }) => {
               PX final = PX base × diferencia × terreno × peligrosidad
             </p>
             <p className="text-xs text-muted-foreground mt-2 text-center">
-              Límite: máximo ±12 PX por tirada. Redondeo al entero más cercano.
+              Límite: máximo ±{pxTable?.limite_px ?? 12} PX por tirada. Redondeo al entero más cercano.
             </p>
           </div>
-          
-          {/* 1. PX Base según CD */}
+
+          {/* 1. PX Base según CD (dinámico) */}
           <div className="mb-4">
             <h4 className="font-semibold text-[hsl(var(--torch-orange))] mb-2">1️⃣ PX Base según Clase de Dificultad (CD)</h4>
             <div className="overflow-x-auto">
-              <table className="w-full text-sm">
+              <table className="w-full text-sm" data-testid="px-base-cd-table">
                 <thead>
                   <tr className="border-b border-border/30 bg-black/20">
                     <th className="text-center py-2 px-2">CD</th>
@@ -305,134 +334,68 @@ const ViajeSection = ({ data }) => {
                   </tr>
                 </thead>
                 <tbody>
-                  <tr className="border-b border-border/10">
-                    <td className="text-center py-1 px-2 font-mono">10</td>
-                    <td className="py-1 px-2">Muy fácil</td>
-                    <td className="text-center py-1 px-2 text-green-400">+1</td>
-                    <td className="text-center py-1 px-2 text-muted-foreground">0</td>
-                  </tr>
-                  <tr className="border-b border-border/10">
-                    <td className="text-center py-1 px-2 font-mono">12</td>
-                    <td className="py-1 px-2">Fácil</td>
-                    <td className="text-center py-1 px-2 text-green-400">+2</td>
-                    <td className="text-center py-1 px-2 text-red-400">−1</td>
-                  </tr>
-                  <tr className="border-b border-border/10">
-                    <td className="text-center py-1 px-2 font-mono">14</td>
-                    <td className="py-1 px-2">Moderada</td>
-                    <td className="text-center py-1 px-2 text-green-400">+3</td>
-                    <td className="text-center py-1 px-2 text-red-400">−1</td>
-                  </tr>
-                  <tr className="border-b border-border/10">
-                    <td className="text-center py-1 px-2 font-mono">16</td>
-                    <td className="py-1 px-2">Difícil</td>
-                    <td className="text-center py-1 px-2 text-green-400">+4</td>
-                    <td className="text-center py-1 px-2 text-red-400">−2</td>
-                  </tr>
-                  <tr className="border-b border-border/10">
-                    <td className="text-center py-1 px-2 font-mono">18</td>
-                    <td className="py-1 px-2">Muy difícil</td>
-                    <td className="text-center py-1 px-2 text-green-400">+5</td>
-                    <td className="text-center py-1 px-2 text-red-400">−2</td>
-                  </tr>
-                  <tr className="border-b border-border/10">
-                    <td className="text-center py-1 px-2 font-mono">20+</td>
-                    <td className="py-1 px-2">Extrema</td>
-                    <td className="text-center py-1 px-2 text-green-400">+6</td>
-                    <td className="text-center py-1 px-2 text-red-400">−3</td>
-                  </tr>
+                  {(pxTable?.px_base_por_cd || []).map((row, i, arr) => (
+                    <tr key={i} className="border-b border-border/10">
+                      <td className="text-center py-1 px-2 font-mono">
+                        {row.cd}{i === arr.length - 1 ? '+' : ''}
+                      </td>
+                      <td className="py-1 px-2">{row.dificultad}</td>
+                      <td className="text-center py-1 px-2 text-green-400">
+                        {row.exito > 0 ? `+${row.exito}` : row.exito}
+                      </td>
+                      <td className={`text-center py-1 px-2 ${row.fallo < 0 ? 'text-red-400' : 'text-muted-foreground'}`}>
+                        {row.fallo}
+                      </td>
+                    </tr>
+                  ))}
+                  {!pxTable && (
+                    <tr><td colSpan={4} className="text-center py-3 text-muted-foreground text-xs">Cargando tabla de PX…</td></tr>
+                  )}
                 </tbody>
               </table>
             </div>
           </div>
-          
-          {/* 2. Modificador por diferencia */}
+
+          {/* 2. Modificador por diferencia (dinámico) */}
           <div className="mb-4">
             <h4 className="font-semibold text-[hsl(var(--magic-blue))] mb-2">2️⃣ Modificador según diferencia con la tirada</h4>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-              <div className="bg-green-500/10 p-2 rounded text-center">
-                <p className="text-xs text-muted-foreground">+10 o más</p>
-                <p className="font-bold text-green-400">×2</p>
-              </div>
-              <div className="bg-green-500/10 p-2 rounded text-center">
-                <p className="text-xs text-muted-foreground">+5 a +9</p>
-                <p className="font-bold text-green-400">×1.5</p>
-              </div>
-              <div className="bg-green-500/10 p-2 rounded text-center">
-                <p className="text-xs text-muted-foreground">+1 a +4</p>
-                <p className="font-bold text-green-400">×1.2</p>
-              </div>
-              <div className="bg-yellow-500/10 p-2 rounded text-center">
-                <p className="text-xs text-muted-foreground">0</p>
-                <p className="font-bold text-yellow-400">×1</p>
-              </div>
-              <div className="bg-yellow-500/10 p-2 rounded text-center">
-                <p className="text-xs text-muted-foreground">−1 a −3</p>
-                <p className="font-bold text-yellow-400">×1</p>
-              </div>
-              <div className="bg-red-500/10 p-2 rounded text-center">
-                <p className="text-xs text-muted-foreground">−4 a −6</p>
-                <p className="font-bold text-red-400">×1.2</p>
-              </div>
-              <div className="bg-red-500/10 p-2 rounded text-center">
-                <p className="text-xs text-muted-foreground">−7 o más</p>
-                <p className="font-bold text-red-400">×1.5</p>
-              </div>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-2" data-testid="px-mod-diferencia">
+              {(pxTable?.mod_diferencia || []).map((r, i) => (
+                <div key={i} className={`p-2 rounded text-center ${
+                  r.mult > 1 && r.min >= 0 ? 'bg-green-500/10' :
+                  r.mult === 1 ? 'bg-yellow-500/10' : 'bg-red-500/10'
+                }`}>
+                  <p className="text-xs text-muted-foreground">{r.label}</p>
+                  <p className={`font-bold ${r.min >= 0 && r.mult >= 1 ? 'text-green-400' : r.mult === 1 ? 'text-yellow-400' : 'text-red-400'}`}>×{r.mult}</p>
+                </div>
+              ))}
             </div>
             <p className="text-xs text-muted-foreground mt-2 italic">En fallos, el multiplicador aumenta la penalización.</p>
           </div>
-          
-          {/* 3. Multiplicador por Terreno */}
+
+          {/* 3. Multiplicador por Terreno (dinámico) */}
           <div className="mb-4">
             <h4 className="font-semibold text-yellow-400 mb-2">3️⃣ Multiplicador por Tipo de Terreno</h4>
-            <div className="grid grid-cols-5 gap-2">
-              <div className="bg-green-500/10 p-2 rounded text-center">
-                <p className="text-xs text-muted-foreground">Fácil</p>
-                <p className="font-bold text-green-400">×0.8</p>
-              </div>
-              <div className="bg-yellow-500/10 p-2 rounded text-center">
-                <p className="text-xs text-muted-foreground">Moderado</p>
-                <p className="font-bold text-yellow-400">×1</p>
-              </div>
-              <div className="bg-orange-500/10 p-2 rounded text-center">
-                <p className="text-xs text-muted-foreground">Difícil</p>
-                <p className="font-bold text-orange-400">×1.2</p>
-              </div>
-              <div className="bg-red-500/10 p-2 rounded text-center">
-                <p className="text-xs text-muted-foreground">Muy Difícil</p>
-                <p className="font-bold text-red-400">×1.5</p>
-              </div>
-              <div className="bg-red-900/20 p-2 rounded text-center">
-                <p className="text-xs text-muted-foreground">Desalentador</p>
-                <p className="font-bold text-red-500">×1.8</p>
-              </div>
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-2" data-testid="px-mult-terreno">
+              {Object.entries(pxTable?.mult_terreno || {}).map(([key, m]) => (
+                <div key={key} className="bg-black/10 p-2 rounded text-center">
+                  <p className="text-xs text-muted-foreground">{TERRENO_LABELS[key] || key}</p>
+                  <p className={`font-bold ${multColor(m)}`}>×{m}</p>
+                </div>
+              ))}
             </div>
           </div>
-          
-          {/* 4. Multiplicador por Tierras */}
+
+          {/* 4. Multiplicador por Tierras (dinámico) */}
           <div className="mb-4">
             <h4 className="font-semibold text-purple-400 mb-2">4️⃣ Multiplicador por Tipo de Tierras</h4>
-            <div className="grid grid-cols-5 gap-2">
-              <div className="bg-green-500/10 p-2 rounded text-center">
-                <p className="text-xs text-muted-foreground">T. Libres</p>
-                <p className="font-bold text-green-400">×0.8</p>
-              </div>
-              <div className="bg-yellow-500/10 p-2 rounded text-center">
-                <p className="text-xs text-muted-foreground">T. Fronterizas</p>
-                <p className="font-bold text-yellow-400">×1</p>
-              </div>
-              <div className="bg-orange-500/10 p-2 rounded text-center">
-                <p className="text-xs text-muted-foreground">T. Salvajes</p>
-                <p className="font-bold text-orange-400">×1.2</p>
-              </div>
-              <div className="bg-red-500/10 p-2 rounded text-center">
-                <p className="text-xs text-muted-foreground">T. Sombra</p>
-                <p className="font-bold text-red-400">×1.5</p>
-              </div>
-              <div className="bg-red-900/20 p-2 rounded text-center">
-                <p className="text-xs text-muted-foreground">T. Oscuras</p>
-                <p className="font-bold text-red-500">×1.8</p>
-              </div>
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-2" data-testid="px-mult-tierras">
+              {Object.entries(pxTable?.mult_tierras || {}).map(([key, m]) => (
+                <div key={key} className="bg-black/10 p-2 rounded text-center">
+                  <p className="text-xs text-muted-foreground">{TIERRA_LABELS[key] || key}</p>
+                  <p className={`font-bold ${multColor(m)}`}>×{m}</p>
+                </div>
+              ))}
             </div>
           </div>
           

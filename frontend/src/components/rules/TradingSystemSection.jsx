@@ -2,17 +2,18 @@
  * Trading System Section
  * Complete dynamic buy/sell system with NPC negotiation, relationship tracking, and AI dialogue
  */
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { 
   Loader2, Save, RefreshCw, Plus, Trash2, Edit, ChevronDown, ChevronUp, 
   Coins, Package, User, Users, Settings, Calculator, MessageSquare, 
   Handshake, AlertTriangle, Check, X, Dices, TrendingUp, TrendingDown,
-  ShoppingCart, Store, History, Sparkles, Wand2, Image as ImageIcon, EyeOff
+  ShoppingCart, Store, History, Sparkles, Wand2, Image as ImageIcon, EyeOff, Printer
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { toast } from 'sonner';
+import TiendaD100 from '@/components/trading/TiendaD100';
 import api from '@/services/api';
 
 // ============================================================================
@@ -20,6 +21,7 @@ import api from '@/services/api';
 // ============================================================================
 
 const TABS = [
+  { id: 'tienda-d100', name: 'Tienda D100', icon: Store },
   { id: 'calculator', name: 'Calculadora', icon: Calculator },
   { id: 'config', name: 'Configuración', icon: Settings },
   { id: 'npcs', name: 'PNJs', icon: Users },
@@ -71,7 +73,7 @@ const SETTLEMENT_LEVEL_NAMES = {
 // ============================================================================
 
 const TradingSystemSection = ({ isAdmin }) => {
-  const [activeTab, setActiveTab] = useState('calculator');
+  const [activeTab, setActiveTab] = useState('tienda-d100');
   const [loading, setLoading] = useState(true);
   
   // Config state
@@ -1513,6 +1515,9 @@ const TradingSystemSection = ({ isAdmin }) => {
     <div className="space-y-6" data-testid="trading-system-section">
       {renderTabs()}
       
+      {activeTab === 'tienda-d100' && (
+        <TiendaD100 characters={characters} equipment={equipment} config={config} />
+      )}
       {activeTab === 'calculator' && renderCalculatorTab()}
       {activeTab === 'config' && renderConfigTab()}
       {activeTab === 'npcs' && renderNpcsTab()}
@@ -1812,12 +1817,27 @@ const NpcFichaCard = ({ npc, config, onEdit, onDelete }) => {
   const portraitSrc = npc.retrato_file_id ? `${API_URL}/api/trading/npcs/${npc._id}/portrait` : null;
   const car = npc.caracteristicas || {};
   const subtitulo = [npc.raza, npc.subcultura].filter(Boolean).join(' · ');
+  const cardRef = useRef(null);
   const Line = ({ label, children }) => (
     <p className="text-xs"><span className="text-muted-foreground">{label}:</span> {children}</p>
   );
 
+  const handlePrint = () => {
+    const el = cardRef.current;
+    if (!el) return;
+    el.classList.add('npc-print-area');
+    document.body.classList.add('npc-printing');
+    const cleanup = () => {
+      el.classList.remove('npc-print-area');
+      document.body.classList.remove('npc-printing');
+      window.removeEventListener('afterprint', cleanup);
+    };
+    window.addEventListener('afterprint', cleanup);
+    setTimeout(() => window.print(), 50);
+  };
+
   return (
-    <div className="bg-black/20 rounded-lg border border-border/30 hover:border-[hsl(var(--gold))]/50 transition-colors overflow-hidden flex flex-col"
+    <div ref={cardRef} className="bg-black/20 rounded-lg border border-border/30 hover:border-[hsl(var(--gold))]/50 transition-colors overflow-hidden flex flex-col"
       data-testid={`npc-ficha-${npc._id}`}>
       {/* Cabecera: retrato + nombre + acciones */}
       <div className="flex gap-3 p-3 border-b border-border/30 bg-gradient-to-r from-black/40 to-transparent">
@@ -1838,7 +1858,8 @@ const NpcFichaCard = ({ npc, config, onEdit, onDelete }) => {
               <p className="text-sm text-muted-foreground">{npc.profesion_comerciante || npc.profesion || npc.ocupacion}</p>
               {subtitulo && <p className="text-xs italic text-muted-foreground/80 truncate">Humanoide ({subtitulo}{npc.edad ? `, ${npc.edad} años` : ''})</p>}
             </div>
-            <div className="flex gap-1 shrink-0">
+            <div className="flex gap-1 shrink-0 no-print">
+              <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={handlePrint} title="Imprimir ficha (A4)" data-testid={`npc-print-${npc._id}`}><Printer className="w-4 h-4" /></Button>
               <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={onEdit} data-testid={`npc-edit-${npc._id}`}><Edit className="w-4 h-4" /></Button>
               <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-red-400 hover:text-red-300" onClick={onDelete} data-testid={`npc-delete-${npc._id}`}><Trash2 className="w-4 h-4" /></Button>
             </div>

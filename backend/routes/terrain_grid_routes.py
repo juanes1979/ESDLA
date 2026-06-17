@@ -304,8 +304,11 @@ async def lookup(x: float = Query(..., ge=0, le=100), y: float = Query(..., ge=0
     w, h = doc["width"], doc["height"]
     diff = _decode_grid(doc.get("difficulty_b64", ""), w, h)
     land = _decode_grid(doc.get("land_type_b64", ""), w, h)
+    # Incoming (x, y) follow the CARTESIAN map convention (y=0 BOTTOM,
+    # y=100 TOP, like db.locations). The grid is stored canvas-style
+    # (row 0 = TOP), so flip Y to match the pathfinder and the visual map.
     cx = max(0, min(w - 1, int(round(x * w / 100.0))))
-    cy = max(0, min(h - 1, int(round(y * h / 100.0))))
+    cy = max(0, min(h - 1, int(round((100.0 - y) * h / 100.0))))
     return {
         "x": x,
         "y": y,

@@ -16,6 +16,7 @@ from routes.npc_routes import router as npc_router
 from routes.modifiers_routes import router as modifiers_router
 from routes.character import router as character_router
 from routes.trading_routes import router as trading_router
+from routes.trading_d100 import router as trading_d100_router
 from routes.storage_routes import router as storage_router
 from routes.travel_routes import router as travel_router
 from routes.name_generator import router as name_router
@@ -111,6 +112,7 @@ api_router.include_router(npc_router)
 api_router.include_router(modifiers_router)
 api_router.include_router(character_router)
 api_router.include_router(trading_router)
+api_router.include_router(trading_d100_router)
 api_router.include_router(storage_router)
 api_router.include_router(travel_router)
 api_router.include_router(name_router)

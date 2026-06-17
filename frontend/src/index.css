@@ -309,3 +309,35 @@ code {
 ::-webkit-scrollbar-thumb:hover {
   background: hsl(var(--gold-dim));
 }
+
+/* ===== Impresión de Ficha de PNJ en A4 vertical ===== */
+@media print {
+  @page { size: A4 portrait; margin: 1.2cm; }
+  body.npc-printing * { visibility: hidden !important; }
+  body.npc-printing .npc-print-area,
+  body.npc-printing .npc-print-area * { visibility: visible !important; }
+  body.npc-printing .npc-print-area {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    background: #ffffff !important;
+    border: 1px solid #999 !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+  }
+  body.npc-printing .npc-print-area * {
+    color: #111 !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  body.npc-printing .npc-print-area .no-print { display: none !important; }
+  body.npc-printing .npc-print-area .line-clamp-3 {
+    -webkit-line-clamp: unset !important;
+    display: block !important;
+    overflow: visible !important;
+  }
+  body.npc-printing .npc-print-area img {
+    border-color: #999 !important;
+  }
+}

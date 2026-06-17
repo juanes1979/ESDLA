@@ -4,7 +4,7 @@
  */
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { LogOut, ShieldCheck, Coins } from 'lucide-react';
+import { LogOut, ShieldCheck } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 
 // Navigation items with custom images - Arc formation (3 left, 3 right)
@@ -91,7 +91,8 @@ const NAV_ITEMS = [
   },
   {
     id: 'comercio',
-    icon: Coins,
+    image: 'https://customer-assets.emergentagent.com/job_6bbcf5e7-1a95-4fc6-b685-bb8bddbd29e7/artifacts/qsc1f0u7_Icono%20comercio.png',
+    transparent: true,
     title: 'Compra-Venta',
     description: 'Negocia compras y ventas con PNJs y aplica la transacción al personaje (dinero, inventario, monturas).',
     path: '/comercio',
@@ -146,15 +147,15 @@ const FloatingNavIcon = ({ item, onNavigate, index }) => {
         disabled={item.comingSoon}
         className={`
           relative w-20 h-20 md:w-24 md:h-24 rounded-full 
-          overflow-hidden
+          ${item.transparent ? '' : 'overflow-hidden'}
           transition-all duration-300 ease-out
           ${!item.comingSoon ? 'cursor-pointer hover:scale-110' : 'cursor-not-allowed opacity-70'}
           ${isHovered ? 'scale-115 z-30' : 'scale-100'}
         `}
         style={{
-          boxShadow: isHovered 
+          boxShadow: item.transparent ? 'none' : (isHovered 
             ? '0 0 30px 10px rgba(255,100,30,0.6), 0 0 60px 20px rgba(255,60,0,0.3)' 
-            : '0 0 15px 5px rgba(255,100,30,0.4), 0 0 30px 10px rgba(255,60,0,0.2)'
+            : '0 0 15px 5px rgba(255,100,30,0.4), 0 0 30px 10px rgba(255,60,0,0.2)')
         }}
         data-testid={`nav-icon-${item.id}`}
       >
@@ -163,8 +164,10 @@ const FloatingNavIcon = ({ item, onNavigate, index }) => {
           <img 
             src={item.image} 
             alt={item.title}
-            className="w-full h-full object-cover"
-            style={item.imgScale ? { transform: `scale(${item.imgScale})` } : undefined}
+            className={`w-full h-full ${item.transparent ? 'object-contain' : 'object-cover'}`}
+            style={item.transparent
+              ? { animation: 'firePulse 1.8s ease-in-out infinite' }
+              : (item.imgScale ? { transform: `scale(${item.imgScale})` } : undefined)}
           />
         ) : (
           <div
@@ -243,6 +246,16 @@ const FloatingNavIcon = ({ item, onNavigate, index }) => {
         @keyframes fireGlow5 {
           0%, 100% { opacity: 0.72; transform: scale(1.42); }
           50% { opacity: 0.88; transform: scale(1.62); }
+        }
+        @keyframes firePulse {
+          0%, 100% {
+            transform: scale(1);
+            filter: drop-shadow(0 0 6px rgba(255,140,30,0.85)) drop-shadow(0 0 14px rgba(255,80,0,0.55));
+          }
+          50% {
+            transform: scale(1.08);
+            filter: drop-shadow(0 0 14px rgba(255,180,60,1)) drop-shadow(0 0 28px rgba(255,90,0,0.75));
+          }
         }
       `}</style>
     </div>

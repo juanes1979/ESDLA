@@ -1,0 +1,28 @@
+{
+  "summary": "E2E frontend testing del Bloque B (Tienda D100 fases 2-5) + Bloque A (PX dinámica en /rules, botón imprimir PNJ, icono Compra-Venta en Inicio). 11/11 criterios PASS. Login Maestro OK → /comercio carga con 'Tienda D100' como tab por defecto (data-testid='tienda-d100'). Flujo D100 completo verificado: (1) seleccionar Regred Maggot via d100-char-search → muestra ubicación 'Bree (Eriador)' y carga PNJs presentes; (2) Barin Toffin aparece en d100-npc-list y se selecciona; (3) Comprar/Vender, búsqueda de artículo y precio base manual de 100 funcionan; (4) Negociar con oferta 90 devuelve d100-result con Precio ref. 100.00 mp, Desviación %, Tolerancia 6.95%, Tirada D100, Prob %, Sub/Ofi, Enfado y barra de enfado d100-anger-bar actualizada; (5) ofertas abusivas (10) elevan enfado hasta 100/100 con etiqueta '¡Enfado! El PNJ se ha enfadado y rompe la negociación.'; (6) tirada enfrentada con Persuasión + mod 3 devuelve d100-opposed-result con ambas tiradas (Jugador 5 vs PNJ 3), bono +1.2% a tolerancia y narrativa IA en español de España; (7) en sesión fresca con oferta justa 100 → resultado 'Acepta' → botón d100-close-btn aparece → cierre persiste relación con Barin Toffin (0 → 2 neutral) y muestra d100-closed con toast 'Trato cerrado y aplicado al personaje'. Bloque A: las 4 tablas/grids de PX (px-base-cd-table, px-mod-diferencia, px-mult-terreno, px-mult-tierras) renderizan desde backend con valores numéricos correctos (CD 10-20+ con PX, multiplicadores ×0.8 a ×2 por diferencia/terreno/tierra). Botón imprimir PNJ presente en ficha de Barin Toffin (data-testid='npc-print-...' visible y enabled). Medallón Compra-Venta en Inicio muestra imagen transparente con animación firePulse y navega a /comercio.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "TradingSystemSection.jsx tiene 2668 líneas — supera ampliamente el límite recomendado de 700 LOC del code review guidelines. Recomiendo extraer NpcFichaCard, NpcListView, ConfigurationPanel y los sub-tabs (Calculadora, Configuración, PNJs, Relaciones) en módulos separados en una iteración futura. No bloqueante para esta entrega.",
+    "TiendaD100.jsx (486 líneas) — bien estructurado, dentro del umbral. Uso correcto de data-testid en todos los elementos interactivos.",
+    "ViajeSection.jsx (439 líneas) — tablas PX se hidratan correctamente desde /api/travel/config/px-roll-table con valores no vacíos, fix P0 confirmado.",
+    "Sin errores de consola observados durante la suite completa de E2E (login → comercio → D100 negotiate/opposed/close → rules → viaje → PNJs)."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a (skipped per request)", "frontend": "100% (11/11 criterios cubiertos)"},
+  "test_credentials": "Maestro: elanillounico_tlotr@proton.me / 123456 (desde /app/memory/test_credentials.md).",
+  "seed_data_creation": "Ninguna nueva. Se usó el seed existente: personaje Regred Maggot (id c16a362d-9841-4954-8f70-0dfe02dfe303) en Bree, PNJ Barin Toffin (Posadero).",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Tienda D100 motor completo verificado end-to-end. Importante: la barra de enfado es persistente por (personaje, PNJ) — si la sesión anterior dejó el enfado alto, hay que abrir una sesión fresca o probar otra combinación para validar 'acepta'. En sesión fresca con oferta=100 y precio_base=100 el resultado fue 'Acepta' en el primer intento (47% de prob.). La narrativa IA en la tirada enfrentada respondió en español de España con ~250-400 palabras y se generó en <5s. La ficha del PNJ tiene botón imprimir visible (npc-print-<id>); el diálogo de impresión del navegador NO se validó por requerimiento del review request. No hay regresiones detectadas en /rules ni en el medallón de Inicio.",
+  "rca of the issue": "N/A — no se encontraron issues. Todas las funcionalidades del Bloque A y Bloque B funcionan según especificación. La única observación operacional es que para validar el cierre de trato hay que usar una sesión limpia (estado de enfado persiste por relación)."
+}
