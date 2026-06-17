@@ -373,6 +373,10 @@ class AddEquipmentRequest(BaseModel):
     alcance: Optional[str] = None
     capacidad_carga: Optional[int] = Field(None, ge=0)  # ≥0
     posicion: Optional[str] = None
+    # Destino al añadir (Tienda D100): "personaje" (mochila) o "montura".
+    carried_by: Optional[str] = "personaje"
+    mount_id: Optional[str] = None
+    equipado: Optional[bool] = None  # arma/armadura/escudo → activa; resto → flag equipado
 
 
 class UpdateEquipmentCarryRequest(BaseModel):

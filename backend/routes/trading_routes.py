@@ -1953,6 +1953,9 @@ async def confirm_transaction(payload: dict = Body(...)):
             is_purchase=False,
             peso_kg=articulo.get("peso_kg"),
             capacidad_carga=articulo.get("capacidad_carga"),
+            carried_by=payload.get("carried_by", "personaje"),
+            mount_id=payload.get("mount_id"),
+            equipado=payload.get("equipado"),
         )
         await add_equipment_to_character(character_id, req)
         message = f"Compra confirmada: {nombre} ×{cantidad} por {precio_total} {moneda}."

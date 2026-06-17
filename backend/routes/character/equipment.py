@@ -272,6 +272,22 @@ async def add_equipment_to_character(character_id: str, data: AddEquipmentReques
     
     update = {"updated_at": now_utc()}
 
+    # --- Destino de colocación (Tienda D100): mochila / montura / equipado ---
+    # Solo aplica a objetos normales (no a la compra de una montura en sí).
+    if data.item_category != "monturas":
+        if data.carried_by == "montura":
+            monturas_list = character.get("monturas") or []
+            target_mount_id = data.mount_id or (monturas_list[0].get("id") if monturas_list else None)
+            if target_mount_id:
+                new_item["portado_por"] = "montura"
+                new_item["mount_id"] = target_mount_id
+        if data.equipado is not None:
+            if ("armas" in data.item_category or "armaduras" in data.item_category
+                    or data.item_category in ("escudos", "ropa")):
+                new_item["activa"] = bool(data.equipado)
+            else:
+                new_item["equipado"] = bool(data.equipado)
+
     # Handle mounts specially
     if data.item_category == "monturas":
         import uuid as _uuid

@@ -10,7 +10,7 @@
 import { useState, useMemo, useEffect } from 'react';
 import {
   Loader2, Store, User, MapPin, ShoppingCart, Dices, Handshake,
-  Check, X, AlertTriangle, Sparkles, Search, Flame, RefreshCw,
+  Check, X, AlertTriangle, Sparkles, Search, Flame, RefreshCw, Coins, Backpack,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -47,6 +47,7 @@ const TiendaD100 = ({ characters = [], equipment = {}, config }) => {
   // ── Fase 2: jugador + ubicación + PNJ ──────────────────────────────────────
   const [charSearch, setCharSearch] = useState('');
   const [character, setCharacter] = useState(null);
+  const [charFull, setCharFull] = useState(null);
   const [charFocused, setCharFocused] = useState(false);
   const [availNpcs, setAvailNpcs] = useState([]);
   const [loadingNpcs, setLoadingNpcs] = useState(false);
@@ -78,6 +79,7 @@ const TiendaD100 = ({ characters = [], equipment = {}, config }) => {
   const [closing, setClosing] = useState(false);
   const [closed, setClosed] = useState(null);
   const [warnings, setWarnings] = useState(null);
+  const [destino, setDestino] = useState('mochila'); // mochila | equipado | montura
 
   const API_URL = process.env.REACT_APP_BACKEND_URL;
 
@@ -117,15 +119,19 @@ const TiendaD100 = ({ characters = [], equipment = {}, config }) => {
     setWarnings(null);
   };
 
-  // Al elegir personaje → cargar PNJ presentes (gate de ubicación).
+  // Al elegir personaje → cargar PNJ presentes (gate de ubicación) + ficha completa.
   const selectCharacter = async (c) => {
     setCharacter(c);
     setCharSearch(c.nombre);
     setNpc(null);
     setAvailNpcs([]);
+    setCharFull(null);
     setLoadingNpcs(true);
+    const cid = c.id || c._id;
+    // Ficha completa (dinero + inventario) en paralelo.
+    api.get(`/characters/${cid}`).then((r) => setCharFull(r.data)).catch(() => {});
     try {
-      const res = await api.get('/trading/d100/available-npcs', { params: { character_id: c.id || c._id } });
+      const res = await api.get('/trading/d100/available-npcs', { params: { character_id: cid } });
       setAvailNpcs(res.data?.npcs || []);
       setCharLoc(res.data?.character || null);
       if ((res.data?.npcs || []).length === 0) {
@@ -136,6 +142,12 @@ const TiendaD100 = ({ characters = [], equipment = {}, config }) => {
     } finally {
       setLoadingNpcs(false);
     }
+  };
+
+  const refreshCharFull = async () => {
+    const cid = character?.id || character?._id;
+    if (!cid) return;
+    try { const r = await api.get(`/characters/${cid}`); setCharFull(r.data); } catch (e) { /* noop */ }
   };
 
   const selectItem = (it) => {
@@ -232,11 +244,15 @@ const TiendaD100 = ({ characters = [], equipment = {}, config }) => {
           cantidad: 1,
           precio_total: Number(oferta),
           moneda: 'mp',
+          // Destino al comprar: equipado / mochila / montura.
+          carried_by: modo === 'compra' && destino === 'montura' ? 'montura' : 'personaje',
+          equipado: modo === 'compra' ? destino === 'equipado' : undefined,
         });
         warns = txn.data?.warnings || [];
       }
       setClosed(closeRes.data);
       setWarnings(warns);
+      await refreshCharFull();
       toast.success('Trato cerrado y aplicado al personaje');
     } catch (e) {
       const detail = e?.response?.data?.detail || 'Error al cerrar el trato';
@@ -250,6 +266,34 @@ const TiendaD100 = ({ characters = [], equipment = {}, config }) => {
   const ubicLabel = ubic ? `${ubic.nombre} (${ubic.region})` : (charLoc?.ubicacion ? `${charLoc.ubicacion} (${charLoc.region || ''})` : null);
   const rs = result ? RESULT_STYLE[result.resultado] : null;
 
+  // Dinero del personaje (mo/mp/mc/me).
+  const dinero = charFull?.dinero || {};
+  const monedas = [['mo', dinero.mo], ['mp', dinero.mp], ['me', dinero.me], ['mc', dinero.mc]]
+    .filter(([, v]) => Number(v) > 0);
+  const tieneMonturas = (charFull?.monturas || []).length > 0 || !!charFull?.montura;
+
+  // Equipo del personaje aplanado para el listado del lado derecho.
+  const equipoChar = useMemo(() => {
+    if (!charFull) return [];
+    const rows = [];
+    const push = (it, origen, extra) => {
+      if (!it) return;
+      const nombre = typeof it === 'string' ? it : it.nombre;
+      if (!nombre) return;
+      const equipado = it.activa || it.equipado || extra === 'equipado';
+      const enMontura = it.portado_por === 'montura' || extra === 'montura';
+      rows.push({ nombre, cantidad: it.cantidad || 1, origen, equipado, enMontura });
+    };
+    (charFull.armas || []).forEach((it) => push(it, 'Arma'));
+    push(charFull.armadura, 'Armadura');
+    (charFull.armadura_piezas || []).forEach((it) => push(it, 'Armadura'));
+    (charFull.equipo || []).forEach((it) => push(it, 'Equipo'));
+    (charFull.equipo_ocupacion || []).forEach((it) => push(it, 'Ocupación'));
+    (charFull.inventario || []).forEach((it) => push(it, 'Mochila'));
+    (charFull.monturas || []).forEach((m) => (m.equipo || []).forEach((it) => push(it, `Montura: ${m.nombre_personalizado || m.especie || ''}`, 'montura')));
+    return rows;
+  }, [charFull]);
+
   return (
     <div className="space-y-4" data-testid="tienda-d100">
       <div className="flex items-center gap-2 text-[hsl(var(--gold))]">
@@ -258,6 +302,8 @@ const TiendaD100 = ({ characters = [], equipment = {}, config }) => {
         <span className="text-xs text-muted-foreground">Negociación con motor D100, enfado y tirada enfrentada</span>
       </div>
 
+      <div className="grid lg:grid-cols-[1fr_340px] gap-4 items-start">
+        <div className="space-y-4 min-w-0">
       {/* FASE 2 — Jugador + ubicación + PNJ */}
       <div className="bg-black/20 rounded-lg p-4 border border-border/30 space-y-3">
         <div className="flex items-center gap-2 text-sm font-medium text-[hsl(var(--magic-blue))]">
@@ -419,12 +465,24 @@ const TiendaD100 = ({ characters = [], equipment = {}, config }) => {
                 </div>
               )}
               {result.resultado === 'acepta' && (
-                <div className="mt-3 flex items-center gap-2 flex-wrap">
-                  <span className="text-sm text-green-300">Trato acordado por <strong>{fmt(oferta)}</strong>. Δrelación {result.relacion_delta >= 0 ? '+' : ''}{result.relacion_delta}.</span>
-                  <Button size="sm" onClick={closeDeal} disabled={closing} className="bg-green-700 hover:bg-green-600" data-testid="d100-close-btn">
-                    {closing ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Handshake className="w-4 h-4 mr-2" />}
-                    Cerrar trato y aplicar al personaje
-                  </Button>
+                <div className="mt-3 space-y-2">
+                  {modo === 'compra' && item && (
+                    <div className="flex items-center gap-2 flex-wrap text-xs" data-testid="d100-destino">
+                      <span className="text-muted-foreground">Guardar como:</span>
+                      {[['mochila', 'Mochila'], ['equipado', 'Equipado'], ...(tieneMonturas ? [['montura', 'A la montura']] : [])].map(([val, label]) => (
+                        <button key={val} onClick={() => setDestino(val)}
+                          className={`px-2 py-1 rounded border ${destino === val ? 'border-[hsl(var(--gold))] bg-[hsl(var(--gold))]/15 text-[hsl(var(--gold))]' : 'border-border/40'}`}
+                          data-testid={`d100-destino-${val}`}>{label}</button>
+                      ))}
+                    </div>
+                  )}
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-sm text-green-300">Trato acordado por <strong>{fmt(oferta)}</strong>. Δrelación {result.relacion_delta >= 0 ? '+' : ''}{result.relacion_delta}.</span>
+                    <Button size="sm" onClick={closeDeal} disabled={closing} className="bg-green-700 hover:bg-green-600" data-testid="d100-close-btn">
+                      {closing ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Handshake className="w-4 h-4 mr-2" />}
+                      Cerrar trato y aplicar al personaje
+                    </Button>
+                  </div>
                 </div>
               )}
             </div>
@@ -482,6 +540,65 @@ const TiendaD100 = ({ characters = [], equipment = {}, config }) => {
           )}
         </div>
       )}
+        </div>
+
+        {/* PANEL DERECHO — Dinero + equipo del personaje */}
+        <aside className="space-y-3 lg:sticky lg:top-4" data-testid="d100-char-panel">
+          {!character ? (
+            <div className="bg-black/20 rounded-lg p-4 border border-border/30 text-xs text-muted-foreground">
+              Selecciona un jugador para ver su dinero y su equipo.
+            </div>
+          ) : (
+            <>
+              {/* Dinero */}
+              <div className="bg-black/20 rounded-lg p-4 border border-[hsl(var(--gold))]/30" data-testid="d100-dinero">
+                <div className="flex items-center gap-2 text-sm font-medium text-[hsl(var(--gold))] mb-2">
+                  <Coins className="w-4 h-4" /> Dinero de {character.nombre}
+                </div>
+                {monedas.length > 0 ? (
+                  <div className="flex flex-wrap gap-2">
+                    {monedas.map(([k, v]) => (
+                      <span key={k} className="px-2 py-1 rounded bg-black/40 text-sm font-mono">
+                        {v} <span className="text-muted-foreground text-xs">{k}</span>
+                      </span>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-xs text-muted-foreground">{charFull ? 'Sin dinero registrado' : 'Cargando…'}</p>
+                )}
+              </div>
+
+              {/* Equipo */}
+              <div className="bg-black/20 rounded-lg p-4 border border-border/30" data-testid="d100-equipo">
+                <div className="flex items-center justify-between text-sm font-medium text-[hsl(var(--magic-blue))] mb-2">
+                  <span className="flex items-center gap-2"><Backpack className="w-4 h-4" /> Equipo</span>
+                  <span className="text-xs text-muted-foreground">{equipoChar.length} obj.</span>
+                </div>
+                {!charFull ? (
+                  <p className="text-xs text-muted-foreground">Cargando…</p>
+                ) : equipoChar.length === 0 ? (
+                  <p className="text-xs text-muted-foreground">El personaje no lleva equipo.</p>
+                ) : (
+                  <div className="max-h-[26rem] overflow-auto pr-1 space-y-1" data-testid="d100-equipo-list">
+                    {equipoChar.map((it, i) => (
+                      <div key={i} className="flex items-center justify-between gap-2 text-xs py-1 border-b border-border/15">
+                        <span className="truncate">
+                          {it.nombre}{it.cantidad > 1 ? <span className="text-muted-foreground"> ×{it.cantidad}</span> : null}
+                        </span>
+                        <span className="flex items-center gap-1 shrink-0">
+                          {it.equipado && <span className="px-1.5 py-0.5 rounded bg-green-900/40 text-green-400 text-[10px]">Equipado</span>}
+                          {it.enMontura && <span className="px-1.5 py-0.5 rounded bg-amber-900/40 text-amber-400 text-[10px]">Montura</span>}
+                          <span className="text-muted-foreground text-[10px]">{it.origen}</span>
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </>
+          )}
+        </aside>
+      </div>
     </div>
   );
 };
