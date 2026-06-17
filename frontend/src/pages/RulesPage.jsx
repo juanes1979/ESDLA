@@ -2438,6 +2438,10 @@ const RulesPage = () => {
           const occupations = await getOccupations();
           setData(occupations);
           break;
+        case 'equipment':
+          const equipmentReload = await getEquipmentCatalog();
+          setData(equipmentReload);
+          break;
         default:
           break;
       }
@@ -2445,6 +2449,18 @@ const RulesPage = () => {
       console.error('Error reloading data:', err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Refresco SILENCIOSO del catálogo de equipo (sin spinner global), para que
+  // las ediciones inline (deseleccionar profesión, guardar ítem, etc.) se reflejen
+  // al instante sin desmontar la sección ni cerrar los modales abiertos.
+  const reloadEquipmentSilent = async () => {
+    try {
+      const equipment = await getEquipmentCatalog();
+      setData(equipment);
+    } catch (err) {
+      console.error('Error recargando equipo:', err);
     }
   };
 
@@ -3070,7 +3086,7 @@ const RulesPage = () => {
           data={data}
           isAdmin={isAdmin}
           searchTerm={searchTerm}
-          onRefresh={reloadData}
+          onRefresh={reloadEquipmentSilent}
           onOpenEquipmentEditor={() => setShowEquipmentEditor(true)}
           availableRegions={availableRegions}
         />;
