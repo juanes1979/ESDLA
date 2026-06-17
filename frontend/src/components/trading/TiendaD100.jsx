@@ -105,11 +105,47 @@ const TiendaD100 = ({ characters = [], equipment = {}, config }) => {
     );
   }, [charSearch, characters]);
 
+  // Disponibilidad EFECTIVA (objeto > bloque). Filtra el catálogo por la
+  // profesión del PNJ y la región actual del personaje (no se puede comprar una
+  // espada a un posadero ni un elefante en la Comarca).
+  const npcRegion = charLoc?.region || null;
   const filteredItems = useMemo(() => {
     const q = itemSearch.toLowerCase().trim();
     if (!q) return [];
-    return allItems.filter((it) => it.nombre.toLowerCase().includes(q)).slice(0, 12);
-  }, [itemSearch, allItems]);
+    const blockProf = equipment?._block_profesiones || {};
+    const blockReg = equipment?._block_regiones || {};
+    return allItems.filter((it) => {
+      if (!it.nombre.toLowerCase().includes(q)) return false;
+
+      // Profesión del PNJ: profesiones del objeto > del bloque. Si no hay
+      // ninguna asignada, lo vende cualquiera (compatibilidad).
+      if (npc?.profesion) {
+        const propias = Array.isArray(it.profesiones) ? it.profesiones : [];
+        const delBloque = blockProf[it._categoria] || [];
+        const efectivas = propias.length > 0 ? propias : delBloque;
+        if (efectivas.length > 0 && !efectivas.includes(npc.profesion)) return false;
+      }
+
+      // Región actual del personaje: regiones del objeto > del bloque.
+      if (npcRegion) {
+        const propias = Array.isArray(it.regiones_disponibles) ? it.regiones_disponibles : [];
+        const delBloque = (blockReg[it._categoria] || {}).regiones_disponibles || [];
+        const efectivas = propias.length > 0 ? propias : delBloque;
+        if (efectivas.length > 0) {
+          const match = efectivas.some((r) =>
+            r && typeof r === 'string' && (
+              r.toLowerCase() === 'todas' ||
+              r === npcRegion ||
+              r.toLowerCase() === npcRegion.toLowerCase()
+            )
+          );
+          if (!match) return false;
+        }
+      }
+
+      return true;
+    }).slice(0, 12);
+  }, [itemSearch, allItems, npc, npcRegion, equipment]);
 
   const resetNegotiation = () => {
     setOferta(precioBase || 0);
