@@ -279,16 +279,29 @@ const EquipmentSection = ({
     setEditingCategoryKey(categoryKey);
     setEditingCategoryName(categoryName);
     const def = blockReg[categoryKey] || {};
-    setCategoryAvailability({
-      nivel_asentamiento: def.nivel_asentamiento || [],
-      regiones_disponibles: def.regiones_disponibles || [],
-    });
+    let reg = def.regiones_disponibles || [];
+    let asent = def.nivel_asentamiento || [];
+    // Si el bloque aún no tiene valor por defecto, parte de la UNIÓN de lo que
+    // ya tienen los ítems, para que el diálogo refleje el estado actual.
+    if (reg.length === 0 && asent.length === 0) {
+      const items = data[categoryKey] || [];
+      const regSet = new Set();
+      const asSet = new Set();
+      items.forEach(it => {
+        (it.regiones_disponibles || []).forEach(r => regSet.add(r));
+        (it.nivel_asentamiento || []).forEach(a => asSet.add(a));
+      });
+      reg = [...regSet];
+      asent = [...asSet];
+    }
+    setCategoryAvailability({ nivel_asentamiento: asent, regiones_disponibles: reg });
     setShowCategoryEditor(true);
   };
 
-  // Guardar regiones/asentamiento por DEFECTO del bloque (no toca los ítems).
-  // Los ítems sin regiones/asentamiento propios heredan estos valores.
-  const handleSaveCategoryAvailability = async () => {
+  // Guardar regiones/asentamiento por DEFECTO del bloque.
+  // Si makeInherit=true, además borra las regiones/asentamiento propios de TODOS
+  // los ítems para que pasen a HEREDAR este valor del bloque.
+  const handleSaveCategoryAvailability = async (makeInherit = false) => {
     if (!editingCategoryKey) return;
 
     setSavingCategory(true);
@@ -302,7 +315,20 @@ const EquipmentSection = ({
       };
       await api.put('/data/equipment/block-regiones', { block_regiones: nextBlockReg });
       setBlockReg(nextBlockReg);
-      toast.success(`Regiones por defecto guardadas para "${editingCategoryName}"`);
+
+      if (makeInherit) {
+        const items = data[editingCategoryKey] || [];
+        const updates = items.map(item => ({
+          categoria: editingCategoryKey,
+          nombre: item.nombre,
+          nivel_asentamiento: [],
+          regiones_disponibles: [],
+        }));
+        if (updates.length) await api.post('/data/equipment/batch-set-availability', updates);
+        toast.success(`Guardado. Los ${items.length} ítems de "${editingCategoryName}" ahora heredan el valor del bloque.`);
+      } else {
+        toast.success(`Regiones por defecto guardadas para "${editingCategoryName}"`);
+      }
 
       onRefresh?.();
       setShowCategoryEditor(false);
@@ -1503,6 +1529,7 @@ const ItemEditorModal = ({ item, setItem, onSave, onClose, saving, availableRegi
 
 // Category Availability Modal Component
 const CategoryAvailabilityModal = ({ categoryName, categoryKey, data, availability, setAvailability, onSave, onClose, saving, availableRegions }) => {
+  const [makeInherit, setMakeInherit] = useState(false);
   const toggleSettlement = (level) => {
     setAvailability(prev => {
       const current = prev.nivel_asentamiento || [];
@@ -1657,20 +1684,26 @@ const CategoryAvailabilityModal = ({ categoryName, categoryKey, data, availabili
             </div>
           </div>
           
-          {/* Warning */}
-          <div className="bg-yellow-500/10 border border-yellow-500/30 rounded p-3">
-            <p className="text-sm text-yellow-400 flex items-center gap-2">
-              <AlertTriangle className="w-4 h-4" />
-              Esta acción sobrescribirá la disponibilidad de TODOS los items en "{categoryName}".
+          {/* Info + opción de herencia */}
+          <div className="bg-blue-500/10 border border-blue-500/30 rounded p-3 space-y-2">
+            <p className="text-sm text-blue-300 flex items-start gap-2">
+              <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />
+              Esto define el <strong>valor por defecto del bloque</strong>. Los ítems con regiones
+              propias (override) lo mantienen y NO se ven afectados.
             </p>
+            <label className="flex items-center gap-2 text-sm text-yellow-300 cursor-pointer" htmlFor="cat-make-inherit">
+              <Checkbox id="cat-make-inherit" checked={makeInherit} onCheckedChange={(v) => setMakeInherit(!!v)} />
+              Hacer que <strong>TODOS</strong> los {itemCount} ítems hereden este valor
+              (borra sus regiones/asentamiento propios)
+            </label>
           </div>
         </div>
         
         <div className="p-4 border-t border-border/30 flex justify-end gap-2 sticky bottom-0 bg-[hsl(var(--background))]">
           <Button variant="outline" onClick={onClose}>Cancelar</Button>
-          <Button onClick={onSave} disabled={saving} className="bg-[hsl(var(--torch-orange))] hover:bg-[hsl(var(--torch-orange))]/90 text-black">
+          <Button onClick={() => onSave(makeInherit)} disabled={saving} className="bg-[hsl(var(--torch-orange))] hover:bg-[hsl(var(--torch-orange))]/90 text-black">
             {saving ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Check className="w-4 h-4 mr-2" />}
-            Aplicar a {itemCount} Items
+            {makeInherit ? `Guardar y aplicar a ${itemCount} ítems` : 'Guardar por defecto del bloque'}
           </Button>
         </div>
       </div>
