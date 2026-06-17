@@ -435,3 +435,34 @@ Aplica una transacción YA negociada al personaje (reutiliza endpoints de equipo
 - TESTING AGENT (iteration_76): 11/11 PASS, 100% frontend, sin incidencias.
 - El motor D100 SUSTITUYE al sistema de umbrales discretos; la pestaña "Calculadora" (legacy)
   se mantiene accesible por compatibilidad.
+
+## Iter 127 — Motor D100 reescrito (regateo balanceado + tirada enfrentada por bandas) (Jun 2026)
+
+### Tienda D100 — Filtro + UX (P0 resuelto)
+- `TiendaD100.jsx`: `filteredItems` ahora filtra por PROFESIÓN del PNJ y REGIÓN del personaje
+  (herencia objeto > bloque `_block_profesiones`/`_block_regiones`). Verificado: Posadero NO ve armas.
+- Buscador de artículo: desplegable se abre al ENFOCAR (no solo al escribir) y se reduce al teclear.
+
+### Habilidades del PNJ con modificador
+- `trading_npc_data.py`: SKILL_ABILITY, PROFICIENCY_BONUS_NPC=2, `modificador_habilidad`,
+  `habilidades_con_modificador`, `modificador_de_habilidad_en_pnj`.
+- `create_npc`/`get_npcs` persisten/rellenan `habilidades_mods` ([{nombre, modificador}]).
+  Barin Toffin → Perspicacia +3, Engaño +4. Ficha del PNJ muestra los modificadores.
+
+### Motor D100 (`trading_d100.py`) — config ampliada (26 claves, editable en Reglas)
+- BLOQUE A: venta_ratio, tolerancia_base/por_relacion, anger_factor, anger_umbral,
+  d100_base_aceptacion, aceptacion_por_relacion/desviacion, relacion_delta_exito/enfado.
+- BLOQUE A-2 (CONTRAOFERTA BALANCEADA): descuento_base_relacion(0.05), descuento_por_punto_relacion(0.01),
+  descuento_maximo(0.40). %Desc = min(tope, descuento_relacion + Mod_Contexto + Mod_Afinidad_Raza).
+  Precio_Contraoferta = objetivo×(1−%) [compra] / objetivo×(1+%) [venta]. Mod_Contexto = −(mod_ctx/100),
+  Mod_Afinidad_Raza derivado de RELACIONES_RAZA (misma raza +0.05). El precio objetivo YA NO lleva contexto.
+- BLOQUE B (tirada enfrentada): PJ=1d20+mod_jugador; PNJ=1d20+mod_Perspicacia(0 si no la tiene)
+  −mod_relacion_nivel +desviacion%/divisor_desviacion(10). Niveles −4..+4 (hostil..hermandad).
+- BLOQUE C (resultado, diff=PNJ−PJ): diff<0 Éxito (acepta precio ofertado, +relacion_delta_exito);
+  0≤diff<umbral_pillado(6) Duda (+enfado_duda 15); diff≥6 Pillado (+enfado_pillado 40, relacion_pillado −15).
+- BLOQUE D: subida_precio_duda/pillado (% automático, default 0).
+- UI: `D100EngineConfigPanel` en Configuración (editable + guardar). Tirada enfrentada muestra bandas
+  Éxito/Duda/Pillado + cierre en Éxito al precio ofertado.
+- Tests: tests/test_trading_d100.py (8 OK) + test_trading_d100_integration_it77.py (6 OK).
+- TESTING AGENT iteration_77: 12/12 PASS (filtro Posadero, desplegable, negociación, tirada enfrentada,
+  config editable, ficha con modificadores). Sin errores de consola.
