@@ -1897,7 +1897,11 @@ const NpcFichaCard = ({ npc, config, onEdit, onDelete }) => {
         {npc.modo_hablar && <Line label="Modo de hablar">{npc.modo_hablar}{npc.modo_hablar_desc ? ` (${npc.modo_hablar_desc})` : ''}</Line>}
         {npc.apariencia && <p className="text-xs text-muted-foreground/90">{npc.apariencia}</p>}
 
-        {(npc.habilidades?.length > 0) && <Line label="Habilidades"><span className="text-foreground/90">{npc.habilidades.join(', ')}</span></Line>}
+        {(npc.habilidades?.length > 0) && <Line label="Habilidades"><span className="text-foreground/90">{
+          (npc.habilidades_mods?.length > 0)
+            ? npc.habilidades_mods.map((h) => `${h.nombre} ${h.modificador >= 0 ? '+' : ''}${h.modificador}`).join(', ')
+            : npc.habilidades.join(', ')
+        }</span></Line>}
         {(npc.herramientas?.length > 0) && <Line label="Herramientas"><span className="text-foreground/90">{npc.herramientas.join(', ')}</span></Line>}
         {(npc.sentidos?.length > 0) && <Line label="Sentidos"><span className="text-foreground/90">{npc.sentidos.join(', ')}</span></Line>}
         {(npc.idiomas?.length > 0) && <Line label="Idiomas"><span className="text-foreground/90">{npc.idiomas.join(', ')}</span></Line>}

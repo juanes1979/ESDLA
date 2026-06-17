@@ -644,3 +644,53 @@ def generar_caracteristicas(profesion: str) -> dict:
 def generar_pg() -> int:
     """Puntos de Golpe aleatorios del PNJ (8 a 20)."""
     return random.randint(8, 20)
+
+
+# ---------------------------------------------------------------------------
+# HABILIDADES CON MODIFICADOR (D&D 5e)
+# Cada habilidad usa la característica correspondiente + el bono de competencia.
+# Los PNJ son gente normal → bono de competencia +2.
+# ---------------------------------------------------------------------------
+SKILL_ABILITY = {
+    "Atletismo": "fuerza",
+    "Acrobacias": "destreza", "Juego de Manos": "destreza", "Sigilo": "destreza",
+    "Arcanos": "inteligencia", "Historia": "inteligencia", "Investigación": "inteligencia",
+    "Naturaleza": "inteligencia", "Religión": "inteligencia", "Tasación": "inteligencia",
+    "Trato con Animales": "sabiduria", "Perspicacia": "sabiduria", "Medicina": "sabiduria",
+    "Percepción": "sabiduria", "Supervivencia": "sabiduria",
+    "Engaño": "carisma", "Intimidación": "carisma", "Interpretación": "carisma",
+    "Persuasión": "carisma",
+}
+PROFICIENCY_BONUS_NPC = 2
+
+
+def modificador_habilidad(skill: str, caracteristicas: dict, prof_bonus: int = PROFICIENCY_BONUS_NPC) -> int:
+    """Modificador de una habilidad = mod. de característica + bono de competencia."""
+    abil = SKILL_ABILITY.get((skill or "").strip())
+    if not abil:
+        return prof_bonus
+    base = modificador_caracteristica((caracteristicas or {}).get(abil, 10))
+    return base + prof_bonus
+
+
+def habilidades_con_modificador(habilidades, caracteristicas) -> list:
+    """Devuelve [{nombre, modificador}] a partir de una lista de nombres (o dicts)."""
+    out = []
+    for h in (habilidades or []):
+        nombre = h.get("nombre") if isinstance(h, dict) else h
+        if not nombre:
+            continue
+        out.append({"nombre": nombre, "modificador": modificador_habilidad(nombre, caracteristicas)})
+    return out
+
+
+def modificador_de_habilidad_en_pnj(npc: dict, habilidad: str) -> int:
+    """Busca el modificador de una habilidad concreta en el PNJ. 0 si no la tiene."""
+    objetivo = (habilidad or "").strip().lower()
+    for h in (npc.get("habilidades_mods") or []):
+        if (h.get("nombre") or "").strip().lower() == objetivo:
+            try:
+                return int(h.get("modificador") or 0)
+            except (TypeError, ValueError):
+                return 0
+    return 0

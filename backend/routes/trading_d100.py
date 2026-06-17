@@ -345,13 +345,15 @@ async def d100_opposed_roll(payload: dict = Body(...)):
     npc_id = payload.get("npc_id")
     npc = await _get_npc(npc_id)
 
+    habilidad = payload.get("habilidad", "Engaño")
+    habilidad_pnj = payload.get("habilidad_pnj", "Perspicacia")
+    intencion = payload.get("intencion", "")
+
     mod_jugador = int(payload.get("mod_jugador", 0) or 0)
-    if payload.get("mod_pnj") is not None:
-        mod_pnj = int(payload.get("mod_pnj") or 0)
-    else:
-        car = npc.get("caracteristicas", {}) or {}
-        # Perspicacia depende de SAB; usamos el mejor de SAB/INT como defensa social.
-        mod_pnj = max(_abil_mod(car.get("sabiduria")), _abil_mod(car.get("inteligencia")))
+    # Modificador del PNJ = el de su habilidad de defensa (Perspicacia). Si el PNJ
+    # NO tiene esa habilidad definida, cuenta como 0 (no se deriva de SAB/INT).
+    from routes.trading_npc_data import modificador_de_habilidad_en_pnj
+    mod_pnj = modificador_de_habilidad_en_pnj(npc, habilidad_pnj)
 
     d_jugador = random.randint(1, 20)
     d_pnj = random.randint(1, 20)
@@ -362,10 +364,6 @@ async def d100_opposed_roll(payload: dict = Body(...)):
 
     # Bono de la tirada → modifica la tolerancia en la siguiente ronda de negociación.
     opposed_bonus = round(ventaja * float(eng["opposed_skill_factor"]), 2)
-
-    habilidad = payload.get("habilidad", "Engaño")
-    habilidad_pnj = payload.get("habilidad_pnj", "Perspicacia")
-    intencion = payload.get("intencion", "")
 
     narrativa = await _generate_opposed_narrative(
         npc, habilidad, habilidad_pnj, intencion, gana_jugador, ventaja)

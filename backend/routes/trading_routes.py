@@ -591,7 +591,7 @@ async def update_npc_templates(templates: dict = Body(...)):
 async def get_npcs(location: str = None):
     """Get all NPCs or filter by location"""
     from server import db
-    from routes.trading_npc_data import generar_caracteristicas, generar_pg
+    from routes.trading_npc_data import generar_caracteristicas, generar_pg, habilidades_con_modificador
 
     query = {}
     if location:
@@ -609,6 +609,10 @@ async def get_npcs(location: str = None):
             patch["ca"] = 10
         if not npc.get("pg"):
             patch["pg"] = generar_pg()
+        # Relleno perezoso de modificadores de habilidad (PNJ antiguos).
+        if npc.get("habilidades") and not npc.get("habilidades_mods"):
+            carac = patch.get("caracteristicas") or npc.get("caracteristicas")
+            patch["habilidades_mods"] = habilidades_con_modificador(npc["habilidades"], carac)
         if patch:
             npc.update(patch)
             await db.trading_npcs.update_one({"_id": npc["_id"]}, {"$set": patch})
@@ -688,6 +692,10 @@ async def create_npc(npc_data: dict = Body(...)):
     ca = npc_data.get("ca") or 10
     pg = npc_data.get("pg") or generar_pg()
 
+    # --- Habilidades con modificador (característica + competencia +2) ---
+    from routes.trading_npc_data import habilidades_con_modificador
+    habilidades_mods = habilidades_con_modificador(habilidades, caracteristicas)
+
     npc = {
         "_id": str(uuid.uuid4()),
         "codigo_npc": _generate_codigo_npc(nombre),
@@ -708,6 +716,7 @@ async def create_npc(npc_data: dict = Body(...)):
         "modo_hablar_desc": modo_hablar_desc,
         "alineamiento": alineamiento,
         "habilidades": habilidades,
+        "habilidades_mods": habilidades_mods,
         "herramientas": herramientas,
         "sentidos": sentidos,
         "idiomas": idiomas,
