@@ -1,0 +1,25 @@
+{
+  "summary": "E2E del motor de Comercio D100 reescrito (regateo + tirada enfrentada + filtro de tienda por profesión) — 12/12 criterios PASS. Backend integration suite nueva (test_trading_d100_integration_it77.py) 6/6 + skip del catálogo (filtro es 100% cliente). Unit tests test_trading_d100.py 8/8 OK. Frontend: login Maestro OK → /comercio → tab 'Tienda D100' por defecto → Dáinlor Hijo de Kragorn seleccionado → Barin Toffin (Posadero) aparece en d100-npc-list y se selecciona. FILTRO PROFESIÓN (bug principal) VERIFICADO: con Barin (Posadero) seleccionado, escribir 'espada' en d100-item-search → 0 opciones (0 armas se filtran correctamente). Búsqueda 'cerveza' → 4 opciones de comida_posadas (Cerveza o hidromiel, etc.). El dropdown se abre al hacer focus sin escribir (50 items). NEGOCIACIÓN normal: oferta 0.5 sobre artículo Bolos → d100-result 'Acepta' visible con Precio objetivo 1.00 mp, Desviación 50%, Tolerancia 8.75%, Rel. efectiva 5, Tirada D100 5, Prob 5%, Sub/Ofi 2/3, Enfado +61.9. Barra de enfado actualizada a 77/100. d100-contra-desglose no aplicó porque el resultado fue 'Acepta' (no contraoferta), comportamiento correcto. TIRADA ENFRENTADA: intención 'Hacerme pasar por noble…', habilidad Engaño, mod +15 → d100-opposed-result con d100-opposed-banda='Duda · oferta rechazada', desglose Jugador 20 (d20 5+15) vs PNJ 21 (d20 13 + Persp.3 − rel.0 + desv.5), narrativa IA en español de España (~250 palabras). Como salió 'Duda' (no Éxito), d100-opposed-close-btn no aparece (comportamiento esperado). CONFIG MOTOR D100: panel d100-engine-panel visible y expandible; cambiar d100-cfg-tolerancia_base de 8 a 0.055 y pulsar d100-engine-save-btn → toast 'Motor D100 guardado' visible. PNJ Barin Toffin muestra 'Habilidades: Perspicacia +3, Engaño +4' en su ficha (pestaña PNJs). Sin errores de consola.",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": { "ui_bugs": [], "integration_issues": [], "design_issues": [] },
+  "test_report_links": [
+    "/app/backend/tests/test_trading_d100.py",
+    "/app/backend/tests/test_trading_d100_integration_it77.py",
+    "/app/test_reports/pytest/d100_it77.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "TradingSystemSection.jsx sigue en 2809 líneas — supera ampliamente el límite recomendado de 700 LOC; refactor diferido a iteración futura, no bloqueante.",
+    "TiendaD100.jsx en 704 líneas — justo en el límite; los hooks (useMemo de filteredItems con doble filtro profesión/región) están bien aislados y son fáciles de mantener.",
+    "El motor D100 backend usa 'resultado' (exito/duda/pillado) en lugar de un campo 'banda' distinto. El frontend lo mapea correctamente a d100-opposed-banda; documentar esta sutileza en API contract sería útil.",
+    "GET /api/trading/npcs devuelve { npcs: [...], total } y el _id es UUID string (no ObjectId Mongo). Bien."
+  ],
+  "updated_files": ["/app/backend/tests/test_trading_d100_integration_it77.py"],
+  "success_rate": { "backend": "100% (14/14 entre unit+integration, 1 skipped por diseño)", "frontend": "100% (12/12 criterios review request)" },
+  "test_credentials": "Maestro: elanillounico_tlotr@proton.me / 123456",
+  "seed_data_creation": "Ninguna nueva. Personaje Dáinlor (10600bab-…) y PNJ Barin Toffin (_id=8977f07f-9b8e-418d-a240-d0a5a9312c99) ya estaban en BD.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "El motor D100 reescrito funciona end-to-end. Notas para futuros tests: (1) NPC API expone _id (UUID), no id. (2) El campo de resultado de la tirada enfrentada es 'resultado' (no 'banda') con valores exito/duda/pillado. (3) habilidades_mods es lista de {nombre, modificador}, no dict. (4) El selector d100-engine-panel envuelve el contenedor; para expandir hay que clickar el <button> interno (no el div mismo). (5) Tras login el redirect es a '/' no '/inicio'. (6) Selectores correctos: d100-char-opt-{id}, d100-npc-opt-{id}, d100-item-opt-{nombre} (no usar -item- ni -option-).",
+  "rca of the issue": "N/A — todos los criterios del review request se verificaron. Filtro de tienda por profesión bloquea armas para Posadero correctamente; engine config persiste; tirada enfrentada devuelve banda + desglose + narrativa IA en español; ficha PNJ muestra modificadores numéricos."
+}

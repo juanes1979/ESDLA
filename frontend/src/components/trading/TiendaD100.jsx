@@ -67,7 +67,6 @@ const TiendaD100 = ({ characters = [], equipment = {}, config }) => {
   // ── Fase 3: negociación ──────────────────────────────────────────────────
   const [oferta, setOferta] = useState(0);
   const [anger, setAnger] = useState(0);
-  const [opposedBonus, setOpposedBonus] = useState(0);
   const [negotiating, setNegotiating] = useState(false);
   const [result, setResult] = useState(null);
 
@@ -151,7 +150,6 @@ const TiendaD100 = ({ characters = [], equipment = {}, config }) => {
   const resetNegotiation = () => {
     setOferta(precioBase || 0);
     setAnger(0);
-    setOpposedBonus(0);
     setResult(null);
     setOpposed(null);
     setClosed(null);
@@ -221,12 +219,9 @@ const TiendaD100 = ({ characters = [], equipment = {}, config }) => {
         oferta: Number(oferta),
         contexto_historico: contexto,
         anger_actual: anger,
-        opposed_bonus: opposedBonus,
       });
       setResult(res.data);
       setAnger(res.data.anger_nuevo ?? anger);
-      // El bono de la tirada enfrentada se consume tras usarlo.
-      setOpposedBonus(0);
       setClosed(null);
     } catch (e) {
       toast.error('Error en la negociación');
@@ -253,9 +248,14 @@ const TiendaD100 = ({ characters = [], equipment = {}, config }) => {
         habilidad,
         habilidad_pnj: 'Perspicacia',
         mod_jugador: Number(modJugador),
+        precio_base: Number(precioBase),
+        modo,
+        oferta: Number(oferta),
+        categoria: item?._categoria || 'general',
+        anger_actual: anger,
       });
       setOpposed(res.data);
-      setOpposedBonus(res.data.opposed_bonus || 0);
+      setAnger(res.data.anger_nuevo ?? anger);
     } catch (e) {
       toast.error('Error en la tirada enfrentada');
     } finally {
@@ -265,8 +265,10 @@ const TiendaD100 = ({ characters = [], equipment = {}, config }) => {
 
   // ── Fase 5: cerrar trato (relación + oro/inventario) ─────────────────────────
   const closeDeal = async () => {
-    if (!result || result.resultado !== 'acepta') return;
+    const viaOpposed = opposed?.resultado === 'exito';
+    if (!viaOpposed && (!result || result.resultado !== 'acepta')) return;
     if (!character) { toast.error('Falta el personaje'); return; }
+    const relDelta = viaOpposed ? (opposed.relacion_delta || 0) : (result?.relacion_delta || 0);
     setClosing(true);
     setWarnings(null);
     try {
@@ -274,7 +276,7 @@ const TiendaD100 = ({ characters = [], equipment = {}, config }) => {
       const closeRes = await api.post('/trading/d100/close', {
         character_id: character.id || character._id,
         npc_id: npc._id,
-        relacion_delta: result.relacion_delta || 0,
+        relacion_delta: relDelta,
         resumen: `${modo === 'compra' ? 'Compra' : 'Venta'} de ${item?.nombre || 'artículo'} por ${Number(oferta).toFixed(2)} mp`,
       });
       // 2) Aplicar oro/inventario real (reutiliza confirm-transaction).
@@ -487,7 +489,7 @@ const TiendaD100 = ({ characters = [], equipment = {}, config }) => {
                 {result.resultado === 'enfado' && <span className="text-xs">{result.mensaje}</span>}
               </div>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mt-2 text-xs">
-                <div>Precio ref.: <span className="font-mono text-foreground">{fmt(result.precio_referencia)}</span></div>
+                <div>Precio objetivo: <span className="font-mono text-foreground">{fmt(result.precio_referencia)}</span></div>
                 <div>Desviación: <span className="font-mono text-foreground">{result.desviacion_pct}%</span></div>
                 <div>Tolerancia: <span className="font-mono text-foreground">{result.tolerancia}%</span></div>
                 <div>Rel. efectiva: <span className="font-mono text-foreground">{result.relacion_efectiva}</span></div>
@@ -497,9 +499,19 @@ const TiendaD100 = ({ characters = [], equipment = {}, config }) => {
                 <div>Enfado +{result.anger_incremento}</div>
               </div>
               {result.resultado === 'contraoferta' && (
-                <div className="mt-2 flex items-center gap-2">
-                  <span className="text-sm text-yellow-300">Contraoferta: <strong>{fmt(result.contraoferta)}</strong></span>
-                  <Button size="sm" variant="outline" onClick={acceptCounter} data-testid="d100-accept-counter">Aceptar contraoferta</Button>
+                <div className="mt-2 space-y-1">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-yellow-300">Contraoferta del PNJ: <strong>{fmt(result.contraoferta)}</strong></span>
+                    <Button size="sm" variant="outline" onClick={acceptCounter} data-testid="d100-accept-counter">Aceptar contraoferta</Button>
+                  </div>
+                  {result.contraoferta_desglose && (
+                    <p className="text-[11px] text-muted-foreground" data-testid="d100-contra-desglose">
+                      Descuento por fidelidad: relación {(result.contraoferta_desglose.descuento_relacion * 100).toFixed(0)}%
+                      {' '}· contexto {(result.contraoferta_desglose.mod_contexto * 100).toFixed(0)}%
+                      {' '}· raza {(result.contraoferta_desglose.mod_afinidad_raza * 100).toFixed(0)}%
+                      {' '}→ <strong>{(result.contraoferta_desglose.descuento_total * 100).toFixed(0)}%</strong>
+                    </p>
+                  )}
                 </div>
               )}
               {result.resultado === 'acepta' && (
@@ -545,6 +557,9 @@ const TiendaD100 = ({ characters = [], equipment = {}, config }) => {
           <div className="flex items-center gap-2 text-sm font-medium text-[hsl(var(--torch-orange))]">
             <Sparkles className="w-4 h-4" /> 4. Tirada de habilidad enfrentada (Engaño/Persuasión vs Perspicacia)
           </div>
+          <p className="text-xs text-muted-foreground -mt-1">
+            Opcional: úsala solo si el DJ/PJ quiere "darle vidilla". Resuelve en UNA tirada si la oferta cuela.
+          </p>
           <Input value={intencion} onChange={(e) => setIntencion(e.target.value)}
             placeholder="Intención del jugador (la narra el DJ)…" data-testid="d100-intencion" />
           <div className="flex items-end gap-3 flex-wrap">
@@ -565,17 +580,51 @@ const TiendaD100 = ({ characters = [], equipment = {}, config }) => {
             </Button>
           </div>
 
-          {opposed && (
-            <div className={`rounded-lg p-3 border text-sm ${opposed.gana_jugador ? 'border-green-600 bg-green-900/20' : 'border-red-600 bg-red-900/20'}`} data-testid="d100-opposed-result">
-              <p className={opposed.gana_jugador ? 'text-green-400' : 'text-red-400'}>
-                {opposed.gana_jugador ? '✓ El jugador gana la tirada' : '✗ El PNJ no se lo cree'} —
-                Jugador {opposed.tirada_jugador.total} (d20 {opposed.tirada_jugador.d20}+{opposed.tirada_jugador.mod}) vs
-                PNJ {opposed.tirada_pnj.total} (d20 {opposed.tirada_pnj.d20}+{opposed.tirada_pnj.mod})
-              </p>
-              <p className="text-xs text-muted-foreground mt-1">Bono a la próxima negociación: {opposed.opposed_bonus >= 0 ? '+' : ''}{opposed.opposed_bonus}% de tolerancia</p>
-              {opposed.narrativa && <p className="mt-2 italic text-foreground/90">{opposed.narrativa}</p>}
-            </div>
-          )}
+          {opposed && (() => {
+            const ob = {
+              exito: { box: 'border-green-600 bg-green-900/20', txt: 'text-green-400', l: 'Éxito · el PNJ acepta tu precio' },
+              duda: { box: 'border-yellow-600 bg-yellow-900/20', txt: 'text-yellow-400', l: 'Duda · oferta rechazada' },
+              pillado: { box: 'border-red-600 bg-red-900/20', txt: 'text-red-400', l: '¡Pillado! · el PNJ se ofende' },
+            }[opposed.resultado] || { box: 'border-green-600 bg-green-900/20', txt: 'text-green-400', l: 'Resultado' };
+            const tp = opposed.tirada_pnj;
+            return (
+              <div className={`rounded-lg p-3 border text-sm ${ob.box}`} data-testid="d100-opposed-result">
+                <p className={`font-medium ${ob.txt}`} data-testid="d100-opposed-banda">{ob.l}</p>
+                <p className="text-xs text-foreground/90 mt-1">
+                  Jugador <strong>{opposed.tirada_jugador.total}</strong> (d20 {opposed.tirada_jugador.d20}+{opposed.tirada_jugador.mod}) vs
+                  PNJ <strong>{tp.total}</strong> (d20 {tp.d20} + Persp.{tp.mod_perspicacia} − rel.{tp.mod_relacion} + desv.{tp.mod_desviacion})
+                </p>
+                <p className="text-[11px] text-muted-foreground mt-0.5">
+                  Enfado +{opposed.anger_incremento}
+                  {opposed.relacion_delta !== 0 && <> · Δrelación {opposed.relacion_delta >= 0 ? '+' : ''}{opposed.relacion_delta}</>}
+                  {opposed.precio_resultante != null && opposed.resultado !== 'exito' && <> · precio sube a {fmt(opposed.precio_resultante)}</>}
+                </p>
+                {opposed.narrativa && <p className="mt-2 italic text-foreground/90">{opposed.narrativa}</p>}
+
+                {opposed.resultado === 'exito' && (
+                  <div className="mt-3 space-y-2 border-t border-border/20 pt-2">
+                    {modo === 'compra' && item && (
+                      <div className="flex items-center gap-2 flex-wrap text-xs" data-testid="d100-opposed-destino">
+                        <span className="text-muted-foreground">Guardar como:</span>
+                        {[['mochila', 'Mochila'], ['equipado', 'Equipado'], ...(tieneMonturas ? [['montura', 'A la montura']] : [])].map(([val, label]) => (
+                          <button key={val} onClick={() => setDestino(val)}
+                            className={`px-2 py-1 rounded border ${destino === val ? 'border-[hsl(var(--gold))] bg-[hsl(var(--gold))]/15 text-[hsl(var(--gold))]' : 'border-border/40'}`}
+                            data-testid={`d100-opposed-destino-${val}`}>{label}</button>
+                        ))}
+                      </div>
+                    )}
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-sm text-green-300">El vendedor acepta tu precio de <strong>{fmt(oferta)}</strong>.</span>
+                      <Button size="sm" onClick={closeDeal} disabled={closing} className="bg-green-700 hover:bg-green-600" data-testid="d100-opposed-close-btn">
+                        {closing ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Handshake className="w-4 h-4 mr-2" />}
+                        Cerrar trato y aplicar al personaje
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
         </div>
       )}
         </div>

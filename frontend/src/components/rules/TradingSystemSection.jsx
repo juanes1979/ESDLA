@@ -1317,6 +1317,9 @@ const TradingSystemSection = ({ isAdmin }) => {
         {/* Matrices de relación: subculturas y oficio×ocupación */}
         <RelationshipMatricesPanel isAdmin={isAdmin} />
 
+        {/* Motor de Comercio D100 (regateo + tirada enfrentada) */}
+        <D100EngineConfigPanel isAdmin={isAdmin} />
+
         {sections.map(section => (
           <div key={section.id} className="bg-black/20 rounded-lg border border-border/30">
             <button
@@ -1791,6 +1794,136 @@ const RelationshipMatricesPanel = ({ isAdmin }) => {
     </div>
   );
 };
+
+
+// ============================================================================
+// PANEL EDITABLE DEL MOTOR D100 (Bloques A, A-2, B, C, D)
+// ============================================================================
+const D100_GROUPS = [
+  {
+    title: 'A · Negociación normal', keys: [
+      ['venta_ratio', 'Ratio de venta (el PNJ paga este % del catálogo)'],
+      ['tolerancia_base', 'Tolerancia base (% sin enfadar)'],
+      ['tolerancia_por_relacion', '+Tolerancia por punto de relación'],
+      ['anger_factor', 'Factor de enfado (por % de desviación abusiva)'],
+      ['anger_umbral', 'Umbral de enfado (rompe el trato)'],
+      ['d100_base_aceptacion', 'Prob. base de aceptación (%)'],
+      ['aceptacion_por_relacion', '+Prob. por punto de relación'],
+      ['aceptacion_por_desviacion', '−Prob. por % de desviación'],
+      ['relacion_delta_exito', 'Δrelación al cerrar buen trato'],
+      ['relacion_delta_enfado', 'Δrelación si se enfada'],
+    ],
+  },
+  {
+    title: 'A-2 · Contraoferta balanceada', keys: [
+      ['descuento_base_relacion', 'Descuento base si relación > 0 (fracción)'],
+      ['descuento_por_punto_relacion', 'Descuento por punto positivo de relación'],
+      ['descuento_maximo', 'Descuento máximo (tope)'],
+    ],
+  },
+  {
+    title: 'B · Tirada enfrentada', keys: [
+      ['divisor_desviacion', 'Divisor de desviación (desv.% ÷ esto → al PNJ)'],
+      ['mod_rel_hostil', 'Mod. relación · Hostil'],
+      ['mod_rel_receloso', 'Mod. relación · Receloso'],
+      ['mod_rel_neutral', 'Mod. relación · Neutral'],
+      ['mod_rel_cordial', 'Mod. relación · Cordial'],
+      ['mod_rel_amigo', 'Mod. relación · Amigo'],
+      ['mod_rel_hermandad', 'Mod. relación · Hermandad'],
+    ],
+  },
+  {
+    title: 'C · Resultado de la tirada enfrentada', keys: [
+      ['umbral_pillado', 'Umbral de "Pillado" (diff ≥ esto)'],
+      ['enfado_duda', 'Enfado que suma una "Duda"'],
+      ['enfado_pillado', 'Enfado que suma un "Pillado"'],
+      ['relacion_pillado', 'Δrelación en un "Pillado"'],
+    ],
+  },
+  {
+    title: 'D · Subida de precio si gana el PNJ', keys: [
+      ['subida_precio_duda', 'Subida de precio en "Duda" (%)'],
+      ['subida_precio_pillado', 'Subida de precio en "Pillado" (%)'],
+    ],
+  },
+];
+
+const D100EngineConfigPanel = ({ isAdmin }) => {
+  const [open, setOpen] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [cfg, setCfg] = useState({});
+  const ro = !isAdmin;
+
+  const load = async () => {
+    setLoading(true);
+    try {
+      const res = await api.get('/trading/d100/config');
+      setCfg(res.data || {});
+    } catch (e) { toast.error('Error cargando el motor D100'); }
+    finally { setLoading(false); }
+  };
+  useEffect(() => { load(); }, []);
+
+  const save = async () => {
+    setSaving(true);
+    try {
+      await api.put('/trading/d100/config', cfg);
+      toast.success('Motor D100 guardado');
+    } catch (e) { toast.error('Error al guardar el motor D100'); }
+    finally { setSaving(false); }
+  };
+
+  const setVal = (k, v) => {
+    const n = v === '' || v === '-' ? '' : Number(v);
+    setCfg(prev => ({ ...prev, [k]: isNaN(n) ? 0 : n }));
+  };
+
+  return (
+    <div className="bg-black/20 rounded-lg border border-[hsl(var(--torch-orange))]/30 p-4 space-y-3" data-testid="d100-engine-panel">
+      <div className="flex items-center justify-between">
+        <button onClick={() => setOpen(o => !o)} className="flex items-center gap-2 text-left">
+          <span className="font-heading text-[hsl(var(--torch-orange))] flex items-center gap-2">
+            <Dices className="w-4 h-4" /> Motor de Comercio D100
+          </span>
+          {open ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+        </button>
+        {!ro && open && (
+          <Button size="sm" onClick={save} disabled={saving || loading}
+            className="bg-[hsl(var(--torch-orange))] text-black hover:opacity-90" data-testid="d100-engine-save-btn">
+            {saving ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Save className="w-4 h-4 mr-1" />} Guardar motor D100
+          </Button>
+        )}
+      </div>
+      {open && (
+        loading ? (
+          <div className="flex items-center gap-2 text-muted-foreground text-sm"><Loader2 className="w-4 h-4 animate-spin" /> Cargando…</div>
+        ) : (
+          <div className="space-y-3">
+            <p className="text-xs text-muted-foreground">Parámetros del regateo y de la tirada enfrentada. Se aplican a todas las negociaciones futuras.</p>
+            {D100_GROUPS.map(grp => (
+              <div key={grp.title} className="bg-black/20 rounded border border-border/30 p-3">
+                <p className="text-sm font-medium text-[hsl(var(--gold))] mb-2">{grp.title}</p>
+                <div className="grid sm:grid-cols-2 gap-2">
+                  {grp.keys.map(([k, label]) => (
+                    <div key={k} className="flex items-center justify-between gap-2">
+                      <label className="text-xs text-muted-foreground flex-1" htmlFor={`d100-${k}`}>{label}</label>
+                      <input id={`d100-${k}`} type="number" step="any" disabled={ro}
+                        className="w-24 bg-black/30 border border-border rounded px-2 py-1 text-sm text-right font-mono"
+                        value={cfg[k] ?? 0} onChange={(e) => setVal(k, e.target.value)}
+                        data-testid={`d100-cfg-${k}`} />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        )
+      )}
+    </div>
+  );
+};
+
 
 
 // ============================================================================

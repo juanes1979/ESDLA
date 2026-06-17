@@ -33,18 +33,37 @@ def now_utc():
 # CONFIG POR DEFECTO (ajustable desde Configuración → trading_config.d100_engine)
 # ============================================================================
 DEFAULT_D100_CONFIG = {
-    "anger_umbral": 100,             # barra 0..100; al alcanzarla el PNJ corta el trato
-    "anger_factor": 1.5,             # cuánto sube el enfado por cada % de desviación abusiva
-    "tolerancia_base": 8,            # % de desviación tolerada sin enfadar (regateo normal)
-    "tolerancia_por_relacion": 0.15, # +tolerancia por punto de relación efectiva
-    "venta_ratio": 0.5,              # el PNJ compra al 50% del precio base por defecto
-    "d100_base_aceptacion": 50,      # probabilidad base de aceptar una oferta justa
-    "aceptacion_por_relacion": 0.4,  # +prob aceptación por punto de relación efectiva
-    "aceptacion_por_desviacion": 1.2,# -prob por cada % de desviación
-    "margen_contraoferta": 0.5,      # 0=precio justo · 1=oferta del jugador
-    "opposed_skill_factor": 0.6,     # cada punto de ventaja en la tirada enfrentada → +tolerancia
-    "relacion_delta_exito": 2,       # cambio de relación al cerrar un buen trato
-    "relacion_delta_enfado": -4,     # cambio de relación si el PNJ se enfada
+    # ── BLOQUE A · Negociación normal ──────────────────────────────────────
+    "venta_ratio": 0.5,               # al VENDER, el PNJ parte de pagar el 50% del catálogo
+    "tolerancia_base": 8,             # % de desviación tolerada sin enfadar
+    "tolerancia_por_relacion": 0.15,  # +tolerancia por punto de relación efectiva
+    "anger_factor": 1.5,              # cuánto sube el enfado por % de desviación abusiva
+    "anger_umbral": 100,              # barra 0..100; al alcanzarla el PNJ corta el trato
+    "d100_base_aceptacion": 50,       # probabilidad base de aceptar una oferta justa
+    "aceptacion_por_relacion": 0.4,   # +prob aceptación por punto de relación efectiva
+    "aceptacion_por_desviacion": 1.2, # -prob por cada % de desviación
+    "relacion_delta_exito": 2,        # cambio de relación al cerrar un buen trato
+    "relacion_delta_enfado": -4,      # cambio de relación si el PNJ se enfada
+    # ── BLOQUE A-2 · Contraoferta balanceada (descuento por fidelidad) ──────
+    "descuento_base_relacion": 0.05,      # 5% fijo de salida si la relación > 0
+    "descuento_por_punto_relacion": 0.01, # +1% por cada punto positivo de relación
+    "descuento_maximo": 0.40,             # tope del descuento total (evita regalar)
+    # ── BLOQUE B · Tirada enfrentada ────────────────────────────────────────
+    "divisor_desviacion": 10,         # la desviación% se suma al PNJ dividida entre esto
+    "mod_rel_hostil": -4,             # modificador de relación (se RESTA a la tirada del PNJ)
+    "mod_rel_receloso": -2,
+    "mod_rel_neutral": 0,
+    "mod_rel_cordial": 1,
+    "mod_rel_amigo": 2,
+    "mod_rel_hermandad": 4,
+    # ── BLOQUE C · Resultado de la tirada enfrentada ────────────────────────
+    "umbral_pillado": 6,              # diff a partir del cual es "Pillado" en vez de "Duda"
+    "enfado_duda": 15,                # enfado que suma una "Duda"
+    "enfado_pillado": 40,             # enfado que suma un "Pillado"
+    "relacion_pillado": -15,          # cambio de relación en un "Pillado"
+    # ── BLOQUE D · Subida de precio si gana el PNJ (automática) ─────────────
+    "subida_precio_duda": 0.0,        # % que sube el precio en una "Duda"
+    "subida_precio_pillado": 0.0,     # % que sube el precio en un "Pillado"
 }
 
 
@@ -146,6 +165,68 @@ def _contexto_factor(modo: str, categoria: str, contexto_cfg: dict) -> float:
     return 1.0 + (mod / 100.0)
 
 
+def _mod_contexto_pct(categoria: str, ctx: dict) -> float:
+    """Mod_Contexto para la contraoferta: contexto que ENCARECE (mod +) → menos descuento.
+    Devuelve un % (fracción): crisis/escasez negativo, bonanza positivo."""
+    if not ctx:
+        return 0.0
+    raw = ctx.get(f"mod_{categoria}", ctx.get("mod_general", 0)) or 0
+    return round(-raw / 100.0, 4)
+
+
+def _afinidad_raza_pct(npc_raza: str, pj_raza: str) -> float:
+    """Mod_Afinidad_Raza (fracción): se deriva de las relaciones de raza existentes.
+    Misma raza → +5% de descuento; otras razas → puntos/100 (puede ser negativo)."""
+    from routes.trading_npc_data import RELACIONES_RAZA
+    if not npc_raza or not pj_raza:
+        return 0.0
+    if npc_raza == pj_raza:
+        return 0.05
+    pts = RELACIONES_RAZA.get((npc_raza, pj_raza), 0)
+    return round(pts / 100.0, 4)
+
+
+def _mod_relacion_nivel(relacion: int, eng: dict) -> int:
+    """Modificador discreto por nivel de relación (se RESTA a la tirada del PNJ)."""
+    v = relacion
+    if v <= -60:
+        return int(eng["mod_rel_hostil"])
+    if v <= -20:
+        return int(eng["mod_rel_receloso"])
+    if v < 20:
+        return int(eng["mod_rel_neutral"])
+    if v < 50:
+        return int(eng["mod_rel_cordial"])
+    if v < 80:
+        return int(eng["mod_rel_amigo"])
+    return int(eng["mod_rel_hermandad"])
+
+
+async def _char_raza(char_subcultura: str) -> str:
+    from server import db
+    if not char_subcultura:
+        return ""
+    c = await db.cultures.find_one({"nombre": char_subcultura})
+    return (c or {}).get("raza", "")
+
+
+def _descuento_fidelidad(eng: dict, relacion: int, mod_contexto: float, mod_afinidad: float) -> dict:
+    """Calcula el % de descuento/incremento de la contraoferta balanceada."""
+    if relacion > 0:
+        desc_rel = float(eng["descuento_base_relacion"]) + relacion * float(eng["descuento_por_punto_relacion"])
+    else:
+        desc_rel = 0.0
+    tope = float(eng["descuento_maximo"])
+    total = desc_rel + mod_contexto + mod_afinidad
+    total = max(-tope, min(tope, total))
+    return {
+        "descuento_relacion": round(desc_rel, 4),
+        "mod_contexto": round(mod_contexto, 4),
+        "mod_afinidad_raza": round(mod_afinidad, 4),
+        "descuento_total": round(total, 4),
+    }
+
+
 # ============================================================================
 # FASE 2 — Tienda: PNJ disponibles en la ubicación del personaje
 # ============================================================================
@@ -196,7 +277,6 @@ async def d100_negotiate(payload: dict = Body(...)):
       oferta (float)                 # lo que ofrece/pide el jugador
       contexto_historico (key, opc)
       anger_actual (0..100, def 0)
-      opposed_bonus (def 0)          # ventaja de una tirada enfrentada previa
     """
     from server import db
     from routes.trading_routes import DEFAULT_HISTORICAL_CONTEXTS
@@ -217,24 +297,17 @@ async def d100_negotiate(payload: dict = Body(...)):
     oferta = float(payload.get("oferta", 0) or 0)
     categoria = payload.get("categoria", "general") or "general"
     anger_actual = float(payload.get("anger_actual", 0) or 0)
-    opposed_bonus = float(payload.get("opposed_bonus", 0) or 0)
 
     # 1) Relación efectiva
     relacion = await _relacion_actual(character_id, npc_id) if character_id else 0
     sub_mod, ofi_mod = await _matrix_mods(npc, char_subcultura, char_ocupacion)
     relacion_efectiva = max(-100, min(100, relacion + sub_mod + ofi_mod))
 
-    # 2) Precio de referencia (con contexto histórico)
-    cfg = await db.trading_config.find_one({"_id": "main"}) or {}
-    contextos = cfg.get("historical_contexts", DEFAULT_HISTORICAL_CONTEXTS)
-    ctx = contextos.get(payload.get("contexto_historico", ""), {})
-    factor_ctx = _contexto_factor(modo, categoria, ctx)
-
+    # 2) Precio objetivo del PNJ (SIN contexto; el contexto entra en la contraoferta).
     if modo == "venta":
-        precio_ref = precio_base * float(eng["venta_ratio"]) * factor_ctx
+        precio_ref = round(precio_base * float(eng["venta_ratio"]), 2)
     else:
-        precio_ref = precio_base * factor_ctx
-    precio_ref = round(precio_ref, 2)
+        precio_ref = round(precio_base, 2)
 
     # 3) Desviación % (positiva = oferta desfavorable para el PNJ)
     if precio_ref > 0:
@@ -248,8 +321,7 @@ async def d100_negotiate(payload: dict = Body(...)):
 
     # 4) Tolerancia de regateo
     tolerancia = (float(eng["tolerancia_base"])
-                  + relacion_efectiva * float(eng["tolerancia_por_relacion"])
-                  + opposed_bonus)
+                  + relacion_efectiva * float(eng["tolerancia_por_relacion"]))
     tolerancia = round(max(0.0, tolerancia), 2)
 
     # 5) Enfado por abuso
@@ -281,20 +353,33 @@ async def d100_negotiate(payload: dict = Body(...)):
     # 7) Tirada D100 de aceptación
     prob = (float(eng["d100_base_aceptacion"])
             + relacion_efectiva * float(eng["aceptacion_por_relacion"])
-            - max(0.0, desviacion) * float(eng["aceptacion_por_desviacion"])
-            + opposed_bonus)
+            - max(0.0, desviacion) * float(eng["aceptacion_por_desviacion"]))
     prob = int(round(max(5.0, min(95.0, prob))))
     tirada = random.randint(1, 100)
 
+    desglose_contra = None
     if tirada <= prob:
         resultado = "acepta"
         contraoferta = None
         relacion_delta = int(eng["relacion_delta_exito"]) if desviacion <= tolerancia else 0
     else:
         resultado = "contraoferta"
-        margen = float(eng["margen_contraoferta"])
-        # La contraoferta se mueve desde el precio justo hacia la oferta del jugador.
-        contraoferta = round(precio_ref + (oferta - precio_ref) * margen, 2)
+        # Contraoferta BALANCEADA: el PNJ parte de SU precio objetivo y aplica un
+        # descuento por fidelidad (relación + contexto + afinidad de raza).
+        cfg = await db.trading_config.find_one({"_id": "main"}) or {}
+        contextos = cfg.get("historical_contexts", DEFAULT_HISTORICAL_CONTEXTS)
+        ctx = contextos.get(payload.get("contexto_historico", ""), {})
+        mod_contexto = _mod_contexto_pct(categoria, ctx)
+        pj_raza = await _char_raza(char_subcultura)
+        mod_afinidad = _afinidad_raza_pct(npc.get("raza", ""), pj_raza)
+        desglose_contra = _descuento_fidelidad(eng, relacion, mod_contexto, mod_afinidad)
+        pct = desglose_contra["descuento_total"]
+        if modo == "venta":
+            # Al vender, mejor relación → el PNJ paga MÁS (sube su pago).
+            contraoferta = round(precio_ref * (1 + pct), 2)
+        else:
+            # Al comprar, mejor relación → el PNJ rebaja su precio.
+            contraoferta = round(precio_ref * (1 - pct), 2)
         relacion_delta = 0
 
     return {
@@ -312,6 +397,7 @@ async def d100_negotiate(payload: dict = Body(...)):
         "tirada": tirada,
         "prob_aceptacion": prob,
         "contraoferta": contraoferta,
+        "contraoferta_desglose": desglose_contra,
         "oferta": oferta,
         "relacion_delta": relacion_delta,
         "modo": modo,
@@ -321,70 +407,136 @@ async def d100_negotiate(payload: dict = Body(...)):
 # ============================================================================
 # FASE 4 — Tirada de habilidad ENFRENTADA + narrativa IA
 # ============================================================================
-def _abil_mod(valor):
-    try:
-        return (int(valor) - 10) // 2
-    except (TypeError, ValueError):
-        return 0
-
-
 @router.post("/trading/d100/opposed-roll")
 async def d100_opposed_roll(payload: dict = Body(...)):
     """
-    Tirada enfrentada (p. ej. Engaño vs Perspicacia). 5e: d20 + modificador por bando.
+    Tirada enfrentada OPCIONAL (Engaño/Persuasión/Intimidación vs Perspicacia).
+    Resuelve en UNA tirada si la oferta del jugador "cuela".
+
+      PJ:  1d20 + mod_jugador
+      PNJ: 1d20 + mod_perspicacia − mod_relacion_nivel + mod_desviacion_precio
+
+    Bandas (diff = total_PNJ − total_PJ):
+      diff < 0           → Éxito  : el PNJ acepta el precio ofertado.
+      0 ≤ diff < umbral  → Duda   : oferta rechazada, +enfado, posible subida de precio.
+      diff ≥ umbral      → Pillado: +enfado fuerte, −relación, posible subida de precio.
 
     payload:
-      npc_id, character_id (opc)
-      intencion (str)            # qué intenta el jugador (lo narra el DJ)
-      habilidad (str)            # "Engaño", "Persuasión", "Intimidación"…
-      habilidad_pnj (str)        # "Perspicacia", "Perspicacia (pasiva)"…
-      mod_jugador (int)          # bonificador de la habilidad del jugador
-      mod_pnj (int, opc)         # si no se indica, se deriva de SAB/CAR del PNJ
+      npc_id, character_id (opc), intencion, habilidad, mod_jugador,
+      precio_base, modo, oferta, categoria, anger_actual
     """
+    from server import db
     eng = await _get_d100_config()
     npc_id = payload.get("npc_id")
     npc = await _get_npc(npc_id)
 
+    character_id = payload.get("character_id")
+    char = await _get_character(character_id) if character_id else None
+    char_subcultura = (char or {}).get("cultura_nombre", "") if char else ""
+
     habilidad = payload.get("habilidad", "Engaño")
     habilidad_pnj = payload.get("habilidad_pnj", "Perspicacia")
     intencion = payload.get("intencion", "")
+    modo = payload.get("modo", "compra")
+    oferta = float(payload.get("oferta", 0) or 0)
+    precio_base = float(payload.get("precio_base", 0) or 0)
+    anger_actual = float(payload.get("anger_actual", 0) or 0)
 
+    # Precio objetivo + desviación (misma base que la negociación, sin contexto).
+    if modo == "venta":
+        precio_ref = round(precio_base * float(eng["venta_ratio"]), 2)
+    else:
+        precio_ref = round(precio_base, 2)
+    if precio_ref > 0:
+        if modo == "compra":
+            desviacion = ((precio_ref - oferta) / precio_ref) * 100.0
+        else:
+            desviacion = ((oferta - precio_ref) / precio_ref) * 100.0
+    else:
+        desviacion = 0.0
+    desviacion = round(desviacion, 2)
+
+    # Modificadores de la tirada.
     mod_jugador = int(payload.get("mod_jugador", 0) or 0)
-    # Modificador del PNJ = el de su habilidad de defensa (Perspicacia). Si el PNJ
-    # NO tiene esa habilidad definida, cuenta como 0 (no se deriva de SAB/INT).
     from routes.trading_npc_data import modificador_de_habilidad_en_pnj
-    mod_pnj = modificador_de_habilidad_en_pnj(npc, habilidad_pnj)
+    mod_pnj = modificador_de_habilidad_en_pnj(npc, habilidad_pnj)  # 0 si no la tiene
+    relacion = await _relacion_actual(character_id, npc_id) if character_id else 0
+    mod_relacion = _mod_relacion_nivel(relacion, eng)
+    # La oferta desorbitada (a favor del jugador) sube la tirada del PNJ.
+    mod_desviacion = round(max(0.0, desviacion) / float(eng["divisor_desviacion"]), 2)
 
     d_jugador = random.randint(1, 20)
     d_pnj = random.randint(1, 20)
     total_jugador = d_jugador + mod_jugador
-    total_pnj = d_pnj + mod_pnj
-    gana_jugador = total_jugador >= total_pnj
-    ventaja = total_jugador - total_pnj  # puede ser negativa
+    total_pnj = d_pnj + mod_pnj - mod_relacion + mod_desviacion
+    total_pnj = round(total_pnj, 2)
+    diff = round(total_pnj - total_jugador, 2)
+    gana_jugador = total_jugador > total_pnj
 
-    # Bono de la tirada → modifica la tolerancia en la siguiente ronda de negociación.
-    opposed_bonus = round(ventaja * float(eng["opposed_skill_factor"]), 2)
+    umbral = float(eng["umbral_pillado"])
+    if gana_jugador:
+        banda = "exito"
+        anger_inc = 0.0
+        relacion_delta = int(eng["relacion_delta_exito"])
+        subida_pct = 0.0
+        precio_resultante = round(oferta, 2)  # el PNJ acepta el precio ofertado
+    elif diff < umbral:
+        banda = "duda"
+        anger_inc = float(eng["enfado_duda"])
+        relacion_delta = 0
+        subida_pct = float(eng["subida_precio_duda"]) / 100.0
+        precio_resultante = None
+    else:
+        banda = "pillado"
+        anger_inc = float(eng["enfado_pillado"])
+        relacion_delta = int(eng["relacion_pillado"])
+        subida_pct = float(eng["subida_precio_pillado"]) / 100.0
+        precio_resultante = None
+
+    # Subida automática del precio cuando gana el PNJ (Bloque D).
+    if not gana_jugador and subida_pct > 0 and precio_ref > 0:
+        if modo == "venta":
+            precio_resultante = round(precio_ref * (1 - subida_pct), 2)  # paga menos al PJ
+        else:
+            precio_resultante = round(precio_ref * (1 + subida_pct), 2)  # cobra más al PJ
+
+    new_anger = round(min(100.0, anger_actual + anger_inc), 1)
 
     narrativa = await _generate_opposed_narrative(
-        npc, habilidad, habilidad_pnj, intencion, gana_jugador, ventaja)
+        npc, habilidad, habilidad_pnj, intencion, gana_jugador, -diff, banda)
 
     return {
         "habilidad": habilidad,
         "habilidad_pnj": habilidad_pnj,
         "intencion": intencion,
         "tirada_jugador": {"d20": d_jugador, "mod": mod_jugador, "total": total_jugador},
-        "tirada_pnj": {"d20": d_pnj, "mod": mod_pnj, "total": total_pnj},
+        "tirada_pnj": {
+            "d20": d_pnj, "mod_perspicacia": mod_pnj, "mod_relacion": mod_relacion,
+            "mod_desviacion": mod_desviacion, "total": total_pnj,
+        },
         "gana_jugador": gana_jugador,
-        "ventaja": ventaja,
-        "opposed_bonus": opposed_bonus,
+        "resultado": banda,
+        "diff": diff,
+        "desviacion_pct": desviacion,
+        "precio_referencia": precio_ref,
+        "precio_resultante": precio_resultante,
+        "subida_pct": round(subida_pct * 100, 2),
+        "anger_actual": anger_actual,
+        "anger_incremento": anger_inc,
+        "anger_nuevo": new_anger,
+        "relacion_delta": relacion_delta,
         "narrativa": narrativa,
     }
 
 
-async def _generate_opposed_narrative(npc, habilidad, habilidad_pnj, intencion, gana_jugador, ventaja):
+async def _generate_opposed_narrative(npc, habilidad, habilidad_pnj, intencion, gana_jugador, ventaja, banda="exito"):
     """Narra el resultado de la tirada enfrentada con gpt-4o-mini (con fallback)."""
     import uuid
-    resultado = "ÉXITO del jugador" if gana_jugador else "FRACASO del jugador (el PNJ lo detecta)"
+    banda_txt = {
+        "exito": "ÉXITO del jugador: el comerciante se lo cree y acepta el precio ofertado.",
+        "duda": "DUDA: el comerciante no se fía, rechaza la oferta pero sigue regateando.",
+        "pillado": "PILLADO: el comerciante descubre el engaño, se ofende y se pone hostil.",
+    }.get(banda, "ÉXITO del jugador")
     try:
         from emergentintegrations.llm.chat import LlmChat, UserMessage
         api_key = os.environ.get("EMERGENT_LLM_KEY")
@@ -397,10 +549,10 @@ async def _generate_opposed_narrative(npc, habilidad, habilidad_pnj, intencion, 
             f"Modo de hablar: {npc.get('modo_hablar', '')} ({npc.get('modo_hablar_desc', '')})\n\n"
             f"El jugador intenta usar {habilidad} con esta intención: «{intencion or 'regatear'}».\n"
             f"El PNJ se defiende con {habilidad_pnj}.\n"
-            f"Resultado de la tirada enfrentada: {resultado} (ventaja {ventaja}).\n\n"
+            f"Resultado de la tirada enfrentada: {banda_txt}\n\n"
             "Narra en 2-3 frases, en español de España y en tercera persona, cómo reacciona el "
-            "comerciante: si el jugador gana, el PNJ se lo cree o cede terreno; si pierde, el PNJ "
-            "sospecha o se ofende. Refleja su rasgo y su forma de hablar. No uses comillas de apertura."
+            "comerciante según ese resultado. Refleja su rasgo y su forma de hablar. "
+            "No uses comillas de apertura."
         )
         chat = LlmChat(
             api_key=api_key,
@@ -411,11 +563,14 @@ async def _generate_opposed_narrative(npc, habilidad, habilidad_pnj, intencion, 
         return (resp or "").strip()
     except Exception as e:
         logger.warning("Narrativa enfrentada fallback: %s", e)
-        if gana_jugador:
+        if banda == "exito":
             return (f"{npc.get('nombre')} entrecierra los ojos un instante, pero termina asintiendo: "
-                    f"se ha tragado el farol y afloja su postura.")
-        return (f"{npc.get('nombre')} no se deja engañar tan fácilmente. Su mirada se endurece y "
-                f"aprieta el trato con más recelo.")
+                    f"se ha tragado el farol y acepta tu precio.")
+        if banda == "duda":
+            return (f"{npc.get('nombre')} no se fía del todo. Niega con la cabeza y mantiene su postura, "
+                    f"aunque sigue dispuesto a regatear.")
+        return (f"{npc.get('nombre')} te ha pillado. Su mirada se endurece, golpea el mostrador y "
+                f"el trato se vuelve hostil.")
 
 
 # ============================================================================
