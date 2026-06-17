@@ -1904,7 +1904,7 @@ const NpcFichaCard = ({ npc, config, onEdit, onDelete }) => {
             <EyeOff className="w-3 h-3" /> <span className="text-muted-foreground">Alineamiento (DJ):</span> {npc.alineamiento}
           </p>
         )}
-        {npc.historia && <p className="text-xs text-muted-foreground/80 italic line-clamp-3 pt-1 border-t border-border/20">{npc.historia}</p>}
+        {npc.historia && <p className="text-xs text-muted-foreground/80 italic pt-1 border-t border-border/20 whitespace-pre-line">{npc.historia}</p>}
         {npc.notas && <p className="text-xs text-muted-foreground/70"><span className="text-[hsl(var(--torch-orange))]/70">Notas DJ:</span> {npc.notas}</p>}
       </div>
     </div>
