@@ -458,6 +458,7 @@ const DistributionView = ({
   catalogWeights,
   onMoveItem,        // (item, targetPortador) => Promise
   processing,
+  summaryOnly = false,   // si true: solo "Resumen visual" (cards), sin tabla ni mover
 }) => {
   const [selectedItem, setSelectedItem] = useState(null);
 
@@ -541,7 +542,7 @@ const DistributionView = ({
       </div>
 
       {/* Layout A — cards */}
-      <div className="dv-layout-label">A · Resumen visual</div>
+      {!summaryOnly && <div className="dv-layout-label">A · Resumen visual</div>}
       <div
         className="dv-columns"
         style={{ gridTemplateColumns: `repeat(${portadores.length}, minmax(0, 1fr))` }}
@@ -557,18 +558,22 @@ const DistributionView = ({
       </div>
 
       {/* Layout B — tabla con scroll independiente */}
-      <div className="dv-layout-label">B · Tabla de portadores</div>
-      <p className="dv-layout-sub">
-        <ChevronDown size={12} /> Scroll vertical interno.
-        Marca un radio para mover el ítem; los baúles fuera de tu ubicación están bloqueados (<Lock size={10} />).
-      </p>
-      <EquipmentTable
-        items={items}
-        portadores={portadores}
-        onMove={handleMove}
-        processing={processing}
-        selectedItem={selectedItem}
-      />
+      {!summaryOnly && (
+        <>
+          <div className="dv-layout-label">B · Tabla de portadores</div>
+          <p className="dv-layout-sub">
+            <ChevronDown size={12} /> Scroll vertical interno.
+            Marca un radio para mover el ítem; los baúles fuera de tu ubicación están bloqueados (<Lock size={10} />).
+          </p>
+          <EquipmentTable
+            items={items}
+            portadores={portadores}
+            onMove={handleMove}
+            processing={processing}
+            selectedItem={selectedItem}
+          />
+        </>
+      )}
     </div>
   );
 };

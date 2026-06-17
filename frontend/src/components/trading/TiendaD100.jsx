@@ -16,6 +16,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
 import api from '@/services/api';
+import DistributionView from '@/components/character-sheet/DistributionView';
 
 const fmt = (n) => (n === null || n === undefined ? '—' : `${Number(n).toFixed(2)} mp`);
 
@@ -48,6 +49,7 @@ const TiendaD100 = ({ characters = [], equipment = {}, config }) => {
   const [charSearch, setCharSearch] = useState('');
   const [character, setCharacter] = useState(null);
   const [charFull, setCharFull] = useState(null);
+  const [weightSummary, setWeightSummary] = useState(null);
   const [charFocused, setCharFocused] = useState(false);
   const [availNpcs, setAvailNpcs] = useState([]);
   const [loadingNpcs, setLoadingNpcs] = useState(false);
@@ -126,10 +128,12 @@ const TiendaD100 = ({ characters = [], equipment = {}, config }) => {
     setNpc(null);
     setAvailNpcs([]);
     setCharFull(null);
+    setWeightSummary(null);
     setLoadingNpcs(true);
     const cid = c.id || c._id;
-    // Ficha completa (dinero + inventario) en paralelo.
+    // Ficha completa (dinero + inventario) y resumen de peso en paralelo.
     api.get(`/characters/${cid}`).then((r) => setCharFull(r.data)).catch(() => {});
+    api.get(`/characters/${cid}/weight-summary`).then((r) => setWeightSummary(r.data)).catch(() => {});
     try {
       const res = await api.get('/trading/d100/available-npcs', { params: { character_id: cid } });
       setAvailNpcs(res.data?.npcs || []);
@@ -147,7 +151,14 @@ const TiendaD100 = ({ characters = [], equipment = {}, config }) => {
   const refreshCharFull = async () => {
     const cid = character?.id || character?._id;
     if (!cid) return;
-    try { const r = await api.get(`/characters/${cid}`); setCharFull(r.data); } catch (e) { /* noop */ }
+    try {
+      const [r, w] = await Promise.all([
+        api.get(`/characters/${cid}`),
+        api.get(`/characters/${cid}/weight-summary`),
+      ]);
+      setCharFull(r.data);
+      setWeightSummary(w.data);
+    } catch (e) { /* noop */ }
   };
 
   const selectItem = (it) => {
@@ -272,27 +283,15 @@ const TiendaD100 = ({ characters = [], equipment = {}, config }) => {
     .filter(([, v]) => Number(v) > 0);
   const tieneMonturas = (charFull?.monturas || []).length > 0 || !!charFull?.montura;
 
-  // Equipo del personaje aplanado para el listado del lado derecho.
-  const equipoChar = useMemo(() => {
-    if (!charFull) return [];
-    const rows = [];
-    const push = (it, origen, extra) => {
-      if (!it) return;
-      const nombre = typeof it === 'string' ? it : it.nombre;
-      if (!nombre) return;
-      const equipado = it.activa || it.equipado || extra === 'equipado';
-      const enMontura = it.portado_por === 'montura' || extra === 'montura';
-      rows.push({ nombre, cantidad: it.cantidad || 1, origen, equipado, enMontura });
-    };
-    (charFull.armas || []).forEach((it) => push(it, 'Arma'));
-    push(charFull.armadura, 'Armadura');
-    (charFull.armadura_piezas || []).forEach((it) => push(it, 'Armadura'));
-    (charFull.equipo || []).forEach((it) => push(it, 'Equipo'));
-    (charFull.equipo_ocupacion || []).forEach((it) => push(it, 'Ocupación'));
-    (charFull.inventario || []).forEach((it) => push(it, 'Mochila'));
-    (charFull.monturas || []).forEach((m) => (m.equipo || []).forEach((it) => push(it, `Montura: ${m.nombre_personalizado || m.especie || ''}`, 'montura')));
-    return rows;
-  }, [charFull]);
+  // Mapa de pesos del catálogo (nombre normalizado → peso_kg) para la vista de distribución.
+  const catalogWeights = useMemo(() => {
+    const map = {};
+    allItems.forEach((it) => {
+      const key = String(it.nombre || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+      if (key && Number(it.peso_kg) > 0) map[key] = Number(it.peso_kg);
+    });
+    return map;
+  }, [allItems]);
 
   return (
     <div className="space-y-4" data-testid="tienda-d100">
@@ -542,63 +541,73 @@ const TiendaD100 = ({ characters = [], equipment = {}, config }) => {
       )}
         </div>
 
-        {/* PANEL DERECHO — Dinero + equipo del personaje */}
+        {/* PANEL DERECHO — Dinero del personaje */}
         <aside className="space-y-3 lg:sticky lg:top-4" data-testid="d100-char-panel">
           {!character ? (
             <div className="bg-black/20 rounded-lg p-4 border border-border/30 text-xs text-muted-foreground">
               Selecciona un jugador para ver su dinero y su equipo.
             </div>
           ) : (
-            <>
-              {/* Dinero */}
-              <div className="bg-black/20 rounded-lg p-4 border border-[hsl(var(--gold))]/30" data-testid="d100-dinero">
-                <div className="flex items-center gap-2 text-sm font-medium text-[hsl(var(--gold))] mb-2">
-                  <Coins className="w-4 h-4" /> Dinero de {character.nombre}
-                </div>
-                {monedas.length > 0 ? (
-                  <div className="flex flex-wrap gap-2">
-                    {monedas.map(([k, v]) => (
-                      <span key={k} className="px-2 py-1 rounded bg-black/40 text-sm font-mono">
-                        {v} <span className="text-muted-foreground text-xs">{k}</span>
-                      </span>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-xs text-muted-foreground">{charFull ? 'Sin dinero registrado' : 'Cargando…'}</p>
-                )}
+            <div className="bg-black/20 rounded-lg p-4 border border-[hsl(var(--gold))]/30" data-testid="d100-dinero">
+              <div className="flex items-center gap-2 text-sm font-medium text-[hsl(var(--gold))] mb-2">
+                <Coins className="w-4 h-4" /> Dinero de {character.nombre}
               </div>
-
-              {/* Equipo */}
-              <div className="bg-black/20 rounded-lg p-4 border border-border/30" data-testid="d100-equipo">
-                <div className="flex items-center justify-between text-sm font-medium text-[hsl(var(--magic-blue))] mb-2">
-                  <span className="flex items-center gap-2"><Backpack className="w-4 h-4" /> Equipo</span>
-                  <span className="text-xs text-muted-foreground">{equipoChar.length} obj.</span>
+              {monedas.length > 0 ? (
+                <div className="flex flex-wrap gap-2">
+                  {monedas.map(([k, v]) => (
+                    <span key={k} className="px-2 py-1 rounded bg-black/40 text-sm font-mono">
+                      {v} <span className="text-muted-foreground text-xs">{k}</span>
+                    </span>
+                  ))}
                 </div>
-                {!charFull ? (
-                  <p className="text-xs text-muted-foreground">Cargando…</p>
-                ) : equipoChar.length === 0 ? (
-                  <p className="text-xs text-muted-foreground">El personaje no lleva equipo.</p>
-                ) : (
-                  <div className="max-h-[26rem] overflow-auto pr-1 space-y-1" data-testid="d100-equipo-list">
-                    {equipoChar.map((it, i) => (
-                      <div key={i} className="flex items-center justify-between gap-2 text-xs py-1 border-b border-border/15">
-                        <span className="truncate">
-                          {it.nombre}{it.cantidad > 1 ? <span className="text-muted-foreground"> ×{it.cantidad}</span> : null}
-                        </span>
-                        <span className="flex items-center gap-1 shrink-0">
-                          {it.equipado && <span className="px-1.5 py-0.5 rounded bg-green-900/40 text-green-400 text-[10px]">Equipado</span>}
-                          {it.enMontura && <span className="px-1.5 py-0.5 rounded bg-amber-900/40 text-amber-400 text-[10px]">Montura</span>}
-                          <span className="text-muted-foreground text-[10px]">{it.origen}</span>
-                        </span>
-                      </div>
-                    ))}
+              ) : (
+                <p className="text-xs text-muted-foreground">{charFull ? 'Sin dinero registrado' : 'Cargando…'}</p>
+              )}
+              {weightSummary && (
+                <div className="mt-3 pt-3 border-t border-border/20 text-xs space-y-1">
+                  <div className="flex items-center gap-2">
+                    <Backpack className="w-3.5 h-3.5 text-[hsl(var(--magic-blue))]" />
+                    <span className="text-muted-foreground">Carga:</span>
+                    <span className="font-mono">{weightSummary.peso_personaje} / {weightSummary.limite_muy_cargado} kg</span>
                   </div>
-                )}
-              </div>
-            </>
+                  {weightSummary.estado_carga && weightSummary.estado_carga !== 'normal' && (
+                    <span className={`inline-block px-2 py-0.5 rounded text-[10px] ${weightSummary.estado_carga === 'muy_cargado' ? 'bg-red-900/40 text-red-400' : 'bg-orange-900/40 text-orange-300'}`}>
+                      {weightSummary.estado_carga === 'muy_cargado' ? 'Muy Cargado' : 'Cargado'}
+                    </span>
+                  )}
+                </div>
+              )}
+            </div>
           )}
         </aside>
       </div>
+
+      {/* EQUIPO · UBICACIÓN — Resumen visual (Equipado / Carga personal / Montura) */}
+      {character && (
+        <div className="bg-black/20 rounded-lg border border-border/30 overflow-hidden" data-testid="d100-equipo-distribucion">
+          <div className="flex items-center justify-between px-4 pt-3">
+            <div className="flex items-center gap-2 text-sm font-medium text-[hsl(var(--magic-blue))]">
+              <Backpack className="w-4 h-4" /> Equipo · Ubicación
+            </div>
+            <span className="text-xs text-muted-foreground">Equipado · Carga personal · Montura</span>
+          </div>
+          {!charFull || !weightSummary ? (
+            <p className="text-xs text-muted-foreground p-4">Cargando equipo…</p>
+          ) : (
+            <div className="bg-[#f4e9cf] m-3 rounded-lg">
+              <DistributionView
+                summaryOnly
+                character={charFull}
+                weightSummary={weightSummary}
+                chestsApi={null}
+                catalogWeights={catalogWeights}
+                onMoveItem={() => {}}
+                processing={false}
+              />
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 };
