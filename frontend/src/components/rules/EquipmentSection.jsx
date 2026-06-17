@@ -3,13 +3,14 @@
  * Displays equipment tables by category with admin editing capabilities
  */
 import { useState, useRef, useEffect } from 'react';
-import { Plus, Edit, Trash2, Printer, MapPin, Package, Loader2, Check, AlertTriangle, UserPlus, FolderOpen, Users } from 'lucide-react';
+import { Plus, Edit, Trash2, Printer, MapPin, Package, Loader2, Check, AlertTriangle, UserPlus, FolderOpen, Users, Store, ArrowUp, ArrowDown, ArrowUpDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
 import { toast } from 'sonner';
 import { jsPDF } from 'jspdf';
 import api, { getEquipmentCatalog } from '@/services/api';
+import ProfessionShopModal from '@/components/trading/ProfessionShopModal';
 
 // Currency display helper
 const formatPrice = (precio, moneda) => {
@@ -133,6 +134,8 @@ const EquipmentSection = ({
   const [npcProfesiones, setNpcProfesiones] = useState([]);
   const [blockProf, setBlockProf] = useState({});
   const [blockReg, setBlockReg] = useState({});
+  const [showProfShop, setShowProfShop] = useState(false);
+  const [sortConfig, setSortConfig] = useState({}); // { [catKey]: { field, dir } }
   const [savingBlockProf, setSavingBlockProf] = useState(null);
   const [openBlockProf, setOpenBlockProf] = useState(null);
 
@@ -272,6 +275,83 @@ const EquipmentSection = ({
     } finally {
       setMovingItem(false);
     }
+  };
+
+  // Lista plana de categorías (para la pantalla "Tienda según profesión").
+  const flatCategories = EQUIPMENT_SECTIONS.flatMap(s => s.categories.map(c => ({ key: c.key, name: c.name })));
+
+  // Quitar una profesión de la lista de vendedores de un ítem (desde "Tienda según profesión").
+  const handleProfDeselect = async (catKey, itemName, prof) => {
+    const items = data[catKey] || [];
+    const item = items.find(i => i.nombre === itemName);
+    if (!item) return;
+    const effective = (item.profesiones && item.profesiones.length)
+      ? item.profesiones
+      : (blockProf[catKey] || []);
+    const base = effective.length ? effective : npcProfesiones;
+    const next = base.filter(p => p !== prof);
+    try {
+      await api.put(`/data/equipment/${catKey}/${encodeURIComponent(itemName)}`, { profesiones: next });
+      if (next.length === 0) {
+        toast.info(`"${itemName}" se quedó sin profesiones propias: vuelve a heredar del bloque.`);
+      } else {
+        toast.success(`"${itemName}" ya no lo vende ${prof}`);
+      }
+      onRefresh?.();
+    } catch (err) {
+      toast.error('Error al actualizar: ' + (err.response?.data?.detail || err.message));
+    }
+  };
+
+  // Orden de columnas dentro de un bloque.
+  const NUMERIC_SORT_FIELDS = new Set(['precio', 'peso_kg', 'ca', 'velocidad', 'constitucion', 'capacidad_carga', 'capacidad_kg', 'm2']);
+  const handleSort = (catKey, field) => {
+    setSortConfig(prev => {
+      const cur = prev[catKey];
+      let dir = 'asc';
+      if (cur && cur.field === field) {
+        if (cur.dir === 'asc') dir = 'desc';
+        else if (cur.dir === 'desc') return { ...prev, [catKey]: null }; // tercer clic = sin orden
+      }
+      return { ...prev, [catKey]: { field, dir } };
+    });
+  };
+  const applySort = (items, catKey) => {
+    const sc = sortConfig[catKey];
+    if (!sc || !sc.field) return items;
+    const arr = [...items];
+    arr.sort((a, b) => {
+      const va = a[sc.field];
+      const vb = b[sc.field];
+      let cmp;
+      if (NUMERIC_SORT_FIELDS.has(sc.field)) {
+        cmp = (parseFloat(va) || 0) - (parseFloat(vb) || 0);
+      } else {
+        cmp = String(va ?? '').localeCompare(String(vb ?? ''), 'es', { numeric: true, sensitivity: 'base' });
+      }
+      return sc.dir === 'asc' ? cmp : -cmp;
+    });
+    return arr;
+  };
+
+  // Cabecera de columna ordenable.
+  const sortTh = (catKey, field, label, align = 'left') => {
+    const sc = sortConfig[catKey];
+    const activeDir = sc && sc.field === field ? sc.dir : null;
+    const alignCls = align === 'right' ? 'text-right' : align === 'center' ? 'text-center' : 'text-left';
+    const justify = align === 'right' ? 'justify-end' : align === 'center' ? 'justify-center' : 'justify-start';
+    return (
+      <th className={`${alignCls} py-2 px-2`}>
+        <button onClick={() => handleSort(catKey, field)}
+          className={`inline-flex items-center gap-1 w-full ${justify} hover:text-[hsl(var(--gold))] ${activeDir ? 'text-[hsl(var(--gold))]' : ''}`}
+          data-testid={`sort-${catKey}-${field}`}>
+          {label}
+          {activeDir === 'asc' ? <ArrowUp className="w-3 h-3" />
+            : activeDir === 'desc' ? <ArrowDown className="w-3 h-3" />
+            : <ArrowUpDown className="w-3 h-3 opacity-40" />}
+        </button>
+      </th>
+    );
   };
 
   // Open category (block) region/settlement default editor
@@ -605,30 +685,30 @@ const EquipmentSection = ({
                     <UserPlus className="w-4 h-4 mx-auto text-green-500" />
                   </th>
                 )}
-                <th className="text-left py-2 px-2">Nombre</th>
-                <th className="text-right py-2 px-2">Precio</th>
-                {cat.fields.includes('dano') && <th className="text-center py-2 px-2">Daño</th>}
+                {sortTh(cat.key, 'nombre', 'Nombre', 'left')}
+                {sortTh(cat.key, 'precio', 'Precio', 'right')}
+                {cat.fields.includes('dano') && sortTh(cat.key, 'dano', 'Daño', 'center')}
                 {cat.fields.includes('modificador') && <th className="text-center py-2 px-2">Tipo</th>}
                 {cat.fields.includes('alcance') && <th className="text-center py-2 px-2">Alcance</th>}
                 {cat.fields.includes('herida') && <th className="text-center py-2 px-2">Herida</th>}
-                {cat.fields.includes('ca') && <th className="text-center py-2 px-2">CA</th>}
+                {cat.fields.includes('ca') && sortTh(cat.key, 'ca', 'CA', 'center')}
                 {cat.fields.includes('comentarios') && <th className="text-left py-2 px-2">Modificadores</th>}
                 {cat.fields.includes('forma_preparacion') && <th className="text-center py-2 px-2">Preparación</th>}
                 {cat.fields.includes('efecto') && <th className="text-left py-2 px-2">Efecto</th>}
-                {cat.fields.includes('capacidad_carga') && <th className="text-center py-2 px-2">Carga</th>}
-                {cat.fields.includes('constitucion') && <th className="text-center py-2 px-2">Const.</th>}
-                {cat.fields.includes('velocidad') && <th className="text-center py-2 px-2">Vel.</th>}
+                {cat.fields.includes('capacidad_carga') && sortTh(cat.key, 'capacidad_carga', 'Carga', 'center')}
+                {cat.fields.includes('constitucion') && sortTh(cat.key, 'constitucion', 'Const.', 'center')}
+                {cat.fields.includes('velocidad') && sortTh(cat.key, 'velocidad', 'Vel.', 'center')}
                 {cat.fields.includes('capacidad_pequeno') && <th className="text-center py-2 px-2">Pequeño</th>}
                 {cat.fields.includes('capacidad_mediano') && <th className="text-center py-2 px-2">Mediano</th>}
-                {cat.fields.includes('capacidad_kg') && <th className="text-center py-2 px-2">Cap. (Kg)</th>}
-                {cat.fields.includes('m2') && <th className="text-center py-2 px-2">m²</th>}
-                {cat.fields.includes('peso_kg') && <th className="text-right py-2 px-2">Peso</th>}
+                {cat.fields.includes('capacidad_kg') && sortTh(cat.key, 'capacidad_kg', 'Cap. (Kg)', 'center')}
+                {cat.fields.includes('m2') && sortTh(cat.key, 'm2', 'm²', 'center')}
+                {cat.fields.includes('peso_kg') && sortTh(cat.key, 'peso_kg', 'Peso', 'right')}
                 <th className="text-center py-2 px-2 w-12">Disp.</th>
                 {isAdmin && <th className="text-center py-2 px-2 w-20">Acciones</th>}
               </tr>
             </thead>
             <tbody>
-              {filtered.map((item, i) => {
+              {applySort(filtered, cat.key).map((item, i) => {
                 const isAvailableForCreation = getItemCreationValue(cat.key, item.nombre, item.disponible_creacion);
                 return (
                 <tr key={i} className={`border-b border-border/10 hover:bg-black/10 group ${!isAvailableForCreation && isAdmin ? 'opacity-50' : ''}`}>
@@ -845,6 +925,17 @@ const EquipmentSection = ({
             className="hidden"
             onChange={(e) => handleImportXlsxFile(e.target.files?.[0])}
           />
+          {isAdmin && (
+            <Button
+              onClick={() => setShowProfShop(true)}
+              variant="outline"
+              className="border-[hsl(var(--magic-blue))]/60 hover:bg-[hsl(var(--magic-blue))]/10"
+              data-testid="open-profession-shop-btn"
+            >
+              <Store className="w-4 h-4 mr-2 text-[hsl(var(--magic-blue))]" />
+              Tienda según profesión
+            </Button>
+          )}
         </div>
         
         {isAdmin && Object.keys(pendingCreationChanges).length > 0 && (
@@ -1083,6 +1174,18 @@ const EquipmentSection = ({
           availableRegions={availableRegions}
         />
       )}
+
+      {showProfShop && (
+        <ProfessionShopModal
+          data={data}
+          blockProf={blockProf}
+          npcProfesiones={npcProfesiones}
+          categories={flatCategories}
+          isAdmin={isAdmin}
+          onDeselect={handleProfDeselect}
+          onClose={() => setShowProfShop(false)}
+        />
+      )}
     </div>
   );
 };
@@ -1157,21 +1260,32 @@ const ItemEditorModal = ({ item, setItem, onSave, onClose, saving, availableRegi
     }));
   };
 
+  // Conjuntos EFECTIVOS: lo propio si tiene override, si no lo heredado del bloque.
+  const profInherit = !(item.profesiones && item.profesiones.length);
+  const profSel = profInherit ? blockProfList : item.profesiones;
+  const regBlock = blockRegDef.regiones_disponibles || [];
+  const regInherit = !(item.regiones_disponibles && item.regiones_disponibles.length);
+  const regSel = regInherit ? regBlock : item.regiones_disponibles;
+  const asBlock = blockRegDef.nivel_asentamiento || [];
+  const asInherit = !(item.nivel_asentamiento && item.nivel_asentamiento.length);
+  const asSel = asInherit ? asBlock : item.nivel_asentamiento;
+
   const toggleProfesion = (prof) => {
-    const current = item.profesiones || [];
-    updateField('profesiones', current.includes(prof) ? current.filter(p => p !== prof) : [...current, prof]);
+    // Si está heredando, parte del conjunto del bloque para crear el override.
+    const base = profInherit ? [...blockProfList] : (item.profesiones || []);
+    updateField('profesiones', base.includes(prof) ? base.filter(p => p !== prof) : [...base, prof]);
   };
 
   const toggleSettlement = (level) => {
-    const current = item.nivel_asentamiento || [];
-    const updated = current.includes(level) 
-      ? current.filter(l => l !== level)
-      : [...current, level];
+    const base = asInherit ? [...asBlock] : (item.nivel_asentamiento || []);
+    const updated = base.includes(level)
+      ? base.filter(l => l !== level)
+      : [...base, level];
     updateField('nivel_asentamiento', updated);
   };
 
   const toggleRegion = (regionName, subregions = []) => {
-    const current = item.regiones_disponibles || [];
+    const current = regInherit ? [...regBlock] : (item.regiones_disponibles || []);
     const isSelected = current.includes(regionName);
     let updated;
     if (isSelected) {
@@ -1185,7 +1299,7 @@ const ItemEditorModal = ({ item, setItem, onSave, onClose, saving, availableRegi
   };
 
   const toggleSubregion = (subName) => {
-    const current = item.regiones_disponibles || [];
+    const current = regInherit ? [...regBlock] : (item.regiones_disponibles || []);
     const updated = current.includes(subName)
       ? current.filter(r => r !== subName)
       : [...current, subName];
@@ -1266,10 +1380,10 @@ const ItemEditorModal = ({ item, setItem, onSave, onClose, saving, availableRegi
             )}
             <div className="flex flex-wrap gap-2 mt-2">
               {npcProfesiones.map(prof => {
-                const active = (item.profesiones || []).includes(prof);
+                const active = (profSel || []).includes(prof);
                 return (
                   <button key={prof} type="button" onClick={() => toggleProfesion(prof)}
-                    className={`text-xs px-2 py-1 rounded border transition-colors ${active ? 'bg-[hsl(var(--gold))]/30 border-[hsl(var(--gold))] text-[hsl(var(--gold))]' : 'bg-black/30 border-border text-muted-foreground hover:border-[hsl(var(--gold))]/50'}`}
+                    className={`text-xs px-2 py-1 rounded border transition-colors ${active ? (profInherit ? 'bg-blue-500/20 border-blue-400 text-blue-200' : 'bg-[hsl(var(--gold))]/30 border-[hsl(var(--gold))] text-[hsl(var(--gold))]') : 'bg-black/30 border-border text-muted-foreground hover:border-[hsl(var(--gold))]/50'}`}
                     data-testid={`item-prof-${prof}`}>
                     {prof}
                   </button>
@@ -1430,8 +1544,8 @@ const ItemEditorModal = ({ item, setItem, onSave, onClose, saving, availableRegi
                   key={level.id}
                   onClick={() => toggleSettlement(level.id)}
                   className={`px-3 py-1.5 rounded border text-sm flex items-center gap-1.5 transition-colors ${
-                    (item.nivel_asentamiento || []).includes(level.id)
-                      ? 'bg-[hsl(var(--gold))]/20 border-[hsl(var(--gold))] text-[hsl(var(--gold))]'
+                    (asSel || []).includes(level.id)
+                      ? (asInherit ? 'bg-blue-500/20 border-blue-400 text-blue-200' : 'bg-[hsl(var(--gold))]/20 border-[hsl(var(--gold))] text-[hsl(var(--gold))]')
                       : 'bg-black/20 border-border/30 text-muted-foreground hover:border-border'
                   }`}
                 >
@@ -1476,7 +1590,7 @@ const ItemEditorModal = ({ item, setItem, onSave, onClose, saving, availableRegi
           <div className="border-t-0 pt-0">
             <div className="max-h-48 overflow-y-auto space-y-2 bg-black/10 rounded p-2">
               {availableRegions.map(region => {
-                const regionSelected = (item.regiones_disponibles || []).includes(region.nombre);
+                const regionSelected = (regSel || []).includes(region.nombre);
                 const subregions = region.subregions || [];
                 
                 return (
@@ -1496,7 +1610,7 @@ const ItemEditorModal = ({ item, setItem, onSave, onClose, saving, availableRegi
                         {subregions.map(sub => (
                           <div key={sub.id} className="flex items-center gap-1">
                             <Checkbox
-                              checked={(item.regiones_disponibles || []).includes(sub.nombre)}
+                              checked={(regSel || []).includes(sub.nombre)}
                               onCheckedChange={() => toggleSubregion(sub.nombre)}
                               id={`item-sub-${sub.id}`}
                               className="w-3 h-3"
