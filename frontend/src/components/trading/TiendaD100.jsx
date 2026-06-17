@@ -47,6 +47,7 @@ const TiendaD100 = ({ characters = [], equipment = {}, config }) => {
   // ── Fase 2: jugador + ubicación + PNJ ──────────────────────────────────────
   const [charSearch, setCharSearch] = useState('');
   const [character, setCharacter] = useState(null);
+  const [charFocused, setCharFocused] = useState(false);
   const [availNpcs, setAvailNpcs] = useState([]);
   const [loadingNpcs, setLoadingNpcs] = useState(false);
   const [npc, setNpc] = useState(null);
@@ -94,10 +95,10 @@ const TiendaD100 = ({ characters = [], equipment = {}, config }) => {
 
   const filteredChars = useMemo(() => {
     const q = charSearch.toLowerCase().trim();
-    if (!q) return characters.slice(0, 20);
+    if (!q) return characters;
     return characters.filter((c) =>
       (c.nombre || '').toLowerCase().includes(q) || (c.jugador || '').toLowerCase().includes(q)
-    ).slice(0, 20);
+    );
   }, [charSearch, characters]);
 
   const filteredItems = useMemo(() => {
@@ -265,11 +266,13 @@ const TiendaD100 = ({ characters = [], equipment = {}, config }) => {
         <div className="relative">
           <Search className="w-4 h-4 absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground" />
           <Input value={charSearch} onChange={(e) => { setCharSearch(e.target.value); setCharacter(null); }}
-            placeholder="Buscar personaje…" className="pl-8" data-testid="d100-char-search" />
-          {charSearch && !character && filteredChars.length > 0 && (
-            <div className="absolute z-20 mt-1 w-full bg-black/95 border border-border rounded-md max-h-56 overflow-auto" data-testid="d100-char-dropdown">
+            onFocus={() => setCharFocused(true)}
+            onBlur={() => setTimeout(() => setCharFocused(false), 150)}
+            placeholder="Buscar o elegir personaje…" className="pl-8" data-testid="d100-char-search" />
+          {!character && (charFocused || charSearch) && filteredChars.length > 0 && (
+            <div className="absolute z-20 mt-1 w-full bg-black/95 border border-border rounded-md max-h-[22rem] overflow-auto" data-testid="d100-char-dropdown">
               {filteredChars.map((c) => (
-                <button key={c.id || c._id} onClick={() => selectCharacter(c)}
+                <button key={c.id || c._id} onMouseDown={(e) => { e.preventDefault(); selectCharacter(c); }}
                   className="w-full text-left px-3 py-2 hover:bg-white/10 text-sm flex justify-between"
                   data-testid={`d100-char-opt-${c.id || c._id}`}>
                   <span>{c.nombre}</span>
