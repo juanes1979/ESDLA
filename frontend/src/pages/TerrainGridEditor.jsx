@@ -125,7 +125,8 @@ export default function TerrainGridEditor() {
   const [brushRadius, setBrushRadius] = useState(10); // in CELLS
   const [opacity, setOpacity] = useState(0.7);
   const [showMap, setShowMap] = useState(true);
-  const [showOtherLayer, setShowOtherLayer] = useState(false);
+  const [bgDiff, setBgDiff] = useState(false);   // mostrar Dificultad de fondo al 50%
+  const [bgLand, setBgLand] = useState(false);   // mostrar Tipo de tierra de fondo al 50%
   const [dirty, setDirty] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -154,6 +155,8 @@ export default function TerrainGridEditor() {
   const visibleCanvasRef = useRef(null);
   const offscreenDiffRef = useRef(null); // ImageData buffer (W×H)
   const offscreenLandRef = useRef(null);
+  const diffCanvasRef = useRef(null);    // canvas offscreen para componer con alpha
+  const landCanvasRef = useRef(null);
   const containerRef = useRef(null);
   // Wrapper that holds the map + canvas at the REAL map aspect ratio. Sized
   // by a ResizeObserver so the map is never stretched (Iter 119.1 bugfix).
@@ -513,9 +516,19 @@ export default function TerrainGridEditor() {
   useEffect(() => {
     if (!offscreenDiffRef.current) offscreenDiffRef.current = new ImageData(W, H);
     if (!offscreenLandRef.current) offscreenLandRef.current = new ImageData(W, H);
-    const opacity255 = Math.round(opacity * 255);
-    drawGridIntoImageData(diffGridRef.current, PALETTE_DIFFICULTY, offscreenDiffRef.current, opacity255);
-    drawGridIntoImageData(landGridRef.current, PALETTE_LAND, offscreenLandRef.current, opacity255);
+    // Cada capa se vuelca a su buffer con alpha completo; la opacidad final se
+    // aplica al componer (globalAlpha + drawImage), que SÍ mezcla capas.
+    drawGridIntoImageData(diffGridRef.current, PALETTE_DIFFICULTY, offscreenDiffRef.current, 255);
+    drawGridIntoImageData(landGridRef.current, PALETTE_LAND, offscreenLandRef.current, 255);
+
+    // Canvas offscreen por capa para poder componer con transparencia real.
+    if (!diffCanvasRef.current) diffCanvasRef.current = document.createElement('canvas');
+    if (!landCanvasRef.current) landCanvasRef.current = document.createElement('canvas');
+    [[diffCanvasRef, offscreenDiffRef], [landCanvasRef, offscreenLandRef]].forEach(([cref, img]) => {
+      cref.current.width = W;
+      cref.current.height = H;
+      cref.current.getContext('2d').putImageData(img.current, 0, 0);
+    });
 
     const canvas = visibleCanvasRef.current;
     if (!canvas) return;
@@ -524,20 +537,21 @@ export default function TerrainGridEditor() {
     canvas.height = H;
     ctx.clearRect(0, 0, W, H);
 
-    // Bottom layer first, then top.
-    const drawIfVisible = (layerKey) => {
-      const isActive = layer === layerKey;
-      if (!isActive && !showOtherLayer) return;
-      const img = layerKey === 'difficulty' ? offscreenDiffRef.current : offscreenLandRef.current;
-      ctx.putImageData(img, 0, 0);
+    const drawLayer = (layerKey, alpha) => {
+      const src = layerKey === 'difficulty' ? diffCanvasRef.current : landCanvasRef.current;
+      ctx.globalAlpha = alpha;
+      ctx.drawImage(src, 0, 0);
     };
-    // Draw non-active first (so active sits on top)
-    if (showOtherLayer) {
-      const otherKey = layer === 'difficulty' ? 'land_type' : 'difficulty';
-      drawIfVisible(otherKey);
-    }
-    drawIfVisible(layer);
-  }, [renderTick, layer, opacity, showOtherLayer]);
+
+    // 1) Capas marcadas como FONDO (al 50%), salvo la que se está editando.
+    const bg = { difficulty: bgDiff, land_type: bgLand };
+    ['difficulty', 'land_type'].forEach((key) => {
+      if (key !== layer && bg[key]) drawLayer(key, 0.5);
+    });
+    // 2) Capa activa encima, con la opacidad del control deslizante.
+    drawLayer(layer, opacity);
+    ctx.globalAlpha = 1;
+  }, [renderTick, layer, opacity, bgDiff, bgLand]);
 
   // ── SAVE ──────────────────────────────────────────────────────────────────
   async function save() {
@@ -756,14 +770,22 @@ export default function TerrainGridEditor() {
         </div>
 
         {/* Visibility toggles */}
-        <div className="flex items-center gap-1 border-l border-zinc-700 pl-3">
+        <div className="flex items-center gap-2 border-l border-zinc-700 pl-3">
           <Button size="sm" variant="outline" onClick={() => setShowMap((v) => !v)} title="Mostrar/Ocultar mapa">
             {showMap ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
             <span className="ml-1 text-xs">Mapa</span>
           </Button>
-          <Button size="sm" variant={showOtherLayer ? 'default' : 'outline'} onClick={() => setShowOtherLayer((v) => !v)} title="Mostrar también la otra capa">
-            <span className="text-xs">Otra capa</span>
-          </Button>
+          <span className="text-[10px] text-amber-300/80 leading-tight">Fondo<br />50%:</span>
+          <label className="flex items-center gap-1 text-xs cursor-pointer select-none" title="Mostrar la capa de Dificultad de fondo al 50%">
+            <input type="checkbox" checked={bgDiff} onChange={(e) => setBgDiff(e.target.checked)}
+              className="accent-amber-500" data-testid="terrain-bg-difficulty-check" />
+            <span>Dificultad</span>
+          </label>
+          <label className="flex items-center gap-1 text-xs cursor-pointer select-none" title="Mostrar la capa de Tipo de tierra de fondo al 50%">
+            <input type="checkbox" checked={bgLand} onChange={(e) => setBgLand(e.target.checked)}
+              className="accent-amber-500" data-testid="terrain-bg-landtype-check" />
+            <span>Tipo de tierra</span>
+          </label>
         </div>
 
         {/* Import / Export / Migrate */}
