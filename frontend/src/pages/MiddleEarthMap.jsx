@@ -166,6 +166,10 @@ const MiddleEarthMap = () => {
   const [showLandTypes, setShowLandTypes] = useState(true);
   const [showMapBackground, setShowMapBackground] = useState(true);
   const [mapOpacity, setMapOpacity] = useState(0.7);
+  // Overlays de la rejilla de terreno (raster) sobre el mapa, al 50% de opacidad.
+  const [showTerrainDiff, setShowTerrainDiff] = useState(false);
+  const [showTerrainLand, setShowTerrainLand] = useState(false);
+  const [terrainBust, setTerrainBust] = useState(() => Date.now());
   const [filterRegion, setFilterRegion] = useState('all');
   const [filterType, setFilterType] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
@@ -1783,6 +1787,27 @@ const MiddleEarthMap = () => {
               />
               <Label htmlFor="land-types" className="text-sm">Tipo Tierra</Label>
             </div>
+
+            {/* Overlays de terreno (rejilla raster) al 50% sobre el mapa */}
+            <div className="flex items-center gap-2">
+              <Switch
+                checked={showTerrainDiff}
+                onCheckedChange={(v) => { setShowTerrainDiff(v); if (v) setTerrainBust(Date.now()); }}
+                id="terrain-diff"
+                data-testid="map-terrain-difficulty-switch"
+              />
+              <Label htmlFor="terrain-diff" className="text-sm">Dificultad</Label>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <Switch
+                checked={showTerrainLand}
+                onCheckedChange={(v) => { setShowTerrainLand(v); if (v) setTerrainBust(Date.now()); }}
+                id="terrain-land"
+                data-testid="map-terrain-landtype-switch"
+              />
+              <Label htmlFor="terrain-land" className="text-sm">Tipo de tierra (fondo)</Label>
+            </div>
             
             {/* Map opacity slider */}
             {showMapBackground && (
@@ -2209,6 +2234,30 @@ const MiddleEarthMap = () => {
                 preserveAspectRatio="xMidYMid slice"
               />
             </g>
+          )}
+
+          {/* Overlays de la rejilla de terreno (raster) al 50% de opacidad */}
+          {showTerrainLand && (
+            <image
+              data-testid="map-terrain-landtype-overlay"
+              href={`${process.env.REACT_APP_BACKEND_URL}/api/terrain-grid/export-png?layer=land_type&t=${terrainBust}`}
+              x={0} y={0}
+              width={MAP_PIXEL_WIDTH} height={MAP_PIXEL_HEIGHT}
+              preserveAspectRatio="none"
+              opacity={0.5}
+              style={{ pointerEvents: 'none' }}
+            />
+          )}
+          {showTerrainDiff && (
+            <image
+              data-testid="map-terrain-difficulty-overlay"
+              href={`${process.env.REACT_APP_BACKEND_URL}/api/terrain-grid/export-png?layer=difficulty&t=${terrainBust}`}
+              x={0} y={0}
+              width={MAP_PIXEL_WIDTH} height={MAP_PIXEL_HEIGHT}
+              preserveAspectRatio="none"
+              opacity={0.5}
+              style={{ pointerEvents: 'none' }}
+            />
           )}
           
           {/* Grid lines (optional) */}
