@@ -370,11 +370,15 @@ const MiddleEarthMap = () => {
     const out = [];
     const seen = new Set();
     (regionsHierarchy || []).forEach(top => {
-      out.push({ name: top.nombre, depth: 0 });
-      seen.add(top.nombre);
+      if (!seen.has(top.nombre)) {
+        out.push({ name: top.nombre, depth: 0 });
+        seen.add(top.nombre);
+      }
       (top.subregions || []).forEach(sub => {
-        out.push({ name: sub.nombre, depth: 1 });
-        seen.add(sub.nombre);
+        if (!seen.has(sub.nombre)) {
+          out.push({ name: sub.nombre, depth: 1 });
+          seen.add(sub.nombre);
+        }
       });
     });
     regions.forEach(r => {
@@ -1837,8 +1841,8 @@ const MiddleEarthMap = () => {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Todas</SelectItem>
-                {regionOptionsHier.map(r => (
-                  <SelectItem key={`${r.name}-${r.depth}`} value={r.name}>
+                {regionOptionsHier.map((r, i) => (
+                  <SelectItem key={`${r.name}-${r.depth}-${i}`} value={r.name}>
                     {`${'\u00A0\u00A0'.repeat(r.depth)}${r.depth > 0 ? '└─ ' : ''}${r.name}${r.orphan ? ' (huérfana)' : ''}`}
                   </SelectItem>
                 ))}
