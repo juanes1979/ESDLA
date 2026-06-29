@@ -25,13 +25,27 @@ gestión completa de personajes, mapas, viajes, combate, NPC, campañas y editor
 - Frontend (`EquipmentSection.jsx`): `sections` fusiona `EQUIPMENT_SECTIONS` + grupos custom (dentro de sección o raíz). Botón `create-group-btn`, `GroupEditorModal` (nombre/icono/sección/campos), botones Editar/Borrar por grupo, grupos vacíos visibles para admin, columna "Posición".
 - `EquipmentEditor.jsx` ("Crear Equipo"): lista grupos custom con prefijo 🧩; `FIELD_CONFIG` incluye `posicion`.
 - "Ropa" sembrada como grupo raíz individual (`scripts/seed_ropa_group.py`, 28 prendas).
-### Interruptor "Es equipo corporal" (editor de ítem universal)
-- En `ItemEditorModal`: checkbox `field-es-corporal` que muestra `field-posicion`
+### Interruptor "Es equipo corporal" (editor de ítem universal)- En `ItemEditorModal`: checkbox `field-es-corporal` que muestra `field-posicion`
   (cabeza/cuerpo/brazos/piernas/pies); persiste `posicion` + `es_corporal` en cualquier categoría
   (p. ej. yelmos). Modelo `EquipmentItem` ampliado con `posicion` y `es_corporal`.
 - Opción A (armadura/yelmo/escudo) ya implementada en `character/equipment.py` (exclusividad por grupo) y auto-equipado de ropa en `finalize_character`.
 - ⚠️ Fix regresión: la inserción de endpoints había partido `delete_equipment_item` (no guardaba/return); restaurado y verificado.
 - Validado por testing agent (iteration_82.json): 100% backend + frontend.
+
+## Jun 2026 — Equipo: auto-equip ropa, pesos y "Ropa complementaria" (capas)
+- **Bug auto-equip + pesos**: el equipo inicial llegaba sin `categoria/peso_kg/posicion`,
+  así que la ropa no se auto-equipaba ni se calculaba el peso (0.00 kg).
+  - Nuevo helper `backend/utils/equipment_enrich.py`: `build_catalog_index`,
+    `enrich_items` (rellena por nombre desde el catálogo), `auto_equip_ropa`.
+  - `finalize_character` (drafts.py) enriquece inventario/equipo_* y auto-equipa antes de insertar.
+  - Migración `scripts/fix_clothing_weights_equip.py`: enriqueció 46 personajes y marcó 5 capas como complementarias.
+  - Verificado determinista: personaje nuevo finalizado → muda+capa+botas activas con pesos correctos.
+- **Ropa complementaria (capas)**: campo `ropa_complementaria` en `EquipmentItem`;
+  checkbox en el editor de ítems (solo categoría ropa, `field-ropa-complementaria`).
+  - `_grupo_exclusivo` (character/equipment.py): ropa complementaria → no exclusiva (se lleva
+    sobre otra prenda); ropa base → exclusiva por posición `ropa_<posicion>`; armadura/yelmo/escudo igual.
+  - Capas del catálogo (nombre "capa…") marcadas como complementarias por defecto.
+- Validado: testing agent iteration_85 (backend 100%) + verificación determinista de finalize.
 
 
 ## Iter 119 — Sistema raster de terreno (Feb 2026)
