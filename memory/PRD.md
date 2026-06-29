@@ -551,3 +551,35 @@ Aplica una transacción YA negociada al personaje (reutiliza endpoints de equipo
 - TESTING iteration_81: frontend 100% (4/4). Sin issues.
 - PENDIENTE (a confirmar): auto-equipar ropa al crear + sistema de ranuras corporales e
   incompatibilidad de armaduras (solapamiento).
+
+## Iter 130 — Retrato ampliable + Pantalla del DJ (Jun 2026)
+
+### P0 — Ampliar retrato definitivo al hacer clic
+- `CharacterHeader.jsx`: al pulsar el retrato circular DEFINITIVO se abre un modal de
+  vista ampliada (`portrait-fullview-modal` / `-image` / `-close`) con la imagen a tamaño
+  grande + nombre. Pista visual (icono Maximize) al pasar el ratón. El borrador sin guardar
+  sigue abriendo su propio modal de previsualización.
+
+### P1 — Pantalla del DJ (dashboard en vivo de campaña)
+- BACKEND `routes/dj_screen_routes.py` (NUEVO, registrado en server.py). Colecciones
+  `dj_screens` (1 doc por campaign_run) y `dj_chat_messages`.
+  - `GET /api/campaign-runs/{run_id}/dj-screen` → estado con visibilidad por rol
+    (`can_edit`/`is_player`); jugador aceptado recibe estado SANEADO (sin notas del DJ,
+    enemigos solo con banda cualitativa de PG y sin CA/notas).
+  - `PUT /api/campaign-runs/{run_id}/dj-screen` (solo DM/Maestro): guarda escena, notas,
+    combatientes, turno y ronda.
+  - `POST /…/dj-screen/sync-players`: añade los personajes ACEPTADOS al rastreador
+    (idempotente por character_id; PG/CA/iniciativa desde la ficha).
+  - `GET /…/dj-screen/portrait/{character_id}`: sirve el retrato del personaje (PNG) para
+    las cartas/tracker.
+  - Chat: `GET/POST /…/chat` (canales `group` y `private:<uid>`), `GET /…/chat/peers`
+    (DM lista jugadores aceptados para abrir privados). Permisos por canal verificados.
+- FRONTEND `pages/DjScreenPage.jsx` (NUEVO, ruta `/campanas/:id/pantalla`, accesible a
+  cualquier rol; el backend hace el gate). 3 zonas: izquierda (notas DJ + chat con pestañas),
+  centro (lienzo de escena con subida de imagen + cartas de héroes), derecha (rastreador de
+  iniciativa: añadir enemigo, HP +/-, CA, iniciativa, condiciones, notas privadas, ordenar,
+  control de turnos/rondas). Jugadores: vista solo lectura saneada (poll cada 5s); chat para todos.
+- Accesos: botón `open-dj-screen-btn` en `CampaignHubPage` (cabecera) y botón
+  `enter-screen-<id>` en `MyCampaignsPage` para jugadores aceptados (campaña activa/pausada).
+- TESTING AGENT iteration_88: backend 9/9 PASS, frontend 100%. Sin incidencias.
+  Datos de prueba (run de QA) eliminados tras validar.

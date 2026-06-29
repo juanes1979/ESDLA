@@ -280,6 +280,8 @@ const DjScreenPage = () => {
   const [syncing, setSyncing] = useState(false);
   const [savingFlag, setSavingFlag] = useState(false);
   const notesTimer = useRef(null);
+  const screenRef = useRef(null);
+  useEffect(() => { screenRef.current = screen; }, [screen]);
 
   // Enemy add form
   const [enemy, setEnemy] = useState({ name: '', hp_max: 10, ac: 12, initiative: 0 });
@@ -353,7 +355,9 @@ const DjScreenPage = () => {
     setScreen((s) => ({ ...s, notes_private: val }));
     if (notesTimer.current) clearTimeout(notesTimer.current);
     notesTimer.current = setTimeout(() => {
-      saveDjScreen(id, toPayload({ ...screen, notes_private: val })).catch(() => {});
+      // Build payload from the LATEST state (ref) so a concurrent combat
+      // update isn't clobbered by a stale closure.
+      saveDjScreen(id, toPayload({ ...(screenRef.current || {}), notes_private: val })).catch(() => {});
     }, 800);
   };
 
