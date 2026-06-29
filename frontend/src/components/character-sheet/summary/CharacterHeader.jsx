@@ -24,6 +24,8 @@ const CharacterHeader = ({ character, onLevelUp, onUpdate }) => {
   const [draftPortrait, setDraftPortrait] = useState(null);
   const [saving, setSaving] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
+  // Vista ampliada del retrato definitivo (solo lectura).
+  const [showFullView, setShowFullView] = useState(false);
 
   // El retrato es DEFINITIVO en cuanto existe uno guardado: si el personaje
   // ya tiene `portrait_image` (o el flag heredado `portrait_locked`), no se
@@ -124,10 +126,13 @@ const CharacterHeader = ({ character, onLevelUp, onUpdate }) => {
               <img
                 src={`data:image/png;base64,${displayedImage}`}
                 alt={`Retrato de ${character.nombre}`}
-                onClick={() => draftPortrait && setShowPreview(true)}
-                className={`w-24 h-24 rounded-full object-cover ring-1 ${
+                onClick={() => {
+                  if (draftPortrait) setShowPreview(true);
+                  else if (character?.portrait_image) setShowFullView(true);
+                }}
+                className={`w-24 h-24 rounded-full object-cover ring-1 cursor-pointer ${
                   draftPortrait
-                    ? 'ring-2 ring-amber-400 shadow-amber-400/40 shadow-lg cursor-pointer'
+                    ? 'ring-2 ring-amber-400 shadow-amber-400/40 shadow-lg'
                     : 'ring-[hsl(var(--gold))/50]'
                 }`}
                 style={{ background: 'transparent' }}
@@ -143,13 +148,19 @@ const CharacterHeader = ({ character, onLevelUp, onUpdate }) => {
 
             {/* Si ya hay retrato (definitivo) → candado; si no, botón generar. */}
             {isLocked && !draftPortrait ? (
-              <div
-                className="absolute -bottom-1 -right-1 bg-[hsl(var(--gold))/80] rounded-full p-1 ring-1 ring-[hsl(var(--gold))]"
-                title="Retrato definitivo: no se puede cambiar"
-                data-testid="character-portrait-locked-icon"
-              >
-                <Lock className="w-3 h-3 text-black" />
-              </div>
+              <>
+                {/* Pista de "ampliar" al pasar el ratón (no bloquea el clic). */}
+                <div className="absolute inset-0 rounded-full bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center pointer-events-none">
+                  <Maximize2 className="w-6 h-6 text-white" />
+                </div>
+                <div
+                  className="absolute -bottom-1 -right-1 bg-[hsl(var(--gold))/80] rounded-full p-1 ring-1 ring-[hsl(var(--gold))]"
+                  title="Retrato definitivo: no se puede cambiar"
+                  data-testid="character-portrait-locked-icon"
+                >
+                  <Lock className="w-3 h-3 text-black" />
+                </div>
+              </>
             ) : (
               <button
                 onClick={generatePortrait}
@@ -331,6 +342,38 @@ const CharacterHeader = ({ character, onLevelUp, onUpdate }) => {
                 <X className="w-4 h-4" /> Descartar
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Vista AMPLIADA del retrato definitivo (solo lectura). */}
+      {showFullView && character?.portrait_image && (
+        <div
+          className="fixed inset-0 z-[100] bg-black/85 flex items-center justify-center p-4"
+          onClick={() => setShowFullView(false)}
+          data-testid="portrait-fullview-modal"
+        >
+          <div
+            className="relative bg-zinc-900 rounded-xl border border-[hsl(var(--gold))]/40 p-3 max-w-lg w-full flex flex-col items-center gap-3"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              onClick={() => setShowFullView(false)}
+              className="absolute top-2 right-2 z-10 bg-black/60 rounded-full p-1.5 text-white/80 hover:text-white hover:bg-black/80 transition-colors"
+              data-testid="portrait-fullview-close"
+              title="Cerrar"
+            >
+              <X className="w-5 h-5" />
+            </button>
+            <img
+              src={`data:image/png;base64,${character.portrait_image}`}
+              alt={`Retrato de ${character.nombre}`}
+              className="w-full rounded-lg ring-1 ring-[hsl(var(--gold))]/40 object-contain"
+              data-testid="portrait-fullview-image"
+            />
+            <p className="font-heading text-lg text-[hsl(var(--gold))] text-center">
+              {character.nombre}
+            </p>
           </div>
         </div>
       )}
