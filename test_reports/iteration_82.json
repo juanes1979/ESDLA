@@ -1,0 +1,29 @@
+{
+  "summary": "E2E completo de las dos features pedidas en /rules → Precios de Equipo. (A) GRUPOS DINÁMICOS: PASS — Backend CRUD validado con curl: POST/PUT/DELETE /api/data/equipment-custom-category responden 200 con slug y campos sanitizados (whitelist nombre+precio+resto). GET /api/data/equipment-custom-categories devuelve 'ropa' con sus 28 prendas. UI: botón create-group-btn visible; modal group-editor-modal abre; el grupo QA 'Joyería QA' creado como raíz (__root__) con campos posicion+ca+peso_kg aparece como sección con empty-group-hint-joyeria_qa; edit-group-joyeria_qa renombra a 'Joyería QA v2' y persiste; delete-group-joyeria_qa borra correctamente (toast 'Grupo \"Joyería QA v2\" eliminado'). El grupo real 'ROPA' (🧵) aparece como sección raíz al final con columna 'Posición' (Pies/Cuerpo/Cabeza/Brazos) en sus 28 ítems y con botones Editar grupo/Borrar. (B) ITEM PICKER en 'Crear Equipo': el desplegable de categorías incluye los grupos custom con prefijo 🧩 ('🧩 Ropa', '🧩 Joyería QA'); al elegir 🧩 Joyería QA aparece el formulario con los campos configurados (Nombre, Precio, Moneda, Peso (kg), Posición (cabeza/cuerpo...), CA); el item 'TEST_Anillo QA' se guarda y queda visible en el DOM del grupo QA. (C) INTERRUPTOR EQUIPO CORPORAL: PASS — En el editor de un yelmo ('Cofia de mallas') el bloque item-editor-corporal está presente, el checkbox field-es-corporal funciona y al activarlo muestra el <select> field-posicion (native, opciones cabeza/cuerpo/brazos/piernas/pies). Tras guardar y reabrir, es-corporal=true y posicion='cabeza' (PERSISTENCIA OK). Misma feature en 'Anillo de sello' de equipo_general: se activó el interruptor, se eligió 'cuerpo', se guardó, se reabrió y los valores persisten (es-corporal=true, posicion='cuerpo'). (D) NO HAY DUPLICACIÓN: el selector field-posicion existe solo dentro de item-editor-corporal; query a [data-testid='item-editor-extra-fields'] [data-testid='field-posicion'] retorna 0 elementos.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "data_routes.py:1903-2004 — Endpoints /equipment-custom-category{/key} están bien aislados del path /equipment/{categoria}/{item_nombre} (no colisión por orden de declaración en FastAPI). Sanitización contra _ALLOWED_GROUP_FIELDS y unique-slug con sufijos _2/_3. OK.",
+    "data_routes.py:1755-1759 — Modelo EquipmentItem añade 'posicion' y 'es_corporal' como Optional; el PUT por item fusiona el dict y persiste ambos correctamente (verificado: Cofia de cuero -> es_corporal=true/posicion=cabeza; Anillo de sello -> es_corporal=true/posicion=cuerpo).",
+    "EquipmentSection.jsx:1627-1660 — Bloque item-editor-corporal correctamente excluye 'posicion' de los extras (item-editor-extra-fields) para evitar duplicación. La lógica de mostrar el <select> sólo cuando es_corporal=true es la esperada.",
+    "EquipmentEditor.jsx — Fusiona grupos custom con prefijo 🧩 en el dropdown 'Seleccionar categoría'. Cuando el grupo expone 'posicion' como field, el formulario incluye el select 'Posición (cabeza/cuerpo...)'. Sin embargo, al crear un ítem en un grupo custom no veo persistencia automática de es_corporal=true cuando se elige una posición — el flag debe activarse manualmente desde el editor 'Editar' después de creado. Sugerencia de mejora UX (no bloqueante): si en 'Crear Equipo' se elige una posición no vacía, marcar es_corporal=true automáticamente. No es bug del review_request.",
+    "data_routes.py:2007-2010 — Fragmento huérfano fuera de función ('# Save / await db.equipment_catalog.update_one(...)') tras el delete_custom_category. Aunque no llega a ejecutarse a nivel de ruta (no está dentro de un endpoint), confunde y debería eliminarse para no romper en futuras ediciones."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "100% (CRUD grupos + PUT item posicion/es_corporal)", "frontend": "100% (todas las features del request verificadas)"},
+  "test_credentials": "Maestro: elanillounico_tlotr@proton.me / 123456 (OK)",
+  "seed_data_creation": "Se creó y eliminó el grupo QA 'Joyería QA' (key=joyeria_qa) y un item TEST_Anillo QA dentro (eliminado junto con el grupo en el flujo de borrado). Se modificó 'Cofia de cuero' (yelmos) a es_corporal=true/posicion=cabeza — coherente con la categoría yelmos (no requiere rollback). 'Anillo de sello' (equipo_general) fue revertido a es_corporal=null/posicion=null al final del test para mantener el estado original.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Para repetir estas pruebas: login Maestro, /rules → tab 'Precios de Equipo'. Selectores clave: create-group-btn, group-editor-modal, group-name-input, group-icon-input, group-section-select (Radix wrapped en <select> nativo dentro del modal), group-field-<key>, group-save-btn, category-toggle-<key>, edit-group-<key>, delete-group-<key>, empty-group-hint-<key>. En el editor de ítem (botón pencil en col. Acciones): item-editor-corporal, field-es-corporal (checkbox), field-posicion (<select> nativo). El bloque 'Crear Equipo' usa Radix Select para la categoría: ábrelo con click y elige por get_by_role('option', name='🧩 ...'). Backend rutas: POST/PUT/DELETE /api/data/equipment-custom-category{/key}, GET /api/data/equipment-custom-categories, y PUT /api/data/equipment/{categoria}/{item_nombre} para persistir es_corporal/posicion en ítems.",
+  "rca of the issue": "N/A — no se encontraron defectos en las features pedidas."
+}

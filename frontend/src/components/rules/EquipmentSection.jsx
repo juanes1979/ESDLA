@@ -1535,7 +1535,8 @@ const ItemEditorModal = ({ item, setItem, onSave, onClose, saving, availableRegi
           {/* Category-specific fields — render dynamically based on item.categoria */}
           {(() => {
             const catKey = item.categoria;
-            const extras = customFields || CATEGORY_EXTRA_FIELDS[catKey] || [];
+            // 'posicion' se gestiona en el bloque "Equipo corporal" universal de abajo.
+            const extras = (customFields || CATEGORY_EXTRA_FIELDS[catKey] || []).filter(f => f !== 'posicion');
             if (!extras.length) return null;
             return (
               <div className="border-t border-border/30 pt-4 grid grid-cols-2 gap-4" data-testid="item-editor-extra-fields">
@@ -1596,6 +1597,63 @@ const ItemEditorModal = ({ item, setItem, onSave, onClose, saving, availableRegi
                     </div>
                   );
                 })}
+              </div>
+            );
+          })()}
+
+          {/* Equipo corporal: marca cualquier objeto como pieza que se lleva
+              puesta en una parte del cuerpo (cabeza, cuerpo, brazos…). Útil,
+              por ejemplo, para yelmos que no tenían posición corporal. */}
+          {(() => {
+            const esCorporal = item.es_corporal === true || !!item.posicion;
+            const toggleCorporal = (checked) => {
+              if (checked) {
+                setItem(prev => ({
+                  ...prev,
+                  es_corporal: true,
+                  posicion: prev.posicion || 'cabeza',
+                  _originalNombre: prev._originalNombre || prev.nombre,
+                }));
+              } else {
+                setItem(prev => ({
+                  ...prev,
+                  es_corporal: false,
+                  posicion: '',
+                  _originalNombre: prev._originalNombre || prev.nombre,
+                }));
+              }
+            };
+            return (
+              <div className="border-t border-border/30 pt-4 space-y-3" data-testid="item-editor-corporal">
+                <label className="flex items-center gap-3 cursor-pointer" htmlFor="ed-es-corporal">
+                  <Checkbox
+                    id="ed-es-corporal"
+                    checked={esCorporal}
+                    onCheckedChange={(v) => toggleCorporal(!!v)}
+                    data-testid="field-es-corporal"
+                  />
+                  <span className="text-sm">
+                    Es equipo corporal <span className="text-xs text-muted-foreground italic">(se lleva puesto en una parte del cuerpo — p. ej. un yelmo en la cabeza)</span>
+                  </span>
+                </label>
+                {esCorporal && (
+                  <div className="w-full sm:w-1/2">
+                    <label className="text-sm text-muted-foreground">Posición corporal</label>
+                    <select
+                      value={item.posicion || ''}
+                      onChange={(e) => updateField('posicion', e.target.value)}
+                      className="w-full h-10 px-2 bg-background border border-border rounded"
+                      data-testid="field-posicion"
+                    >
+                      <option value="">— elige una posición —</option>
+                      <option value="cabeza">Cabeza</option>
+                      <option value="cuerpo">Cuerpo</option>
+                      <option value="brazos">Brazos</option>
+                      <option value="piernas">Piernas</option>
+                      <option value="pies">Pies</option>
+                    </select>
+                  </div>
+                )}
               </div>
             );
           })()}

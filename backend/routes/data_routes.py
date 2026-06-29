@@ -1756,6 +1756,7 @@ class EquipmentItem(BaseModel):
     otros: Optional[str] = None
     # Ropa / armadura: posición corporal (cabeza, cuerpo, brazos, piernas, pies)
     posicion: Optional[str] = None
+    es_corporal: Optional[bool] = None
     # Herb/Poison specific
     forma_preparacion: Optional[str] = None
     efecto: Optional[str] = None
