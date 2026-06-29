@@ -38,6 +38,7 @@ from routes.patrons_routes import router as patrons_router, seed_patrons_if_empt
 from routes.languages_routes import router as languages_router, seed_languages_if_empty
 from routes.npc_generator_routes import router as npc_generator_router
 from routes.terrain_grid_routes import router as terrain_grid_router
+from routes.dj_screen_routes import router as dj_screen_router
 
 
 ROOT_DIR = Path(__file__).parent
@@ -134,6 +135,7 @@ api_router.include_router(patrons_router)
 api_router.include_router(languages_router)
 api_router.include_router(npc_generator_router)
 api_router.include_router(terrain_grid_router)
+api_router.include_router(dj_screen_router)
 
 # Include the main router in the app
 app.include_router(api_router)

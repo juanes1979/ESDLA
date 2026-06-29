@@ -1,0 +1,53 @@
+{
+  "summary": "Validated P0 portrait-fullview modal + new DJ Screen feature (Pantalla del DJ) end-to-end as Maestro. 9/9 backend tests PASS (auth flows, GET/PUT dj-screen, sync-players idempotent, group chat post+get, peers, portrait endpoint, 403 for non-member on GET/PUT/chat). 100% of UI flows PASS: P0 portrait click opens portrait-fullview-modal with image + close button; the modal closes correctly. DJ Screen page loads with the 3 zones (initiative-tracker, hero-cards, dj-chat-card, dj-notes-textarea). sync-players-btn pulls the accepted character Regred Maggot into hero-cards (1 card) and the initiative tracker. Adding an enemy via enemy-* inputs + add-enemy-btn creates the combatant. HP +/- buttons mutate HP (15→13). combatant-cond-input Enter adds 'envenenado' pill. turn-next-btn advances 'Turno de …' (Regred→Orco). sort-init-btn reorders by initiative desc. combat-reset-btn returns to round 1 (current_turn_index=0). dj-notes-textarea persists after reload (debounced PUT). Combatants persist after reload (Orco QA + Regred Maggot). combatant-remove-* deletes correctly. Chat group send+display works (chat-input + chat-send-btn → chat-messages). chat-tab-private:<uid> visible for DM. Hub link open-dj-screen-btn navigates to /campanas/:id/pantalla.",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "DJ Screen — hero card HP", "issues": ["The hero card for Regred Maggot shows 0/20 HP because the character's puntos_golpe_actual is 0 in DB (pre-existing data, NOT a regression). Cosmetic: consider falling back to hp_max if hp_current is null AND hp_max>0, but spec already does (pg_cur = pg_max if None). Here pg_cur is explicitly 0, so behaviour is correct."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_dj_screen_it108.py",
+    "/app/test_reports/pytest/dj_screen_it108.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "dj_screen_routes.py — _sanitize_for_player correctly strips notes_private, combatant.notes and enemy exact HP/AC (returns only hp_band qualitative). Player view safe.",
+    "sync_players is idempotent (existing_char_ids gate). Verified by 2nd call returning added=0.",
+    "_can_access_channel restricts private:<uid> to that exact user OR DM/Maestro. Group channel needs any membership. Correctly enforced.",
+    "Chat list query uses (campaign_run_id, channel) — recommend adding a Mongo index on these fields plus created_at for scale; not critical for MVP.",
+    "GET dj-screen returns 200 even when there is no screen yet (lazy create via _ensure_screen). Good UX.",
+    "DjScreenPage.jsx onNotesChange debounces 800ms but uses stale closure on `screen` inside setTimeout — works because it builds the payload from current `screen` captured at call time but if a combat update lands between, notes save might overwrite combatants. Low risk because each persist() awaits server, but consider building payload from the latest functional state.",
+    "CharacterHeader.jsx — fullview modal added with portrait-fullview-modal/image/close testids. Click target is the portrait image (cursor-pointer). The previous 'click to regen' button is correctly hidden when isLocked (absolute inset-0 overlay only renders in the !isLocked branch), so no overlay blocks the new click.",
+    "Hub button open-dj-screen-btn correctly navigates to /campanas/:id/pantalla and route is registered in App.js (DjScreenPage)."
+  ],
+  "updated_files": ["/app/backend/tests/test_dj_screen_it108.py"],
+  "success_rate": { "backend": "100% (9/9)", "frontend": "100%" },
+  "test_credentials": "Maestro elanillounico_tlotr@proton.me / 123456 (from /app/memory/test_credentials.md). Run: fdc6fc7d-0a17-4392-a398-a8c4b634bfb6, Character: c16a362d-9841-4954-8f70-0dfe02dfe303.",
+  "seed_data_creation": "Created ephemeral 'stranger' jugador users (qa_stranger_<uuid>@example.com) approved by Maestro to validate 403 on dj-screen. Created/removed an Orco QA combatant during UI test. Some DJ notes overwritten to 'QA-NOTAS-1234' during persistence test — main agent may want to clear it post-QA.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "DJ Screen route is /campanas/:id/pantalla rendered by DjScreenPage.jsx. Key testids: dj-screen-page, initiative-tracker, hero-cards, dj-chat-card, dj-notes-textarea, sync-players-btn, enemy-name-input, enemy-hp-input, enemy-ac-input, enemy-init-input, add-enemy-btn, combatant-hp-plus-<id>, combatant-hp-minus-<id>, combatant-cond-input-<id>, combatant-remove-<id>, turn-next-btn, turn-prev-btn, sort-init-btn, combat-reset-btn, round-display, chat-input, chat-send-btn, chat-messages, chat-tab-group, chat-tab-private:<uid>, open-dj-screen-btn. P0 portrait modal: data-testid character-portrait-image opens portrait-fullview-modal with portrait-fullview-image + portrait-fullview-close. Backend test file: /app/backend/tests/test_dj_screen_it108.py (9 tests, all passing). DJ notes textarea persistence is debounced 800ms — wait ~1.5s before reload during QA.",
+  "evidence": {
+    "p0_portrait_modal_opens": true,
+    "p0_portrait_modal_closes": true,
+    "dj_screen_zones_visible": {"init": true, "heroes": true, "chat": true, "notes": true},
+    "sync_players_hero_cards_after": 1,
+    "add_enemy_works": true,
+    "hp_minus_works": "15/15 -> 13/15",
+    "condition_added": "envenenado",
+    "turn_next_changes_active": "Regred Maggot -> Orco QA",
+    "sort_init_orders": true,
+    "combat_reset_round_1": true,
+    "notes_persist_after_reload": true,
+    "combatants_persist_after_reload": ["Orco QA", "Regred Maggot"],
+    "combatant_remove_works": true,
+    "chat_send_visible": true,
+    "private_chat_tabs_visible_for_dm": 1,
+    "open_dj_screen_btn_navigates": true,
+    "backend_tests": {"total": 9, "passed": 9, "failed": 0},
+    "verdict": "FEATURE VERIFIED: P0 portrait fullview + Pantalla del DJ (state, sync, iniciativa, turnos, notas, chat, permisos) funcionan correctamente end-to-end."
+  }
+}

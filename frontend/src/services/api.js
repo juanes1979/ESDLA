@@ -573,3 +573,36 @@ export const listMyCharacters = async () => {
   return response.data.characters || [];
 };
 
+// ===== Pantalla del DJ =====
+export const getDjScreen = async (runId) => {
+  const r = await api.get(`/campaign-runs/${runId}/dj-screen`);
+  return r.data;
+};
+
+export const saveDjScreen = async (runId, state) => {
+  const r = await api.put(`/campaign-runs/${runId}/dj-screen`, state);
+  return r.data;
+};
+
+export const syncDjPlayers = async (runId) => {
+  const r = await api.post(`/campaign-runs/${runId}/dj-screen/sync-players`);
+  return r.data;
+};
+
+export const getDjChat = async (runId, channel = 'group', after = null) => {
+  const params = { channel };
+  if (after) params.after = after;
+  const r = await api.get(`/campaign-runs/${runId}/chat`, { params });
+  return r.data;
+};
+
+export const postDjChat = async (runId, channel, text) => {
+  const r = await api.post(`/campaign-runs/${runId}/chat`, { channel, text });
+  return r.data;
+};
+
+export const getDjChatPeers = async (runId) => {
+  const r = await api.get(`/campaign-runs/${runId}/chat/peers`);
+  return r.data;
+};
+

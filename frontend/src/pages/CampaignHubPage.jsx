@@ -28,6 +28,7 @@ import {
   Eye,
   EyeOff,
   ScrollText,
+  Swords,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import {
@@ -785,6 +786,13 @@ const CampaignHubPage = () => {
                 </div>
               </div>
             </div>
+            <Button
+              onClick={() => navigate(`/campanas/${id}/pantalla`)}
+              data-testid="open-dj-screen-btn"
+              className="bg-amber-700 hover:bg-amber-600 text-amber-50 shrink-0"
+            >
+              <Swords className="w-4 h-4 mr-1" /> Pantalla del DJ
+            </Button>
           </div>
         </div>
 

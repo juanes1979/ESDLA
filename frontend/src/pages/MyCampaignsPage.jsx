@@ -8,7 +8,7 @@
  */
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, KeyRound, Loader2, LogOut, ScrollText, Eye } from 'lucide-react';
+import { ArrowLeft, KeyRound, Loader2, LogOut, ScrollText, Eye, Swords } from 'lucide-react';
 import { toast } from 'sonner';
 import { myCampaigns, leaveCampaign, getRevealedTexts } from '@/services/api';
 import { Button } from '@/components/ui/button';
@@ -41,7 +41,7 @@ const RUN_STATUS_LABEL = {
   finished: 'Finalizada',
 };
 
-const Card = ({ row, onLeave, onShowRevealed }) => (
+const Card = ({ row, onLeave, onShowRevealed, onEnterScreen }) => (
   <div
     className="rounded-xl border border-amber-700/40 bg-black/60 backdrop-blur-sm p-5"
     data-testid={`my-campaign-${row.id}`}
@@ -72,6 +72,16 @@ const Card = ({ row, onLeave, onShowRevealed }) => (
     )}
 
     <div className="flex flex-wrap gap-2">
+      {row.status === 'accepted' && (row.run.status === 'active' || row.run.status === 'paused') && (
+        <Button
+          size="sm"
+          onClick={() => onEnterScreen(row)}
+          data-testid={`enter-screen-${row.id}`}
+          className="bg-amber-700 hover:bg-amber-600 text-amber-50"
+        >
+          <Swords className="w-3.5 h-3.5 mr-1" /> Entrar a la mesa
+        </Button>
+      )}
       {row.status === 'accepted' && (
         <Button
           size="sm"
@@ -209,7 +219,7 @@ const MyCampaignsPage = () => {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
             {rows.map((r) => (
-              <Card key={r.id} row={r} onLeave={setToLeave} onShowRevealed={handleShowRevealed} />
+              <Card key={r.id} row={r} onLeave={setToLeave} onShowRevealed={handleShowRevealed} onEnterScreen={(row) => navigate(`/campanas/${row.run.id}/pantalla`)} />
             ))}
           </div>
         )}
