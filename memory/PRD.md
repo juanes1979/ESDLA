@@ -12,6 +12,28 @@ gestión completa de personajes, mapas, viajes, combate, NPC, campañas y editor
 - ✅ Iter 118 — Caminos sobre infranqueable se tratan como pasos/puentes.
 - ✅ Iter 119 — Editor de terreno **raster** (2000×1536) sustituye al de polígonos.
 
+## Jun 2026 — Grupos de equipo dinámicos + Equipo corporal
+### Grupos de objetos personalizados (Equipo → "Precios de Equipo", solo Maestro)
+- Backend (`data_routes.py`): definiciones en `equipment_catalog._custom_categories`
+  `[{key, name, fields[], section:"<título>"|"__root__", icono}]`.
+  - `GET  /api/data/equipment-custom-categories`
+  - `POST /api/data/equipment-custom-category` (slug único, sufijo _2/_3; whitelist de campos `_ALLOWED_GROUP_FIELDS`)
+  - `PUT  /api/data/equipment-custom-category/{key}` (renombrar/recampos/sección)
+  - `DELETE /api/data/equipment-custom-category/{key}` (borra def + `$unset` ítems)
+  - Rutas con prefijo `equipment-custom-category` para evitar colisión con `/equipment/{categoria}/{item_nombre}`.
+  - `get_equipment_catalog` incluye ítems custom y devuelve `_custom_categories`.
+- Frontend (`EquipmentSection.jsx`): `sections` fusiona `EQUIPMENT_SECTIONS` + grupos custom (dentro de sección o raíz). Botón `create-group-btn`, `GroupEditorModal` (nombre/icono/sección/campos), botones Editar/Borrar por grupo, grupos vacíos visibles para admin, columna "Posición".
+- `EquipmentEditor.jsx` ("Crear Equipo"): lista grupos custom con prefijo 🧩; `FIELD_CONFIG` incluye `posicion`.
+- "Ropa" sembrada como grupo raíz individual (`scripts/seed_ropa_group.py`, 28 prendas).
+### Interruptor "Es equipo corporal" (editor de ítem universal)
+- En `ItemEditorModal`: checkbox `field-es-corporal` que muestra `field-posicion`
+  (cabeza/cuerpo/brazos/piernas/pies); persiste `posicion` + `es_corporal` en cualquier categoría
+  (p. ej. yelmos). Modelo `EquipmentItem` ampliado con `posicion` y `es_corporal`.
+- Opción A (armadura/yelmo/escudo) ya implementada en `character/equipment.py` (exclusividad por grupo) y auto-equipado de ropa en `finalize_character`.
+- ⚠️ Fix regresión: la inserción de endpoints había partido `delete_equipment_item` (no guardaba/return); restaurado y verificado.
+- Validado por testing agent (iteration_82.json): 100% backend + frontend.
+
+
 ## Iter 119 — Sistema raster de terreno (Feb 2026)
 Reemplaza el sistema de polígonos vectoriales (frágil, con solapes y bugs en
 operaciones booleanas) por una rejilla raster de celdas. Cada celda pertenece a

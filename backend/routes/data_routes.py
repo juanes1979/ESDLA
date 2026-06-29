@@ -1857,6 +1857,15 @@ async def delete_equipment_item(categoria: str, item_nombre: str):
     if len(items) == original_len:
         raise HTTPException(status_code=404, detail="Item not found")
 
+    # Save
+    await db.equipment_catalog.update_one(
+        {"_id": "main"},
+        {"$set": {categoria: items}}
+    )
+
+    return {"message": f"Item '{item_nombre}' deleted"}
+
+
 # === CUSTOM EQUIPMENT CATEGORIES (grupos personalizados) ===
 
 # Claves reservadas por los grupos integrados (no se pueden recrear/borrar
@@ -2002,16 +2011,6 @@ async def delete_custom_category(key: str):
         {"$set": {"_custom_categories": custom_cats}, "$unset": {key: ""}},
     )
     return {"success": True, "message": f"Grupo '{key}' eliminado"}
-
-
-    
-    # Save
-    await db.equipment_catalog.update_one(
-        {"_id": "main"},
-        {"$set": {categoria: items}}
-    )
-    
-    return {"message": f"Item '{item_nombre}' deleted"}
 
 
 @router.post("/equipment/batch-update-prices")

@@ -204,6 +204,8 @@ const EquipmentEditor = ({ onClose, onSave }) => {
       await api.post('/data/equipment', {
         categoria: selectedCategory,
         ...formData,
+        // Si se asigna una posición corporal, marcar la pieza como equipo corporal.
+        es_corporal: formData.posicion ? true : (formData.es_corporal || undefined),
         // Convert numeric fields
         precio: formData.precio ? parseFloat(formData.precio) : null,
         peso_kg: formData.peso_kg ? parseFloat(formData.peso_kg) : null,
