@@ -2,7 +2,7 @@
  * Character Summary - Final review before creation
  */
 import { useState } from 'react';
-import { Loader2, Edit2, Check, User, Sword, Shield, Heart, Star, Crown, ImageIcon, RefreshCw, Dices, X } from 'lucide-react';
+import { Loader2, Edit2, Check, User, Sword, Shield, Heart, Star, Crown, ImageIcon, RefreshCw, Dices, X, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { toast } from 'sonner';
@@ -25,6 +25,11 @@ const CharacterSummary = ({ draft, onFinalize, onEdit, loading, draftId }) => {
     setFacialTraits((prev) => prev.map((t, i) => (i === idx ? { ...t, value } : t)));
   const removeTrait = (idx) => setFacialTraits((prev) => prev.filter((_, i) => i !== idx));
   const rerollTraits = () => setFacialTraits(pickRandomFacialTraits());
+  const addTrait = () =>
+    setFacialTraits((prev) => [
+      ...prev,
+      { id: `extra-${Date.now()}-${Math.floor(Math.random() * 1000)}`, label: 'Rasgo adicional', value: '' },
+    ]);
 
   // Generate character portrait using AI
   const generatePortrait = async () => {
@@ -316,13 +321,22 @@ const CharacterSummary = ({ draft, onFinalize, onEdit, loading, draftId }) => {
               <User className="w-4 h-4" />
               Rasgos faciales para la imagen
             </h3>
-            <Button
-              size="sm" variant="outline" onClick={rerollTraits}
-              className="text-xs border-purple-500/50 text-purple-400 hover:bg-purple-500/10"
-              data-testid="facial-traits-reroll-btn"
-            >
-              <Dices className="w-3 h-3 mr-1" /> Aleatorizar
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button
+                size="sm" variant="outline" onClick={addTrait}
+                className="text-xs border-[hsl(var(--gold))]/50 text-[hsl(var(--gold))] hover:bg-[hsl(var(--gold))]/10"
+                data-testid="facial-traits-add-btn"
+              >
+                <Plus className="w-3 h-3 mr-1" /> Añadir
+              </Button>
+              <Button
+                size="sm" variant="outline" onClick={rerollTraits}
+                className="text-xs border-purple-500/50 text-purple-400 hover:bg-purple-500/10"
+                data-testid="facial-traits-reroll-btn"
+              >
+                <Dices className="w-3 h-3 mr-1" /> Aleatorizar
+              </Button>
+            </div>
           </div>
           <p className="text-xs text-muted-foreground mb-3">
             Se incorporan al retrato IA (junto con edad, subcultura, ojos, pelo…) para que los
@@ -336,6 +350,7 @@ const CharacterSummary = ({ draft, onFinalize, onEdit, loading, draftId }) => {
                   <input
                     type="text" value={t.value}
                     onChange={(e) => updateTrait(idx, e.target.value)}
+                    placeholder="Describe el rasgo (p. ej. cicatriz en la ceja izquierda)"
                     className="w-full p-2 rounded bg-black/30 border border-border/50 text-sm"
                     data-testid={`facial-trait-input-${t.id}`}
                   />

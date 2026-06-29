@@ -28,6 +28,9 @@ export const FACIAL_TRAIT_GROUPS = [
       'Facciones redondeadas y suaves, cara de niño eterno.',
       'Mandíbula de "hachazo", muy afilada en el ángulo.',
       'Rostro achatado y ancho, facciones comprimidas.',
+      'Sienes hundidas y cráneo anguloso, aspecto ascético.',
+      'Mentón partido con un hoyuelo marcado.',
+      'Cara ancha y curtida de campesino, mejillas coloradas.',
     ],
   },
   {
@@ -54,6 +57,9 @@ export const FACIAL_TRAIT_GROUPS = [
       'Cejas muy oscuras y rectas, aspecto de samurái.',
       'Ojos muy pequeños y cerrados, mirada de gato.',
       'Cejas muy largas y caídas, aspecto de anciano sabio.',
+      'Heterocromía sutil, un ojo de tono ligeramente distinto.',
+      'Mirada penetrante de ojos muy claros, casi translúcidos.',
+      'Pestañas muy largas y oscuras que sombrean la mirada.',
     ],
   },
   {
@@ -80,6 +86,9 @@ export const FACIAL_TRAIT_GROUPS = [
       'Punta de la nariz muy delgada y afilada, nariz de pinza.',
       'Nariz con bulto en la raíz, entre los ojos.',
       'Nariz con fosas nasales asimétricas.',
+      'Aletas de la nariz anchas y dilatadas, respiración fuerte.',
+      'Puente de la nariz salpicado de pecas.',
+      'Cicatriz vieja que cruza el puente de la nariz.',
     ],
   },
   {
@@ -106,6 +115,9 @@ export const FACIAL_TRAIT_GROUPS = [
       'Labios muy finos en el centro y gruesos en los lados.',
       'Sonrisa natural y cálida, aspecto amigable.',
       'Labios muy secos y agrietados, aspecto de descuido.',
+      'Diente astillado o mellado, visible al hablar.',
+      'Hueco entre los incisivos (diastema marcado).',
+      'Labios agrietados por el frío y el viento del camino.',
     ],
   },
   {
@@ -132,6 +144,9 @@ export const FACIAL_TRAIT_GROUPS = [
       'Cicatriz de una herida de metralla antigua en la frente.',
       'Piel muy grasa y brillante, aspecto de sudor crónico.',
       'Cicatriz de un pinchazo de aguja antigua en el cuello.',
+      'Tatuaje tribal desvaído en la sien o el pómulo.',
+      'Quemaduras de sol y viento de quien vive a la intemperie.',
+      'Verruga o lunar con vello en la mejilla.',
     ],
   },
   {
@@ -158,6 +173,9 @@ export const FACIAL_TRAIT_GROUPS = [
       'Cabello muy blanco y suave, aspecto de anciano sabio.',
       'Barba muy poblada y cuadrada en el mentón.',
       'Cabello muy corto y liso, aspecto de militar.',
+      'Cabello apelmazado por el polvo y el sudor del viaje.',
+      'Tonsura o calva incipiente coronando la cabeza.',
+      'Trenzas finas con cuentas de hueso o madera en la barba.',
     ],
   },
 ];
