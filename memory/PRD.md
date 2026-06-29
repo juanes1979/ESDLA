@@ -46,6 +46,10 @@ gestión completa de personajes, mapas, viajes, combate, NPC, campañas y editor
     sobre otra prenda); ropa base → exclusiva por posición `ropa_<posicion>`; armadura/yelmo/escudo igual.
   - Capas del catálogo (nombre "capa…") marcadas como complementarias por defecto.
 - Validado: testing agent iteration_85 (backend 100%) + verificación determinista de finalize.
+- **Paquetes/raciones**: `enrich_items` reconoce nombres con sufijo "(Paquete de N)";
+  el inventario "Raciones (1 día)" (cantidad 10) coincide con el catálogo
+  "Raciones (1 día) (Paquete de 10)" (0.9 kg) → peso por unidad 0.09/día (×10 = 0.9 kg).
+  Items de paquete completo ("Antorchas (paquete de 10)") coinciden exactos. Migración re-ejecutada.
 
 
 ## Iter 119 — Sistema raster de terreno (Feb 2026)

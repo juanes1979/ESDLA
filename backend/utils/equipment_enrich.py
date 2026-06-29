@@ -8,6 +8,12 @@ nombres "pelados" sin `categoria`, `peso_kg` ni `posicion`. Esto impedía:
 Aquí resolvemos ambos por coincidencia de nombre con el catálogo.
 """
 import unicodedata
+import re
+
+# Sufijo de empaquetado: "<nombre> (paquete de N)" → el inventario suele llevar
+# el nombre SIN el sufijo (p. ej. "Raciones (1 día)") y una cantidad de N días,
+# mientras que el catálogo guarda el paquete completo con su peso total.
+_PACK_RE = re.compile(r"^(.*?)\s*\(paquete de (\d+)\)\s*$")
 
 
 def _norm(s) -> str:
@@ -38,8 +44,27 @@ def build_catalog_index(catalog: dict) -> dict:
     return index
 
 
+def _find_pack(index: dict, name_norm: str):
+    """Busca en el catálogo un item '<name_norm> (paquete de N)'.
+    Devuelve (info, N) para calcular el peso por unidad, o (None, None)."""
+    for key, info in index.items():
+        m = _PACK_RE.match(key)
+        if not m:
+            continue
+        if m.group(1).strip() == name_norm:
+            try:
+                n = int(m.group(2))
+            except (TypeError, ValueError):
+                n = 0
+            if n > 0:
+                return info, n
+    return None, None
+
+
 def enrich_items(lista, index: dict) -> bool:
     """Rellena categoria/peso_kg/posicion/ropa_complementaria que falten.
+    Coincide por nombre exacto y, si no, por nombre de paquete
+    ('<nombre> (paquete de N)') calculando el peso por unidad.
     Devuelve True si modificó algo."""
     if not isinstance(lista, list):
         return False
@@ -47,13 +72,20 @@ def enrich_items(lista, index: dict) -> bool:
     for it in lista:
         if not isinstance(it, dict):
             continue
-        info = index.get(_norm(it.get("nombre")))
+        nm = _norm(it.get("nombre"))
+        info = index.get(nm)
+        divisor = 1
+        if not info:
+            info, n = _find_pack(index, nm)
+            divisor = n or 1
         if not info:
             continue
         if not it.get("categoria") and info.get("categoria"):
             it["categoria"] = info["categoria"]; changed = True
         if it.get("peso_kg") is None and info.get("peso_kg") is not None:
-            it["peso_kg"] = info["peso_kg"]; changed = True
+            peso = info["peso_kg"]
+            it["peso_kg"] = round(peso / divisor, 4) if divisor > 1 else peso
+            changed = True
         if not it.get("posicion") and info.get("posicion"):
             it["posicion"] = info["posicion"]; changed = True
         if it.get("ropa_complementaria") is None and info.get("ropa_complementaria") is not None:
