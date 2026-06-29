@@ -714,6 +714,62 @@ async def update_equipment_carrier(character_id: str, data: UpdateEquipmentCarry
     }
 
 
+# Grupos de equipación EXCLUSIVOS (Opción A): solo UNA pieza activa por grupo.
+# La ropa interior NO es exclusiva (compatible con una armadura corporal).
+_ARMADURA_CORPORAL = {"armaduras_ligeras", "armaduras_medias", "armaduras_pesadas"}
+
+
+def _grupo_exclusivo(item, source: str):
+    """Devuelve el grupo de exclusión de una pieza, o None si no es exclusiva."""
+    if source == "armadura":
+        return "armadura_corporal"
+    if not isinstance(item, dict):
+        return None
+    cat = (item.get("categoria") or "").lower()
+    pos = (item.get("posicion") or "").lower()
+    if cat in _ARMADURA_CORPORAL:
+        return "armadura_corporal"
+    if cat == "yelmos" or pos == "cabeza":
+        return "cabeza"
+    if cat == "escudos":
+        return "escudo"
+    return None
+
+
+def _desactivar_otros_del_grupo(character, update, grupo, source, item_index):
+    """Desactiva todas las piezas activas del mismo grupo salvo la recién activada."""
+    # armadura principal (cuerpo)
+    arm = (update.get("armadura") if "armadura" in update else character.get("armadura")) or {}
+    if isinstance(arm, dict) and arm.get("nombre") and arm.get("activa"):
+        if not (source == "armadura") and grupo == "armadura_corporal":
+            arm = dict(arm)
+            arm["activa"] = False
+            update["armadura"] = arm
+
+    # listas con piezas (índice + categoria)
+    list_sources = [
+        ("armadura_piezas", "armadura_piezas"),
+        ("inventario", "inventario"),
+        ("equipo_ocupacion", "equipo_ocupacion"),
+    ]
+    for key, src_name in list_sources:
+        lst = (update.get(key) if key in update else character.get(key)) or []
+        changed = False
+        new_lst = list(lst)
+        for i, it in enumerate(new_lst):
+            if not isinstance(it, dict) or not it.get("activa"):
+                continue
+            if src_name == source and i == item_index:
+                continue  # es la pieza recién activada
+            if _grupo_exclusivo(it, src_name) == grupo:
+                it = dict(it)
+                it["activa"] = False
+                new_lst[i] = it
+                changed = True
+        if changed:
+            update[key] = new_lst
+
+
 @router.patch("/{character_id}/equipment/toggle-active")
 async def toggle_equipment_active(character_id: str, data: ToggleActiveRequest):
     """Activate / deactivate a clothing or armor piece.
@@ -768,6 +824,23 @@ async def toggle_equipment_active(character_id: str, data: ToggleActiveRequest):
             inventario[data.item_index] = {"nombre": inventario[data.item_index]}
         inventario[data.item_index]["activa"] = bool(data.activa)
         update["inventario"] = inventario
+
+    # Opción A: al ACTIVAR una pieza de un grupo exclusivo (armadura corporal,
+    # yelmo o escudo), desactiva automáticamente las demás del mismo grupo.
+    if bool(data.activa):
+        if source == "armadura":
+            target_item = character.get("armadura", {}) or {}
+        elif source == "armadura_piezas":
+            target_item = (character.get("armadura_piezas", []) or [])[data.item_index]
+        elif source == "equipo_ocupacion":
+            target_item = (character.get("equipo_ocupacion", []) or [])[data.item_index]
+        elif source == "armas":
+            target_item = None  # las armas no tienen exclusividad de armadura
+        else:
+            target_item = (character.get("inventario", []) or [])[data.item_index]
+        grupo = _grupo_exclusivo(target_item, source) if target_item is not None else None
+        if grupo:
+            _desactivar_otros_del_grupo(character, update, grupo, source, data.item_index)
 
     await db.characters.update_one({"_id": character_id}, {"$set": update})
     updated = await db.characters.find_one({"_id": character_id})
