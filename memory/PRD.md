@@ -491,3 +491,15 @@ Aplica una transacción YA negociada al personaje (reutiliza endpoints de equipo
   por OTRA característica (cada uno conserva el suyo). El mensaje 'Valores disponibles' se mantiene.
 
 - TESTING AGENT iteration_80: frontend 100% (array estándar y deslizador por UI; rasgos faciales por code review). Sin issues.
+
+## Iter 129 — Fixes ficha + yelmos + retrato (Jun 2026)
+- (A) Comida: `inventoryProvisions.js` diasComidaTotal = raciones/RACIONES_POR_DIA + otherFoodKg.
+  Antes solo masa → 0 días con raciones peso_kg=null. Verificado: 10 raciones → 10 días.
+- (B) Yelmos: nueva categoría 'yelmos' en catálogo (backend all_keys + seed 4 ítems) y en
+  EquipmentSection (Armaduras → 'Yelmos y Cascos'). Cofia cuero/mallas, Yelmo abierto, Gran Yelmo.
+- (C) Código en hoja oficial: SheetPage1 codigo_publico x:1310 width:420 fontSize:21 (antes se cortaba).
+- (D) Retrato: CharacterHeader modal de previsualización GRANDE (portrait-preview-modal) al generar
+  borrador, con Guardar/Regenerar/Descartar; miniatura de borrador reabre el modal.
+- TESTING iteration_81: frontend 100% (4/4). Sin issues.
+- PENDIENTE (a confirmar): auto-equipar ropa al crear + sistema de ranuras corporales e
+  incompatibilidad de armaduras (solapamiento).
