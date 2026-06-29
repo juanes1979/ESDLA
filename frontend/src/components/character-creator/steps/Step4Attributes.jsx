@@ -35,9 +35,11 @@ const rollAttribute = () => {
 const Step4Attributes = ({ draftId, draft, onComplete, onBack }) => {
   const [method, setMethod] = useState('standard_array');
   
-  // Standard array: track which scores are assigned to which attributes
+  // Standard array & dice-roll: track which scores are assigned to which attributes
   const [standardAssignments, setStandardAssignments] = useState({});
   const [selectedSlot, setSelectedSlot] = useState(null);
+  // Reserva de 6 valores tirados (4d6 descarta menor) para el método 'random'
+  const [rolledPool, setRolledPool] = useState([]);
   
   // Point buy attributes
   const [pointBuyAttributes, setPointBuyAttributes] = useState({
@@ -49,9 +51,9 @@ const Step4Attributes = ({ draftId, draft, onComplete, onBack }) => {
     carisma: 8,
   });
   
-  // Random roll attributes
-  const [randomAttributes, setRandomAttributes] = useState(null);
-  
+  // Random roll: pool of 6 rolled values (assigned via selección, igual que la matriz)
+  const rollPool = () => Array(6).fill(0).map(() => rollAttribute()).sort((a, b) => b - a);
+
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
 
@@ -60,7 +62,7 @@ const Step4Attributes = ({ draftId, draft, onComplete, onBack }) => {
 
   // Get current attributes based on method
   const getCurrentAttributes = useCallback(() => {
-    if (method === 'standard_array') {
+    if (method === 'standard_array' || method === 'random') {
       const attrs = { fuerza: 8, destreza: 8, constitucion: 8, inteligencia: 8, sabiduria: 8, carisma: 8 };
       Object.entries(standardAssignments).forEach(([attrKey, score]) => {
         attrs[attrKey] = score;
@@ -68,17 +70,24 @@ const Step4Attributes = ({ draftId, draft, onComplete, onBack }) => {
       return attrs;
     } else if (method === 'point_buy') {
       return pointBuyAttributes;
-    } else if (method === 'random' && randomAttributes) {
-      return randomAttributes;
     }
     return { fuerza: 10, destreza: 10, constitucion: 10, inteligencia: 10, sabiduria: 10, carisma: 10 };
-  }, [method, standardAssignments, pointBuyAttributes, randomAttributes]);
+  }, [method, standardAssignments, pointBuyAttributes]);
 
-  // Get available scores for standard array
+  // Valores disponibles para asignar. La matriz estándar tiene valores únicos;
+  // los dados pueden repetir, así que descontamos como multiconjunto.
   const getAvailableScores = useCallback(() => {
-    const usedScores = Object.values(standardAssignments);
-    return STANDARD_ARRAY.filter(score => !usedScores.includes(score));
-  }, [standardAssignments]);
+    const used = Object.values(standardAssignments);
+    if (method === 'random') {
+      const remaining = [...rolledPool];
+      used.forEach(v => {
+        const idx = remaining.indexOf(v);
+        if (idx !== -1) remaining.splice(idx, 1);
+      });
+      return remaining.sort((a, b) => b - a);
+    }
+    return STANDARD_ARRAY.filter(score => !used.includes(score));
+  }, [method, standardAssignments, rolledPool]);
 
   // Point buy calculations
   const pointBuySpent = Object.values(pointBuyAttributes).reduce(
@@ -90,10 +99,9 @@ const Step4Attributes = ({ draftId, draft, onComplete, onBack }) => {
   const handleMethodChange = (newMethod) => {
     setMethod(newMethod);
     setSelectedSlot(null);
-    
-    if (newMethod === 'standard_array') {
-      setStandardAssignments({});
-    } else if (newMethod === 'point_buy') {
+    setStandardAssignments({});
+
+    if (newMethod === 'point_buy') {
       setPointBuyAttributes({
         fuerza: 8,
         destreza: 8,
@@ -103,31 +111,19 @@ const Step4Attributes = ({ draftId, draft, onComplete, onBack }) => {
         carisma: 8,
       });
     } else if (newMethod === 'random') {
-      // Roll new attributes
-      setRandomAttributes({
-        fuerza: rollAttribute(),
-        destreza: rollAttribute(),
-        constitucion: rollAttribute(),
-        inteligencia: rollAttribute(),
-        sabiduria: rollAttribute(),
-        carisma: rollAttribute(),
-      });
+      // Tira una reserva nueva de 6 valores para asignar
+      setRolledPool(rollPool());
     }
   };
 
-  // Reroll random attributes
+  // Reroll random pool (resetea las asignaciones)
   const handleReroll = () => {
-    setRandomAttributes({
-      fuerza: rollAttribute(),
-      destreza: rollAttribute(),
-      constitucion: rollAttribute(),
-      inteligencia: rollAttribute(),
-      sabiduria: rollAttribute(),
-      carisma: rollAttribute(),
-    });
+    setRolledPool(rollPool());
+    setStandardAssignments({});
+    setSelectedSlot(null);
   };
 
-  // Handle standard array assignment
+  // Handle assignment (matriz estándar y dados)
   const handleAssignScore = (score) => {
     if (!selectedSlot) return;
     
@@ -138,7 +134,7 @@ const Step4Attributes = ({ draftId, draft, onComplete, onBack }) => {
     setSelectedSlot(null);
   };
 
-  // Remove assignment from standard array
+  // Remove assignment
   const handleRemoveAssignment = (attrKey) => {
     setStandardAssignments(prev => {
       const newAssignments = { ...prev };
@@ -182,12 +178,10 @@ const Step4Attributes = ({ draftId, draft, onComplete, onBack }) => {
 
   // Check if complete
   const isComplete = () => {
-    if (method === 'standard_array') {
+    if (method === 'standard_array' || method === 'random') {
       return Object.keys(standardAssignments).length === 6;
     } else if (method === 'point_buy') {
       return pointBuyRemaining >= 0;
-    } else if (method === 'random') {
-      return randomAttributes !== null;
     }
     return false;
   };
@@ -263,15 +257,17 @@ const Step4Attributes = ({ draftId, draft, onComplete, onBack }) => {
         ))}
       </div>
 
-      {/* Standard Array - Available Scores */}
-      {method === 'standard_array' && (
+      {/* Standard Array & Dados - Available Scores */}
+      {(method === 'standard_array' || method === 'random') && (
         <div className="card-parchment rounded-lg p-4">
           <p className="text-sm text-muted-foreground mb-3 text-center">
             {selectedSlot 
               ? `Selecciona un valor para ${ATTRIBUTES.find(a => a.key === selectedSlot)?.name}:`
-              : 'Haz clic en un atributo y luego en un valor para asignarlo'}
+              : (method === 'random'
+                  ? 'Tus 6 tiradas (4d6 descarta menor). Haz clic en un atributo y luego en un valor para asignarlo'
+                  : 'Haz clic en un atributo y luego en un valor para asignarlo')}
           </p>
-          <div className="flex justify-center gap-3">
+          <div className="flex justify-center gap-3 flex-wrap">
             {availableScores.length > 0 ? (
               availableScores.map((score, i) => (
                 <button
@@ -334,13 +330,14 @@ const Step4Attributes = ({ draftId, draft, onComplete, onBack }) => {
           const totalValue = baseValue + cultureMod;
           const modifier = getModifier(totalValue);
           const isSelected = selectedSlot === attr.key;
-          const isAssigned = method === 'standard_array' && standardAssignments[attr.key] !== undefined;
+          const isAssignable = method === 'standard_array' || method === 'random';
+          const isAssigned = isAssignable && standardAssignments[attr.key] !== undefined;
 
           return (
             <div
               key={attr.key}
               onClick={() => {
-                if (method === 'standard_array') {
+                if (isAssignable) {
                   if (isAssigned) {
                     handleRemoveAssignment(attr.key);
                   } else {
@@ -350,7 +347,7 @@ const Step4Attributes = ({ draftId, draft, onComplete, onBack }) => {
               }}
               className={cn(
                 'stat-box p-4 transition-all',
-                method === 'standard_array' && 'cursor-pointer hover:border-[hsl(var(--gold))/50]',
+                isAssignable && 'cursor-pointer hover:border-[hsl(var(--gold))/50]',
                 isSelected && 'border-[hsl(var(--gold))] ring-2 ring-[hsl(var(--gold))/30]',
                 isAssigned && 'border-[hsl(var(--magic-blue))/50]'
               )}
@@ -386,7 +383,7 @@ const Step4Attributes = ({ draftId, draft, onComplete, onBack }) => {
                   <p className="stat-modifier">
                     Total: {totalValue} ({formatModifier(modifier)})
                   </p>
-                  {method === 'standard_array' && isAssigned && (
+                  {isAssignable && isAssigned && (
                     <p className="text-xs text-[hsl(var(--magic-blue))] mt-1">
                       (clic para quitar)
                     </p>
