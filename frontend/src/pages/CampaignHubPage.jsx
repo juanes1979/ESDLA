@@ -29,6 +29,10 @@ import {
   EyeOff,
   ScrollText,
   Swords,
+  UserPlus,
+  Send,
+  Clock,
+  XCircle,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import {
@@ -45,6 +49,10 @@ import {
   listCampaignListings,
   getXpStats,
   revealText,
+  listAvailablePlayers,
+  createInvitation,
+  sentInvitations,
+  cancelInvitation,
 } from '@/services/api';
 import { Button } from '@/components/ui/button';
 import RuneIgniteOverlay from '@/components/adventures/RuneIgniteOverlay';
@@ -399,10 +407,25 @@ const ORIGIN_LABEL = {
   invitation: 'invitación',
 };
 
-const PlayersTab = ({ players, onAct, igniteId, onAwardXP }) => {
+const INV_STATUS_BADGE = {
+  pending: 'bg-amber-700/70 text-amber-100',
+  accepted: 'bg-emerald-700/70 text-emerald-100',
+  rejected: 'bg-rose-900/70 text-rose-200',
+  expired: 'bg-stone-700/70 text-stone-300',
+  cancelled: 'bg-stone-700/70 text-stone-300',
+};
+
+const PlayersTab = ({ players, onAct, igniteId, onAwardXP, availablePlayers, sentInvites, onInvite, onCancelInvite, invitingId }) => {
   const pending = players.filter((p) => p.status === 'pending');
   const accepted = players.filter((p) => p.status === 'accepted');
   const closed = players.filter((p) => !['pending', 'accepted'].includes(p.status));
+
+  // Hide players who already have a pending invitation or are already in the run.
+  const busyUserChars = new Set(players.filter((p) => ['pending', 'accepted'].includes(p.status)).map((p) => p.character_id));
+  const pendingInvChars = new Set((sentInvites || []).filter((i) => i.status === 'pending').map((i) => i.character_id));
+  const invitable = (availablePlayers || []).filter(
+    (a) => !busyUserChars.has(a.character_id) && !pendingInvChars.has(a.character_id),
+  );
 
   const renderRow = (p, showAccept = false, showReject = false, showExpel = false, showXP = false) => (
     <div
@@ -486,6 +509,72 @@ const PlayersTab = ({ players, onAct, igniteId, onAwardXP }) => {
 
   return (
     <div className="space-y-4" data-testid="players-tab">
+      {/* Invitar jugadores disponibles */}
+      <Section
+        title={`Invitar jugadores disponibles${invitable.length > 0 ? ` (${invitable.length})` : ''}`}
+        testid="section-invitable"
+      >
+        {invitable.length === 0 ? (
+          <p className="text-sm text-gray-500 italic">
+            — no hay jugadores con personaje marcado como "disponible" ahora mismo —
+          </p>
+        ) : (
+          <div className="space-y-2">
+            {invitable.map((a) => (
+              <div key={a.character_id} className="flex items-center justify-between gap-3 flex-wrap rounded border border-amber-800/30 bg-black/40 p-3" data-testid={`invitable-${a.character_id}`}>
+                <div className="min-w-0 flex-1">
+                  <div className="text-amber-200 font-medium">
+                    {a.character_name || '(personaje)'}{' '}
+                    <span className="text-xs text-amber-300/60">· nivel {a.character_level ?? '?'}</span>
+                  </div>
+                  <div className="text-xs text-amber-300/60">
+                    Jugador: {a.user_name || '—'}{a.character_culture && <> · {a.character_culture}</>}
+                  </div>
+                </div>
+                <Button
+                  size="sm"
+                  onClick={() => onInvite(a)}
+                  disabled={invitingId === a.character_id}
+                  data-testid={`invite-player-${a.character_id}`}
+                  className="bg-amber-700 hover:bg-amber-600 text-amber-50"
+                >
+                  {invitingId === a.character_id ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> : <UserPlus className="w-3.5 h-3.5 mr-1" />}
+                  Invitar
+                </Button>
+              </div>
+            ))}
+          </div>
+        )}
+      </Section>
+
+      {/* Invitaciones enviadas */}
+      {(sentInvites || []).length > 0 && (
+        <Section title={`Invitaciones enviadas (${sentInvites.length})`} testid="section-sent-invites">
+          <div className="space-y-2">
+            {sentInvites.map((i) => (
+              <div key={i.id} className="flex items-center justify-between gap-3 flex-wrap rounded border border-amber-800/30 bg-black/40 p-3" data-testid={`sent-invite-${i.id}`}>
+                <div className="min-w-0 flex-1">
+                  <div className="text-amber-200 text-sm">
+                    <Send className="w-3.5 h-3.5 inline mr-1 text-amber-300/70" />
+                    {i.character_name || i.target_user_name || 'Jugador'}
+                    {i.character_name && i.target_user_name && <span className="text-xs text-amber-300/60"> · {i.target_user_name}</span>}
+                  </div>
+                </div>
+                <span className={`text-xs px-2 py-0.5 rounded ${INV_STATUS_BADGE[i.status] || 'bg-stone-700/70 text-stone-200'}`}>
+                  {i.status === 'pending' && <Clock className="w-3 h-3 inline mr-1" />}
+                  {i.status}
+                </span>
+                {i.status === 'pending' && (
+                  <Button size="sm" variant="outline" onClick={() => onCancelInvite(i)} data-testid={`cancel-invite-${i.id}`} className="border-rose-700/50 text-rose-200 hover:bg-rose-900/30">
+                    <XCircle className="w-3.5 h-3.5 mr-1" /> Cancelar
+                  </Button>
+                )}
+              </div>
+            ))}
+          </div>
+        </Section>
+      )}
+
       <Section
         title={
           <>
@@ -568,6 +657,9 @@ const CampaignHubPage = () => {
   const [xpStats, setXpStats] = useState(null);
   const [togglingPresentation, setTogglingPresentation] = useState(false);
   const [togglingEventId, setTogglingEventId] = useState(null);
+  const [availablePlayers, setAvailablePlayers] = useState([]);
+  const [sentInvites, setSentInvites] = useState([]);
+  const [invitingId, setInvitingId] = useState(null);
 
   const reload = async () => {
     try {
@@ -584,6 +676,9 @@ const CampaignHubPage = () => {
       setLog(l);
       setPlayers(p);
       setXpStats(xs);
+      // Available players to invite + invitations already sent (DJ-side).
+      listAvailablePlayers().then(setAvailablePlayers).catch(() => setAvailablePlayers([]));
+      sentInvitations().then((all) => setSentInvites((all || []).filter((i) => i.campaign_run_id === id))).catch(() => setSentInvites([]));
       // find listing for THIS run (if any)
       const mine = (lst || []).find((x) => x.campaign_run_id === id);
       setListing(mine || null);
@@ -716,6 +811,33 @@ const CampaignHubPage = () => {
     try {
       await deleteCampaignListing(listing.id);
       toast.success('Campaña retirada del tablón');
+      await reload();
+    } catch (err) {
+      toast.error(err?.response?.data?.detail || 'Error');
+    }
+  };
+
+  const handleInvite = async (avail) => {
+    setInvitingId(avail.character_id);
+    try {
+      await createInvitation({
+        campaign_run_id: id,
+        target_user_id: avail.user_id,
+        character_id: avail.character_id,
+      });
+      toast.success(`Invitación enviada a ${avail.character_name || avail.user_name}`);
+      await reload();
+    } catch (err) {
+      toast.error(err?.response?.data?.detail || 'No se pudo invitar');
+    } finally {
+      setInvitingId(null);
+    }
+  };
+
+  const handleCancelInvite = async (inv) => {
+    try {
+      await cancelInvitation(inv.id);
+      toast.message('Invitación cancelada');
       await reload();
     } catch (err) {
       toast.error(err?.response?.data?.detail || 'Error');
@@ -855,6 +977,11 @@ const CampaignHubPage = () => {
             onAct={handlePlayerAct}
             igniteId={igniteId}
             onAwardXP={(p) => setAwardingFor(p)}
+            availablePlayers={availablePlayers}
+            sentInvites={sentInvites}
+            onInvite={handleInvite}
+            onCancelInvite={handleCancelInvite}
+            invitingId={invitingId}
           />
         )}
         {tab === 'log' && <LogTab log={log} />}

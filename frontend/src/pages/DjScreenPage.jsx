@@ -19,7 +19,7 @@ import {
 import { toast } from 'sonner';
 import {
   getDjScreen, saveDjScreen, syncDjPlayers,
-  getDjChat, postDjChat, getDjChatPeers,
+  getDjChat, postDjChat, getDjChatPeers, getBestiary,
 } from '@/services/api';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/context/AuthContext';
@@ -279,12 +279,19 @@ const DjScreenPage = () => {
   const [channels, setChannels] = useState([{ channel: 'group', label: 'Grupo' }]);
   const [syncing, setSyncing] = useState(false);
   const [savingFlag, setSavingFlag] = useState(false);
+  const [notesPending, setNotesPending] = useState(false);
   const notesTimer = useRef(null);
   const screenRef = useRef(null);
   useEffect(() => { screenRef.current = screen; }, [screen]);
 
   // Enemy add form
   const [enemy, setEnemy] = useState({ name: '', hp_max: 10, ac: 12, initiative: 0 });
+  // Bestiary picker
+  const [showBestiary, setShowBestiary] = useState(false);
+  const [bestiaryCat, setBestiaryCat] = useState('malignos');
+  const [bestiarySearch, setBestiarySearch] = useState('');
+  const [bestiaryResults, setBestiaryResults] = useState([]);
+  const [bestiaryLoading, setBestiaryLoading] = useState(false);
 
   const toPayload = (s) => ({
     scene_image_file_id: s.scene_image_file_id || null,
@@ -353,13 +360,39 @@ const DjScreenPage = () => {
 
   const onNotesChange = (val) => {
     setScreen((s) => ({ ...s, notes_private: val }));
+    setNotesPending(true);
     if (notesTimer.current) clearTimeout(notesTimer.current);
     notesTimer.current = setTimeout(() => {
       // Build payload from the LATEST state (ref) so a concurrent combat
       // update isn't clobbered by a stale closure.
-      saveDjScreen(id, toPayload({ ...(screenRef.current || {}), notes_private: val })).catch(() => {});
+      saveDjScreen(id, toPayload({ ...(screenRef.current || {}), notes_private: val }))
+        .catch(() => {})
+        .finally(() => setNotesPending(false));
     }, 800);
   };
+
+  // Hay trabajo a medio hacer / guardado en vuelo → avisar al salir.
+  const hasPendingWork = canEdit && (savingFlag || notesPending || !!enemy.name.trim());
+
+  const handleBack = () => {
+    if (hasPendingWork) {
+      const ok = window.confirm(
+        'Tienes algo sin guardar o a medio crear (notas, enemigo sin añadir o un guardado en curso). ¿Seguro que quieres salir? Se perderá lo no guardado.',
+      );
+      if (!ok) return;
+    }
+    navigate(-1);
+  };
+
+  useEffect(() => {
+    const beforeUnload = (e) => {
+      if (!hasPendingWork) return;
+      e.preventDefault();
+      e.returnValue = '';
+    };
+    window.addEventListener('beforeunload', beforeUnload);
+    return () => window.removeEventListener('beforeunload', beforeUnload);
+  }, [hasPendingWork]);
 
   const updateCombatant = (next) =>
     persist({ ...screen, combatants: screen.combatants.map((c) => (c.id === next.id ? next : c)) });
@@ -381,6 +414,36 @@ const DjScreenPage = () => {
 
   const sortByInit = () =>
     persist({ ...screen, combatants: [...screen.combatants].sort((a, b) => b.initiative - a.initiative), current_turn_index: 0 });
+
+  // ---- Bestiary picker ----
+  const loadBestiary = useCallback(async () => {
+    setBestiaryLoading(true);
+    try {
+      const data = await getBestiary(bestiaryCat, bestiarySearch || null);
+      // /data/npcs returns either a grouped dict or a flat list.
+      let list = [];
+      if (Array.isArray(data)) list = data;
+      else if (data && typeof data === 'object') list = data[bestiaryCat] || Object.values(data).flat();
+      setBestiaryResults(list);
+    } catch { setBestiaryResults([]); }
+    finally { setBestiaryLoading(false); }
+  }, [bestiaryCat, bestiarySearch]);
+
+  useEffect(() => {
+    if (showBestiary) loadBestiary();
+  }, [showBestiary, loadBestiary]);
+
+  const addFromBestiary = (npc) => {
+    const hp = parseInt(npc.puntos_golpe || npc.pg || 0, 10) || 1;
+    const c = {
+      id: uid(), name: npc.nombre || 'Criatura', type: 'enemy', character_id: null,
+      initiative: 0, hp_current: hp, hp_max: hp,
+      ac: parseInt(npc.clase_armadura || npc.ca || 10, 10) || 10,
+      conditions: [], notes: npc.categoria ? `Bestiario: ${npc.categoria}` : null, has_portrait: false,
+    };
+    persist({ ...screen, combatants: [...screen.combatants, c] });
+    toast.success(`${c.name} añadido al combate`);
+  };
 
   const handleSync = async () => {
     setSyncing(true);
@@ -440,7 +503,7 @@ const DjScreenPage = () => {
       {/* Top bar */}
       <div className="sticky top-0 z-20 bg-black/85 backdrop-blur-md border-b border-amber-700/40 px-4 py-2.5 flex items-center justify-between gap-3 flex-wrap">
         <div className="flex items-center gap-2 min-w-0">
-          <Button variant="ghost" size="sm" onClick={() => navigate(-1)} className="text-amber-200 hover:bg-amber-900/30" data-testid="dj-back-btn">
+          <Button variant="ghost" size="sm" onClick={handleBack} className="text-amber-200 hover:bg-amber-900/30" data-testid="dj-back-btn">
             <ArrowLeft className="w-4 h-4 mr-1" /> Volver
           </Button>
           <div className="min-w-0">
@@ -572,7 +635,8 @@ const DjScreenPage = () => {
                   <label className="text-[10px] text-stone-400">CA<input type="number" value={enemy.ac} onChange={(e) => setEnemy({ ...enemy, ac: e.target.value })} className="w-full bg-black/40 rounded px-1 py-0.5 text-sm text-center outline-none" data-testid="enemy-ac-input" /></label>
                   <label className="text-[10px] text-stone-400">Init<input type="number" value={enemy.initiative} onChange={(e) => setEnemy({ ...enemy, initiative: e.target.value })} className="w-full bg-black/40 rounded px-1 py-0.5 text-sm text-center outline-none" data-testid="enemy-init-input" /></label>
                 </div>
-                <Button size="sm" onClick={addEnemy} className="w-full bg-rose-700 hover:bg-rose-600 text-rose-50 h-7 text-xs" data-testid="add-enemy-btn"><Plus className="w-3.5 h-3.5 mr-1" /> Añadir</Button>
+                <Button size="sm" onClick={addEnemy} className="w-full bg-rose-700 hover:bg-rose-600 text-rose-50 h-7 text-xs" data-testid="add-enemy-btn"><Plus className="w-3.5 h-3.5 mr-1" /> Añadir manual</Button>
+                <Button size="sm" variant="outline" onClick={() => setShowBestiary(true)} className="w-full border-rose-700/50 text-rose-200 hover:bg-rose-900/30 h-7 text-xs mt-1" data-testid="open-bestiary-btn"><Skull className="w-3.5 h-3.5 mr-1" /> Del bestiario…</Button>
               </div>
             )}
 
@@ -592,6 +656,42 @@ const DjScreenPage = () => {
           </div>
         </div>
       </div>
+
+      {/* Bestiary picker modal */}
+      {showBestiary && (
+        <div className="fixed inset-0 z-[100] bg-black/80 flex items-center justify-center p-4" onClick={() => setShowBestiary(false)} data-testid="bestiary-modal">
+          <div className="bg-zinc-900 rounded-xl border border-rose-700/40 p-4 max-w-lg w-full max-h-[85vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="font-heading text-lg text-rose-300 flex items-center gap-2"><Skull className="w-5 h-5" /> Bestiario</h3>
+              <button onClick={() => setShowBestiary(false)} className="text-stone-400 hover:text-white" data-testid="bestiary-close"><X className="w-5 h-5" /></button>
+            </div>
+            <div className="flex gap-2 mb-2">
+              <select value={bestiaryCat} onChange={(e) => setBestiaryCat(e.target.value)} className="bg-black/50 rounded px-2 py-1.5 text-sm text-amber-100 outline-none border border-amber-900/30" data-testid="bestiary-category">
+                <option value="malignos">Malignos</option>
+                <option value="pnj">PNJ</option>
+                <option value="animales">Animales</option>
+                <option value="especiales">Especiales</option>
+              </select>
+              <input value={bestiarySearch} onChange={(e) => setBestiarySearch(e.target.value)} placeholder="Buscar…" className="flex-1 bg-black/50 rounded px-2 py-1.5 text-sm text-amber-100 placeholder-amber-500/30 outline-none border border-amber-900/30" data-testid="bestiary-search" />
+            </div>
+            <div className="flex-1 overflow-y-auto space-y-1.5 pr-1">
+              {bestiaryLoading && <div className="text-center py-6"><Loader2 className="w-6 h-6 animate-spin text-rose-400 mx-auto" /></div>}
+              {!bestiaryLoading && bestiaryResults.length === 0 && <p className="text-sm text-stone-500 italic text-center py-6">— sin resultados —</p>}
+              {!bestiaryLoading && bestiaryResults.map((npc) => (
+                <button key={npc.id} onClick={() => addFromBestiary(npc)} className="w-full text-left rounded border border-rose-800/30 bg-rose-950/10 hover:bg-rose-900/30 p-2 flex items-center justify-between gap-2 transition-colors" data-testid={`bestiary-item-${npc.id}`}>
+                  <span className="text-sm text-amber-100 font-medium truncate">{npc.nombre}</span>
+                  <span className="text-xs text-stone-300 shrink-0 flex items-center gap-2">
+                    <span className="text-sky-300"><Shield className="w-3 h-3 inline" /> {npc.clase_armadura ?? '—'}</span>
+                    <span className="text-rose-300"><Heart className="w-3 h-3 inline" /> {npc.puntos_golpe ?? '—'}</span>
+                    <Plus className="w-3.5 h-3.5 text-emerald-400" />
+                  </span>
+                </button>
+              ))}
+            </div>
+            <p className="text-[11px] text-stone-500 mt-2">Pulsa una criatura para añadirla al rastreador con sus PG/CA.</p>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

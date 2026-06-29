@@ -583,3 +583,17 @@ Aplica una transacción YA negociada al personaje (reutiliza endpoints de equipo
   `enter-screen-<id>` en `MyCampaignsPage` para jugadores aceptados (campaña activa/pausada).
 - TESTING AGENT iteration_88: backend 9/9 PASS, frontend 100%. Sin incidencias.
   Datos de prueba (run de QA) eliminados tras validar.
+
+## Iter 131 — Pantalla del DJ Fase A (Jun 2026)
+- **Pestaña Jugadores → Invitar:** en `CampaignHubPage` el DJ ve "Invitar jugadores
+  disponibles" (`/player-availability`), botón Invitar (`createInvitation`), y sección
+  "Invitaciones enviadas" con estado y cancelar. Filtra a los ya invitados/en campaña.
+- **Pantalla DJ → Del bestiario:** botón `open-bestiary-btn` abre modal `bestiary-modal`
+  con filtro de categoría (malignos/pnj/animales/especiales) + búsqueda (`/data/npcs`);
+  al pulsar una criatura se añade al rastreador con sus PG/CA.
+- **Aviso de salida:** guard en `DjScreenPage` (botón Volver + beforeunload) que avisa solo
+  si hay trabajo a medio hacer (notas en debounce, guardado en curso o enemigo sin añadir).
+- Verificado por captura: invitar (toast + lista enviadas), bestiario (38 criaturas, añade
+  Atracador), retrato y tracker. Campaña demo creada (código K7Q9NKFR) para el usuario.
+- PENDIENTE Fase B: cajón lateral en la Pantalla del DJ con acceso sin recargar a
+  Bestiario/PNJ/Tienda/Equipo/Sombra (a priorizar con el usuario).
