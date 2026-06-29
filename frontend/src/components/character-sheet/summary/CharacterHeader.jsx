@@ -11,7 +11,7 @@
  *       - "Regenerar" → vuelve a llamar a la IA y reemplaza el borrador.
  */
 import { useState } from 'react';
-import { Loader2, RefreshCw, ImageIcon, Save, X, Lock, Maximize2 } from 'lucide-react';
+import { Loader2, RefreshCw, ImageIcon, Save, X, Maximize2 } from 'lucide-react';
 import { LevelUpButton } from '@/components/LevelUpModal';
 import { toast } from 'sonner';
 import api from '@/services/api';
@@ -25,11 +25,10 @@ const CharacterHeader = ({ character, onLevelUp, onUpdate }) => {
   const [saving, setSaving] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
 
-  const isLocked = !!character?.portrait_locked;
   const displayedImage = draftPortrait || character?.portrait_image || null;
 
   const generatePortrait = async () => {
-    if (!character?.id || isLocked) return;
+    if (!character?.id) return;
     setError(null);
     setGenerating(true);
     setProgress(0);
@@ -138,39 +137,42 @@ const CharacterHeader = ({ character, onLevelUp, onUpdate }) => {
               </div>
             )}
 
-            {/* Overlay: si está bloqueado muestra candado, si no botón regenerar */}
-            {isLocked && !draftPortrait ? (
-              <div
-                className="absolute -bottom-1 -right-1 bg-[hsl(var(--gold))/80] rounded-full p-1 ring-1 ring-[hsl(var(--gold))]"
-                title="Retrato bloqueado (definitivo)"
-                data-testid="character-portrait-locked-icon"
-              >
-                <Lock className="w-3 h-3 text-black" />
-              </div>
-            ) : (
-              <button
-                onClick={generatePortrait}
-                disabled={generating || saving}
-                className="absolute inset-0 bg-black/60 rounded-full opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center disabled:opacity-100 disabled:bg-black/70"
-                title={
-                  draftPortrait
-                    ? 'Regenerar retrato (borrador)'
-                    : (character.portrait_image ? 'Generar nuevo retrato' : 'Generar retrato con IA')
-                }
-                data-testid="character-regen-portrait-btn"
-              >
-                {generating ? (
-                  <Loader2 className="w-6 h-6 animate-spin text-white" />
-                ) : draftPortrait ? (
-                  <RefreshCw className="w-6 h-6 text-white" />
-                ) : character.portrait_image ? (
-                  <RefreshCw className="w-6 h-6 text-white" />
-                ) : (
-                  <ImageIcon className="w-6 h-6 text-white" />
-                )}
-              </button>
-            )}
+            {/* Botón regenerar (siempre disponible). Si el retrato estaba
+                marcado como definitivo, igualmente se puede cambiar. */}
+            <button
+              onClick={generatePortrait}
+              disabled={generating || saving}
+              className="absolute inset-0 bg-black/60 rounded-full opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center disabled:opacity-100 disabled:bg-black/70"
+              title={
+                draftPortrait
+                  ? 'Regenerar retrato (borrador)'
+                  : (character.portrait_image ? 'Cambiar retrato' : 'Generar retrato con IA')
+              }
+              data-testid="character-regen-portrait-btn"
+            >
+              {generating ? (
+                <Loader2 className="w-6 h-6 animate-spin text-white" />
+              ) : (character.portrait_image || draftPortrait) ? (
+                <RefreshCw className="w-6 h-6 text-white" />
+              ) : (
+                <ImageIcon className="w-6 h-6 text-white" />
+              )}
+            </button>
           </div>
+
+          {/* Botón visible (no depende del hover) para descubrir la acción. */}
+          {!draftPortrait && !generating && (
+            <button
+              onClick={generatePortrait}
+              disabled={saving}
+              className="flex items-center gap-1 text-[10px] px-2 py-1 rounded border border-[hsl(var(--gold))]/50 text-[hsl(var(--gold))] hover:bg-[hsl(var(--gold))]/10 disabled:opacity-60"
+              title={character.portrait_image ? 'Generar un nuevo retrato con IA' : 'Generar retrato con IA'}
+              data-testid="character-change-portrait-btn"
+            >
+              {character.portrait_image ? <RefreshCw className="w-3 h-3" /> : <ImageIcon className="w-3 h-3" />}
+              {character.portrait_image ? 'Cambiar retrato' : 'Generar retrato'}
+            </button>
+          )}
 
           {/* Estado: progreso, error o acciones de borrador */}
           {generating && (

@@ -1,0 +1,25 @@
+{
+  "summary": "Frontend-only e2e verification of the 'portrait locked' bug fix on character 'Regred Maggot' (c16a362d-9841-4954-8f70-0dfe02dfe303). Logged in as Maestro, opened the character sheet, confirmed the lock icon is gone, the visible 'Cambiar retrato' button is present, clicking it triggered POST /api/portraits/generate (200), the preview modal appeared with the new image, 'Guardar' fired PATCH /api/characters/{id} (200) with toast 'Retrato guardado en la ficha (definitivo).' On reload, the 'Cambiar retrato' button is still visible — the original bug no longer reproduces.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "CharacterHeader.jsx top-of-file docstring still says 'Si portrait_locked está activo, el retrato NO puede cambiarse (definitivo).' This contradicts the new behaviour (lock removed); update the comment to avoid confusing future maintainers.",
+    "saveDraft sends portrait_locked: true on every save, which re-introduces the legacy flag in the document. Since the UI no longer honours the lock anyway, consider sending portrait_locked: false (or omitting it) so DB state matches actual UX semantics.",
+    "Backfill suggestion: 8 existing characters still have portrait_locked=true in DB. They behave correctly with the new UI, but a one-off migration to clear the flag would keep data consistent."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a (skipped)", "frontend": "100%"},
+  "test_credentials": "Maestro elanillounico_tlotr@proton.me / 123456 (from /app/memory/test_credentials.md)",
+  "seed_data_creation": "None. Used existing locked character 'Regred Maggot'. NOTE: saving overwrote the existing portrait with a freshly AI-generated one (real GPT-Image-1 call consumed credits).",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Bug verified fixed end-to-end. The portrait-change flow works for a previously locked character: button visible without hover, generation succeeds in ~30s, preview modal saves via PATCH /api/characters/{id} (200), and the change-portrait button remains available after reload. Only follow-up is the stale docstring + the portrait_locked:true still being written on save (cosmetic/DB consistency).",
+  "rca of the issue": "Original bug: CharacterHeader showed a permanent padlock and short-circuited generatePortrait when character.portrait_locked was true, so 8 legacy characters could never change their portrait. Fix removes the lock check in generatePortrait, replaces the padlock UI with an always-present overlay button (character-regen-portrait-btn) plus a hover-independent visible button (character-change-portrait-btn labelled 'Cambiar retrato' when an image already exists). Verified live: lock icon gone, button visible & clickable, POST /api/portraits/generate fires, preview modal appears, Guardar persists via PATCH (200) and the button is still available after reload."
+}
