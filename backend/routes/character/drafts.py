@@ -850,31 +850,19 @@ async def finalize_character(draft_id: str, user: dict = Depends(get_current_use
     else:
         character.setdefault("monturas", [])
 
-    # Auto-equipar la ropa al crear (para que el personaje no aparezca "desnudo").
-    # Activa una pieza por cada posición corporal distinta; las piezas sin
-    # posición definida se equipa solo la primera (p. ej. una de varias mudas).
-    def _auto_equipar_ropa(lista):
-        if not isinstance(lista, list):
-            return
-        pos_equipadas = set()
-        sin_pos_equipada = False
-        for it in lista:
-            if not isinstance(it, dict):
-                continue
-            if (it.get("categoria") or "").lower() != "ropa":
-                continue
-            pos = (it.get("posicion") or "").lower()
-            if pos:
-                if pos in pos_equipadas:
-                    continue
-                pos_equipadas.add(pos)
-            else:
-                if sin_pos_equipada:
-                    continue
-                sin_pos_equipada = True
-            it["activa"] = True
-    _auto_equipar_ropa(character.get("inventario"))
-    _auto_equipar_ropa(character.get("equipo_trasfondo"))
+    # Enriquecer el equipo desde el catálogo (categoria / peso_kg / posicion /
+    # ropa_complementaria) y auto-equipar la ropa para que el personaje no
+    # aparezca "desnudo" ni con pesos a 0.
+    from utils.equipment_enrich import build_catalog_index, enrich_items, auto_equip_ropa
+    try:
+        catalogo = await db.equipment_catalog.find_one({"_id": "main"}) or await db.equipment_catalog.find_one({})
+        cat_index = build_catalog_index(catalogo or {})
+        for _k in ("inventario", "equipo_trasfondo", "equipo_ocupacion", "equipo"):
+            enrich_items(character.get(_k), cat_index)
+        auto_equip_ropa(character.get("inventario"))
+        auto_equip_ropa(character.get("equipo_trasfondo"))
+    except Exception as exc:
+        logger.warning(f"[finalize_character] aviso: no se pudo enriquecer/auto-equipar el equipo: {exc}")
 
     await db.characters.insert_one(character)
     await db.character_drafts.delete_one({"_id": draft_id})

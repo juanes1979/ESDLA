@@ -727,12 +727,19 @@ def _grupo_exclusivo(item, source: str):
         return None
     cat = (item.get("categoria") or "").lower()
     pos = (item.get("posicion") or "").lower()
+    # La ropa complementaria (capas, pieles sueltas…) NO es exclusiva: se lleva
+    # SOBRE otra prenda, así que nunca desactiva ni se desactiva.
+    if cat == "ropa" and item.get("ropa_complementaria"):
+        return None
     if cat in _ARMADURA_CORPORAL:
         return "armadura_corporal"
     if cat == "yelmos" or pos == "cabeza":
         return "cabeza"
     if cat == "escudos":
         return "escudo"
+    # Ropa normal (base): una prenda por posición corporal.
+    if cat == "ropa":
+        return f"ropa_{pos or 'cuerpo'}"
     return None
 
 

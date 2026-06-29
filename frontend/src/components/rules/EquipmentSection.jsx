@@ -1654,6 +1654,19 @@ const ItemEditorModal = ({ item, setItem, onSave, onClose, saving, availableRegi
                     </select>
                   </div>
                 )}
+                {esCorporal && (item.categoria || '').toLowerCase() === 'ropa' && (
+                  <label className="flex items-center gap-3 cursor-pointer" htmlFor="ed-ropa-comp">
+                    <Checkbox
+                      id="ed-ropa-comp"
+                      checked={item.ropa_complementaria === true}
+                      onCheckedChange={(v) => updateField('ropa_complementaria', !!v)}
+                      data-testid="field-ropa-complementaria"
+                    />
+                    <span className="text-sm">
+                      Ropa complementaria <span className="text-xs text-muted-foreground italic">(se puede llevar SOBRE otra prenda — p. ej. una capa o pieles, sin sustituir a la muda)</span>
+                    </span>
+                  </label>
+                )}
               </div>
             );
           })()}
