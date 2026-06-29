@@ -2,11 +2,12 @@
  * Character Summary - Final review before creation
  */
 import { useState } from 'react';
-import { Loader2, Edit2, Check, User, Sword, Shield, Heart, Star, Crown, ImageIcon, RefreshCw } from 'lucide-react';
+import { Loader2, Edit2, Check, User, Sword, Shield, Heart, Star, Crown, ImageIcon, RefreshCw, Dices, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { toast } from 'sonner';
 import api from '@/services/api';
+import { pickRandomFacialTraits } from '@/data/facialTraits';
 
 const getModifier = (score) => {
   const mod = Math.floor((score - 10) / 2);
@@ -18,6 +19,12 @@ const CharacterSummary = ({ draft, onFinalize, onEdit, loading, draftId }) => {
   const [generatingPortrait, setGeneratingPortrait] = useState(false);
   const [portraitProgress, setPortraitProgress] = useState(0);
   const [portraitError, setPortraitError] = useState(null);
+  // Rasgos faciales aleatorios (uno por zona) para dar variedad a la imagen IA.
+  const [facialTraits, setFacialTraits] = useState(() => pickRandomFacialTraits());
+  const updateTrait = (idx, value) =>
+    setFacialTraits((prev) => prev.map((t, i) => (i === idx ? { ...t, value } : t)));
+  const removeTrait = (idx) => setFacialTraits((prev) => prev.filter((_, i) => i !== idx));
+  const rerollTraits = () => setFacialTraits(pickRandomFacialTraits());
 
   // Generate character portrait using AI
   const generatePortrait = async () => {
@@ -49,6 +56,7 @@ const CharacterSummary = ({ draft, onFinalize, onEdit, loading, draftId }) => {
         color_ojos: draft.color_ojos || draft.ojos || '',
         color_pelo: draft.color_pelo || draft.pelo || '',
         rasgos_fisicos: draft.rasgos_fisicos || '',
+        rasgos_faciales: facialTraits.map((t) => t.value).filter(Boolean).join('; '),
         genero: draft.genero || draft.sexo || 'hombre',
       }, { timeout: 120000 }); // 2 min: gpt-image-1 puede tardar
 
@@ -300,6 +308,55 @@ const CharacterSummary = ({ draft, onFinalize, onEdit, loading, draftId }) => {
             </div>
           </div>
         )}
+
+        {/* Rasgos faciales aleatorios para la IA (editables) */}
+        <div className="mb-6 pb-6 border-b border-border" data-testid="facial-traits-box">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="font-heading text-base text-[hsl(var(--gold))] flex items-center gap-2">
+              <User className="w-4 h-4" />
+              Rasgos faciales para la imagen
+            </h3>
+            <Button
+              size="sm" variant="outline" onClick={rerollTraits}
+              className="text-xs border-purple-500/50 text-purple-400 hover:bg-purple-500/10"
+              data-testid="facial-traits-reroll-btn"
+            >
+              <Dices className="w-3 h-3 mr-1" /> Aleatorizar
+            </Button>
+          </div>
+          <p className="text-xs text-muted-foreground mb-3">
+            Se incorporan al retrato IA (junto con edad, subcultura, ojos, pelo…) para que los
+            personajes no se parezcan. Puedes editar o quitar cualquiera.
+          </p>
+          <div className="space-y-2">
+            {facialTraits.map((t, idx) => (
+              <div key={t.id} className="flex items-start gap-2" data-testid={`facial-trait-${t.id}`}>
+                <div className="flex-1">
+                  <label className="text-[11px] text-[hsl(var(--gold))]/80">{t.label}</label>
+                  <input
+                    type="text" value={t.value}
+                    onChange={(e) => updateTrait(idx, e.target.value)}
+                    className="w-full p-2 rounded bg-black/30 border border-border/50 text-sm"
+                    data-testid={`facial-trait-input-${t.id}`}
+                  />
+                </div>
+                <button
+                  onClick={() => removeTrait(idx)}
+                  className="mt-5 text-muted-foreground hover:text-red-400"
+                  title="Quitar este rasgo"
+                  data-testid={`facial-trait-remove-${t.id}`}
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            ))}
+            {facialTraits.length === 0 && (
+              <p className="text-xs text-muted-foreground italic">
+                Sin rasgos faciales. Pulsa «Aleatorizar» para generar nuevos.
+              </p>
+            )}
+          </div>
+        </div>
 
         {/* Attributes */}
         <div className="mb-6">

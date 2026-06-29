@@ -256,6 +256,21 @@ const Step1Culture = ({ draftId, draft, onComplete, onBack }) => {
   // Helper: Random in range
   const randomInRange = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
 
+  // Helper: Edad sesgada hacia la juventud.
+  //   sesgo = 0 → distribución plana (uniforme, sin balanceo).
+  //   sesgo = 3 → muy sesgada a la juventud.
+  // Mezcla una recta (uniforme) con una cúbica r^3 según el peso w = sesgo/3.
+  const edadSesgada = (min, max, sesgo = 2) => {
+    const lo = Number(min) || 18;
+    const hi = Number(max) || 80;
+    if (hi <= lo) return lo;
+    const s = Math.max(0, Math.min(3, sesgo == null ? 2 : Number(sesgo)));
+    const w = s / 3;
+    const r = Math.random();
+    const f = (1 - w) * r + w * r * r * r;
+    return Math.round(lo + (hi - lo) * f);
+  };
+
   // Generate all physical data when moving to sub-step 2
   const generatePhysicalData = async () => {
     if (!selectedCulture) return;
@@ -286,7 +301,7 @@ const Step1Culture = ({ draftId, draft, onComplete, onBack }) => {
     }
     
     // Generate physical attributes
-    const newEdad = randomInRange(selectedCulture.edad_min || 18, selectedCulture.edad_max || 80);
+    const newEdad = edadSesgada(selectedCulture.edad_min ?? 18, selectedCulture.edad_max ?? 80, selectedCulture.edad_sesgo ?? 2);
     const newAltura = randomInRange(selectedCulture.altura_min || 150, selectedCulture.altura_max || 200);
     
     // Calculate weight using IMC formula
@@ -1207,7 +1222,9 @@ const Step1Culture = ({ draftId, draft, onComplete, onBack }) => {
                     className="w-full p-2 rounded bg-black/30 border border-border/50 text-center text-xl font-heading"
                   >
                     <option value="">--</option>
-                    {STANDARD_ARRAY.map((val) => (
+                    {STANDARD_ARRAY.filter((val) =>
+                      !Object.entries(standardArrayAssignment).some(([k, v]) => v === val && k !== char)
+                    ).map((val) => (
                       <option key={val} value={val}>{val}</option>
                     ))}
                   </select>

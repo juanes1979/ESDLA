@@ -52,6 +52,7 @@ class CultureCreate(BaseModel):
     # Physical characteristics
     edad_min: Optional[int] = 20
     edad_max: Optional[int] = 80
+    edad_sesgo: Optional[float] = 2.0  # 0=plano · 3=muy joven (curva de juventud)
     altura_min: Optional[int] = 150
     altura_max: Optional[int] = 190
     velocidad: Optional[int] = 9
@@ -600,6 +601,7 @@ async def create_culture(data: CultureCreate):
         # Physical
         "edad_min": data.edad_min,
         "edad_max": data.edad_max,
+        "edad_sesgo": data.edad_sesgo,
         "altura_min": data.altura_min,
         "altura_max": data.altura_max,
         "velocidad": data.velocidad,

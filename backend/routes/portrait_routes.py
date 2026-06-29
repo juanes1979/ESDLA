@@ -53,6 +53,7 @@ class PortraitRequest(BaseModel):
     color_ojos: Optional[str] = None
     color_pelo: Optional[str] = None
     rasgos_fisicos: Optional[str] = None
+    rasgos_faciales: Optional[str] = None
     genero: Optional[str] = None
 
 
@@ -166,6 +167,9 @@ def build_portrait_prompt(data: PortraitRequest, custom_culture_prompt: Optional
         physical.append(f"{data.color_pelo} hair")
     if data.rasgos_fisicos:
         physical.append(data.rasgos_fisicos)
+    if data.rasgos_faciales:
+        # Rasgos faciales distintivos (uno por zona) para que los retratos no se parezcan.
+        physical.append(f"distinctive facial features: {data.rasgos_faciales}")
     
     if physical:
         parts.append(", ".join(physical))

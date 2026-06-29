@@ -56,6 +56,7 @@ const CultureEditor = ({ culture, races, onSave, onClose, onCopy }) => {
     nivel_vida: 'Común',
     edad_min: 20,
     edad_max: 80,
+    edad_sesgo: 2,
     altura_min: 150,
     altura_max: 190,
     velocidad: 9,
@@ -366,6 +367,25 @@ const CultureEditor = ({ culture, races, onSave, onClose, onCopy }) => {
                     <div>
                       <Label>Edad Máx</Label>
                       <Input type="number" value={formData.edad_max} onChange={(e) => handleChange('edad_max', parseInt(e.target.value))} />
+                    </div>
+                    {/* Sesgo de edad hacia la juventud (curva editable, sin recargar) */}
+                    <div className="col-span-2 md:col-span-4 mt-1 bg-black/20 border border-[hsl(var(--gold))]/20 rounded p-3">
+                      <div className="flex items-center justify-between mb-1">
+                        <Label className="text-sm">Sesgo de edad hacia la juventud</Label>
+                        <span className="font-heading text-[hsl(var(--gold))]" data-testid="edad-sesgo-value">
+                          {Number(formData.edad_sesgo ?? 2).toFixed(1)}
+                        </span>
+                      </div>
+                      <input
+                        type="range" min="0" max="3" step="0.1"
+                        value={formData.edad_sesgo ?? 2}
+                        onChange={(e) => handleChange('edad_sesgo', parseFloat(e.target.value))}
+                        className="w-full accent-[hsl(var(--gold))]"
+                        data-testid="edad-sesgo-slider"
+                      />
+                      <p className="text-xs text-muted-foreground mt-1">
+                        0 = sin balancear (plano) · 2 ≈ 70 % de edades en la mitad joven · 3 = muy joven.
+                      </p>
                     </div>
                     <div>
                       <Label>Altura Mín (cm)</Label>
