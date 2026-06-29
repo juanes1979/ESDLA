@@ -11,7 +11,7 @@
  *       - "Regenerar" → vuelve a llamar a la IA y reemplaza el borrador.
  */
 import { useState } from 'react';
-import { Loader2, RefreshCw, ImageIcon, Save, X, Maximize2 } from 'lucide-react';
+import { Loader2, RefreshCw, ImageIcon, Save, X, Lock, Maximize2 } from 'lucide-react';
 import { LevelUpButton } from '@/components/LevelUpModal';
 import { toast } from 'sonner';
 import api from '@/services/api';
@@ -25,10 +25,14 @@ const CharacterHeader = ({ character, onLevelUp, onUpdate }) => {
   const [saving, setSaving] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
 
+  // El retrato es DEFINITIVO en cuanto existe uno guardado: si el personaje
+  // ya tiene `portrait_image` (o el flag heredado `portrait_locked`), no se
+  // puede cambiar. Solo se permite generarlo UNA vez (cuando aún no hay).
+  const isLocked = !!character?.portrait_image || !!character?.portrait_locked;
   const displayedImage = draftPortrait || character?.portrait_image || null;
 
   const generatePortrait = async () => {
-    if (!character?.id) return;
+    if (!character?.id || isLocked) return;
     setError(null);
     setGenerating(true);
     setProgress(0);
@@ -137,41 +141,51 @@ const CharacterHeader = ({ character, onLevelUp, onUpdate }) => {
               </div>
             )}
 
-            {/* Botón regenerar (siempre disponible). Si el retrato estaba
-                marcado como definitivo, igualmente se puede cambiar. */}
-            <button
-              onClick={generatePortrait}
-              disabled={generating || saving}
-              className="absolute inset-0 bg-black/60 rounded-full opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center disabled:opacity-100 disabled:bg-black/70"
-              title={
-                draftPortrait
-                  ? 'Regenerar retrato (borrador)'
-                  : (character.portrait_image ? 'Cambiar retrato' : 'Generar retrato con IA')
-              }
-              data-testid="character-regen-portrait-btn"
-            >
-              {generating ? (
-                <Loader2 className="w-6 h-6 animate-spin text-white" />
-              ) : (character.portrait_image || draftPortrait) ? (
-                <RefreshCw className="w-6 h-6 text-white" />
-              ) : (
-                <ImageIcon className="w-6 h-6 text-white" />
-              )}
-            </button>
+            {/* Si ya hay retrato (definitivo) → candado; si no, botón generar. */}
+            {isLocked && !draftPortrait ? (
+              <div
+                className="absolute -bottom-1 -right-1 bg-[hsl(var(--gold))/80] rounded-full p-1 ring-1 ring-[hsl(var(--gold))]"
+                title="Retrato definitivo: no se puede cambiar"
+                data-testid="character-portrait-locked-icon"
+              >
+                <Lock className="w-3 h-3 text-black" />
+              </div>
+            ) : (
+              <button
+                onClick={generatePortrait}
+                disabled={generating || saving}
+                className="absolute inset-0 bg-black/60 rounded-full opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center disabled:opacity-100 disabled:bg-black/70"
+                title={draftPortrait ? 'Regenerar retrato (borrador)' : 'Generar retrato con IA'}
+                data-testid="character-regen-portrait-btn"
+              >
+                {generating ? (
+                  <Loader2 className="w-6 h-6 animate-spin text-white" />
+                ) : draftPortrait ? (
+                  <RefreshCw className="w-6 h-6 text-white" />
+                ) : (
+                  <ImageIcon className="w-6 h-6 text-white" />
+                )}
+              </button>
+            )}
           </div>
 
-          {/* Botón visible (no depende del hover) para descubrir la acción. */}
-          {!draftPortrait && !generating && (
+          {/* Botón visible (no depende del hover) SOLO si aún no hay retrato. */}
+          {!isLocked && !draftPortrait && !generating && (
             <button
               onClick={generatePortrait}
               disabled={saving}
               className="flex items-center gap-1 text-[10px] px-2 py-1 rounded border border-[hsl(var(--gold))]/50 text-[hsl(var(--gold))] hover:bg-[hsl(var(--gold))]/10 disabled:opacity-60"
-              title={character.portrait_image ? 'Generar un nuevo retrato con IA' : 'Generar retrato con IA'}
+              title="Generar retrato con IA (solo se puede una vez)"
               data-testid="character-change-portrait-btn"
             >
-              {character.portrait_image ? <RefreshCw className="w-3 h-3" /> : <ImageIcon className="w-3 h-3" />}
-              {character.portrait_image ? 'Cambiar retrato' : 'Generar retrato'}
+              <ImageIcon className="w-3 h-3" />
+              Generar retrato
             </button>
+          )}
+          {isLocked && !draftPortrait && (
+            <p className="text-[9px] text-muted-foreground italic max-w-[160px] text-center" data-testid="portrait-final-hint">
+              Retrato definitivo
+            </p>
           )}
 
           {/* Estado: progreso, error o acciones de borrador */}

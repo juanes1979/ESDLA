@@ -1,0 +1,53 @@
+{
+  "summary": "Frontend-only validation of portrait lock behavior in CharacterHeader. Scenario A (Regred Maggot, ya tiene retrato) y Scenario B (Dunedain Aventurero, sin retrato → generar → guardar → bloqueado, incluso tras recarga) ambos PASARON. La correccion del fix esta correctamente implementada.",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "CharacterHeader.jsx: la logica isLocked = !!portrait_image || !!portrait_locked es correcta y refleja el requisito del usuario.",
+    "saveDraft hace PATCH con {portrait_image, portrait_locked:true} y llama onUpdate(patched.data) — esto refresca el character en CharacterSheetPage y por eso el bloqueo aplica inmediatamente sin recargar."
+  ],
+  "updated_files": [],
+  "success_rate": { "backend": "n/a (skipped)", "frontend": "100%" },
+  "seed_data_creation": "Se guardó un retrato real generado por IA en el personaje 'Dunedain Aventurero' (id 7b8f74ca-dd82-46f4-aa11-c3bafca8f90d) como parte del Escenario B. Ese personaje ahora tiene portrait_image y portrait_locked=true en BD, por lo que en sucesivas iteraciones aparecerá bloqueado (esperado).",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Tras esta iteración, 'Dunedain Aventurero' YA tiene retrato guardado y queda bloqueado para futuras pruebas. Si se necesita un personaje SIN retrato para testear Escenario B, habrá que limpiar portrait_image/portrait_locked en BD o crear uno nuevo.",
+  "test_evidence": {
+    "scenario_A": {
+      "url": "/character/c16a362d-9841-4954-8f70-0dfe02dfe303",
+      "locked_icon_present": true,
+      "portrait_final_hint_present": true,
+      "portrait_final_hint_text": "Retrato definitivo",
+      "generate_button_present": false,
+      "regen_overlay_button_present": false,
+      "portrait_progress_present": false,
+      "portraits_generate_calls_during_scenario": 0,
+      "result": "PASS"
+    },
+    "scenario_B_initial": {
+      "url": "/character/7b8f74ca-dd82-46f4-aa11-c3bafca8f90d",
+      "locked_icon_present": false,
+      "generate_button_present_and_visible": true,
+      "generate_button_text": "Generar retrato",
+      "portrait_final_hint_present": false,
+      "result": "PASS"
+    },
+    "scenario_B_after_generate_and_save": {
+      "POST_api_portraits_generate_triggered": true,
+      "progress_indicator_visible": true,
+      "preview_modal_appeared": true,
+      "save_button_present": true,
+      "after_save_no_reload": { "locked_icon": true, "final_hint": true, "generate_button_gone": true },
+      "after_reload": { "locked_icon": true, "final_hint": true, "generate_button_gone": true },
+      "result": "PASS"
+    }
+  },
+  "rca of the issue": "No bug found. La implementación actual respeta el requisito del usuario: una vez existe portrait_image, isLocked=true y la UI muestra candado + texto 'Retrato definitivo', oculta el botón 'Generar retrato' y la función generatePortrait sale temprano si isLocked, por lo que es imposible disparar POST /api/portraits/generate desde la UI cuando el retrato ya está creado. Tras guardar uno nuevo, onUpdate refresca el state con portrait_image y el bloqueo aplica al instante (y persiste tras reload porque PATCH /characters/{id} guardó portrait_image + portrait_locked en BD)."
+}
