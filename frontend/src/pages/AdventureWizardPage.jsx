@@ -65,7 +65,7 @@ const STEPS = [
   { id: 'environments', label: 'Entornos' },
   { id: 'intrigues', label: 'Intrigas' },
   { id: 'npcs', label: 'PNJ' },
-  { id: 'images', label: 'Imágenes' },
+  { id: 'images', label: 'Mapas y documentos' },
 ];
 
 const SEASONS = [
