@@ -2,8 +2,8 @@
  * Equipment Section Component
  * Displays equipment tables by category with admin editing capabilities
  */
-import { useState, useRef, useEffect } from 'react';
-import { Plus, Edit, Trash2, Printer, MapPin, Package, Loader2, Check, AlertTriangle, UserPlus, FolderOpen, Users, Store, ArrowUp, ArrowDown, ArrowUpDown } from 'lucide-react';
+import { useState, useRef, useEffect, useMemo } from 'react';
+import { Plus, Edit, Trash2, Printer, MapPin, Package, Loader2, Check, AlertTriangle, UserPlus, FolderOpen, FolderPlus, Users, Store, ArrowUp, ArrowDown, ArrowUpDown, Settings2, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -172,6 +172,11 @@ const EquipmentSection = ({
   };
 
   const [autoAssigning, setAutoAssigning] = useState(false);
+  // Editor de grupos personalizados
+  const [showGroupEditor, setShowGroupEditor] = useState(false);
+  const [editingGroup, setEditingGroup] = useState(null);
+  const [savingGroup, setSavingGroup] = useState(false);
+
   const autoAssignBlockProf = async () => {
     if (!window.confirm('Se asignarán profesiones por defecto a los bloques que aún estén vacíos (armas → herreros, hierbas → herbalistas, etc.). Los bloques que ya tengas configurados no se tocarán. ¿Continuar?')) return;
     setAutoAssigning(true);
@@ -188,6 +193,59 @@ const EquipmentSection = ({
   };
 
   if (!data) return null;
+
+  // Grupos personalizados (creados por el Maestro) combinados con las secciones fijas.
+  const customCats = data?._custom_categories || [];
+  const sections = (() => {
+    const base = EQUIPMENT_SECTIONS.map(s => ({ ...s, categories: [...s.categories] }));
+    const roots = [];
+    customCats.forEach(cc => {
+      const def = { key: cc.key, name: cc.name, fields: cc.fields || ['nombre', 'precio'], _custom: true };
+      const target = (cc.section && cc.section !== '__root__')
+        ? base.find(s => s.title === cc.section) : null;
+      if (target) target.categories.push(def);
+      else roots.push({ title: `${cc.icono || '🧩'} ${cc.name}`, _customRoot: true, categories: [def] });
+    });
+    return [...base, ...roots];
+  })();
+  // clave → campos extra para el editor de ítems (incluye grupos personalizados)
+  const customFieldsByKey = {};
+  customCats.forEach(cc => {
+    customFieldsByKey[cc.key] = (cc.fields || []).filter(f => !['nombre', 'precio', 'moneda'].includes(f));
+  });
+
+  // Crear / editar / borrar grupos personalizados
+  const handleSaveGroup = async (form) => {
+    setSavingGroup(true);
+    try {
+      if (editingGroup?.key) {
+        await api.put(`/data/equipment-custom-category/${editingGroup.key}`, form);
+        toast.success(`Grupo "${form.name}" actualizado`);
+      } else {
+        await api.post('/data/equipment-custom-category', form);
+        toast.success(`Grupo "${form.name}" creado`);
+      }
+      setShowGroupEditor(false);
+      setEditingGroup(null);
+      onRefresh?.();
+    } catch (err) {
+      toast.error('Error al guardar el grupo: ' + (err.response?.data?.detail || err.message));
+    } finally {
+      setSavingGroup(false);
+    }
+  };
+
+  const handleDeleteGroup = async (cc) => {
+    if (!window.confirm(`¿Eliminar el grupo "${cc.name}" y todos sus objetos? Esta acción no se puede deshacer.`)) return;
+    try {
+      await api.delete(`/data/equipment-custom-category/${cc.key}`);
+      toast.success(`Grupo "${cc.name}" eliminado`);
+      onRefresh?.();
+    } catch (err) {
+      toast.error('Error al eliminar: ' + (err.response?.data?.detail || err.message));
+    }
+  };
+
 
   // Filter data by search term
   const filterData = (items, term) => {
@@ -279,7 +337,7 @@ const EquipmentSection = ({
   };
 
   // Lista plana de categorías (para la pantalla "Tienda según profesión").
-  const flatCategories = EQUIPMENT_SECTIONS.flatMap(s => s.categories.map(c => ({ key: c.key, name: c.name })));
+  const flatCategories = sections.flatMap(s => s.categories.map(c => ({ key: c.key, name: c.name })));
 
   // Quitar una profesión de la lista de vendedores de un ítem (desde "Tienda según profesión").
   const handleProfDeselect = async (catKey, itemName, prof) => {
@@ -550,7 +608,7 @@ const EquipmentSection = ({
         
         // Find category name
         let catName = catKey;
-        for (const section of EQUIPMENT_SECTIONS) {
+        for (const section of sections) {
           const found = section.categories.find(c => c.key === catKey);
           if (found) { catName = found.name; break; }
         }
@@ -594,8 +652,10 @@ const EquipmentSection = ({
 
   // Render a single equipment table
   const renderTable = (cat) => {
-    const items = data[cat.key];
-    if (!items?.length) return null;
+    const items = data[cat.key] || [];
+    const ccDef = cat._custom ? customCats.find(c => c.key === cat.key) : null;
+    const isEmptyCustom = !items.length && cat._custom && isAdmin;
+    if (!items.length && !isEmptyCustom) return null;
 
     // Disponibilidad efectiva de un ítem: usa lo propio si lo tiene, si no hereda del bloque.
     const effectiveAvail = (item) => {
@@ -614,8 +674,8 @@ const EquipmentSection = ({
       };
     };
     
-    const filtered = filterData(items, searchTerm);
-    if (!filtered?.length) return null;
+    const filtered = filterData(items, searchTerm) || [];
+    if (!filtered.length && !isEmptyCustom) return null;
     
     // Calculate if all items in category are available for creation
     const allItemsAvailable = items.every(item => 
@@ -650,6 +710,32 @@ const EquipmentSection = ({
             )}
           </div>
           <div className="flex gap-2">
+            {isAdmin && cat._custom && ccDef && (
+              <>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => { setEditingGroup(ccDef); setShowGroupEditor(true); }}
+                  className="h-7 text-xs border-[hsl(var(--magic-blue))]/50 hover:bg-[hsl(var(--magic-blue))]/10"
+                  title="Editar este grupo (nombre, campos, sección)"
+                  data-testid={`edit-group-${cat.key}`}
+                >
+                  <Settings2 className="w-3 h-3 mr-1 text-[hsl(var(--magic-blue))]" />
+                  Editar grupo
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleDeleteGroup(ccDef)}
+                  className="h-7 text-xs border-destructive/50 hover:bg-destructive/10 text-destructive"
+                  title="Eliminar este grupo y sus objetos"
+                  data-testid={`delete-group-${cat.key}`}
+                >
+                  <Trash2 className="w-3 h-3 mr-1" />
+                  Borrar
+                </Button>
+              </>
+            )}
             {isAdmin && (
               <Button
                 variant="outline"
@@ -715,6 +801,7 @@ const EquipmentSection = ({
                 {cat.fields.includes('herida') && <th className="text-center py-2 px-2">Herida</th>}
                 {cat.fields.includes('ca') && sortTh(cat.key, 'ca', 'CA', 'center')}
                 {cat.fields.includes('comentarios') && <th className="text-left py-2 px-2">Modificadores</th>}
+                {cat.fields.includes('posicion') && <th className="text-center py-2 px-2">Posición</th>}
                 {cat.fields.includes('forma_preparacion') && <th className="text-center py-2 px-2">Preparación</th>}
                 {cat.fields.includes('efecto') && <th className="text-left py-2 px-2">Efecto</th>}
                 {cat.fields.includes('capacidad_carga') && sortTh(cat.key, 'capacidad_carga', 'Carga', 'center')}
@@ -752,6 +839,7 @@ const EquipmentSection = ({
                   {cat.fields.includes('herida') && <td className="text-center py-2 px-2">{item.herida || '-'}</td>}
                   {cat.fields.includes('ca') && <td className="text-center py-2 px-2 text-[hsl(var(--magic-blue))]">{item.ca || '-'}</td>}
                   {cat.fields.includes('comentarios') && <td className="text-left py-2 px-2 text-xs text-muted-foreground">{item.comentarios || '-'}</td>}
+                  {cat.fields.includes('posicion') && <td className="text-center py-2 px-2 text-xs capitalize">{item.posicion || '-'}</td>}
                   {cat.fields.includes('forma_preparacion') && <td className="text-center py-2 px-2 text-xs">{item.forma_preparacion || '-'}</td>}
                   {cat.fields.includes('efecto') && <td className="text-left py-2 px-2 text-xs text-muted-foreground max-w-[200px] truncate" title={item.efecto}>{item.efecto || '-'}</td>}
                   {cat.fields.includes('capacidad_carga') && <td className="text-center py-2 px-2">{item.capacidad_carga || '-'}</td>}
@@ -825,12 +913,17 @@ const EquipmentSection = ({
             </tbody>
           </table>
         </div>
+        {isEmptyCustom && (
+          <p className="text-xs text-muted-foreground italic mt-2" data-testid={`empty-group-hint-${cat.key}`}>
+            Grupo vacío. Usa "Crear Equipo" y elige este grupo para añadir objetos.
+          </p>
+        )}
       </div>
     );
   };
 
   // Get all category keys for PDF modal
-  const allCategoryKeys = EQUIPMENT_SECTIONS.flatMap(s => s.categories.map(c => c.key));
+  const allCategoryKeys = sections.flatMap(s => s.categories.map(c => c.key));
 
   // Excel import/export (Mayo 2026) -- upsert por nombre evita duplicados.
   // eslint-disable-next-line react-hooks/rules-of-hooks
@@ -992,6 +1085,18 @@ const EquipmentSection = ({
         )}
         {isAdmin && (
           <Button
+            onClick={() => { setEditingGroup(null); setShowGroupEditor(true); }}
+            variant="outline"
+            className="border-[hsl(var(--magic-blue))]/60 hover:bg-[hsl(var(--magic-blue))]/10"
+            title="Crear un grupo de objetos nuevo (p. ej. Ropa)"
+            data-testid="create-group-btn"
+          >
+            <FolderPlus className="w-4 h-4 mr-2 text-[hsl(var(--magic-blue))]" />
+            Crear grupo
+          </Button>
+        )}
+        {isAdmin && (
+          <Button
             onClick={() => onOpenEquipmentEditor?.()}
             className="btn-fantasy"
           >
@@ -1001,8 +1106,8 @@ const EquipmentSection = ({
         )}      </div>
 
       {/* Equipment sections */}
-      {EQUIPMENT_SECTIONS.map((section, sectionIdx) => {
-        const hasItems = section.categories.some(cat => data[cat.key]?.length > 0);
+      {sections.map((section, sectionIdx) => {
+        const hasItems = section.categories.some(cat => (data[cat.key]?.length > 0) || (isAdmin && cat._custom));
         if (!hasItems) return null;
         
         return (
@@ -1081,7 +1186,7 @@ const EquipmentSection = ({
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-2 max-h-60 overflow-y-auto bg-black/10 rounded p-3">
-                  {EQUIPMENT_SECTIONS.map(section => (
+                  {sections.map(section => (
                     <div key={section.title} className="space-y-1">
                       <p className="text-xs font-bold text-[hsl(var(--gold))]">{section.title}</p>
                       {section.categories.map(cat => (
@@ -1138,6 +1243,7 @@ const EquipmentSection = ({
           npcProfesiones={npcProfesiones}
           blockProfList={blockProf[editingItem.categoria] || []}
           blockRegDef={blockReg[editingItem.categoria] || {}}
+          customFields={customFieldsByKey[editingItem.categoria]}
         />
       )}
 
@@ -1209,6 +1315,16 @@ const EquipmentSection = ({
           onClose={() => setShowProfShop(false)}
         />
       )}
+
+      {showGroupEditor && (
+        <GroupEditorModal
+          group={editingGroup}
+          sectionTitles={EQUIPMENT_SECTIONS.map(s => s.title)}
+          onSave={handleSaveGroup}
+          onClose={() => { setShowGroupEditor(false); setEditingGroup(null); }}
+          saving={savingGroup}
+        />
+      )}
     </div>
   );
 };
@@ -1256,6 +1372,7 @@ const CATEGORY_EXTRA_FIELDS = {
   armaduras_medias: ['ca', 'ca_bonus', 'posicion', 'comentarios', 'peso_kg'],
   armaduras_pesadas: ['ca', 'ca_bonus', 'posicion', 'comentarios', 'peso_kg'],
   escudos: ['ca', 'peso_kg'],
+  yelmos: ['ca', 'posicion', 'comentarios', 'peso_kg'],
   equipo_general: ['peso_kg'],
   herramientas: ['peso_kg'],
   juegos: ['peso_kg'],
@@ -1274,7 +1391,7 @@ const CATEGORY_EXTRA_FIELDS = {
   gemas_semipreciosas: [],
 };
 
-const ItemEditorModal = ({ item, setItem, onSave, onClose, saving, availableRegions, onChangeCategory, npcProfesiones = [], blockProfList = [], blockRegDef = {} }) => {
+const ItemEditorModal = ({ item, setItem, onSave, onClose, saving, availableRegions, onChangeCategory, npcProfesiones = [], blockProfList = [], blockRegDef = {}, customFields = null }) => {
   const updateField = (field, value) => {
     setItem(prev => ({
       ...prev,
@@ -1418,7 +1535,7 @@ const ItemEditorModal = ({ item, setItem, onSave, onClose, saving, availableRegi
           {/* Category-specific fields — render dynamically based on item.categoria */}
           {(() => {
             const catKey = item.categoria;
-            const extras = CATEGORY_EXTRA_FIELDS[catKey] || [];
+            const extras = customFields || CATEGORY_EXTRA_FIELDS[catKey] || [];
             if (!extras.length) return null;
             return (
               <div className="border-t border-border/30 pt-4 grid grid-cols-2 gap-4" data-testid="item-editor-extra-fields">
@@ -1849,3 +1966,113 @@ const CategoryAvailabilityModal = ({ categoryName, categoryKey, data, availabili
 };
 
 export default EquipmentSection;
+
+// === Grupo personalizado: crear / editar ===
+const GROUP_FIELD_OPTIONS = [
+  { key: 'peso_kg', label: 'Peso (kg)' },
+  { key: 'posicion', label: 'Posición (cabeza/cuerpo…)' },
+  { key: 'ca', label: 'CA (Clase de Armadura)' },
+  { key: 'ca_bonus', label: 'Bonus de CA' },
+  { key: 'comentarios', label: 'Comentarios / Modificadores' },
+  { key: 'dano', label: 'Daño' },
+  { key: 'modificador', label: 'Tipo / Modificador' },
+  { key: 'herida', label: 'Herida' },
+  { key: 'alcance', label: 'Alcance' },
+  { key: 'forma_preparacion', label: 'Forma de preparación' },
+  { key: 'efecto', label: 'Efecto' },
+  { key: 'capacidad_carga', label: 'Capacidad de carga' },
+  { key: 'capacidad_kg', label: 'Capacidad (kg)' },
+  { key: 'velocidad', label: 'Velocidad' },
+  { key: 'constitucion', label: 'Constitución' },
+  { key: 'm2', label: 'Superficie (m²)' },
+];
+
+const GroupEditorModal = ({ group, sectionTitles = [], onSave, onClose, saving }) => {
+  const isEdit = !!group?.key;
+  const [name, setName] = useState(group?.name || '');
+  const [icono, setIcono] = useState(group?.icono || '🧩');
+  const [section, setSection] = useState(group?.section || '__root__');
+  const [fields, setFields] = useState(
+    () => (group?.fields || ['nombre', 'precio', 'peso_kg']).filter(f => !['nombre', 'precio'].includes(f))
+  );
+
+  const toggleField = (k) =>
+    setFields(prev => (prev.includes(k) ? prev.filter(f => f !== k) : [...prev, k]));
+
+  const submit = () => {
+    if (!name.trim()) {
+      toast.error('Ponle un nombre al grupo');
+      return;
+    }
+    onSave({ name: name.trim(), icono: (icono || '🧩').trim() || '🧩', section, fields });
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/80 z-[60] flex items-center justify-center p-4" data-testid="group-editor-modal">
+      <div className="bg-[hsl(var(--background))] border border-[hsl(var(--magic-blue))]/50 rounded-lg w-full max-w-lg max-h-[90vh] overflow-y-auto">
+        <div className="p-4 border-b border-border/30 flex justify-between items-center sticky top-0 bg-[hsl(var(--background))]">
+          <h2 className="font-heading text-xl text-[hsl(var(--magic-blue))] flex items-center gap-2">
+            <FolderPlus className="w-5 h-5" />
+            {isEdit ? `Editar grupo: ${group.name}` : 'Crear grupo de objetos'}
+          </h2>
+          <Button variant="ghost" size="sm" onClick={onClose}><X className="w-5 h-5" /></Button>
+        </div>
+
+        <div className="p-4 space-y-4">
+          <div className="grid grid-cols-[1fr_auto] gap-3">
+            <div>
+              <label className="text-sm text-muted-foreground">Nombre del grupo</label>
+              <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Ej: Ropa, Joyería…" data-testid="group-name-input" />
+            </div>
+            <div className="w-20">
+              <label className="text-sm text-muted-foreground">Icono</label>
+              <Input value={icono} onChange={(e) => setIcono(e.target.value)} placeholder="🧵" className="text-center" data-testid="group-icon-input" />
+            </div>
+          </div>
+
+          <div>
+            <label className="text-sm text-muted-foreground">¿Dónde aparece?</label>
+            <select
+              value={section}
+              onChange={(e) => setSection(e.target.value)}
+              className="w-full h-10 px-2 bg-background border border-border rounded"
+              data-testid="group-section-select"
+            >
+              <option value="__root__">🧩 Grupo independiente (sección propia)</option>
+              {sectionTitles.map(t => (
+                <option key={t} value={t}>Dentro de: {t}</option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="text-sm text-muted-foreground block mb-2">
+              Campos del grupo <span className="italic">(Nombre y Precio siempre incluidos)</span>
+            </label>
+            <div className="grid grid-cols-2 gap-2 bg-black/10 rounded p-3">
+              {GROUP_FIELD_OPTIONS.map(opt => (
+                <label key={opt.key} className="flex items-center gap-2 text-sm cursor-pointer" htmlFor={`gf-${opt.key}`}>
+                  <Checkbox
+                    id={`gf-${opt.key}`}
+                    checked={fields.includes(opt.key)}
+                    onCheckedChange={() => toggleField(opt.key)}
+                    data-testid={`group-field-${opt.key}`}
+                  />
+                  {opt.label}
+                </label>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <div className="p-4 border-t border-border/30 flex justify-end gap-2 sticky bottom-0 bg-[hsl(var(--background))]">
+          <Button variant="outline" onClick={onClose}>Cancelar</Button>
+          <Button onClick={submit} disabled={saving} className="bg-[hsl(var(--magic-blue))] hover:bg-[hsl(var(--magic-blue))]/90 text-white" data-testid="group-save-btn">
+            {saving ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Check className="w-4 h-4 mr-2" />}
+            {isEdit ? 'Guardar cambios' : 'Crear grupo'}
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+};

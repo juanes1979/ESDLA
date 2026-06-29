@@ -1075,6 +1075,14 @@ async def get_equipment_catalog(
     
     result = {key: catalog.get(key, []) for key in all_keys}
 
+    # Categorías personalizadas (grupos creados por el Maestro). Cada def:
+    #   {key, name, fields:[...], section:"<título sección>"|"__root__", icono}
+    custom_cats = catalog.get("_custom_categories", []) or []
+    for cc in custom_cats:
+        ck = cc.get("key")
+        if ck and ck not in result:
+            result[ck] = catalog.get(ck, [])
+
     # Profesiones por bloque (para herencia en la tienda)
     block_prof = catalog.get("_block_profesiones", {})
     # Regiones/asentamiento por bloque (herencia independiente de las profesiones)
@@ -1095,6 +1103,7 @@ async def get_equipment_catalog(
     
     result["_block_profesiones"] = block_prof
     result["_block_regiones"] = block_reg
+    result["_custom_categories"] = custom_cats
     return result
 
 
@@ -1745,6 +1754,8 @@ class EquipmentItem(BaseModel):
     ca: Optional[int] = None
     comentarios: Optional[str] = None
     otros: Optional[str] = None
+    # Ropa / armadura: posición corporal (cabeza, cuerpo, brazos, piernas, pies)
+    posicion: Optional[str] = None
     # Herb/Poison specific
     forma_preparacion: Optional[str] = None
     efecto: Optional[str] = None
@@ -1844,6 +1855,154 @@ async def delete_equipment_item(categoria: str, item_nombre: str):
     
     if len(items) == original_len:
         raise HTTPException(status_code=404, detail="Item not found")
+
+# === CUSTOM EQUIPMENT CATEGORIES (grupos personalizados) ===
+
+# Claves reservadas por los grupos integrados (no se pueden recrear/borrar
+# como personalizadas, salvo "ropa" que sembramos como grupo individual).
+_BUILTIN_EQUIPMENT_KEYS = {
+    "herramientas", "juegos", "instrumentos_musicales", "equipo_general",
+    "consumibles", "comida_posadas", "hierbas", "venenos",
+    "armas_sencillas_cc", "armas_sencillas_distancia", "armas_marciales_cc", "armas_marciales_distancia",
+    "armaduras_ligeras", "armaduras_medias", "armaduras_pesadas", "escudos", "yelmos",
+    "monturas", "accesorios_monturas", "transporte_terrestre", "transporte_maritimo",
+    "recursos_desarrollo", "gemas_preciosas", "gemas_semipreciosas",
+}
+
+# Campos permitidos al definir un grupo (whitelist; nombre y precio van implícitos).
+_ALLOWED_GROUP_FIELDS = {
+    "moneda", "peso_kg", "dano", "modificador", "herida", "alcance",
+    "ca", "ca_bonus", "posicion", "comentarios", "forma_preparacion", "efecto",
+    "capacidad_carga", "capacidad_kg", "constitucion", "velocidad",
+    "capacidad_pequeno", "capacidad_mediano", "m2",
+}
+
+
+def _slugify_group_key(name: str) -> str:
+    import unicodedata, re
+    s = unicodedata.normalize("NFKD", name or "").encode("ascii", "ignore").decode("ascii")
+    s = re.sub(r"[^a-zA-Z0-9]+", "_", s).strip("_").lower()
+    return s or "grupo"
+
+
+class CustomCategoryCreate(BaseModel):
+    name: str
+    fields: List[str] = []
+    section: str = "__root__"  # título de una sección existente o "__root__"
+    icono: Optional[str] = "🧩"
+
+
+class CustomCategoryUpdate(BaseModel):
+    name: Optional[str] = None
+    fields: Optional[List[str]] = None
+    section: Optional[str] = None
+    icono: Optional[str] = None
+
+
+@router.get("/equipment-custom-categories")
+async def list_custom_categories():
+    """Devuelve la lista de grupos personalizados definidos por el Maestro."""
+    catalog = await db.equipment_catalog.find_one({"_id": "main"}) or await db.equipment_catalog.find_one({})
+    return {"custom_categories": (catalog or {}).get("_custom_categories", []) or []}
+
+
+@router.post("/equipment-custom-category")
+async def create_custom_category(data: CustomCategoryCreate):
+    """Crea un grupo de objetos nuevo (categoría dinámica)."""
+    name = (data.name or "").strip()
+    if not name:
+        raise HTTPException(status_code=400, detail="El nombre del grupo es obligatorio")
+
+    catalog = await db.equipment_catalog.find_one({"_id": "main"}) or {"_id": "main"}
+    custom_cats = list(catalog.get("_custom_categories", []) or [])
+
+    # Genera una clave única que no choque con grupos integrados ni existentes.
+    base_key = _slugify_group_key(name)
+    existing_keys = {c.get("key") for c in custom_cats} | _BUILTIN_EQUIPMENT_KEYS
+    key = base_key
+    n = 2
+    while key in existing_keys:
+        key = f"{base_key}_{n}"
+        n += 1
+
+    # Sanitiza los campos contra la whitelist.
+    fields = ["nombre", "precio"] + [f for f in (data.fields or []) if f in _ALLOWED_GROUP_FIELDS]
+    # Dedupe preservando orden
+    seen, clean_fields = set(), []
+    for f in fields:
+        if f not in seen:
+            seen.add(f)
+            clean_fields.append(f)
+
+    new_cat = {
+        "key": key,
+        "name": name,
+        "fields": clean_fields,
+        "section": data.section or "__root__",
+        "icono": (data.icono or "🧩").strip() or "🧩",
+    }
+    custom_cats.append(new_cat)
+
+    await db.equipment_catalog.update_one(
+        {"_id": "main"},
+        {"$set": {"_custom_categories": custom_cats, key: catalog.get(key, [])}},
+        upsert=True,
+    )
+    return {"success": True, "category": new_cat}
+
+
+@router.put("/equipment-custom-category/{key}")
+async def update_custom_category(key: str, data: CustomCategoryUpdate):
+    """Renombra / reconfigura un grupo personalizado existente."""
+    catalog = await db.equipment_catalog.find_one({"_id": "main"})
+    if not catalog:
+        raise HTTPException(status_code=404, detail="Catálogo no encontrado")
+    custom_cats = list(catalog.get("_custom_categories", []) or [])
+    idx = next((i for i, c in enumerate(custom_cats) if c.get("key") == key), None)
+    if idx is None:
+        raise HTTPException(status_code=404, detail="Grupo personalizado no encontrado")
+
+    cat = dict(custom_cats[idx])
+    if data.name is not None and data.name.strip():
+        cat["name"] = data.name.strip()
+    if data.section is not None:
+        cat["section"] = data.section or "__root__"
+    if data.icono is not None:
+        cat["icono"] = (data.icono or "🧩").strip() or "🧩"
+    if data.fields is not None:
+        fields = ["nombre", "precio"] + [f for f in data.fields if f in _ALLOWED_GROUP_FIELDS]
+        seen, clean_fields = set(), []
+        for f in fields:
+            if f not in seen:
+                seen.add(f)
+                clean_fields.append(f)
+        cat["fields"] = clean_fields
+    custom_cats[idx] = cat
+
+    await db.equipment_catalog.update_one(
+        {"_id": "main"}, {"$set": {"_custom_categories": custom_cats}}
+    )
+    return {"success": True, "category": cat}
+
+
+@router.delete("/equipment-custom-category/{key}")
+async def delete_custom_category(key: str):
+    """Elimina un grupo personalizado y sus objetos."""
+    catalog = await db.equipment_catalog.find_one({"_id": "main"})
+    if not catalog:
+        raise HTTPException(status_code=404, detail="Catálogo no encontrado")
+    custom_cats = list(catalog.get("_custom_categories", []) or [])
+    if not any(c.get("key") == key for c in custom_cats):
+        raise HTTPException(status_code=404, detail="Grupo personalizado no encontrado")
+    custom_cats = [c for c in custom_cats if c.get("key") != key]
+
+    await db.equipment_catalog.update_one(
+        {"_id": "main"},
+        {"$set": {"_custom_categories": custom_cats}, "$unset": {key: ""}},
+    )
+    return {"success": True, "message": f"Grupo '{key}' eliminado"}
+
+
     
     # Save
     await db.equipment_catalog.update_one(

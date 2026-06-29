@@ -142,6 +142,7 @@ const FIELD_CONFIG = {
   capacidad_mediano: { label: 'Capacidad Mediano', type: 'checkbox' },
   capacidad_kg: { label: 'Capacidad (Kg)', type: 'number' },
   m2: { label: 'Metros²', type: 'text' },
+  posicion: { label: 'Posición (cabeza/cuerpo…)', type: 'select', options: ['cabeza', 'cuerpo', 'brazos', 'piernas', 'pies'] },
   // Food/Water fields
   es_comida: { label: '¿Es Comida?', type: 'checkbox' },
   es_agua: { label: '¿Es Agua?', type: 'checkbox' },
@@ -153,9 +154,27 @@ const EquipmentEditor = ({ onClose, onSave }) => {
   const [selectedCategory, setSelectedCategory] = useState('');
   const [formData, setFormData] = useState({});
   const [saving, setSaving] = useState(false);
+  const [customCategories, setCustomCategories] = useState([]);
+
+  // Carga los grupos personalizados (creados por el Maestro) para poder
+  // añadirles objetos también desde "Crear Equipo".
+  useEffect(() => {
+    api.get('/data/equipment-custom-categories')
+      .then(r => setCustomCategories(r.data?.custom_categories || []))
+      .catch(() => {});
+  }, []);
+
+  const allCategories = [
+    ...EQUIPMENT_CATEGORIES,
+    ...customCategories.map(cc => ({
+      key: cc.key,
+      name: `🧩 ${cc.name}`,
+      fields: ['nombre', 'precio', 'moneda', ...(cc.fields || []).filter(f => !['nombre', 'precio', 'moneda'].includes(f))],
+    })),
+  ];
 
   // Get current category config
-  const categoryConfig = EQUIPMENT_CATEGORIES.find(c => c.key === selectedCategory);
+  const categoryConfig = allCategories.find(c => c.key === selectedCategory);
 
   const handleCategoryChange = (value) => {
     setSelectedCategory(value);
@@ -296,7 +315,7 @@ const EquipmentEditor = ({ onClose, onSave }) => {
                 <SelectValue placeholder="Seleccionar categoría..." />
               </SelectTrigger>
               <SelectContent>
-                {EQUIPMENT_CATEGORIES.map(cat => (
+                {allCategories.map(cat => (
                   <SelectItem key={cat.key} value={cat.key}>{cat.name}</SelectItem>
                 ))}
               </SelectContent>
