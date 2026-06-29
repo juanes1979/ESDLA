@@ -1,0 +1,54 @@
+{
+  "summary": "Verified PDF + image upload feature in Adventure Wizard step 'Mapas y documentos' (formerly 'Imágenes') end-to-end as Maestro. All 7 acceptance criteria from the request pass: input accepts image/* and application/pdf, PDF≤15 MB hint shown, image renders as thumbnail, PDF renders as card with FileText icon + filename + 'Abrir' button (NOT as broken image), open-pdf-N triggers authenticated GET /api/storage/download/{file_id} (HTTP 200) and opens a new blob: tab, descriptions and types persist across reloads, preview shows 'Mapas y documentos' section with the PDF name, remove-map-N deletes the tile.",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Wizard step tab label", "issues": ["The step tab label still reads 'Imágenes' (STEPS[5].label en AdventureWizardPage.jsx línea 68), pero la tarjeta interna ya se titula 'Mapas y documentos'. Cosmético: convendría renombrar también la pestaña para coherencia con la nueva capacidad PDF."]}
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [
+    "(Opcional, cosmético) Renombrar STEPS[5].label a 'Mapas y documentos' (o 'Mapas') en /app/frontend/src/pages/AdventureWizardPage.jsx para alinear el rótulo de la pestaña con el título y la nueva funcionalidad (PDF)."
+  ],
+  "critical_code_review_comments": [
+    "isPdf() detecta por content_type 'application/pdf' o por sufijo '.pdf' del path/name — robusto frente a backends que no devuelvan content_type.",
+    "openAuthFile() usa fetch autenticado con el token de localStorage/sessionStorage y abre el blob con window.open: correcto y seguro (no expone token en la URL).",
+    "Validación de tamaño parametrizada por tipo: MAX_DOC_BYTES (15MB) para PDF, MAX_IMAGE_BYTES (5MB) para imágenes — coincide con la descripción visible al usuario.",
+    "Se persiste {file_id, path, description, content_type, name} en adventure.maps; tras recargar, el tile sigue identificado como PDF (no se re-renderiza como imagen rota). Verificado en QA.",
+    "Una de las 4 fichas preexistentes de esta aventura devuelve 404 al cargar el thumbnail (file_id 69fc6ba7314cbc3777b548f3). Es dato heredado del entorno de pruebas, NO una regresión del feature de PDF. Se mantiene la nota por trazabilidad."
+  ],
+  "updated_files": [],
+  "success_rate": { "backend": "n/a (skip)", "frontend": "100%" },
+  "test_credentials": "Maestro elanillounico_tlotr@proton.me / 123456 (de /app/memory/test_credentials.md).",
+  "seed_data_creation": "Archivos temporales mínimos para la subida: /tmp/qa_uploads/qa_image.png (PNG 1x1) y /tmp/qa_uploads/qa_doc.pdf (PDF válido mínimo ~206 bytes). No se persiste data de QA en la BBDD: las fichas creadas se eliminaron al final del test.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Aventura usada para QA: id 6e892331-0a0c-4279-85a5-57121f7e0fc1 ('LA ESTRELLA EN LA NIEBLA'). Tenía 4 mapas existentes antes del test; tras limpiar, se subieron 1 PNG + 1 PDF y al final se borraron. Para futuros tests del flujo PDF: input data-testid='map-upload-input' con accept='image/*,application/pdf'; PDF tile testids open-pdf-{idx} y remove-map-{idx}, descripción en map-desc-{idx}. La pestaña activa para llegar es step-tab-images. Existe un mapa heredado con file_id 69fc6ba7314cbc3777b548f3 que devuelve 404 (no relacionado con PDF).",
+  "evidence": {
+    "accept_attribute_observed": "image/*,application/pdf",
+    "title_observed": "Mapas y documentos (6/20)",
+    "hint_observed_contains": ["PDF", "15 MB", "imágenes ≤ 5 MB"],
+    "tiles_before_upload": 4,
+    "tiles_after_image_upload": 5,
+    "tiles_after_pdf_upload": 6,
+    "pdf_tile_label_text": "qa_doc.pdf\\nAbrir",
+    "pdf_tile_has_open_button": true,
+    "image_tile_does_NOT_have_open_button": true,
+    "open_pdf_click_network": {
+      "request_url_suffix": "/api/storage/download/6a42bb6a0047fab5b0e016be",
+      "status": 200,
+      "new_blob_tab_opened": true
+    },
+    "after_reload_tiles": 6,
+    "after_reload_pdf_still_pdf": true,
+    "after_reload_image_still_image": true,
+    "after_reload_desc_pdf": "QA pdf descripcion",
+    "after_reload_desc_img": "QA imagen descripcion",
+    "preview_shows_section": true,
+    "preview_shows_pdf_filename": true,
+    "delete_tile_works": true,
+    "verdict": "FEATURE VERIFIED: subida de PDF + imagen funciona, fichas se renderizan según tipo, apertura autenticada de PDF, persistencia tras recarga, vista previa y borrado correctos."
+  }
+}

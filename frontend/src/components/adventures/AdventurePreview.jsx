@@ -9,7 +9,7 @@
  *   mode         'preview' (wizard) | 'dossier' (lista)
  */
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Globe2, Lock, ScrollText } from 'lucide-react';
+import { Globe2, Lock, ScrollText, FileText } from 'lucide-react';
 import AuthenticatedImage from '@/components/AuthenticatedImage';
 
 const SEASONS = {
@@ -195,23 +195,41 @@ const AdventurePreview = ({ adv, open, onClose, mode = 'preview' }) => {
         )}
 
         {adv.maps?.length > 0 && (
-          <Section title={`Mapas (${adv.maps.length})`}>
+          <Section title={`Mapas y documentos (${adv.maps.length})`}>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-              {adv.maps.map((m, i) => (
-                <div
-                  key={m.id || i}
-                  className="rounded border border-amber-800/40 overflow-hidden"
-                >
-                  <AuthenticatedImage
-                    fileId={m.file_id}
-                    alt={m.description || `mapa-${i}`}
-                    className="w-full h-32 object-cover"
-                  />
-                  {m.description && (
-                    <div className="text-xs p-1 text-amber-300/80">{m.description}</div>
-                  )}
-                </div>
-              ))}
+              {adv.maps.map((m, i) => {
+                const pdf = (m.content_type || '').includes('pdf') || (m.path || m.name || '').toLowerCase().endsWith('.pdf');
+                return (
+                  <div
+                    key={m.id || i}
+                    className="rounded border border-amber-800/40 overflow-hidden"
+                  >
+                    {pdf ? (
+                      <button
+                        onClick={async () => {
+                          const token = localStorage.getItem('lotr5e_token') || sessionStorage.getItem('lotr5e_token');
+                          const res = await fetch(`${process.env.REACT_APP_BACKEND_URL}/api/storage/download/${m.file_id}`, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+                          if (res.ok) window.open(URL.createObjectURL(await res.blob()), '_blank');
+                        }}
+                        className="w-full h-32 flex flex-col items-center justify-center gap-1 text-amber-300 hover:bg-amber-900/20"
+                        title="Abrir PDF"
+                      >
+                        <FileText className="w-9 h-9" />
+                        <span className="text-[10px] px-1 truncate max-w-full">{m.name || 'PDF'}</span>
+                      </button>
+                    ) : (
+                      <AuthenticatedImage
+                        fileId={m.file_id}
+                        alt={m.description || `mapa-${i}`}
+                        className="w-full h-32 object-cover"
+                      />
+                    )}
+                    {m.description && (
+                      <div className="text-xs p-1 text-amber-300/80">{m.description}</div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           </Section>
         )}

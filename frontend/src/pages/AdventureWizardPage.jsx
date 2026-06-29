@@ -25,6 +25,8 @@ import {
   Globe2,
   Lock,
   Sparkles,
+  FileText,
+  ExternalLink,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
@@ -52,7 +54,10 @@ import { BestiaryPickDialog, SubcultureGeneratorDialog } from '@/components/adve
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024; // 5 MB
+const MAX_DOC_BYTES = 15 * 1024 * 1024; // 15 MB (PDF de aventuras/mapas)
 const MAX_MAPS = 20;
+const isPdf = (m) =>
+  (m?.content_type || '').includes('pdf') || (m?.path || m?.name || '').toLowerCase().endsWith('.pdf');
 
 const STEPS = [
   { id: 'basic', label: 'Datos básicos' },
@@ -562,21 +567,36 @@ const Step6Images = ({ adv, setField, onUploadMap, uploadingMap }) => {
     e.target.value = '';
     for (const f of files) {
       if ((adv.maps?.length || 0) >= MAX_MAPS) {
-        toast.error(`Máximo ${MAX_MAPS} mapas`);
+        toast.error(`Máximo ${MAX_MAPS} archivos`);
         break;
       }
       await onUploadMap(f);
     }
   };
 
+  // Abre un archivo (p. ej. PDF) que requiere autenticación, en una pestaña nueva.
+  const openAuthFile = async (fileId) => {
+    try {
+      const token = localStorage.getItem('lotr5e_token') || sessionStorage.getItem('lotr5e_token');
+      const res = await fetch(`${process.env.REACT_APP_BACKEND_URL}/api/storage/download/${fileId}`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const blob = await res.blob();
+      window.open(URL.createObjectURL(blob), '_blank');
+    } catch {
+      toast.error('No se pudo abrir el archivo');
+    }
+  };
+
   return (
     <StepCard
-      title={`Imágenes (${adv.maps?.length || 0}/${MAX_MAPS})`}
-      description="Galería general: mapas, retratos, dibujos, esbozos. Hasta 20 imágenes. Cada una ≤ 5 MB."
+      title={`Mapas y documentos (${adv.maps?.length || 0}/${MAX_MAPS})`}
+      description="Galería general: mapas, retratos, dibujos, esbozos (imágenes ≤ 5 MB) y aventuras o mapas en PDF (≤ 15 MB). Hasta 20 archivos."
     >
       <input
         type="file"
-        accept="image/*"
+        accept="image/*,application/pdf"
         multiple
         onChange={handleAdd}
         data-testid="map-upload-input"
@@ -590,39 +610,57 @@ const Step6Images = ({ adv, setField, onUploadMap, uploadingMap }) => {
       )}
       {adv.maps?.length > 0 && (
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-          {adv.maps.map((m, idx) => (
-            <div
-              key={m.id || idx}
-              className="relative rounded border border-amber-800/40 overflow-hidden bg-black/40"
-              data-testid={`map-tile-${idx}`}
-            >
-              <AuthenticatedImage
-                fileId={m.file_id}
-                alt={m.description || `mapa-${idx}`}
-                className="w-full h-32 object-cover"
-              />
-              <input
-                type="text"
-                value={m.description || ''}
-                onChange={(e) => {
-                  const newMaps = [...adv.maps];
-                  newMaps[idx] = { ...m, description: e.target.value };
-                  setField('maps', newMaps);
-                }}
-                placeholder="Descripción"
-                className="w-full px-2 py-1 text-xs bg-black/60 text-amber-200 border-t border-amber-800/40 focus:outline-none"
-                data-testid={`map-desc-${idx}`}
-              />
-              <button
-                onClick={() => setField('maps', adv.maps.filter((_, i) => i !== idx))}
-                className="absolute top-1 right-1 p-1 rounded bg-rose-900/80 text-rose-100 hover:bg-rose-700"
-                data-testid={`remove-map-${idx}`}
-                aria-label="Eliminar mapa"
+          {adv.maps.map((m, idx) => {
+            const pdf = isPdf(m);
+            return (
+              <div
+                key={m.id || idx}
+                className="relative rounded border border-amber-800/40 overflow-hidden bg-black/40"
+                data-testid={`map-tile-${idx}`}
               >
-                <X className="w-3.5 h-3.5" />
-              </button>
-            </div>
-          ))}
+                {pdf ? (
+                  <button
+                    onClick={() => openAuthFile(m.file_id)}
+                    className="w-full h-32 flex flex-col items-center justify-center gap-1 text-amber-300 hover:bg-amber-900/20"
+                    data-testid={`open-pdf-${idx}`}
+                    title="Abrir PDF"
+                  >
+                    <FileText className="w-9 h-9" />
+                    <span className="text-[10px] px-1 truncate max-w-full">{m.name || 'PDF'}</span>
+                    <span className="text-[9px] text-amber-300/70 flex items-center gap-0.5">
+                      <ExternalLink className="w-2.5 h-2.5" /> Abrir
+                    </span>
+                  </button>
+                ) : (
+                  <AuthenticatedImage
+                    fileId={m.file_id}
+                    alt={m.description || `mapa-${idx}`}
+                    className="w-full h-32 object-cover"
+                  />
+                )}
+                <input
+                  type="text"
+                  value={m.description || ''}
+                  onChange={(e) => {
+                    const newMaps = [...adv.maps];
+                    newMaps[idx] = { ...m, description: e.target.value };
+                    setField('maps', newMaps);
+                  }}
+                  placeholder="Descripción"
+                  className="w-full px-2 py-1 text-xs bg-black/60 text-amber-200 border-t border-amber-800/40 focus:outline-none"
+                  data-testid={`map-desc-${idx}`}
+                />
+                <button
+                  onClick={() => setField('maps', adv.maps.filter((_, i) => i !== idx))}
+                  className="absolute top-1 right-1 p-1 rounded bg-rose-900/80 text-rose-100 hover:bg-rose-700"
+                  data-testid={`remove-map-${idx}`}
+                  aria-label="Eliminar archivo"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            );
+          })}
         </div>
       )}
     </StepCard>
@@ -1641,8 +1679,10 @@ const AdventureWizardPage = () => {
   };
 
   const handleUploadMap = async (file) => {
-    if (file.size > MAX_IMAGE_BYTES) {
-      toast.error(`"${file.name}" supera 5 MB`);
+    const pdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
+    const limit = pdf ? MAX_DOC_BYTES : MAX_IMAGE_BYTES;
+    if (file.size > limit) {
+      toast.error(`"${file.name}" supera ${pdf ? '15' : '5'} MB`);
       return;
     }
     setUploadingMap(true);
@@ -1650,10 +1690,16 @@ const AdventureWizardPage = () => {
       const res = await uploadAdventureImage(file, { description: `map-${id}` });
       setField('maps', [
         ...(adv.maps || []),
-        { file_id: res.file_id, path: res.path, description: '' },
+        {
+          file_id: res.file_id,
+          path: res.path,
+          description: '',
+          content_type: res.content_type || file.type || (pdf ? 'application/pdf' : 'image/*'),
+          name: file.name,
+        },
       ]);
     } catch (err) {
-      toast.error(err?.response?.data?.detail || 'Error subiendo mapa');
+      toast.error(err?.response?.data?.detail || 'Error subiendo archivo');
     } finally {
       setUploadingMap(false);
     }

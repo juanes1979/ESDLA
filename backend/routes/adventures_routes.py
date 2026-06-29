@@ -113,6 +113,9 @@ class AdventureMap(BaseModel):
     file_id: str  # GridFS id from /storage/upload
     path: Optional[str] = None
     description: Optional[str] = None
+    # Tipo de archivo: imagen (image/*) o documento PDF (application/pdf)
+    content_type: Optional[str] = None
+    name: Optional[str] = None
 
 
 class AdventureBase(BaseModel):
