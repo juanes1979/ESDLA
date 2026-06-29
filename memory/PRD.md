@@ -466,3 +466,28 @@ Aplica una transacción YA negociada al personaje (reutiliza endpoints de equipo
 - Tests: tests/test_trading_d100.py (8 OK) + test_trading_d100_integration_it77.py (6 OK).
 - TESTING AGENT iteration_77: 12/12 PASS (filtro Posadero, desplegable, negociación, tirada enfrentada,
   config editable, ficha con modificadores). Sin errores de consola.
+
+## Iter 128 — Creación de personaje: edad sesgada, rasgos faciales IA, fix array estándar (Jun 2026)
+
+### 1. Edad sesgada a la juventud (editable por cultura)
+- Fórmula nueva (mezcla uniforme↔cúbica): edad = round(min + (max−min)·((1−w)·r + w·r³)), w = sesgo/3.
+  sesgo 0 = plano (uniforme) · 2 (default) ≈ 74% en la mitad joven · 3 = muy joven.
+- `Step1Culture.jsx`: helper `edadSesgada()`; usa `culture.edad_sesgo ?? 2`.
+- Backend `data_routes.py`: `CultureCreate.edad_sesgo` (default 2.0) + persistencia create/update.
+- UI: deslizador 0–3 (default 2) en `CultureEditor.jsx` → sección Características Físicas
+  (data-testid edad-sesgo-slider/value). Solo al editar, sin recargar, persiste al guardar.
+- Verificado: Bree 18-50 → 51.8% en 18-26, 11.1% en 43-50.
+
+### 2. Rasgos faciales aleatorios para la imagen IA (editables)
+- `/app/frontend/src/data/facialTraits.js`: 6 grupos (estructura ósea, ojos/cejas, nariz, boca,
+  piel, cabello), 20 rasgos c/u, `pickRandomFacialTraits()` (uno por grupo).
+- `CharacterSummary.jsx`: recuadro editable (data-testid facial-traits-box) bajo el botón de
+  crear imagen: input por rasgo, botón Aleatorizar, X para quitar. Se envían en `rasgos_faciales`.
+- Backend `portrait_routes.py`: `PortraitRequest.rasgos_faciales` → prompt ('distinctive facial features').
+  El retrato sigue usando edad, subcultura, raza, género, ojos, pelo, vocación, trasfondo.
+
+### 3. Fix BUG array estándar (Step1Culture)
+- Los <select> de asignación de características filtran STANDARD_ARRAY excluyendo valores ya usados
+  por OTRA característica (cada uno conserva el suyo). El mensaje 'Valores disponibles' se mantiene.
+
+- TESTING AGENT iteration_80: frontend 100% (array estándar y deslizador por UI; rasgos faciales por code review). Sin issues.
