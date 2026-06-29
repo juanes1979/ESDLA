@@ -1054,6 +1054,7 @@ async def get_equipment_catalog(
             "armaduras_medias": [],
             "armaduras_pesadas": [],
             "escudos": [],
+            "yelmos": [],
             "monturas": [],
             "accesorios_monturas": [],
             "transporte_terrestre": [],
@@ -1067,7 +1068,7 @@ async def get_equipment_catalog(
         "ropa",
         "consumibles", "comida_posadas", "hierbas", "venenos",
         "armas_sencillas_cc", "armas_sencillas_distancia", "armas_marciales_cc", "armas_marciales_distancia",
-        "armaduras_ligeras", "armaduras_medias", "armaduras_pesadas", "escudos",
+        "armaduras_ligeras", "armaduras_medias", "armaduras_pesadas", "escudos", "yelmos",
         "monturas", "accesorios_monturas", "transporte_terrestre", "transporte_maritimo",
         "recursos_desarrollo", "gemas_preciosas", "gemas_semipreciosas"
     ]

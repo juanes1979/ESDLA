@@ -11,7 +11,7 @@
  *       - "Regenerar" → vuelve a llamar a la IA y reemplaza el borrador.
  */
 import { useState } from 'react';
-import { Loader2, RefreshCw, ImageIcon, Save, X, Lock } from 'lucide-react';
+import { Loader2, RefreshCw, ImageIcon, Save, X, Lock, Maximize2 } from 'lucide-react';
 import { LevelUpButton } from '@/components/LevelUpModal';
 import { toast } from 'sonner';
 import api from '@/services/api';
@@ -23,6 +23,7 @@ const CharacterHeader = ({ character, onLevelUp, onUpdate }) => {
   // Borrador local: imagen generada que aún NO se ha guardado.
   const [draftPortrait, setDraftPortrait] = useState(null);
   const [saving, setSaving] = useState(false);
+  const [showPreview, setShowPreview] = useState(false);
 
   const isLocked = !!character?.portrait_locked;
   const displayedImage = draftPortrait || character?.portrait_image || null;
@@ -57,7 +58,8 @@ const CharacterHeader = ({ character, onLevelUp, onUpdate }) => {
       // Guardar SÓLO en borrador. No persiste hasta que el usuario
       // pulse "Guardar".
       setDraftPortrait(img);
-      toast.info('Retrato generado en borrador. Pulsa "Guardar" para fijarlo o "Regenerar" para probar otro.');
+      setShowPreview(true);
+      toast.info('Retrato generado en borrador. Revísalo en grande y pulsa "Guardar" para fijarlo o "Regenerar" para probar otro.');
     } catch (e) {
       const rawDetail = e.response?.data?.detail;
       let detail;
@@ -92,6 +94,7 @@ const CharacterHeader = ({ character, onLevelUp, onUpdate }) => {
       });
       if (onUpdate) onUpdate(patched.data);
       setDraftPortrait(null);
+      setShowPreview(false);
       toast.success('Retrato guardado en la ficha (definitivo).');
     } catch (e) {
       console.error('Save portrait error:', e);
@@ -103,6 +106,7 @@ const CharacterHeader = ({ character, onLevelUp, onUpdate }) => {
 
   const discardDraft = () => {
     setDraftPortrait(null);
+    setShowPreview(false);
     setError(null);
     toast.info('Borrador descartado.');
   };
@@ -117,9 +121,10 @@ const CharacterHeader = ({ character, onLevelUp, onUpdate }) => {
               <img
                 src={`data:image/png;base64,${displayedImage}`}
                 alt={`Retrato de ${character.nombre}`}
+                onClick={() => draftPortrait && setShowPreview(true)}
                 className={`w-24 h-24 rounded-full object-cover ring-1 ${
                   draftPortrait
-                    ? 'ring-2 ring-amber-400 shadow-amber-400/40 shadow-lg'
+                    ? 'ring-2 ring-amber-400 shadow-amber-400/40 shadow-lg cursor-pointer'
                     : 'ring-[hsl(var(--gold))/50]'
                 }`}
                 style={{ background: 'transparent' }}
@@ -260,6 +265,59 @@ const CharacterHeader = ({ character, onLevelUp, onUpdate }) => {
           )}
         </div>
       </div>
+
+      {/* Previsualización GRANDE del retrato en borrador (antes de guardar) */}
+      {showPreview && draftPortrait && (
+        <div
+          className="fixed inset-0 z-[100] bg-black/80 flex items-center justify-center p-4"
+          onClick={() => setShowPreview(false)}
+          data-testid="portrait-preview-modal"
+        >
+          <div
+            className="bg-zinc-900 rounded-xl border border-amber-500/40 p-4 max-w-md w-full flex flex-col items-center gap-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between w-full">
+              <h3 className="font-heading text-lg text-amber-300">Retrato en borrador</h3>
+              <button onClick={() => setShowPreview(false)} className="text-muted-foreground hover:text-white" data-testid="portrait-preview-close">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <img
+              src={`data:image/png;base64,${draftPortrait}`}
+              alt={`Retrato de ${character.nombre}`}
+              className="w-full max-w-sm rounded-lg ring-1 ring-amber-400/40 object-contain"
+              data-testid="portrait-preview-image"
+            />
+            <p className="text-xs text-amber-300/80 italic text-center">
+              Aún no se ha guardado. Revisa la imagen y decide.
+            </p>
+            <div className="flex gap-2 w-full">
+              <button
+                onClick={saveDraft} disabled={saving}
+                className="flex-1 flex items-center justify-center gap-1 text-sm px-3 py-2 rounded bg-emerald-600 hover:bg-emerald-500 text-white disabled:opacity-60"
+                data-testid="portrait-preview-save-btn"
+              >
+                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />} Guardar
+              </button>
+              <button
+                onClick={generatePortrait} disabled={generating || saving}
+                className="flex-1 flex items-center justify-center gap-1 text-sm px-3 py-2 rounded bg-purple-600 hover:bg-purple-500 text-white disabled:opacity-60"
+                data-testid="portrait-preview-regen-btn"
+              >
+                {generating ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />} Regenerar
+              </button>
+              <button
+                onClick={discardDraft} disabled={saving}
+                className="flex items-center justify-center gap-1 text-sm px-3 py-2 rounded bg-red-600/70 hover:bg-red-500 text-white disabled:opacity-60"
+                data-testid="portrait-preview-discard-btn"
+              >
+                <X className="w-4 h-4" /> Descartar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

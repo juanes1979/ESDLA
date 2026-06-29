@@ -46,6 +46,7 @@ const EQUIPMENT_SECTIONS = [
       { key: 'armaduras_medias', name: 'Armaduras Medias', fields: ['nombre', 'precio', 'ca', 'comentarios', 'peso_kg'] },
       { key: 'armaduras_pesadas', name: 'Armaduras Pesadas', fields: ['nombre', 'precio', 'ca', 'comentarios', 'peso_kg'] },
       { key: 'escudos', name: 'Escudos', fields: ['nombre', 'precio', 'ca', 'peso_kg'] },
+      { key: 'yelmos', name: 'Yelmos y Cascos', fields: ['nombre', 'precio', 'ca', 'comentarios', 'peso_kg'] },
     ]
   },
   {

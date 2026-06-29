@@ -65,7 +65,7 @@ export const PAGE1_FIELDS = {
   pelo: { x: 1518, y: 156, width: 93, fontSize: 20, align: 'left' },
   sexo: { x: 376, y: 261, width: 137, fontSize: 40, align: 'center' },
   // Código público RAZSUBCAAXXXXX, esquina superior derecha
-  codigo_publico: { x: 1450, y: 43, width: 280, fontSize: 26, align: 'right' },
+  codigo_publico: { x: 1310, y: 45, width: 420, fontSize: 21, align: 'right' },
   
   // Attributes - Main values
   fuerza_valor: { x: 95, y: 332, width: 107, fontSize: 100, align: 'center' },

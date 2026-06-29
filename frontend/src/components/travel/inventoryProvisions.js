@@ -67,6 +67,7 @@ export const summarizeProvisions = (inventario = []) => {
   const odres = [];
   let aguaSuelta = 0;
   let totalFoodMassKg = 0;
+  let otherFoodMassKg = 0; // comida que NO son raciones (consumibles/posadas)
 
   inventario.forEach((item, idx) => {
     if (!item) return;
@@ -95,7 +96,9 @@ export const summarizeProvisions = (inventario = []) => {
       // Other food items (categoria=consumibles/comida_posadas)
       const cat = lower(item.categoria);
       if (cat === 'consumibles' || cat === 'comida_posadas') {
-        totalFoodMassKg += Number(item.peso_kg || 0) * cantidad;
+        const kg = Number(item.peso_kg || 0) * cantidad;
+        totalFoodMassKg += kg;
+        otherFoodMassKg += kg;
       }
     }
   });
@@ -103,11 +106,13 @@ export const summarizeProvisions = (inventario = []) => {
   const totalLitros =
     odres.reduce((s, o) => s + o.litros_actuales, 0) + aguaSuelta;
 
-  // Conversión másica: 1 ración = 1 kg de comida (1 día completo).
+  // Días de comida: cada RACIÓN = 1 día completo (independiente de su peso,
+  // que en el catálogo puede ser 0). La comida suelta (consumibles/posadas) se
+  // convierte por masa: 1 kg = 1 día.
   const KG_POR_RACION = 1.0;
-  const diasComidaTotal = totalFoodMassKg / KG_POR_RACION;
+  const diasComidaTotal = (raciones / RACIONES_POR_DIA) + (otherFoodMassKg / KG_POR_RACION);
 
-  return { raciones, odres, aguaSuelta, totalLitros, totalFoodMassKg, diasComidaTotal };
+  return { raciones, odres, aguaSuelta, totalLitros, totalFoodMassKg, otherFoodMassKg, diasComidaTotal };
 };
 
 /**
