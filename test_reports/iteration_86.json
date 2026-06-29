@@ -1,0 +1,50 @@
+{
+  "summary": "Verified TiendaD100 (Compra-Venta) currency display fix end-to-end. Login Maestro → /comercio → tab 'Tienda D100' → selected 'Nimhir Belegorn' → PNJ 'Mercader QA' → 'Comprar (el jugador paga)'. Item dropdown now shows the REAL moneda per item (mc/me/mp), label 'Precio base (<moneda>)' is dynamic, and negotiation result amounts use the item's currency. FIX CONFIRMED WORKING.",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Tienda D100 — NPC chip & ubicación", "issues": ["'Mercader QA ()' muestra paréntesis vacíos cuando la profesión está vacía. 'Posada QA (null)' muestra literal 'null' como región cuando charLoc.region no existe. Cosmético; usar fallback condicional al renderizar."]}
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [
+    "(Opcional) Mejorar el render cuando profesion del PNJ o region de la ubicación son nulas para evitar '()' y '(null)' en TiendaD100.jsx (líneas ~316 y ~400)."
+  ],
+  "critical_code_review_comments": [
+    "fmt(n, moneda) está parametrizado correctamente y se usa con monedaItem en result panel (precio_referencia, contraoferta) y closeDeal (resumen + payload moneda). Buen patrón.",
+    "monedaItem = item?.moneda || 'mp' cubre el caso sin selección. Coherente con el desplegable que muestra '{it.precio} {it.moneda || mp}'.",
+    "confirm-transaction recibe ahora moneda: item?.moneda||'mp', y el backend convierte vía price_to_base/convert_from_base — verificado por el agente principal en backend."
+  ],
+  "updated_files": [],
+  "success_rate": { "backend": "n/a (skip)", "frontend": "100%" },
+  "test_credentials": "Maestro elanillounico_tlotr@proton.me / 123456 (de /app/memory/test_credentials.md). Personaje 'Nimhir Belegorn' (id 0b1662e4-…) en 'Posada QA' con PNJ 'Mercader QA' (id qa-npc-tienda). Dinero observado: 5 mo / 50 mp / 500 me / 200 mc — coincide con el escenario QA descrito.",
+  "seed_data_creation": "Ya existía: escenario qa_setup_tienda.py (Nimhir en Posada QA con Mercader QA). No se ha creado data nueva.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "La ruta del módulo de comercio es /comercio (no /trading). El tab activo es data-testid='tab-tienda-d100'. Para verificar el fix de moneda: buscar 'Cerveza' o 'Pan' en d100-item-search y comprobar que el sufijo varía (mc, me, mp) según artículo; al seleccionar uno, el label 'Precio base (...)' y el resultado de 'Negociar' deben usar la misma moneda. /api/data/equipment-catalog devuelve la moneda por artículo (diversidad real: mp:360, mc:198, me:48, mo:30, mb:86).",
+  "evidence": {
+    "dropdown_cerveza_observado": [
+      "Cerveza o hidromiel, vaso — 3 me",
+      "Cerveza o hidromiel, jarra — 2 mc",
+      "Cerveza o hidromiel, vaso — 1 mc",
+      "Cerveza o hidromiel, jarra — 6 mc"
+    ],
+    "dropdown_pan_observado": [
+      "Comida frugal (pan y queso) — 5 me",
+      "Pan, hogaza — 5 me",
+      "Comida frugal (pan y queso) — 1 mc",
+      "Comida común (guiso de verduras y pan) — 3 mc",
+      "Pan, hogaza — 1 mc",
+      "vidrio transparente (panel) — 2 mc"
+    ],
+    "busqueda_a_diversity": { "mp": 40, "mc": 9, "me": 1 },
+    "catalog_diversity": { "mp": 360, "mc": 198, "me": 48, "mo": 30, "mb": 86 },
+    "label_tras_seleccion_cerveza_vaso_me": "Precio base (me)",
+    "precio_base_value": "3",
+    "result_panel_text": "Contraoferta · Precio objetivo: 3.00 me · Desviación 0% · Tolerancia 8% · Tirada D100 51 · Prob 50% · Contraoferta del PNJ: 3.00 me",
+    "all_monedas_in_result_use_item_currency": true,
+    "verdict": "FIX VERIFICADO: el desplegable ya NO muestra todo 'mp'; cada artículo lleva su moneda real (mc/me/mp), la etiqueta 'Precio base (<moneda>)' se actualiza y el panel de negociación usa la moneda del artículo."
+  }
+}

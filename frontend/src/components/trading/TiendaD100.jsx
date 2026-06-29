@@ -18,7 +18,7 @@ import { toast } from 'sonner';
 import api from '@/services/api';
 import DistributionView from '@/components/character-sheet/DistributionView';
 
-const fmt = (n) => (n === null || n === undefined ? '—' : `${Number(n).toFixed(2)} mp`);
+const fmt = (n, moneda = 'mp') => (n === null || n === undefined ? '—' : `${Number(n).toFixed(2)} ${moneda}`);
 
 const RESULT_STYLE = {
   acepta: { bg: 'bg-green-900/30', border: 'border-green-600', text: 'text-green-400', Icon: Check, label: 'Acepta' },
@@ -277,7 +277,7 @@ const TiendaD100 = ({ characters = [], equipment = {}, config }) => {
         character_id: character.id || character._id,
         npc_id: npc._id,
         relacion_delta: relDelta,
-        resumen: `${modo === 'compra' ? 'Compra' : 'Venta'} de ${item?.nombre || 'artículo'} por ${Number(oferta).toFixed(2)} mp`,
+        resumen: `${modo === 'compra' ? 'Compra' : 'Venta'} de ${item?.nombre || 'artículo'} por ${Number(oferta).toFixed(2)} ${item?.moneda || 'mp'}`,
       });
       // 2) Aplicar oro/inventario real (reutiliza confirm-transaction).
       let warns = [];
@@ -293,7 +293,7 @@ const TiendaD100 = ({ characters = [], equipment = {}, config }) => {
           },
           cantidad: 1,
           precio_total: Number(oferta),
-          moneda: 'mp',
+          moneda: item?.moneda || 'mp',
           // Destino al comprar: equipado / mochila / montura.
           carried_by: modo === 'compra' && destino === 'montura' ? 'montura' : 'personaje',
           equipado: modo === 'compra' ? destino === 'equipado' : undefined,
@@ -314,6 +314,8 @@ const TiendaD100 = ({ characters = [], equipment = {}, config }) => {
 
   const ubic = character?.ubicacion_actual;
   const ubicLabel = ubic ? `${ubic.nombre} (${ubic.region})` : (charLoc?.ubicacion ? `${charLoc.ubicacion} (${charLoc.region || ''})` : null);
+  // Moneda del artículo seleccionado (mo/mp/mc/me…); por defecto plata.
+  const monedaItem = item?.moneda || 'mp';
   const rs = result ? RESULT_STYLE[result.resultado] : null;
 
   // Dinero del personaje (mo/mp/mc/me).
@@ -439,14 +441,14 @@ const TiendaD100 = ({ characters = [], equipment = {}, config }) => {
                       className="w-full text-left px-3 py-2 hover:bg-white/10 text-sm flex justify-between"
                       data-testid={`d100-item-opt-${it.nombre}`}>
                       <span>{it.nombre}</span>
-                      <span className="text-xs text-muted-foreground">{it.precio} mp</span>
+                      <span className="text-xs text-muted-foreground">{it.precio} {it.moneda || 'mp'}</span>
                     </button>
                   ))}
                 </div>
               )}
             </div>
             <div>
-              <label className="text-xs text-muted-foreground">Precio base (mp)</label>
+              <label className="text-xs text-muted-foreground">Precio base ({monedaItem})</label>
               <Input type="number" value={precioBase}
                 onChange={(e) => { const p = Number(e.target.value) || 0; setPrecioBase(p); setOferta(p); }}
                 data-testid="d100-precio-base" />
@@ -489,7 +491,7 @@ const TiendaD100 = ({ characters = [], equipment = {}, config }) => {
                 {result.resultado === 'enfado' && <span className="text-xs">{result.mensaje}</span>}
               </div>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mt-2 text-xs">
-                <div>Precio objetivo: <span className="font-mono text-foreground">{fmt(result.precio_referencia)}</span></div>
+                <div>Precio objetivo: <span className="font-mono text-foreground">{fmt(result.precio_referencia, monedaItem)}</span></div>
                 <div>Desviación: <span className="font-mono text-foreground">{result.desviacion_pct}%</span></div>
                 <div>Tolerancia: <span className="font-mono text-foreground">{result.tolerancia}%</span></div>
                 <div>Rel. efectiva: <span className="font-mono text-foreground">{result.relacion_efectiva}</span></div>
@@ -501,7 +503,7 @@ const TiendaD100 = ({ characters = [], equipment = {}, config }) => {
               {result.resultado === 'contraoferta' && (
                 <div className="mt-2 space-y-1">
                   <div className="flex items-center gap-2">
-                    <span className="text-sm text-yellow-300">Contraoferta del PNJ: <strong>{fmt(result.contraoferta)}</strong></span>
+                    <span className="text-sm text-yellow-300">Contraoferta del PNJ: <strong>{fmt(result.contraoferta, monedaItem)}</strong></span>
                     <Button size="sm" variant="outline" onClick={acceptCounter} data-testid="d100-accept-counter">Aceptar contraoferta</Button>
                   </div>
                   {result.contraoferta_desglose && (
@@ -527,7 +529,7 @@ const TiendaD100 = ({ characters = [], equipment = {}, config }) => {
                     </div>
                   )}
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span className="text-sm text-green-300">Trato acordado por <strong>{fmt(oferta)}</strong>. Δrelación {result.relacion_delta >= 0 ? '+' : ''}{result.relacion_delta}.</span>
+                    <span className="text-sm text-green-300">Trato acordado por <strong>{fmt(oferta, monedaItem)}</strong>. Δrelación {result.relacion_delta >= 0 ? '+' : ''}{result.relacion_delta}.</span>
                     <Button size="sm" onClick={closeDeal} disabled={closing} className="bg-green-700 hover:bg-green-600" data-testid="d100-close-btn">
                       {closing ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Handshake className="w-4 h-4 mr-2" />}
                       Cerrar trato y aplicar al personaje
@@ -597,7 +599,7 @@ const TiendaD100 = ({ characters = [], equipment = {}, config }) => {
                 <p className="text-[11px] text-muted-foreground mt-0.5">
                   Enfado +{opposed.anger_incremento}
                   {opposed.relacion_delta !== 0 && <> · Δrelación {opposed.relacion_delta >= 0 ? '+' : ''}{opposed.relacion_delta}</>}
-                  {opposed.precio_resultante != null && opposed.resultado !== 'exito' && <> · precio sube a {fmt(opposed.precio_resultante)}</>}
+                  {opposed.precio_resultante != null && opposed.resultado !== 'exito' && <> · precio sube a {fmt(opposed.precio_resultante, monedaItem)}</>}
                 </p>
                 {opposed.narrativa && <p className="mt-2 italic text-foreground/90">{opposed.narrativa}</p>}
 
@@ -614,7 +616,7 @@ const TiendaD100 = ({ characters = [], equipment = {}, config }) => {
                       </div>
                     )}
                     <div className="flex items-center gap-2 flex-wrap">
-                      <span className="text-sm text-green-300">El vendedor acepta tu precio de <strong>{fmt(oferta)}</strong>.</span>
+                      <span className="text-sm text-green-300">El vendedor acepta tu precio de <strong>{fmt(oferta, monedaItem)}</strong>.</span>
                       <Button size="sm" onClick={closeDeal} disabled={closing} className="bg-green-700 hover:bg-green-600" data-testid="d100-opposed-close-btn">
                         {closing ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Handshake className="w-4 h-4 mr-2" />}
                         Cerrar trato y aplicar al personaje
