@@ -313,7 +313,9 @@ const TiendaD100 = ({ characters = [], equipment = {}, config }) => {
   };
 
   const ubic = character?.ubicacion_actual;
-  const ubicLabel = ubic ? `${ubic.nombre} (${ubic.region})` : (charLoc?.ubicacion ? `${charLoc.ubicacion} (${charLoc.region || ''})` : null);
+  const ubicLabel = ubic
+    ? `${ubic.nombre}${ubic.region ? ` (${ubic.region})` : ''}`
+    : (charLoc?.ubicacion ? `${charLoc.ubicacion}${charLoc.region ? ` (${charLoc.region})` : ''}` : null);
   // Moneda del artículo seleccionado (mo/mp/mc/me…); por defecto plata.
   const monedaItem = item?.moneda || 'mp';
   const rs = result ? RESULT_STYLE[result.resultado] : null;
@@ -397,7 +399,7 @@ const TiendaD100 = ({ characters = [], equipment = {}, config }) => {
                     {n.retrato_file_id ? (
                       <img src={`${API_URL}/api/trading/npcs/${n._id}/portrait`} alt={n.nombre} className="w-6 h-6 rounded object-cover" />
                     ) : <User className="w-4 h-4" />}
-                    {n.nombre} <span className="text-xs text-muted-foreground">({n.profesion})</span>
+                    {n.nombre}{n.profesion ? <span className="text-xs text-muted-foreground"> ({n.profesion})</span> : null}
                   </button>
                 ))}
               </div>

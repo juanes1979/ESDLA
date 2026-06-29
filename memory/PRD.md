@@ -51,6 +51,14 @@ gestión completa de personajes, mapas, viajes, combate, NPC, campañas y editor
   "Raciones (1 día) (Paquete de 10)" (0.9 kg) → peso por unidad 0.09/día (×10 = 0.9 kg).
   Items de paquete completo ("Antorchas (paquete de 10)") coinciden exactos. Migración re-ejecutada.
 
+## Jun 2026 — Tienda D100: moneda real por artículo (fix)
+- Bug: el desplegable de artículos mostraba todo en 'mp' (plata). Cada artículo del catálogo
+  tiene su `moneda` (mo/mp/mc/me). Fix en `TiendaD100.jsx`: `fmt(n, moneda)`, desplegable muestra
+  `it.moneda`, etiqueta "Precio base (<moneda>)" dinámica, resultados de negociación en la moneda
+  del artículo, y `confirm-transaction` recibe la moneda real (el backend ya convertía con COIN_VALUES).
+- Pulido: chips de PNJ/ubicación sin "()" ni "(null)" cuando faltan profesión/región.
+- Validado: testing agent iteration_86 (frontend 100%).
+
 
 ## Iter 119 — Sistema raster de terreno (Feb 2026)
 Reemplaza el sistema de polígonos vectoriales (frágil, con solapes y bugs en
