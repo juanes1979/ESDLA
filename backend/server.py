@@ -39,6 +39,7 @@ from routes.languages_routes import router as languages_router, seed_languages_i
 from routes.npc_generator_routes import router as npc_generator_router
 from routes.terrain_grid_routes import router as terrain_grid_router
 from routes.dj_screen_routes import router as dj_screen_router
+from realtime import ws_router
 
 
 ROOT_DIR = Path(__file__).parent
@@ -139,6 +140,8 @@ api_router.include_router(dj_screen_router)
 
 # Include the main router in the app
 app.include_router(api_router)
+# WebSocket router (paths already include /api).
+app.include_router(ws_router)
 
 app.add_middleware(
     CORSMiddleware,

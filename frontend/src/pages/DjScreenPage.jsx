@@ -183,7 +183,7 @@ const CombatantCard = ({ c, idx, isActive, canEdit, onChange, onRemove, runId })
 };
 
 // ---------------------------------------------------------------------------
-const ChatPanel = ({ runId, channels, myUserId }) => {
+const ChatPanel = ({ runId, channels, myUserId, chatEvent, wsLive }) => {
   const [channel, setChannel] = useState(channels[0]?.channel || 'group');
   const [messages, setMessages] = useState([]);
   const [text, setText] = useState('');
@@ -199,9 +199,18 @@ const ChatPanel = ({ runId, channels, myUserId }) => {
 
   useEffect(() => { load(); }, [load]);
   useEffect(() => {
-    const t = setInterval(() => { if (!document.hidden) load(); }, 4000);
+    // Respaldo de sondeo (WS cubre el tiempo real cuando está vivo).
+    const t = setInterval(() => { if (!document.hidden && !wsLive) load(); }, wsLive ? 12000 : 4000);
     return () => clearInterval(t);
-  }, [load]);
+  }, [load, wsLive]);
+
+  // Mensaje entrante por WebSocket para el canal activo.
+  useEffect(() => {
+    if (!chatEvent || chatEvent.channel !== channel) return;
+    const m = chatEvent.message;
+    setMessages((prev) => (prev.some((x) => x.id === m.id) ? prev : [...prev, m]));
+  }, [chatEvent, channel]);
+
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
 
   const send = async () => {
@@ -282,7 +291,12 @@ const DjScreenPage = () => {
   const [notesPending, setNotesPending] = useState(false);
   const notesTimer = useRef(null);
   const screenRef = useRef(null);
+  const canEditRef = useRef(false);
+  const wsRef = useRef(null);
+  const [chatEvent, setChatEvent] = useState(null);
+  const [wsLive, setWsLive] = useState(false);
   useEffect(() => { screenRef.current = screen; }, [screen]);
+  useEffect(() => { canEditRef.current = canEdit; }, [canEdit]);
 
   // Enemy add form
   const [enemy, setEnemy] = useState({ name: '', hp_max: 10, ac: 12, initiative: 0 });
@@ -316,18 +330,57 @@ const DjScreenPage = () => {
 
   useEffect(() => { load(); }, [load]);
 
+  // WebSocket en vivo: estado del rastreador + chat. El DJ es la fuente de
+  // verdad, así que NO se pisa a sí mismo con dj_screen_state entrante.
+  useEffect(() => {
+    const token = getToken();
+    if (!token) return undefined;
+    const wsBase = BACKEND_URL.replace(/^http/, 'ws');
+    let ws;
+    let pingTimer;
+    let closed = false;
+    const connect = () => {
+      ws = new WebSocket(`${wsBase}/api/ws/campaign/${id}?token=${token}`);
+      wsRef.current = ws;
+      ws.onopen = () => setWsLive(true);
+      ws.onmessage = (e) => {
+        let data;
+        try { data = JSON.parse(e.data); } catch { return; }
+        if (data.type === 'dj_screen_state') {
+          if (!canEditRef.current) setScreen(data.state);
+        } else if (data.type === 'chat') {
+          setChatEvent(data);
+        }
+      };
+      ws.onclose = () => {
+        setWsLive(false);
+        if (!closed) setTimeout(connect, 3000);
+      };
+      ws.onerror = () => { try { ws.close(); } catch { /* noop */ } };
+      pingTimer = setInterval(() => {
+        try { if (ws.readyState === 1) ws.send('ping'); } catch { /* noop */ }
+      }, 25000);
+    };
+    connect();
+    return () => {
+      closed = true;
+      clearInterval(pingTimer);
+      try { ws && ws.close(); } catch { /* noop */ }
+    };
+  }, [id]);
+
   // Players poll the (sanitized) state. DJ is the source of truth and does not poll.
   useEffect(() => {
-    if (canEdit) return;
+    if (canEdit) return undefined;
     const t = setInterval(async () => {
-      if (document.hidden) return;
+      if (document.hidden || wsLive) return; // WS cubre el tiempo real; poll = respaldo
       try {
         const data = await getDjScreen(id);
         setScreen(data.state);
       } catch { /* silent */ }
-    }, 5000);
+    }, 15000);
     return () => clearInterval(t);
-  }, [canEdit, id]);
+  }, [canEdit, id, wsLive]);
 
   // Load chat peers/channels.
   useEffect(() => {
@@ -526,6 +579,14 @@ const DjScreenPage = () => {
             </>
           )}
           {isPlayer && <span className="text-xs px-2 py-1 rounded bg-stone-800 text-stone-300">Vista de jugador</span>}
+          <span
+            className={`text-xs px-2 py-1 rounded flex items-center gap-1 ${wsLive ? 'bg-emerald-900/40 text-emerald-300' : 'bg-stone-800 text-stone-400'}`}
+            data-testid="ws-status"
+            title={wsLive ? 'Conexión en vivo (WebSocket)' : 'Sin conexión en vivo (respaldo por sondeo)'}
+          >
+            <span className={`w-2 h-2 rounded-full ${wsLive ? 'bg-emerald-400 animate-pulse' : 'bg-stone-500'}`} />
+            {wsLive ? 'En vivo' : 'Reconectando…'}
+          </span>
         </div>
       </div>
 
@@ -549,7 +610,7 @@ const DjScreenPage = () => {
           <div className="rounded-xl border border-amber-700/40 bg-black/50 p-3 h-[420px]" data-testid="dj-chat-card">
             <h3 className="text-sm font-medium text-amber-300 mb-2 flex items-center gap-1"><MessageSquare className="w-4 h-4" /> Chat</h3>
             <div className="h-[calc(100%-2rem)]">
-              <ChatPanel runId={id} channels={channels} myUserId={user?.id} />
+              <ChatPanel runId={id} channels={channels} myUserId={user?.id} chatEvent={chatEvent} wsLive={wsLive} />
             </div>
           </div>
         </div>

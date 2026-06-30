@@ -19,12 +19,21 @@ combat tracker, resumen de aventureros, rastreador de viaje, Ojo de Mordor, chat
 
 ## FASE 1 — Infraestructura de tiempo real + mecánicas base
 - WebSockets: validar primero que el proxy de Kubernetes deja pasar `wss://…/api/ws/campaign/{run_id}`.
-  Si pasa → ConnectionManager en memoria (dict campaign_run_id → {websockets}), fan-out a
-  nivel de app (cliente PATCH → DB → broadcast a la campaña; saneado por rol). Auth por token.
-  Si NO pasa → fallback SSE / polling rápido.
-  Sincroniza: HP, Iniciativa, Sombra, estado cualitativo de enemigos. (Esperanza: N/A.)
-- Ojo de Mordor por campaña: colección separada `campaign_eye_state` (1 doc por
-  campaign_run_id), reutilizando la lógica de eye_routes.py con scope = campaign_run_id.
+
+### ✅ FASE 1 COMPLETADA (Jun 2026)
+- WebSocket VALIDADO a través del proxy (Cloudflare/k8s) → no hace falta SSE.
+- `backend/realtime.py`: `ConnectionManager` en memoria (salas por campaign_run_id),
+  endpoint `WS /api/ws/campaign/{run_id}?token=<jwt>`, auth por token + chequeo de membresía,
+  `broadcast()` (full a DJ / saneado a jugador) y `broadcast_chat()` (respeta canal privado).
+  Registrado en server.py (`app.include_router(ws_router)`).
+- `dj_screen_routes.py`: PUT dj-screen, sync-players y post_chat emiten broadcast por WS.
+- Ojo de Mordor por campaña: se usa el mecanismo `state_id` existente de eye_routes con
+  `state_id = campaign_run_id` (DRY, sin duplicar colección). Nuevo endpoint
+  `GET /api/campaign-runs/{run_id}/eye` (DJ: completo; jugador: banda runica saneada).
+- Frontend `DjScreenPage.jsx`: se conecta al WS (sustituye el sondeo; poll solo de respaldo
+  15s/12s si WS cae), aplica `dj_screen_state` (jugador) y `chat` en vivo; indicador "● En vivo".
+- Verificado: WS hello/pong por proxy, broadcast en PUT (round live), endpoint eye saneado,
+  navegador muestra "En vivo".
 
 ## FASE 2 — Motor de ataque d20 automatizado
 - Selección atacante/defensor por clic (selectedAttackerId / selectedDefenderId) usando el

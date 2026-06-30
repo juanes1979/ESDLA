@@ -28,10 +28,26 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, ConfigDict, Field
 
 from auth import get_current_user
+from realtime import manager
+from routes.eye_routes import _load_state as _eye_load, _calc_threshold as _eye_threshold
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["dj-screen"])
+
+
+async def _broadcast_state(run_id: str, screen: dict) -> None:
+    """Difunde el estado del rastreador por WS: completo a DJ, saneado a jugadores."""
+    full = _serialize(screen)
+    player = _sanitize_for_player(screen)
+    try:
+        await manager.broadcast(
+            run_id,
+            {"type": "dj_screen_state", "state": full},
+            {"type": "dj_screen_state", "state": player},
+        )
+    except Exception as e:
+        logger.info("broadcast dj_screen falló (%s): %s", run_id, e)
 
 
 # ============================================================================
@@ -225,6 +241,7 @@ async def update_dj_screen(
         {"campaign_run_id": run_id}, {"$set": update}
     )
     screen = await db.dj_screens.find_one({"campaign_run_id": run_id})
+    await _broadcast_state(run_id, screen)
     return _serialize(screen)
 
 
@@ -274,6 +291,7 @@ async def sync_players(run_id: str, user: dict = Depends(get_current_user)):
         {"$set": {"combatants": combatants, "updated_at": now}},
     )
     screen = await db.dj_screens.find_one({"campaign_run_id": run_id})
+    await _broadcast_state(run_id, screen)
     return {"added": added, "state": _serialize(screen)}
 
 
@@ -298,6 +316,50 @@ async def get_combatant_portrait(
     except Exception:
         raise HTTPException(status_code=404, detail="Retrato inválido")
     return Response(content=raw, media_type="image/png")
+
+
+def _eye_band(ratio: float) -> str:
+    """Banda runica del Ojo para la vista de jugador (sin números)."""
+    if ratio < 0.25:
+        return "Ojo dormido"
+    if ratio < 0.5:
+        return "Ojo entreabierto"
+    if ratio < 0.75:
+        return "Ojo vigilante"
+    if ratio < 1.0:
+        return "Ojo parpadeando"
+    return "La Mirada"
+
+
+@router.get("/campaign-runs/{run_id}/eye")
+async def get_campaign_eye(run_id: str, user: dict = Depends(get_current_user)):
+    """Ojo de Mordor ligado a la campaña (state_id = campaign_run_id).
+    DJ/Maestro: estado completo. Jugador aceptado: banda runica saneada."""
+    from server import db
+    run = await _get_run_or_404(db, run_id)
+    state = await _eye_load(run_id)
+    threshold = _eye_threshold(
+        state.get("last_region_id"),
+        state.get("region_overrides", {}),
+        state.get("threshold_modifiers", 0),
+    )
+    total = state.get("attention_total", 0)
+    ratio = (total / threshold["threshold"]) if threshold["threshold"] > 0 else 0
+
+    if _is_dm(run, user):
+        return {
+            "can_edit": True,
+            "attention_total": total,
+            "threshold_info": threshold,
+            "ratio": ratio,
+            "will_trigger": total >= threshold["threshold"],
+            "band": _eye_band(ratio),
+            "history": state.get("history", [])[-30:],
+        }
+    if await _is_accepted_player(db, run_id, user):
+        # Saneado: solo la banda runica, sin números ni umbrales.
+        return {"can_edit": False, "band": _eye_band(ratio)}
+    raise HTTPException(status_code=403, detail="Sin permiso")
 
 
 # ============================================================================
@@ -361,7 +423,12 @@ async def post_chat(
         "created_at": now,
     }
     await db.dj_chat_messages.insert_one(doc)
-    return _serialize(doc)
+    msg = _serialize(doc)
+    try:
+        await manager.broadcast_chat(run_id, payload.channel, msg)
+    except Exception:
+        pass
+    return msg
 
 
 @router.get("/campaign-runs/{run_id}/chat/peers")
