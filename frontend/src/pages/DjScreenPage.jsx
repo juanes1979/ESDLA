@@ -15,11 +15,13 @@ import {
   ArrowLeft, Loader2, Plus, Minus, Trash2, Swords, Shield, Heart,
   ChevronRight, ChevronLeft, RotateCcw, ArrowDownWideNarrow, Send,
   Image as ImageIcon, Users, NotebookPen, MessageSquare, Skull, X,
+  Dices, Compass,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   getDjScreen, saveDjScreen, syncDjPlayers,
   getDjChat, postDjChat, getDjChatPeers, getBestiary, djAttack,
+  djRollInitiative, djTravelEvent,
 } from '@/services/api';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/context/AuthContext';
@@ -372,6 +374,7 @@ const DjScreenPage = () => {
     combatants: s.combatants || [],
     current_turn_index: s.current_turn_index || 0,
     round_number: s.round_number || 1,
+    combat_active: !!s.combat_active,
   });
 
   const load = useCallback(async () => {
@@ -579,7 +582,34 @@ const DjScreenPage = () => {
     persist({ ...screen, current_turn_index: idx, round_number: round });
   };
 
-  const resetCombat = () => persist({ ...screen, current_turn_index: 0, round_number: 1 });
+  const resetCombat = () => persist({ ...screen, current_turn_index: 0, round_number: 1, combat_active: false });
+
+  const doRollInitiative = async () => {
+    try {
+      const st = await djRollInitiative(id);
+      setScreen(st);
+      toast.success('Iniciativa tirada — combate iniciado');
+    } catch (e) {
+      toast.error(e?.response?.data?.detail || 'Error al tirar iniciativa');
+    }
+  };
+
+  // ---- Rastreador de viaje ----
+  const [travelParams, setTravelParams] = useState({ tipo_tierra: 'tierras_salvajes', terreno: 'campo_abierto', estacion: 'verano' });
+  const [travelEvt, setTravelEvt] = useState(null);
+  const [travelLoading, setTravelLoading] = useState(false);
+
+  const genTravelEvent = async () => {
+    setTravelLoading(true);
+    try {
+      const res = await djTravelEvent(id, travelParams);
+      setTravelEvt(res);
+    } catch (e) {
+      toast.error(e?.response?.data?.detail || 'Error al generar el acontecimiento');
+    } finally {
+      setTravelLoading(false);
+    }
+  };
 
   const doAttack = async () => {
     if (!attackerId || !defenderId || attackerId === defenderId) {
@@ -678,13 +708,59 @@ const DjScreenPage = () => {
               <textarea
                 value={screen.notes_private}
                 onChange={(e) => onNotesChange(e.target.value)}
-                rows={8}
+                rows={6}
                 placeholder="Notas privadas de la sesión…"
                 className="w-full bg-black/40 rounded p-2 text-sm text-amber-100 placeholder-amber-500/30 outline-none border border-amber-900/30 resize-y"
                 data-testid="dj-notes-textarea"
               />
             </div>
           )}
+
+          {canEdit && (
+            <div className="rounded-xl border border-emerald-700/40 bg-black/50 p-3" data-testid="travel-tracker">
+              <h3 className="text-sm font-medium text-emerald-300 mb-2 flex items-center gap-1"><Compass className="w-4 h-4" /> Rastreador de viaje</h3>
+              <div className="grid grid-cols-3 gap-1 mb-2">
+                <select value={travelParams.tipo_tierra} onChange={(e) => setTravelParams({ ...travelParams, tipo_tierra: e.target.value })} className="bg-black/40 rounded px-1 py-1 text-[11px] text-emerald-100 outline-none border border-emerald-900/30" data-testid="travel-tierra">
+                  <option value="libres">T. libres</option>
+                  <option value="fronteras">Fronteras</option>
+                  <option value="tierras_salvajes">T. salvajes</option>
+                  <option value="tierras_oscuras">T. oscuras</option>
+                </select>
+                <select value={travelParams.terreno} onChange={(e) => setTravelParams({ ...travelParams, terreno: e.target.value })} className="bg-black/40 rounded px-1 py-1 text-[11px] text-emerald-100 outline-none border border-emerald-900/30" data-testid="travel-terreno">
+                  <option value="campo_abierto">Campo abierto</option>
+                  <option value="bosque">Bosque</option>
+                  <option value="colinas">Colinas</option>
+                  <option value="montana">Montaña</option>
+                  <option value="pantano">Pantano</option>
+                </select>
+                <select value={travelParams.estacion} onChange={(e) => setTravelParams({ ...travelParams, estacion: e.target.value })} className="bg-black/40 rounded px-1 py-1 text-[11px] text-emerald-100 outline-none border border-emerald-900/30" data-testid="travel-estacion">
+                  <option value="primavera">Primavera</option>
+                  <option value="verano">Verano</option>
+                  <option value="otono">Otoño</option>
+                  <option value="invierno">Invierno</option>
+                </select>
+              </div>
+              <Button size="sm" onClick={genTravelEvent} disabled={travelLoading} className="w-full bg-emerald-700 hover:bg-emerald-600 text-emerald-50 h-7 text-xs" data-testid="gen-travel-event-btn">
+                {travelLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <><Compass className="w-3.5 h-3.5 mr-1" /> Generar acontecimiento</>}
+              </Button>
+              {travelEvt && (
+                <div className="mt-2 rounded-lg border border-emerald-800/40 bg-emerald-950/20 p-2 text-[11px]" data-testid="travel-event-card">
+                  <div className="text-emerald-200 font-medium">{travelEvt.evento?.nombre}</div>
+                  <div className="text-stone-300 mt-0.5">
+                    Encargado: <span className="text-amber-300">{travelEvt.objetivo?.papel}</span> · {travelEvt.objetivo?.prueba}
+                    {' '}({travelEvt.objetivo?.atributo}/{travelEvt.objetivo?.habilidad}) · CD {travelEvt.cd_prueba}
+                  </div>
+                  {travelEvt.evento?.consecuencias && <div className="text-stone-400 mt-0.5 italic">{travelEvt.evento.consecuencias}</div>}
+                  <div className="flex gap-2 mt-1">
+                    {travelEvt.evento?.puntos_sombra > 0 && <span className="text-purple-300">⚫ Sombra +{travelEvt.evento.puntos_sombra}</span>}
+                    {travelEvt.evento?.fatigue_cd_increase > 0 && <span className="text-amber-300">💤 Cansancio CD +{travelEvt.evento.fatigue_cd_increase}</span>}
+                  </div>
+                  <div className="text-[10px] text-emerald-400/60 mt-1">Narrado en el chat de grupo ✓</div>
+                </div>
+              )}
+            </div>
+          )}
+
           <div className="rounded-xl border border-amber-700/40 bg-black/50 p-3 h-[420px]" data-testid="dj-chat-card">
             <h3 className="text-sm font-medium text-amber-300 mb-2 flex items-center gap-1"><MessageSquare className="w-4 h-4" /> Chat</h3>
             <div className="h-[calc(100%-2rem)]">
@@ -758,6 +834,11 @@ const DjScreenPage = () => {
               <h3 className="text-sm font-medium text-amber-300 flex items-center gap-1"><Swords className="w-4 h-4" /> Iniciativa</h3>
               {canEdit && (
                 <div className="flex gap-1">
+                  {screen.combat_active ? (
+                    <Button size="sm" variant="outline" onClick={resetCombat} className="border-rose-700/50 text-rose-200 hover:bg-rose-900/30 h-7 px-2 text-xs" data-testid="end-combat-btn">Terminar combate</Button>
+                  ) : (
+                    <Button size="sm" onClick={doRollInitiative} className="bg-amber-700 hover:bg-amber-600 text-amber-50 h-7 px-2 text-xs" title="Tirar iniciativa (solo al inicio)" data-testid="roll-initiative-btn"><Dices className="w-3.5 h-3.5 mr-1" />Iniciativa</Button>
+                  )}
                   <Button size="sm" variant="outline" onClick={sortByInit} className="border-amber-700/50 text-amber-200 h-7 px-2" title="Ordenar por iniciativa" data-testid="sort-init-btn"><ArrowDownWideNarrow className="w-3.5 h-3.5" /></Button>
                   <Button size="sm" onClick={handleSync} disabled={syncing} className="bg-emerald-700 hover:bg-emerald-600 text-emerald-50 h-7 px-2 text-xs" data-testid="sync-players-btn">
                     {syncing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Users className="w-3.5 h-3.5" />}

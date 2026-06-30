@@ -68,6 +68,7 @@ class Combatant(BaseModel):
     has_portrait: bool = False
     atk_bonus: int = 0
     dmg: str = "1d6"
+    init_bonus: int = 0
 
 
 class DjScreenState(BaseModel):
@@ -77,6 +78,7 @@ class DjScreenState(BaseModel):
     combatants: List[Combatant] = Field(default_factory=list)
     current_turn_index: int = 0
     round_number: int = 1
+    combat_active: bool = False
 
 
 class ChatPostBody(BaseModel):
@@ -393,6 +395,7 @@ async def sync_players(run_id: str, user: dict = Depends(get_current_user)):
             "has_portrait": bool(char.get("portrait_image")),
             "atk_bonus": atk_bonus,
             "dmg": dmg,
+            "init_bonus": int(char.get("iniciativa_bonus") or 0),
         })
         existing_char_ids.add(char.get("_id"))
         added += 1
@@ -588,6 +591,99 @@ async def attack(run_id: str, body: AttackBody, user: dict = Depends(get_current
         "narrative": narr,
         "state": _serialize(screen),
     }
+
+
+@router.post("/campaign-runs/{run_id}/dj-screen/roll-initiative")
+async def roll_initiative(run_id: str, user: dict = Depends(get_current_user)):
+    """Tira iniciativa (1d20 + init_bonus) para TODOS los combatientes, ordena
+    descendente e inicia el combate. Solo al inicio (no cada turno)."""
+    import random
+    from server import db
+    run = await _get_run_or_404(db, run_id)
+    if not _is_dm(run, user):
+        raise HTTPException(status_code=403, detail="Sin permiso")
+    screen = await _ensure_screen(db, run)
+    combatants = screen.get("combatants", [])
+    if not combatants:
+        raise HTTPException(status_code=400, detail="No hay combatientes")
+
+    lines = []
+    for c in combatants:
+        bonus = int(c.get("init_bonus", c.get("initiative", 0)) or 0)
+        c["init_bonus"] = bonus
+        roll = random.randint(1, 20)
+        c["initiative"] = roll + bonus
+        lines.append(f"{c['name']}: {roll}+{bonus}={c['initiative']}")
+    combatants.sort(key=lambda x: x.get("initiative", 0), reverse=True)
+
+    now = datetime.now(timezone.utc).isoformat()
+    await db.dj_screens.update_one(
+        {"campaign_run_id": run_id},
+        {"$set": {
+            "combatants": combatants, "current_turn_index": 0,
+            "round_number": 1, "combat_active": True, "updated_at": now,
+        }},
+    )
+    screen = await db.dj_screens.find_one({"campaign_run_id": run_id})
+
+    msg = {
+        "id": str(uuid.uuid4()), "campaign_run_id": run_id, "channel": "group",
+        "sender_id": "system", "sender_name": "Combate", "sender_role": "system",
+        "text": "🎲 Iniciativa: " + " · ".join(lines),
+        "created_at": now,
+    }
+    await db.dj_chat_messages.insert_one(dict(msg))
+    msg.pop("_id", None)
+    await _broadcast_state(run_id, screen)
+    try:
+        await manager.broadcast_chat(run_id, "group", _serialize(msg))
+    except Exception:
+        pass
+    return _serialize(screen)
+
+
+@router.post("/campaign-runs/{run_id}/dj-screen/travel-event")
+async def travel_event(
+    run_id: str,
+    tipo_tierra: str = "tierras_salvajes",
+    terreno: str = "campo_abierto",
+    estacion: str = "verano",
+    tipo_via: Optional[str] = None,
+    user: dict = Depends(get_current_user),
+):
+    """Genera un acontecimiento de viaje (reutiliza el motor de viajes) y lo
+    narra en el chat de grupo. DM/Maestro."""
+    from server import db
+    from routes.travel_routes import generate_event as _gen_event
+    run = await _get_run_or_404(db, run_id)
+    if not _is_dm(run, user):
+        raise HTTPException(status_code=403, detail="Sin permiso")
+
+    result = await _gen_event(tipo_tierra=tipo_tierra, terreno=terreno, estacion=estacion, tipo_via=tipo_via)
+    ev = result.get("evento", {})
+    obj = result.get("objetivo", {})
+    sombra = ev.get("puntos_sombra", 0)
+    narr = (f"🧭 Acontecimiento de viaje: «{ev.get('nombre')}». "
+            f"Encargado: {obj.get('papel')} — prueba de {obj.get('prueba')} "
+            f"({obj.get('atributo')}/{obj.get('habilidad')}) CD {result.get('cd_prueba')}.")
+    if sombra:
+        narr += f" ⚫ Sombra: +{sombra} si falla."
+    if ev.get("fatigue_cd_increase"):
+        narr += f" 💤 CD de cansancio +{ev.get('fatigue_cd_increase')}."
+
+    now = datetime.now(timezone.utc).isoformat()
+    msg = {
+        "id": str(uuid.uuid4()), "campaign_run_id": run_id, "channel": "group",
+        "sender_id": "system", "sender_name": "Viaje", "sender_role": "system",
+        "text": narr, "created_at": now,
+    }
+    await db.dj_chat_messages.insert_one(dict(msg))
+    msg.pop("_id", None)
+    try:
+        await manager.broadcast_chat(run_id, "group", _serialize(msg))
+    except Exception:
+        pass
+    return result
 
 
 # ============================================================================

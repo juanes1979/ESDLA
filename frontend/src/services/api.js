@@ -620,3 +620,13 @@ export const djAttack = async (runId, attackerId, defenderId, mode = 'normal') =
   return r.data;
 };
 
+export const djRollInitiative = async (runId) => {
+  const r = await api.post(`/campaign-runs/${runId}/dj-screen/roll-initiative`);
+  return r.data;
+};
+
+export const djTravelEvent = async (runId, params = {}) => {
+  const r = await api.post(`/campaign-runs/${runId}/dj-screen/travel-event`, null, { params });
+  return r.data;
+};
+

@@ -80,6 +80,19 @@ Tumbado (desventaja al atacar; melé con ventaja) · Apresado (velocidad 0) · A
   ROJO + botón "Atac." deshabilitado. Verificado por curl y captura.
 
 ## FASE 4 — Rastreador de Viaje integrado
+
+### ✅ FASE 4 COMPLETADA (Jun 2026) + tirada de iniciativa
+- Tirada de iniciativa: combatiente gana `init_bonus`; `POST /…/dj-screen/roll-initiative`
+  tira 1d20+bonus a todos, ordena desc, `combat_active=true`, narra en chat. UI: botón
+  "🎲 Iniciativa" (solo si NO hay combate) / "Terminar combate" (si activo). Solo al inicio,
+  no cada turno (el avance de turno no re-tira).
+- `POST /…/dj-screen/travel-event` (params tipo_tierra/terreno/estacion/tipo_via) reutiliza
+  el motor de viajes (`generate_event`), devuelve evento+objetivo+CD y lo NARRA en el chat
+  de grupo (incluye prueba/papel, +Sombra y +CD cansancio). UI: panel "Rastreador de viaje"
+  con selectores + botón "Generar acontecimiento" + carta del evento.
+- Verificado por curl y captura.
+
+## FASE 4 (plan original) — Rastreador de Viaje integrado
 Exponer en la pantalla la lógica de viajes ya existente (roles guía/explorador/cazador/
 vigía, tiradas automatizadas, acampada/centinela). Botón "Generar acontecimiento de viaje"
 vinculado a Prueba de Sombra/Cansancio directa.
