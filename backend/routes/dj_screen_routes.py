@@ -66,6 +66,8 @@ class Combatant(BaseModel):
     conditions: List[str] = Field(default_factory=list)
     notes: Optional[str] = None  # private (DJ only)
     has_portrait: bool = False
+    atk_bonus: int = 0
+    dmg: str = "1d6"
 
 
 class DjScreenState(BaseModel):
@@ -133,6 +135,83 @@ async def _ensure_screen(db, run: dict) -> dict:
     }
     await db.dj_screens.insert_one(doc)
     return doc
+
+
+def _mod(score: int) -> int:
+    return (int(score or 10) - 10) // 2
+
+
+def _prof_bonus(nivel: int) -> int:
+    return 2 + ((int(nivel or 1) - 1) // 4)
+
+
+def _char_combat_stats(char: dict) -> tuple[int, str]:
+    """Deriva (atk_bonus, dmg) de la ficha: mod del mejor atributo (FUE/DES,
+    aproximación de finura) + competencia; daño = dados del arma equipada + mod."""
+    attrs = char.get("atributos") or {}
+    mod_fue = _mod(attrs.get("fuerza", 10))
+    mod_des = _mod(attrs.get("destreza", 10))
+    best = max(mod_fue, mod_des)
+    prof = _prof_bonus(char.get("nivel", 1))
+    atk_bonus = best + prof
+    # Arma equipada: primer arma con dados de daño, si la hay.
+    dmg_dice = "1d6"
+    for w in (char.get("armas") or []):
+        if isinstance(w, dict) and (w.get("dano") or w.get("daño")):
+            dmg_dice = str(w.get("dano") or w.get("daño"))
+            break
+    sign = "+" if best >= 0 else "-"
+    dmg = f"{dmg_dice}{sign}{abs(best)}" if best != 0 else dmg_dice
+    return atk_bonus, dmg
+
+
+def _roll_d20(mode: str) -> tuple[int, list[int]]:
+    """Devuelve (valor_usado, dados_tirados) según normal/ventaja/desventaja."""
+    import random
+    if mode == "advantage":
+        a, b = random.randint(1, 20), random.randint(1, 20)
+        return max(a, b), [a, b]
+    if mode == "disadvantage":
+        a, b = random.randint(1, 20), random.randint(1, 20)
+        return min(a, b), [a, b]
+    a = random.randint(1, 20)
+    return a, [a]
+
+
+def _roll_damage(dmg: str, crit: bool) -> tuple[int, str]:
+    """Parsea 'NdM+K' (o variantes) y tira el daño. Crítico duplica los DADOS."""
+    import random
+    import re
+    s = (dmg or "1d6").replace(" ", "").lower()
+    total = 0
+    parts_desc = []
+    # bloques NdM
+    for n_str, m_str in re.findall(r"(\d*)d(\d+)", s):
+        n = int(n_str) if n_str else 1
+        m = int(m_str)
+        rolls_n = n * 2 if crit else n
+        rolls = [random.randint(1, m) for _ in range(rolls_n)]
+        total += sum(rolls)
+        parts_desc.append(f"{rolls_n}d{m}({','.join(map(str, rolls))})")
+    # modificadores planos +K / -K
+    s_wo_dice = re.sub(r"\d*d\d+", "", s)
+    for sign, num in re.findall(r"([+-])(\d+)", s_wo_dice):
+        val = int(num) * (1 if sign == "+" else -1)
+        total += val
+        parts_desc.append(f"{sign}{num}")
+    if not parts_desc:  # daño plano sin dados
+        try:
+            total = int(s)
+            parts_desc.append(s)
+        except ValueError:
+            total = 1
+    return max(0, total), " ".join(parts_desc)
+
+
+class AttackBody(BaseModel):
+    attacker_id: str
+    defender_id: str
+    mode: Literal["normal", "advantage", "disadvantage"] = "normal"
 
 
 def _hp_band(cur: int, mx: int) -> str:
@@ -269,6 +348,7 @@ async def sync_players(run_id: str, user: dict = Depends(get_current_user)):
         pg_max = int(char.get("puntos_golpe_max") or 0)
         pg_cur = char.get("puntos_golpe_actual")
         pg_cur = int(pg_cur) if pg_cur is not None else pg_max
+        atk_bonus, dmg = _char_combat_stats(char)
         combatants.append({
             "id": str(uuid.uuid4()),
             "name": char.get("nombre") or "Personaje",
@@ -281,6 +361,8 @@ async def sync_players(run_id: str, user: dict = Depends(get_current_user)):
             "conditions": [],
             "notes": None,
             "has_portrait": bool(char.get("portrait_image")),
+            "atk_bonus": atk_bonus,
+            "dmg": dmg,
         })
         existing_char_ids.add(char.get("_id"))
         added += 1
@@ -360,6 +442,102 @@ async def get_campaign_eye(run_id: str, user: dict = Depends(get_current_user)):
         # Saneado: solo la banda runica, sin números ni umbrales.
         return {"can_edit": False, "band": _eye_band(ratio)}
     raise HTTPException(status_code=403, detail="Sin permiso")
+
+
+@router.post("/campaign-runs/{run_id}/dj-screen/attack")
+async def attack(run_id: str, body: AttackBody, user: dict = Depends(get_current_user)):
+    """Motor de ataque d20: tirada (normal/ventaja/desventaja) + atk_bonus vs CA,
+    aplica daño automático, persiste, narra en chat y difunde por WS. DM/Maestro."""
+    from server import db
+    run = await _get_run_or_404(db, run_id)
+    if not _is_dm(run, user):
+        raise HTTPException(status_code=403, detail="Sin permiso")
+    screen = await _ensure_screen(db, run)
+    combatants = screen.get("combatants", [])
+    atk = next((c for c in combatants if c.get("id") == body.attacker_id), None)
+    dfn = next((c for c in combatants if c.get("id") == body.defender_id), None)
+    if not atk or not dfn:
+        raise HTTPException(status_code=404, detail="Atacante o defensor no encontrado")
+
+    d20, dice = _roll_d20(body.mode)
+    atk_bonus = int(atk.get("atk_bonus", 0))
+    total_atk = d20 + atk_bonus
+    ac = int(dfn.get("ac", 10))
+    crit = d20 == 20
+    fumble = d20 == 1
+    hit = (not fumble) and (crit or total_atk >= ac)
+
+    dmg_total = 0
+    dmg_desc = ""
+    if hit:
+        dmg_total, dmg_desc = _roll_damage(atk.get("dmg", "1d6"), crit)
+        new_hp = max(0, int(dfn.get("hp_current", 0)) - dmg_total)
+        # Persistir en el combatiente.
+        for c in combatants:
+            if c.get("id") == dfn.get("id"):
+                c["hp_current"] = new_hp
+                break
+        # Si el defensor es un héroe, persistir también en su ficha.
+        if dfn.get("type") == "player" and dfn.get("character_id"):
+            await db.characters.update_one(
+                {"_id": dfn["character_id"]},
+                {"$set": {"puntos_golpe_actual": new_hp}},
+            )
+        now = datetime.now(timezone.utc).isoformat()
+        await db.dj_screens.update_one(
+            {"campaign_run_id": run_id},
+            {"$set": {"combatants": combatants, "updated_at": now}},
+        )
+        screen = await db.dj_screens.find_one({"campaign_run_id": run_id})
+
+    # Narrativa para el chat de grupo.
+    mode_txt = {"advantage": " con ventaja", "disadvantage": " con desventaja"}.get(body.mode, "")
+    dice_txt = f"{'/'.join(map(str, dice))}→{d20}" if len(dice) > 1 else str(d20)
+    bonus_txt = f"{'+' if atk_bonus >= 0 else ''}{atk_bonus}"
+    if fumble:
+        narr = f"⚔️ {atk['name']} ataca a {dfn['name']}: d20({dice_txt}){mode_txt} → ¡Pifia! Fallo automático."
+    elif not hit:
+        narr = f"⚔️ {atk['name']} ataca a {dfn['name']}: d20({dice_txt}){bonus_txt} = {total_atk} vs CA {ac} → Falla."
+    else:
+        crit_txt = " ¡CRÍTICO!" if crit else ""
+        narr = (f"⚔️ {atk['name']} ataca a {dfn['name']}: d20({dice_txt}){bonus_txt} = {total_atk} "
+                f"vs CA {ac} → ¡Impacta!{crit_txt} Daño: {dmg_desc} = {dmg_total}. "
+                f"{dfn['name']}: {dfn['hp_current'] + dmg_total}→{dfn['hp_current']} PG.")
+
+    msg = {
+        "id": str(uuid.uuid4()),
+        "campaign_run_id": run_id,
+        "channel": "group",
+        "sender_id": "system",
+        "sender_name": "Combate",
+        "sender_role": "system",
+        "text": narr,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    }
+    await db.dj_chat_messages.insert_one(dict(msg))
+    msg.pop("_id", None)
+
+    # Difusión en vivo.
+    await _broadcast_state(run_id, screen)
+    try:
+        await manager.broadcast_chat(run_id, "group", _serialize(msg))
+    except Exception:
+        pass
+
+    return {
+        "hit": hit,
+        "crit": crit,
+        "fumble": fumble,
+        "d20": d20,
+        "dice": dice,
+        "atk_bonus": atk_bonus,
+        "total_atk": total_atk,
+        "ac": ac,
+        "damage": dmg_total,
+        "damage_desc": dmg_desc,
+        "narrative": narr,
+        "state": _serialize(screen),
+    }
 
 
 # ============================================================================

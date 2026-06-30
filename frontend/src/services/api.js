@@ -613,3 +613,10 @@ export const getDjChatPeers = async (runId) => {
   return r.data;
 };
 
+export const djAttack = async (runId, attackerId, defenderId, mode = 'normal') => {
+  const r = await api.post(`/campaign-runs/${runId}/dj-screen/attack`, {
+    attacker_id: attackerId, defender_id: defenderId, mode,
+  });
+  return r.data;
+};
+

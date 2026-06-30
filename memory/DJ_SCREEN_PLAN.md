@@ -36,6 +36,20 @@ combat tracker, resumen de aventureros, rastreador de viaje, Ojo de Mordor, chat
   navegador muestra "En vivo".
 
 ## FASE 2 — Motor de ataque d20 automatizado
+
+### ✅ FASE 2 COMPLETADA (Jun 2026)
+- Combatiente gana `atk_bonus` y `dmg`. Al sincronizar héroes se derivan de la ficha
+  (mejor mod FUE/DES + bono competencia; daño = dados del arma equipada + mod). Bestiario:
+  atk = bonificador_competencia, dmg "1d8". El DJ puede sobreescribir ATK/DAÑO en la tarjeta.
+- Endpoint `POST /api/campaign-runs/{run_id}/dj-screen/attack` {attacker_id, defender_id, mode}:
+  tirada d20 (normal/ventaja/desventaja, devuelve los dados), +atk vs CA, nat20 crítico (salta
+  CA, duplica DADOS de daño), nat1 pifia; aplica daño al combatiente (y a la ficha si es héroe),
+  persiste, narra en el chat de grupo y difunde por WS (estado + chat).
+- Frontend: barra de ataque (selección por botones Atac./Def. en cada tarjeta, resaltado
+  ámbar/azul, tri-estado N/Vent./Desv., botón ¡Atacar!). Verificado por curl (impacto/crítico/
+  fallo, daño persistente) y captura (UI completa + narración en chat).
+
+## FASE 3 — Condiciones mecánicas cerradas (toggles del DJ)
 - Selección atacante/defensor por clic (selectedAttackerId / selectedDefenderId) usando el
   id de dj_screens.combatants.
 - Precarga de atk_bonus y dmg desde el arma equipada (mod FUE/DES + bonif. competencia;

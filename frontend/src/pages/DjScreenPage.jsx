@@ -19,7 +19,7 @@ import {
 import { toast } from 'sonner';
 import {
   getDjScreen, saveDjScreen, syncDjPlayers,
-  getDjChat, postDjChat, getDjChatPeers, getBestiary,
+  getDjChat, postDjChat, getDjChatPeers, getBestiary, djAttack,
 } from '@/services/api';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/context/AuthContext';
@@ -38,7 +38,7 @@ const BAND_COLOR = {
 };
 
 // ---------------------------------------------------------------------------
-const CombatantCard = ({ c, idx, isActive, canEdit, onChange, onRemove, runId }) => {
+const CombatantCard = ({ c, idx, isActive, canEdit, onChange, onRemove, runId, isAttacker, isDefender, onSelectAttacker, onSelectDefender }) => {
   const [condInput, setCondInput] = useState('');
   const pct = c.hp_max > 0 ? Math.max(0, Math.min(100, (c.hp_current / c.hp_max) * 100)) : 0;
   const isEnemy = c.type === 'enemy';
@@ -50,7 +50,9 @@ const CombatantCard = ({ c, idx, isActive, canEdit, onChange, onRemove, runId })
   return (
     <div
       className={`rounded-lg border p-2.5 transition-colors ${
-        isActive
+        isAttacker ? 'border-amber-400 ring-2 ring-amber-400/70 bg-amber-900/20'
+        : isDefender ? 'border-sky-400 ring-2 ring-sky-400/70 bg-sky-900/20'
+        : isActive
           ? 'border-amber-400 bg-amber-900/30 ring-1 ring-amber-400/60'
           : isEnemy ? 'border-rose-800/40 bg-rose-950/20' : 'border-emerald-800/40 bg-emerald-950/10'
       }`}
@@ -95,6 +97,42 @@ const CombatantCard = ({ c, idx, isActive, canEdit, onChange, onRemove, runId })
           </button>
         )}
       </div>
+
+      {/* Selección atacante/defensor + atk/dmg (solo DJ) */}
+      {canEdit && (
+        <div className="flex items-center gap-1 mt-2 flex-wrap">
+          <button
+            onClick={() => onSelectAttacker(c.id)}
+            className={`text-[10px] px-1.5 py-0.5 rounded flex items-center gap-1 ${isAttacker ? 'bg-amber-600 text-amber-50' : 'bg-black/40 text-amber-300/70 hover:bg-amber-900/40'}`}
+            data-testid={`select-attacker-${c.id}`}
+            title="Marcar como atacante"
+          >
+            <Swords className="w-3 h-3" /> Atac.
+          </button>
+          <button
+            onClick={() => onSelectDefender(c.id)}
+            className={`text-[10px] px-1.5 py-0.5 rounded flex items-center gap-1 ${isDefender ? 'bg-sky-600 text-sky-50' : 'bg-black/40 text-sky-300/70 hover:bg-sky-900/40'}`}
+            data-testid={`select-defender-${c.id}`}
+            title="Marcar como defensor"
+          >
+            <Shield className="w-3 h-3" /> Def.
+          </button>
+          <span className="text-[10px] text-amber-300/50 ml-1">ATK</span>
+          <input
+            type="number" value={c.atk_bonus ?? 0}
+            onChange={(e) => onChange({ ...c, atk_bonus: parseInt(e.target.value || '0', 10) })}
+            className="w-9 bg-black/40 rounded text-center text-amber-200 text-[11px] outline-none"
+            data-testid={`combatant-atk-${c.id}`}
+          />
+          <span className="text-[10px] text-rose-300/50">DAÑO</span>
+          <input
+            value={c.dmg ?? '1d6'}
+            onChange={(e) => onChange({ ...c, dmg: e.target.value })}
+            className="w-16 bg-black/40 rounded text-center text-rose-200 text-[11px] outline-none"
+            data-testid={`combatant-dmg-${c.id}`}
+          />
+        </div>
+      )}
 
       {/* HP + AC */}
       <div className="flex items-center gap-3 mt-2">
@@ -306,6 +344,11 @@ const DjScreenPage = () => {
   const [bestiarySearch, setBestiarySearch] = useState('');
   const [bestiaryResults, setBestiaryResults] = useState([]);
   const [bestiaryLoading, setBestiaryLoading] = useState(false);
+  // Motor de ataque
+  const [attackerId, setAttackerId] = useState(null);
+  const [defenderId, setDefenderId] = useState(null);
+  const [attackMode, setAttackMode] = useState('normal');
+  const [attacking, setAttacking] = useState(false);
 
   const toPayload = (s) => ({
     scene_image_file_id: s.scene_image_file_id || null,
@@ -459,7 +502,7 @@ const DjScreenPage = () => {
       id: uid(), name: enemy.name.trim(), type: 'enemy', character_id: null,
       initiative: parseInt(enemy.initiative || 0, 10), hp_current: parseInt(enemy.hp_max || 0, 10),
       hp_max: parseInt(enemy.hp_max || 0, 10), ac: parseInt(enemy.ac || 10, 10),
-      conditions: [], notes: null, has_portrait: false,
+      conditions: [], notes: null, has_portrait: false, atk_bonus: 0, dmg: '1d6',
     };
     persist({ ...screen, combatants: [...screen.combatants, c] });
     setEnemy({ name: '', hp_max: 10, ac: 12, initiative: 0 });
@@ -493,6 +536,7 @@ const DjScreenPage = () => {
       initiative: 0, hp_current: hp, hp_max: hp,
       ac: parseInt(npc.clase_armadura || npc.ca || 10, 10) || 10,
       conditions: [], notes: npc.categoria ? `Bestiario: ${npc.categoria}` : null, has_portrait: false,
+      atk_bonus: parseInt(npc.bonificador_competencia || 0, 10) || 0, dmg: '1d8',
     };
     persist({ ...screen, combatants: [...screen.combatants, c] });
     toast.success(`${c.name} añadido al combate`);
@@ -520,6 +564,24 @@ const DjScreenPage = () => {
   };
 
   const resetCombat = () => persist({ ...screen, current_turn_index: 0, round_number: 1 });
+
+  const doAttack = async () => {
+    if (!attackerId || !defenderId || attackerId === defenderId) {
+      toast.error('Selecciona atacante y defensor (distintos)');
+      return;
+    }
+    setAttacking(true);
+    try {
+      const res = await djAttack(id, attackerId, defenderId, attackMode);
+      if (res.state) setScreen(res.state);
+      if (res.hit) toast.success(res.narrative);
+      else toast.message(res.narrative);
+    } catch (e) {
+      toast.error(e?.response?.data?.detail || 'Error en el ataque');
+    } finally {
+      setAttacking(false);
+    }
+  };
 
   const handleSceneUpload = async (e) => {
     const file = e.target.files?.[0];
@@ -686,6 +748,38 @@ const DjScreenPage = () => {
               )}
             </div>
 
+            {canEdit && combatants.length > 0 && (
+              <div className="rounded-lg border border-amber-600/40 bg-amber-950/20 p-2 mb-3" data-testid="attack-bar">
+                <div className="text-xs text-amber-300 mb-1 flex items-center gap-1"><Swords className="w-3.5 h-3.5" /> Ataque d20</div>
+                <div className="text-[11px] text-stone-300 mb-1.5">
+                  <span className="text-amber-300">{combatants.find((c) => c.id === attackerId)?.name || '— atacante —'}</span>
+                  <span className="mx-1 text-stone-500">→</span>
+                  <span className="text-sky-300">{combatants.find((c) => c.id === defenderId)?.name || '— defensor —'}</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <div className="flex rounded overflow-hidden border border-amber-900/40">
+                    {[['normal', 'N'], ['advantage', 'Vent.'], ['disadvantage', 'Desv.']].map(([m, lbl]) => (
+                      <button
+                        key={m}
+                        onClick={() => setAttackMode(m)}
+                        className={`text-[10px] px-1.5 py-1 ${attackMode === m ? 'bg-amber-700 text-amber-50' : 'bg-black/40 text-amber-300/60 hover:bg-amber-900/30'}`}
+                        data-testid={`attack-mode-${m}`}
+                      >{lbl}</button>
+                    ))}
+                  </div>
+                  <Button
+                    size="sm"
+                    onClick={doAttack}
+                    disabled={attacking || !attackerId || !defenderId || attackerId === defenderId}
+                    className="flex-1 bg-amber-600 hover:bg-amber-500 text-amber-50 h-7 text-xs disabled:opacity-40"
+                    data-testid="attack-btn"
+                  >
+                    {attacking ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <><Swords className="w-3.5 h-3.5 mr-1" /> ¡Atacar!</>}
+                  </Button>
+                </div>
+              </div>
+            )}
+
             {canEdit && (
               <div className="rounded-lg border border-rose-800/40 bg-rose-950/10 p-2 mb-3" data-testid="add-enemy-form">
                 <div className="text-xs text-rose-300 mb-1 flex items-center gap-1"><Skull className="w-3.5 h-3.5" /> Añadir enemigo</div>
@@ -711,6 +805,10 @@ const DjScreenPage = () => {
                   onChange={updateCombatant}
                   onRemove={removeCombatant}
                   runId={id}
+                  isAttacker={c.id === attackerId}
+                  isDefender={c.id === defenderId}
+                  onSelectAttacker={(cid) => setAttackerId((p) => (p === cid ? null : cid))}
+                  onSelectDefender={(cid) => setDefenderId((p) => (p === cid ? null : cid))}
                 />
               ))}
             </div>
