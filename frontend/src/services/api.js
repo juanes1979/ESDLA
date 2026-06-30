@@ -521,6 +521,13 @@ export const listAvailablePlayers = async () => {
   return r.data;
 };
 
+export const maestroCandidates = async (runId, search = null) => {
+  const params = {};
+  if (search) params.search = search;
+  const r = await api.get(`/campaign-runs/${runId}/maestro-candidates`, { params });
+  return r.data;
+};
+
 export const createInvitation = async (body) => {
   const r = await api.post('/campaign-invitations', body);
   return r.data;

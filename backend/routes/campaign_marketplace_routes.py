@@ -491,6 +491,54 @@ async def list_available_players(user: dict = Depends(get_current_user)):
 # ============================================================================
 # Invitations (DJ → player)
 # ============================================================================
+@router.get("/campaign-runs/{run_id}/maestro-candidates")
+async def maestro_candidates(
+    run_id: str, search: Optional[str] = None, user: dict = Depends(get_current_user)
+):
+    """Maestro-only: list ALL characters to invite for testing campaigns,
+    regardless of availability. Excludes characters already in this run."""
+    if not _is_maestro(user):
+        raise HTTPException(status_code=403, detail="Sólo el Maestro")
+    from server import db
+
+    run = await db.campaign_runs.find_one({"id": run_id})
+    if not run:
+        raise HTTPException(status_code=404, detail="Campaña no encontrada")
+
+    in_run = set()
+    async for p in db.campaign_players.find(
+        {"campaign_run_id": run_id, "status": {"$in": ["pending", "accepted"]}}
+    ):
+        in_run.add(p.get("character_id"))
+    invited = set()
+    async for i in db.campaign_invitations.find(
+        {"campaign_run_id": run_id, "status": "pending"}
+    ):
+        invited.add(i.get("character_id"))
+
+    query: dict = {}
+    if search:
+        query["nombre"] = {"$regex": search, "$options": "i"}
+
+    out = []
+    async for ch in db.characters.find(query).limit(300):
+        if ch["_id"] in in_run:
+            continue
+        u = await db.users.find_one({"id": ch.get("owner_id")})
+        out.append({
+            "character_id": ch["_id"],
+            "character_name": ch.get("nombre"),
+            "character_level": ch.get("nivel"),
+            "character_culture": ch.get("cultura_nombre") or ch.get("cultura"),
+            "user_id": ch.get("owner_id"),
+            "user_name": (u.get("nombre") or u.get("name") or u.get("email")) if u else None,
+            "locked": bool(ch.get("active_campaign_run_id")),
+            "invited": ch["_id"] in invited,
+        })
+    out.sort(key=lambda x: (x["invited"], x["locked"], (x["character_name"] or "").lower()))
+    return out
+
+
 @router.post("/campaign-invitations", response_model=InvitationOut, status_code=201)
 async def create_invitation(
     payload: InvitationCreateBody, user: dict = Depends(get_current_user)
@@ -509,6 +557,16 @@ async def create_invitation(
     target = await db.users.find_one({"id": payload.target_user_id})
     if not target:
         raise HTTPException(status_code=404, detail="Usuario no encontrado")
+
+    # Avoid duplicate pending invitations for the same character in this run.
+    if payload.character_id:
+        dup = await db.campaign_invitations.find_one({
+            "campaign_run_id": payload.campaign_run_id,
+            "character_id": payload.character_id,
+            "status": "pending",
+        })
+        if dup:
+            raise HTTPException(status_code=400, detail="Ya existe una invitación pendiente para ese personaje")
 
     char_name = None
     if payload.character_id:

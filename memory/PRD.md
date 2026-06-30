@@ -597,3 +597,18 @@ Aplica una transacción YA negociada al personaje (reutiliza endpoints de equipo
   Atracador), retrato y tracker. Campaña demo creada (código K7Q9NKFR) para el usuario.
 - PENDIENTE Fase B: cajón lateral en la Pantalla del DJ con acceso sin recargar a
   Bestiario/PNJ/Tienda/Equipo/Sombra (a priorizar con el usuario).
+
+## Iter 132 — Invitaciones: insignia, nota y modo Maestro (Jun 2026)
+- **(a) Insignia de invitaciones** en `MyCampaignsPage`: cuenta `myInvitations()` pendientes
+  → badge rojo en el botón "📜 Tablón" + banner que enlaza a El Tablón (`invites-badge`,
+  `invites-banner`).
+- **(b) Nota de disponibilidad** en pestaña Jugadores del hub (`availability-note`):
+  explica que los jugadores solo aparecen si marcan su personaje "Disponible" en El Tablón.
+- **(c) Modo Maestro — invitar a cualquiera:** endpoint `GET /api/campaign-runs/{run}/maestro-candidates`
+  (solo maestro) lista TODOS los personajes (excluye los ya en el run, marca locked/invited).
+  Sección UI `section-maestro-invite` (solo maestro) con buscador + invitar a cualquier personaje
+  para pruebas, sin depender de la disponibilidad.
+- **Guard anti-duplicados** en `create_invitation`: rechaza 2ª invitación pendiente al mismo personaje.
+- Verificado por captura (badge+banner, nota, 48 candidatos) y curl. Recordatorio: El Tablón
+  (`/tablon`) es donde el jugador marca disponibilidad (pestaña Disponibilidad) y responde
+  invitaciones (pestaña Invitaciones); se accede desde Mis Campañas → 📜 Tablón.

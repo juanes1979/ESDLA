@@ -10,7 +10,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, KeyRound, Loader2, LogOut, ScrollText, Eye, Swords } from 'lucide-react';
 import { toast } from 'sonner';
-import { myCampaigns, leaveCampaign, getRevealedTexts } from '@/services/api';
+import { myCampaigns, leaveCampaign, getRevealedTexts, myInvitations } from '@/services/api';
 import { Button } from '@/components/ui/button';
 import {
   AlertDialog,
@@ -116,6 +116,7 @@ const MyCampaignsPage = () => {
   const [showJoin, setShowJoin] = useState(false);
   const [toLeave, setToLeave] = useState(null);
   const [revealedFor, setRevealedFor] = useState(null); // { row, data, loading }
+  const [pendingInvites, setPendingInvites] = useState(0);
 
   const handleShowRevealed = async (row) => {
     setRevealedFor({ row, data: null, loading: true });
@@ -138,6 +139,9 @@ const MyCampaignsPage = () => {
     } finally {
       setLoading(false);
     }
+    myInvitations()
+      .then((inv) => setPendingInvites((inv || []).filter((i) => i.status === 'pending').length))
+      .catch(() => setPendingInvites(0));
   };
 
   useEffect(() => {
@@ -190,9 +194,17 @@ const MyCampaignsPage = () => {
               onClick={() => navigate('/tablon')}
               variant="outline"
               data-testid="goto-board-btn"
-              className="border-amber-700/50 text-amber-200 hover:bg-amber-900/30"
+              className="relative border-amber-700/50 text-amber-200 hover:bg-amber-900/30"
             >
               📜 Tablón
+              {pendingInvites > 0 && (
+                <span
+                  className="absolute -top-2 -right-2 min-w-[20px] h-5 px-1 rounded-full bg-rose-600 text-white text-xs font-bold flex items-center justify-center ring-2 ring-black/60 animate-pulse"
+                  data-testid="invites-badge"
+                >
+                  {pendingInvites}
+                </span>
+              )}
             </Button>
             <Button
               onClick={() => setShowJoin(true)}
@@ -203,6 +215,20 @@ const MyCampaignsPage = () => {
             </Button>
           </div>
         </div>
+
+        {pendingInvites > 0 && (
+          <button
+            onClick={() => navigate('/tablon')}
+            data-testid="invites-banner"
+            className="w-full mb-5 rounded-xl border border-rose-600/50 bg-rose-950/40 hover:bg-rose-900/40 transition-colors px-4 py-3 flex items-center gap-3 text-left"
+          >
+            <span className="min-w-[28px] h-7 px-1.5 rounded-full bg-rose-600 text-white text-sm font-bold flex items-center justify-center">{pendingInvites}</span>
+            <span className="text-rose-100 text-sm">
+              Tienes <strong>{pendingInvites}</strong> invitación{pendingInvites > 1 ? 'es' : ''} de campaña sin responder.
+              <span className="underline ml-1">Ábrela en El Tablón →</span>
+            </span>
+          </button>
+        )}
 
         {loading ? (
           <div className="text-center py-16 text-amber-300/70">

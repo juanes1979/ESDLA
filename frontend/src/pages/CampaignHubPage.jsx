@@ -30,6 +30,7 @@ import {
   ScrollText,
   Swords,
   UserPlus,
+  Users,
   Send,
   Clock,
   XCircle,
@@ -53,8 +54,10 @@ import {
   createInvitation,
   sentInvitations,
   cancelInvitation,
+  maestroCandidates,
 } from '@/services/api';
 import { Button } from '@/components/ui/button';
+import { useAuth } from '@/context/AuthContext';
 import RuneIgniteOverlay from '@/components/adventures/RuneIgniteOverlay';
 import AwardXPDialog from '@/components/adventures/AwardXPDialog';
 import ScrollOfDeedsReveal from '@/components/adventures/ScrollOfDeedsReveal';
@@ -415,10 +418,12 @@ const INV_STATUS_BADGE = {
   cancelled: 'bg-stone-700/70 text-stone-300',
 };
 
-const PlayersTab = ({ players, onAct, igniteId, onAwardXP, availablePlayers, sentInvites, onInvite, onCancelInvite, invitingId }) => {
+const PlayersTab = ({ players, onAct, igniteId, onAwardXP, availablePlayers, sentInvites, onInvite, onCancelInvite, invitingId, isMaestro, maestroList, onSearchCandidates, mLoading }) => {
   const pending = players.filter((p) => p.status === 'pending');
   const accepted = players.filter((p) => p.status === 'accepted');
   const closed = players.filter((p) => !['pending', 'accepted'].includes(p.status));
+  const [showMaestro, setShowMaestro] = useState(false);
+  const [mSearch, setMSearch] = useState('');
 
   // Hide players who already have a pending invitation or are already in the run.
   const busyUserChars = new Set(players.filter((p) => ['pending', 'accepted'].includes(p.status)).map((p) => p.character_id));
@@ -514,6 +519,11 @@ const PlayersTab = ({ players, onAct, igniteId, onAwardXP, availablePlayers, sen
         title={`Invitar jugadores disponibles${invitable.length > 0 ? ` (${invitable.length})` : ''}`}
         testid="section-invitable"
       >
+        <p className="text-xs text-amber-300/50 italic mb-3" data-testid="availability-note">
+          Aquí solo aparecen los jugadores que han marcado su personaje como <strong>"Disponible"</strong> en
+          <strong> El Tablón → Disponibilidad</strong>. Si la lista está vacía, no es un error: simplemente
+          nadie se ha ofrecido (o ya tienen una invitación pendiente).
+        </p>
         {invitable.length === 0 ? (
           <p className="text-sm text-gray-500 italic">
             — no hay jugadores con personaje marcado como "disponible" ahora mismo —
@@ -546,6 +556,76 @@ const PlayersTab = ({ players, onAct, igniteId, onAwardXP, availablePlayers, sen
           </div>
         )}
       </Section>
+
+      {/* Maestro: invitar a cualquier jugador (para pruebas) */}
+      {isMaestro && (
+        <Section title="Invitar cualquier jugador (Maestro)" testid="section-maestro-invite">
+          <p className="text-xs text-purple-300/60 italic mb-3">
+            Como Maestro puedes invitar a <strong>cualquier</strong> personaje para probar la campaña,
+            aunque su jugador no lo haya marcado como disponible.
+          </p>
+          {!showMaestro ? (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => { setShowMaestro(true); onSearchCandidates(''); }}
+              data-testid="show-maestro-candidates-btn"
+              className="border-purple-700/50 text-purple-200 hover:bg-purple-900/30"
+            >
+              <Users className="w-3.5 h-3.5 mr-1" /> Ver todos los jugadores
+            </Button>
+          ) : (
+            <div className="space-y-2">
+              <div className="flex gap-2">
+                <input
+                  value={mSearch}
+                  onChange={(e) => setMSearch(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && onSearchCandidates(mSearch)}
+                  placeholder="Buscar personaje por nombre…"
+                  className="flex-1 bg-black/40 rounded px-3 py-1.5 text-sm text-amber-100 placeholder-amber-500/30 outline-none border border-purple-900/30"
+                  data-testid="maestro-search-input"
+                />
+                <Button size="sm" onClick={() => onSearchCandidates(mSearch)} className="bg-purple-700 hover:bg-purple-600 text-purple-50" data-testid="maestro-search-btn">
+                  Buscar
+                </Button>
+              </div>
+              {mLoading ? (
+                <div className="text-center py-4"><Loader2 className="w-5 h-5 animate-spin text-purple-400 mx-auto" /></div>
+              ) : (maestroList || []).length === 0 ? (
+                <p className="text-sm text-gray-500 italic">— sin resultados —</p>
+              ) : (
+                <div className="space-y-2 max-h-96 overflow-y-auto pr-1">
+                  {maestroList.map((a) => (
+                    <div key={a.character_id} className="flex items-center justify-between gap-3 flex-wrap rounded border border-purple-800/30 bg-black/40 p-3" data-testid={`maestro-candidate-${a.character_id}`}>
+                      <div className="min-w-0 flex-1">
+                        <div className="text-amber-200 font-medium">
+                          {a.character_name || '(personaje)'}{' '}
+                          <span className="text-xs text-amber-300/60">· nivel {a.character_level ?? '?'}</span>
+                          {a.locked && <span className="text-[10px] ml-2 px-1.5 py-0.5 rounded bg-rose-900/50 text-rose-200">en otra campaña</span>}
+                          {a.invited && <span className="text-[10px] ml-2 px-1.5 py-0.5 rounded bg-amber-900/50 text-amber-200">ya invitado</span>}
+                        </div>
+                        <div className="text-xs text-amber-300/60">
+                          Jugador: {a.user_name || '—'}{a.character_culture && <> · {a.character_culture}</>}
+                        </div>
+                      </div>
+                      <Button
+                        size="sm"
+                        onClick={() => onInvite(a)}
+                        disabled={invitingId === a.character_id || a.invited}
+                        data-testid={`maestro-invite-${a.character_id}`}
+                        className="bg-purple-700 hover:bg-purple-600 text-purple-50 disabled:opacity-40"
+                      >
+                        {invitingId === a.character_id ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> : <UserPlus className="w-3.5 h-3.5 mr-1" />}
+                        {a.invited ? 'Invitado' : 'Invitar'}
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </Section>
+      )}
 
       {/* Invitaciones enviadas */}
       {(sentInvites || []).length > 0 && (
@@ -660,6 +740,21 @@ const CampaignHubPage = () => {
   const [availablePlayers, setAvailablePlayers] = useState([]);
   const [sentInvites, setSentInvites] = useState([]);
   const [invitingId, setInvitingId] = useState(null);
+  const { user } = useAuth();
+  const isMaestro = user?.role === 'maestro';
+  const [maestroList, setMaestroList] = useState([]);
+  const [mLoading, setMLoading] = useState(false);
+
+  const loadCandidates = async (search) => {
+    setMLoading(true);
+    try {
+      setMaestroList(await maestroCandidates(id, search || null));
+    } catch {
+      setMaestroList([]);
+    } finally {
+      setMLoading(false);
+    }
+  };
 
   const reload = async () => {
     try {
@@ -827,6 +922,7 @@ const CampaignHubPage = () => {
       });
       toast.success(`Invitación enviada a ${avail.character_name || avail.user_name}`);
       await reload();
+      if (maestroList.length > 0) loadCandidates('');
     } catch (err) {
       toast.error(err?.response?.data?.detail || 'No se pudo invitar');
     } finally {
@@ -982,6 +1078,10 @@ const CampaignHubPage = () => {
             onInvite={handleInvite}
             onCancelInvite={handleCancelInvite}
             invitingId={invitingId}
+            isMaestro={isMaestro}
+            maestroList={maestroList}
+            onSearchCandidates={loadCandidates}
+            mLoading={mLoading}
           />
         )}
         {tab === 'log' && <LogTab log={log} />}
