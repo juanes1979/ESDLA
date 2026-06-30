@@ -29,7 +29,12 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from auth import get_current_user
 from realtime import manager
-from routes.eye_routes import _load_state as _eye_load, _calc_threshold as _eye_threshold
+from routes.eye_routes import (
+    _load_state as _eye_load,
+    _calc_threshold as _eye_threshold,
+    increment as _eye_increment_route,
+    IncrementRequest as _EyeIncrementRequest,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -683,6 +688,98 @@ async def travel_event(
         await manager.broadcast_chat(run_id, "group", _serialize(msg))
     except Exception:
         pass
+    return result
+
+
+class ApplyShadowBody(BaseModel):
+    amount: int
+    reason: Optional[str] = None
+
+
+class EyeIncrementBody(BaseModel):
+    delta: int = 1
+    descripcion: str = ""
+
+
+async def _broadcast_eye(run_id: str) -> None:
+    """Difunde el estado del Ojo: completo a DJ, banda runica a jugadores."""
+    state = await _eye_load(run_id)
+    threshold = _eye_threshold(
+        state.get("last_region_id"),
+        state.get("region_overrides", {}),
+        state.get("threshold_modifiers", 0),
+    )
+    total = state.get("attention_total", 0)
+    ratio = (total / threshold["threshold"]) if threshold["threshold"] > 0 else 0
+    band = _eye_band(ratio)
+    try:
+        await manager.broadcast(
+            run_id,
+            {"type": "eye_update", "attention_total": total, "threshold_info": threshold,
+             "ratio": ratio, "band": band, "will_trigger": total >= threshold["threshold"]},
+            {"type": "eye_update", "band": band},
+        )
+    except Exception as e:
+        logger.info("broadcast eye falló (%s): %s", run_id, e)
+
+
+@router.post("/campaign-runs/{run_id}/dj-screen/apply-shadow")
+async def apply_shadow(run_id: str, body: ApplyShadowBody, user: dict = Depends(get_current_user)):
+    """Suma (o resta) Puntos de Sombra a TODOS los personajes aceptados de la
+    campaña de un clic. Narra en el chat y difunde. DM/Maestro."""
+    from server import db
+    run = await _get_run_or_404(db, run_id)
+    if not _is_dm(run, user):
+        raise HTTPException(status_code=403, detail="Sin permiso")
+
+    affected = []
+    cursor = db.campaign_players.find({"campaign_run_id": run_id, "status": "accepted"})
+    seen = set()
+    async for p in cursor:
+        cid = p.get("character_id")
+        if not cid or cid in seen:
+            continue
+        seen.add(cid)
+        char = await db.characters.find_one({"_id": cid})
+        if not char:
+            continue
+        new_shadow = max(0, int(char.get("puntos_sombra", 0)) + body.amount)
+        await db.characters.update_one(
+            {"_id": cid},
+            {"$set": {"puntos_sombra": new_shadow, "updated_at": datetime.now(timezone.utc).isoformat()}},
+        )
+        affected.append({"character_id": cid, "name": char.get("nombre"), "puntos_sombra": new_shadow})
+
+    sign = "+" if body.amount >= 0 else ""
+    reason_txt = f" ({body.reason})" if body.reason else ""
+    narr = f"⚫ Sombra {sign}{body.amount} a la Compañía{reason_txt}: " + ", ".join(
+        f"{a['name']} ({a['puntos_sombra']})" for a in affected) if affected else "⚫ Sin héroes a los que aplicar Sombra."
+    now = datetime.now(timezone.utc).isoformat()
+    msg = {
+        "id": str(uuid.uuid4()), "campaign_run_id": run_id, "channel": "group",
+        "sender_id": "system", "sender_name": "Sombra", "sender_role": "system",
+        "text": narr, "created_at": now,
+    }
+    await db.dj_chat_messages.insert_one(dict(msg))
+    msg.pop("_id", None)
+    try:
+        await manager.broadcast_chat(run_id, "group", _serialize(msg))
+        await manager.broadcast(run_id, {"type": "shadow_applied", "affected": affected}, {"type": "shadow_applied"})
+    except Exception:
+        pass
+    return {"affected": affected}
+
+
+@router.post("/campaign-runs/{run_id}/dj-screen/eye-increment")
+async def eye_increment(run_id: str, body: EyeIncrementBody, user: dict = Depends(get_current_user)):
+    """Incrementa el Ojo de Mordor de la campaña (state_id = run_id). DM/Maestro."""
+    from server import db
+    run = await _get_run_or_404(db, run_id)
+    if not _is_dm(run, user):
+        raise HTTPException(status_code=403, detail="Sin permiso")
+    req = _EyeIncrementRequest(source="manual", delta=body.delta, descripcion=body.descripcion or "DJ")
+    result = await _eye_increment_route(req, state_id=run_id)
+    await _broadcast_eye(run_id)
     return result
 
 
