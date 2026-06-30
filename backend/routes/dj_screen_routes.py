@@ -214,6 +214,36 @@ class AttackBody(BaseModel):
     mode: Literal["normal", "advantage", "disadvantage"] = "normal"
 
 
+# Lista CERRADA de condiciones (claves en minúscula) y sus efectos en combate.
+CONDITION_KEYS = [
+    "cansado", "inspirado", "aturdido", "tumbado",
+    "apresado", "asustado", "envenenado", "inconsciente",
+]
+# El combatiente no puede atacar si tiene alguna de estas.
+CANT_ACT = {"aturdido", "inconsciente"}
+# Como ATACANTE: desventaja en sus ataques.
+ATTACKER_DISADV = {"cansado", "asustado", "envenenado"}
+# Como DEFENSOR: los ataques contra él tienen ventaja.
+DEFENDER_GRANTS_ADV = {"tumbado", "aturdido", "inconsciente"}
+
+
+def _conds(c: dict) -> set:
+    return {str(x).strip().lower() for x in (c.get("conditions") or [])}
+
+
+def _effective_mode(base_mode: str, attacker: dict, defender: dict) -> str:
+    """Combina el modo elegido por el DJ con las condiciones (5e: ventaja y
+    desventaja simultáneas se cancelan a normal). Inspirado da ventaja."""
+    a, d = _conds(attacker), _conds(defender)
+    adv = base_mode == "advantage" or ("inspirado" in a) or bool(d & DEFENDER_GRANTS_ADV)
+    dis = base_mode == "disadvantage" or bool(a & ATTACKER_DISADV)
+    if adv and not dis:
+        return "advantage"
+    if dis and not adv:
+        return "disadvantage"
+    return "normal"
+
+
 def _hp_band(cur: int, mx: int) -> str:
     if mx <= 0:
         return "desconocido"
@@ -459,39 +489,59 @@ async def attack(run_id: str, body: AttackBody, user: dict = Depends(get_current
     if not atk or not dfn:
         raise HTTPException(status_code=404, detail="Atacante o defensor no encontrado")
 
-    d20, dice = _roll_d20(body.mode)
+    # El atacante debe poder actuar.
+    if int(atk.get("hp_current", 0)) <= 0:
+        raise HTTPException(status_code=400, detail=f"{atk['name']} está caído y no puede atacar")
+    blocking = _conds(atk) & CANT_ACT
+    if blocking:
+        raise HTTPException(status_code=400, detail=f"{atk['name']} no puede actuar ({', '.join(blocking)})")
+
+    # Modo efectivo según condiciones de atacante/defensor.
+    eff_mode = _effective_mode(body.mode, atk, dfn)
+    d20, dice = _roll_d20(eff_mode)
     atk_bonus = int(atk.get("atk_bonus", 0))
     total_atk = d20 + atk_bonus
     ac = int(dfn.get("ac", 10))
-    crit = d20 == 20
+    crit = d20 == 20 or ("inconsciente" in _conds(dfn))  # golpe a inconsciente = crítico
     fumble = d20 == 1
     hit = (not fumble) and (crit or total_atk >= ac)
+
+    # Consumir "Inspirado" del atacante (se gasta al atacar).
+    consumed_inspired = False
+    if "inspirado" in _conds(atk):
+        atk["conditions"] = [x for x in (atk.get("conditions") or []) if str(x).strip().lower() != "inspirado"]
+        consumed_inspired = True
 
     dmg_total = 0
     dmg_desc = ""
     if hit:
         dmg_total, dmg_desc = _roll_damage(atk.get("dmg", "1d6"), crit)
         new_hp = max(0, int(dfn.get("hp_current", 0)) - dmg_total)
-        # Persistir en el combatiente.
         for c in combatants:
             if c.get("id") == dfn.get("id"):
                 c["hp_current"] = new_hp
+                # A 0 PG: queda inconsciente automáticamente.
+                if new_hp == 0 and "inconsciente" not in _conds(c):
+                    c["conditions"] = (c.get("conditions") or []) + ["inconsciente"]
                 break
-        # Si el defensor es un héroe, persistir también en su ficha.
         if dfn.get("type") == "player" and dfn.get("character_id"):
             await db.characters.update_one(
                 {"_id": dfn["character_id"]},
                 {"$set": {"puntos_golpe_actual": new_hp}},
             )
-        now = datetime.now(timezone.utc).isoformat()
-        await db.dj_screens.update_one(
-            {"campaign_run_id": run_id},
-            {"$set": {"combatants": combatants, "updated_at": now}},
-        )
-        screen = await db.dj_screens.find_one({"campaign_run_id": run_id})
+
+    # Persistir SIEMPRE (puede haberse consumido Inspirado aunque falle).
+    now = datetime.now(timezone.utc).isoformat()
+    await db.dj_screens.update_one(
+        {"campaign_run_id": run_id},
+        {"$set": {"combatants": combatants, "updated_at": now}},
+    )
+    screen = await db.dj_screens.find_one({"campaign_run_id": run_id})
 
     # Narrativa para el chat de grupo.
-    mode_txt = {"advantage": " con ventaja", "disadvantage": " con desventaja"}.get(body.mode, "")
+    mode_txt = {"advantage": " con ventaja", "disadvantage": " con desventaja"}.get(eff_mode, "")
+    if eff_mode != body.mode:
+        mode_txt += " (por condiciones)"
     dice_txt = f"{'/'.join(map(str, dice))}→{d20}" if len(dice) > 1 else str(d20)
     bonus_txt = f"{'+' if atk_bonus >= 0 else ''}{atk_bonus}"
     if fumble:

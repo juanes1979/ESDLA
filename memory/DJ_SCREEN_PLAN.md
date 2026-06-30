@@ -71,6 +71,14 @@ Tumbado (desventaja al atacar; melé con ventaja) · Apresado (velocidad 0) · A
 (desventaja viendo la fuente) · Envenenado (desventaja en ataques y pruebas) · Inconsciente
 (tumbado + no actúa + impactos cercanos críticos). El motor aplica ventaja/desventaja auto.
 
+### ✅ FASE 3 COMPLETADA (Jun 2026)
+- Backend `CONDITION_KEYS` + `_effective_mode`: atacante cansado/asustado/envenenado →
+  desventaja; inspirado → ventaja (se CONSUME); defensor tumbado/aturdido/inconsciente →
+  ataques con ventaja; ventaja+desventaja se cancelan. Aturdido/inconsciente o 0 PG → no
+  ataca (400). Golpe a inconsciente = crítico. A 0 PG se añade "inconsciente" auto.
+- Frontend: selector cerrado (tooltip de efecto); cartas de combatiente y de héroe caído en
+  ROJO + botón "Atac." deshabilitado. Verificado por curl y captura.
+
 ## FASE 4 — Rastreador de Viaje integrado
 Exponer en la pantalla la lógica de viajes ya existente (roles guía/explorador/cazador/
 vigía, tiradas automatizadas, acampada/centinela). Botón "Generar acontecimiento de viaje"

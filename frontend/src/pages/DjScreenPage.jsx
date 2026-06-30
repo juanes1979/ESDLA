@@ -37,11 +37,25 @@ const BAND_COLOR = {
   caído: 'text-rose-500', desconocido: 'text-stone-400',
 };
 
+// Lista CERRADA de condiciones con su efecto (tooltip).
+const CONDITIONS = [
+  ['cansado', 'Cansado', 'Desventaja en sus ataques'],
+  ['inspirado', 'Inspirado', 'Ventaja en su próximo ataque (se consume)'],
+  ['aturdido', 'Aturdido', 'No puede actuar; le atacan con ventaja'],
+  ['tumbado', 'Tumbado', 'Le atacan (melé) con ventaja'],
+  ['apresado', 'Apresado', 'Velocidad 0'],
+  ['asustado', 'Asustado', 'Desventaja mientras vea la amenaza'],
+  ['envenenado', 'Envenenado', 'Desventaja en ataques y pruebas'],
+  ['inconsciente', 'Inconsciente', 'No actúa; golpes cercanos son críticos'],
+];
+const COND_LABEL = Object.fromEntries(CONDITIONS.map(([k, l]) => [k, l]));
+
 // ---------------------------------------------------------------------------
 const CombatantCard = ({ c, idx, isActive, canEdit, onChange, onRemove, runId, isAttacker, isDefender, onSelectAttacker, onSelectDefender }) => {
-  const [condInput, setCondInput] = useState('');
   const pct = c.hp_max > 0 ? Math.max(0, Math.min(100, (c.hp_current / c.hp_max) * 100)) : 0;
   const isEnemy = c.type === 'enemy';
+  const condsLower = (c.conditions || []).map((x) => String(x).toLowerCase());
+  const isDown = c.hp_current <= 0 || condsLower.includes('inconsciente');
 
   const portraitUrl = c.character_id
     ? `${BACKEND_URL}/api/campaign-runs/${runId}/dj-screen/portrait/${c.character_id}`
@@ -50,7 +64,8 @@ const CombatantCard = ({ c, idx, isActive, canEdit, onChange, onRemove, runId, i
   return (
     <div
       className={`rounded-lg border p-2.5 transition-colors ${
-        isAttacker ? 'border-amber-400 ring-2 ring-amber-400/70 bg-amber-900/20'
+        isDown ? 'border-rose-700 ring-1 ring-rose-700/50 bg-rose-950/30 opacity-70'
+        : isAttacker ? 'border-amber-400 ring-2 ring-amber-400/70 bg-amber-900/20'
         : isDefender ? 'border-sky-400 ring-2 ring-sky-400/70 bg-sky-900/20'
         : isActive
           ? 'border-amber-400 bg-amber-900/30 ring-1 ring-amber-400/60'
@@ -103,9 +118,10 @@ const CombatantCard = ({ c, idx, isActive, canEdit, onChange, onRemove, runId, i
         <div className="flex items-center gap-1 mt-2 flex-wrap">
           <button
             onClick={() => onSelectAttacker(c.id)}
-            className={`text-[10px] px-1.5 py-0.5 rounded flex items-center gap-1 ${isAttacker ? 'bg-amber-600 text-amber-50' : 'bg-black/40 text-amber-300/70 hover:bg-amber-900/40'}`}
+            disabled={isDown}
+            className={`text-[10px] px-1.5 py-0.5 rounded flex items-center gap-1 disabled:opacity-30 disabled:cursor-not-allowed ${isAttacker ? 'bg-amber-600 text-amber-50' : 'bg-black/40 text-amber-300/70 hover:bg-amber-900/40'}`}
             data-testid={`select-attacker-${c.id}`}
-            title="Marcar como atacante"
+            title={isDown ? 'Caído/inconsciente: no puede atacar' : 'Marcar como atacante'}
           >
             <Swords className="w-3 h-3" /> Atac.
           </button>
@@ -181,7 +197,7 @@ const CombatantCard = ({ c, idx, isActive, canEdit, onChange, onRemove, runId, i
       <div className="flex flex-wrap items-center gap-1 mt-2">
         {(c.conditions || []).map((cond) => (
           <span key={cond} className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full bg-purple-900/40 text-purple-200 border border-purple-700/40" data-testid={`combatant-cond-${c.id}-${cond}`}>
-            {cond}
+            {COND_LABEL[String(cond).toLowerCase()] || cond}
             {canEdit && (
               <button onClick={() => onChange({ ...c, conditions: c.conditions.filter((x) => x !== cond) })} className="hover:text-white">
                 <X className="w-2.5 h-2.5" />
@@ -190,20 +206,20 @@ const CombatantCard = ({ c, idx, isActive, canEdit, onChange, onRemove, runId, i
           </span>
         ))}
         {canEdit && (
-          <input
-            value={condInput}
-            onChange={(e) => setCondInput(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && condInput.trim()) {
-                const v = condInput.trim();
-                if (!(c.conditions || []).includes(v)) onChange({ ...c, conditions: [...(c.conditions || []), v] });
-                setCondInput('');
-              }
+          <select
+            value=""
+            onChange={(e) => {
+              const v = e.target.value;
+              if (v && !condsLower.includes(v)) onChange({ ...c, conditions: [...(c.conditions || []), v] });
             }}
-            placeholder="+ estado"
-            className="text-[10px] bg-black/40 rounded px-1.5 py-0.5 text-purple-200 placeholder-purple-400/40 outline-none w-20"
-            data-testid={`combatant-cond-input-${c.id}`}
-          />
+            className="text-[10px] bg-black/40 rounded px-1 py-0.5 text-purple-200 outline-none border border-purple-900/30"
+            data-testid={`combatant-cond-select-${c.id}`}
+          >
+            <option value="">+ estado</option>
+            {CONDITIONS.filter(([k]) => !condsLower.includes(k)).map(([k, lbl, eff]) => (
+              <option key={k} value={k} title={eff}>{lbl}</option>
+            ))}
+          </select>
         )}
       </div>
 
@@ -706,8 +722,10 @@ const DjScreenPage = () => {
               {combatants.filter((c) => c.type === 'player').map((c) => {
                 const pct = c.hp_max > 0 ? Math.max(0, Math.min(100, (c.hp_current / c.hp_max) * 100)) : 0;
                 const purl = `${BACKEND_URL}/api/campaign-runs/${id}/dj-screen/portrait/${c.character_id}`;
+                const down = c.hp_current <= 0 || (c.conditions || []).map((x) => String(x).toLowerCase()).includes('inconsciente');
                 return (
-                  <div key={c.id} className="rounded-lg border border-emerald-800/40 bg-emerald-950/10 p-2 flex flex-col items-center" data-testid={`hero-card-${c.id}`}>
+                  <div key={c.id} className={`rounded-lg border p-2 flex flex-col items-center relative ${down ? 'border-rose-700 bg-rose-950/30 opacity-70' : 'border-emerald-800/40 bg-emerald-950/10'}`} data-testid={`hero-card-${c.id}`}>
+                    {down && <span className="absolute top-1 right-1 text-[9px] px-1 rounded bg-rose-700 text-rose-50" data-testid={`hero-down-${c.id}`}>Caído</span>}
                     {c.has_portrait ? (
                       <AuthenticatedImage url={purl} alt={c.name} className="w-12 h-12 rounded-full object-cover ring-1 ring-emerald-600/40" fallbackClassName="w-12 h-12 rounded-full" />
                     ) : (
