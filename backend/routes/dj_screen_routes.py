@@ -76,6 +76,16 @@ class Combatant(BaseModel):
     init_bonus: int = 0
 
 
+class Token(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    id: str
+    label: str = ""
+    x: float = 0.5
+    y: float = 0.5
+    color: str = "amber"
+    kind: Literal["hero", "enemy", "marker"] = "marker"
+
+
 class DjScreenState(BaseModel):
     model_config = ConfigDict(extra="ignore")
     scene_image_file_id: Optional[str] = None
@@ -84,6 +94,8 @@ class DjScreenState(BaseModel):
     current_turn_index: int = 0
     round_number: int = 1
     combat_active: bool = False
+    actions_remaining: int = 0
+    tokens: List[Token] = Field(default_factory=list)
 
 
 class ChatPostBody(BaseModel):
@@ -272,6 +284,7 @@ def _sanitize_for_player(screen: dict) -> dict:
         "scene_image_file_id": screen.get("scene_image_file_id"),
         "current_turn_index": screen.get("current_turn_index", 0),
         "round_number": screen.get("round_number", 1),
+        "tokens": screen.get("tokens", []),
         "combatants": [],
     }
     for c in screen.get("combatants", []):
@@ -701,6 +714,14 @@ class EyeIncrementBody(BaseModel):
     descripcion: str = ""
 
 
+class DiceRollBody(BaseModel):
+    faces: int
+    count: int = 1
+    modifier: int = 0
+    shared: bool = True
+    label: Optional[str] = None
+
+
 async def _broadcast_eye(run_id: str) -> None:
     """Difunde el estado del Ojo: completo a DJ, banda runica a jugadores."""
     state = await _eye_load(run_id)
@@ -723,15 +744,8 @@ async def _broadcast_eye(run_id: str) -> None:
         logger.info("broadcast eye falló (%s): %s", run_id, e)
 
 
-@router.post("/campaign-runs/{run_id}/dj-screen/apply-shadow")
-async def apply_shadow(run_id: str, body: ApplyShadowBody, user: dict = Depends(get_current_user)):
-    """Suma (o resta) Puntos de Sombra a TODOS los personajes aceptados de la
-    campaña de un clic. Narra en el chat y difunde. DM/Maestro."""
-    from server import db
-    run = await _get_run_or_404(db, run_id)
-    if not _is_dm(run, user):
-        raise HTTPException(status_code=403, detail="Sin permiso")
-
+async def _apply_shadow_party(db, run_id: str, amount: int) -> list:
+    """Suma `amount` Puntos de Sombra a cada héroe aceptado. Devuelve afectados."""
     affected = []
     cursor = db.campaign_players.find({"campaign_run_id": run_id, "status": "accepted"})
     seen = set()
@@ -743,12 +757,41 @@ async def apply_shadow(run_id: str, body: ApplyShadowBody, user: dict = Depends(
         char = await db.characters.find_one({"_id": cid})
         if not char:
             continue
-        new_shadow = max(0, int(char.get("puntos_sombra", 0)) + body.amount)
+        new_shadow = max(0, int(char.get("puntos_sombra", 0)) + amount)
         await db.characters.update_one(
             {"_id": cid},
             {"$set": {"puntos_sombra": new_shadow, "updated_at": datetime.now(timezone.utc).isoformat()}},
         )
         affected.append({"character_id": cid, "name": char.get("nombre"), "puntos_sombra": new_shadow})
+    return affected
+
+
+async def _narrate_group(db, run_id: str, sender_name: str, text: str) -> None:
+    """Inserta un mensaje de sistema en el chat de grupo y lo difunde."""
+    now = datetime.now(timezone.utc).isoformat()
+    msg = {
+        "id": str(uuid.uuid4()), "campaign_run_id": run_id, "channel": "group",
+        "sender_id": "system", "sender_name": sender_name, "sender_role": "system",
+        "text": text, "created_at": now,
+    }
+    await db.dj_chat_messages.insert_one(dict(msg))
+    msg.pop("_id", None)
+    try:
+        await manager.broadcast_chat(run_id, "group", _serialize(msg))
+    except Exception:
+        pass
+
+
+@router.post("/campaign-runs/{run_id}/dj-screen/apply-shadow")
+async def apply_shadow(run_id: str, body: ApplyShadowBody, user: dict = Depends(get_current_user)):
+    """Suma (o resta) Puntos de Sombra a TODOS los personajes aceptados de la
+    campaña de un clic. Narra en el chat y difunde. DM/Maestro."""
+    from server import db
+    run = await _get_run_or_404(db, run_id)
+    if not _is_dm(run, user):
+        raise HTTPException(status_code=403, detail="Sin permiso")
+
+    affected = await _apply_shadow_party(db, run_id, body.amount)
 
     sign = "+" if body.amount >= 0 else ""
     reason_txt = f" ({body.reason})" if body.reason else ""
@@ -781,6 +824,81 @@ async def eye_increment(run_id: str, body: EyeIncrementBody, user: dict = Depend
     result = await _eye_increment_route(req, state_id=run_id)
     await _broadcast_eye(run_id)
     return result
+
+
+_VALID_FACES = {4, 6, 8, 10, 12, 20, 100}
+
+
+@router.post("/campaign-runs/{run_id}/dj-screen/roll-dice")
+async def roll_dice(run_id: str, body: DiceRollBody, user: dict = Depends(get_current_user)):
+    """Tira NdX+mod. Cualquier miembro (DJ o jugador aceptado). Si shared=true
+    se narra en el chat de grupo y se difunde; si no, sólo se devuelve al que tira."""
+    import random
+    from server import db
+    run = await _get_run_or_404(db, run_id)
+    is_player = await _is_accepted_player(db, run_id, user)
+    if not (_is_dm(run, user) or is_player):
+        raise HTTPException(status_code=403, detail="Sin permiso")
+    if body.faces not in _VALID_FACES:
+        raise HTTPException(status_code=400, detail=f"Dado no válido (usa {sorted(_VALID_FACES)})")
+    count = max(1, min(20, int(body.count)))
+    rolls = [random.randint(1, body.faces) for _ in range(count)]
+    total = sum(rolls) + int(body.modifier)
+
+    mod = int(body.modifier)
+    mod_txt = f" {'+' if mod >= 0 else '-'}{abs(mod)}" if mod else ""
+    dice_txt = f"{count}d{body.faces}{mod_txt}"
+    result = {"faces": body.faces, "count": count, "modifier": mod, "rolls": rolls, "total": total, "notation": dice_txt}
+
+    if body.shared:
+        roller = user.get("nombre") or user.get("email") or "Alguien"
+        label_txt = f" ({body.label})" if body.label else ""
+        narr = f"🎲 {roller} tira {dice_txt}{label_txt}: [{', '.join(map(str, rolls))}]{mod_txt} = {total}"
+        now = datetime.now(timezone.utc).isoformat()
+        msg = {
+            "id": str(uuid.uuid4()), "campaign_run_id": run_id, "channel": "group",
+            "sender_id": "system", "sender_name": "Dados", "sender_role": "system",
+            "text": narr, "created_at": now,
+        }
+        await db.dj_chat_messages.insert_one(dict(msg))
+        msg.pop("_id", None)
+        try:
+            await manager.broadcast_chat(run_id, "group", _serialize(msg))
+        except Exception:
+            pass
+    return result
+
+
+# Sucesos de Sombra aleatorios (tentaciones/heridas del alma) para la mesa.
+_SHADOW_EVENTS = [
+    "Un susurro en la niebla siembra la duda: la Compañía siente el peso de la Sombra.",
+    "Una pesadilla compartida turba el descanso; la desesperanza roza sus corazones.",
+    "La codicia asoma ante un tesoro entrevisto: la tentación deja su marca.",
+    "El eco de una vieja traición reabre heridas; la ira nubla el juicio.",
+    "Un frío antinatural cala los huesos; el miedo se cuela en el ánimo.",
+    "La visión de tierras corrompidas quiebra la voluntad de los viajeros.",
+    "Un canto lejano y maligno atrae la mirada del Enemigo hacia ellos.",
+]
+
+
+@router.post("/campaign-runs/{run_id}/dj-screen/shadow-event")
+async def shadow_event(run_id: str, user: dict = Depends(get_current_user)):
+    """Suceso de Sombra aleatorio: narra un evento y aplica +1 Sombra a la
+    Compañía. DM/Maestro."""
+    import random
+    from server import db
+    run = await _get_run_or_404(db, run_id)
+    if not _is_dm(run, user):
+        raise HTTPException(status_code=403, detail="Sin permiso")
+    texto = random.choice(_SHADOW_EVENTS)
+    affected = await _apply_shadow_party(db, run_id, 1)
+    tail = (" (+1 Sombra: " + ", ".join(a["name"] for a in affected) + ")") if affected else ""
+    await _narrate_group(db, run_id, "Sombra", f"⚫ Suceso de Sombra: {texto}{tail}")
+    try:
+        await manager.broadcast(run_id, {"type": "shadow_applied", "affected": affected}, {"type": "shadow_applied"})
+    except Exception:
+        pass
+    return {"texto": texto, "affected": affected}
 
 
 # ============================================================================

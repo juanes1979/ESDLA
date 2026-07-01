@@ -645,3 +645,13 @@ export const djEyeIncrement = async (runId, delta = 1, descripcion = '') => {
   return r.data;
 };
 
+export const djRollDice = async (runId, faces, count = 1, modifier = 0, shared = true, label = null) => {
+  const r = await api.post(`/campaign-runs/${runId}/dj-screen/roll-dice`, { faces, count, modifier, shared, label });
+  return r.data;
+};
+
+export const djShadowEvent = async (runId) => {
+  const r = await api.post(`/campaign-runs/${runId}/dj-screen/shadow-event`);
+  return r.data;
+};
+

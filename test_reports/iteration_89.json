@@ -1,0 +1,33 @@
+{
+  "summary": "Regression + acceptance tests for DJ Screen Phase 5 (Sombra + Ojo de Mordor) and Phase 6 (Dice roller + Encuentro + Rules modal + Mapa táctico nivel A). BACKEND 13/13 pytest PASS covering roll-dice (valid faces, invalid faces=7 -> 400, shared inserts group chat msg, 403 for stranger), apply-shadow (+N to accepted heroes + group narration, 403 for stranger), shadow-event (random text + +1 sombra + narration, 403 for stranger), eye-increment (delta persists, will_trigger returned, 403 for stranger), GET /eye as DM returns attention_total/threshold_info/ratio/will_trigger/band, and PUT dj-screen persists tokens[] and actions_remaining round-trip via GET. FRONTEND UI (Maestro on /campanas/{id}/pantalla): DiceRoller d4..d100 all trigger rolls with dice-result panel (1d20=7, 1d6=6, 1d100=40 evidenced), dice-share-toggle flips Compartida <-> Privada, floating quick-d20-btn clickable and updates last roll (bottom-right 1d10=6 seen). Encounter panel: actions-count 5→7 via +/- (persists to backend), fire-trap-btn / shadow-event-btn / end-encounter-btn all present and clickable; shadow-event-btn produces narration in group chat ('Suceso de Sombra: Una pesadilla…' and 'Sombra +1 a la Compañía: Regred Maggot (10)'). Eye of Mordor: banda 'Ojo vigilante' shown, +1 increments attention 8→9/16, ratio bar updates. Sombra a la Compañía: apply-shadow-btn + shadow-test-btn present and functional. Rules modal: open-rules-btn opens rules-modal containing the 'Abrir las Reglas completas' link. Tactical map: place-tokens-btn adds combatant hero token (Regred Maggot), add-marker-btn (with prompt) adds marker token ('Prueba QA'), and hero token is draggable (bounding box moved via mouse.down/move/up as seen in final screenshot). Zero JS console errors during interactions. No regressions from iter88.",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Mapa táctico", "issues": ["addMarker uses window.prompt(), which blocks non-browser flows (e.g., automated tests without a dialog handler). Consider replacing with an in-app modal/input for consistency with the rest of the DJ Screen; functional but breaks headless UX and non-blocking screen readers."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_dj_screen_phase5_6_it109.py",
+    "/app/test_reports/pytest/dj_screen_p56_it109.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "roll_dice: correctly validates faces via _VALID_FACES {4,6,8,10,12,20,100} and clamps count to 1..20; total = sum(rolls)+modifier is correct; when shared=True it inserts a system message in dj_chat_messages (channel='group') and broadcasts. Permission gate: DM OR accepted player. Verified.",
+    "apply_shadow / shadow_event: DM-only via _is_dm; _apply_shadow_party updates puntos_sombra for all accepted heroes and returns [{name, puntos_sombra}]. Narration inserted into group chat + broadcast. Verified 403 for stranger.",
+    "eye_increment: DM-only; delegates to internal _eye_increment_route (state_id=run_id) then _broadcast_eye. GET /campaign-runs/{run_id}/eye returns full payload for DM with threshold_info/ratio/will_trigger/band; sanitised (only 'band') for accepted player.",
+    "DjScreenState now includes tokens: List[Token] and actions_remaining: int; Token model constrains kind to hero|enemy|marker and x,y default 0.5. Round-trip PUT→GET preserves ids, x/y, kind (verified programmatically).",
+    "_sanitize_for_player exposes tokens to players — this is INTENTIONAL for the map UX; make sure token labels never contain private info (currently only combatant name / user-provided marker text). Consider marker text sanitisation if that channel is ever exposed to jugadores.",
+    "Frontend DjScreenPage.jsx: setActions(n) calls persist({...screen, actions_remaining}). Race condition possible if user clicks +/- rapidly while an in-flight PUT is in progress; the follow-up PUT uses stale `screen`. Not observed in tests, but consider optimistic local state + functional update.",
+    "placeCombatantTokens dedupes by ref_id (not id) — correct because each token has its own uuid; existing tokens without ref_id (e.g., seeded via backend PUT) would be re-added. Consider seed cleanliness on prod.",
+    "TacticalMap file only 109 lines and RulesReferenceModal 122 — well-scoped. DjScreenPage.jsx is 1295 lines which is at the edge of the 700-line guideline — consider extracting DiceRoller, EyeShadowPanel, EncounterTools, MapPanel into their own files."
+  ],
+  "updated_files": ["/app/backend/tests/test_dj_screen_phase5_6_it109.py"],
+  "success_rate": { "backend": "100% (13/13)", "frontend": "100%" },
+  "test_credentials": "Maestro elanillounico_tlotr@proton.me / 123456 (from /app/memory/test_credentials.md). Run: 750ac72b-f208-4c9e-b897-204b2faccf59.",
+  "seed_data_creation": "Created ephemeral 'stranger' jugador users (qa_stranger_p56_<uuid>@example.com) approved as jugador via PATCH /api/auth/users/{uid} for 403 tests. During UI tests, actions_remaining was set to 6, +1 shadow applied to Regred Maggot, +1 attention added to Ojo (8→9/16), and 2 map tokens (Regred hero + 'Prueba QA' marker) were placed. Main agent may want to clear these transient QA states.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Phase 5+6 endpoints and UI verified in it109 via /app/backend/tests/test_dj_screen_phase5_6_it109.py (13 tests). Key testids on /campanas/:id/pantalla — dice: dice-roller, dice-share-toggle, dice-d{4,6,8,10,12,20,100}, dice-count, dice-mod, dice-result, quick-d20-btn. Encounter: actions-plus/minus/count, fire-trap-btn, shadow-event-btn, end-encounter-btn. Eye+Sombra: eye-inc-1/2/3, apply-shadow-btn, shadow-test-btn, shadow-amt-plus/minus/input, shadow-reason-input. Rules: open-rules-btn, rules-modal. Map: tactical-map, place-tokens-btn, add-marker-btn (uses window.prompt — Playwright needs page.on('dialog', ...)), map-token-<id>. Backend Token fields: id,label,x,y,kind(hero|enemy|marker),color. Persistence via PUT /api/campaign-runs/{id}/dj-screen with body containing tokens[] and actions_remaining."
+}

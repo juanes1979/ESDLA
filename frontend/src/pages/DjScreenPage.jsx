@@ -14,18 +14,20 @@ import { useNavigate, useParams } from 'react-router-dom';
 import {
   ArrowLeft, Loader2, Plus, Minus, Trash2, Swords, Shield, Heart,
   ChevronRight, ChevronLeft, RotateCcw, ArrowDownWideNarrow, Send,
-  Image as ImageIcon, Users, NotebookPen, MessageSquare, Skull, X,
-  Dices, Compass, Eye,
+  Map, Users, NotebookPen, MessageSquare, Skull, X,
+  Dices, Compass, Eye, AlertTriangle, Flame, XCircle, BookOpen, MapPin,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   getDjScreen, saveDjScreen, syncDjPlayers,
   getDjChat, postDjChat, getDjChatPeers, getBestiary, djAttack,
-  djRollInitiative, djTravelEvent, getCampaignEye, djApplyShadow, djEyeIncrement,
+  djRollInitiative, djTravelEvent, getCampaignEye, djApplyShadow, djEyeIncrement, djRollDice, djShadowEvent,
 } from '@/services/api';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/context/AuthContext';
 import AuthenticatedImage from '@/components/AuthenticatedImage';
+import RulesReferenceModal from '@/components/dj-screen/RulesReferenceModal';
+import TacticalMap from '@/components/dj-screen/TacticalMap';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const getToken = () =>
@@ -332,6 +334,71 @@ const ChatPanel = ({ runId, channels, myUserId, chatEvent, wsLive }) => {
 };
 
 // ---------------------------------------------------------------------------
+// Gestor de tiradas con runas (d4–d100) + privado/compartido.
+const DICE = [4, 6, 8, 10, 12, 20, 100];
+
+const DiceRoller = ({ runId }) => {
+  const [shared, setShared] = useState(true);
+  const [count, setCount] = useState(1);
+  const [modifier, setModifier] = useState(0);
+  const [last, setLast] = useState(null);
+  const [rolling, setRolling] = useState(false);
+
+  const roll = async (faces) => {
+    setRolling(true);
+    try {
+      const res = await djRollDice(runId, faces, count, modifier, shared);
+      setLast(res);
+      if (shared) toast.message(`🎲 ${res.notation} = ${res.total}`);
+    } catch (e) {
+      toast.error(e?.response?.data?.detail || 'Error al tirar');
+    } finally { setRolling(false); }
+  };
+
+  return (
+    <div className="rounded-xl border border-amber-700/40 bg-black/50 p-3" data-testid="dice-roller">
+      <div className="flex items-center justify-between mb-2">
+        <h3 className="text-sm font-medium text-amber-300 flex items-center gap-1"><Dices className="w-4 h-4" /> Tiradas</h3>
+        <button
+          onClick={() => setShared((s) => !s)}
+          className={`text-[10px] px-2 py-0.5 rounded-full border transition-colors ${shared ? 'bg-emerald-900/40 text-emerald-300 border-emerald-700/40' : 'bg-stone-800 text-stone-300 border-stone-600/40'}`}
+          data-testid="dice-share-toggle"
+          title={shared ? 'La tirada se narra en el chat de grupo' : 'Tirada privada (solo tú la ves)'}
+        >{shared ? 'Compartida' : 'Privada'}</button>
+      </div>
+      <div className="grid grid-cols-4 gap-1.5 mb-2">
+        {DICE.map((f) => (
+          <button
+            key={f}
+            onClick={() => roll(f)}
+            disabled={rolling}
+            className="aspect-square rounded-lg border border-amber-700/40 bg-gradient-to-b from-amber-950/40 to-black/60 text-amber-200 text-xs font-heading hover:border-amber-500/70 hover:text-amber-100 transition-colors disabled:opacity-40 flex items-center justify-center"
+            data-testid={`dice-d${f}`}
+          >d{f}</button>
+        ))}
+      </div>
+      <div className="flex items-center gap-1 text-[11px] text-amber-300/70">
+        <span>Nº</span>
+        <input type="number" min="1" max="20" value={count}
+          onChange={(e) => setCount(Math.max(1, Math.min(20, parseInt(e.target.value || '1', 10))))}
+          className="w-10 bg-black/40 rounded text-center text-amber-100 py-0.5 outline-none border border-amber-900/30" data-testid="dice-count" />
+        <span className="ml-1">Mod</span>
+        <input type="number" value={modifier}
+          onChange={(e) => setModifier(parseInt(e.target.value || '0', 10))}
+          className="w-12 bg-black/40 rounded text-center text-amber-100 py-0.5 outline-none border border-amber-900/30" data-testid="dice-mod" />
+      </div>
+      {last && (
+        <div className="mt-2 rounded-lg border border-amber-800/40 bg-amber-950/20 p-2 text-center" data-testid="dice-result">
+          <div className="text-[10px] text-amber-300/60">{last.notation}</div>
+          <div className="text-lg font-heading text-amber-200">{last.total}</div>
+          <div className="text-[10px] text-stone-400">[{last.rolls.join(', ')}]{last.modifier ? ` ${last.modifier >= 0 ? '+' : ''}${last.modifier}` : ''}</div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+// ---------------------------------------------------------------------------
 // Ojo de Mordor + control de Sombra de la Compañía.
 const EYE_STYLE = {
   'Ojo dormido': { color: 'text-stone-400', ring: 'ring-stone-600/40', glow: '', bar: 'bg-stone-600' },
@@ -477,6 +544,10 @@ const DjScreenPage = () => {
   // Ojo de Mordor + Sombra
   const [eye, setEye] = useState(null);
   const [eyeBusy, setEyeBusy] = useState(false);
+  // Herramientas de encuentro
+  const [trap, setTrap] = useState({ name: '', damage: '2d6', cd: 13 });
+  const [encBusy, setEncBusy] = useState(false);
+  const [showRules, setShowRules] = useState(false);
 
   const toPayload = (s) => ({
     scene_image_file_id: s.scene_image_file_id || null,
@@ -485,6 +556,7 @@ const DjScreenPage = () => {
     current_turn_index: s.current_turn_index || 0,
     round_number: s.round_number || 1,
     combat_active: !!s.combat_active,
+    actions_remaining: s.actions_remaining ?? 0,
   });
 
   const load = useCallback(async () => {
@@ -753,6 +825,62 @@ const DjScreenPage = () => {
     } finally { setEyeBusy(false); }
   };
 
+  const fireTrap = async () => {
+    const nm = trap.name.trim() || 'Trampa oculta';
+    const txt = `⚠️ ¡${nm}! Salvación CD ${trap.cd} o ${trap.damage} de daño.`;
+    try {
+      await postDjChat(id, { channel: 'group', text: txt });
+      toast.message(txt);
+    } catch { toast.error('No se pudo disparar la trampa'); }
+  };
+
+  const randomShadowEvent = async () => {
+    setEncBusy(true);
+    try {
+      const res = await djShadowEvent(id);
+      toast.message(`⚫ ${res.texto}`);
+    } catch (e) {
+      toast.error(e?.response?.data?.detail || 'No se pudo generar el suceso');
+    } finally { setEncBusy(false); }
+  };
+
+  const endEncounter = () => {
+    persist({
+      ...screen,
+      combatants: (screen.combatants || []).filter((c) => c.type === 'player'),
+      current_turn_index: 0, round_number: 1, combat_active: false, actions_remaining: 0,
+    });
+    toast.success('Encuentro terminado: enemigos retirados');
+  };
+
+  const setActions = (n) => persist({ ...screen, actions_remaining: Math.max(0, n) });
+
+  // ---- Mapa táctico (tokens) ----
+  const moveToken = (tokenId, x, y) =>
+    persist({ ...screen, tokens: (screen.tokens || []).map((t) => (t.id === tokenId ? { ...t, x, y } : t)) });
+
+  const placeCombatantTokens = () => {
+    const existing = new Set((screen.tokens || []).map((t) => t.ref_id));
+    const toAdd = (screen.combatants || []).filter((c) => !existing.has(c.id));
+    if (toAdd.length === 0) { toast.message('Todas las fichas ya están en el mapa'); return; }
+    const newTokens = toAdd.map((c, i) => ({
+      id: uid(), ref_id: c.id, label: c.name,
+      x: 0.1 + ((i % 8) * 0.1), y: c.type === 'player' ? 0.85 : 0.15,
+      kind: c.type === 'player' ? 'hero' : 'enemy', color: c.type === 'player' ? 'emerald' : 'rose',
+    }));
+    persist({ ...screen, tokens: [...(screen.tokens || []), ...newTokens] });
+    toast.success(`${newTokens.length} ficha(s) colocada(s)`);
+  };
+
+  const addMarker = () => {
+    const label = window.prompt('Etiqueta del marcador (p. ej. Emboscada, Trampa):', 'Emboscada');
+    if (label === null) return;
+    const t = { id: uid(), label: label.trim() || 'Marcador', x: 0.5, y: 0.5, kind: 'marker', color: 'amber' };
+    persist({ ...screen, tokens: [...(screen.tokens || []), t] });
+  };
+
+  const clearTokens = () => persist({ ...screen, tokens: [] });
+
   const doAttack = async () => {
     if (!attackerId || !defenderId || attackerId === defenderId) {
       toast.error('Selecciona atacante y defensor (distintos)');
@@ -829,6 +957,7 @@ const DjScreenPage = () => {
             </>
           )}
           {isPlayer && <span className="text-xs px-2 py-1 rounded bg-stone-800 text-stone-300">Vista de jugador</span>}
+          <Button size="sm" variant="outline" onClick={() => setShowRules(true)} className="border-amber-700/50 text-amber-200 hover:bg-amber-900/30 h-8 px-2 text-xs" data-testid="open-rules-btn"><BookOpen className="w-3.5 h-3.5 mr-1" /> Reglas</Button>
           <span
             className={`text-xs px-2 py-1 rounded flex items-center gap-1 ${wsLive ? 'bg-emerald-900/40 text-emerald-300' : 'bg-stone-800 text-stone-400'}`}
             data-testid="ws-status"
@@ -909,28 +1038,32 @@ const DjScreenPage = () => {
               <ChatPanel runId={id} channels={channels} myUserId={user?.id} chatEvent={chatEvent} wsLive={wsLive} />
             </div>
           </div>
+
+          <DiceRoller runId={id} />
         </div>
 
-        {/* CENTER — scene + hero cards */}
+        {/* CENTER — mapa táctico + hero cards */}
         <div className="space-y-3 order-1 lg:order-2">
           <div className="rounded-xl border border-amber-700/40 bg-black/50 overflow-hidden" data-testid="dj-scene-card">
-            <div className="relative">
-              {screen.scene_image_file_id ? (
-                <AuthenticatedImage fileId={screen.scene_image_file_id} alt="Escena"
-                  className="w-full max-h-[420px] object-contain bg-black" />
-              ) : (
-                <div className="w-full h-64 flex flex-col items-center justify-center text-amber-300/40 bg-black/30">
-                  <ImageIcon className="w-10 h-10 mb-2" />
-                  <span className="text-sm">Sin escena</span>
+            <div className="flex items-center justify-between px-3 py-2 border-b border-amber-900/30">
+              <h3 className="text-sm font-medium text-amber-300 flex items-center gap-1"><Map className="w-4 h-4" /> Mapa táctico</h3>
+              {canEdit && (
+                <div className="flex items-center gap-1">
+                  <Button size="sm" variant="outline" onClick={placeCombatantTokens} className="border-emerald-700/50 text-emerald-200 hover:bg-emerald-900/30 h-7 px-2 text-xs" data-testid="place-tokens-btn"><Users className="w-3.5 h-3.5 mr-1" /> Colocar fichas</Button>
+                  <Button size="sm" variant="outline" onClick={addMarker} className="border-amber-700/50 text-amber-200 hover:bg-amber-900/30 h-7 px-2 text-xs" data-testid="add-marker-btn"><MapPin className="w-3.5 h-3.5 mr-1" /> Marcador</Button>
+                  {(screen.tokens || []).length > 0 && (
+                    <Button size="sm" variant="outline" onClick={clearTokens} className="border-rose-700/50 text-rose-200 hover:bg-rose-900/30 h-7 px-2 text-xs" data-testid="clear-tokens-btn"><Trash2 className="w-3.5 h-3.5" /></Button>
+                  )}
                 </div>
               )}
-              {canEdit && (
-                <label className="absolute bottom-2 right-2 cursor-pointer bg-amber-700 hover:bg-amber-600 text-amber-50 text-xs px-3 py-1.5 rounded flex items-center gap-1" data-testid="scene-upload-label">
-                  <ImageIcon className="w-3.5 h-3.5" /> Cambiar escena
-                  <input type="file" accept="image/*" className="hidden" onChange={handleSceneUpload} data-testid="scene-upload-input" />
-                </label>
-              )}
             </div>
+            <TacticalMap
+              fileId={screen.scene_image_file_id}
+              tokens={screen.tokens || []}
+              canEdit={canEdit}
+              onMove={moveToken}
+              onUpload={handleSceneUpload}
+            />
           </div>
 
           {/* Hero cards (jugadores) */}
@@ -978,6 +1111,44 @@ const DjScreenPage = () => {
             onIncrement={doEyeIncrement}
             onApplyShadow={doApplyShadow}
           />
+
+          {canEdit && (
+            <div className="rounded-xl border border-orange-800/50 bg-black/50 p-3" data-testid="encounter-tools">
+              <h3 className="text-sm font-medium text-orange-300 mb-2 flex items-center gap-1"><Flame className="w-4 h-4" /> Encuentro</h3>
+
+              {/* Acciones restantes */}
+              <div className="flex items-center justify-between mb-2 rounded-lg border border-amber-900/40 bg-amber-950/10 px-2 py-1.5">
+                <span className="text-[11px] text-amber-300/80">Acciones restantes</span>
+                <div className="flex items-center gap-1.5">
+                  <button onClick={() => setActions((screen.actions_remaining ?? 0) - 1)} className="px-1.5 rounded bg-black/50 text-amber-300 hover:bg-amber-900/40" data-testid="actions-minus"><Minus className="w-3 h-3" /></button>
+                  <span className="w-6 text-center font-mono text-amber-100" data-testid="actions-count">{screen.actions_remaining ?? 0}</span>
+                  <button onClick={() => setActions((screen.actions_remaining ?? 0) + 1)} className="px-1.5 rounded bg-black/50 text-emerald-300 hover:bg-emerald-900/40" data-testid="actions-plus"><Plus className="w-3 h-3" /></button>
+                </div>
+              </div>
+
+              {/* Trampa */}
+              <div className="rounded-lg border border-orange-900/40 bg-orange-950/10 p-2 mb-2" data-testid="trap-form">
+                <div className="text-[11px] text-orange-200 mb-1 flex items-center gap-1"><AlertTriangle className="w-3.5 h-3.5" /> Disparar trampa</div>
+                <input value={trap.name} onChange={(e) => setTrap({ ...trap, name: e.target.value })} placeholder="Nombre (p. ej. Foso con estacas)"
+                  className="w-full bg-black/40 rounded px-2 py-1 text-xs text-amber-100 placeholder-amber-500/30 outline-none border border-orange-900/30 mb-1" data-testid="trap-name" />
+                <div className="flex items-center gap-1 mb-1">
+                  <span className="text-[10px] text-stone-400">Daño</span>
+                  <input value={trap.damage} onChange={(e) => setTrap({ ...trap, damage: e.target.value })} className="w-16 bg-black/40 rounded px-1 py-0.5 text-xs text-center text-rose-200 outline-none border border-orange-900/30" data-testid="trap-damage" />
+                  <span className="text-[10px] text-stone-400">CD</span>
+                  <input type="number" value={trap.cd} onChange={(e) => setTrap({ ...trap, cd: parseInt(e.target.value || '0', 10) })} className="w-12 bg-black/40 rounded px-1 py-0.5 text-xs text-center text-amber-200 outline-none border border-orange-900/30" data-testid="trap-cd" />
+                </div>
+                <Button size="sm" onClick={fireTrap} className="w-full bg-orange-700 hover:bg-orange-600 text-orange-50 h-7 text-xs" data-testid="fire-trap-btn"><AlertTriangle className="w-3.5 h-3.5 mr-1" /> Disparar</Button>
+              </div>
+
+              <div className="flex gap-1">
+                <Button size="sm" onClick={randomShadowEvent} disabled={encBusy} className="flex-1 bg-purple-800 hover:bg-purple-700 text-purple-50 h-7 text-xs disabled:opacity-40" data-testid="shadow-event-btn">
+                  {encBusy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <>⚫ Suceso de Sombra</>}
+                </Button>
+                <Button size="sm" variant="outline" onClick={endEncounter} className="flex-1 border-rose-700/50 text-rose-200 hover:bg-rose-900/30 h-7 text-xs" data-testid="end-encounter-btn"><XCircle className="w-3.5 h-3.5 mr-1" /> Terminar</Button>
+              </div>
+            </div>
+          )}
+
           <div className="rounded-xl border border-amber-700/40 bg-black/50 p-3" data-testid="initiative-tracker">
             <div className="flex items-center justify-between mb-2">
               <h3 className="text-sm font-medium text-amber-300 flex items-center gap-1"><Swords className="w-4 h-4" /> Iniciativa</h3>
@@ -1099,6 +1270,24 @@ const DjScreenPage = () => {
           </div>
         </div>
       )}
+
+      {/* d20 de tirada rápida (compartida) */}
+      <button
+        onClick={async () => {
+          try {
+            const res = await djRollDice(id, 20, 1, 0, true);
+            toast.message(`🎲 d20 = ${res.total}`);
+          } catch { toast.error('Error al tirar'); }
+        }}
+        className="fixed bottom-4 right-4 z-[90] w-14 h-14 rounded-full bg-amber-700 hover:bg-amber-600 text-amber-50 shadow-lg shadow-black/50 border-2 border-amber-500/50 flex flex-col items-center justify-center transition-transform hover:scale-105 active:scale-95"
+        title="Tirar 1d20 (compartido en el chat)"
+        data-testid="quick-d20-btn"
+      >
+        <Dices className="w-5 h-5" />
+        <span className="text-[9px] font-heading leading-none mt-0.5">d20</span>
+      </button>
+
+      <RulesReferenceModal open={showRules} onClose={() => setShowRules(false)} canOpenFull={canEdit} />
     </div>
   );
 };
