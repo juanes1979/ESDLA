@@ -98,6 +98,21 @@ vigía, tiradas automatizadas, acampada/centinela). Botón "Generar acontecimien
 vinculado a Prueba de Sombra/Cansancio directa.
 
 ## FASE 5 — Sombra y Ojo de Mordor activos + vista saneada
+
+### ✅ FASE 5 COMPLETADA (Jul 2026)
+- Backend (ya existía, verificado): `GET /…/eye` (DJ completo / jugador banda rúnica saneada),
+  `POST /…/dj-screen/apply-shadow` {amount, reason} (suma Sombra a TODOS los héroes aceptados,
+  narra en chat, difunde `shadow_applied`), `POST /…/dj-screen/eye-increment` {delta, descripcion}
+  (usa eye_routes con state_id=run_id, difunde `eye_update`). `_eye_band` y `_broadcast_eye` OK.
+- Frontend `DjScreenPage.jsx`: componente `EyeShadowPanel` en la columna derecha. DJ ve iris
+  rúnico + banda + Atención/umbral + barra + botones "Incrementar Ojo" (+1/+2/+3) + control de
+  Sombra (stepper, motivo, "Aplicar a la Compañía", "Prueba de Sombra"). Jugador ve solo el iris
+  y la banda rúnica (sin números). WS aplica `eye_update` en vivo y avisa por `shadow_applied`.
+  Vista saneada de PG enemigos (bandas) ya existía en `_sanitize_for_player`.
+- Verificado: curl (eye GET, eye-increment +2 → total 2, apply-shadow +1 → héroe con sombra 1)
+  y captura del DJ (panel completo + narración en chat).
+
+## FASE 5 (plan original) — Sombra y Ojo de Mordor activos + vista saneada
 - Botones "Disparar Prueba de Sombra" e "Incrementar Ojo" (reutilizan PATCH /shadow y eye).
 - Vista saneada de jugadores (bandas, sin números):
   - PG enemigos: Ileso · Herido leve · Herido · Malherido · Caído

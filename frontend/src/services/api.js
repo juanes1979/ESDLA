@@ -630,3 +630,18 @@ export const djTravelEvent = async (runId, params = {}) => {
   return r.data;
 };
 
+export const getCampaignEye = async (runId) => {
+  const r = await api.get(`/campaign-runs/${runId}/eye`);
+  return r.data;
+};
+
+export const djApplyShadow = async (runId, amount, reason = '') => {
+  const r = await api.post(`/campaign-runs/${runId}/dj-screen/apply-shadow`, { amount, reason });
+  return r.data;
+};
+
+export const djEyeIncrement = async (runId, delta = 1, descripcion = '') => {
+  const r = await api.post(`/campaign-runs/${runId}/dj-screen/eye-increment`, { delta, descripcion });
+  return r.data;
+};
+

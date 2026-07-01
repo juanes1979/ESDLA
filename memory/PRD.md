@@ -612,3 +612,14 @@ Aplica una transacción YA negociada al personaje (reutiliza endpoints de equipo
 - Verificado por captura (badge+banner, nota, 48 candidatos) y curl. Recordatorio: El Tablón
   (`/tablon`) es donde el jugador marca disponibilidad (pestaña Disponibilidad) y responde
   invitaciones (pestaña Invitaciones); se accede desde Mis Campañas → 📜 Tablón.
+
+## Pantalla del DJ — Fase 5: Sombra y Ojo de Mordor (Jul 2026)
+- Panel `EyeShadowPanel` (columna derecha de la Pantalla del DJ): iris rúnico con bandas
+  (Ojo dormido → entreabierto → vigilante → parpadeando → La Mirada), Atención/umbral y barra.
+- DJ: botones "Incrementar Ojo" (+1/+2/+3) y control de Sombra a la Compañía (stepper + motivo,
+  "Aplicar a la Compañía" y "Prueba de Sombra" que aplica +1 a todos los héroes aceptados).
+- Jugador: solo iris + banda rúnica (sin números). PG enemigos ya saneados por bandas.
+- Backend: `GET /…/eye`, `POST /…/dj-screen/apply-shadow`, `POST /…/dj-screen/eye-increment`;
+  difusión WS `eye_update` y `shadow_applied` en vivo. Verificado por curl + captura.
+- SIGUIENTE: Fase 6 (consolidación de módulos del mockup: Referencia de Reglas de solo lectura,
+  gestor de tiradas con runas d4–d100 + d20 rápido, botones de encuentro, Mapa táctico Nivel A).

@@ -15,13 +15,13 @@ import {
   ArrowLeft, Loader2, Plus, Minus, Trash2, Swords, Shield, Heart,
   ChevronRight, ChevronLeft, RotateCcw, ArrowDownWideNarrow, Send,
   Image as ImageIcon, Users, NotebookPen, MessageSquare, Skull, X,
-  Dices, Compass,
+  Dices, Compass, Eye,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   getDjScreen, saveDjScreen, syncDjPlayers,
   getDjChat, postDjChat, getDjChatPeers, getBestiary, djAttack,
-  djRollInitiative, djTravelEvent,
+  djRollInitiative, djTravelEvent, getCampaignEye, djApplyShadow, djEyeIncrement,
 } from '@/services/api';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/context/AuthContext';
@@ -332,6 +332,113 @@ const ChatPanel = ({ runId, channels, myUserId, chatEvent, wsLive }) => {
 };
 
 // ---------------------------------------------------------------------------
+// Ojo de Mordor + control de Sombra de la Compañía.
+const EYE_STYLE = {
+  'Ojo dormido': { color: 'text-stone-400', ring: 'ring-stone-600/40', glow: '', bar: 'bg-stone-600' },
+  'Ojo entreabierto': { color: 'text-amber-300', ring: 'ring-amber-600/40', glow: '', bar: 'bg-amber-600' },
+  'Ojo vigilante': { color: 'text-orange-400', ring: 'ring-orange-600/50', glow: 'shadow-[0_0_12px_rgba(249,115,22,0.4)]', bar: 'bg-orange-500' },
+  'Ojo parpadeando': { color: 'text-rose-400', ring: 'ring-rose-600/60', glow: 'shadow-[0_0_16px_rgba(244,63,94,0.5)]', bar: 'bg-rose-500' },
+  'La Mirada': { color: 'text-red-500', ring: 'ring-red-500/80', glow: 'shadow-[0_0_24px_rgba(239,68,68,0.7)]', bar: 'bg-red-600' },
+};
+
+const EyeShadowPanel = ({ eye, canEdit, busy, onIncrement, onApplyShadow }) => {
+  const [shadowAmt, setShadowAmt] = useState(1);
+  const [shadowReason, setShadowReason] = useState('');
+  const band = eye?.band || 'Ojo dormido';
+  const style = EYE_STYLE[band] || EYE_STYLE['Ojo dormido'];
+  const ratio = Math.max(0, Math.min(1, eye?.ratio || 0));
+  const isWatching = band === 'La Mirada' || band === 'Ojo parpadeando';
+
+  return (
+    <div className="rounded-xl border border-red-900/50 bg-gradient-to-b from-black/70 to-red-950/20 p-3" data-testid="eye-panel">
+      <div className="flex items-center justify-between mb-2">
+        <h3 className="text-sm font-medium text-red-300 flex items-center gap-1"><Eye className="w-4 h-4" /> Ojo de Mordor</h3>
+        {canEdit && eye?.will_trigger && (
+          <span className="text-[10px] px-1.5 py-0.5 rounded bg-red-700 text-red-50 animate-pulse" data-testid="eye-trigger-warn">¡Umbral alcanzado!</span>
+        )}
+      </div>
+
+      {/* Iris rúnico */}
+      <div className="flex flex-col items-center py-2">
+        <div className={`w-16 h-16 rounded-full flex items-center justify-center bg-black/60 ring-2 ${style.ring} ${style.glow} ${isWatching ? 'animate-pulse' : ''}`}>
+          <Eye className={`w-9 h-9 ${style.color}`} />
+        </div>
+        <div className={`mt-1.5 text-xs font-heading tracking-wide ${style.color}`} data-testid="eye-band">{band}</div>
+      </div>
+
+      {canEdit && eye?.threshold_info && (
+        <>
+          <div className="text-[11px] text-stone-400 flex items-center justify-between mb-1">
+            <span>Atención: <span className="text-red-300 font-mono">{eye.attention_total}</span> / {eye.threshold_info.threshold}</span>
+            <span className="capitalize text-stone-500">{eye.threshold_info.region_type}</span>
+          </div>
+          <div className="h-2 rounded-full bg-stone-800 overflow-hidden border border-black/40 mb-2">
+            <div className={`h-full transition-all ${style.bar}`} style={{ width: `${ratio * 100}%` }} />
+          </div>
+          <div className="flex items-center gap-1 mb-3">
+            <span className="text-[10px] text-red-300/60 mr-1">Incrementar Ojo:</span>
+            {[1, 2, 3].map((d) => (
+              <button
+                key={d}
+                onClick={() => onIncrement(d)}
+                disabled={busy}
+                className="flex-1 text-xs px-2 py-1 rounded bg-red-900/40 text-red-200 hover:bg-red-800/60 disabled:opacity-40 border border-red-800/40"
+                data-testid={`eye-inc-${d}`}
+              >+{d}</button>
+            ))}
+          </div>
+        </>
+      )}
+
+      {/* Control de Sombra (solo DJ) */}
+      {canEdit && (
+        <div className="rounded-lg border border-purple-800/40 bg-purple-950/20 p-2" data-testid="shadow-control">
+          <div className="text-[11px] text-purple-200 mb-1.5 flex items-center gap-1">⚫ Sombra a la Compañía</div>
+          <div className="flex items-center gap-1 mb-1.5">
+            <button onClick={() => setShadowAmt((v) => v - 1)} className="px-1.5 rounded bg-black/50 text-purple-300 hover:bg-purple-900/40" data-testid="shadow-amt-minus"><Minus className="w-3 h-3" /></button>
+            <input
+              type="number" value={shadowAmt}
+              onChange={(e) => setShadowAmt(parseInt(e.target.value || '0', 10))}
+              className="w-12 bg-black/40 rounded text-center text-purple-100 text-sm py-1 outline-none border border-purple-900/30"
+              data-testid="shadow-amt-input"
+            />
+            <button onClick={() => setShadowAmt((v) => v + 1)} className="px-1.5 rounded bg-black/50 text-purple-300 hover:bg-purple-900/40" data-testid="shadow-amt-plus"><Plus className="w-3 h-3" /></button>
+            <input
+              value={shadowReason}
+              onChange={(e) => setShadowReason(e.target.value)}
+              placeholder="Motivo (opcional)"
+              className="flex-1 min-w-0 bg-black/40 rounded px-2 py-1 text-xs text-purple-100 placeholder-purple-500/30 outline-none border border-purple-900/30"
+              data-testid="shadow-reason-input"
+            />
+          </div>
+          <div className="flex gap-1">
+            <Button
+              size="sm"
+              onClick={() => { onApplyShadow(shadowAmt, shadowReason); setShadowReason(''); }}
+              disabled={busy || shadowAmt === 0}
+              className="flex-1 bg-purple-800 hover:bg-purple-700 text-purple-50 h-7 text-xs disabled:opacity-40"
+              data-testid="apply-shadow-btn"
+            >Aplicar a la Compañía</Button>
+            <Button
+              size="sm" variant="outline"
+              onClick={() => onApplyShadow(1, 'Prueba de Sombra fallida')}
+              disabled={busy}
+              className="border-purple-700/50 text-purple-200 hover:bg-purple-900/30 h-7 text-xs"
+              title="Aplica +1 Sombra a todos por una prueba fallida"
+              data-testid="shadow-test-btn"
+            >Prueba de Sombra</Button>
+          </div>
+        </div>
+      )}
+
+      {!canEdit && (
+        <p className="text-[11px] text-stone-500 italic text-center">La atención del Enemigo se cierne sobre la Compañía…</p>
+      )}
+    </div>
+  );
+};
+
+// ---------------------------------------------------------------------------
 const DjScreenPage = () => {
   const navigate = useNavigate();
   const { id } = useParams();
@@ -367,6 +474,9 @@ const DjScreenPage = () => {
   const [defenderId, setDefenderId] = useState(null);
   const [attackMode, setAttackMode] = useState('normal');
   const [attacking, setAttacking] = useState(false);
+  // Ojo de Mordor + Sombra
+  const [eye, setEye] = useState(null);
+  const [eyeBusy, setEyeBusy] = useState(false);
 
   const toPayload = (s) => ({
     scene_image_file_id: s.scene_image_file_id || null,
@@ -392,6 +502,11 @@ const DjScreenPage = () => {
 
   useEffect(() => { load(); }, [load]);
 
+  const loadEye = useCallback(async () => {
+    try { setEye(await getCampaignEye(id)); } catch { /* silent */ }
+  }, [id]);
+  useEffect(() => { loadEye(); }, [loadEye]);
+
   // WebSocket en vivo: estado del rastreador + chat. El DJ es la fuente de
   // verdad, así que NO se pisa a sí mismo con dj_screen_state entrante.
   useEffect(() => {
@@ -412,6 +527,10 @@ const DjScreenPage = () => {
           if (!canEditRef.current) setScreen(data.state);
         } else if (data.type === 'chat') {
           setChatEvent(data);
+        } else if (data.type === 'eye_update') {
+          setEye((prev) => ({ ...(prev || {}), ...data }));
+        } else if (data.type === 'shadow_applied') {
+          if (!canEditRef.current) toast.message('⚫ La Sombra se cierne sobre la Compañía…');
         }
       };
       ws.onclose = () => {
@@ -609,6 +728,29 @@ const DjScreenPage = () => {
     } finally {
       setTravelLoading(false);
     }
+  };
+
+  const doEyeIncrement = async (delta) => {
+    setEyeBusy(true);
+    try {
+      const res = await djEyeIncrement(id, delta, 'DJ');
+      if (res.state) setEye((prev) => ({ ...(prev || {}), attention_total: res.state.attention_total, threshold_info: res.threshold_info, ratio: res.ratio, will_trigger: res.will_trigger }));
+      await loadEye();
+      toast.success(`Ojo de Mordor +${delta}`);
+    } catch (e) {
+      toast.error(e?.response?.data?.detail || 'No se pudo incrementar el Ojo');
+    } finally { setEyeBusy(false); }
+  };
+
+  const doApplyShadow = async (amount, reason) => {
+    setEyeBusy(true);
+    try {
+      const res = await djApplyShadow(id, amount, reason);
+      const n = res.affected?.length || 0;
+      toast.success(n > 0 ? `⚫ Sombra ${amount >= 0 ? '+' : ''}${amount} a ${n} héroe(s)` : 'Sin héroes a los que aplicar Sombra');
+    } catch (e) {
+      toast.error(e?.response?.data?.detail || 'No se pudo aplicar la Sombra');
+    } finally { setEyeBusy(false); }
   };
 
   const doAttack = async () => {
@@ -829,6 +971,13 @@ const DjScreenPage = () => {
 
         {/* RIGHT — initiative tracker */}
         <div className="space-y-3 order-2 lg:order-3">
+          <EyeShadowPanel
+            eye={eye}
+            canEdit={canEdit}
+            busy={eyeBusy}
+            onIncrement={doEyeIncrement}
+            onApplyShadow={doApplyShadow}
+          />
           <div className="rounded-xl border border-amber-700/40 bg-black/50 p-3" data-testid="initiative-tracker">
             <div className="flex items-center justify-between mb-2">
               <h3 className="text-sm font-medium text-amber-300 flex items-center gap-1"><Swords className="w-4 h-4" /> Iniciativa</h3>
