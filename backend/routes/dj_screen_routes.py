@@ -1010,6 +1010,11 @@ class SessionStartBody(BaseModel):
     titulo: Optional[str] = None
 
 
+class SessionEditBody(BaseModel):
+    titulo: Optional[str] = None
+    summary: Optional[str] = None
+
+
 async def _broadcast_session(run_id: str) -> None:
     from server import db
     active = await db.campaign_sessions.find_one({"campaign_run_id": run_id, "status": "active"}, {"_id": 0})
@@ -1118,4 +1123,24 @@ async def close_session(run_id: str, session_id: str, user: dict = Depends(get_c
     await _narrate_group(db, run_id, "Crónica", f"⏹️ Fin de la {session.get('titulo')}.")
     await _broadcast_session(run_id)
     return {"session": updated, "summary_generated": summary is not None}
+
+
+@router.patch("/campaign-runs/{run_id}/sessions/{session_id}")
+async def edit_session(run_id: str, session_id: str, body: SessionEditBody, user: dict = Depends(get_current_user)):
+    """Edita el título o la crónica (resumen) de una sesión del diario. DM/Maestro."""
+    from server import db
+    run = await _get_run_or_404(db, run_id)
+    if not _is_dm(run, user):
+        raise HTTPException(status_code=403, detail="Sin permiso")
+    session = await db.campaign_sessions.find_one({"id": session_id, "campaign_run_id": run_id})
+    if not session:
+        raise HTTPException(status_code=404, detail="Sesión no encontrada")
+    changes: dict = {"updated_at": datetime.now(timezone.utc).isoformat()}
+    if body.titulo is not None:
+        changes["titulo"] = body.titulo.strip() or session.get("titulo")
+    if body.summary is not None:
+        changes["summary"] = body.summary
+    await db.campaign_sessions.update_one({"id": session_id}, {"$set": changes})
+    updated = await db.campaign_sessions.find_one({"id": session_id}, {"_id": 0})
+    return updated
 

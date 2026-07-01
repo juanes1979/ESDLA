@@ -648,3 +648,12 @@ Aplica una transacción YA negociada al personaje (reutiliza endpoints de equipo
 - Verificado por curl (flujo completo con resumen IA real, doble-start 400) y captura.
 - SIGUIENTE (P2): refactor de `data_routes.py` (>4900 líneas) en world_data_routes.py y
   travel_data_routes.py. Posible: resumen IA visible/pegable en el diario de campaña.
+
+## Diario de campaña (Jul 2026)
+- Página `/campanas/:id/diario` (`CampaignJournalPage`): crónica acumulada de todas las sesiones
+  como capítulos (orden cronológico), con fechas y resumen. Accesible a DJ y jugadores (lectura).
+- El DJ puede EDITAR título y crónica de cada sesión: `PATCH /campaign-runs/{run}/sessions/{sid}`.
+- Impresión: PDF por sesión (botón printer) y "PDF completo"/"Imprimir diario" del diario entero
+  (jsPDF, formato A4, tipografía Times). Almacena todo para el final de la campaña.
+- Acceso desde la Pantalla del DJ (botón "Diario"). Verificado por curl (PATCH) y captura
+  (2 capítulos, descarga PDF `diario-*.pdf`, edición inline).

@@ -33,6 +33,7 @@ import CampaignHubPage from "@/pages/CampaignHubPage";
 import CampaignBoardPage from "@/pages/CampaignBoardPage";
 import MyCampaignsPage from "@/pages/MyCampaignsPage";
 import DjScreenPage from "@/pages/DjScreenPage";
+import CampaignJournalPage from "@/pages/CampaignJournalPage";
 import TradingPage from "@/pages/TradingPage";
 import { CharacterCreatorWizard } from "@/components/character-creator";
 
@@ -72,6 +73,7 @@ function App() {
               <Route path="/campanas/:id" element={<ProtectedRoute roles={STAFF}><CampaignHubPage /></ProtectedRoute>} />
               <Route path="/mis-campanas" element={<ProtectedRoute><MyCampaignsPage /></ProtectedRoute>} />
               <Route path="/campanas/:id/pantalla" element={<ProtectedRoute><DjScreenPage /></ProtectedRoute>} />
+              <Route path="/campanas/:id/diario" element={<ProtectedRoute><CampaignJournalPage /></ProtectedRoute>} />
               <Route path="/tablon" element={<ProtectedRoute><CampaignBoardPage /></ProtectedRoute>} />
               <Route path="/sheet-editor" element={<ProtectedRoute roles={STAFF}><SheetPositionEditor /></ProtectedRoute>} />
               <Route path="/map/master" element={<ProtectedRoute roles={STAFF}><MiddleEarthMap /></ProtectedRoute>} />

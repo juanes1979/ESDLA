@@ -670,3 +670,8 @@ export const closeSession = async (runId, sessionId) => {
   return r.data;
 };
 
+export const editSession = async (runId, sessionId, data) => {
+  const r = await api.patch(`/campaign-runs/${runId}/sessions/${sessionId}`, data);
+  return r.data;
+};
+

@@ -1008,6 +1008,7 @@ const DjScreenPage = () => {
             {activeSession ? (activeSession.titulo || `Sesión ${activeSession.numero}`) : 'Sin sesión'}
           </span>
           <Button size="sm" variant="outline" onClick={() => setShowSessions(true)} className="border-amber-700/50 text-amber-200 hover:bg-amber-900/30 h-8 px-2 text-xs" data-testid="open-sessions-btn"><ScrollText className="w-3.5 h-3.5 mr-1" /> Sesiones</Button>
+          <Button size="sm" variant="outline" onClick={() => navigate(`/campanas/${id}/diario`)} className="border-amber-700/50 text-amber-200 hover:bg-amber-900/30 h-8 px-2 text-xs" data-testid="open-journal-btn"><BookOpen className="w-3.5 h-3.5 mr-1" /> Diario</Button>
           <Button size="sm" variant="outline" onClick={() => setShowRules(true)} className="border-amber-700/50 text-amber-200 hover:bg-amber-900/30 h-8 px-2 text-xs" data-testid="open-rules-btn"><BookOpen className="w-3.5 h-3.5 mr-1" /> Reglas</Button>
           <span
             className={`text-xs px-2 py-1 rounded flex items-center gap-1 ${wsLive ? 'bg-emerald-900/40 text-emerald-300' : 'bg-stone-800 text-stone-400'}`}
