@@ -1144,3 +1144,70 @@ async def edit_session(run_id: str, session_id: str, body: SessionEditBody, user
     updated = await db.campaign_sessions.find_one({"id": session_id}, {"_id": 0})
     return updated
 
+
+@router.get("/campaign-runs/{run_id}/journal/cover")
+async def get_journal_cover(run_id: str, user: dict = Depends(get_current_user)):
+    """Devuelve el file_id de la portada del diario (o None). DJ o jugador aceptado."""
+    from server import db
+    run = await _get_run_or_404(db, run_id)
+    is_player = await _is_accepted_player(db, run_id, user)
+    if not (_is_dm(run, user) or is_player):
+        raise HTTPException(status_code=403, detail="Sin permiso")
+    return {"file_id": run.get("journal_cover_file_id")}
+
+
+@router.post("/campaign-runs/{run_id}/journal/cover")
+async def generate_journal_cover(run_id: str, user: dict = Depends(get_current_user)):
+    """Genera una portada ilustrada del diario con IA (GPT Image 1) a partir del
+    nombre de la aventura, la guarda en GridFS y devuelve el file_id. DM/Maestro."""
+    import io
+    from server import db
+    from routes.storage_routes import get_gridfs_bucket
+    run = await _get_run_or_404(db, run_id)
+    if not _is_dm(run, user):
+        raise HTTPException(status_code=403, detail="Sin permiso")
+    api_key = os.environ.get("EMERGENT_LLM_KEY")
+    if not api_key:
+        raise HTTPException(status_code=500, detail="EMERGENT_LLM_KEY no configurada")
+
+    adventure = run.get("adventure_name") or "Crónica de la Compañía"
+    prompt = (
+        f"Portada de libro para una crónica de rol de El Señor de los Anillos titulada "
+        f"'{adventure}'. Ilustración pintada al óleo, paisaje épico de la Tierra Media, "
+        f"iluminación dramática al atardecer, marco ornamental dorado con filigranas, "
+        f"atmósfera de manuscrito antiguo y fantasía heroica. Sin texto ni letras. "
+        f"Composición vertical de portada."
+    )
+    try:
+        from emergentintegrations.llm.openai.image_generation import OpenAIImageGeneration
+        image_gen = OpenAIImageGeneration(api_key=api_key)
+        images = await image_gen.generate_images(prompt=prompt, model="gpt-image-1", number_of_images=1)
+    except Exception as e:
+        logger.error("Portada IA falló: %s", e)
+        raise HTTPException(status_code=502, detail=f"Error generando la portada: {e}")
+    if not images:
+        raise HTTPException(status_code=500, detail="No se generó ninguna imagen")
+
+    content = images[0]
+    bucket = get_gridfs_bucket(db)
+    path = f"journal_covers/{run_id}.png"
+    metadata = {
+        "original_filename": f"portada-{run_id}.png",
+        "content_type": "image/png",
+        "path": path,
+        "owner_id": user.get("id"),
+        "folder": "journal_covers",
+        "campaign_id": run_id,
+        "uploaded_at": datetime.now(timezone.utc).isoformat(),
+        "size_bytes": len(content),
+    }
+    existing = await db.lotr_files.files.find_one({"metadata.path": path})
+    if existing:
+        try:
+            await bucket.delete(existing["_id"])
+        except Exception:
+            pass
+    file_id = await bucket.upload_from_stream(filename=path, source=io.BytesIO(content), metadata=metadata)
+    await db.campaign_runs.update_one({"id": run_id}, {"$set": {"journal_cover_file_id": str(file_id)}})
+    return {"file_id": str(file_id)}
+

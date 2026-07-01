@@ -675,3 +675,13 @@ export const editSession = async (runId, sessionId, data) => {
   return r.data;
 };
 
+export const getJournalCover = async (runId) => {
+  const r = await api.get(`/campaign-runs/${runId}/journal/cover`);
+  return r.data;
+};
+
+export const generateJournalCover = async (runId) => {
+  const r = await api.post(`/campaign-runs/${runId}/journal/cover`, null, { timeout: 120000 });
+  return r.data;
+};
+

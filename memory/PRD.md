@@ -657,3 +657,12 @@ Aplica una transacción YA negociada al personaje (reutiliza endpoints de equipo
   (jsPDF, formato A4, tipografía Times). Almacena todo para el final de la campaña.
 - Acceso desde la Pantalla del DJ (botón "Diario"). Verificado por curl (PATCH) y captura
   (2 capítulos, descarga PDF `diario-*.pdf`, edición inline).
+
+## Diario de campaña — Portada IA + Índice (Jul 2026)
+- Portada ilustrada generada con IA (GPT Image 1 vía Emergent LLM key) a partir del nombre de la
+  aventura; guardada en GridFS y persistida en campaign_runs.journal_cover_file_id.
+  Endpoints: GET/POST `/campaign-runs/{run}/journal/cover` (POST solo DJ).
+- La página del Diario muestra la portada + un Índice de capítulos (con scroll a cada sesión).
+- El PDF completo incluye página de PORTADA ilustrada + página de ÍNDICE + capítulos → aspecto de
+  "libro de campaña" descargable/compartible. Verificado por curl (cover generado y persistido) y
+  captura (portada renderizada + índice).
