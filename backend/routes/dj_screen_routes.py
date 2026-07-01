@@ -20,6 +20,7 @@ Acceso:
 from __future__ import annotations
 
 import logging
+import os
 import uuid
 from datetime import datetime, timezone
 from typing import List, Literal, Optional
@@ -1000,3 +1001,121 @@ async def chat_peers(run_id: str, user: dict = Depends(get_current_user)):
             "channel": f"private:{uid}",
         })
     return {"is_dm": True, "peers": peers}
+
+
+# ============================================================================
+# Sesiones — Iniciar/Cerrar sesión + resumen con IA (GPT-4o vía Emergent)
+# ============================================================================
+class SessionStartBody(BaseModel):
+    titulo: Optional[str] = None
+
+
+async def _broadcast_session(run_id: str) -> None:
+    from server import db
+    active = await db.campaign_sessions.find_one({"campaign_run_id": run_id, "status": "active"}, {"_id": 0})
+    try:
+        await manager.broadcast(run_id, {"type": "session_update", "active": active}, {"type": "session_update", "active": active})
+    except Exception:
+        pass
+
+
+async def _generate_session_summary(run: dict, session: dict, messages: list, notes: str) -> Optional[str]:
+    """Crónica breve de la sesión con GPT-4o. Devuelve None si falla o falta la key."""
+    api_key = os.environ.get("EMERGENT_LLM_KEY")
+    if not api_key:
+        return None
+    transcript = "\n".join(f"{m.get('sender_name', '?')}: {m.get('text', '')}" for m in messages)[:12000]
+    system = ("Eres el cronista de una campaña de El Señor de los Anillos 5e. Escribes en "
+              "ESPAÑOL DE ESPAÑA, con tono épico pero conciso. Trata a los lectores de 'vosotros'.")
+    prompt = (
+        f"Aventura: {run.get('adventure_name')}.\n"
+        f"Sesión {session.get('numero')}: {session.get('titulo')}.\n\n"
+        f"Registro del chat de la sesión:\n{transcript or '(sin mensajes)'}\n\n"
+        f"Notas privadas del DJ:\n{notes or '(sin notas)'}\n\n"
+        "Redacta un resumen de 120-200 palabras con: hechos clave, combates y bajas, "
+        "Sombra ganada y estado del Ojo de Mordor, y ganchos para la próxima sesión. "
+        "Devuelve SOLO el texto del resumen, sin encabezados ni markdown."
+    )
+    try:
+        from emergentintegrations.llm.chat import LlmChat, UserMessage
+        chat = LlmChat(api_key=api_key, session_id=f"summary-{session.get('id')}", system_message=system).with_model("openai", "gpt-4o")
+        resp = await chat.send_message(UserMessage(text=prompt))
+        return resp.strip() if isinstance(resp, str) else str(resp).strip()
+    except Exception as e:
+        logger.warning("resumen de sesión IA falló (%s): %s", run.get("id"), e)
+        return None
+
+
+@router.get("/campaign-runs/{run_id}/sessions")
+async def list_sessions(run_id: str, user: dict = Depends(get_current_user)):
+    """Lista de sesiones (más recientes primero) + la activa. DJ o jugador aceptado."""
+    from server import db
+    run = await _get_run_or_404(db, run_id)
+    is_player = await _is_accepted_player(db, run_id, user)
+    if not (_is_dm(run, user) or is_player):
+        raise HTTPException(status_code=403, detail="Sin permiso")
+    cursor = db.campaign_sessions.find({"campaign_run_id": run_id}).sort("numero", -1)
+    sessions = [_serialize(s) async for s in cursor]
+    active = next((s for s in sessions if s.get("status") == "active"), None)
+    return {"sessions": sessions, "active": active}
+
+
+@router.post("/campaign-runs/{run_id}/sessions/start")
+async def start_session(run_id: str, body: SessionStartBody, user: dict = Depends(get_current_user)):
+    """Inicia una sesión nueva. DM/Maestro. Sólo una activa a la vez."""
+    from server import db
+    run = await _get_run_or_404(db, run_id)
+    if not _is_dm(run, user):
+        raise HTTPException(status_code=403, detail="Sin permiso")
+    existing = await db.campaign_sessions.find_one({"campaign_run_id": run_id, "status": "active"})
+    if existing:
+        raise HTTPException(status_code=400, detail="Ya hay una sesión activa. Ciérrala primero.")
+    numero = await db.campaign_sessions.count_documents({"campaign_run_id": run_id}) + 1
+    now = datetime.now(timezone.utc).isoformat()
+    doc = {
+        "id": str(uuid.uuid4()), "campaign_run_id": run_id, "numero": numero,
+        "titulo": (body.titulo or "").strip() or f"Sesión {numero}",
+        "start_time": now, "end_time": None, "status": "active",
+        "summary": None, "notes_snapshot": None,
+        "created_at": now, "updated_at": now,
+    }
+    await db.campaign_sessions.insert_one(dict(doc))
+    doc.pop("_id", None)
+    await _narrate_group(db, run_id, "Crónica", f"▶️ Comienza la {doc['titulo']}.")
+    await _broadcast_session(run_id)
+    return _serialize(doc)
+
+
+@router.post("/campaign-runs/{run_id}/sessions/{session_id}/close")
+async def close_session(run_id: str, session_id: str, user: dict = Depends(get_current_user)):
+    """Cierra la sesión, genera un resumen con IA y lo guarda. DM/Maestro."""
+    from server import db
+    run = await _get_run_or_404(db, run_id)
+    if not _is_dm(run, user):
+        raise HTTPException(status_code=403, detail="Sin permiso")
+    session = await db.campaign_sessions.find_one({"id": session_id, "campaign_run_id": run_id})
+    if not session:
+        raise HTTPException(status_code=404, detail="Sesión no encontrada")
+    if session.get("status") != "active":
+        raise HTTPException(status_code=400, detail="La sesión ya está cerrada")
+
+    now = datetime.now(timezone.utc).isoformat()
+    # Mensajes de grupo dentro de la ventana temporal de la sesión.
+    msgs = await db.dj_chat_messages.find({
+        "campaign_run_id": run_id, "channel": "group",
+        "created_at": {"$gte": session.get("start_time"), "$lte": now},
+    }).sort("created_at", 1).to_list(500)
+    screen = await db.dj_screens.find_one({"campaign_run_id": run_id})
+    notes = (screen or {}).get("notes_private", "")
+    summary = await _generate_session_summary(run, session, msgs, notes)
+
+    await db.campaign_sessions.update_one(
+        {"id": session_id},
+        {"$set": {"status": "closed", "end_time": now, "summary": summary,
+                  "notes_snapshot": notes, "updated_at": now}},
+    )
+    updated = await db.campaign_sessions.find_one({"id": session_id}, {"_id": 0})
+    await _narrate_group(db, run_id, "Crónica", f"⏹️ Fin de la {session.get('titulo')}.")
+    await _broadcast_session(run_id)
+    return {"session": updated, "summary_generated": summary is not None}
+

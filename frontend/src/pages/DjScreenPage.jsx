@@ -15,19 +15,21 @@ import {
   ArrowLeft, Loader2, Plus, Minus, Trash2, Swords, Shield, Heart,
   ChevronRight, ChevronLeft, RotateCcw, ArrowDownWideNarrow, Send,
   Map, Users, NotebookPen, MessageSquare, Skull, X,
-  Dices, Compass, Eye, AlertTriangle, Flame, XCircle, BookOpen, MapPin,
+  Dices, Compass, Eye, AlertTriangle, Flame, XCircle, BookOpen, MapPin, ScrollText,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   getDjScreen, saveDjScreen, syncDjPlayers,
   getDjChat, postDjChat, getDjChatPeers, getBestiary, djAttack,
   djRollInitiative, djTravelEvent, getCampaignEye, djApplyShadow, djEyeIncrement, djRollDice, djShadowEvent,
+  getSessions, startSession, closeSession,
 } from '@/services/api';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/context/AuthContext';
 import AuthenticatedImage from '@/components/AuthenticatedImage';
 import RulesReferenceModal from '@/components/dj-screen/RulesReferenceModal';
 import TacticalMap from '@/components/dj-screen/TacticalMap';
+import SessionsModal from '@/components/dj-screen/SessionsModal';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const getToken = () =>
@@ -549,6 +551,11 @@ const DjScreenPage = () => {
   const [encBusy, setEncBusy] = useState(false);
   const [showRules, setShowRules] = useState(false);
   const [markerLabel, setMarkerLabel] = useState('');
+  // Sesiones
+  const [sessions, setSessions] = useState([]);
+  const [activeSession, setActiveSession] = useState(null);
+  const [showSessions, setShowSessions] = useState(false);
+  const [sessionBusy, setSessionBusy] = useState(false);
 
   const toPayload = (s) => ({
     scene_image_file_id: s.scene_image_file_id || null,
@@ -580,6 +587,15 @@ const DjScreenPage = () => {
   }, [id]);
   useEffect(() => { loadEye(); }, [loadEye]);
 
+  const loadSessions = useCallback(async () => {
+    try {
+      const data = await getSessions(id);
+      setSessions(data.sessions || []);
+      setActiveSession(data.active || null);
+    } catch { /* silent */ }
+  }, [id]);
+  useEffect(() => { loadSessions(); }, [loadSessions]);
+
   // WebSocket en vivo: estado del rastreador + chat. El DJ es la fuente de
   // verdad, así que NO se pisa a sí mismo con dj_screen_state entrante.
   useEffect(() => {
@@ -604,6 +620,9 @@ const DjScreenPage = () => {
           setEye((prev) => ({ ...(prev || {}), ...data }));
         } else if (data.type === 'shadow_applied') {
           if (!canEditRef.current) toast.message('⚫ La Sombra se cierne sobre la Compañía…');
+        } else if (data.type === 'session_update') {
+          setActiveSession(data.active || null);
+          loadSessions();
         }
       };
       ws.onclose = () => {
@@ -621,7 +640,7 @@ const DjScreenPage = () => {
       clearInterval(pingTimer);
       try { ws && ws.close(); } catch { /* noop */ }
     };
-  }, [id]);
+  }, [id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Players poll the (sanitized) state. DJ is the source of truth and does not poll.
   useEffect(() => {
@@ -882,6 +901,28 @@ const DjScreenPage = () => {
 
   const clearTokens = () => persist({ ...screen, tokens: [] });
 
+  const doStartSession = async (titulo) => {
+    setSessionBusy(true);
+    try {
+      await startSession(id, titulo || null);
+      await loadSessions();
+      toast.success('Sesión iniciada');
+    } catch (e) {
+      toast.error(e?.response?.data?.detail || 'No se pudo iniciar la sesión');
+    } finally { setSessionBusy(false); }
+  };
+
+  const doCloseSession = async (sessionId) => {
+    setSessionBusy(true);
+    try {
+      const res = await closeSession(id, sessionId);
+      await loadSessions();
+      toast.success(res.summary_generated ? 'Sesión cerrada — resumen generado' : 'Sesión cerrada (sin resumen IA)');
+    } catch (e) {
+      toast.error(e?.response?.data?.detail || 'No se pudo cerrar la sesión');
+    } finally { setSessionBusy(false); }
+  };
+
   const doAttack = async () => {
     if (!attackerId || !defenderId || attackerId === defenderId) {
       toast.error('Selecciona atacante y defensor (distintos)');
@@ -958,6 +999,15 @@ const DjScreenPage = () => {
             </>
           )}
           {isPlayer && <span className="text-xs px-2 py-1 rounded bg-stone-800 text-stone-300">Vista de jugador</span>}
+          <span
+            className={`text-xs px-2 py-1 rounded flex items-center gap-1 ${activeSession ? 'bg-emerald-900/40 text-emerald-300' : 'bg-stone-800 text-stone-400'}`}
+            data-testid="session-status"
+            title={activeSession ? `Sesión activa: ${activeSession.titulo}` : 'Sin sesión activa'}
+          >
+            <ScrollText className="w-3.5 h-3.5" />
+            {activeSession ? (activeSession.titulo || `Sesión ${activeSession.numero}`) : 'Sin sesión'}
+          </span>
+          <Button size="sm" variant="outline" onClick={() => setShowSessions(true)} className="border-amber-700/50 text-amber-200 hover:bg-amber-900/30 h-8 px-2 text-xs" data-testid="open-sessions-btn"><ScrollText className="w-3.5 h-3.5 mr-1" /> Sesiones</Button>
           <Button size="sm" variant="outline" onClick={() => setShowRules(true)} className="border-amber-700/50 text-amber-200 hover:bg-amber-900/30 h-8 px-2 text-xs" data-testid="open-rules-btn"><BookOpen className="w-3.5 h-3.5 mr-1" /> Reglas</Button>
           <span
             className={`text-xs px-2 py-1 rounded flex items-center gap-1 ${wsLive ? 'bg-emerald-900/40 text-emerald-300' : 'bg-stone-800 text-stone-400'}`}
@@ -1297,6 +1347,16 @@ const DjScreenPage = () => {
       </button>
 
       <RulesReferenceModal open={showRules} onClose={() => setShowRules(false)} canOpenFull={canEdit} />
+      <SessionsModal
+        open={showSessions}
+        onClose={() => setShowSessions(false)}
+        sessions={sessions}
+        active={activeSession}
+        canEdit={canEdit}
+        onStart={doStartSession}
+        onCloseSession={doCloseSession}
+        busy={sessionBusy}
+      />
     </div>
   );
 };

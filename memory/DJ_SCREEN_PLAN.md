@@ -120,9 +120,7 @@ vinculado a Prueba de Sombra/Cansancio directa.
   - Ojo de Mordor: Ojo dormido · entreabierto · vigilante · parpadeando · La Mirada
     (runa/iris que se abre por fases)
 
-## FASE 6 — Consolidación + módulos del mockup
-
-### ✅ FASE 6 COMPLETADA (Jul 2026)
+## FASE 6 — Consolidación + módulos del mockup (Jul 2026)
 - 6.1 Gestor de tiradas (`DiceRoller`): runas d4–d100, Nº y Mod, toggle Compartida/Privada,
   resultado en tarjeta, botón flotante d20 (`quick-d20-btn`). Backend
   `POST /…/dj-screen/roll-dice` {faces,count,modifier,shared,label}: valida caras, tope 20 dados,
@@ -139,6 +137,24 @@ vinculado a Prueba de Sombra/Cansancio directa.
   `actions_remaining`; `_sanitize_for_player` expone tokens a jugadores (posiciones compartidas).
 - Verificado: testing_agent iter89 (backend 13/13 pytest PASS, frontend sin errores de consola,
   sin regresiones desde iter88).
+
+## FASE 7 — Persistencia de Sesión + resumen con IA (Jul 2026)
+
+### ✅ COMPLETADA
+- Colección `campaign_sessions` {id, campaign_run_id, numero, titulo, start_time, end_time,
+  status, summary, notes_snapshot}. Una sola sesión activa por campaña.
+- Endpoints (`dj_screen_routes.py`): `GET /…/sessions` (DJ+jugador), `POST /…/sessions/start`
+  {titulo?} (DJ; 400 si ya hay activa; narra "▶️ Comienza…"), `POST /…/sessions/{sid}/close`
+  (DJ; fija end_time, genera resumen IA, guarda notes_snapshot, narra "⏹️ Fin…").
+- Agrupado por VENTANA TEMPORAL (start_time..end_time) sobre el chat de grupo → no hace falta
+  taggear cada mensaje con session_id.
+- Resumen IA: GPT-4o vía Emergent LLM key (`_generate_session_summary`), en español de España,
+  120-200 palabras (hechos clave, combates/bajas, Sombra y Ojo, ganchos). Fallback graceful si
+  falla la IA (summary=None).
+- Frontend: `SessionsModal` (Iniciar/Cerrar + historial con resúmenes colapsables), píldora
+  `session-status` y botón "Sesiones" en la barra; WS `session_update` sincroniza en vivo.
+- Verificado por curl (start→chat→close con resumen IA real generado, doble-start 400, listado)
+  y captura del modal con el resumen.
 
 ## FASE 6 (plan original) — Consolidación + módulos del mockup
 - Paneles maestros: Notas privadas DJ, Resumen privado de aventureros, Rastreador de viaje,

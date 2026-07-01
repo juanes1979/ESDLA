@@ -636,3 +636,15 @@ Aplica una transacción YA negociada al personaje (reutiliza endpoints de equipo
 - Verificado por testing_agent iter89 (backend 13/13 PASS, frontend OK, sin regresiones).
 - SIGUIENTE (P1): Persistencia de Sesión (`campaign_sessions`) con Iniciar/Cerrar sesión y
   agrupado histórico de chat/notas. Backlog (P2): refactor de `data_routes.py` (>4900 líneas).
+
+## Pantalla del DJ — Persistencia de Sesión + resumen IA (Jul 2026)
+- Colección `campaign_sessions` (id, campaign_run_id, numero, titulo, start/end_time, status,
+  summary, notes_snapshot). Una sola sesión activa por campaña.
+- Endpoints: GET /…/sessions, POST /…/sessions/start, POST /…/sessions/{sid}/close.
+- Al cerrar: resumen automático con GPT-4o (Emergent LLM key) en español de España a partir del
+  chat de la sesión (ventana temporal) + notas privadas del DJ; fallback si la IA no responde.
+- Frontend: SessionsModal (Iniciar/Cerrar + historial con resúmenes), píldora de estado y botón
+  "Sesiones" en la barra; sincronización WS `session_update`.
+- Verificado por curl (flujo completo con resumen IA real, doble-start 400) y captura.
+- SIGUIENTE (P2): refactor de `data_routes.py` (>4900 líneas) en world_data_routes.py y
+  travel_data_routes.py. Posible: resumen IA visible/pegable en el diario de campaña.

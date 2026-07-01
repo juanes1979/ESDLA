@@ -655,3 +655,18 @@ export const djShadowEvent = async (runId) => {
   return r.data;
 };
 
+export const getSessions = async (runId) => {
+  const r = await api.get(`/campaign-runs/${runId}/sessions`);
+  return r.data;
+};
+
+export const startSession = async (runId, titulo = null) => {
+  const r = await api.post(`/campaign-runs/${runId}/sessions/start`, { titulo });
+  return r.data;
+};
+
+export const closeSession = async (runId, sessionId) => {
+  const r = await api.post(`/campaign-runs/${runId}/sessions/${sessionId}/close`);
+  return r.data;
+};
+
