@@ -623,3 +623,16 @@ Aplica una transacción YA negociada al personaje (reutiliza endpoints de equipo
   difusión WS `eye_update` y `shadow_applied` en vivo. Verificado por curl + captura.
 - SIGUIENTE: Fase 6 (consolidación de módulos del mockup: Referencia de Reglas de solo lectura,
   gestor de tiradas con runas d4–d100 + d20 rápido, botones de encuentro, Mapa táctico Nivel A).
+
+## Pantalla del DJ — Fase 6: Consolidación de módulos (Jul 2026)
+- 6.1 Gestor de tiradas con runas (d4–d100, Nº/Mod, Compartida/Privada, d20 flotante).
+  Endpoint `POST /…/dj-screen/roll-dice` (DJ y jugadores); compartidas narran en chat.
+- 6.2 Panel de Encuentro (solo DJ): Acciones restantes (persistente), Disparar trampa,
+  Suceso de Sombra aleatorio (`/shadow-event`), Terminar encuentro (retira enemigos).
+- 6.3 Referencia rápida de Reglas: modal de chuleta curada (solo consulta) + enlace a /rules
+  completo para el DJ.
+- 6.4 Mapa táctico Nivel A (`TacticalMap`): imagen + rejilla + fichas arrastrables en vivo (WS).
+  `DjScreenState` gana `tokens[]` y `actions_remaining`; tokens visibles para jugadores.
+- Verificado por testing_agent iter89 (backend 13/13 PASS, frontend OK, sin regresiones).
+- SIGUIENTE (P1): Persistencia de Sesión (`campaign_sessions`) con Iniciar/Cerrar sesión y
+  agrupado histórico de chat/notas. Backlog (P2): refactor de `data_routes.py` (>4900 líneas).

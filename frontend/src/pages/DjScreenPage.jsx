@@ -548,6 +548,7 @@ const DjScreenPage = () => {
   const [trap, setTrap] = useState({ name: '', damage: '2d6', cd: 13 });
   const [encBusy, setEncBusy] = useState(false);
   const [showRules, setShowRules] = useState(false);
+  const [markerLabel, setMarkerLabel] = useState('');
 
   const toPayload = (s) => ({
     scene_image_file_id: s.scene_image_file_id || null,
@@ -873,10 +874,10 @@ const DjScreenPage = () => {
   };
 
   const addMarker = () => {
-    const label = window.prompt('Etiqueta del marcador (p. ej. Emboscada, Trampa):', 'Emboscada');
-    if (label === null) return;
-    const t = { id: uid(), label: label.trim() || 'Marcador', x: 0.5, y: 0.5, kind: 'marker', color: 'amber' };
+    const label = (markerLabel || '').trim() || 'Marcador';
+    const t = { id: uid(), label, x: 0.5, y: 0.5, kind: 'marker', color: 'amber' };
     persist({ ...screen, tokens: [...(screen.tokens || []), t] });
+    setMarkerLabel('');
   };
 
   const clearTokens = () => persist({ ...screen, tokens: [] });
@@ -1050,7 +1051,15 @@ const DjScreenPage = () => {
               {canEdit && (
                 <div className="flex items-center gap-1">
                   <Button size="sm" variant="outline" onClick={placeCombatantTokens} className="border-emerald-700/50 text-emerald-200 hover:bg-emerald-900/30 h-7 px-2 text-xs" data-testid="place-tokens-btn"><Users className="w-3.5 h-3.5 mr-1" /> Colocar fichas</Button>
-                  <Button size="sm" variant="outline" onClick={addMarker} className="border-amber-700/50 text-amber-200 hover:bg-amber-900/30 h-7 px-2 text-xs" data-testid="add-marker-btn"><MapPin className="w-3.5 h-3.5 mr-1" /> Marcador</Button>
+                  <input
+                    value={markerLabel}
+                    onChange={(e) => setMarkerLabel(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && addMarker()}
+                    placeholder="Marcador…"
+                    className="w-24 bg-black/40 rounded px-2 h-7 text-xs text-amber-100 placeholder-amber-500/30 outline-none border border-amber-900/30"
+                    data-testid="marker-label-input"
+                  />
+                  <Button size="sm" variant="outline" onClick={addMarker} className="border-amber-700/50 text-amber-200 hover:bg-amber-900/30 h-7 px-2 text-xs" data-testid="add-marker-btn"><MapPin className="w-3.5 h-3.5 mr-1" /> Añadir</Button>
                   {(screen.tokens || []).length > 0 && (
                     <Button size="sm" variant="outline" onClick={clearTokens} className="border-rose-700/50 text-rose-200 hover:bg-rose-900/30 h-7 px-2 text-xs" data-testid="clear-tokens-btn"><Trash2 className="w-3.5 h-3.5" /></Button>
                   )}

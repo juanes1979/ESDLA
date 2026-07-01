@@ -121,6 +121,26 @@ vinculado a Prueba de Sombra/Cansancio directa.
     (runa/iris que se abre por fases)
 
 ## FASE 6 — Consolidación + módulos del mockup
+
+### ✅ FASE 6 COMPLETADA (Jul 2026)
+- 6.1 Gestor de tiradas (`DiceRoller`): runas d4–d100, Nº y Mod, toggle Compartida/Privada,
+  resultado en tarjeta, botón flotante d20 (`quick-d20-btn`). Backend
+  `POST /…/dj-screen/roll-dice` {faces,count,modifier,shared,label}: valida caras, tope 20 dados,
+  compartida narra en chat de grupo; permitido a DJ y jugador aceptado.
+- 6.2 Encuentro (`encounter-tools`, solo DJ): contador Acciones restantes (persiste), Disparar
+  trampa (narra en chat), Suceso de Sombra aleatorio (`POST /…/dj-screen/shadow-event`: texto
+  aleatorio + +1 Sombra a la Compañía + narración), Terminar encuentro (retira enemigos + reset).
+- 6.3 Referencia de Reglas (`RulesReferenceModal`, todos): chuleta curada colapsable (Pruebas/CD,
+  Combate, Condiciones, Sombra/Ojo, Roles de viaje, Descanso). Botón "Reglas" en la barra; enlace
+  "Abrir Reglas completas" (nueva pestaña /rules) solo para el DJ. La edición sigue en /rules.
+- 6.4 Mapa táctico Nivel A (`TacticalMap`): imagen + rejilla decorativa + fichas arrastrables
+  (DJ), en vivo por WS. Controles: "Colocar fichas" (tokens de combatientes), input+Añadir
+  marcador (sin window.prompt), limpiar. Backend: `DjScreenState` gana `tokens[]` y
+  `actions_remaining`; `_sanitize_for_player` expone tokens a jugadores (posiciones compartidas).
+- Verificado: testing_agent iter89 (backend 13/13 pytest PASS, frontend sin errores de consola,
+  sin regresiones desde iter88).
+
+## FASE 6 (plan original) — Consolidación + módulos del mockup
 - Paneles maestros: Notas privadas DJ, Resumen privado de aventureros, Rastreador de viaje,
   Módulos de comunidad, Mapa táctico (Nivel A), Combat tracker (pestañas Initiative/Trolls/
   Heroes), Ojo de Mordor, Cartas de héroe, Chat.
