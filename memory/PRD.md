@@ -666,3 +666,12 @@ Aplica una transacción YA negociada al personaje (reutiliza endpoints de equipo
 - El PDF completo incluye página de PORTADA ilustrada + página de ÍNDICE + capítulos → aspecto de
   "libro de campaña" descargable/compartible. Verificado por curl (cover generado y persistido) y
   captura (portada renderizada + índice).
+
+## Diario de campaña — Envío a los jugadores (entrega en la app) (Jul 2026)
+- Botón "Enviar a jugadores" (DJ) en el Diario: genera el PDF completo (portada+índice+capítulos),
+  lo sube a GridFS (/storage/upload) y llama a `POST /campaign-runs/{run}/journal/share`
+  {file_id, filename} que guarda `campaign_runs.shared_journal` y devuelve nº de destinatarios.
+- `my_campaigns` expone `run.shared_journal`; en MyCampaignsPage cada jugador aceptado ve el botón
+  "Descargar diario" (descarga autenticada del PDF). Sin servicios externos.
+- Verificado: curl (share → recipients:1) + flujo real desde el navegador (PDF de 4.7 MB subido y
+  compartido, shared_journal actualizado a diario-*.pdf application/pdf) + captura del botón.

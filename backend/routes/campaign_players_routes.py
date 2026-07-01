@@ -402,6 +402,7 @@ async def my_campaigns(
             "year": run.get("year"),
             "season": run.get("season"),
             "location_name": run.get("location_name"),
+            "shared_journal": run.get("shared_journal"),
         }
         out.append(item)
     return out

@@ -685,3 +685,8 @@ export const generateJournalCover = async (runId) => {
   return r.data;
 };
 
+export const shareJournal = async (runId, fileId, filename) => {
+  const r = await api.post(`/campaign-runs/${runId}/journal/share`, { file_id: fileId, filename });
+  return r.data;
+};
+

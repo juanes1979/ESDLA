@@ -9,8 +9,9 @@ import { ArrowLeft, Loader2, ScrollText, Printer, Download, Save, Pencil, X, Wan
 import { jsPDF } from 'jspdf';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
-import { getDjScreen, getSessions, editSession, getJournalCover, generateJournalCover } from '@/services/api';
+import { getDjScreen, getSessions, editSession, getJournalCover, generateJournalCover, shareJournal } from '@/services/api';
 import AuthenticatedImage from '@/components/AuthenticatedImage';
+import { Send } from 'lucide-react';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const getToken = () => localStorage.getItem('lotr5e_token') || sessionStorage.getItem('lotr5e_token');
@@ -166,6 +167,30 @@ const CampaignJournalPage = () => {
     } finally { setCoverBusy(false); }
   };
 
+  const [sharing, setSharing] = useState(false);
+  const sendToPlayers = async () => {
+    if (sessions.length === 0) { toast.message('Aún no hay sesiones que enviar'); return; }
+    setSharing(true);
+    try {
+      const cover = await fetchImageDataUrl(coverFileId);
+      const doc = buildJournalPdf(adventure, sessions, cover, true);
+      const blob = doc.output('blob');
+      const filename = `diario-${(adventure || 'campana').replace(/\s+/g, '-').toLowerCase()}.pdf`;
+      const fd = new FormData();
+      fd.append('file', blob, filename);
+      fd.append('folder', 'journal_shared');
+      const up = await fetch(`${BACKEND_URL}/api/storage/upload`, {
+        method: 'POST', headers: { Authorization: `Bearer ${getToken()}` }, body: fd,
+      });
+      const upData = await up.json();
+      if (!upData.file_id) throw new Error('upload');
+      const res = await shareJournal(id, upData.file_id, filename);
+      toast.success(`Diario enviado a ${res.recipients} jugador(es). Podrán descargarlo desde «Mis campañas».`);
+    } catch (e) {
+      toast.error(e?.response?.data?.detail || 'No se pudo enviar el diario');
+    } finally { setSharing(false); }
+  };
+
   if (loading) {
     return <div className="min-h-screen flex items-center justify-center bg-black"><Loader2 className="w-8 h-8 animate-spin text-amber-400" /></div>;
   }
@@ -183,6 +208,11 @@ const CampaignJournalPage = () => {
           </div>
         </div>
         <div className="flex items-center gap-2">
+          {canEdit && (
+            <Button size="sm" variant="outline" onClick={sendToPlayers} disabled={sharing || sessions.length === 0} className="border-emerald-700/50 text-emerald-200 hover:bg-emerald-900/30 h-8 text-xs" data-testid="send-players-btn">
+              {sharing ? <><Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> Enviando…</> : <><Send className="w-3.5 h-3.5 mr-1" /> Enviar a jugadores</>}
+            </Button>
+          )}
           <Button size="sm" variant="outline" onClick={printFull} disabled={sessions.length === 0} className="border-amber-700/50 text-amber-200 hover:bg-amber-900/30 h-8 text-xs" data-testid="print-full-btn"><Printer className="w-3.5 h-3.5 mr-1" /> Imprimir diario</Button>
           <Button size="sm" onClick={downloadFull} disabled={sessions.length === 0} className="bg-amber-700 hover:bg-amber-600 text-amber-50 h-8 text-xs" data-testid="download-full-btn"><Download className="w-3.5 h-3.5 mr-1" /> PDF completo</Button>
         </div>

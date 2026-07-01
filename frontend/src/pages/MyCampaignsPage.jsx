@@ -8,10 +8,28 @@
  */
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, KeyRound, Loader2, LogOut, ScrollText, Eye, Swords } from 'lucide-react';
+import { ArrowLeft, KeyRound, Loader2, LogOut, ScrollText, Eye, Swords, BookOpen } from 'lucide-react';
 import { toast } from 'sonner';
 import { myCampaigns, leaveCampaign, getRevealedTexts, myInvitations } from '@/services/api';
 import { Button } from '@/components/ui/button';
+
+const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
+const getToken = () => localStorage.getItem('lotr5e_token') || sessionStorage.getItem('lotr5e_token');
+
+const downloadSharedJournal = async (shared) => {
+  try {
+    const res = await fetch(`${BACKEND_URL}/api/storage/download/${shared.file_id}`, {
+      headers: { Authorization: `Bearer ${getToken()}` },
+    });
+    if (!res.ok) throw new Error();
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = shared.filename || 'diario.pdf';
+    document.body.appendChild(a); a.click(); a.remove();
+    URL.revokeObjectURL(url);
+  } catch { toast.error('No se pudo descargar el diario'); }
+};
 import {
   AlertDialog,
   AlertDialogAction,
@@ -91,6 +109,17 @@ const Card = ({ row, onLeave, onShowRevealed, onEnterScreen }) => (
           className="border-amber-700/50 text-amber-200 hover:bg-amber-900/30"
         >
           <ScrollText className="w-3.5 h-3.5 mr-1" /> Ver lo revelado por el DJ
+        </Button>
+      )}
+      {row.status === 'accepted' && row.run.shared_journal && (
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={() => downloadSharedJournal(row.run.shared_journal)}
+          data-testid={`download-journal-${row.id}`}
+          className="border-emerald-700/50 text-emerald-200 hover:bg-emerald-900/30"
+        >
+          <BookOpen className="w-3.5 h-3.5 mr-1" /> Descargar diario
         </Button>
       )}
       {(row.status === 'pending' || row.status === 'accepted') && (

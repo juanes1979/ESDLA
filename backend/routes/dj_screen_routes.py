@@ -1211,3 +1211,24 @@ async def generate_journal_cover(run_id: str, user: dict = Depends(get_current_u
     await db.campaign_runs.update_one({"id": run_id}, {"$set": {"journal_cover_file_id": str(file_id)}})
     return {"file_id": str(file_id)}
 
+
+class JournalShareBody(BaseModel):
+    file_id: str
+    filename: Optional[str] = None
+
+
+@router.post("/campaign-runs/{run_id}/journal/share")
+async def share_journal(run_id: str, body: JournalShareBody, user: dict = Depends(get_current_user)):
+    """Publica el PDF del diario para los jugadores aceptados (entrega en la app). DM/Maestro."""
+    from server import db
+    run = await _get_run_or_404(db, run_id)
+    if not _is_dm(run, user):
+        raise HTTPException(status_code=403, detail="Sin permiso")
+    now = datetime.now(timezone.utc).isoformat()
+    shared = {"file_id": body.file_id, "filename": body.filename or "diario.pdf", "shared_at": now}
+    await db.campaign_runs.update_one({"id": run_id}, {"$set": {"shared_journal": shared}})
+    # Nº de jugadores aceptados (destinatarios).
+    recipients = len(await db.campaign_players.distinct("user_id", {"campaign_run_id": run_id, "status": "accepted"}))
+    await _narrate_group(db, run_id, "Crónica", "📖 El DJ ha compartido el Diario de campaña. Los jugadores pueden descargarlo desde «Mis campañas».")
+    return {"shared": shared, "recipients": recipients}
+
