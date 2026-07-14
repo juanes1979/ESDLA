@@ -709,3 +709,16 @@ Aplica una transacción YA negociada al personaje (reutiliza endpoints de equipo
 - PENDIENTE Fase B (parte 2): editor de atributos+modificadores y de profesiones/bloques de stats
   (las profesiones/stat-blocks ya son editables en Comercio→config); persistir por-adversario el
   modo de raza + razas excluidas; y traer al creador: retrato IA, nivel/PX e historia IA.
+
+## Reglas → «PNJs» — Fase B (parte 2) (Jul 2026)
+- Config de raza PERSISTENTE por adversario: campos modo_raza/razas_excluidas/tipos_criatura en
+  el bestiario (NPCCreate + expuestos en /data/npcs); panel inline en el creador (adv-cfg) para
+  guardarlos vía PATCH. Al elegir un adversario se preselecciona su modo/exclusiones y se filtran
+  los tipos de criatura permitidos. (Ej.: Espectro Cruel = racial, excluye Elfos.)
+- Retrato IA (reutiliza /npc-generator/portrait), Historia IA (nuevo /npc-generator/story, GPT-4o)
+  y campo Nivel/Desafío en el creador de adversarios; se guardan en el PNJ (retrato_file_id,
+  historia, nivel).
+- Verificado por testing_agent iter90 (backend 12/12 PASS, frontend 100%, sin issues; datos de
+  prueba restaurados). 
+- PENDIENTE (único de Fase B): editor de atributos+modificadores (fórmula fija) — baja prioridad;
+  profesiones y bloques de stats ya son editables en Comercio → config.
