@@ -102,30 +102,79 @@ const PNJForgeSection = () => {
 // ── Profesión ────────────────────────────────────────────────────────────────
 const ProfesionForge = ({ meta }) => {
   const razasKeys = Object.keys(meta?.razas || {});
+  const modos = meta?.modos_habla || [];
+  const perfiles = Object.keys(meta?.merchant_profiles || {});
   const [profesion, setProfesion] = useState('');
   const [raza, setRaza] = useState('');
   const [sub, setSub] = useState('');
   const [sexo, setSexo] = useState('Masculino');
   const [busy, setBusy] = useState(false);
-  const [result, setResult] = useState(null);
+  const [npc, setNpc] = useState(null);
+  const [saving, setSaving] = useState(false);
+  const [busyRetrato, setBusyRetrato] = useState(false);
+  const [busyStory, setBusyStory] = useState(false);
   const subs = (meta?.razas?.[raza] || []).map((s) => s.nombre);
+
+  const upd = (k, v) => setNpc((prev) => ({ ...prev, [k]: v }));
 
   const crear = async () => {
     if (!profesion) { toast.error('Elige una profesión'); return; }
     setBusy(true);
     try {
       const res = await api.post('/trading/npcs', { profesion, raza, subcultura: sub, sexo });
-      setResult(res.data?.npc || res.data);
-      toast.success('PNJ de comercio creado y guardado');
+      setNpc(res.data?.npc || res.data);
+      toast.success('PNJ generado — edítalo y guarda los cambios');
     } catch (e) {
       toast.error(e?.response?.data?.detail || 'Error al crear el PNJ');
     } finally { setBusy(false); }
   };
 
+  const guardar = async () => {
+    if (!npc?._id) return;
+    setSaving(true);
+    try {
+      const { _id, ...rest } = npc;
+      await api.put(`/trading/npcs/${_id}`, rest);
+      toast.success('Cambios guardados');
+    } catch (e) {
+      toast.error(e?.response?.data?.detail || 'No se pudieron guardar los cambios');
+    } finally { setSaving(false); }
+  };
+
+  const genRetrato = async () => {
+    setBusyRetrato(true);
+    try {
+      const res = await api.post('/npc-generator/portrait', { subculture_name: npc.subcultura, sex: sexo, occupation: npc.profesion });
+      upd('retrato_file_id', res.data?.file_id || null);
+      setNpc((prev) => ({ ...prev, _retrato_b64: res.data?.image_base64 || null }));
+      toast.success('Retrato generado');
+    } catch (e) { toast.error(e?.response?.data?.detail || 'No se pudo generar el retrato'); }
+    finally { setBusyRetrato(false); }
+  };
+
+  const genHistoria = async () => {
+    setBusyStory(true);
+    try {
+      const ctx = `PNJ de profesión «${npc.profesion}». Raza: ${npc.raza} ${npc.subcultura ? `(${npc.subcultura})` : ''}. Rasgo: ${npc.rasgo || '—'}. Modo de hablar: ${npc.modo_hablar || '—'}.`;
+      const res = await api.post('/npc-generator/story', { nombre: npc.nombre, contexto: ctx });
+      upd('historia', res.data?.historia || '');
+      toast.success('Historia generada');
+    } catch (e) { toast.error(e?.response?.data?.detail || 'No se pudo generar la historia'); }
+    finally { setBusyStory(false); }
+  };
+
+  const attrVal = (v) => (typeof v === 'object' && v ? (v.valor ?? '') : v);
+  const setAttr = (key, val) => {
+    const cur = npc.caracteristicas || {};
+    const prev = cur[key];
+    const nv = (typeof prev === 'object' && prev) ? { ...prev, valor: Number(val) } : Number(val);
+    upd('caracteristicas', { ...cur, [key]: nv });
+  };
+
   return (
     <div className="rounded-xl border border-[hsl(var(--gold))/30] bg-black/20 p-4 space-y-3" data-testid="profesion-forge">
       <h3 className="font-heading text-[hsl(var(--gold))] flex items-center gap-2"><Users className="w-5 h-5" /> PNJ por profesión</h3>
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
         <Field label="Profesión">
           <select value={profesion} onChange={(e) => setProfesion(e.target.value)} className="forge-select" data-testid="profesion-select">
             <option value="">— elige —</option>
@@ -151,16 +200,99 @@ const ProfesionForge = ({ meta }) => {
         </Field>
       </div>
       <Button onClick={crear} disabled={busy} className="bg-[hsl(var(--gold))] text-black hover:opacity-90" data-testid="profesion-crear-btn">
-        {busy ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Dices className="w-4 h-4 mr-1" />} Crear y guardar
+        {busy ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Dices className="w-4 h-4 mr-1" />} Autogenerar
       </Button>
-      {result && (
-        <div className="rounded-lg border border-[hsl(var(--gold))/30] bg-black/30 p-3 text-sm" data-testid="profesion-result">
-          <div className="text-[hsl(var(--gold))] font-heading">{result.nombre}</div>
-          <div className="text-muted-foreground">{result.profesion || result.profesion_comerciante} · {result.raza} {result.subcultura ? `(${result.subcultura})` : ''}</div>
-          {result.rasgo && <div className="text-xs mt-1">Rasgo: {result.rasgo}</div>}
+
+      {npc && (
+        <div className="rounded-lg border border-[hsl(var(--gold))/30] bg-black/30 p-3 space-y-3" data-testid="profesion-result">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="space-y-1.5">
+              <label className="text-xs text-muted-foreground">Retrato IA</label>
+              <div className="w-full aspect-square rounded-lg border border-border/50 bg-black/40 overflow-hidden flex items-center justify-center">
+                {npc._retrato_b64 ? <img src={`data:image/png;base64,${npc._retrato_b64}`} alt="retrato" className="w-full h-full object-cover" data-testid="prof-retrato-img" /> : <Users className="w-7 h-7 text-muted-foreground/40" />}
+              </div>
+              <Button size="sm" variant="outline" onClick={genRetrato} disabled={busyRetrato} className="w-full border-[hsl(var(--gold))/50] text-[hsl(var(--gold))] text-xs" data-testid="prof-retrato-btn">
+                {busyRetrato ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <><Wand2 className="w-3.5 h-3.5 mr-1" /> Retrato</>}
+              </Button>
+            </div>
+            <div className="sm:col-span-2 grid grid-cols-2 gap-2">
+              <Field label="Nombre"><Input value={npc.nombre || ''} onChange={(e) => upd('nombre', e.target.value)} data-testid="prof-nombre" /></Field>
+              <Field label="Apodo"><Input value={npc.apodo || ''} onChange={(e) => upd('apodo', e.target.value)} data-testid="prof-apodo" /></Field>
+              <Field label="Edad"><Input value={npc.edad || ''} onChange={(e) => upd('edad', e.target.value)} data-testid="prof-edad" /></Field>
+              <Field label="Alineamiento">
+                <select value={npc.alineamiento || ''} onChange={(e) => upd('alineamiento', e.target.value)} className="forge-select" data-testid="prof-alineamiento">
+                  <option value="">—</option>
+                  {(meta?.alineamientos || []).map((a) => <option key={a} value={a}>{a}</option>)}
+                </select>
+              </Field>
+              <Field label="Perfil comerciante">
+                <select value={npc.perfil_comerciante || 'normal'} onChange={(e) => upd('perfil_comerciante', e.target.value)} className="forge-select" data-testid="prof-perfil">
+                  {perfiles.map((p) => <option key={p} value={p}>{p}</option>)}
+                </select>
+              </Field>
+              <Field label="CA / PG">
+                <div className="flex gap-1">
+                  <Input type="number" value={npc.ca ?? ''} onChange={(e) => upd('ca', Number(e.target.value))} className="w-16" data-testid="prof-ca" />
+                  <Input type="number" value={npc.pg ?? ''} onChange={(e) => upd('pg', Number(e.target.value))} className="w-16" data-testid="prof-pg" />
+                </div>
+              </Field>
+            </div>
+          </div>
+
+          <Field label="Apariencia / rasgos físicos">
+            <textarea rows={2} value={npc.apariencia || ''} onChange={(e) => upd('apariencia', e.target.value)}
+              placeholder="Descripción física, ropa, cicatrices…" className="w-full bg-black/40 rounded p-2 text-sm outline-none border border-border/50 resize-y" data-testid="prof-apariencia" />
+          </Field>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+            <Field label="Modo de hablar">
+              <select value={npc.modo_hablar || ''} onChange={(e) => { const m = modos.find((x) => x.nombre === e.target.value); upd('modo_hablar', e.target.value); upd('modo_hablar_desc', m?.descripcion || ''); }} className="forge-select" data-testid="prof-modo">
+                <option value="">—</option>
+                {modos.map((m) => <option key={m.nombre} value={m.nombre}>{m.nombre}</option>)}
+              </select>
+            </Field>
+            <Field label="Rasgo (positivo/negativo)"><Input value={npc.rasgo || ''} onChange={(e) => upd('rasgo', e.target.value)} data-testid="prof-rasgo" /></Field>
+            <Field label="Tipo de rasgo">
+              <select value={npc.rasgo_tipo || ''} onChange={(e) => upd('rasgo_tipo', e.target.value)} className="forge-select" data-testid="prof-rasgo-tipo">
+                <option value="">—</option>
+                <option value="fisico">Físico</option>
+                <option value="positivo">Positivo</option>
+                <option value="negativo">Negativo</option>
+              </select>
+            </Field>
+          </div>
+          {npc.modo_hablar_desc && <p className="text-xs text-muted-foreground -mt-1">{npc.modo_hablar_desc}</p>}
+
+          {npc.caracteristicas && typeof npc.caracteristicas === 'object' && (
+            <div>
+              <label className="text-xs text-muted-foreground block mb-1">Características</label>
+              <div className="grid grid-cols-3 sm:grid-cols-6 gap-2" data-testid="prof-caracteristicas">
+                {Object.keys(npc.caracteristicas).map((k) => (
+                  <div key={k}>
+                    <div className="text-[10px] text-muted-foreground uppercase">{k.slice(0, 3)}</div>
+                    <Input type="number" value={attrVal(npc.caracteristicas[k])} onChange={(e) => setAttr(k, e.target.value)} className="h-8 text-center px-1" data-testid={`prof-attr-${k}`} />
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div>
+            <div className="flex items-center justify-between">
+              <label className="text-xs text-muted-foreground">Historia (IA, editable)</label>
+              <Button size="sm" variant="outline" onClick={genHistoria} disabled={busyStory} className="h-6 border-[hsl(var(--gold))/50] text-[hsl(var(--gold))] text-[11px]" data-testid="prof-historia-btn">
+                {busyStory ? <Loader2 className="w-3 h-3 animate-spin" /> : <><Wand2 className="w-3 h-3 mr-1" /> Generar</>}
+              </Button>
+            </div>
+            <textarea rows={3} value={npc.historia || ''} onChange={(e) => upd('historia', e.target.value)} className="w-full bg-black/40 rounded p-2 text-xs outline-none border border-border/50 resize-y mt-1" data-testid="prof-historia" />
+          </div>
+
+          <Button onClick={guardar} disabled={saving} className="bg-[hsl(var(--gold))] text-black hover:opacity-90" data-testid="prof-guardar-btn">
+            {saving ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Save className="w-4 h-4 mr-1" />} Guardar cambios
+          </Button>
         </div>
       )}
-      <p className="text-xs text-muted-foreground">Se guarda en los PNJ de comercio. Podrás editarlo con todo el detalle en Compra-Venta → «PNJs».</p>
+      <p className="text-xs text-muted-foreground">Se guarda en los PNJ de comercio (visible también en Compra-Venta → «PNJs»).</p>
       <style>{`.forge-select{width:100%;background:rgba(0,0,0,.4);border:1px solid hsl(var(--border));border-radius:.375rem;padding:.4rem .5rem;font-size:.875rem;color:inherit}`}</style>
     </div>
   );
