@@ -722,3 +722,11 @@ Aplica una transacción YA negociada al personaje (reutiliza endpoints de equipo
   prueba restaurados). 
 - PENDIENTE (único de Fase B): editor de atributos+modificadores (fórmula fija) — baja prioridad;
   profesiones y bloques de stats ya son editables en Comercio → config.
+
+## Reglas → «PNJs» — Fix rasgo (desplegable + toggle) en ProfesionForge (Jul 2026)
+- CORRECCIÓN pedida por el usuario: en el Creador Unificado (Profesión) el "Rasgo único
+  (positivo/negativo)" era un Input de texto libre. Ahora replica el creador antiguo de Comercio:
+  DESPLEGABLE filtrado por coherencia (raza/profesión vía `POST /trading/npc-meta/rasgos`) +
+  toggle Positivo/Negativo, con descripción del rasgo debajo. Es DISTINTO de los "rasgos físicos"
+  (textarea Apariencia). testids: prof-rasgo-select, prof-rasgo-positivo-btn, prof-rasgo-negativo-btn,
+  prof-rasgo-desc. Verificado visualmente (51 pos / 51 neg, "Tasador honesto" + descripción).

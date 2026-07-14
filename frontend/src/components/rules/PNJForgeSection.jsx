@@ -114,8 +114,28 @@ const ProfesionForge = ({ meta }) => {
   const [busyRetrato, setBusyRetrato] = useState(false);
   const [busyStory, setBusyStory] = useState(false);
   const subs = (meta?.razas?.[raza] || []).map((s) => s.nombre);
+  const [validRasgos, setValidRasgos] = useState({ positivos: [], negativos: [] });
 
   const upd = (k, v) => setNpc((prev) => ({ ...prev, [k]: v }));
+
+  // Cargar rasgos válidos (coherencia por raza/profesión) cuando hay un PNJ generado.
+  useEffect(() => {
+    if (!npc?.raza && !npc?.profesion) return;
+    (async () => {
+      try {
+        const res = await api.post('/trading/npc-meta/rasgos', { raza: npc.raza, profesion: npc.profesion });
+        setValidRasgos(res.data || { positivos: [], negativos: [] });
+      } catch { /* noop */ }
+    })();
+  }, [npc?.raza, npc?.profesion]);
+
+  const rasgoTipo = npc?.rasgo_tipo === 'negativo' ? 'negativo' : 'positivo';
+  const rasgoOptions = rasgoTipo === 'negativo' ? (validRasgos.negativos || []) : (validRasgos.positivos || []);
+  const setRasgoTipo = (t) => setNpc((prev) => ({ ...prev, rasgo_tipo: t, rasgo: '', rasgo_descripcion: '' }));
+  const onSelectRasgo = (nombre) => {
+    const found = rasgoOptions.find((r) => r.nombre === nombre);
+    setNpc((prev) => ({ ...prev, rasgo: nombre, rasgo_descripcion: found?.descripcion || '' }));
+  };
 
   const crear = async () => {
     if (!profesion) { toast.error('Elige una profesión'); return; }
@@ -251,15 +271,22 @@ const ProfesionForge = ({ meta }) => {
                 {modos.map((m) => <option key={m.nombre} value={m.nombre}>{m.nombre}</option>)}
               </select>
             </Field>
-            <Field label="Rasgo (positivo/negativo)"><Input value={npc.rasgo || ''} onChange={(e) => upd('rasgo', e.target.value)} data-testid="prof-rasgo" /></Field>
-            <Field label="Tipo de rasgo">
-              <select value={npc.rasgo_tipo || ''} onChange={(e) => upd('rasgo_tipo', e.target.value)} className="forge-select" data-testid="prof-rasgo-tipo">
-                <option value="">—</option>
-                <option value="fisico">Físico</option>
-                <option value="positivo">Positivo</option>
-                <option value="negativo">Negativo</option>
+            <div className="sm:col-span-2">
+              <div className="flex items-center justify-between mb-1">
+                <label className="text-xs text-muted-foreground">Rasgo único (positivo/negativo)</label>
+                <div className="flex gap-1">
+                  <button type="button" onClick={() => setRasgoTipo('positivo')} data-testid="prof-rasgo-positivo-btn"
+                    className={`text-[11px] px-2 py-0.5 rounded-full border transition-colors ${rasgoTipo === 'positivo' ? 'bg-emerald-900/40 border-emerald-700 text-emerald-200' : 'border-border/50 text-muted-foreground'}`}>Positivo</button>
+                  <button type="button" onClick={() => setRasgoTipo('negativo')} data-testid="prof-rasgo-negativo-btn"
+                    className={`text-[11px] px-2 py-0.5 rounded-full border transition-colors ${rasgoTipo === 'negativo' ? 'bg-rose-900/40 border-rose-700 text-rose-200' : 'border-border/50 text-muted-foreground'}`}>Negativo</button>
+                </div>
+              </div>
+              <select value={npc.rasgo || ''} onChange={(e) => onSelectRasgo(e.target.value)} className="forge-select" data-testid="prof-rasgo-select">
+                <option value="">— elige un rasgo {rasgoTipo} —</option>
+                {rasgoOptions.map((r) => <option key={r.nombre} value={r.nombre}>{r.nombre}</option>)}
               </select>
-            </Field>
+              {npc.rasgo_descripcion && <p className="text-xs text-muted-foreground mt-1 italic" data-testid="prof-rasgo-desc">{npc.rasgo_descripcion}</p>}
+            </div>
           </div>
           {npc.modo_hablar_desc && <p className="text-xs text-muted-foreground -mt-1">{npc.modo_hablar_desc}</p>}
 
