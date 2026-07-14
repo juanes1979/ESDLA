@@ -182,8 +182,71 @@ const AdversarioForge = ({ adversarios, razas, creatureTypes, activeRuns }) => {
   const [runId, setRunId] = useState(activeRuns?.[0]?.id || '');
   const [count, setCount] = useState(1);
   const [busyDrop, setBusyDrop] = useState(false);
+  const [allowedTypes, setAllowedTypes] = useState([]); // tipos permitidos (sin_raza)
+  const [showCfg, setShowCfg] = useState(false);
+  const [savingCfg, setSavingCfg] = useState(false);
+  const [retrato, setRetrato] = useState(null); // base64 preview
+  const [retratoFileId, setRetratoFileId] = useState(null);
+  const [historia, setHistoria] = useState('');
+  const [nivel, setNivel] = useState('');
+  const [busyRetrato, setBusyRetrato] = useState(false);
+  const [busyStory, setBusyStory] = useState(false);
 
   const adv = adversarios.find((a) => (a._id || a.id) === advId) || null;
+
+  // Al elegir adversario, precarga su configuración de raza guardada.
+  useEffect(() => {
+    if (!adv) return;
+    setModo(adv.modo_raza === 'racial' ? 'racial' : (adv.modo_raza === 'sin_raza' ? 'sin_raza' : 'sin_raza'));
+    setExcluidas(Array.isArray(adv.razas_excluidas) ? adv.razas_excluidas : []);
+    setAllowedTypes(Array.isArray(adv.tipos_criatura) ? adv.tipos_criatura : []);
+    setTipoCriatura('');
+    setNombre('');
+    setRetrato(null); setRetratoFileId(null); setHistoria(''); setNivel('');
+  }, [advId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const generarRetrato = async () => {
+    if (!adv) return;
+    setBusyRetrato(true);
+    try {
+      const body = modo === 'racial'
+        ? { subculture_name: sub, sex: sexo, occupation: adv.nombre }
+        : { occupation: adv.nombre, sex: sexo, extra: `${ct?.label || 'criatura'} de la Tierra Media, monstruoso` };
+      const res = await api.post('/npc-generator/portrait', body);
+      setRetrato(res.data?.image_base64 || null);
+      setRetratoFileId(res.data?.file_id || null);
+      toast.success('Retrato generado');
+    } catch (e) {
+      toast.error(e?.response?.data?.detail || 'No se pudo generar el retrato');
+    } finally { setBusyRetrato(false); }
+  };
+
+  const generarHistoria = async () => {
+    if (!adv) return;
+    setBusyStory(true);
+    try {
+      const ctx = `Adversario tipo «${adv.nombre}». ${modo === 'racial' ? `Raza/subcultura: ${sub || raza}.` : `Criatura: ${ct?.label || tipoCriatura}.`} Nombre: ${nombre || '—'}.`;
+      const res = await api.post('/npc-generator/story', { nombre: nombre || adv.nombre, contexto: ctx });
+      setHistoria(res.data?.historia || '');
+      toast.success('Historia generada');
+    } catch (e) {
+      toast.error(e?.response?.data?.detail || 'No se pudo generar la historia');
+    } finally { setBusyStory(false); }
+  };
+
+  const guardarCfgAdversario = async () => {
+    if (!adv) return;
+    setSavingCfg(true);
+    try {
+      await api.patch(`/data/npcs/${adv._id || adv.id}`, {
+        modo_raza: modo, razas_excluidas: excluidas, tipos_criatura: allowedTypes,
+      });
+      toast.success('Configuración del adversario guardada');
+      setShowCfg(false);
+    } catch (e) {
+      toast.error(e?.response?.data?.detail || 'No se pudo guardar la configuración');
+    } finally { setSavingCfg(false); }
+  };
   const razasDisponibles = razasKeys.filter((r) => !excluidas.includes(r));
   const subs = (razas?.[raza] || []).map((s) => s.nombre);
   const ct = creatureTypes.find((c) => c.id === tipoCriatura);
@@ -221,6 +284,9 @@ const AdversarioForge = ({ adversarios, razas, creatureTypes, activeRuns }) => {
         nombre: nombre.trim(),
         categoria: 'malignos',
         descripcion: `${adv.descripcion || ''}${adv.descripcion ? ' · ' : ''}[${adv.nombre} — ${origen}]`.trim(),
+        ...(historia ? { historia } : {}),
+        ...(nivel !== '' ? { nivel: parseInt(nivel, 10) } : {}),
+        ...(retratoFileId ? { retrato_file_id: retratoFileId } : {}),
       };
       const res = await api.post('/data/npcs', payload);
       toast.success(`«${nombre.trim()}» guardado en el Bestiario`);
@@ -268,17 +334,41 @@ const AdversarioForge = ({ adversarios, razas, creatureTypes, activeRuns }) => {
       )}
 
       {/* Modo de raza */}
-      <div className="flex gap-2">
+      <div className="flex gap-2 items-center">
         <ModoBtn active={modo === 'sin_raza'} onClick={() => setModo('sin_raza')} testid="modo-sin-raza">Sin raza (criatura)</ModoBtn>
         <ModoBtn active={modo === 'racial'} onClick={() => setModo('racial')} testid="modo-racial">Racial (con raza)</ModoBtn>
+        <button onClick={() => setShowCfg((v) => !v)} title="Configurar y guardar el modo de raza de este adversario"
+          className="px-2 py-2 rounded-lg border border-[hsl(var(--gold))/40] text-[hsl(var(--gold))] hover:bg-[hsl(var(--gold))]/10" data-testid="adv-cfg-toggle">
+          <Settings className="w-4 h-4" />
+        </button>
       </div>
+
+      {showCfg && (
+        <div className="rounded-lg border border-[hsl(var(--gold))/30] bg-black/30 p-3 space-y-2" data-testid="adv-cfg-panel">
+          <p className="text-xs text-muted-foreground">Guarda para «{adv?.nombre}» su modo de raza actual y (si es sin raza) qué tipos de criatura puede ser. Así se preselecciona al elegirlo y se evitan errores.</p>
+          <div>
+            <label className="text-xs text-[hsl(var(--gold))] block mb-1">Tipos de criatura permitidos (si «sin raza»)</label>
+            <div className="flex flex-wrap gap-1.5" data-testid="allowed-types">
+              {creatureTypes.map((c) => (
+                <button key={c.id} onClick={() => setAllowedTypes((p) => p.includes(c.id) ? p.filter((x) => x !== c.id) : [...p, c.id])}
+                  className={`text-[11px] px-2 py-0.5 rounded-full border transition-colors ${allowedTypes.includes(c.id) ? 'bg-[hsl(var(--gold))]/15 border-[hsl(var(--gold))] text-[hsl(var(--gold))]' : 'border-border/50 text-muted-foreground'}`}
+                  data-testid={`allow-${c.id}`}>{c.label}</button>
+              ))}
+              {creatureTypes.length === 0 && <span className="text-xs text-muted-foreground">(sin tipos; añádelos en «Bases de nombres»)</span>}
+            </div>
+          </div>
+          <Button size="sm" onClick={guardarCfgAdversario} disabled={savingCfg} className="bg-[hsl(var(--gold))] text-black" data-testid="adv-cfg-save">
+            {savingCfg ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Save className="w-4 h-4 mr-1" />} Guardar configuración
+          </Button>
+        </div>
+      )}
 
       {modo === 'sin_raza' ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <Field label="Tipo de criatura">
             <select value={tipoCriatura} onChange={(e) => setTipoCriatura(e.target.value)} className="forge-select" data-testid="criatura-select">
               <option value="">— elige —</option>
-              {creatureTypes.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
+              {creatureTypes.filter((c) => allowedTypes.length === 0 || allowedTypes.includes(c.id)).map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
             </select>
           </Field>
           {ct?.usa_sexo && (
@@ -333,6 +423,33 @@ const AdversarioForge = ({ adversarios, razas, creatureTypes, activeRuns }) => {
         <Button onClick={generarNombre} disabled={busyName || !adv} variant="outline" className="border-[hsl(var(--gold))/50] text-[hsl(var(--gold))]" data-testid="adv-gen-nombre-btn">
           {busyName ? <Loader2 className="w-4 h-4 animate-spin" /> : <Wand2 className="w-4 h-4" />}
         </Button>
+      </div>
+
+      {/* Retrato IA + Historia IA + Nivel */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 items-start">
+        <div className="space-y-1.5">
+          <label className="text-xs text-muted-foreground">Retrato IA</label>
+          <div className="w-full aspect-square rounded-lg border border-border/50 bg-black/40 overflow-hidden flex items-center justify-center">
+            {retrato ? <img src={`data:image/png;base64,${retrato}`} alt="retrato" className="w-full h-full object-cover" data-testid="adv-retrato-img" /> : <Skull className="w-7 h-7 text-muted-foreground/40" />}
+          </div>
+          <Button size="sm" variant="outline" onClick={generarRetrato} disabled={busyRetrato || !adv} className="w-full border-[hsl(var(--gold))/50] text-[hsl(var(--gold))] text-xs" data-testid="adv-retrato-btn">
+            {busyRetrato ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <><Wand2 className="w-3.5 h-3.5 mr-1" /> Retrato</>}
+          </Button>
+        </div>
+        <div className="sm:col-span-2 space-y-1.5">
+          <div className="flex items-center justify-between">
+            <label className="text-xs text-muted-foreground">Historia (IA, editable)</label>
+            <Button size="sm" variant="outline" onClick={generarHistoria} disabled={busyStory || !adv} className="h-6 border-[hsl(var(--gold))/50] text-[hsl(var(--gold))] text-[11px]" data-testid="adv-historia-btn">
+              {busyStory ? <Loader2 className="w-3 h-3 animate-spin" /> : <><Wand2 className="w-3 h-3 mr-1" /> Generar</>}
+            </Button>
+          </div>
+          <textarea rows={4} value={historia} onChange={(e) => setHistoria(e.target.value)} placeholder="Trasfondo del PNJ…"
+            className="w-full bg-black/40 rounded p-2 text-xs outline-none border border-border/50 resize-y" data-testid="adv-historia-input" />
+          <Field label="Nivel / Desafío">
+            <input type="number" value={nivel} onChange={(e) => setNivel(e.target.value)} placeholder={String(adv?.desafio ?? '')}
+              className="forge-select w-24" data-testid="adv-nivel-input" />
+          </Field>
+        </div>
       </div>
 
       <Button onClick={guardar} disabled={busySave || !adv} className="bg-[hsl(var(--destructive))] text-white hover:opacity-90" data-testid="adv-guardar-btn">

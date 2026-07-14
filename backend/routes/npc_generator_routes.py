@@ -777,3 +777,33 @@ async def put_creature_name_config(body: CreatureConfigBody, user: dict = Depend
         upsert=True,
     )
     return {"ok": True, "tipos": list(body.data.keys())}
+
+
+class StoryRequest(BaseModel):
+    nombre: str
+    contexto: Optional[str] = ""
+
+
+@router.post("/story")
+async def generate_npc_story(payload: StoryRequest, user: dict = Depends(get_current_user)):
+    """Genera un trasfondo breve con IA (GPT-4o) para un PNJ. Maestro/DJ."""
+    require_role(user, "maestro", "director_de_juego")
+    import os
+    api_key = os.environ.get("EMERGENT_LLM_KEY")
+    if not api_key:
+        raise HTTPException(status_code=500, detail="EMERGENT_LLM_KEY no configurada")
+    system = ("Eres un cronista de El Señor de los Anillos 5e. Escribes en ESPAÑOL DE ESPAÑA, "
+              "tono evocador y conciso. No inventes reglas ni estadísticas.")
+    prompt = (
+        f"Escribe un trasfondo breve (60-110 palabras) para el PNJ «{payload.nombre}». "
+        f"Contexto: {payload.contexto or 'sin datos adicionales'}. "
+        "Incluye origen, motivación y un rasgo memorable. Devuelve SOLO el texto, sin encabezados."
+    )
+    try:
+        from emergentintegrations.llm.chat import LlmChat, UserMessage
+        chat = LlmChat(api_key=api_key, session_id=f"npc-story-{uuid.uuid4().hex[:8]}", system_message=system).with_model("openai", "gpt-4o")
+        resp = await chat.send_message(UserMessage(text=prompt))
+        return {"historia": resp.strip() if isinstance(resp, str) else str(resp).strip()}
+    except Exception as e:
+        logger.warning("historia IA falló: %s", e)
+        raise HTTPException(status_code=502, detail="No se pudo generar la historia")

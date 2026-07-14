@@ -1,0 +1,30 @@
+{
+  "summary": "Iter110 (PNJ Forge unificado). BACKEND 12/12 pytest PASS: creature-types lista {orco,troll,huargo}; creature-name genera nombres válidos para orco M/F, troll y huargo; tipo inválido → 400; creature-name-config GET/PUT roundtrip persiste y el generador reconoce el nuevo tipo (limpieza: catálogo original restaurado tras la prueba); /npc-generator/story devuelve historia en ES (>30 chars, GPT-4o); /npc-generator/portrait devuelve image_base64 y file_id; PATCH /data/npcs/{id} con modo_raza/razas_excluidas/tipos_criatura persiste y GET /data/npcs los expone en 'malignos' (restaurado al estado original); POST /campaign-runs/{run_id}/dj-screen/add-combatant crea 2 enemigos derivando ca/hp/atk/dmg/init; POST /trading/npcs autorrellena nombre/rasgo/modo_hablar/edad para {profesion:Herrero,raza:Hombres,sexo:M}. FRONTEND (/rules → tarjeta 'Creador unificado de PNJ'): landing muestra forge-tipo-profesion + forge-tipo-adversario + open-config-btn; Profesión flow OK (profesion-select→profesion-crear-btn→profesion-result: 'Eldrin Harthol · Campesino · Rasgo: Informante de confianza'); Adversario flow OK con 'Jefe Gran Orco' + modo-sin-raza + criatura-select=orco: adv-gen-nombre-btn generó 'Muzthakl', adv-historia-btn generó historia ES (~5s), adv-retrato-btn devolvió retrato B&N carboncillo (~19s) mostrado en adv-retrato-img, drop-combat-btn produjo toast '1 enemigo(s) añadido(s) a la Pantalla del DJ' (run 750ac72b). Bases de nombres: creature-config-modal abre, cfg-tipo-{orco,troll,huargo} tabs presentes (verificado que el click funciona; el count() inicial reportaba 0 porque el modal carga la config vía API async), cfg-save persiste con toast 'Bases de nombres guardadas' y auto-cierra el modal. adv-cfg-toggle abre adv-cfg-panel; adv-cfg-save persiste con toast 'Configuración del adversario guardada'. Cero errores en consola en todos los flujos.",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_pnj_forge_it110.py",
+    "/app/test_reports/pytest/pnj_forge_it110.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "PNJForgeSection.jsx: 502 líneas — cerca del límite (>700) pero aceptable. Se podría extraer ProfesionForge y AdversarioForge en archivos propios para facilitar mantenimiento futuro.",
+    "CreatureNameConfigEditor.addTipo() crea plantillas con campos {label, usa_sexo, ataque, nucleo, cierre_univ, epitetos} pero el backend en algunos tipos por defecto (orco/troll/huargo) parece usar {ataque, cuerpo, final_m, final_f, final}. La validación PUT solo exige 'ataque' no-vacío, así que ambos esquemas conviven, pero si un maestro añade un tipo nuevo desde el modal probablemente el generador silábico usará campos inexistentes. Recomendación: alinear los nombres de campos que consume npc_creature_names.generate_creature_name con los que crea el editor (o adaptar el editor a los campos reales).",
+    "AdversarioForge.guardarCfgAdversario / soltarEnCombate hacen llamadas API sin cancelación; si el usuario cambia de adversario mientras hay in-flight, el estado puede terminar desincronizado. No crítico.",
+    "trading_routes.create_npc (POST /trading/npcs) no aplica dependency get_current_user — cualquier cliente con red puede crear PNJs de comercio. Reforzar RBAC (maestro/director_de_juego) si aplica a la política de la app.",
+    "El endpoint add-combatant valida DM correctamente y deriva stats mediante _enemy_from_npc; el atk_bonus/dmg se toma solo del PRIMER arma (romperá si el arma preferida no está en índice 0). Considerar priorizar por daño esperado.",
+    "PNJForgeSection descarga api.get('/data/npcs') al montar; si el bestiario crece podría ser lento. Ok por ahora."
+  ],
+  "updated_files": ["/app/backend/tests/test_pnj_forge_it110.py"],
+  "success_rate": { "backend": "100% (12/12)", "frontend": "100%" },
+  "test_credentials": "Maestro elanillounico_tlotr@proton.me / 123456 (from /app/memory/test_credentials.md). Run activo 750ac72b-f208-4c9e-b897-204b2faccf59.",
+  "seed_data_creation": "El test PATCH /data/npcs y PUT /creature-name-config restauran el estado original tras la prueba. Sin embargo: (1) test_add_combatant_from_npc añadió 2 combatientes 'TEST_QA_Orco 1/2' al rastreador de la Pantalla del DJ del run 750ac72b — puede que el DJ quiera limpiarlos manualmente. (2) test_trading_npc_autofill dejó 1 PNJ de comercio 'Herrero/Hombres' en /trading/npcs. (3) La ejecución UI del flujo Adversario dejó otro combatiente 'Muzthakl' añadido al rastreador.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Backend suite reutilizable: /app/backend/tests/test_pnj_forge_it110.py (12 tests, ~25s incluyendo IA). Test IDs frontend clave: forge-tipo-profesion, forge-tipo-adversario, open-config-btn, forge-back, profesion-select, profesion-crear-btn, profesion-result, adv-select, modo-sin-raza, modo-racial, criatura-select, adv-nombre-input, adv-gen-nombre-btn, adv-retrato-btn, adv-retrato-img, adv-historia-btn, adv-historia-input, drop-run-select, drop-count, drop-combat-btn, adv-cfg-toggle, adv-cfg-panel, allow-{tipo}, adv-cfg-save. Modal 'Bases de nombres': creature-config-modal, cfg-tipo-{orco,troll,huargo}, cfg-add-tipo, cfg-label, cfg-usa-sexo, cfg-del-tipo, cfg-{field} (ataque/nucleo/cierre_univ/epitetos), cfg-save, cfg-close. IMPORTANTE: el modal carga config async — hay que esperar a que aparezcan los tabs (o directamente wait_for_selector('[data-testid=\"cfg-tipo-orco\"]')) antes de contar. cfg-save cierra el modal automáticamente al éxito.",
+  "rca of the issue": "N/A — no bugs reproducibles."
+}

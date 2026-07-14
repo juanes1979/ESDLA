@@ -119,6 +119,11 @@ class NPCCreate(BaseModel):
     # AI-generated story (Feb 2026)
     historia: Optional[str] = ""
 
+    # Config de creación de PNJ (Fase B): modo de raza del adversario
+    modo_raza: Optional[str] = None  # 'racial' | 'sin_raza'
+    razas_excluidas: Optional[List[str]] = None  # p. ej. ["Elfos"] para Espectro
+    tipos_criatura: Optional[List[str]] = None  # tipos permitidos si sin_raza (ids)
+
 
 # ─── Endpoints ───────────────────────────────────────────────────────────────
 
@@ -181,7 +186,10 @@ async def get_all_npcs(categoria: Optional[str] = None, search: Optional[str] = 
                 'ataque_multiple': npc.get('ataque_multiple'),
                 'reacciones': npc.get('reacciones', []),
                 'acciones_legendarias': npc.get('acciones_legendarias', []),
-                'historia': npc.get('historia')
+                'historia': npc.get('historia'),
+                'modo_raza': npc.get('modo_raza'),
+                'razas_excluidas': npc.get('razas_excluidas'),
+                'tipos_criatura': npc.get('tipos_criatura'),
             }
             grouped[cat].append(npc_data)
 
