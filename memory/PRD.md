@@ -730,3 +730,7 @@ Aplica una transacción YA negociada al personaje (reutiliza endpoints de equipo
   toggle Positivo/Negativo, con descripción del rasgo debajo. Es DISTINTO de los "rasgos físicos"
   (textarea Apariencia). testids: prof-rasgo-select, prof-rasgo-positivo-btn, prof-rasgo-negativo-btn,
   prof-rasgo-desc. Verificado visualmente (51 pos / 51 neg, "Tasador honesto" + descripción).
+- Trasfondo IA ahora incluye TODOS los datos (apariencia/rasgos físicos, edad, alineamiento, rasgo+desc,
+  modo de hablar+desc, raza/subcultura); antes omitía la apariencia. El retrato IA se basa en todos los
+  datos (apariencia como "distinctive physical features", edad, rasgo, alineamiento vía `extra`).
+  Verificado por curl: la historia refleja apariencia (ojo/parche/cicatriz), rasgo y modo de hablar.

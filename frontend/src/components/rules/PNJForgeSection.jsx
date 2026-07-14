@@ -164,7 +164,19 @@ const ProfesionForge = ({ meta }) => {
   const genRetrato = async () => {
     setBusyRetrato(true);
     try {
-      const res = await api.post('/npc-generator/portrait', { subculture_name: npc.subcultura, sex: sexo, occupation: npc.profesion });
+      // El retrato se basa en TODOS los datos obtenidos: apariencia física, rasgo,
+      // alineamiento, edad y, si existe, el trasfondo generado.
+      const extraParts = [];
+      if (npc.apariencia) extraParts.push(`distinctive physical features: ${npc.apariencia}`);
+      if (npc.rasgo) extraParts.push(`personality trait: ${npc.rasgo}`);
+      if (npc.alineamiento) extraParts.push(`alignment: ${npc.alineamiento}`);
+      const res = await api.post('/npc-generator/portrait', {
+        subculture_name: npc.subcultura,
+        sex: sexo,
+        occupation: npc.profesion,
+        age: npc.edad ? String(npc.edad) : '',
+        extra: extraParts.join('; '),
+      });
       upd('retrato_file_id', res.data?.file_id || null);
       setNpc((prev) => ({ ...prev, _retrato_b64: res.data?.image_base64 || null }));
       toast.success('Retrato generado');
@@ -175,7 +187,18 @@ const ProfesionForge = ({ meta }) => {
   const genHistoria = async () => {
     setBusyStory(true);
     try {
-      const ctx = `PNJ de profesión «${npc.profesion}». Raza: ${npc.raza} ${npc.subcultura ? `(${npc.subcultura})` : ''}. Rasgo: ${npc.rasgo || '—'}. Modo de hablar: ${npc.modo_hablar || '—'}.`;
+      // El trasfondo se genera con TODOS los datos, incluida la apariencia/rasgos físicos.
+      const partes = [
+        `Profesión: ${npc.profesion || '—'}.`,
+        `Raza: ${npc.raza || '—'}${npc.subcultura ? ` (${npc.subcultura})` : ''}.`,
+        npc.sexo || sexo ? `Sexo: ${npc.sexo || sexo}.` : '',
+        npc.edad ? `Edad: ${npc.edad} años.` : '',
+        npc.alineamiento ? `Alineamiento: ${npc.alineamiento}.` : '',
+        npc.apariencia ? `Apariencia y rasgos físicos: ${npc.apariencia}.` : '',
+        npc.rasgo ? `Rasgo (${npc.rasgo_tipo || 'positivo'}): ${npc.rasgo}${npc.rasgo_descripcion ? ` — ${npc.rasgo_descripcion}` : ''}.` : '',
+        npc.modo_hablar ? `Modo de hablar: ${npc.modo_hablar}${npc.modo_hablar_desc ? ` (${npc.modo_hablar_desc})` : ''}.` : '',
+      ].filter(Boolean);
+      const ctx = partes.join(' ');
       const res = await api.post('/npc-generator/story', { nombre: npc.nombre, contexto: ctx });
       upd('historia', res.data?.historia || '');
       toast.success('Historia generada');
