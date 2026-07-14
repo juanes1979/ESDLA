@@ -9,11 +9,12 @@
  *  diccionarios de nombres— llegará en la Fase B.)
  */
 import { useEffect, useState } from 'react';
-import { Users, Skull, Wand2, Save, Loader2, Dices, ChevronLeft, Shield, Heart, Swords } from 'lucide-react';
+import { Users, Skull, Wand2, Save, Loader2, Dices, ChevronLeft, Shield, Heart, Swords, Settings, Swords as SwordsIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
 import api from '@/services/api';
+import CreatureNameConfigEditor from './CreatureNameConfigEditor';
 
 const sexoCorto = (s) => ((s || 'Masculino').toLowerCase().startsWith('m') ? 'M' : 'F');
 
@@ -22,19 +23,28 @@ const PNJForgeSection = () => {
   const [meta, setMeta] = useState(null);
   const [adversarios, setAdversarios] = useState([]);
   const [creatureTypes, setCreatureTypes] = useState([]);
+  const [activeRuns, setActiveRuns] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [showConfig, setShowConfig] = useState(false);
+
+  const loadCreatureTypes = async () => {
+    try { const ct = await api.get('/npc-generator/creature-types'); setCreatureTypes(ct.data?.tipos || []); } catch { /* noop */ }
+  };
 
   useEffect(() => {
     (async () => {
       try {
-        const [m, npcs, ct] = await Promise.all([
+        const [m, npcs, ct, runs] = await Promise.all([
           api.get('/trading/npc-meta'),
           api.get('/data/npcs'),
           api.get('/npc-generator/creature-types'),
+          api.get('/campaign-runs'),
         ]);
         setMeta(m.data);
         setAdversarios((npcs.data?.malignos || []).slice().sort((a, b) => (a.nombre || '').localeCompare(b.nombre)));
         setCreatureTypes(ct.data?.tipos || []);
+        const rl = Array.isArray(runs.data) ? runs.data : (runs.data?.runs || []);
+        setActiveRuns(rl.filter((r) => r.status === 'active'));
       } catch {
         toast.error('No se pudieron cargar los datos de PNJ');
       } finally { setLoading(false); }
@@ -46,7 +56,12 @@ const PNJForgeSection = () => {
   if (!tipo) {
     return (
       <div className="space-y-4" data-testid="pnj-forge">
-        <p className="text-sm text-muted-foreground">Elige qué tipo de PNJ quieres crear:</p>
+        <div className="flex items-center justify-between">
+          <p className="text-sm text-muted-foreground">Elige qué tipo de PNJ quieres crear:</p>
+          <Button size="sm" variant="outline" onClick={() => setShowConfig(true)} className="border-[hsl(var(--gold))/50] text-[hsl(var(--gold))]" data-testid="open-config-btn">
+            <Settings className="w-3.5 h-3.5 mr-1" /> Bases de nombres
+          </Button>
+        </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <button onClick={() => setTipo('profesion')} data-testid="forge-tipo-profesion"
             className="group rounded-xl border border-[hsl(var(--gold))/40] bg-black/30 p-6 text-left hover:border-[hsl(var(--gold))] transition-colors">
@@ -61,18 +76,25 @@ const PNJForgeSection = () => {
             <p className="text-sm text-muted-foreground mt-1">Malignos del Bestiario. Copia su bloque y genera el nombre según su raza o tipo de criatura.</p>
           </button>
         </div>
+        <CreatureNameConfigEditor open={showConfig} onClose={() => setShowConfig(false)} onSaved={loadCreatureTypes} />
       </div>
     );
   }
 
   return (
     <div className="space-y-4" data-testid="pnj-forge">
-      <button onClick={() => setTipo(null)} className="flex items-center gap-1 text-sm text-muted-foreground hover:text-[hsl(var(--gold))]" data-testid="forge-back">
-        <ChevronLeft className="w-4 h-4" /> Cambiar tipo
-      </button>
+      <div className="flex items-center justify-between">
+        <button onClick={() => setTipo(null)} className="flex items-center gap-1 text-sm text-muted-foreground hover:text-[hsl(var(--gold))]" data-testid="forge-back">
+          <ChevronLeft className="w-4 h-4" /> Cambiar tipo
+        </button>
+        <Button size="sm" variant="outline" onClick={() => setShowConfig(true)} className="border-[hsl(var(--gold))/50] text-[hsl(var(--gold))]" data-testid="open-config-btn">
+          <Settings className="w-3.5 h-3.5 mr-1" /> Bases de nombres
+        </Button>
+      </div>
       {tipo === 'profesion'
         ? <ProfesionForge meta={meta} />
-        : <AdversarioForge adversarios={adversarios} razas={meta?.razas || {}} creatureTypes={creatureTypes} />}
+        : <AdversarioForge adversarios={adversarios} razas={meta?.razas || {}} creatureTypes={creatureTypes} activeRuns={activeRuns} />}
+      <CreatureNameConfigEditor open={showConfig} onClose={() => setShowConfig(false)} onSaved={loadCreatureTypes} />
     </div>
   );
 };
@@ -145,7 +167,7 @@ const ProfesionForge = ({ meta }) => {
 };
 
 // ── Adversario ───────────────────────────────────────────────────────────────
-const AdversarioForge = ({ adversarios, razas, creatureTypes }) => {
+const AdversarioForge = ({ adversarios, razas, creatureTypes, activeRuns }) => {
   const razasKeys = Object.keys(razas || {});
   const [advId, setAdvId] = useState('');
   const [modo, setModo] = useState('sin_raza'); // 'racial' | 'sin_raza'
@@ -157,6 +179,9 @@ const AdversarioForge = ({ adversarios, razas, creatureTypes }) => {
   const [nombre, setNombre] = useState('');
   const [busyName, setBusyName] = useState(false);
   const [busySave, setBusySave] = useState(false);
+  const [runId, setRunId] = useState(activeRuns?.[0]?.id || '');
+  const [count, setCount] = useState(1);
+  const [busyDrop, setBusyDrop] = useState(false);
 
   const adv = adversarios.find((a) => (a._id || a.id) === advId) || null;
   const razasDisponibles = razasKeys.filter((r) => !excluidas.includes(r));
@@ -204,6 +229,21 @@ const AdversarioForge = ({ adversarios, razas, creatureTypes }) => {
     } catch (e) {
       toast.error(e?.response?.data?.detail || 'No se pudo guardar el adversario');
     } finally { setBusySave(false); }
+  };
+
+  const soltarEnCombate = async () => {
+    if (!adv) { toast.error('Elige un adversario'); return; }
+    if (!runId) { toast.error('Elige una campaña activa'); return; }
+    setBusyDrop(true);
+    try {
+      const { _id, id, ...rest } = adv;
+      const res = await api.post(`/campaign-runs/${runId}/dj-screen/add-combatant`, {
+        npc: rest, name: nombre.trim() || adv.nombre, count: Math.max(1, Math.min(20, count)),
+      });
+      toast.success(`${res.data?.added?.length || 0} enemigo(s) añadido(s) a la Pantalla del DJ`);
+    } catch (e) {
+      toast.error(e?.response?.data?.detail || 'No se pudo soltar en combate');
+    } finally { setBusyDrop(false); }
   };
 
   return (
@@ -298,6 +338,29 @@ const AdversarioForge = ({ adversarios, razas, creatureTypes }) => {
       <Button onClick={guardar} disabled={busySave || !adv} className="bg-[hsl(var(--destructive))] text-white hover:opacity-90" data-testid="adv-guardar-btn">
         {busySave ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Save className="w-4 h-4 mr-1" />} Guardar en Bestiario
       </Button>
+
+      {/* Soltar en la Pantalla del DJ */}
+      <div className="rounded-lg border border-amber-800/40 bg-black/30 p-3 mt-1" data-testid="drop-combat">
+        <div className="text-xs text-[hsl(var(--gold))] mb-2 flex items-center gap-1"><SwordsIcon className="w-3.5 h-3.5" /> Soltar en la Pantalla del DJ</div>
+        {activeRuns.length === 0 ? (
+          <p className="text-xs text-muted-foreground">No tienes campañas activas donde soltarlo.</p>
+        ) : (
+          <div className="flex items-end gap-2 flex-wrap">
+            <Field label="Campaña activa" className="flex-1 min-w-[160px]">
+              <select value={runId} onChange={(e) => setRunId(e.target.value)} className="forge-select" data-testid="drop-run-select">
+                {activeRuns.map((r) => <option key={r.id} value={r.id}>{r.adventure_name}</option>)}
+              </select>
+            </Field>
+            <Field label="Cantidad">
+              <input type="number" min="1" max="20" value={count} onChange={(e) => setCount(parseInt(e.target.value || '1', 10))}
+                className="forge-select w-20" data-testid="drop-count" />
+            </Field>
+            <Button onClick={soltarEnCombate} disabled={busyDrop || !adv} variant="outline" className="border-[hsl(var(--gold))/50] text-[hsl(var(--gold))]" data-testid="drop-combat-btn">
+              {busyDrop ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <SwordsIcon className="w-4 h-4 mr-1" />} Soltar en combate
+            </Button>
+          </div>
+        )}
+      </div>
       <p className="text-xs text-muted-foreground">Se copia el bloque completo del adversario con el nuevo nombre. Podrás afinarlo después en el Bestiario.</p>
       <style>{`.forge-select{width:100%;background:rgba(0,0,0,.4);border:1px solid hsl(var(--border));border-radius:.375rem;padding:.4rem .5rem;font-size:.875rem;color:inherit}`}</style>
     </div>

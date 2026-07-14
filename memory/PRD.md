@@ -695,3 +695,17 @@ Aplica una transacción YA negociada al personaje (reutiliza endpoints de equipo
 - PENDIENTE Fase B: editor de "bases" (migrar a BD y editar desde la UI: profesiones, bloques de
   stats, atributos+modificadores, modo de raza/exclusiones por adversario, diccionarios de nombres)
   + traer del generador de Aventuras: retrato IA, nivel/PX, historia IA.
+
+## Reglas → «PNJs» — Fase B (parte 1) (Jul 2026)
+- SUGERENCIA aprobada «Soltar en la Pantalla del DJ»: al crear/elegir un adversario se puede
+  seleccionar una campaña ACTIVA + cantidad y añadirlo como enemigo al rastreador de combate.
+  Backend `POST /campaign-runs/{run}/dj-screen/add-combatant` {npc|npc_id, name, count} deriva
+  CA/PG/atk/dmg/init del bloque y difunde por WS. Verificado (curl + UI, toast de confirmación).
+- BASES editables de generadores de nombres: modal `CreatureNameConfigEditor` (solo Maestro) para
+  añadir/quitar TIPOS de criatura y editar sus diccionarios (ataque/núcleo/cierres/epítetos) y el
+  flag de sexo. Backend `GET/PUT /npc-generator/creature-name-config` (persiste en
+  `npc_creature_name_config`; el generador lo lee con fallback a los valores por defecto).
+  Verificado (curl: añadir tipo "trasgo" y generar; UI: modal con tabs y arrays).
+- PENDIENTE Fase B (parte 2): editor de atributos+modificadores y de profesiones/bloques de stats
+  (las profesiones/stat-blocks ya son editables en Comercio→config); persistir por-adversario el
+  modo de raza + razas excluidas; y traer al creador: retrato IA, nivel/PX e historia IA.

@@ -747,3 +747,33 @@ async def creature_name(payload: CreatureNameRequest, user: dict = Depends(get_c
         return generate_creature_name(payload.tipo, payload.sexo, catalog)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+
+class CreatureConfigBody(BaseModel):
+    data: Dict[str, Any]
+
+
+@router.get("/creature-name-config")
+async def get_creature_name_config(user: dict = Depends(get_current_user)):
+    """Devuelve el catálogo editable de diccionarios de nombres (BD o por defecto)."""
+    require_role(user, "maestro")
+    catalog = await _get_creature_catalog()
+    return {"data": catalog}
+
+
+@router.put("/creature-name-config")
+async def put_creature_name_config(body: CreatureConfigBody, user: dict = Depends(get_current_user)):
+    """Guarda el catálogo editable. Maestro."""
+    require_role(user, "maestro")
+    if not isinstance(body.data, dict) or not body.data:
+        raise HTTPException(status_code=400, detail="Catálogo vacío o inválido")
+    for tipo, d in body.data.items():
+        if not d.get("ataque"):
+            raise HTTPException(status_code=400, detail=f"«{tipo}» necesita al menos una sílaba de Ataque")
+    from datetime import datetime, timezone
+    await db.npc_creature_name_config.update_one(
+        {"_id": "default"},
+        {"$set": {"data": body.data, "updated_at": datetime.now(timezone.utc).isoformat()}},
+        upsert=True,
+    )
+    return {"ok": True, "tipos": list(body.data.keys())}

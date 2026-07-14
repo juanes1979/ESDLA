@@ -1004,6 +1004,67 @@ async def chat_peers(run_id: str, user: dict = Depends(get_current_user)):
 
 
 # ============================================================================
+# Soltar un adversario en el rastreador de combate de la Pantalla del DJ
+# ============================================================================
+class AddCombatantBody(BaseModel):
+    npc_id: Optional[str] = None
+    npc: Optional[dict] = None
+    name: Optional[str] = None
+    count: int = 1
+
+
+def _enemy_from_npc(npc: dict, name: str) -> dict:
+    attrs = npc.get("atributos") or {}
+    mod_des = _mod(attrs.get("destreza", 10))
+    atk_bonus, dmg = 0, "1d6"
+    for w in (npc.get("armas") or []):
+        if isinstance(w, dict):
+            atk_bonus = int(w.get("bonificador_impacto") or w.get("bono_ataque") or 0)
+            dmg = str(w.get("dano") or w.get("daño") or dmg)
+            break
+    hp = int(npc.get("puntos_golpe") or 0)
+    return {
+        "id": str(uuid.uuid4()), "name": name, "type": "enemy",
+        "initiative": 0, "hp_current": hp, "hp_max": hp,
+        "ac": int(npc.get("clase_armadura") or 10),
+        "conditions": [], "atk_bonus": atk_bonus, "dmg": dmg,
+        "init_bonus": mod_des,
+    }
+
+
+@router.post("/campaign-runs/{run_id}/dj-screen/add-combatant")
+async def add_combatant(run_id: str, body: AddCombatantBody, user: dict = Depends(get_current_user)):
+    """Añade uno o varios enemigos al rastreador desde un adversario. DM/Maestro."""
+    from server import db
+    run = await _get_run_or_404(db, run_id)
+    if not _is_dm(run, user):
+        raise HTTPException(status_code=403, detail="Sin permiso")
+    npc = body.npc
+    if body.npc_id and not npc:
+        npc = await db.npcs.find_one({"_id": body.npc_id}) or await db.npcs.find_one({"id": body.npc_id})
+    if not npc:
+        raise HTTPException(status_code=400, detail="Falta el adversario (npc o npc_id)")
+    base_name = body.name or npc.get("nombre") or "Enemigo"
+    count = max(1, min(20, int(body.count)))
+    screen = await _ensure_screen(db, run)
+    combatants = list(screen.get("combatants") or [])
+    added = []
+    for i in range(count):
+        nm = base_name if count == 1 else f"{base_name} {i + 1}"
+        c = _enemy_from_npc(npc, nm)
+        combatants.append(c)
+        added.append(c)
+    now = datetime.now(timezone.utc).isoformat()
+    await db.dj_screens.update_one(
+        {"campaign_run_id": run_id},
+        {"$set": {"combatants": combatants, "updated_at": now}},
+    )
+    updated = await db.dj_screens.find_one({"campaign_run_id": run_id})
+    await _broadcast_state(run_id, updated)
+    return {"added": added, "total_combatants": len(combatants)}
+
+
+# ============================================================================
 # Sesiones — Iniciar/Cerrar sesión + resumen con IA (GPT-4o vía Emergent)
 # ============================================================================
 class SessionStartBody(BaseModel):
