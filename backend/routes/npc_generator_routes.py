@@ -705,3 +705,45 @@ async def generate_npc_portrait(payload: PortraitRequest, user: dict = Depends(g
     except Exception as e:
         logger.exception("Portrait AI failed: %s", e)
         raise HTTPException(500, f"Error generando retrato: {e}")
+
+
+
+# ============================================================================
+# Generador de nombres de criaturas sin raza (Orco/Trol/Huargo)
+# ============================================================================
+from routes.npc_creature_names import (  # noqa: E402
+    CREATURE_NAME_DATA, generate_creature_name, list_creature_types,
+)
+
+
+async def _get_creature_catalog() -> dict:
+    """Lee el catálogo de nombres desde BD (Fase B) o usa los valores por defecto."""
+    try:
+        doc = await db.npc_creature_name_config.find_one({"_id": "default"})
+        if doc and doc.get("data"):
+            return doc["data"]
+    except Exception:
+        pass
+    return CREATURE_NAME_DATA
+
+
+class CreatureNameRequest(BaseModel):
+    tipo: str
+    sexo: Optional[str] = None
+
+
+@router.get("/creature-types")
+async def get_creature_types(user: dict = Depends(get_current_user)):
+    require_role(user, "maestro", "director_de_juego")
+    catalog = await _get_creature_catalog()
+    return {"tipos": list_creature_types(catalog)}
+
+
+@router.post("/creature-name")
+async def creature_name(payload: CreatureNameRequest, user: dict = Depends(get_current_user)):
+    require_role(user, "maestro", "director_de_juego")
+    catalog = await _get_creature_catalog()
+    try:
+        return generate_creature_name(payload.tipo, payload.sexo, catalog)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))

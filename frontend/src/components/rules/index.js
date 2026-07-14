@@ -27,3 +27,4 @@ export { default as TravelRulesSection } from './sections/TravelRulesSection';
 export { default as ClimateSection } from './ClimateSection';
 export { default as MecenasSection } from './MecenasSection';
 export { default as IdiomasSection } from './IdiomasSection';
+export { default as PNJForgeSection } from './PNJForgeSection';

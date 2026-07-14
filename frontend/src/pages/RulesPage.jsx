@@ -20,7 +20,7 @@ import BackgroundEditor from '@/components/admin/BackgroundEditor';
 import OccupationEditor from '@/components/admin/OccupationEditor';
 import EquipmentEditor from '@/components/admin/EquipmentEditor';
 // Refactored rule section components
-import { SombraSection, CombateSection, SalariosSection, VariosSection, ViajeSection, ComunidadSection, NPCsSection, CriaturasSinNombreSection, BackgroundsSection, CharacterCreationSection, TerrainCorrectionTool, TradingSystemSection, VirtuesSection, ArtesSection, RecompensasSection, EquipmentSection, PriceModifiersSection, RegionsSection, CulturesSection, OccupationsSection, TravelRulesSection, ClimateSection, MecenasSection } from '@/components/rules';
+import { SombraSection, CombateSection, SalariosSection, VariosSection, ViajeSection, ComunidadSection, NPCsSection, CriaturasSinNombreSection, BackgroundsSection, CharacterCreationSection, TerrainCorrectionTool, TradingSystemSection, VirtuesSection, ArtesSection, RecompensasSection, EquipmentSection, PriceModifiersSection, RegionsSection, CulturesSection, OccupationsSection, TravelRulesSection, ClimateSection, MecenasSection, PNJForgeSection } from '@/components/rules';
 import ObjectInteractionSection from '@/components/rules/sections/ObjectInteractionSection';
 import TreasureSystemSection from '@/components/rules/sections/TreasureSystemSection';
 
@@ -47,6 +47,7 @@ const RULE_CATEGORIES = [
   { id: 'community', name: 'Comunidad', icon: Users, color: 'magic-blue', description: 'Fase de comunidad, Yule y empresas' },
   { id: 'mecenas', name: 'Mecenas', icon: Crown, color: 'gold', description: 'Catálogo editable de mecenas y sus ventajas de comunidad' },
   { id: 'npcs', name: 'Bestiario', icon: Moon, color: 'destructive', description: 'Enemigos, PNJ, Animales y Especiales' },
+  { id: 'pnj_forge', name: 'PNJs', icon: Users, color: 'gold', description: 'Creador unificado de PNJ: profesiones y adversarios' },
   { id: 'nameless', name: 'Criaturas sin Nombre', icon: Skull, color: 'destructive', description: 'Reglas y generador de criaturas ancestrales' },
   { id: 'regions', name: 'Regiones', icon: MapPin, color: 'magic-blue', description: 'Gestión de regiones y sub-regiones del mapa' },
   { id: 'climate', name: 'Clima', icon: CloudSun, color: 'magic-blue', description: 'Sistema climático por región y mes, con overrides por ubicación' },
@@ -3147,6 +3148,9 @@ const RulesPage = () => {
       
       case 'nameless':
         return <CriaturasSinNombreSection />;
+
+      case 'pnj_forge':
+        return <PNJForgeSection />;
       
       case 'regions':
         return <RegionsSection 

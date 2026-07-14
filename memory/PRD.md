@@ -675,3 +675,23 @@ Aplica una transacción YA negociada al personaje (reutiliza endpoints de equipo
   "Descargar diario" (descarga autenticada del PDF). Sin servicios externos.
 - Verificado: curl (share → recipients:1) + flujo real desde el navegador (PDF de 4.7 MB subido y
   compartido, shared_journal actualizado a diario-*.pdf application/pdf) + captura del botón.
+
+## Reglas → «PNJs» — Creador unificado de PNJ (Fase A) (Jul 2026)
+- Nueva sección Reglas → «PNJs» (`PNJForgeSection`, solo Maestro/DJ). Paso 1: elegir
+  «Profesión» o «Adversario». La pestaña de PNJ de Comercio se mantiene intacta.
+- Profesión: profesión + raza/subcultura + sexo → `POST /trading/npcs` (autorrelleno de nombre,
+  rasgo, modo de habla, edad, stats) → guardado en PNJ de comercio.
+- Adversario: se elige un maligno del Bestiario, se auto-rellena su bloque (preview CA/PG/armas)
+  y, según su modo de raza:
+    · Sin raza → tipo de criatura (Orco/Troll/Huargo, ampliable) + sexo → nombre procedimental.
+    · Racial → raza/subcultura (con razas EXCLUIBLES, p. ej. Espectro≠Elfo) + sexo → nombre IA.
+  Se guarda como nuevo maligno en el Bestiario (copia del bloque + nombre + origen en descripción).
+- Backend nuevo: `routes/npc_creature_names.py` (diccionarios Orco/Trol/Huargo + algoritmo
+  silábico: ataque + 70% núcleo + cierre por sexo/universal, fusión de dobles consonantes,
+  capitalización, epíteto 25%). Endpoints `/npc-generator/creature-types` y `/creature-name`
+  (leen de `npc_creature_name_config` si existe → base para Fase B).
+- Verificado: curl (creature-name orco M/F, troll, huargo, inválido 400; /trading/npcs create;
+  /data/npcs create) + capturas (adversario "Jefe Gran Orco" → "Grishbanakh"; formulario profesión).
+- PENDIENTE Fase B: editor de "bases" (migrar a BD y editar desde la UI: profesiones, bloques de
+  stats, atributos+modificadores, modo de raza/exclusiones por adversario, diccionarios de nombres)
+  + traer del generador de Aventuras: retrato IA, nivel/PX, historia IA.
