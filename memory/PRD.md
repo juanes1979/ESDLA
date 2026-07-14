@@ -734,3 +734,6 @@ Aplica una transacción YA negociada al personaje (reutiliza endpoints de equipo
   modo de hablar+desc, raza/subcultura); antes omitía la apariencia. El retrato IA se basa en todos los
   datos (apariencia como "distinctive physical features", edad, rasgo, alineamiento vía `extra`).
   Verificado por curl: la historia refleja apariencia (ojo/parche/cicatriz), rasgo y modo de hablar.
+- Botón único "Generar trasfondo + retrato" (testid prof-perfil-completo-btn): encadena trasfondo
+  (con todos los datos) → retrato (basado en apariencia/rasgo/alineamiento/edad). Verificado e2e en
+  navegador: un clic genera historia (609 chars, con cicatriz/ojo perdido) y retrato a lápiz coherente.

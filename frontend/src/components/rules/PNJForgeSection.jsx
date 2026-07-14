@@ -113,6 +113,7 @@ const ProfesionForge = ({ meta }) => {
   const [saving, setSaving] = useState(false);
   const [busyRetrato, setBusyRetrato] = useState(false);
   const [busyStory, setBusyStory] = useState(false);
+  const [busyPerfil, setBusyPerfil] = useState(false);
   const subs = (meta?.razas?.[raza] || []).map((s) => s.nombre);
   const [validRasgos, setValidRasgos] = useState({ positivos: [], negativos: [] });
 
@@ -161,24 +162,48 @@ const ProfesionForge = ({ meta }) => {
     } finally { setSaving(false); }
   };
 
+  // Constructores de contexto compartidos (todos los datos del PNJ).
+  const buildStoryContext = () => [
+    `Profesión: ${npc.profesion || '—'}.`,
+    `Raza: ${npc.raza || '—'}${npc.subcultura ? ` (${npc.subcultura})` : ''}.`,
+    npc.sexo || sexo ? `Sexo: ${npc.sexo || sexo}.` : '',
+    npc.edad ? `Edad: ${npc.edad} años.` : '',
+    npc.alineamiento ? `Alineamiento: ${npc.alineamiento}.` : '',
+    npc.apariencia ? `Apariencia y rasgos físicos: ${npc.apariencia}.` : '',
+    npc.rasgo ? `Rasgo (${npc.rasgo_tipo || 'positivo'}): ${npc.rasgo}${npc.rasgo_descripcion ? ` — ${npc.rasgo_descripcion}` : ''}.` : '',
+    npc.modo_hablar ? `Modo de hablar: ${npc.modo_hablar}${npc.modo_hablar_desc ? ` (${npc.modo_hablar_desc})` : ''}.` : '',
+  ].filter(Boolean).join(' ');
+
+  const buildPortraitExtra = () => {
+    const parts = [];
+    if (npc.apariencia) parts.push(`distinctive physical features: ${npc.apariencia}`);
+    if (npc.rasgo) parts.push(`personality trait: ${npc.rasgo}`);
+    if (npc.alineamiento) parts.push(`alignment: ${npc.alineamiento}`);
+    return parts.join('; ');
+  };
+
+  const doHistoria = async () => {
+    const res = await api.post('/npc-generator/story', { nombre: npc.nombre, contexto: buildStoryContext() });
+    const historia = res.data?.historia || '';
+    setNpc((prev) => ({ ...prev, historia }));
+    return historia;
+  };
+
+  const doRetrato = async () => {
+    const res = await api.post('/npc-generator/portrait', {
+      subculture_name: npc.subcultura,
+      sex: sexo,
+      occupation: npc.profesion,
+      age: npc.edad ? String(npc.edad) : '',
+      extra: buildPortraitExtra(),
+    });
+    setNpc((prev) => ({ ...prev, retrato_file_id: res.data?.file_id || null, _retrato_b64: res.data?.image_base64 || null }));
+  };
+
   const genRetrato = async () => {
     setBusyRetrato(true);
     try {
-      // El retrato se basa en TODOS los datos obtenidos: apariencia física, rasgo,
-      // alineamiento, edad y, si existe, el trasfondo generado.
-      const extraParts = [];
-      if (npc.apariencia) extraParts.push(`distinctive physical features: ${npc.apariencia}`);
-      if (npc.rasgo) extraParts.push(`personality trait: ${npc.rasgo}`);
-      if (npc.alineamiento) extraParts.push(`alignment: ${npc.alineamiento}`);
-      const res = await api.post('/npc-generator/portrait', {
-        subculture_name: npc.subcultura,
-        sex: sexo,
-        occupation: npc.profesion,
-        age: npc.edad ? String(npc.edad) : '',
-        extra: extraParts.join('; '),
-      });
-      upd('retrato_file_id', res.data?.file_id || null);
-      setNpc((prev) => ({ ...prev, _retrato_b64: res.data?.image_base64 || null }));
+      await doRetrato();
       toast.success('Retrato generado');
     } catch (e) { toast.error(e?.response?.data?.detail || 'No se pudo generar el retrato'); }
     finally { setBusyRetrato(false); }
@@ -187,23 +212,23 @@ const ProfesionForge = ({ meta }) => {
   const genHistoria = async () => {
     setBusyStory(true);
     try {
-      // El trasfondo se genera con TODOS los datos, incluida la apariencia/rasgos físicos.
-      const partes = [
-        `Profesión: ${npc.profesion || '—'}.`,
-        `Raza: ${npc.raza || '—'}${npc.subcultura ? ` (${npc.subcultura})` : ''}.`,
-        npc.sexo || sexo ? `Sexo: ${npc.sexo || sexo}.` : '',
-        npc.edad ? `Edad: ${npc.edad} años.` : '',
-        npc.alineamiento ? `Alineamiento: ${npc.alineamiento}.` : '',
-        npc.apariencia ? `Apariencia y rasgos físicos: ${npc.apariencia}.` : '',
-        npc.rasgo ? `Rasgo (${npc.rasgo_tipo || 'positivo'}): ${npc.rasgo}${npc.rasgo_descripcion ? ` — ${npc.rasgo_descripcion}` : ''}.` : '',
-        npc.modo_hablar ? `Modo de hablar: ${npc.modo_hablar}${npc.modo_hablar_desc ? ` (${npc.modo_hablar_desc})` : ''}.` : '',
-      ].filter(Boolean);
-      const ctx = partes.join(' ');
-      const res = await api.post('/npc-generator/story', { nombre: npc.nombre, contexto: ctx });
-      upd('historia', res.data?.historia || '');
+      await doHistoria();
       toast.success('Historia generada');
     } catch (e) { toast.error(e?.response?.data?.detail || 'No se pudo generar la historia'); }
     finally { setBusyStory(false); }
+  };
+
+  // Botón único: primero el trasfondo (con todos los datos), luego el retrato.
+  const genPerfilCompleto = async () => {
+    setBusyPerfil(true);
+    try {
+      toast.info('Generando trasfondo…');
+      await doHistoria();
+      toast.info('Generando retrato…');
+      await doRetrato();
+      toast.success('Trasfondo y retrato generados');
+    } catch (e) { toast.error(e?.response?.data?.detail || 'No se pudo generar el perfil completo'); }
+    finally { setBusyPerfil(false); }
   };
 
   const attrVal = (v) => (typeof v === 'object' && v ? (v.valor ?? '') : v);
@@ -326,6 +351,14 @@ const ProfesionForge = ({ meta }) => {
               </div>
             </div>
           )}
+
+          <div className="flex justify-center">
+            <Button onClick={genPerfilCompleto} disabled={busyPerfil || busyStory || busyRetrato}
+              className="bg-[hsl(var(--gold))] text-black hover:opacity-90" data-testid="prof-perfil-completo-btn">
+              {busyPerfil ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Wand2 className="w-4 h-4 mr-1" />}
+              Generar trasfondo + retrato
+            </Button>
+          </div>
 
           <div>
             <div className="flex items-center justify-between">
