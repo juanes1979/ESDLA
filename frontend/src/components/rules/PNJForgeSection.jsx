@@ -16,6 +16,7 @@ import { toast } from 'sonner';
 import api from '@/services/api';
 import CreatureNameConfigEditor from './CreatureNameConfigEditor';
 import { NpcEditorModal, NpcFichaCard } from './TradingSystemSection';
+import AdversaryFicha from './AdversaryFicha';
 
 // 5e XP → CR: deriva el "Desafío" cuando solo hay experiencia.
 const XP_TO_CR = [
@@ -105,7 +106,7 @@ const PNJForgeSection = () => {
 
   const ConfigBtn = () => (
     <Button size="sm" variant="outline" onClick={() => setShowConfig(true)} className="border-[hsl(var(--gold))/50] text-[hsl(var(--gold))]" data-testid="open-config-btn">
-      <Settings className="w-3.5 h-3.5 mr-1" /> Bases de nombres
+      <Settings className="w-3.5 h-3.5 mr-1" /> Bases de creación
     </Button>
   );
 
@@ -263,9 +264,14 @@ const NpcBrowser = ({ npcs, config, onEdit, onDelete }) => {
         <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4" data-testid="npc-ficha-modal"
           onClick={(e) => { if (e.target === e.currentTarget) setSelected(null); }}>
           <div className="w-full max-w-2xl max-h-[92vh] overflow-y-auto">
-            <NpcFichaCard npc={selected} config={config}
-              onEdit={() => { const n = selected; setSelected(null); onEdit(n); }}
-              onDelete={() => { const id = selected._id; setSelected(null); onDelete(id); }} />
+            {selected.es_adversario ? (
+              <AdversaryFicha npc={selected}
+                onDelete={() => { const id = selected._id; setSelected(null); onDelete(id); }} />
+            ) : (
+              <NpcFichaCard npc={selected} config={config}
+                onEdit={() => { const n = selected; setSelected(null); onEdit(n); }}
+                onDelete={() => { const id = selected._id; setSelected(null); onDelete(id); }} />
+            )}
             <div className="mt-2 flex justify-end">
               <Button variant="outline" onClick={() => setSelected(null)} data-testid="npc-ficha-close">Cerrar</Button>
             </div>
@@ -305,8 +311,33 @@ const AdversarioForge = ({ adversarios, razas, creatureTypes, activeRuns }) => {
   const [busyStory, setBusyStory] = useState(false);
   const [ubicaciones, setUbicaciones] = useState([]);
   const [ubicacionId, setUbicacionId] = useState('');
+  const [apariencia, setApariencia] = useState('');
+  const [alineamiento, setAlineamiento] = useState('');
+  const [edad, setEdad] = useState('');
+  const [notas, setNotas] = useState('');
+  const [relacionesDj, setRelacionesDj] = useState('');
+  const [busyPerfil, setBusyPerfil] = useState(false);
 
   const adv = adversarios.find((a) => (a._id || a.id) === advId) || null;
+
+  // Agrupa los adversarios por su tipo/raza (Orcos, Trolls, Espectros…) para el desplegable.
+  const gruposAdv = useMemo(() => {
+    const grupoDe = (a) => {
+      if (Array.isArray(a.tipos_criatura) && a.tipos_criatura.length) {
+        const cm = creatureTypes.find((c) => c.id === a.tipos_criatura[0]);
+        if (cm) return cm.label;
+      }
+      const m = (a.tipo || '').match(/\(([^)]+)\)/);
+      if (m) { const w = m[1].trim(); return w.charAt(0).toUpperCase() + w.slice(1).toLowerCase(); }
+      if (a.tipo) { const w = a.tipo.split(/[\s(]/)[0]; return w || 'Otros'; }
+      return 'Otros';
+    };
+    const map = {};
+    (adversarios || []).forEach((a) => { const g = grupoDe(a); (map[g] = map[g] || []).push(a); });
+    return Object.entries(map)
+      .map(([g, arr]) => [g, arr.slice().sort((x, y) => (x.nombre || '').localeCompare(y.nombre || '', 'es'))])
+      .sort((a, b) => a[0].localeCompare(b[0], 'es'));
+  }, [adversarios, creatureTypes]);
 
   useEffect(() => {
     (async () => {
@@ -327,35 +358,60 @@ const AdversarioForge = ({ adversarios, razas, creatureTypes, activeRuns }) => {
     setTipoCriatura('');
     setNombre('');
     setRetrato(null); setRetratoFileId(null); setHistoria(''); setNivel(formatDesafio(adv) || '');
+    setApariencia(''); setAlineamiento(adv.alineamiento || ''); setEdad(''); setNotas(''); setRelacionesDj('');
   }, [advId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const doRetrato = async () => {
+    const extraParts = [`${modo === 'sin_raza' ? (ct?.label || 'criatura') + ' de la Tierra Media, monstruoso' : ''}`];
+    if (apariencia) extraParts.push(`distinctive physical features: ${apariencia}`);
+    if (alineamiento) extraParts.push(`alignment: ${alineamiento}`);
+    const body = modo === 'racial'
+      ? { subculture_name: sub, sex: sexo, occupation: adv.nombre, extra: extraParts.filter(Boolean).join('; ') }
+      : { occupation: adv.nombre, sex: sexo, extra: extraParts.filter(Boolean).join('; ') };
+    const res = await api.post('/npc-generator/portrait', body);
+    setRetrato(res.data?.image_base64 || null);
+    setRetratoFileId(res.data?.file_id || null);
+  };
+
+  const doHistoria = async () => {
+    const partes = [
+      `Adversario tipo «${adv.nombre}».`,
+      modo === 'racial' ? `Raza/subcultura: ${sub || raza || '—'}.` : `Criatura: ${ct?.label || tipoCriatura || '—'}.`,
+      `Nombre: ${nombre || '—'}.`,
+      alineamiento ? `Alineamiento: ${alineamiento}.` : '',
+      edad ? `Edad: ${edad}.` : '',
+      apariencia ? `Apariencia y rasgos físicos: ${apariencia}.` : '',
+      adv.descripcion ? `Descripción del tipo: ${adv.descripcion}.` : '',
+    ].filter(Boolean).join(' ');
+    const res = await api.post('/npc-generator/story', { nombre: nombre || adv.nombre, contexto: partes });
+    setHistoria(res.data?.historia || '');
+  };
 
   const generarRetrato = async () => {
     if (!adv) return;
     setBusyRetrato(true);
-    try {
-      const body = modo === 'racial'
-        ? { subculture_name: sub, sex: sexo, occupation: adv.nombre }
-        : { occupation: adv.nombre, sex: sexo, extra: `${ct?.label || 'criatura'} de la Tierra Media, monstruoso` };
-      const res = await api.post('/npc-generator/portrait', body);
-      setRetrato(res.data?.image_base64 || null);
-      setRetratoFileId(res.data?.file_id || null);
-      toast.success('Retrato generado');
-    } catch (e) {
-      toast.error(e?.response?.data?.detail || 'No se pudo generar el retrato');
-    } finally { setBusyRetrato(false); }
+    try { await doRetrato(); toast.success('Retrato generado'); }
+    catch (e) { toast.error(e?.response?.data?.detail || 'No se pudo generar el retrato'); }
+    finally { setBusyRetrato(false); }
   };
 
   const generarHistoria = async () => {
     if (!adv) return;
     setBusyStory(true);
+    try { await doHistoria(); toast.success('Historia generada'); }
+    catch (e) { toast.error(e?.response?.data?.detail || 'No se pudo generar la historia'); }
+    finally { setBusyStory(false); }
+  };
+
+  const generarPerfilCompleto = async () => {
+    if (!adv) return;
+    setBusyPerfil(true);
     try {
-      const ctx = `Adversario tipo «${adv.nombre}». ${modo === 'racial' ? `Raza/subcultura: ${sub || raza}.` : `Criatura: ${ct?.label || tipoCriatura}.`} Nombre: ${nombre || '—'}.`;
-      const res = await api.post('/npc-generator/story', { nombre: nombre || adv.nombre, contexto: ctx });
-      setHistoria(res.data?.historia || '');
-      toast.success('Historia generada');
-    } catch (e) {
-      toast.error(e?.response?.data?.detail || 'No se pudo generar la historia');
-    } finally { setBusyStory(false); }
+      toast.info('Generando trasfondo…'); await doHistoria();
+      toast.info('Generando retrato…'); await doRetrato();
+      toast.success('Trasfondo y retrato generados');
+    } catch (e) { toast.error(e?.response?.data?.detail || 'No se pudo generar el perfil completo'); }
+    finally { setBusyPerfil(false); }
   };
 
   const guardarCfgAdversario = async () => {
@@ -431,6 +487,11 @@ const AdversarioForge = ({ adversarios, razas, creatureTypes, activeRuns }) => {
         descripcion: `${adv.descripcion || ''}${adv.descripcion ? ' · ' : ''}[${adv.nombre} — ${origen}]`.trim(),
         experiencia: adv.experiencia,
         desafio: nivel || formatDesafio(adv) || '',
+        ...(alineamiento ? { alineamiento } : {}),
+        ...(edad ? { edad } : {}),
+        ...(apariencia ? { apariencia } : {}),
+        ...(notas ? { notas } : {}),
+        ...(relacionesDj ? { relaciones_dj: relacionesDj } : {}),
         ...(historia ? { historia } : {}),
         ...(retratoFileId ? { retrato_file_id: retratoFileId } : {}),
       };
@@ -465,7 +526,11 @@ const AdversarioForge = ({ adversarios, razas, creatureTypes, activeRuns }) => {
       <Field label="Adversario del Bestiario">
         <select value={advId} onChange={(e) => setAdvId(e.target.value)} className="forge-select" data-testid="adv-select">
           <option value="">— elige —</option>
-          {adversarios.map((a) => <option key={a._id || a.id} value={a._id || a.id}>{a.nombre}</option>)}
+          {gruposAdv.map(([grupo, items]) => (
+            <optgroup key={grupo} label={grupo}>
+              {items.map((a) => <option key={a._id || a.id} value={a._id || a.id}>{a.nombre}</option>)}
+            </optgroup>
+          ))}
         </select>
       </Field>
 
@@ -579,6 +644,28 @@ const AdversarioForge = ({ adversarios, razas, creatureTypes, activeRuns }) => {
         </Field>
       </div>
 
+      {/* Alineamiento + Edad + Apariencia */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <Field label="Alineamiento">
+          <Input value={alineamiento} onChange={(e) => setAlineamiento(e.target.value)} placeholder="Ej: Caótico Maligno" data-testid="adv-alineamiento-input" />
+        </Field>
+        <Field label="Edad (opcional)">
+          <Input value={edad} onChange={(e) => setEdad(e.target.value)} placeholder="En blanco = sin especificar" data-testid="adv-edad-input" />
+        </Field>
+        <Field label="Apariencia / rasgos físicos">
+          <textarea rows={2} value={apariencia} onChange={(e) => setApariencia(e.target.value)} placeholder="Ej: múltiples cicatrices, una oreja cortada"
+            className="w-full bg-black/40 rounded p-2 text-xs outline-none border border-border/50 resize-y" data-testid="adv-apariencia-input" />
+        </Field>
+      </div>
+
+      <div className="flex justify-center">
+        <Button onClick={generarPerfilCompleto} disabled={busyPerfil || busyStory || busyRetrato || !adv}
+          className="bg-[hsl(var(--gold))] text-black hover:opacity-90" data-testid="adv-perfil-completo-btn">
+          {busyPerfil ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Wand2 className="w-4 h-4 mr-1" />}
+          Generar trasfondo + retrato
+        </Button>
+      </div>
+
       {/* Retrato IA + Historia IA + Nivel */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 items-start">
         <div className="space-y-1.5">
@@ -603,6 +690,20 @@ const AdversarioForge = ({ adversarios, razas, creatureTypes, activeRuns }) => {
             <input type="text" value={nivel} onChange={(e) => setNivel(e.target.value)} placeholder={formatDesafio(adv) || ''}
               className="forge-select w-40" data-testid="adv-nivel-input" />
           </Field>
+        </div>
+      </div>
+
+      {/* Relaciones con PJs + Notas del DJ */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div className="space-y-1">
+          <label className="text-xs text-muted-foreground">Relaciones con personajes (notas del DJ)</label>
+          <textarea rows={2} value={relacionesDj} onChange={(e) => setRelacionesDj(e.target.value)} placeholder="Ej: humilló a Faramir en el paso; le guarda rencor…"
+            className="w-full bg-black/40 rounded p-2 text-xs outline-none border border-border/50 resize-y" data-testid="adv-relaciones-input" />
+        </div>
+        <div className="space-y-1">
+          <label className="text-xs text-muted-foreground">Notas del DJ</label>
+          <textarea rows={2} value={notas} onChange={(e) => setNotas(e.target.value)} placeholder="Notas privadas del máster…"
+            className="w-full bg-black/40 rounded p-2 text-xs outline-none border border-border/50 resize-y" data-testid="adv-notas-input" />
         </div>
       </div>
 

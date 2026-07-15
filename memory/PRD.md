@@ -769,3 +769,24 @@ Aplica una transacción YA negociada al personaje (reutiliza endpoints de equipo
 - AdversarioForge usa `razas_permitidas` (si está definida en la ficha) para limitar las razas.
 - Verificado por testing_agent iteration_92: backend 7/7 pytest PASS + frontend 100%. Bug de
   rehidratación de `razas_permitidas` corregido y verificado por curl. Sin datos de prueba residuales.
+
+## FASE 1 — Ficha de adversario completa + riqueza + agrupación (Jul 2026)
+- Nuevo componente `AdversaryFicha.jsx`: la ficha del adversario en la consulta muestra TODO el bloque
+  del Bestiario (CA/PG/Velocidad/Desafío/Percepción, atributos, sentidos, idiomas, defensas, habilidades
+  especiales, ataques con ataque múltiple, otras acciones, reacciones) + ubicación, apariencia, historia,
+  relaciones y notas. Antes solo salían CA/PG/atributos.
+- AdversarioForge enriquecido: apariencia, alineamiento, edad (opcional), notas del DJ, relaciones con PJs
+  (texto libre) y botón único «Generar trasfondo + retrato» (trasfondo con todos los datos → retrato).
+- Selector de adversarios AGRUPADO por tipo/raza (optgroup: Orcos, Trolls, Espectros…) derivado de
+  tipos_criatura o del paréntesis de `tipo`.
+- Botón renombrado a «Bases de creación» (editor con pestañas rasgos/formas/tipos → Fase 3).
+- Verificado e2e: ficha del Cacique Orco muestra Cimitarra/Golpe con Escudo/Lanza, Ataque Furtivo, etc.;
+  apariencia/alineamiento/relaciones persisten. Editar adversario desde la consulta: pendiente (Fase 3).
+
+## FASE 2 (pendiente) — Rasgos y formas de hablar de adversario
+- 1000 rasgos (Orcos/Trolls/Huargos/Espectros × Defectos/Obsesión/Miedo/Manía/Fortaleza, 50 c/u);
+  al generar: 1 aleatorio de cada grupo → 5 rasgos. Formas de hablar (50) solo Orcos/Trolls. Editable.
+
+## FASE 3 (pendiente) — Tipos/categorías + editor de bases
+- Espectro como raza (nombre por raza/subcultura como PJ). Editor «Bases de creación» con pestañas.
+  Editor propio para editar adversarios ya creados.
