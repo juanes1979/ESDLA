@@ -907,3 +907,11 @@ Aplica una transacción YA negociada al personaje (reutiliza endpoints de equipo
   Herramientas, Sentidos, Idiomas, historia, notas) a lo ancho debajo. Aplica a pantalla y PDF.
 - Se eliminó la regla de impresión específica del retrato de comerciante; ahora usa el mismo
   `.adv-portrait-col` (retrato grande, object-contain) y comparte el CSS de impresión con adversarios.
+
+## Borrado rápido y masivo de PNJs/adversarios (Jul 2026)
+- **Borrado rápido por tarjeta**: cada tarjeta compacta del navegador tiene un icono de papelera
+  (con confirmación) sin necesidad de abrir la ficha.
+- **Modo «Borrar varios»**: botón que activa selección múltiple; se marcan tarjetas (check + resalte),
+  con «Seleccionar todos (N filtrados)», «Quitar selección», «Borrar N seleccionados» y «Cancelar».
+- **Confirmación con aviso**: `window.confirm` advirtiendo que es DEFINITIVO y NO hay vuelta atrás.
+  `bulkDeleteNpcs` borra en paralelo (`Promise.allSettled`), recarga y avisa por toast (éxitos/fallos).

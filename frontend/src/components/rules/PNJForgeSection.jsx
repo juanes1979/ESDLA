@@ -9,7 +9,7 @@
  *  diccionarios de nombres— llegará en la Fase B.)
  */
 import { useEffect, useState, useMemo } from 'react';
-import { Users, Skull, Wand2, Save, Loader2, ChevronLeft, Shield, Heart, Swords, Settings, Swords as SwordsIcon, Search } from 'lucide-react';
+import { Users, Skull, Wand2, Save, Loader2, ChevronLeft, Shield, Heart, Swords, Settings, Swords as SwordsIcon, Search, Trash2, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
@@ -100,9 +100,19 @@ const PNJForgeSection = () => {
   };
 
   const deleteNpc = async (npcId) => {
-    if (!window.confirm('¿Eliminar este PNJ?')) return;
+    if (!window.confirm('¿Eliminar este PNJ? Esta acción es definitiva y no se puede deshacer.')) return;
     try { await api.delete(`/trading/npcs/${npcId}`); await loadNpcs(); toast.success('PNJ eliminado'); }
     catch { toast.error('No se pudo eliminar'); }
+  };
+
+  const bulkDeleteNpcs = async (ids) => {
+    try {
+      const results = await Promise.allSettled(ids.map((id) => api.delete(`/trading/npcs/${id}`)));
+      const ok = results.filter((r) => r.status === 'fulfilled').length;
+      await loadNpcs();
+      if (ok === ids.length) toast.success(`${ok} PNJ/adversario(s) eliminados`);
+      else toast.warning(`${ok} de ${ids.length} eliminados; algunos fallaron`);
+    } catch { toast.error('No se pudieron eliminar'); }
   };
 
   // Edición: adversarios/PNJ del Bestiario usan el editor propio (bloque de combate);
@@ -180,7 +190,7 @@ const PNJForgeSection = () => {
       {view === 'adversario'
         ? <AdversarioForge adversarios={adversarios} razas={meta?.razas || {}} creatureTypes={creatureTypes} activeRuns={activeRuns} />
         : <NpcBrowser npcs={npcs} config={config}
-            onEdit={editNpc} onDelete={deleteNpc} />}
+            onEdit={editNpc} onDelete={deleteNpc} onBulkDelete={bulkDeleteNpcs} />}
       <CreatureNameConfigEditor open={showConfig} onClose={() => setShowConfig(false)} onSaved={loadCreatureTypes} />
       {editor}
     </div>
@@ -188,7 +198,7 @@ const PNJForgeSection = () => {
 };
 
 // ── PNJs existentes (navegador con filtro por ubicación + búsqueda) ───────────
-const NpcBrowser = ({ npcs, config, onEdit, onDelete }) => {
+const NpcBrowser = ({ npcs, config, onEdit, onDelete, onBulkDelete }) => {
   const API_URL = process.env.REACT_APP_BACKEND_URL;
   const [q, setQ] = useState('');
   const [tipo, setTipo] = useState('');       // '' | 'comerciante' | 'adversario'
@@ -197,6 +207,8 @@ const NpcBrowser = ({ npcs, config, onEdit, onDelete }) => {
   const [loc, setLoc] = useState('');
   const [prof, setProf] = useState('');
   const [selected, setSelected] = useState(null);
+  const [selecting, setSelecting] = useState(false);
+  const [selectedIds, setSelectedIds] = useState(() => new Set());
 
   const uniq = (fn) => Array.from(new Set((npcs || []).map(fn).filter(Boolean))).sort((a, b) => a.localeCompare(b, 'es'));
   const razas = uniq((n) => n.raza);
@@ -222,6 +234,22 @@ const NpcBrowser = ({ npcs, config, onEdit, onDelete }) => {
 
   const selCls = "bg-black/30 border border-border rounded px-2 py-2 text-sm";
 
+  const toggleSel = (id) => setSelectedIds((prev) => { const s = new Set(prev); s.has(id) ? s.delete(id) : s.add(id); return s; });
+  const selectAllFiltered = () => setSelectedIds(new Set(filtered.map((n) => n._id)));
+  const clearSel = () => setSelectedIds(new Set());
+  const exitSelect = () => { setSelecting(false); clearSel(); };
+  const doBulkDelete = async () => {
+    const ids = Array.from(selectedIds);
+    if (!ids.length) return;
+    const ok = window.confirm(
+      `⚠️ Vas a BORRAR ${ids.length} PNJ/adversario(s).\n\n` +
+      `Esta acción es DEFINITIVA: NO hay vuelta atrás y no se puede deshacer.\n\n¿Continuar?`
+    );
+    if (!ok) return;
+    await onBulkDelete(ids);
+    exitSelect();
+  };
+
   // Agrupa por raza · subcultura (o por tipo no-racial: Orco, Trol, Huargo, Espectro…).
   const grouped = useMemo(() => {
     const grupoDe = (n) => {
@@ -241,9 +269,15 @@ const NpcBrowser = ({ npcs, config, onEdit, onDelete }) => {
     const esBest = n.es_adversario || n.bestiario_categoria === 'pnj';
     const oficio = esBest ? (n.tipo_adversario || n.profesion) : (n.profesion_comerciante || n.profesion || n.ocupacion);
     const linea = [n.raza, n.subcultura].filter(Boolean).join(' · ');
+    const sel = selectedIds.has(n._id);
     return (
-      <button key={n._id} onClick={() => setSelected(n)} data-testid={`npc-compact-${n._id}`}
-        className="flex items-center gap-3 text-left rounded-lg border border-border/40 bg-black/20 p-2 hover:border-[hsl(var(--gold))]/60 transition-colors">
+      <div key={n._id} onClick={() => (selecting ? toggleSel(n._id) : setSelected(n))} data-testid={`npc-compact-${n._id}`}
+        className={`relative flex items-center gap-3 text-left rounded-lg border bg-black/20 p-2 cursor-pointer transition-colors ${sel ? 'border-rose-500 ring-1 ring-rose-500/60 bg-rose-950/20' : 'border-border/40 hover:border-[hsl(var(--gold))]/60'}`}>
+        {selecting && (
+          <div className={`shrink-0 w-5 h-5 rounded border flex items-center justify-center ${sel ? 'bg-rose-600 border-rose-500' : 'border-muted-foreground/50'}`} data-testid={`npc-select-${n._id}`}>
+            {sel && <Check className="w-3.5 h-3.5 text-white" />}
+          </div>
+        )}
         <div className="shrink-0">
           {portrait
             ? <img src={portrait} alt={n.nombre} className="w-14 h-14 rounded-md object-cover border border-[hsl(var(--gold))]/40" />
@@ -254,10 +288,16 @@ const NpcBrowser = ({ npcs, config, onEdit, onDelete }) => {
           {oficio && <div className="text-xs text-muted-foreground truncate">{oficio}</div>}
           <div className="text-[11px] italic text-muted-foreground/70 truncate">{linea}{n.ubicacion ? `${linea ? ' · ' : ''}${n.ubicacion}` : ''}</div>
         </div>
+        {!selecting && (
+          <button onClick={(e) => { e.stopPropagation(); onDelete(n._id); }} title="Borrar este PNJ"
+            className="shrink-0 p-1.5 rounded text-red-400/70 hover:text-red-300 hover:bg-white/5 no-print" data-testid={`npc-quickdelete-${n._id}`}>
+            <Trash2 className="w-4 h-4" />
+          </button>
+        )}
         {n.es_adversario
           ? <span className="text-[10px] text-rose-300/80 border border-rose-800/50 rounded px-1 py-0.5 shrink-0">Adversario</span>
           : (n.bestiario_categoria === 'pnj' && <span className="text-[10px] text-sky-300/80 border border-sky-800/50 rounded px-1 py-0.5 shrink-0">PNJ</span>)}
-      </button>
+      </div>
     );
   };
 
@@ -291,7 +331,26 @@ const NpcBrowser = ({ npcs, config, onEdit, onDelete }) => {
           {profs.map((p) => <option key={p} value={p}>{p}</option>)}
         </select>
         <span className="text-xs text-muted-foreground">{filtered.length} PNJ</span>
+        {!selecting ? (
+          <Button size="sm" variant="outline" onClick={() => setSelecting(true)} className="border-rose-700/50 text-rose-300" data-testid="npc-select-mode-btn">
+            <Trash2 className="w-3.5 h-3.5 mr-1" /> Borrar varios
+          </Button>
+        ) : (
+          <div className="flex items-center gap-2 flex-wrap">
+            <Button size="sm" variant="outline" onClick={selectAllFiltered} data-testid="npc-select-all-btn">Seleccionar todos ({filtered.length})</Button>
+            <Button size="sm" variant="outline" onClick={clearSel} data-testid="npc-select-clear-btn">Quitar selección</Button>
+            <Button size="sm" onClick={doBulkDelete} disabled={selectedIds.size === 0} className="bg-rose-700 text-white hover:bg-rose-600" data-testid="npc-bulk-delete-btn">
+              <Trash2 className="w-3.5 h-3.5 mr-1" /> Borrar {selectedIds.size} seleccionados
+            </Button>
+            <Button size="sm" variant="ghost" onClick={exitSelect} data-testid="npc-select-cancel-btn">Cancelar</Button>
+          </div>
+        )}
       </div>
+      {selecting && (
+        <p className="text-xs text-rose-300/80 flex items-center gap-1" data-testid="npc-select-hint">
+          <Trash2 className="w-3 h-3" /> Modo borrado: pulsa las tarjetas para marcarlas. El borrado es definitivo (no hay vuelta atrás).
+        </p>
+      )}
 
       {filtered.length === 0 ? (
         <div className="text-center py-10 text-muted-foreground">
