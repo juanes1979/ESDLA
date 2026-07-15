@@ -1,0 +1,30 @@
+{
+  "summary": "Iter111 (PNJ Forge unificado — filtro Profesión↔Raza + Ubicación obligatoria + Bloque PNJs existentes + Config editable). BACKEND 5/5 pytest PASS: (1) GET /trading/npc-meta expone 'profesiones_por_raza' con defaults correctos (Enano Herrero→[Enanos], Elfo Artesano→[Elfos]); (2) GET+PUT /trading/config roundtrip conserva 'npc_profesiones_por_raza' y se refleja en npc-meta (restaurado tras la prueba); (3) POST /trading/npcs con Ubicación+Enanos+'Enano Herrero'+nombre manual persiste correctamente y aparece filtrado en GET /trading/npcs?location=; (4) semántica del mapa: Elfos NO incluye Enano Herrero ni Caballero de Gondor, SÍ Elfo Artesano; Enanos SÍ Enano Herrero, NO Elfo Artesano; Hombres SÍ Caballero de Gondor; (5) PUT /trading/npcs/{id} y DELETE funcionan y devuelven 404 en segundo delete. FRONTEND (Rules→tarjeta 'PNJs' / pnj_forge): landing muestra las 3 tarjetas (forge-tipo-profesion + forge-tipo-adversario + forge-tipo-browse). Modal npc-editor-modal se abre desde la tarjeta Profesión con Ubicación (306 opciones), Región auto ('Aglarond'→'Folde Oeste'), Raza, Subcultura, Sexo y Profesión. VERIFICADO: (a) select Profesión está disabled=true antes de elegir raza; (b) tras Raza='Elfos' las 24 opciones NO incluyen 'Enano Herrero' ni 'Caballero de Gondor' y SÍ 'Elfo Artesano'; (c) tras Raza='Enanos' SÍ aparece 'Enano Herrero' y NO 'Elfo Artesano'; (d) botón 'Guardar' disabled=true sin ubicación; (e) tras Ubicación='Aglarond'+Profesión='Enano Herrero'+nombre='TEST_QA_Balin_it111' el botón se habilita, hace POST y el modal se cierra automáticamente. NpcBrowser: filtro por ubicación (npc-browser-loc) + búsqueda (npc-browser-search) funcionales; ficha NpcFichaCard muestra ubicación, región, características, PG/CA, habilidades con modificador, rasgo, modo hablar, alineamiento (Legal Bueno) y botones editar/borrar. Configuración de Compra-Venta: sección 'Profesiones permitidas por Raza (8)' presente con cfg-profraza-add + 8 pares key/val editables (Enano Herrero=Enanos, Elfo Artesano=Elfos, Hobbit Posadero=Hobbits, Mago Errante=Hombres,Elfos, Caballero de Gondor=Hombres, Príncipe o noble=Hombres,Elfos,Enanos, Señor de una aldea=Hombres,Hobbits, Capitán de la guardia=Hombres). Cero errores en consola.",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_pnj_forge_it111.py",
+    "/app/test_reports/pytest/pnj_forge_it111.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "trading_routes.create_npc (POST /trading/npcs), update_npc, delete_npc NO exigen dependency get_current_user — cualquier cliente autenticado o no puede crear/editar/borrar PNJs de comercio. Aunque el frontend siempre envía token, deberían aplicar RBAC (maestro/director_de_juego).",
+    "PUT /trading/config sustituye el documento entero: si el frontend olvida algún key (p.ej. relationship_levels), se restaurarían los defaults, machacando ediciones previas. Considerar merge parcial o exigir shape completa (frontend ya envía todo, pero es frágil).",
+    "TradingSystemSection.jsx tiene 2853 líneas — muy por encima del umbral (>700). Recomendable dividir NpcEditorModal, NpcFichaCard y NpcConfigEditor en módulos propios para facilitar mantenimiento y evitar re-render inútil.",
+    "profesionesDisponibles depende de meta.profesiones_por_raza: si el usuario edita el mapa desde Configuración pero no recarga el modal, el filtro sigue mostrando el mapa antiguo (meta se carga una vez al montar). Considerar refetch en apertura del modal.",
+    "En la ficha NpcFichaCard, el borrado usa window.confirm — funciona pero rompe la estética de la app; sería mejor un AlertDialog de shadcn (ya usado en otras partes).",
+    "El campo Región es 'auto' pero está en un input editable normal; si el DJ escribe algo distinto, se sobrescribe al cambiar de ubicación. UX: convertir en read-only o mostrar como badge."
+  ],
+  "updated_files": ["/app/backend/tests/test_pnj_forge_it111.py", "/app/test_reports/iteration_91.json"],
+  "success_rate": { "backend": "100% (5/5)", "frontend": "100%" },
+  "test_credentials": "Maestro elanillounico_tlotr@proton.me / 123456 (from /app/memory/test_credentials.md).",
+  "seed_data_creation": "El test QA de UI dejó 1 PNJ 'TEST_QA_Balin_it111' en /trading/npcs (Enano Herrero, ubicación Aglarond). Puede limpiarse con DELETE /api/trading/npcs/{id}. El test pytest test_update_and_delete_npc limpió su propio PNJ. El test_trading_config_profesiones_por_raza_roundtrip restaura el mapa original al finalizar.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Suite reutilizable: /app/backend/tests/test_pnj_forge_it111.py (5 tests, ~2s). Test IDs clave del flujo: forge-tipo-profesion / forge-tipo-adversario / forge-tipo-browse; modal: npc-editor-modal, npc-ubicacion-select, npc-region, npc-raza-select, npc-subcultura-select, npc-profesion-select, npc-nombre-input; browser: npc-browser, npc-browser-search, npc-browser-loc; config: cfg-profraza-key-{i}, cfg-profraza-val-{i}, cfg-profraza-add. La pestaña PNJs de /rules se llama 'PNJs' (id pnj_forge); la de Compra-Venta interna se llama 'PNJs Comerciantes' pero el pestañador es 'PNJs' — al pulsar la tarjeta Compra-Venta hay que esperar ~4-6s antes de que aparezcan tabs. El modal se comparte y funciona idénticamente en ambos flujos.",
+  "rca of the issue": "N/A — no bugs reproducibles. Todas las funcionalidades P1 (filtro profesión↔raza + orden Raza→Subcultura→Profesión) y P2 (Ubicación obligatoria, rediseño con modal reutilizado, bloque de PNJs existentes con filtro/búsqueda/editar/borrar, mapa editable desde Configuración) funcionan correctamente."
+}

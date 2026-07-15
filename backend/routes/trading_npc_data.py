@@ -28,6 +28,33 @@ PROFESIONES = [
     "Hobbit Posadero", "Delincuente", "Atracador", "Salteador de caminos",
 ]
 
+# Profesiones restringidas por raza (mapa editable). Solo se listan EXCEPCIONES:
+# profesion -> lista de razas que SÍ pueden tenerla. Una profesión que NO aparezca
+# aquí está disponible para TODAS las razas. (Ej.: "Enano Herrero" solo Enanos.)
+PROFESIONES_POR_RAZA = {
+    "Enano Herrero": ["Enanos"],
+    "Elfo Artesano": ["Elfos"],
+    "Hobbit Posadero": ["Hobbits"],
+    "Mago Errante": ["Hombres", "Elfos"],
+    "Caballero de Gondor": ["Hombres"],
+    "Príncipe o noble": ["Hombres", "Elfos", "Enanos"],
+    "Señor de una aldea": ["Hombres", "Hobbits"],
+    "Capitán de la guardia": ["Hombres"],
+}
+
+
+def profesiones_para_raza(mapa: dict, raza: str, todas: list) -> list:
+    """Devuelve las profesiones permitidas para una raza según el mapa de excepciones."""
+    if not raza:
+        return list(todas)
+    out = []
+    for p in todas:
+        permitidas = (mapa or {}).get(p)
+        if not permitidas or raza in permitidas:
+            out.append(p)
+    return out
+
+
 # Profesiones de perfil criminal (para excluir rasgos demasiado nobles).
 PROFESIONES_CRIMINALES = {"Delincuente", "Atracador", "Salteador de caminos"}
 

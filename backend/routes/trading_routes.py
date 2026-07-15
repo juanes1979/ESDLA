@@ -244,13 +244,14 @@ async def get_trading_config(db=None):
     from routes.trading_npc_data import (
         PROFESIONES, RASGOS_POSITIVOS, RASGOS_NEGATIVOS, MODOS_HABLA,
         EXCLUSION_TAGS_RAZA, EXCLUSION_TAGS_PROFESION,
-        ALINEAMIENTOS, STAT_BLOCKS_POR_PROFESION,
+        ALINEAMIENTOS, STAT_BLOCKS_POR_PROFESION, PROFESIONES_POR_RAZA,
     )
     db = database
 
     config = await db.trading_config.find_one({"_id": "main"}) or {}
 
     return {
+        "npc_profesiones_por_raza": config.get("npc_profesiones_por_raza", PROFESIONES_POR_RAZA),
         "relationship_levels": config.get("relationship_levels", DEFAULT_RELATIONSHIP_LEVELS),
         "blessing_modifiers": config.get("blessing_modifiers", DEFAULT_BLESSING_MODIFIERS),
         "merchant_profiles": config.get("merchant_profiles", DEFAULT_MERCHANT_PROFILES),
@@ -278,10 +279,11 @@ async def update_trading_config(config: dict = Body(...)):
     from routes.trading_npc_data import (
         PROFESIONES, RASGOS_POSITIVOS, RASGOS_NEGATIVOS, MODOS_HABLA,
         EXCLUSION_TAGS_RAZA, EXCLUSION_TAGS_PROFESION,
-        ALINEAMIENTOS, STAT_BLOCKS_POR_PROFESION,
+        ALINEAMIENTOS, STAT_BLOCKS_POR_PROFESION, PROFESIONES_POR_RAZA,
     )
 
     update_data = {
+        "npc_profesiones_por_raza": config.get("npc_profesiones_por_raza", PROFESIONES_POR_RAZA),
         "relationship_levels": config.get("relationship_levels", DEFAULT_RELATIONSHIP_LEVELS),
         "blessing_modifiers": config.get("blessing_modifiers", DEFAULT_BLESSING_MODIFIERS),
         "merchant_profiles": config.get("merchant_profiles", DEFAULT_MERCHANT_PROFILES),
@@ -899,6 +901,7 @@ async def get_npc_meta():
         "merchant_profiles": cfg.get("merchant_profiles", DEFAULT_MERCHANT_PROFILES),
         "alineamientos": cfg.get("npc_alineamientos", []),
         "stat_blocks": cfg.get("npc_stat_blocks", {}),
+        "profesiones_por_raza": cfg.get("npc_profesiones_por_raza", {}),
     }
 
 

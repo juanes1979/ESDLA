@@ -1627,11 +1627,37 @@ const NpcConfigEditor = ({ config, setConfig, isAdmin }) => {
     );
   };
 
+  // --- Mapa profesión -> razas permitidas (excepciones; vacío = todas) ---
+  const renderProfRaza = () => {
+    const map = config.npc_profesiones_por_raza || {};
+    const entries = Object.entries(map);
+    const setKeyName = (oldK, newK) => {
+      const n = {}; entries.forEach(([k, v]) => { n[k === oldK ? newK : k] = v; }); upd('npc_profesiones_por_raza', n);
+    };
+    const setRazas = (k, razas) => upd('npc_profesiones_por_raza', { ...map, [k]: razas });
+    return (
+      <>
+        <p className="text-xs text-muted-foreground">Solo excepciones. Una profesión que NO aparezca aquí la puede tener CUALQUIER raza. Razas separadas por comas (Elfos, Enanos, Hobbits, Hombres).</p>
+        {entries.map(([k, razas], i) => (
+          <div key={i} className="flex gap-2 items-center">
+            <input className={`${inputCls} w-48`} value={k} disabled={ro} placeholder="profesión"
+              onChange={(e) => setKeyName(k, e.target.value)} data-testid={`cfg-profraza-key-${i}`} />
+            <input className={`${inputCls} flex-1`} value={(razas || []).join(', ')} disabled={ro} placeholder="razas permitidas (coma)"
+              onChange={(e) => setRazas(k, e.target.value.split(',').map(t => t.trim()).filter(Boolean))} data-testid={`cfg-profraza-val-${i}`} />
+            {!ro && <Button size="sm" variant="ghost" onClick={() => { const n = { ...map }; delete n[k]; upd('npc_profesiones_por_raza', n); }}><Trash2 className="w-4 h-4 text-red-400" /></Button>}
+          </div>
+        ))}
+        {!ro && <Button size="sm" variant="outline" onClick={() => upd('npc_profesiones_por_raza', { ...map, '': [] })} data-testid="cfg-profraza-add"><Plus className="w-4 h-4 mr-1" /> Añadir</Button>}
+      </>
+    );
+  };
+
   return (
     <div className="bg-black/20 rounded-lg border border-[hsl(var(--gold))]/30 p-4 space-y-3" data-testid="npc-config-editor">
       <h4 className="font-heading text-[hsl(var(--gold))] flex items-center gap-2"><Users className="w-4 h-4" /> Creación de PNJ Comerciante</h4>
       <p className="text-xs text-muted-foreground">Edita las listas usadas al crear PNJs. Pulsa "Guardar Todo" arriba para aplicar los cambios.</p>
       <Section id="prof" title="Profesiones" count={(config.npc_profesiones || []).length}>{renderStringList('npc_profesiones')}</Section>
+      <Section id="profraza" title="Profesiones permitidas por Raza" count={Object.keys(config.npc_profesiones_por_raza || {}).length}>{renderProfRaza()}</Section>
       <Section id="pos" title="Rasgos Positivos" count={(config.npc_rasgos_positivos || []).length}>{renderObjList('npc_rasgos_positivos', true)}</Section>
       <Section id="neg" title="Rasgos Negativos" count={(config.npc_rasgos_negativos || []).length}>{renderObjList('npc_rasgos_negativos', true)}</Section>
       <Section id="modos" title="Modos de Hablar" count={(config.npc_modos_habla || []).length}>{renderObjList('npc_modos_habla', false)}</Section>
@@ -1948,7 +1974,7 @@ const StatBox = ({ label, value, sub, accent }) => (
   </div>
 );
 
-const NpcFichaCard = ({ npc, config, onEdit, onDelete }) => {
+export const NpcFichaCard = ({ npc, config, onEdit, onDelete }) => {
   const API_URL = process.env.REACT_APP_BACKEND_URL;
   const portraitSrc = npc.retrato_file_id ? `${API_URL}/api/trading/npcs/${npc._id}/portrait` : null;
   const car = npc.caracteristicas || {};
@@ -2166,7 +2192,7 @@ const NpcRelationshipHistory = ({ npcId }) => {
 };
 
 
-const NpcEditorModal = ({ npc, config, onSave, onClose }) => {
+export const NpcEditorModal = ({ npc, config, onSave, onClose }) => {
   const API_URL = process.env.REACT_APP_BACKEND_URL;
   const [formData, setFormData] = useState({
     nombre: '',
@@ -2230,6 +2256,24 @@ const NpcEditorModal = ({ npc, config, onSave, onClose }) => {
     () => (meta?.razas?.[formData.raza] || []),
     [meta, formData.raza]
   );
+
+  // Profesiones permitidas para la raza elegida (mapa editable de excepciones).
+  const profesionesDisponibles = useMemo(() => {
+    const todas = meta?.profesiones || [];
+    const mapa = meta?.profesiones_por_raza || {};
+    if (!formData.raza) return todas;
+    return todas.filter((p) => {
+      const permitidas = mapa[p];
+      return !permitidas || permitidas.length === 0 || permitidas.includes(formData.raza);
+    });
+  }, [meta, formData.raza]);
+
+  // Si la profesión elegida deja de ser válida al cambiar la raza, se limpia.
+  useEffect(() => {
+    if (formData.profesion && !profesionesDisponibles.includes(formData.profesion)) {
+      set({ profesion: '' });
+    }
+  }, [profesionesDisponibles]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Cargar rasgos válidos al cambiar raza/profesión
   useEffect(() => {
@@ -2396,11 +2440,11 @@ const NpcEditorModal = ({ npc, config, onSave, onClose }) => {
           {/* Profesión + Perfil */}
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className={labelCls}>Profesión</label>
-              <select className={selectCls} value={formData.profesion}
+              <label className={labelCls}>Profesión {!formData.raza && <span className="text-xs">(elige raza primero)</span>}</label>
+              <select className={selectCls} value={formData.profesion} disabled={!formData.raza}
                 onChange={(e) => set({ profesion: e.target.value })} data-testid="npc-profesion-select">
-                <option value="">-- Profesión --</option>
-                {(meta?.profesiones || []).map(p => <option key={p} value={p}>{p}</option>)}
+                <option value="">{formData.raza ? '-- Profesión --' : '-- Elige raza primero --'}</option>
+                {profesionesDisponibles.map(p => <option key={p} value={p}>{p}</option>)}
               </select>
             </div>
             <div>
