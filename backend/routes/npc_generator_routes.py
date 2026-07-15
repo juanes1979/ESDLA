@@ -396,6 +396,7 @@ class PortraitRequest(BaseModel):
     eyes: Optional[str] = ""
     hair: Optional[str] = ""
     extra: Optional[str] = ""
+    full_body: Optional[bool] = True
 
 
 # ============================================================================
@@ -656,9 +657,14 @@ async def generate_npc_portrait(payload: PortraitRequest, user: dict = Depends(g
     if payload.extra:
         descriptors.append(payload.extra)
 
+    composicion = (
+        "full body figure, full-length standing pose, showing the entire body from head to feet, "
+        "visible legs and feet, any physical details of the whole body visible"
+        if payload.full_body else "head and shoulders"
+    )
     prompt = (
         "black and white charcoal sketch on parchment paper, "
-        "fantasy character portrait, head and shoulders, "
+        f"fantasy character portrait, {composicion}, "
         "Tolkien Middle-earth style, dramatic lighting, "
         "high contrast, detailed pencil strokes, no color, grayscale only, "
         "artistic sketch style, cinematic composition. "

@@ -201,6 +201,45 @@ const NpcBrowser = ({ npcs, config, onEdit, onDelete }) => {
 
   const selCls = "bg-black/30 border border-border rounded px-2 py-2 text-sm";
 
+  // Agrupa por raza · subcultura (o por tipo no-racial: Orco, Trol, Huargo, Espectro…).
+  const grouped = useMemo(() => {
+    const grupoDe = (n) => {
+      if (n.subcultura) return `${n.raza || '—'} · ${n.subcultura}`;
+      if (n.raza) return n.raza;
+      return 'Sin clasificar';
+    };
+    const map = {};
+    filtered.forEach((n) => { const g = grupoDe(n); (map[g] = map[g] || []).push(n); });
+    return Object.entries(map)
+      .map(([g, arr]) => [g, arr.slice().sort((a, b) => (a.nombre || '').localeCompare(b.nombre || '', 'es'))])
+      .sort((a, b) => a[0].localeCompare(b[0], 'es'));
+  }, [filtered]);
+
+  const renderCard = (n) => {
+    const portrait = n.retrato_file_id ? `${API_URL}/api/trading/npcs/${n._id}/portrait` : null;
+    const esBest = n.es_adversario || n.bestiario_categoria === 'pnj';
+    const oficio = esBest ? (n.tipo_adversario || n.profesion) : (n.profesion_comerciante || n.profesion || n.ocupacion);
+    const linea = [n.raza, n.subcultura].filter(Boolean).join(' · ');
+    return (
+      <button key={n._id} onClick={() => setSelected(n)} data-testid={`npc-compact-${n._id}`}
+        className="flex items-center gap-3 text-left rounded-lg border border-border/40 bg-black/20 p-2 hover:border-[hsl(var(--gold))]/60 transition-colors">
+        <div className="shrink-0">
+          {portrait
+            ? <img src={portrait} alt={n.nombre} className="w-14 h-14 rounded-md object-cover border border-[hsl(var(--gold))]/40" />
+            : <div className="w-14 h-14 rounded-md border border-border/40 bg-black/40 flex items-center justify-center">{n.es_adversario ? <Skull className="w-6 h-6 text-muted-foreground/50" /> : <Users className="w-6 h-6 text-muted-foreground/50" />}</div>}
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="font-heading text-[hsl(var(--gold))] truncate">{n.nombre}{n.apodo ? ` "${n.apodo}"` : ''}</div>
+          {oficio && <div className="text-xs text-muted-foreground truncate">{oficio}</div>}
+          <div className="text-[11px] italic text-muted-foreground/70 truncate">{linea}{n.ubicacion ? `${linea ? ' · ' : ''}${n.ubicacion}` : ''}</div>
+        </div>
+        {n.es_adversario
+          ? <span className="text-[10px] text-rose-300/80 border border-rose-800/50 rounded px-1 py-0.5 shrink-0">Adversario</span>
+          : (n.bestiario_categoria === 'pnj' && <span className="text-[10px] text-sky-300/80 border border-sky-800/50 rounded px-1 py-0.5 shrink-0">PNJ</span>)}
+      </button>
+    );
+  };
+
   return (
     <div className="space-y-3" data-testid="npc-browser">
       <div className="flex flex-wrap gap-2 items-center">
@@ -239,31 +278,17 @@ const NpcBrowser = ({ npcs, config, onEdit, onDelete }) => {
           <p>No hay PNJ que coincidan.</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-          {filtered.map((n) => {
-            const portrait = n.retrato_file_id ? `${API_URL}/api/trading/npcs/${n._id}/portrait` : null;
-            const esBest = n.es_adversario || n.bestiario_categoria === 'pnj';
-            const oficio = esBest ? (n.tipo_adversario || n.profesion) : (n.profesion_comerciante || n.profesion || n.ocupacion);
-            const linea = [n.raza, n.subcultura].filter(Boolean).join(' · ');
-            return (
-              <button key={n._id} onClick={() => setSelected(n)} data-testid={`npc-compact-${n._id}`}
-                className="flex items-center gap-3 text-left rounded-lg border border-border/40 bg-black/20 p-2 hover:border-[hsl(var(--gold))]/60 transition-colors">
-                <div className="shrink-0">
-                  {portrait
-                    ? <img src={portrait} alt={n.nombre} className="w-14 h-14 rounded-md object-cover border border-[hsl(var(--gold))]/40" />
-                    : <div className="w-14 h-14 rounded-md border border-border/40 bg-black/40 flex items-center justify-center">{n.es_adversario ? <Skull className="w-6 h-6 text-muted-foreground/50" /> : <Users className="w-6 h-6 text-muted-foreground/50" />}</div>}
-                </div>
-                <div className="min-w-0 flex-1">
-                  <div className="font-heading text-[hsl(var(--gold))] truncate">{n.nombre}{n.apodo ? ` "${n.apodo}"` : ''}</div>
-                  {oficio && <div className="text-xs text-muted-foreground truncate">{oficio}</div>}
-                  <div className="text-[11px] italic text-muted-foreground/70 truncate">{linea}{n.ubicacion ? `${linea ? ' · ' : ''}${n.ubicacion}` : ''}</div>
-                </div>
-                {n.es_adversario
-                  ? <span className="text-[10px] text-rose-300/80 border border-rose-800/50 rounded px-1 py-0.5 shrink-0">Adversario</span>
-                  : (n.bestiario_categoria === 'pnj' && <span className="text-[10px] text-sky-300/80 border border-sky-800/50 rounded px-1 py-0.5 shrink-0">PNJ</span>)}
-              </button>
-            );
-          })}
+        <div className="space-y-4">
+          {grouped.map(([grupo, items]) => (
+            <div key={grupo} data-testid={`npc-group-${grupo}`}>
+              <h4 className="text-sm font-heading text-[hsl(var(--gold))]/90 border-b border-[hsl(var(--gold))]/20 pb-1 mb-2">
+                {grupo} <span className="text-xs text-muted-foreground">({items.length})</span>
+              </h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                {items.map(renderCard)}
+              </div>
+            </div>
+          ))}
         </div>
       )}
 
@@ -309,8 +334,7 @@ const AdversarioForge = ({ adversarios, razas, creatureTypes, activeRuns }) => {
   const [count, setCount] = useState(1);
   const [busyDrop, setBusyDrop] = useState(false);
   const [allowedTypes, setAllowedTypes] = useState([]); // tipos permitidos (sin_raza)
-  const [showCfg, setShowCfg] = useState(false);
-  const [savingCfg, setSavingCfg] = useState(false);
+  const [cuerpoEntero, setCuerpoEntero] = useState(true); // retrato de cuerpo entero (reversible)
   const [retrato, setRetrato] = useState(null); // base64 preview
   const [retratoFileId, setRetratoFileId] = useState(null);
   const [historia, setHistoria] = useState('');
@@ -320,7 +344,6 @@ const AdversarioForge = ({ adversarios, razas, creatureTypes, activeRuns }) => {
   const [ubicaciones, setUbicaciones] = useState([]);
   const [ubicacionId, setUbicacionId] = useState('');
   const [apariencia, setApariencia] = useState('');
-  const [alineamiento, setAlineamiento] = useState('');
   const [edad, setEdad] = useState('');
   const [notas, setNotas] = useState('');
   const [relacionesDj, setRelacionesDj] = useState('');
@@ -371,7 +394,7 @@ const AdversarioForge = ({ adversarios, razas, creatureTypes, activeRuns }) => {
     setTipoCriatura('');
     setNombre('');
     setRetrato(null); setRetratoFileId(null); setHistoria(''); setNivel(formatDesafio(adv) || '');
-    setApariencia(''); setAlineamiento(adv.alineamiento || ''); setEdad(''); setNotas(''); setRelacionesDj('');
+    setApariencia(''); setEdad(''); setNotas(''); setRelacionesDj('');
     setRasgos([]); setModoHablar(''); setEspectroOrigen('');
     // Detecta la familia de rasgos (orcos/trolls/huargos/espectros).
     const idToFam = { orco: 'orcos', trol: 'trolls', troll: 'trolls', huargo: 'huargos' };
@@ -390,10 +413,9 @@ const AdversarioForge = ({ adversarios, razas, creatureTypes, activeRuns }) => {
   const doRetrato = async () => {
     const extraParts = [`${modo === 'sin_raza' ? (ct?.label || 'criatura') + ' de la Tierra Media, monstruoso' : ''}`];
     if (apariencia) extraParts.push(`distinctive physical features: ${apariencia}`);
-    if (alineamiento) extraParts.push(`alignment: ${alineamiento}`);
     const body = modo === 'racial'
-      ? { subculture_name: sub, sex: sexo, occupation: adv.nombre, extra: extraParts.filter(Boolean).join('; ') }
-      : { occupation: adv.nombre, sex: sexo, extra: extraParts.filter(Boolean).join('; ') };
+      ? { subculture_name: sub, sex: sexo, occupation: adv.nombre, extra: extraParts.filter(Boolean).join('; '), full_body: cuerpoEntero }
+      : { occupation: adv.nombre, sex: sexo, extra: extraParts.filter(Boolean).join('; '), full_body: cuerpoEntero };
     const res = await api.post('/npc-generator/portrait', body);
     setRetrato(res.data?.image_base64 || null);
     setRetratoFileId(res.data?.file_id || null);
@@ -404,7 +426,6 @@ const AdversarioForge = ({ adversarios, razas, creatureTypes, activeRuns }) => {
       `Adversario tipo «${adv.nombre}».`,
       modo === 'racial' ? `Raza/subcultura: ${sub || raza || '—'}.` : `Criatura: ${ct?.label || tipoCriatura || '—'}.`,
       `Nombre: ${nombre || '—'}.`,
-      alineamiento ? `Alineamiento: ${alineamiento}.` : '',
       edad ? `Edad: ${edad}.` : '',
       apariencia ? `Apariencia y rasgos físicos: ${apariencia}.` : '',
       adv.descripcion ? `Descripción del tipo: ${adv.descripcion}.` : '',
@@ -452,26 +473,11 @@ const AdversarioForge = ({ adversarios, razas, creatureTypes, activeRuns }) => {
     finally { setBusyPerfil(false); }
   };
 
-  const guardarCfgAdversario = async () => {
-    if (!adv) return;
-    setSavingCfg(true);
-    try {
-      await api.patch(`/data/npcs/${adv._id || adv.id}`, {
-        modo_raza: modo, razas_excluidas: excluidas, tipos_criatura: allowedTypes,
-      });
-      toast.success('Configuración del adversario guardada');
-      setShowCfg(false);
-    } catch (e) {
-      toast.error(e?.response?.data?.detail || 'No se pudo guardar la configuración');
-    } finally { setSavingCfg(false); }
-  };
   const razasDisponibles = (permitidas && permitidas.length)
     ? razasKeys.filter((r) => permitidas.includes(r))
     : razasKeys.filter((r) => !excluidas.includes(r));
   const subs = (razas?.[raza] || []).map((s) => s.nombre);
   const ct = creatureTypes.find((c) => c.id === tipoCriatura);
-
-  const toggleExcluida = (r) => setExcluidas((prev) => prev.includes(r) ? prev.filter((x) => x !== r) : [...prev, r]);
 
   const onEspectroOrigen = (v) => {
     setEspectroOrigen(v);
@@ -492,8 +498,11 @@ const AdversarioForge = ({ adversarios, razas, creatureTypes, activeRuns }) => {
         const res = await api.post('/npc-generator/creature-name', { tipo: tipoCriatura, sexo });
         setNombre(res.data?.name || '');
       } else {
-        if (!sub) { toast.error('Elige la subcultura'); return; }
-        const res = await api.post('/npc-generator/name', { subculture_name: sub, sex: sexo, occupation: adv?.nombre || '' });
+        if (!raza) { toast.error('Elige la raza'); return; }
+        // Sin subcultura seleccionada = cualquiera de la raza (elegimos una al azar).
+        const subParaNombre = sub || (subs.length ? subs[Math.floor(Math.random() * subs.length)] : '');
+        if (!subParaNombre) { toast.error('Esta raza no tiene subculturas para generar el nombre'); return; }
+        const res = await api.post('/npc-generator/name', { subculture_name: subParaNombre, sex: sexo, occupation: adv?.nombre || '' });
         setNombre(res.data?.name || '');
       }
     } catch (e) {
@@ -538,7 +547,6 @@ const AdversarioForge = ({ adversarios, razas, creatureTypes, activeRuns }) => {
         descripcion: `${adv.descripcion || ''}${adv.descripcion ? ' · ' : ''}[${adv.nombre} — ${origen}]`.trim(),
         experiencia: adv.experiencia,
         desafio: nivel || formatDesafio(adv) || '',
-        ...(alineamiento ? { alineamiento } : {}),
         ...(edad ? { edad } : {}),
         ...(apariencia ? { apariencia } : {}),
         ...(notas ? { notas } : {}),
@@ -632,31 +640,7 @@ const AdversarioForge = ({ adversarios, razas, creatureTypes, activeRuns }) => {
       <div className="flex gap-2 items-center">
         <ModoBtn active={modo === 'sin_raza'} onClick={() => setModo('sin_raza')} testid="modo-sin-raza">Sin raza (criatura)</ModoBtn>
         <ModoBtn active={modo === 'racial'} onClick={() => setModo('racial')} testid="modo-racial">Racial (con raza)</ModoBtn>
-        <button onClick={() => setShowCfg((v) => !v)} title="Configurar y guardar el modo de raza de este adversario"
-          className="px-2 py-2 rounded-lg border border-[hsl(var(--gold))/40] text-[hsl(var(--gold))] hover:bg-[hsl(var(--gold))]/10" data-testid="adv-cfg-toggle">
-          <Settings className="w-4 h-4" />
-        </button>
       </div>
-
-      {showCfg && (
-        <div className="rounded-lg border border-[hsl(var(--gold))/30] bg-black/30 p-3 space-y-2" data-testid="adv-cfg-panel">
-          <p className="text-xs text-muted-foreground">Guarda para «{adv?.nombre}» su modo de raza actual y (si es sin raza) qué tipos de criatura puede ser. Así se preselecciona al elegirlo y se evitan errores.</p>
-          <div>
-            <label className="text-xs text-[hsl(var(--gold))] block mb-1">Tipos de criatura permitidos (si «sin raza»)</label>
-            <div className="flex flex-wrap gap-1.5" data-testid="allowed-types">
-              {creatureTypes.map((c) => (
-                <button key={c.id} onClick={() => setAllowedTypes((p) => p.includes(c.id) ? p.filter((x) => x !== c.id) : [...p, c.id])}
-                  className={`text-[11px] px-2 py-0.5 rounded-full border transition-colors ${allowedTypes.includes(c.id) ? 'bg-[hsl(var(--gold))]/15 border-[hsl(var(--gold))] text-[hsl(var(--gold))]' : 'border-border/50 text-muted-foreground'}`}
-                  data-testid={`allow-${c.id}`}>{c.label}</button>
-              ))}
-              {creatureTypes.length === 0 && <span className="text-xs text-muted-foreground">(sin tipos; añádelos en «Bases de nombres»)</span>}
-            </div>
-          </div>
-          <Button size="sm" onClick={guardarCfgAdversario} disabled={savingCfg} className="bg-[hsl(var(--gold))] text-black" data-testid="adv-cfg-save">
-            {savingCfg ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Save className="w-4 h-4 mr-1" />} Guardar configuración
-          </Button>
-        </div>
-      )}
 
       {modo === 'sin_raza' ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -677,16 +661,14 @@ const AdversarioForge = ({ adversarios, razas, creatureTypes, activeRuns }) => {
         </div>
       ) : (
         <div className="space-y-3">
-          <div>
-            <label className="text-xs text-muted-foreground">Razas excluidas para este adversario (p. ej. Espectro no puede ser Elfo)</label>
-            <div className="flex flex-wrap gap-1.5 mt-1" data-testid="excl-chips">
-              {razasKeys.map((r) => (
-                <button key={r} onClick={() => toggleExcluida(r)}
-                  className={`text-[11px] px-2 py-0.5 rounded-full border transition-colors ${excluidas.includes(r) ? 'bg-rose-900/40 border-rose-700 text-rose-200 line-through' : 'border-border/50 text-muted-foreground hover:border-border'}`}
-                  data-testid={`excl-${r}`}>{r}</button>
-              ))}
-            </div>
-          </div>
+          {(permitidas?.length > 0 || excluidas?.length > 0) && (
+            <p className="text-xs text-muted-foreground italic" data-testid="adv-razas-info">
+              {permitidas?.length > 0
+                ? <>Razas permitidas: {permitidas.join(', ')}.</>
+                : <>Razas excluidas: {excluidas.join(', ')}.</>}
+              {' '}(Estas restricciones se editan desde el Bestiario.)
+            </p>
+          )}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <Field label="Raza">
               <select value={raza} onChange={(e) => { setRaza(e.target.value); setSub(''); }} className="forge-select" data-testid="racial-raza">
@@ -696,7 +678,7 @@ const AdversarioForge = ({ adversarios, razas, creatureTypes, activeRuns }) => {
             </Field>
             <Field label="Subcultura">
               <select value={sub} onChange={(e) => setSub(e.target.value)} disabled={!raza} className="forge-select" data-testid="racial-sub">
-                <option value="">— elige —</option>
+                <option value="">— cualquiera —</option>
                 {subs.map((s) => <option key={s} value={s}>{s}</option>)}
               </select>
             </Field>
@@ -729,11 +711,8 @@ const AdversarioForge = ({ adversarios, razas, creatureTypes, activeRuns }) => {
         </Field>
       </div>
 
-      {/* Alineamiento + Edad + Apariencia */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        <Field label="Alineamiento">
-          <Input value={alineamiento} onChange={(e) => setAlineamiento(e.target.value)} placeholder="Ej: Caótico Maligno" data-testid="adv-alineamiento-input" />
-        </Field>
+      {/* Edad + Apariencia */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <Field label="Edad (opcional)">
           <Input value={edad} onChange={(e) => setEdad(e.target.value)} placeholder="En blanco = sin especificar" data-testid="adv-edad-input" />
         </Field>
@@ -779,12 +758,16 @@ const AdversarioForge = ({ adversarios, razas, creatureTypes, activeRuns }) => {
         )}
       </div>
 
-      <div className="flex justify-center">
+      <div className="flex flex-col items-center gap-2">
         <Button onClick={generarPerfilCompleto} disabled={busyPerfil || busyStory || busyRetrato || !adv}
           className="bg-[hsl(var(--gold))] text-black hover:opacity-90" data-testid="adv-perfil-completo-btn">
           {busyPerfil ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Wand2 className="w-4 h-4 mr-1" />}
           Generar trasfondo + retrato
         </Button>
+        <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer" data-testid="adv-cuerpo-entero-label">
+          <input type="checkbox" checked={cuerpoEntero} onChange={(e) => setCuerpoEntero(e.target.checked)} data-testid="adv-cuerpo-entero-toggle" />
+          Retrato de cuerpo entero (para apreciar piernas, cicatrices, muletas…)
+        </label>
       </div>
 
       {/* Retrato IA + Historia IA + Nivel */}

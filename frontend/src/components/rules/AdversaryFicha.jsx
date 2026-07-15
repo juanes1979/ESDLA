@@ -74,7 +74,6 @@ const AdversaryFicha = ({ npc, onEdit, onDelete }) => {
         {npc.ubicacion && <div><span className="text-muted-foreground text-xs flex items-center gap-1"><MapPin className="w-3 h-3" /> Ubicación</span><span className="font-semibold">{npc.ubicacion}</span></div>}
         {npc.region && <div><span className="text-muted-foreground text-xs">Región</span><br /><span className="font-semibold">{npc.region}</span></div>}
         {npc.sexo && <div><span className="text-muted-foreground text-xs">Sexo</span><br /><span className="font-semibold">{npc.sexo}</span></div>}
-        {npc.alineamiento && <div><span className="text-muted-foreground text-xs">Alineamiento</span><br /><span className="font-semibold">{npc.alineamiento}</span></div>}
         {npc.edad && <div><span className="text-muted-foreground text-xs">Edad</span><br /><span className="font-semibold">{npc.edad}</span></div>}
       </div>
 

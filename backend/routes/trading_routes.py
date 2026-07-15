@@ -839,6 +839,12 @@ PORTRAIT_PROMPT_PREFIX = (
     "sombreado detallado, retrato de personaje sobre fondo blanco roto. "
 )
 
+PORTRAIT_PROMPT_PREFIX_FULLBODY = (
+    "Boceto a lápiz de grafito tradicional, estilo fantasía realista, sombreado detallado, "
+    "ilustración de personaje de CUERPO ENTERO (figura completa de pies a cabeza, postura de pie, "
+    "piernas y pies visibles, todos los detalles físicos del cuerpo visibles) sobre fondo blanco roto. "
+)
+
 
 def _strip_accents_alnum(text: str) -> str:
     """Quita acentos/caracteres especiales y deja solo letras/números (minúsculas)."""
@@ -1101,7 +1107,8 @@ async def generate_npc_profile(payload: dict = Body(...)):
             f"{sexo} {raza} ({subcultura}), {edad} años, {profesion}, en {ubicacion}. "
             f"{apariencia}".strip()
         )
-        prompt = PORTRAIT_PROMPT_PREFIX + detalles
+        _full_body = bool(npc.get("full_body", True))
+        prompt = (PORTRAIT_PROMPT_PREFIX_FULLBODY if _full_body else PORTRAIT_PROMPT_PREFIX) + detalles
         image_gen = OpenAIImageGeneration(api_key=api_key)
         images = await image_gen.generate_images(prompt=prompt, model="gpt-image-1", number_of_images=1)
         if images:

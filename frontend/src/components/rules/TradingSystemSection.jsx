@@ -2065,11 +2065,6 @@ export const NpcFichaCard = ({ npc, config, onEdit, onDelete }) => {
         {(npc.sentidos?.length > 0) && <Line label="Sentidos"><span className="text-foreground/90">{npc.sentidos.join(', ')}</span></Line>}
         {(npc.idiomas?.length > 0) && <Line label="Idiomas"><span className="text-foreground/90">{npc.idiomas.join(', ')}</span></Line>}
 
-        {npc.alineamiento && (
-          <p className="text-xs flex items-center gap-1 text-[hsl(var(--torch-orange))]/90">
-            <EyeOff className="w-3 h-3" /> <span className="text-muted-foreground">Alineamiento (DJ):</span> {npc.alineamiento}
-          </p>
-        )}
         {npc.historia && <p className="text-xs text-muted-foreground/80 italic pt-1 border-t border-border/20 whitespace-pre-line">{npc.historia}</p>}
         {npc.notas && <p className="text-xs text-muted-foreground/70"><span className="text-[hsl(var(--torch-orange))]/70">Notas DJ:</span> {npc.notas}</p>}
       </div>
@@ -2212,7 +2207,6 @@ export const NpcEditorModal = ({ npc, config, onSave, onClose }) => {
     rasgo_descripcion: '',
     modo_hablar: '',
     modo_hablar_desc: '',
-    alineamiento: '',
     habilidades: [],
     herramientas: [],
     sentidos: [],
@@ -2231,6 +2225,7 @@ export const NpcEditorModal = ({ npc, config, onSave, onClose }) => {
   const [validRasgos, setValidRasgos] = useState({ positivos: [], negativos: [] });
   const [genName, setGenName] = useState(false);
   const [genProfile, setGenProfile] = useState(false);
+  const [cuerpoEntero, setCuerpoEntero] = useState(true); // retrato de cuerpo entero (reversible)
   const [imageB64, setImageB64] = useState(null);
 
   const set = (patch) => setFormData(p => ({ ...p, ...patch }));
@@ -2357,7 +2352,7 @@ export const NpcEditorModal = ({ npc, config, onSave, onClose }) => {
   const handleGenerateProfile = async () => {
     setGenProfile(true);
     try {
-      const res = await api.post('/trading/npcs/generate-profile', { ...formData });
+      const res = await api.post('/trading/npcs/generate-profile', { ...formData, full_body: cuerpoEntero });
       if (res.data?.historia) set({ historia: res.data.historia });
       if (res.data?.retrato_file_id) set({ retrato_file_id: res.data.retrato_file_id });
       if (res.data?.image_base64) setImageB64(res.data.image_base64);
@@ -2519,22 +2514,12 @@ export const NpcEditorModal = ({ npc, config, onSave, onClose }) => {
             </select>
           </div>
 
-          {/* === BLOQUE SECRETO DEL DJ: Alineamiento + Estadísticas === */}
+          {/* === BLOQUE SECRETO DEL DJ: Estadísticas === */}
           <div className="bg-[hsl(var(--torch-orange))]/5 rounded-lg p-3 border border-[hsl(var(--torch-orange))]/40 space-y-3" data-testid="npc-secret-dj-block">
             <div className="flex items-center gap-2">
               <EyeOff className="w-4 h-4 text-[hsl(var(--torch-orange))]" />
               <span className="text-sm font-medium text-[hsl(var(--torch-orange))]">Datos secretos del DJ</span>
               <span className="text-xs text-muted-foreground">(el jugador no los ve sin tirada enfrentada)</span>
-            </div>
-
-            {/* Alineamiento (lista cerrada, aleatorio si vacío) */}
-            <div>
-              <label className={labelCls}>Alineamiento <span className="text-xs">(vacío = aleatorio al guardar)</span></label>
-              <select className={selectCls} value={formData.alineamiento}
-                onChange={(e) => set({ alineamiento: e.target.value })} data-testid="npc-alineamiento-select">
-                <option value="">-- Aleatorio al guardar --</option>
-                {(meta?.alineamientos || []).map(a => <option key={a} value={a}>{a}</option>)}
-              </select>
             </div>
 
             {/* Atributos: 6 características + CA + PG */}
@@ -2627,6 +2612,10 @@ export const NpcEditorModal = ({ npc, config, onSave, onClose }) => {
             <textarea className="w-full bg-black/30 border border-border rounded px-3 py-2 h-16"
               value={formData.apariencia} onChange={(e) => set({ apariencia: e.target.value })}
               placeholder="Ej: cicatriz en la cara, nariz grande, barba trenzada" data-testid="npc-apariencia-input" />
+            <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer mt-1" data-testid="npc-cuerpo-entero-label">
+              <input type="checkbox" checked={cuerpoEntero} onChange={(e) => setCuerpoEntero(e.target.checked)} data-testid="npc-cuerpo-entero-toggle" />
+              Retrato de cuerpo entero (para apreciar piernas, cicatrices, muletas…)
+            </label>
           </div>
 
           {portraitSrc && (

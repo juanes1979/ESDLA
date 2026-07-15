@@ -815,3 +815,22 @@ Aplica una transacción YA negociada al personaje (reutiliza endpoints de equipo
 - Edición de adversarios: se mantiene el flujo simple (sin editor propio nuevo), por decisión del usuario.
 - Verificado: editor e2e (3 pestañas), origen espectro (Hombres→9 subculturas, Espíritu oculta subcultura),
   y round-trip de config por curl (PUT → generación refleja cambios; datos por defecto restaurados).
+
+## PNJs/Adversarios — Agrupación, sin alineamiento, retrato de cuerpo entero (Jul 2026)
+- **Agrupación en «PNJs existentes»** (NpcBrowser): las tarjetas se agrupan por «Raza · Subcultura»
+  (o por el tipo no-racial: Orco, Trol, Huargo, Espectro…) con cabecera y contador por grupo.
+- **Subcultura opcional = cualquiera**: en el creador de Adversario racial, si no se elige subcultura
+  el desplegable muestra «— cualquiera —»; al generar nombre se toma una subcultura al azar de la raza.
+- **Razas excluidas ya NO se editan desde la creación**: se quitó el bloque de chips editable y el
+  engranaje que hacía PATCH al Bestiario. Ahora solo se muestra informativamente («Razas permitidas/
+  excluidas: … Estas restricciones se editan desde el Bestiario»). Retiro del ejemplo «Espectro no
+  puede ser Elfo» (los espectros SÍ pueden ser elfos).
+- **Alineamiento eliminado** de toda la UI de PNJ (AdversarioForge, NpcEditorModal de Compra-Venta,
+  NpcFichaCard y AdversaryFicha) — en LSDLA 5e no existe y no aportaba.
+- **Retrato de cuerpo entero (reversible)**: nuevo `full_body` (default true) en
+  `POST /npc-generator/portrait` y en `/trading/npcs/generate-profile`. Prompts alternan entre
+  «head and shoulders» y figura completa de pies a cabeza (piernas/cicatrices/muletas visibles).
+  Interruptor «Retrato de cuerpo entero» en ambos formularios (`adv-cuerpo-entero-toggle`,
+  `npc-cuerpo-entero-toggle`) para comparar y decidir si se mantiene.
+- Verificado por captura: form de adversario sin engranaje/chips/alineamiento + toggle marcado;
+  navegador agrupado (ENANOS, HOMBRES, HOMBRES·GONDORIANOS, HOMBRES·HOMBRES DE BREE, ORCO).
