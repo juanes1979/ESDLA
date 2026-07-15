@@ -61,9 +61,13 @@ const AdversaryFicha = ({ npc, onEdit, onDelete }) => {
     clone.classList.add('npc-print-clone');
     document.body.appendChild(clone);
     document.body.classList.add('npc-printing');
+    const badge = document.getElementById('emergent-badge');
+    const prevBadge = badge ? badge.style.display : null;
+    if (badge) badge.style.setProperty('display', 'none', 'important');
     const cleanup = () => {
       document.body.classList.remove('npc-printing');
       if (clone.parentNode) clone.parentNode.removeChild(clone);
+      if (badge) badge.style.display = prevBadge || '';
       window.removeEventListener('afterprint', cleanup);
     };
     window.addEventListener('afterprint', cleanup);
@@ -72,32 +76,56 @@ const AdversaryFicha = ({ npc, onEdit, onDelete }) => {
 
   return (
     <div ref={cardRef} className="bg-card border border-[hsl(var(--destructive))]/40 rounded-xl p-4 space-y-4" data-testid="adversary-ficha">
-      {/* Cabecera */}
-      <div className="flex items-start gap-3 ficha-print-header">
-        {portrait
-          ? <img src={portrait} alt={npc.nombre} onClick={() => setZoom(true)} className="w-20 h-20 rounded-lg object-cover border border-[hsl(var(--gold))]/40 cursor-zoom-in hover:border-[hsl(var(--gold))] transition-colors" title="Ampliar retrato" data-testid="adversary-ficha-portrait" />
-          : <div className="w-20 h-20 rounded-lg border border-border/40 bg-black/40 flex items-center justify-center"><Skull className="w-8 h-8 text-muted-foreground/50" /></div>}
-        <div className="flex-1 min-w-0">
-          <h3 className="font-heading text-2xl text-[hsl(var(--gold))] leading-tight">{npc.nombre}{npc.apodo ? ` "${npc.apodo}"` : ''}</h3>
-          <p className="text-sm text-muted-foreground">{npc.tipo_adversario || npc.profesion}</p>
-          {npc.tipo && <p className="text-xs italic text-muted-foreground/70">{npc.tipo}</p>}
-          {/* Info suelta a los lados (solo impresión) */}
-          <div className="print-only ficha-print-side" data-testid="adversary-print-side">
-            {ca != null && <p><strong>CA:</strong> {ca}</p>}
-            {pg != null && <p><strong>PG:</strong> {pg}</p>}
-            {npc.velocidad != null && <p><strong>Velocidad:</strong> {npc.velocidad} m</p>}
-            {desafio && <p><strong>Desafío:</strong> {desafio}</p>}
-            {npc.percepcion_pasiva != null && <p><strong>Percepción pasiva:</strong> {npc.percepcion_pasiva}</p>}
-            {npc.ubicacion && <p><strong>Ubicación:</strong> {npc.ubicacion}</p>}
-            {atributos && Object.entries(atributos).map(([k, v]) => (
-              <p key={k}><strong>{k.slice(0, 3).toUpperCase()}:</strong> {v}</p>
-            ))}
-          </div>
+      {/* Zona superior: retrato grande (izq) + info y estadísticas (der) */}
+      <div className="adv-top flex flex-col sm:flex-row gap-4">
+        <div className="adv-portrait-col shrink-0 sm:w-56">
+          {portrait
+            ? <img src={portrait} alt={npc.nombre} onClick={() => setZoom(true)} className="w-full sm:w-56 h-72 rounded-lg object-cover object-top border border-[hsl(var(--gold))]/40 cursor-zoom-in hover:border-[hsl(var(--gold))] transition-colors" title="Ampliar retrato (cuerpo entero)" data-testid="adversary-ficha-portrait" />
+            : <div className="w-full sm:w-56 h-72 rounded-lg border border-border/40 bg-black/40 flex items-center justify-center"><Skull className="w-12 h-12 text-muted-foreground/50" /></div>}
         </div>
-        <div className="flex gap-1 no-print">
-          <button onClick={handlePrint} className="p-2 rounded hover:bg-white/10 text-muted-foreground" title="Imprimir ficha (A4)" data-testid="adversary-ficha-print"><Printer className="w-4 h-4" /></button>
-          {onEdit && <button onClick={onEdit} className="p-2 rounded hover:bg-white/10 text-muted-foreground" title="Editar" data-testid="adversary-ficha-edit"><Edit className="w-4 h-4" /></button>}
-          {onDelete && <button onClick={onDelete} className="p-2 rounded hover:bg-white/10 text-red-400" title="Borrar" data-testid="adversary-ficha-delete"><Skull className="w-4 h-4" /></button>}
+        <div className="adv-info-col flex-1 min-w-0 space-y-3">
+          <div className="flex items-start justify-between gap-2">
+            <div className="min-w-0">
+              <h3 className="font-heading text-3xl text-[hsl(var(--gold))] leading-tight">{npc.nombre}{npc.apodo ? ` "${npc.apodo}"` : ''}</h3>
+              <p className="text-sm text-muted-foreground">{npc.tipo_adversario || npc.profesion}</p>
+              {npc.tipo && <p className="text-xs italic text-muted-foreground/70">{npc.tipo}</p>}
+            </div>
+            <div className="flex gap-1 no-print">
+              <button onClick={handlePrint} className="p-2 rounded hover:bg-white/10 text-muted-foreground" title="Imprimir ficha (A4)" data-testid="adversary-ficha-print"><Printer className="w-4 h-4" /></button>
+              {onEdit && <button onClick={onEdit} className="p-2 rounded hover:bg-white/10 text-muted-foreground" title="Editar" data-testid="adversary-ficha-edit"><Edit className="w-4 h-4" /></button>}
+              {onDelete && <button onClick={onDelete} className="p-2 rounded hover:bg-white/10 text-red-400" title="Borrar" data-testid="adversary-ficha-delete"><Skull className="w-4 h-4" /></button>}
+            </div>
+          </div>
+
+          {/* Estadísticas */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+            <div className="bg-[hsl(var(--magic-blue))]/10 p-2 rounded text-center"><Shield className="w-4 h-4 mx-auto text-[hsl(var(--magic-blue))]" /><p className="text-xs text-muted-foreground mt-1">CA</p><p className="text-lg font-bold text-[hsl(var(--magic-blue))]">{ca}</p></div>
+            <div className="bg-red-500/10 p-2 rounded text-center"><Heart className="w-4 h-4 mx-auto text-red-400" /><p className="text-xs text-muted-foreground mt-1">PG</p><p className="text-lg font-bold text-red-400">{pg}</p></div>
+            {npc.velocidad != null && <div className="bg-yellow-500/10 p-2 rounded text-center"><Zap className="w-4 h-4 mx-auto text-yellow-400" /><p className="text-xs text-muted-foreground mt-1">Velocidad</p><p className="text-lg font-bold text-yellow-400">{npc.velocidad}m</p></div>}
+            <div className="bg-[hsl(var(--gold))]/10 p-2 rounded text-center"><Sparkles className="w-4 h-4 mx-auto text-[hsl(var(--gold))]" /><p className="text-xs text-muted-foreground mt-1">Desafío</p><p className="text-sm font-bold text-[hsl(var(--gold))]">{desafio || '—'}</p></div>
+            <div className="bg-cyan-500/10 p-2 rounded text-center"><Eye className="w-4 h-4 mx-auto text-cyan-400" /><p className="text-xs text-muted-foreground mt-1">Percepción</p><p className="text-lg font-bold text-cyan-400">{npc.percepcion_pasiva || 10}</p></div>
+          </div>
+
+          {/* Atributos */}
+          {atributos && (
+            <div className="grid grid-cols-3 gap-2">
+              {ATTRS.map((a) => (
+                <div key={a.key} className="bg-black/20 p-2 rounded text-center">
+                  <p className="text-xs text-[hsl(var(--gold))] font-bold">{a.abbr}</p>
+                  <p className="text-lg font-bold">{atributos[a.key]}</p>
+                  <p className="text-xs text-muted-foreground">{getModifier(atributos[a.key])}</p>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Datos de PNJ */}
+          <div className="grid grid-cols-3 gap-2 text-sm">
+            {npc.ubicacion && <div><span className="text-muted-foreground text-xs flex items-center gap-1"><MapPin className="w-3 h-3" /> Ubicación</span><br /><span className="font-semibold">{npc.ubicacion}</span></div>}
+            {npc.region && <div><span className="text-muted-foreground text-xs">Región</span><br /><span className="font-semibold">{npc.region}</span></div>}
+            {npc.sexo && <div><span className="text-muted-foreground text-xs">Sexo</span><br /><span className="font-semibold">{npc.sexo}</span></div>}
+            {npc.edad && <div><span className="text-muted-foreground text-xs">Edad</span><br /><span className="font-semibold">{npc.edad}</span></div>}
+          </div>
         </div>
       </div>
 
@@ -105,36 +133,6 @@ const AdversaryFicha = ({ npc, onEdit, onDelete }) => {
         <div className="fixed inset-0 z-[60] bg-black/90 flex items-center justify-center p-4 no-print" onClick={() => setZoom(false)} data-testid="adversary-portrait-zoom">
           <img src={portrait} alt={npc.nombre} className="max-h-[90vh] max-w-[90vw] rounded-lg border border-[hsl(var(--gold))]/40 object-contain" />
           <button className="absolute top-4 right-4 text-white text-3xl leading-none" onClick={() => setZoom(false)} title="Cerrar">×</button>
-        </div>
-      )}
-
-      {/* Datos de PNJ */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm">
-        {npc.ubicacion && <div><span className="text-muted-foreground text-xs flex items-center gap-1"><MapPin className="w-3 h-3" /> Ubicación</span><span className="font-semibold">{npc.ubicacion}</span></div>}
-        {npc.region && <div><span className="text-muted-foreground text-xs">Región</span><br /><span className="font-semibold">{npc.region}</span></div>}
-        {npc.sexo && <div><span className="text-muted-foreground text-xs">Sexo</span><br /><span className="font-semibold">{npc.sexo}</span></div>}
-        {npc.edad && <div><span className="text-muted-foreground text-xs">Edad</span><br /><span className="font-semibold">{npc.edad}</span></div>}
-      </div>
-
-      {/* Estadísticas */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
-        <div className="bg-[hsl(var(--magic-blue))]/10 p-2 rounded text-center"><Shield className="w-4 h-4 mx-auto text-[hsl(var(--magic-blue))]" /><p className="text-xs text-muted-foreground mt-1">CA</p><p className="text-lg font-bold text-[hsl(var(--magic-blue))]">{ca}</p></div>
-        <div className="bg-red-500/10 p-2 rounded text-center"><Heart className="w-4 h-4 mx-auto text-red-400" /><p className="text-xs text-muted-foreground mt-1">PG</p><p className="text-lg font-bold text-red-400">{pg}</p></div>
-        {npc.velocidad != null && <div className="bg-yellow-500/10 p-2 rounded text-center"><Zap className="w-4 h-4 mx-auto text-yellow-400" /><p className="text-xs text-muted-foreground mt-1">Velocidad</p><p className="text-lg font-bold text-yellow-400">{npc.velocidad}m</p></div>}
-        <div className="bg-[hsl(var(--gold))]/10 p-2 rounded text-center"><Sparkles className="w-4 h-4 mx-auto text-[hsl(var(--gold))]" /><p className="text-xs text-muted-foreground mt-1">Desafío</p><p className="text-sm font-bold text-[hsl(var(--gold))]">{desafio || '—'}</p></div>
-        <div className="bg-cyan-500/10 p-2 rounded text-center"><Eye className="w-4 h-4 mx-auto text-cyan-400" /><p className="text-xs text-muted-foreground mt-1">Percepción</p><p className="text-lg font-bold text-cyan-400">{npc.percepcion_pasiva || 10}</p></div>
-      </div>
-
-      {/* Atributos */}
-      {atributos && (
-        <div className="grid grid-cols-6 gap-2">
-          {ATTRS.map((a) => (
-            <div key={a.key} className="bg-black/20 p-2 rounded text-center">
-              <p className="text-xs text-[hsl(var(--gold))] font-bold">{a.abbr}</p>
-              <p className="text-lg font-bold">{atributos[a.key]}</p>
-              <p className="text-xs text-muted-foreground">{getModifier(atributos[a.key])}</p>
-            </div>
-          ))}
         </div>
       )}
 

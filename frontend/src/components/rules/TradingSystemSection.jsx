@@ -1992,9 +1992,13 @@ export const NpcFichaCard = ({ npc, config, onEdit, onDelete }) => {
     clone.classList.add('npc-print-clone');
     document.body.appendChild(clone);
     document.body.classList.add('npc-printing');
+    const badge = document.getElementById('emergent-badge');
+    const prevBadge = badge ? badge.style.display : null;
+    if (badge) badge.style.setProperty('display', 'none', 'important');
     const cleanup = () => {
       document.body.classList.remove('npc-printing');
       if (clone.parentNode) clone.parentNode.removeChild(clone);
+      if (badge) badge.style.display = prevBadge || '';
       window.removeEventListener('afterprint', cleanup);
     };
     window.addEventListener('afterprint', cleanup);
@@ -2005,7 +2009,7 @@ export const NpcFichaCard = ({ npc, config, onEdit, onDelete }) => {
     <div ref={cardRef} className="bg-black/20 rounded-lg border border-border/30 hover:border-[hsl(var(--gold))]/50 transition-colors overflow-hidden flex flex-col"
       data-testid={`npc-ficha-${npc._id}`}>
       {/* Cabecera: retrato + nombre + acciones */}
-      <div className="flex gap-3 p-3 border-b border-border/30 bg-gradient-to-r from-black/40 to-transparent ficha-print-header">
+      <div className="flex gap-3 p-3 border-b border-border/30 bg-gradient-to-r from-black/40 to-transparent">
         <div className="shrink-0">
           {portraitSrc ? (
             <img src={portraitSrc} alt={npc.nombre} onClick={() => setZoom(true)}
@@ -2029,19 +2033,6 @@ export const NpcFichaCard = ({ npc, config, onEdit, onDelete }) => {
               <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={onEdit} data-testid={`npc-edit-${npc._id}`}><Edit className="w-4 h-4" /></Button>
               <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-red-400 hover:text-red-300" onClick={onDelete} data-testid={`npc-delete-${npc._id}`}><Trash2 className="w-4 h-4" /></Button>
             </div>
-          </div>
-          {/* Info suelta a los lados (solo impresión) */}
-          <div className="print-only ficha-print-side" data-testid={`npc-print-side-${npc._id}`}>
-            <p><strong>CA:</strong> {npc.ca ?? 10}</p>
-            <p><strong>PG:</strong> {npc.pg ?? '—'}</p>
-            {npc.velocidad != null && <p><strong>Velocidad:</strong> {npc.velocidad} m</p>}
-            {npc.percepcion_pasiva != null && <p><strong>Percepción pasiva:</strong> {npc.percepcion_pasiva}</p>}
-            {npc.ubicacion && <p><strong>Ubicación:</strong> {npc.ubicacion}</p>}
-            {npc.region && <p><strong>Región:</strong> {npc.region}</p>}
-            {(npc.profesion_comerciante || npc.profesion) && <p><strong>Oficio:</strong> {npc.profesion_comerciante || npc.profesion}</p>}
-            {ABILITIES.map(a => (
-              <p key={a.key}><strong>{a.label}:</strong> {car[a.key] ?? 10} ({fmtMod(abilityMod(car[a.key]))})</p>
-            ))}
           </div>
         </div>
       </div>

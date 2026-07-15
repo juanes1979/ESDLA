@@ -865,10 +865,12 @@ Aplica una transacción YA negociada al personaje (reutiliza endpoints de equipo
   retrato se amplía a ≈11 cm de ancho (media página) sin alterar el resto del diseño. Aplica a
   `NpcFichaCard` y `AdversaryFicha` (imgs `npc-ficha-portrait-*` y `adversary-ficha-portrait`).
 
-## Impresión/PDF — fix multipágina + info lateral (Jul 2026)
-- **Multipágina arreglado**: `handlePrint` ahora CLONA la ficha como hijo directo de `<body>`
-  (`.npc-print-clone`) y el CSS de impresión usa `position: static` (antes `position:absolute`
-  recortaba todo a una sola hoja). El contenido largo pagina correctamente en varias hojas.
-- **Info lateral (rellena los huecos)**: junto al retrato grande (≈9,5 cm, cabecera en fila) se
-  muestra un bloque solo-impresión (`.ficha-print-side`, clase util `.print-only`) con CA, PG,
-  Velocidad, Desafío, Percepción pasiva, ubicación/región/oficio y los atributos.
+## PDF/impresión — layout tipo mockup + sin badge (Jul 2026)
+- **`AdversaryFicha` reestructurada** a 2 columnas arriba (retrato grande a la izquierda `object-cover`
+  + nombre/estadísticas/atributos/ubicación a la derecha), replicando el ejemplo aportado por el usuario;
+  el resto (Sentidos, Habilidades, Ataques, Acciones…) fluye a lo ancho debajo. Sirve para pantalla y PDF.
+- **Retrato**: en la ficha/PDF se muestra recortado a marco (`object-cover object-top`) para que se vea
+  lleno como el mockup; el retrato completo (cuerpo entero) se ve pulsando para ampliar (zoom `object-contain`).
+- **Badge "Made with Emergent" oculto en impresión**: `#emergent-badge` tiene `display:inline-flex`
+  inline `!important`, así que se oculta por JS en `handlePrint` (y regla CSS de respaldo). Ya no tapa texto.
+- Se quitó la lista lateral solo-impresión y los hacks anteriores; el PDF usa el diseño real de la ficha.

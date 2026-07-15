@@ -310,12 +310,11 @@ code {
   background: hsl(var(--gold-dim));
 }
 
-/* Elementos solo visibles al imprimir */
-.print-only { display: none; }
-
 /* ===== Impresión de Ficha de PNJ en A4 vertical ===== */
 @media print {
   @page { size: A4 portrait; margin: 1.2cm; }
+  /* Ocultar badge de Emergent (además se oculta por JS al imprimir) */
+  #emergent-badge { display: none !important; visibility: hidden !important; }
   /* Se clona la ficha como hijo directo de <body> (.npc-print-clone) para permitir
      paginación en varias hojas (position:absolute recortaba a una sola). */
   body.npc-printing > *:not(.npc-print-clone) { display: none !important; }
@@ -335,7 +334,6 @@ code {
     print-color-adjust: exact;
   }
   body.npc-printing .npc-print-clone .no-print { display: none !important; }
-  body.npc-printing .npc-print-clone .print-only { display: block !important; }
   body.npc-printing .npc-print-clone .line-clamp-3 {
     -webkit-line-clamp: unset !important;
     display: block !important;
@@ -343,26 +341,37 @@ code {
   }
   body.npc-printing .npc-print-clone img { border-color: #999 !important; }
 
-  /* Cabecera: retrato grande a la izquierda + info suelta al lado (rellena los laterales) */
-  body.npc-printing .npc-print-clone .ficha-print-header {
+  /* Zona superior de adversario/PNJ: retrato grande a la izquierda, info a la derecha */
+  body.npc-printing .npc-print-clone .adv-top {
     display: flex !important;
     flex-direction: row !important;
     align-items: flex-start !important;
     gap: 0.7cm !important;
     page-break-inside: avoid;
   }
-  body.npc-printing .npc-print-clone img[data-testid^="npc-ficha-portrait"],
-  body.npc-printing .npc-print-clone img[data-testid="adversary-ficha-portrait"] {
-    width: 9.5cm !important;
-    height: auto !important;
-    max-height: 13cm !important;
-    object-fit: contain !important;
-    flex: 0 0 auto !important;
-    margin: 0 !important;
-    border: 1px solid #999 !important;
-    border-radius: 4px !important;
+  body.npc-printing .npc-print-clone .adv-portrait-col {
+    flex: 0 0 8.5cm !important;
+    width: 8.5cm !important;
   }
-  body.npc-printing .npc-print-clone .ficha-print-side { flex: 1 1 auto !important; }
-  body.npc-printing .npc-print-clone .ficha-print-side p { margin: 0 0 0.15cm 0 !important; font-size: 12pt !important; }
+  body.npc-printing .npc-print-clone .adv-portrait-col img {
+    width: 8.5cm !important;
+    height: 11cm !important;
+    object-fit: cover !important;
+    object-position: top !important;
+  }
+  body.npc-printing .npc-print-clone .adv-portrait-col > div {
+    width: 8.5cm !important;
+    height: 11cm !important;
+  }
+  /* Retrato del comerciante (NpcFichaCard) algo más grande */
+  body.npc-printing .npc-print-clone img[data-testid^="npc-ficha-portrait"] {
+    width: 5cm !important;
+    height: 5cm !important;
+    object-fit: cover !important;
+  }
+  /* Evitar cortar bloques a la mitad entre páginas */
+  body.npc-printing .npc-print-clone .space-y-2 > div,
+  body.npc-printing .npc-print-clone .space-y-4 > div { page-break-inside: avoid; }
 }
+
 
