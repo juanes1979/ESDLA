@@ -448,23 +448,41 @@ const AdversarioForge = ({ adversarios, razas, creatureTypes, activeRuns }) => {
   }, [advId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const doRetrato = async () => {
-    const extraParts = [`${modo === 'sin_raza' ? (ct?.label || 'criatura') + ' de la Tierra Media, monstruoso' : ''}`];
-    if (apariencia) extraParts.push(`distinctive physical features: ${apariencia}`);
+    const familiaLabel = { orcos: 'orc', trolls: 'troll', huargos: 'giant warg wolf', espectros: 'ghostly wraith / undead spectre' }[familiaRasgos] || '';
+    const criaturaTxt = modo === 'sin_raza' ? (ct?.label || '') : '';
+    const razaTxt = modo === 'racial' ? [raza, sub].filter(Boolean).join(' ') : '';
+    const armasActuales = (bloque?.armas || adv.armas || []).map((a) => a?.nombre).filter(Boolean);
+    const parts = [];
+    // Lo MÁS importante: el tipo de criatura (orco, trol, huargo, espectro…)
+    if (familiaLabel) parts.push(`a ${familiaLabel} of Middle-earth, clearly non-human and monstrous`);
+    else if (criaturaTxt) parts.push(`a ${criaturaTxt} of Middle-earth`);
+    if (razaTxt) parts.push(`race: ${razaTxt}`);
+    if (adv.nombre) parts.push(`role: ${adv.nombre}`);
+    if (apariencia) parts.push(`distinctive physical features: ${apariencia}`);
+    if (armasActuales.length) parts.push(`equipped with ${armasActuales.join(', ')}, the weapons must be held or worn naturally in their correct place (not floating, not oversized)`);
+    if (adv.ubicacion) parts.push(`from ${adv.ubicacion}`);
+    if (edad) parts.push(`aged ${edad}`);
     const body = modo === 'racial'
-      ? { subculture_name: sub, sex: sexo, occupation: adv.nombre, extra: extraParts.filter(Boolean).join('; '), full_body: cuerpoEntero }
-      : { occupation: adv.nombre, sex: sexo, extra: extraParts.filter(Boolean).join('; '), full_body: cuerpoEntero };
+      ? { subculture_name: sub, sex: sexo, occupation: adv.nombre, extra: parts.join('; '), full_body: cuerpoEntero }
+      : { occupation: adv.nombre, sex: sexo, extra: parts.join('; '), full_body: cuerpoEntero };
     const res = await api.post('/npc-generator/portrait', body);
     setRetrato(res.data?.image_base64 || null);
     setRetratoFileId(res.data?.file_id || null);
   };
 
   const doHistoria = async () => {
+    const armasActuales = (bloque?.armas || adv.armas || []).map((a) => a?.nombre).filter(Boolean);
     const partes = [
       `Adversario tipo «${adv.nombre}».`,
-      modo === 'racial' ? `Raza/subcultura: ${sub || raza || '—'}.` : `Criatura: ${ct?.label || tipoCriatura || '—'}.`,
+      modo === 'racial' ? `Raza/subcultura: ${[raza, sub].filter(Boolean).join(' / ') || '—'}.` : `Criatura: ${ct?.label || tipoCriatura || '—'}.`,
       `Nombre: ${nombre || '—'}.`,
+      adv.ubicacion ? `Ubicación / lugar donde se le encuentra: ${adv.ubicacion}.` : '',
+      adv.region ? `Región: ${adv.region}.` : '',
+      `Profesión / rol: ${adv.nombre}.`,
       edad ? `Edad: ${edad}.` : '',
       apariencia ? `Apariencia y rasgos físicos: ${apariencia}.` : '',
+      armasActuales.length ? `Armas que porta: ${armasActuales.join(', ')}.` : '',
+      rasgos.length ? `Rasgos de personalidad: ${rasgos.join('; ')}.` : '',
       adv.descripcion ? `Descripción del tipo: ${adv.descripcion}.` : '',
     ].filter(Boolean).join(' ');
     const res = await api.post('/npc-generator/story', { nombre: nombre || adv.nombre, contexto: partes });

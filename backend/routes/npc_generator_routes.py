@@ -658,16 +658,16 @@ async def generate_npc_portrait(payload: PortraitRequest, user: dict = Depends(g
         descriptors.append(payload.extra)
 
     composicion = (
-        "full body figure, full-length standing pose, showing the entire body from head to feet, "
-        "visible legs and feet, any physical details of the whole body visible"
-        if payload.full_body else "head and shoulders"
+        "full body shot, full-length standing pose, the ENTIRE body visible from the top of the head to the feet, "
+        "nothing cropped, head and feet fully inside the frame, some empty margin above the head and below the feet"
+        if payload.full_body else "head and shoulders portrait"
     )
     prompt = (
-        "photorealistic black and white pencil drawing, hyper-detailed realistic graphite rendering, "
-        f"lifelike fantasy character, {composicion}, "
-        "Tolkien Middle-earth style, dramatic lighting, realistic skin texture, fabrics and materials, "
-        "fine detailed shading, sharp focus, no color, grayscale only, "
-        "looks like a real photograph finished in pencil, cinematic composition. "
+        "black and white photograph, ultra photorealistic, real photography look (NOT a drawing, not a sketch, not an illustration), "
+        f"{composicion}, "
+        "Tolkien Middle-earth style character, dramatic natural lighting, realistic skin pores, textures, fabrics, leather and metal, "
+        "subtle film grain, sharp focus, high dynamic range, monochrome grayscale, "
+        "photograph shot on a full-frame camera, cinematic composition, neutral studio-like background. "
         "Subject: " + ", ".join(descriptors) + "."
     )
 

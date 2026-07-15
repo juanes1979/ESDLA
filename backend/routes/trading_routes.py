@@ -835,16 +835,15 @@ import unicodedata as _unicodedata
 import time as _time
 
 PORTRAIT_PROMPT_PREFIX = (
-    "Dibujo a lápiz de grafito FOTORREALISTA en blanco y negro, hiperdetallado y realista "
-    "(aspecto de fotografía real acabada a lápiz), sombreado fino, enfoque nítido, "
-    "retrato de personaje sobre fondo blanco roto. "
+    "Fotografía en blanco y negro, ultra fotorrealista, aspecto de foto real (NO un dibujo ni boceto), "
+    "grano de película sutil, enfoque nítido, retrato de personaje sobre fondo neutro. "
 )
 
 PORTRAIT_PROMPT_PREFIX_FULLBODY = (
-    "Dibujo a lápiz de grafito FOTORREALISTA en blanco y negro, hiperdetallado y realista "
-    "(aspecto de fotografía real acabada a lápiz), sombreado fino, enfoque nítido, "
-    "ilustración de personaje de CUERPO ENTERO (figura completa de pies a cabeza, postura de pie, "
-    "piernas y pies visibles, todos los detalles físicos del cuerpo visibles) sobre fondo blanco roto. "
+    "Fotografía en blanco y negro, ultra fotorrealista, aspecto de foto real (NO un dibujo ni boceto), "
+    "grano de película sutil, enfoque nítido, plano de CUERPO ENTERO: se ve todo el cuerpo desde la cabeza "
+    "hasta los pies, nada recortado, con algo de margen por encima de la cabeza y por debajo de los pies, "
+    "sobre fondo neutro. "
 )
 
 

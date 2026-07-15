@@ -80,7 +80,7 @@ const AdversaryFicha = ({ npc, onEdit, onDelete }) => {
       <div className="adv-top flex flex-col sm:flex-row gap-4">
         <div className="adv-portrait-col shrink-0 sm:w-56">
           {portrait
-            ? <img src={portrait} alt={npc.nombre} onClick={() => setZoom(true)} className="w-full sm:w-56 h-72 rounded-lg object-cover object-top border border-[hsl(var(--gold))]/40 cursor-zoom-in hover:border-[hsl(var(--gold))] transition-colors" title="Ampliar retrato (cuerpo entero)" data-testid="adversary-ficha-portrait" />
+            ? <img src={portrait} alt={npc.nombre} onClick={() => setZoom(true)} className="w-full sm:w-56 h-72 rounded-lg object-contain bg-black/40 border border-[hsl(var(--gold))]/40 cursor-zoom-in hover:border-[hsl(var(--gold))] transition-colors" title="Ampliar retrato (cuerpo entero)" data-testid="adversary-ficha-portrait" />
             : <div className="w-full sm:w-56 h-72 rounded-lg border border-border/40 bg-black/40 flex items-center justify-center"><Skull className="w-12 h-12 text-muted-foreground/50" /></div>}
         </div>
         <div className="adv-info-col flex-1 min-w-0 space-y-3">

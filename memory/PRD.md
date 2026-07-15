@@ -874,3 +874,17 @@ Aplica una transacción YA negociada al personaje (reutiliza endpoints de equipo
 - **Badge "Made with Emergent" oculto en impresión**: `#emergent-badge` tiene `display:inline-flex`
   inline `!important`, así que se oculta por JS en `handlePrint` (y regla CSS de respaldo). Ya no tapa texto.
 - Se quitó la lista lateral solo-impresión y los hacks anteriores; el PDF usa el diseño real de la ficha.
+
+## Retratos y ficha — características completas + encuadre + foto B/N (Jul 2026)
+- **Retrato usa TODAS las características**: `doRetrato` construye el prompt con el tipo de criatura
+  PRIMERO y destacado (orco/trol/huargo/espectro), raza/subcultura, rol/profesión, apariencia física,
+  ARMAS asignadas (que se vean colocadas en su sitio, no flotando/deformes), ubicación y edad. El
+  trasfondo (`doHistoria`) incluye ubicación, región, profesión, armas, rasgos y raza/subcultura.
+- **Retrato más FOTOGRÁFICO**: prompts reescritos a «fotografía en blanco y negro, ultra fotorrealista,
+  aspecto de foto real (NO dibujo/boceto), grano de película» en `/npc-generator/portrait` y en los
+  prefijos de `trading_routes`. Cuerpo entero: cabeza y pies dentro del encuadre con margen.
+- **Encuadre en la ficha**: el retrato se muestra con `object-contain` (figura entera, ya no se corta
+  cabeza/pies); el detalle completo se ve al pulsar (zoom).
+- **Impresión: hueco de la Edad**: la columna del retrato se estira a la altura de la columna de datos
+  (`align-items: stretch`), así el texto inferior (Sentidos, Habilidades…) sube justo debajo de la línea
+  Ubicación/Región/Sexo y la Edad ocupa su hueco sin empujar el resto.

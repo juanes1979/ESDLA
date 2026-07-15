@@ -345,7 +345,7 @@ code {
   body.npc-printing .npc-print-clone .adv-top {
     display: flex !important;
     flex-direction: row !important;
-    align-items: flex-start !important;
+    align-items: stretch !important;
     gap: 0.7cm !important;
     page-break-inside: avoid;
   }
@@ -355,13 +355,15 @@ code {
   }
   body.npc-printing .npc-print-clone .adv-portrait-col img {
     width: 8.5cm !important;
-    height: 11cm !important;
-    object-fit: cover !important;
-    object-position: top !important;
+    height: 100% !important;
+    min-height: 9cm !important;
+    object-fit: contain !important;
+    object-position: center !important;
   }
   body.npc-printing .npc-print-clone .adv-portrait-col > div {
     width: 8.5cm !important;
-    height: 11cm !important;
+    height: 100% !important;
+    min-height: 9cm !important;
   }
   /* Retrato del comerciante (NpcFichaCard) algo más grande */
   body.npc-printing .npc-print-clone img[data-testid^="npc-ficha-portrait"] {
