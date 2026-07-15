@@ -737,3 +737,18 @@ Aplica una transacción YA negociada al personaje (reutiliza endpoints de equipo
 - Botón único "Generar trasfondo + retrato" (testid prof-perfil-completo-btn): encadena trasfondo
   (con todos los datos) → retrato (basado en apariencia/rasgo/alineamiento/edad). Verificado e2e en
   navegador: un clic genera historia (609 chars, con cicatriz/ojo perdido) y retrato a lápiz coherente.
+
+## Reglas → «PNJs» — Rediseño con modal de Compra-Venta + filtro profesión↔raza + navegador (Jul 2026)
+- La creación de PNJ de Profesión ahora REUTILIZA el modal de Compra-Venta (`NpcEditorModal`,
+  exportado desde TradingSystemSection). Se eliminó el antiguo `ProfesionForge` de página completa.
+- Orden forzado raza→subcultura→profesión: el select de Profesión está deshabilitado hasta elegir
+  Raza y solo muestra las profesiones coherentes (un Elfo no ve "Enano Herrero" ni "Caballero de Gondor";
+  sí "Elfo Artesano").
+- Filtro editable: mapa `npc_profesiones_por_raza` (profesión→razas permitidas; excepciones, vacío=todas)
+  en trading_config; default en `trading_npc_data.PROFESIONES_POR_RAZA`; expuesto en npc-meta como
+  `profesiones_por_raza`; editable en Compra-Venta → Configuración ("Profesiones permitidas por Raza").
+- Ubicación OBLIGATORIA (ya en el modal): Guardar deshabilitado sin ubicación.
+- Pestaña PNJs con 3 tarjetas: Profesión (abre modal), Adversario (AdversarioForge) y "PNJs existentes"
+  (`NpcBrowser`: fichas NpcFichaCard + filtro por ubicación + búsqueda por nombre + editar + borrar).
+- Verificado por testing_agent iteration_91: backend 5/5 pytest PASS + frontend 100%, cero errores.
+  Regresión Compra-Venta OK (mismo modal exportado).
