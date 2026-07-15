@@ -1,0 +1,28 @@
+{
+  "summary": "Main bug FIXED and VERIFIED: editing an NPC now shows the correct Categoría in NPCEditor for all 4 tabs (Malignos, PNJ, Animales, Especiales). Backend GET /api/data/npcs now returns 'categoria' inside each grouped NPC. UI test confirmed Malignos->'Malignos', PNJ->'PNJ', Animales->'Animales', Especiales->'Especiales'. Saving a PNJ without touching the category keeps it in the PNJ tab (not moved to Malignos). Secondary improvement (adversario categoría=='pnj' defaults to modo racial) cannot be exercised via UI because PNJForgeSection.jsx line 78 only loads bestiary.data.malignos into 'adversarios' — pnj-category NPCs never appear in adv-select. The internal logic (line 359) is correct but unreachable.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {"flow": "PNJs → Adversario forge (mejora secundaria)", "issue": "adv-select only lists malignos; NPCs with categoria='pnj' are excluded, so the default-to-racial-mode branch (adv.categoria==='pnj') is unreachable through the UI.", "affected_selectors": ["adv-select"]}
+    ],
+    "design_issues": []
+  },
+  "test_report_links": [],
+  "action_items": [
+    "In /app/frontend/src/components/rules/PNJForgeSection.jsx (line 78), include NPCs from bestiary.data.pnj alongside malignos when populating 'adversarios', so pnj-category NPCs appear in adv-select and the modo=racial default triggers. Example: setAdversarios([...(bestiary.data?.malignos||[]), ...(bestiary.data?.pnj||[])].sort(...))."
+  ],
+  "critical_code_review_comments": [
+    "npc_routes.py: fix is correct — 'categoria' now projected into each item in every group.",
+    "NPCEditor.jsx: init default 'malignos' remains but is overwritten by useEffect merging npc data, so no regression.",
+    "PNJForgeSection.jsx line 78 filters out pnj category from the adversario selector — this is the reason the secondary mejora can't be verified."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "100%", "frontend": "100% (main bug); mejora secundaria not reachable"},
+  "test_credentials": "elanillounico_tlotr@proton.me / 123456",
+  "seed_data_creation": "None. No test NPCs created (used existing bestiary entries).",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Main categoria-bug in /rules → Bestiario editor confirmed FIXED across all 4 category tabs. If retesting the secondary mejora, first apply the action_item fix to PNJForgeSection.jsx (include pnj in adversarios list) or create a bestiary NPC with categoria='pnj' AND make sure adv-select loads it.",
+  "rca of the issue": "Backend GET /api/data/npcs grouped NPCs by categoria but the projected dict per item did not include 'categoria'. NPCEditor's useEffect spreads the NPC into formData; without 'categoria' it kept the default 'malignos'. Fix (already applied by main agent) adds 'categoria': cat to the projection at line 158 of /app/backend/routes/npc_routes.py. Verified via curl and Playwright: each group's items now carry their category key, and the Select in the editor shows the correct value."
+}

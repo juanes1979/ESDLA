@@ -155,6 +155,7 @@ async def get_all_npcs(categoria: Optional[str] = None, search: Optional[str] = 
         if cat in grouped:
             npc_data = {
                 'id': npc['_id'],
+                'categoria': cat,
                 'nombre': npc.get('nombre'),
                 'descripcion': npc.get('descripcion'),
                 'tipo': npc.get('tipo'),

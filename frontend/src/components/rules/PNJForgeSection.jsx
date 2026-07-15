@@ -356,7 +356,7 @@ const AdversarioForge = ({ adversarios, razas, creatureTypes, activeRuns }) => {
   // Al elegir adversario, precarga su configuración de raza guardada.
   useEffect(() => {
     if (!adv) return;
-    setModo(adv.modo_raza === 'racial' ? 'racial' : (adv.modo_raza === 'sin_raza' ? 'sin_raza' : 'sin_raza'));
+    setModo(adv.modo_raza === 'racial' ? 'racial' : (adv.modo_raza === 'sin_raza' ? 'sin_raza' : (adv.categoria === 'pnj' ? 'racial' : 'sin_raza')));
     setExcluidas(Array.isArray(adv.razas_excluidas) ? adv.razas_excluidas : []);
     setPermitidas(Array.isArray(adv.razas_permitidas) ? adv.razas_permitidas : []);
     setAllowedTypes(Array.isArray(adv.tipos_criatura) ? adv.tipos_criatura : []);
