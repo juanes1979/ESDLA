@@ -122,6 +122,7 @@ class NPCCreate(BaseModel):
     # Config de creación de PNJ (Fase B): modo de raza del adversario
     modo_raza: Optional[str] = None  # 'racial' | 'sin_raza'
     razas_excluidas: Optional[List[str]] = None  # p. ej. ["Elfos"] para Espectro
+    razas_permitidas: Optional[List[str]] = None  # razas que SÍ puede ocupar (vacío = todas)
     tipos_criatura: Optional[List[str]] = None  # tipos permitidos si sin_raza (ids)
 
 
@@ -189,6 +190,7 @@ async def get_all_npcs(categoria: Optional[str] = None, search: Optional[str] = 
                 'historia': npc.get('historia'),
                 'modo_raza': npc.get('modo_raza'),
                 'razas_excluidas': npc.get('razas_excluidas'),
+                'razas_permitidas': npc.get('razas_permitidas'),
                 'tipos_criatura': npc.get('tipos_criatura'),
             }
             grouped[cat].append(npc_data)

@@ -752,3 +752,20 @@ Aplica una transacción YA negociada al personaje (reutiliza endpoints de equipo
   (`NpcBrowser`: fichas NpcFichaCard + filtro por ubicación + búsqueda por nombre + editar + borrar).
 - Verificado por testing_agent iteration_91: backend 5/5 pytest PASS + frontend 100%, cero errores.
   Regresión Compra-Venta OK (mismo modal exportado).
+
+## Reglas → «PNJs» + Bestiario — Desafío, ubicación, adversarios concretos, consulta y razas por tipo (Jul 2026)
+- (A) BUG Desafío: el chip del adversario mostraba «—». Ahora `formatDesafio`/`xpToCr` derivan el
+  Desafío desde la experiencia (tabla XP→CR 5e). Chip y campo «Nivel/Desafío» autorrellenados.
+- (B) Bestiario (NPCEditor): nuevo bloque «Razas que puede ocupar este tipo» (solo categorías
+  malignos/pnj) con modo Racial (chips de razas permitidas) o Sin raza (tipos de criatura). Persiste
+  modo_raza/razas_permitidas/tipos_criatura. FIX: añadido `razas_permitidas` a la proyección de
+  GET /api/data/npcs y al modelo NPCCreate para que rehidrate al reabrir la ficha.
+- (C) Los adversarios CONCRETOS creados desde «PNJs» ya NO van al Bestiario: se guardan en
+  trading_npcs con `es_adversario=true` (bypass en create_npc, sin autorrelleno), normalizados a
+  ca/pg/caracteristicas, con UBICACIÓN obligatoria. Botón «Guardar en PNJs existentes».
+- (D) Consulta «PNJs existentes» (NpcBrowser) rediseñada: tarjetas COMPACTAS (retrato+nombre+apodo+
+  oficio+raza·subcultura·ubicación); al pulsar abre la ficha completa en modal. Filtros: Tipo
+  (Comerciante/Adversario), Raza, Subcultura, Ubicación, Profesión/Tipo + búsqueda por nombre.
+- AdversarioForge usa `razas_permitidas` (si está definida en la ficha) para limitar las razas.
+- Verificado por testing_agent iteration_92: backend 7/7 pytest PASS + frontend 100%. Bug de
+  rehidratación de `razas_permitidas` corregido y verificado por curl. Sin datos de prueba residuales.
