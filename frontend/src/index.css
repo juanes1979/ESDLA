@@ -365,12 +365,6 @@ code {
     height: 100% !important;
     min-height: 9cm !important;
   }
-  /* Retrato del comerciante (NpcFichaCard) algo más grande */
-  body.npc-printing .npc-print-clone img[data-testid^="npc-ficha-portrait"] {
-    width: 5cm !important;
-    height: 5cm !important;
-    object-fit: cover !important;
-  }
   /* Evitar cortar bloques a la mitad entre páginas */
   body.npc-printing .npc-print-clone .space-y-2 > div,
   body.npc-printing .npc-print-clone .space-y-4 > div { page-break-inside: avoid; }

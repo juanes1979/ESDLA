@@ -899,3 +899,11 @@ Aplica una transacción YA negociada al personaje (reutiliza endpoints de equipo
   `/npc-generator/portrait` y prefijos de `trading_routes` («dibujo a lápiz de grafito hiperrealista,
   trazos visibles, aspecto de dibujo a mano, NO fotografía»).
 - **Preview de creación** con `object-contain` (caja 3:4): se ve la figura entera, ya no se corta.
+
+## Fichas de PNJ (comerciantes) impresas como los adversarios (Jul 2026)
+- `NpcFichaCard` reestructurada al mismo layout 2-columnas (`.adv-top` / `.adv-portrait-col` /
+  `.adv-info-col`): retrato grande a la izquierda + nombre/estadísticas(CA,PG,6 atributos)/Ubicación-
+  Región-Sexo-Perfil a la derecha; el resto (Rasgo, Modo de hablar, apariencia, Habilidades,
+  Herramientas, Sentidos, Idiomas, historia, notas) a lo ancho debajo. Aplica a pantalla y PDF.
+- Se eliminó la regla de impresión específica del retrato de comerciante; ahora usa el mismo
+  `.adv-portrait-col` (retrato grande, object-contain) y comparte el CSS de impresión con adversarios.

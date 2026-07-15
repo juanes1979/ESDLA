@@ -2008,25 +2008,25 @@ export const NpcFichaCard = ({ npc, config, onEdit, onDelete }) => {
   return (
     <div ref={cardRef} className="bg-black/20 rounded-lg border border-border/30 hover:border-[hsl(var(--gold))]/50 transition-colors overflow-hidden flex flex-col"
       data-testid={`npc-ficha-${npc._id}`}>
-      {/* Cabecera: retrato + nombre + acciones */}
-      <div className="flex gap-3 p-3 border-b border-border/30 bg-gradient-to-r from-black/40 to-transparent">
-        <div className="shrink-0">
+      {/* Zona superior: retrato grande (izq) + info y estadísticas (der) — mismo estilo que adversarios */}
+      <div className="adv-top flex flex-col sm:flex-row gap-4 p-3 border-b border-border/30 bg-gradient-to-r from-black/40 to-transparent">
+        <div className="adv-portrait-col shrink-0 sm:w-56">
           {portraitSrc ? (
             <img src={portraitSrc} alt={npc.nombre} onClick={() => setZoom(true)}
-              className="w-20 h-20 rounded-md object-cover border border-[hsl(var(--gold))]/40 cursor-zoom-in hover:border-[hsl(var(--gold))] transition-colors"
+              className="w-full sm:w-56 h-72 rounded-lg object-contain bg-black/40 border border-[hsl(var(--gold))]/40 cursor-zoom-in hover:border-[hsl(var(--gold))] transition-colors"
               title="Ampliar retrato" data-testid={`npc-ficha-portrait-${npc._id}`} />
           ) : (
-            <div className="w-20 h-20 rounded-md border border-border/40 bg-black/40 flex items-center justify-center">
-              <User className="w-8 h-8 text-muted-foreground/50" />
+            <div className="w-full sm:w-56 h-72 rounded-lg border border-border/40 bg-black/40 flex items-center justify-center">
+              <User className="w-12 h-12 text-muted-foreground/50" />
             </div>
           )}
         </div>
-        <div className="flex-1 min-w-0">
+        <div className="adv-info-col flex-1 min-w-0 space-y-3">
           <div className="flex justify-between items-start gap-2">
             <div className="min-w-0">
-              <h4 className="font-heading text-lg text-[hsl(var(--gold))] truncate">{npc.nombre}{npc.apodo ? ` "${npc.apodo}"` : ''}</h4>
+              <h4 className="font-heading text-2xl text-[hsl(var(--gold))]">{npc.nombre}{npc.apodo ? ` "${npc.apodo}"` : ''}</h4>
               <p className="text-sm text-muted-foreground">{npc.profesion_comerciante || npc.profesion || npc.ocupacion}</p>
-              {subtitulo && <p className="text-xs italic text-muted-foreground/80 truncate">Humanoide ({subtitulo}{npc.edad ? `, ${npc.edad} años` : ''})</p>}
+              {subtitulo && <p className="text-xs italic text-muted-foreground/80">Humanoide ({subtitulo}{npc.edad ? `, ${npc.edad} años` : ''})</p>}
             </div>
             <div className="flex gap-1 shrink-0 no-print">
               <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={handlePrint} title="Imprimir ficha (A4)" data-testid={`npc-print-${npc._id}`}><Printer className="w-4 h-4" /></Button>
@@ -2034,29 +2034,29 @@ export const NpcFichaCard = ({ npc, config, onEdit, onDelete }) => {
               <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-red-400 hover:text-red-300" onClick={onDelete} data-testid={`npc-delete-${npc._id}`}><Trash2 className="w-4 h-4" /></Button>
             </div>
           </div>
+
+          {/* Atributos: CA, PG y las 6 características con sus modificadores */}
+          <div className="flex flex-wrap gap-1.5">
+            <StatBox label="CA" value={npc.ca ?? 10} accent="border-[hsl(var(--magic-blue))]/50 bg-[hsl(var(--magic-blue))]/10" />
+            <StatBox label="PG" value={npc.pg ?? '—'} accent="border-red-500/40 bg-red-500/10" />
+            {ABILITIES.map(a => (
+              <StatBox key={a.key} label={a.label} value={car[a.key] ?? 10} sub={fmtMod(abilityMod(car[a.key]))} />
+            ))}
+          </div>
+
+          <div className="grid grid-cols-2 gap-x-3 gap-y-1">
+            {npc.ubicacion && <Line label="Ubicación">{npc.ubicacion}</Line>}
+            {npc.region && <Line label="Región">{npc.region}</Line>}
+            {npc.sexo && <Line label="Sexo">{npc.sexo}</Line>}
+            <Line label="Perfil">
+              <span className="px-2 py-0.5 rounded bg-black/30">{config?.merchant_profiles?.[npc.perfil_comerciante]?.nombre || npc.perfil_comerciante}</span>
+            </Line>
+          </div>
         </div>
       </div>
 
-      {/* Atributos: CA, PG y las 6 características con sus modificadores */}
-      <div className="flex flex-wrap gap-1.5 p-3 border-b border-border/30">
-        <StatBox label="CA" value={npc.ca ?? 10} accent="border-[hsl(var(--magic-blue))]/50 bg-[hsl(var(--magic-blue))]/10" />
-        <StatBox label="PG" value={npc.pg ?? '—'} accent="border-red-500/40 bg-red-500/10" />
-        {ABILITIES.map(a => (
-          <StatBox key={a.key} label={a.label} value={car[a.key] ?? 10} sub={fmtMod(abilityMod(car[a.key]))} />
-        ))}
-      </div>
-
-      {/* Datos completos */}
+      {/* Datos completos (ancho completo) */}
       <div className="p-3 space-y-1 flex-1">
-        <div className="grid grid-cols-2 gap-x-3 gap-y-1">
-          {npc.ubicacion && <Line label="Ubicación">{npc.ubicacion}</Line>}
-          {npc.region && <Line label="Región">{npc.region}</Line>}
-          {npc.sexo && <Line label="Sexo">{npc.sexo}</Line>}
-          <Line label="Perfil">
-            <span className="px-2 py-0.5 rounded bg-black/30">{config?.merchant_profiles?.[npc.perfil_comerciante]?.nombre || npc.perfil_comerciante}</span>
-          </Line>
-        </div>
-
         {npc.rasgo && (
           <p className="text-xs"><span className="text-muted-foreground">Rasgo ({npc.rasgo_tipo || '—'}):</span> <span className="text-[hsl(var(--gold))]/90">{npc.rasgo}</span>
             {npc.rasgo_descripcion && <span className="text-muted-foreground/80 italic"> — {npc.rasgo_descripcion}</span>}</p>
