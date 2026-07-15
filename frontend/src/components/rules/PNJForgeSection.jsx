@@ -321,6 +321,7 @@ const AdversarioForge = ({ adversarios, razas, creatureTypes, activeRuns }) => {
   const [rasgos, setRasgos] = useState([]);
   const [modoHablar, setModoHablar] = useState('');
   const [busyRasgos, setBusyRasgos] = useState(false);
+  const [espectroOrigen, setEspectroOrigen] = useState(''); // '', 'Hombres','Elfos','Enanos','espiritu'
 
   const adv = adversarios.find((a) => (a._id || a.id) === advId) || null;
 
@@ -363,7 +364,7 @@ const AdversarioForge = ({ adversarios, razas, creatureTypes, activeRuns }) => {
     setNombre('');
     setRetrato(null); setRetratoFileId(null); setHistoria(''); setNivel(formatDesafio(adv) || '');
     setApariencia(''); setAlineamiento(adv.alineamiento || ''); setEdad(''); setNotas(''); setRelacionesDj('');
-    setRasgos([]); setModoHablar('');
+    setRasgos([]); setModoHablar(''); setEspectroOrigen('');
     // Detecta la familia de rasgos (orcos/trolls/huargos/espectros).
     const idToFam = { orco: 'orcos', trol: 'trolls', troll: 'trolls', huargo: 'huargos' };
     let fam = '';
@@ -464,9 +465,20 @@ const AdversarioForge = ({ adversarios, razas, creatureTypes, activeRuns }) => {
 
   const toggleExcluida = (r) => setExcluidas((prev) => prev.includes(r) ? prev.filter((x) => x !== r) : [...prev, r]);
 
+  const onEspectroOrigen = (v) => {
+    setEspectroOrigen(v);
+    setNombre('');
+    if (v === 'espiritu') { setModo('espiritu'); setRaza(''); setSub(''); }
+    else { setModo('racial'); setRaza(v); setSub(''); }
+  };
+
   const generarNombre = async () => {
     setBusyName(true);
     try {
+      if (familiaRasgos === 'espectros' && espectroOrigen === 'espiritu') {
+        toast.info('Los espíritus no tienen raza física; escribe el nombre a mano.');
+        return;
+      }
       if (modo === 'sin_raza') {
         if (!tipoCriatura) { toast.error('Elige el tipo de criatura'); return; }
         const res = await api.post('/npc-generator/creature-name', { tipo: tipoCriatura, sexo });
@@ -487,11 +499,12 @@ const AdversarioForge = ({ adversarios, razas, creatureTypes, activeRuns }) => {
     if (!ubicacionId) { toast.error('Elige la ubicación del PNJ'); return; }
     setBusySave(true);
     try {
-      const origen = modo === 'sin_raza'
-        ? `${ct?.label || tipoCriatura}`
-        : `en vida: ${sub || raza || 'desconocido'}`;
+      const esEspiritu = familiaRasgos === 'espectros' && espectroOrigen === 'espiritu';
+      const origen = esEspiritu
+        ? 'espíritu sin forma física'
+        : (modo === 'sin_raza' ? `${ct?.label || tipoCriatura}` : `en vida: ${sub || raza || 'desconocido'}`);
       const loc = ubicaciones.find((u) => u.id === ubicacionId);
-      const razaFinal = modo === 'racial' ? (raza || '') : '';
+      const razaFinal = esEspiritu ? 'Espíritu' : (modo === 'racial' ? (raza || '') : '');
       const subFinal = modo === 'racial' ? (sub || '') : '';
       const { _id, id, ...rest } = adv;
       // Adversario CONCRETO → se guarda en «PNJs existentes» (trading_npcs),
@@ -575,7 +588,38 @@ const AdversarioForge = ({ adversarios, razas, creatureTypes, activeRuns }) => {
         </div>
       )}
 
-      {/* Modo de raza */}
+      {/* Origen del Espectro (Hombre / Elfo / Enano / Espíritu) */}
+      {familiaRasgos === 'espectros' && (
+        <div className="rounded-lg border border-[hsl(var(--magic-blue))]/30 bg-black/20 p-3 space-y-2" data-testid="espectro-origen-block">
+          <label className="text-xs text-[hsl(var(--magic-blue))] font-bold">Origen del espectro (en vida)</label>
+          <div className="flex flex-wrap gap-2">
+            {[['Hombres', 'Hombre'], ['Elfos', 'Elfo'], ['Enanos', 'Enano'], ['espiritu', 'Espíritu']].map(([val, label]) => (
+              <button key={val} type="button" onClick={() => onEspectroOrigen(val)} data-testid={`espectro-origen-${val}`}
+                className={`text-xs px-3 py-1 rounded-full border transition-colors ${espectroOrigen === val ? 'bg-[hsl(var(--magic-blue))]/20 border-[hsl(var(--magic-blue))] text-[hsl(var(--magic-blue))]' : 'border-border/50 text-muted-foreground'}`}>{label}</button>
+            ))}
+          </div>
+          {espectroOrigen && espectroOrigen !== 'espiritu' && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <Field label="Subcultura (para el nombre)">
+                <select value={sub} onChange={(e) => setSub(e.target.value)} className="forge-select" data-testid="espectro-sub">
+                  <option value="">— elige —</option>
+                  {subs.map((s) => <option key={s} value={s}>{s}</option>)}
+                </select>
+              </Field>
+              <Field label="Sexo">
+                <select value={sexo} onChange={(e) => setSexo(e.target.value)} className="forge-select" data-testid="espectro-sexo">
+                  <option value="M">Masculino</option>
+                  <option value="F">Femenino</option>
+                </select>
+              </Field>
+            </div>
+          )}
+          {espectroOrigen === 'espiritu' && <p className="text-xs text-muted-foreground italic">Los espíritus no tuvieron forma física; escribe el nombre a mano. Se agrupan como «Espíritu».</p>}
+        </div>
+      )}
+
+      {/* Modo de raza (oculto para espectros: usan el origen de arriba) */}
+      {familiaRasgos !== 'espectros' && (<>
       <div className="flex gap-2 items-center">
         <ModoBtn active={modo === 'sin_raza'} onClick={() => setModo('sin_raza')} testid="modo-sin-raza">Sin raza (criatura)</ModoBtn>
         <ModoBtn active={modo === 'racial'} onClick={() => setModo('racial')} testid="modo-racial">Racial (con raza)</ModoBtn>
@@ -656,6 +700,7 @@ const AdversarioForge = ({ adversarios, razas, creatureTypes, activeRuns }) => {
           </div>
         </div>
       )}
+      </>)}
 
       {/* Nombre + Ubicación */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">

@@ -795,6 +795,14 @@ Aplica una transacción YA negociada al personaje (reutiliza endpoints de equipo
 - Verificado: backend por curl (orcos con habla; huargos/espectros sin habla) + e2e frontend.
 - Nota: edición de la config de rasgos desde UI → Fase 3 («Bases de creación» con pestañas).
 
-## FASE 3 (pendiente) — Tipos/categorías + editor de bases
-- Espectro como raza (nombre por raza/subcultura como PJ). Editor «Bases de creación» con pestañas.
-  Editor propio para editar adversarios ya creados.
+## FASE 3 — Espectros por raza + editor «Bases de creación» (Jul 2026) ✅
+- Espectros: al detectarse familia «espectros», el creador muestra «Origen del espectro»
+  (Hombre/Elfo/Enano/Espíritu). Con raza → selector de subcultura (por raza) y nombre generado por
+  subcultura (como los PJ, vía `/npc-generator/name`). Con «Espíritu» → sin subcultura, nombre a mano,
+  raza guardada como «Espíritu» (agrupación).
+- Editor «Bases de creación» (CreatureNameConfigEditor con pestañas): Nombres/Tipos (existente),
+  Rasgos de adversario (4 familias × 5 grupos, textareas editables) y Formas de hablar. Persiste vía
+  `PUT /npc-generator/adversary-traits-config` y `PUT /npc-generator/creature-name-config`.
+- Edición de adversarios: se mantiene el flujo simple (sin editor propio nuevo), por decisión del usuario.
+- Verificado: editor e2e (3 pestañas), origen espectro (Hombres→9 subculturas, Espíritu oculta subcultura),
+  y round-trip de config por curl (PUT → generación refleja cambios; datos por defecto restaurados).
