@@ -795,7 +795,16 @@ Aplica una transacción YA negociada al personaje (reutiliza endpoints de equipo
 - Verificado: backend por curl (orcos con habla; huargos/espectros sin habla) + e2e frontend.
 - Nota: edición de la config de rasgos desde UI → Fase 3 («Bases de creación» con pestañas).
 
-## FASE 3 — Espectros por raza + editor «Bases de creación» (Jul 2026) ✅
+## BUG (categoría) + mejora raza/subcultura en PNJ del Bestiario (Jul 2026) ✅
+- BUG CORREGIDO Y VERIFICADO (testing_agent iteration_93, 100%): al editar un NPC del Bestiario, la
+  «Categoría» ya no cambia a «Malignos». Causa: GET /api/data/npcs agrupa por categoría pero la
+  proyección no incluía `categoria`; añadido `'categoria': cat` a la proyección (npc_routes.get_all_npcs).
+  El NPCEditor la carga vía `...npc`. Guardar mantiene la categoría; verificado en las 4 pestañas.
+- Mejora: el creador de «Adversario» ahora incluye también los tipos de categoría `pnj` del Bestiario;
+  para estos el modo por defecto es RACIAL (raza + subcultura → nombre por subcultura, como los PJ).
+  Al guardarse se marcan `es_adversario:false` + `bestiario_categoria:'pnj'` para NO confundirlos con
+  adversarios. La consulta añade el filtro «PNJ (Bestiario)» y una etiqueta azul «PNJ»; su ficha usa
+  AdversaryFicha (bloque completo). Verificado e2e (Guardia de la Comarca → modo racial + subcultura).
 - Espectros: al detectarse familia «espectros», el creador muestra «Origen del espectro»
   (Hombre/Elfo/Enano/Espíritu). Con raza → selector de subcultura (por raza) y nombre generado por
   subcultura (como los PJ, vía `/npc-generator/name`). Con «Espíritu» → sin subcultura, nombre a mano,

@@ -75,7 +75,7 @@ const PNJForgeSection = () => {
         ]);
         setMeta(m.data);
         setConfig(cfg.data);
-        setAdversarios((bestiary.data?.malignos || []).slice().sort((a, b) => (a.nombre || '').localeCompare(b.nombre)));
+        setAdversarios([...(bestiary.data?.malignos || []), ...(bestiary.data?.pnj || [])].sort((a, b) => (a.nombre || '').localeCompare(b.nombre || '', 'es')));
         setCreatureTypes(ct.data?.tipos || []);
         const rl = Array.isArray(runs.data) ? runs.data : (runs.data?.runs || []);
         setActiveRuns(rl.filter((r) => r.status === 'active'));
@@ -185,7 +185,11 @@ const NpcBrowser = ({ npcs, config, onEdit, onDelete }) => {
 
   const filtered = useMemo(() => (npcs || []).filter((n) => {
     const esAdv = !!n.es_adversario;
-    const okTipo = !tipo || (tipo === 'adversario' ? esAdv : !esAdv);
+    const esPnjBest = n.bestiario_categoria === 'pnj';
+    const okTipo = !tipo
+      || (tipo === 'adversario' ? esAdv
+      : tipo === 'pnj_bestiario' ? esPnjBest
+      : (!esAdv && !esPnjBest)); // comerciante
     const okRaza = !raza || n.raza === raza;
     const okSub = !sub || n.subcultura === sub;
     const okLoc = !loc || n.ubicacion === loc;
@@ -207,6 +211,7 @@ const NpcBrowser = ({ npcs, config, onEdit, onDelete }) => {
         <select value={tipo} onChange={(e) => setTipo(e.target.value)} className={selCls} data-testid="npc-browser-tipo">
           <option value="">— Todos —</option>
           <option value="comerciante">Comerciantes</option>
+          <option value="pnj_bestiario">PNJ (Bestiario)</option>
           <option value="adversario">Adversarios</option>
         </select>
         <select value={raza} onChange={(e) => setRaza(e.target.value)} className={selCls} data-testid="npc-browser-raza">
@@ -237,7 +242,8 @@ const NpcBrowser = ({ npcs, config, onEdit, onDelete }) => {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
           {filtered.map((n) => {
             const portrait = n.retrato_file_id ? `${API_URL}/api/trading/npcs/${n._id}/portrait` : null;
-            const oficio = n.es_adversario ? (n.tipo_adversario || n.profesion) : (n.profesion_comerciante || n.profesion || n.ocupacion);
+            const esBest = n.es_adversario || n.bestiario_categoria === 'pnj';
+            const oficio = esBest ? (n.tipo_adversario || n.profesion) : (n.profesion_comerciante || n.profesion || n.ocupacion);
             const linea = [n.raza, n.subcultura].filter(Boolean).join(' · ');
             return (
               <button key={n._id} onClick={() => setSelected(n)} data-testid={`npc-compact-${n._id}`}
@@ -252,7 +258,9 @@ const NpcBrowser = ({ npcs, config, onEdit, onDelete }) => {
                   {oficio && <div className="text-xs text-muted-foreground truncate">{oficio}</div>}
                   <div className="text-[11px] italic text-muted-foreground/70 truncate">{linea}{n.ubicacion ? `${linea ? ' · ' : ''}${n.ubicacion}` : ''}</div>
                 </div>
-                {n.es_adversario && <span className="text-[10px] text-rose-300/80 border border-rose-800/50 rounded px-1 py-0.5 shrink-0">Adversario</span>}
+                {n.es_adversario
+                  ? <span className="text-[10px] text-rose-300/80 border border-rose-800/50 rounded px-1 py-0.5 shrink-0">Adversario</span>
+                  : (n.bestiario_categoria === 'pnj' && <span className="text-[10px] text-sky-300/80 border border-sky-800/50 rounded px-1 py-0.5 shrink-0">PNJ</span>)}
               </button>
             );
           })}
@@ -264,7 +272,7 @@ const NpcBrowser = ({ npcs, config, onEdit, onDelete }) => {
         <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4" data-testid="npc-ficha-modal"
           onClick={(e) => { if (e.target === e.currentTarget) setSelected(null); }}>
           <div className="w-full max-w-2xl max-h-[92vh] overflow-y-auto">
-            {selected.es_adversario ? (
+            {(selected.es_adversario || selected.bestiario_categoria === 'pnj') ? (
               <AdversaryFicha npc={selected}
                 onDelete={() => { const id = selected._id; setSelected(null); onDelete(id); }} />
             ) : (
@@ -511,7 +519,8 @@ const AdversarioForge = ({ adversarios, razas, creatureTypes, activeRuns }) => {
       // normalizando el bloque de combate a la forma de la ficha (ca/pg/caracteristicas).
       const payload = {
         ...rest,
-        es_adversario: true,
+        es_adversario: adv.categoria !== 'pnj',
+        bestiario_categoria: adv.categoria || 'malignos',
         nombre: nombre.trim(),
         apodo: '',
         tipo_adversario: adv.nombre,
