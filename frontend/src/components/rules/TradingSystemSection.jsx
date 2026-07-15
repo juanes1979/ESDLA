@@ -2003,7 +2003,7 @@ export const NpcFichaCard = ({ npc, config, onEdit, onDelete }) => {
     <div ref={cardRef} className="bg-black/20 rounded-lg border border-border/30 hover:border-[hsl(var(--gold))]/50 transition-colors overflow-hidden flex flex-col"
       data-testid={`npc-ficha-${npc._id}`}>
       {/* Cabecera: retrato + nombre + acciones */}
-      <div className="flex gap-3 p-3 border-b border-border/30 bg-gradient-to-r from-black/40 to-transparent">
+      <div className="flex gap-3 p-3 border-b border-border/30 bg-gradient-to-r from-black/40 to-transparent ficha-print-header">
         <div className="shrink-0">
           {portraitSrc ? (
             <img src={portraitSrc} alt={npc.nombre} onClick={() => setZoom(true)}

@@ -340,4 +340,19 @@ code {
   body.npc-printing .npc-print-area img {
     border-color: #999 !important;
   }
+  /* Retrato grande en impresión (≈media página), cabecera apilada y centrada */
+  body.npc-printing .npc-print-area .ficha-print-header {
+    flex-direction: column !important;
+    align-items: center !important;
+    text-align: center !important;
+  }
+  body.npc-printing .npc-print-area img[data-testid^="npc-ficha-portrait"],
+  body.npc-printing .npc-print-area img[data-testid="adversary-ficha-portrait"] {
+    width: 11cm !important;
+    height: auto !important;
+    max-height: 13cm !important;
+    object-fit: contain !important;
+    display: block !important;
+    margin: 0 auto 0.4cm auto !important;
+  }
 }

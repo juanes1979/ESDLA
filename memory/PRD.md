@@ -854,3 +854,13 @@ Aplica una transacción YA negociada al personaje (reutiliza endpoints de equipo
 - Verificado por captura: Bestiario Malignos agrupado (BESTIA/ENANOS/ESPECTROS Y NO-MUERTOS…),
   bloque editable del «Jefe de Rufianes» (Gran Clava, Daga, Tácticas de Banda, Aullido de Triunfo),
   y zoom del retrato de «Barin Toffin».
+
+## PNJs — Edición de adversarios/PNJ + retrato grande en impresión (Jul 2026)
+- **Editar adversarios y PNJ del Bestiario**: nuevo `AdversaryEditModal` (reutiliza `AdversaryBlockEditor`).
+  Botón Editar visible en `AdversaryFicha`; en `NpcBrowser`, los adversarios/PNJ-bestiario abren este
+  editor propio (nombre, apodo, ubicación, sexo, edad, desafío, apariencia, rasgos, forma de hablar,
+  historia, notas, relaciones y TODO el bloque de combate) y guardan con `PUT /trading/npcs/{id}`
+  (los comerciantes siguen usando el modal de Compra-Venta). Verificado round-trip por API.
+- **Retrato grande al imprimir/PDF**: en `@media print` la cabecera de la ficha se apila y centra y el
+  retrato se amplía a ≈11 cm de ancho (media página) sin alterar el resto del diseño. Aplica a
+  `NpcFichaCard` y `AdversaryFicha` (imgs `npc-ficha-portrait-*` y `adversary-ficha-portrait`).

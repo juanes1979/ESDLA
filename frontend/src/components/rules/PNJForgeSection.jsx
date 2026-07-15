@@ -18,6 +18,7 @@ import CreatureNameConfigEditor from './CreatureNameConfigEditor';
 import { NpcEditorModal, NpcFichaCard } from './TradingSystemSection';
 import AdversaryFicha from './AdversaryFicha';
 import AdversaryBlockEditor from './AdversaryBlockEditor';
+import AdversaryEditModal from './AdversaryEditModal';
 
 // 5e XP → CR: deriva el "Desafío" cuando solo hay experiencia.
 const XP_TO_CR = [
@@ -54,6 +55,7 @@ const PNJForgeSection = () => {
   const [showConfig, setShowConfig] = useState(false);
   const [showNpcEditor, setShowNpcEditor] = useState(false);
   const [editingNpc, setEditingNpc] = useState(null);
+  const [editingAdv, setEditingAdv] = useState(null); // adversario/PNJ bestiario a editar
 
   const loadCreatureTypes = async () => {
     try { const ct = await api.get('/npc-generator/creature-types'); setCreatureTypes(ct.data?.tipos || []); } catch { /* noop */ }
@@ -103,6 +105,17 @@ const PNJForgeSection = () => {
     catch { toast.error('No se pudo eliminar'); }
   };
 
+  // Edición: adversarios/PNJ del Bestiario usan el editor propio (bloque de combate);
+  // los comerciantes usan el modal de Compra-Venta.
+  const editNpc = (n) => {
+    if (n.es_adversario || n.bestiario_categoria === 'pnj') setEditingAdv(n);
+    else { setEditingNpc(n); setShowNpcEditor(true); }
+  };
+  const saveAdv = async (doc) => {
+    await saveNpc(doc);
+    setEditingAdv(null);
+  };
+
   if (loading) return <div className="py-16 text-center"><Loader2 className="w-7 h-7 animate-spin mx-auto text-[hsl(var(--gold))]" /></div>;
 
   const ConfigBtn = () => (
@@ -111,9 +124,16 @@ const PNJForgeSection = () => {
     </Button>
   );
 
-  const editor = showNpcEditor && (
-    <NpcEditorModal npc={editingNpc} config={config} onSave={saveNpc}
-      onClose={() => { setShowNpcEditor(false); setEditingNpc(null); }} />
+  const editor = (
+    <>
+      {showNpcEditor && (
+        <NpcEditorModal npc={editingNpc} config={config} onSave={saveNpc}
+          onClose={() => { setShowNpcEditor(false); setEditingNpc(null); }} />
+      )}
+      {editingAdv && (
+        <AdversaryEditModal npc={editingAdv} onSave={saveAdv} onClose={() => setEditingAdv(null)} />
+      )}
+    </>
   );
 
   if (view === 'home') {
@@ -160,7 +180,7 @@ const PNJForgeSection = () => {
       {view === 'adversario'
         ? <AdversarioForge adversarios={adversarios} razas={meta?.razas || {}} creatureTypes={creatureTypes} activeRuns={activeRuns} />
         : <NpcBrowser npcs={npcs} config={config}
-            onEdit={(n) => { setEditingNpc(n); setShowNpcEditor(true); }} onDelete={deleteNpc} />}
+            onEdit={editNpc} onDelete={deleteNpc} />}
       <CreatureNameConfigEditor open={showConfig} onClose={() => setShowConfig(false)} onSaved={loadCreatureTypes} />
       {editor}
     </div>
@@ -300,6 +320,7 @@ const NpcBrowser = ({ npcs, config, onEdit, onDelete }) => {
           <div className="w-full max-w-2xl max-h-[92vh] overflow-y-auto">
             {(selected.es_adversario || selected.bestiario_categoria === 'pnj') ? (
               <AdversaryFicha npc={selected}
+                onEdit={() => { const n = selected; setSelected(null); onEdit(n); }}
                 onDelete={() => { const id = selected._id; setSelected(null); onDelete(id); }} />
             ) : (
               <NpcFichaCard npc={selected} config={config}

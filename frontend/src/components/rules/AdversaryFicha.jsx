@@ -71,7 +71,7 @@ const AdversaryFicha = ({ npc, onEdit, onDelete }) => {
   return (
     <div ref={cardRef} className="bg-card border border-[hsl(var(--destructive))]/40 rounded-xl p-4 space-y-4" data-testid="adversary-ficha">
       {/* Cabecera */}
-      <div className="flex items-start gap-3">
+      <div className="flex items-start gap-3 ficha-print-header">
         {portrait
           ? <img src={portrait} alt={npc.nombre} onClick={() => setZoom(true)} className="w-20 h-20 rounded-lg object-cover border border-[hsl(var(--gold))]/40 cursor-zoom-in hover:border-[hsl(var(--gold))] transition-colors" title="Ampliar retrato" data-testid="adversary-ficha-portrait" />
           : <div className="w-20 h-20 rounded-lg border border-border/40 bg-black/40 flex items-center justify-center"><Skull className="w-8 h-8 text-muted-foreground/50" /></div>}
