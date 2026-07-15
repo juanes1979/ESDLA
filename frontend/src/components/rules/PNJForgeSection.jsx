@@ -317,6 +317,10 @@ const AdversarioForge = ({ adversarios, razas, creatureTypes, activeRuns }) => {
   const [notas, setNotas] = useState('');
   const [relacionesDj, setRelacionesDj] = useState('');
   const [busyPerfil, setBusyPerfil] = useState(false);
+  const [familiaRasgos, setFamiliaRasgos] = useState('');
+  const [rasgos, setRasgos] = useState([]);
+  const [modoHablar, setModoHablar] = useState('');
+  const [busyRasgos, setBusyRasgos] = useState(false);
 
   const adv = adversarios.find((a) => (a._id || a.id) === advId) || null;
 
@@ -359,6 +363,19 @@ const AdversarioForge = ({ adversarios, razas, creatureTypes, activeRuns }) => {
     setNombre('');
     setRetrato(null); setRetratoFileId(null); setHistoria(''); setNivel(formatDesafio(adv) || '');
     setApariencia(''); setAlineamiento(adv.alineamiento || ''); setEdad(''); setNotas(''); setRelacionesDj('');
+    setRasgos([]); setModoHablar('');
+    // Detecta la familia de rasgos (orcos/trolls/huargos/espectros).
+    const idToFam = { orco: 'orcos', trol: 'trolls', troll: 'trolls', huargo: 'huargos' };
+    let fam = '';
+    if (Array.isArray(adv.tipos_criatura) && adv.tipos_criatura.length) fam = idToFam[adv.tipos_criatura[0]] || '';
+    if (!fam) {
+      const t = `${adv.tipo || ''} ${adv.nombre || ''}`.toLowerCase();
+      if (/espectr|nazg[uû]l|sombra|aparici|no-?muerto|fantasma/.test(t)) fam = 'espectros';
+      else if (/orco|trasgo|uruk|snaga|goblin/.test(t)) fam = 'orcos';
+      else if (/trol|troll/.test(t)) fam = 'trolls';
+      else if (/huargo|lobo|warg/.test(t)) fam = 'huargos';
+    }
+    setFamiliaRasgos(fam);
   }, [advId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const doRetrato = async () => {
@@ -401,6 +418,18 @@ const AdversarioForge = ({ adversarios, razas, creatureTypes, activeRuns }) => {
     try { await doHistoria(); toast.success('Historia generada'); }
     catch (e) { toast.error(e?.response?.data?.detail || 'No se pudo generar la historia'); }
     finally { setBusyStory(false); }
+  };
+
+  const tirarRasgos = async () => {
+    if (!familiaRasgos) { toast.error('No se ha detectado la familia de rasgos (orcos/trolls/huargos/espectros)'); return; }
+    setBusyRasgos(true);
+    try {
+      const res = await api.post('/npc-generator/adversary-traits', { familia: familiaRasgos });
+      setRasgos(res.data?.rasgos || []);
+      if (res.data?.modo_hablar) setModoHablar(res.data.modo_hablar);
+      toast.success('Rasgos generados');
+    } catch (e) { toast.error(e?.response?.data?.detail || 'No se pudieron generar los rasgos'); }
+    finally { setBusyRasgos(false); }
   };
 
   const generarPerfilCompleto = async () => {
@@ -492,6 +521,8 @@ const AdversarioForge = ({ adversarios, razas, creatureTypes, activeRuns }) => {
         ...(apariencia ? { apariencia } : {}),
         ...(notas ? { notas } : {}),
         ...(relacionesDj ? { relaciones_dj: relacionesDj } : {}),
+        ...(rasgos.length ? { rasgos } : {}),
+        ...(modoHablar ? { modo_hablar: modoHablar } : {}),
         ...(historia ? { historia } : {}),
         ...(retratoFileId ? { retrato_file_id: retratoFileId } : {}),
       };
@@ -656,6 +687,42 @@ const AdversarioForge = ({ adversarios, razas, creatureTypes, activeRuns }) => {
           <textarea rows={2} value={apariencia} onChange={(e) => setApariencia(e.target.value)} placeholder="Ej: múltiples cicatrices, una oreja cortada"
             className="w-full bg-black/40 rounded p-2 text-xs outline-none border border-border/50 resize-y" data-testid="adv-apariencia-input" />
         </Field>
+      </div>
+
+      {/* Rasgos de adversario (5 aleatorios: defecto, obsesión, miedo, manía, fortaleza) */}
+      <div className="rounded-lg border border-[hsl(var(--gold))]/30 bg-black/20 p-3 space-y-2" data-testid="adv-rasgos-block">
+        <div className="flex flex-wrap items-center gap-2">
+          <label className="text-xs text-[hsl(var(--gold))] font-bold">Rasgos de adversario</label>
+          <select value={familiaRasgos} onChange={(e) => setFamiliaRasgos(e.target.value)} className="forge-select h-8 text-xs w-36" data-testid="adv-familia-select">
+            <option value="">— familia —</option>
+            <option value="orcos">Orcos</option>
+            <option value="trolls">Trolls</option>
+            <option value="huargos">Huargos</option>
+            <option value="espectros">Espectros</option>
+          </select>
+          <Button size="sm" variant="outline" onClick={tirarRasgos} disabled={busyRasgos || !familiaRasgos}
+            className="h-8 border-[hsl(var(--gold))/50] text-[hsl(var(--gold))] text-xs" data-testid="adv-tirar-rasgos-btn">
+            {busyRasgos ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <><Wand2 className="w-3.5 h-3.5 mr-1" /> Tirar 5 rasgos</>}
+          </Button>
+        </div>
+        {rasgos.length > 0 && (
+          <div className="space-y-1" data-testid="adv-rasgos-list">
+            {rasgos.map((r, i) => (
+              <div key={i} className="flex items-center gap-2">
+                <input value={r} onChange={(e) => setRasgos((p) => p.map((x, j) => j === i ? e.target.value : x))}
+                  className="flex-1 bg-black/40 rounded px-2 py-1 text-xs outline-none border border-border/50" data-testid={`adv-rasgo-${i}`} />
+                <button onClick={() => setRasgos((p) => p.filter((_, j) => j !== i))} className="text-red-400 text-xs px-1" title="Quitar">✕</button>
+              </div>
+            ))}
+          </div>
+        )}
+        {(familiaRasgos === 'orcos' || familiaRasgos === 'trolls') && (
+          <div>
+            <label className="text-xs text-muted-foreground">Forma de hablar</label>
+            <input value={modoHablar} onChange={(e) => setModoHablar(e.target.value)} placeholder="Se rellena al tirar rasgos"
+              className="w-full bg-black/40 rounded px-2 py-1 text-xs outline-none border border-border/50" data-testid="adv-modo-hablar-input" />
+          </div>
+        )}
       </div>
 
       <div className="flex justify-center">

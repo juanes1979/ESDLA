@@ -807,3 +807,76 @@ async def generate_npc_story(payload: StoryRequest, user: dict = Depends(get_cur
     except Exception as e:
         logger.warning("historia IA falló: %s", e)
         raise HTTPException(status_code=502, detail="No se pudo generar la historia")
+
+
+# ============================================================================
+# Rasgos y formas de hablar de ADVERSARIOS (Orcos/Trolls/Huargos/Espectros)
+# ============================================================================
+import random as _random  # noqa: E402
+from routes.adversary_traits_data import (  # noqa: E402
+    DEFAULT_ADVERSARY_TRAITS, DEFAULT_FORMAS_HABLA, GRUPOS, GRUPO_LABELS, FAMILIAS_CON_HABLA,
+)
+
+
+async def _get_adversary_traits_config() -> dict:
+    """Lee la config editable de rasgos/formas de hablar (BD o por defecto)."""
+    try:
+        doc = await db.npc_adversary_traits_config.find_one({"_id": "default"})
+        if doc:
+            return {
+                "traits": doc.get("traits") or DEFAULT_ADVERSARY_TRAITS,
+                "formas_habla": doc.get("formas_habla") or DEFAULT_FORMAS_HABLA,
+            }
+    except Exception:
+        pass
+    return {"traits": DEFAULT_ADVERSARY_TRAITS, "formas_habla": DEFAULT_FORMAS_HABLA}
+
+
+class AdversaryTraitsRequest(BaseModel):
+    familia: str  # orcos | trolls | huargos | espectros
+
+
+@router.post("/adversary-traits")
+async def adversary_traits(payload: AdversaryTraitsRequest, user: dict = Depends(get_current_user)):
+    """Devuelve 5 rasgos (1 aleatorio por grupo) y una forma de hablar (orcos/trolls)."""
+    require_role(user, "maestro", "director_de_juego")
+    cfg = await _get_adversary_traits_config()
+    familia = (payload.familia or "").lower().strip()
+    traits = cfg["traits"].get(familia)
+    if not traits:
+        raise HTTPException(status_code=400, detail=f"Familia de rasgos desconocida: «{payload.familia}»")
+    rasgos = []
+    for g in GRUPOS:
+        opciones = traits.get(g) or []
+        if opciones:
+            rasgos.append(f"{GRUPO_LABELS.get(g, g)}: {_random.choice(opciones)}")
+    modo_hablar = None
+    if familia in FAMILIAS_CON_HABLA and cfg["formas_habla"]:
+        modo_hablar = _random.choice(cfg["formas_habla"])
+    return {"familia": familia, "rasgos": rasgos, "modo_hablar": modo_hablar}
+
+
+@router.get("/adversary-traits-config")
+async def get_adversary_traits_config(user: dict = Depends(get_current_user)):
+    require_role(user, "maestro")
+    return await _get_adversary_traits_config()
+
+
+class AdversaryTraitsConfigBody(BaseModel):
+    traits: Dict[str, Any]
+    formas_habla: List[str]
+
+
+@router.put("/adversary-traits-config")
+async def put_adversary_traits_config(body: AdversaryTraitsConfigBody, user: dict = Depends(get_current_user)):
+    require_role(user, "maestro")
+    if not isinstance(body.traits, dict) or not body.traits:
+        raise HTTPException(status_code=400, detail="Rasgos vacíos o inválidos")
+    from datetime import datetime, timezone
+    await db.npc_adversary_traits_config.update_one(
+        {"_id": "default"},
+        {"$set": {"traits": body.traits, "formas_habla": body.formas_habla,
+                  "updated_at": datetime.now(timezone.utc).isoformat()}},
+        upsert=True,
+    )
+    return {"ok": True}

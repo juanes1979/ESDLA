@@ -783,9 +783,17 @@ Aplica una transacción YA negociada al personaje (reutiliza endpoints de equipo
 - Verificado e2e: ficha del Cacique Orco muestra Cimitarra/Golpe con Escudo/Lanza, Ataque Furtivo, etc.;
   apariencia/alineamiento/relaciones persisten. Editar adversario desde la consulta: pendiente (Fase 3).
 
-## FASE 2 (pendiente) — Rasgos y formas de hablar de adversario
-- 1000 rasgos (Orcos/Trolls/Huargos/Espectros × Defectos/Obsesión/Miedo/Manía/Fortaleza, 50 c/u);
-  al generar: 1 aleatorio de cada grupo → 5 rasgos. Formas de hablar (50) solo Orcos/Trolls. Editable.
+## FASE 2 — Rasgos y formas de hablar de adversario (Jul 2026) ✅
+- Datos en `backend/routes/adversary_traits_data.py`: 1000 rasgos (orcos/trolls/huargos/espectros ×
+  defectos/obsesiones/miedos/manías/fortalezas × 50) + 50 formas de hablar.
+- Endpoints en npc_generator_routes: `POST /npc-generator/adversary-traits` {familia} → 5 rasgos
+  (1 por grupo) + modo_hablar (solo orcos/trolls); `GET/PUT /npc-generator/adversary-traits-config`
+  (editable, colección npc_adversary_traits_config).
+- AdversarioForge: selector de familia (auto-detectado por tipos_criatura/keywords, editable), botón
+  «Tirar 5 rasgos», lista editable (quitar ✕), campo forma de hablar (orcos/trolls). Se guardan
+  `rasgos` (array) y `modo_hablar`; la AdversaryFicha ya los muestra.
+- Verificado: backend por curl (orcos con habla; huargos/espectros sin habla) + e2e frontend.
+- Nota: edición de la config de rasgos desde UI → Fase 3 («Bases de creación» con pestañas).
 
 ## FASE 3 (pendiente) — Tipos/categorías + editor de bases
 - Espectro como raza (nombre por raza/subcultura como PJ). Editor «Bases de creación» con pestañas.
