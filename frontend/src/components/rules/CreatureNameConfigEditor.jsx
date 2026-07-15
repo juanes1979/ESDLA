@@ -135,6 +135,13 @@ const CreatureNameConfigEditor = ({ open, onClose, onSaved }) => {
                   </label>
                   <Button size="sm" variant="outline" onClick={delTipo} className="border-rose-700/50 text-rose-300 mt-4" data-testid="cfg-del-tipo"><Trash2 className="w-3.5 h-3.5" /></Button>
                 </div>
+                <div>
+                  <label className="text-xs text-muted-foreground block mb-1">Descripción física (para los retratos de IA)</label>
+                  <textarea rows={3} value={cur.descripcion_visual || ''} onChange={(e) => setField('descripcion_visual', e.target.value)}
+                    placeholder="Ej: Orco: piel gris verdosa, colmillos, orejas puntiagudas, cicatrices, ojos amarillos, armadura tosca de cuero y metal..."
+                    className="w-full bg-black/40 rounded p-2 text-xs outline-none border border-border/50 resize-y" data-testid="cfg-descripcion-visual" />
+                  <p className="text-[11px] text-muted-foreground/70 mt-1">Se añade como base al generar el retrato de este tipo de criatura, para que salga más fiel (p. ej. que un orco parezca un orco).</p>
+                </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <ArrayField label="Ataque (sílaba inicial)" field="ataque" />
                   <ArrayField label="Núcleo (sílaba central, 70%)" field="nucleo" />

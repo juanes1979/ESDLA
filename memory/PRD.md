@@ -888,3 +888,14 @@ Aplica una transacción YA negociada al personaje (reutiliza endpoints de equipo
 - **Impresión: hueco de la Edad**: la columna del retrato se estira a la altura de la columna de datos
   (`align-items: stretch`), así el texto inferior (Sentidos, Habilidades…) sube justo debajo de la línea
   Ubicación/Región/Sexo y la Edad ocupa su hueco sin empujar el resto.
+
+## Retratos — descripción por tipo de criatura + estilo lápiz hecho a mano (Jul 2026)
+- **Campo «Descripción física» por tipo de criatura** en «Bases de creación» → Nombres/Tipos
+  (`descripcion_visual`, editable por Maestro). Se guarda en `npc_creature_name_config` y se expone
+  vía `/npc-generator/creature-types`. Orco/Trol/Huargo traen descripción por defecto.
+- `doRetrato` inyecta esa descripción como base prioritaria del prompt (para que un orco parezca un
+  orco); usa `ct.descripcion_visual` (sin raza) o el tipo raíz de la familia (orcos→orco, etc.).
+- **Estilo revertido a dibujo a lápiz HIPERREALISTA hecho a mano** (no foto): prompts reescritos en
+  `/npc-generator/portrait` y prefijos de `trading_routes` («dibujo a lápiz de grafito hiperrealista,
+  trazos visibles, aspecto de dibujo a mano, NO fotografía»).
+- **Preview de creación** con `object-contain` (caja 3:4): se ve la figura entera, ya no se corta.

@@ -456,6 +456,10 @@ const AdversarioForge = ({ adversarios, razas, creatureTypes, activeRuns }) => {
     // Lo MÁS importante: el tipo de criatura (orco, trol, huargo, espectro…)
     if (familiaLabel) parts.push(`a ${familiaLabel} of Middle-earth, clearly non-human and monstrous`);
     else if (criaturaTxt) parts.push(`a ${criaturaTxt} of Middle-earth`);
+    // Descripción física general del tipo de criatura (editable en «Bases de creación»)
+    const famRoot = { orcos: 'orco', trolls: 'trol', huargos: 'huargo', espectros: 'espectro' }[familiaRasgos];
+    const creatureDesc = ct?.descripcion_visual || creatureTypes.find((c) => c.id === famRoot)?.descripcion_visual || '';
+    if (creatureDesc) parts.push(`physical appearance of this creature type (very important): ${creatureDesc}`);
     if (razaTxt) parts.push(`race: ${razaTxt}`);
     if (adv.nombre) parts.push(`role: ${adv.nombre}`);
     if (apariencia) parts.push(`distinctive physical features: ${apariencia}`);
@@ -852,8 +856,8 @@ const AdversarioForge = ({ adversarios, razas, creatureTypes, activeRuns }) => {
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 items-start">
         <div className="space-y-1.5">
           <label className="text-xs text-muted-foreground">Retrato IA</label>
-          <div className="w-full aspect-square rounded-lg border border-border/50 bg-black/40 overflow-hidden flex items-center justify-center">
-            {retrato ? <img src={`data:image/png;base64,${retrato}`} alt="retrato" className="w-full h-full object-cover" data-testid="adv-retrato-img" /> : <Skull className="w-7 h-7 text-muted-foreground/40" />}
+          <div className="w-full aspect-[3/4] rounded-lg border border-border/50 bg-black/40 overflow-hidden flex items-center justify-center">
+            {retrato ? <img src={`data:image/png;base64,${retrato}`} alt="retrato" className="w-full h-full object-contain" data-testid="adv-retrato-img" /> : <Skull className="w-7 h-7 text-muted-foreground/40" />}
           </div>
           <Button size="sm" variant="outline" onClick={generarRetrato} disabled={busyRetrato || !adv} className="w-full border-[hsl(var(--gold))/50] text-[hsl(var(--gold))] text-xs" data-testid="adv-retrato-btn">
             {busyRetrato ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <><Wand2 className="w-3.5 h-3.5 mr-1" /> Retrato</>}

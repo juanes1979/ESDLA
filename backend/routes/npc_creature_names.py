@@ -16,6 +16,7 @@ CREATURE_NAME_DATA = {
     "orco": {
         "label": "Orco",
         "usa_sexo": True,
+        "descripcion_visual": "Orco de la Tierra Media: humanoide de piel grisácea o verdosa curtida, rostro brutal y bestial, colmillos y dientes irregulares, ojos amarillentos o rojizos, orejas puntiagudas, nariz chata, cicatrices de guerra, complexión robusta y musculosa; armadura tosca de cuero ennegrecido y placas de metal oxidado.",
         "ataque": ["Gor", "Ugl", "Shag", "Muz", "Lug", "Snag", "Az", "Bol", "Grish", "Mau",
                    "Rad", "Lag", "Yag", "Gaz", "Kruk", "Dush", "Morg", "Gash", "Uf", "Zab",
                    "Nar", "Brog", "Ghaz", "Khaz", "Gorf"],
@@ -32,6 +33,7 @@ CREATURE_NAME_DATA = {
     "troll": {
         "label": "Trol",
         "usa_sexo": False,
+        "descripcion_visual": "Trol de la Tierra Media: criatura enorme y colosal, piel gruesa y rocosa de tono gris-verdoso, brazos largos y desproporcionados, cara embrutecida con pequeños ojos hundidos, complexión gigantesca y encorvada, apenas cubierto con pieles y harapos sucios.",
         "ataque": ["Tom", "Bert", "Hug", "Olog", "Glog", "Búrz", "Murg", "Thro", "Lum", "Gork",
                    "Bru", "Thum", "Grob", "Blug", "Brog", "Dro", "Mug", "Grum", "Targ", "Karg"],
         "nucleo": ["ga", "lo", "bu", "ruz", "gha", "mo", "lu", "ro", "ba", "gu", "thu", "do", "bo", "ru", "ma"],
@@ -43,6 +45,7 @@ CREATURE_NAME_DATA = {
     "huargo": {
         "label": "Huargo",
         "usa_sexo": False,
+        "descripcion_visual": "Huargo de la Tierra Media: lobo gigante y salvaje del tamaño de un caballo, pelaje hirsuto y oscuro, fauces enormes con colmillos afilados, ojos feroces y depredadores, cuerpo musculoso y ágil, postura amenazante.",
         "ataque": ["Garm", "Varg", "Snat", "Gnar", "Rul", "Zang", "Karchar", "Draug", "Mork", "Ri",
                    "Gaur", "Fen", "Bled", "Carchar", "Gaurhoth", "Rhak", "Khar", "Zar", "Ghar", "Vra"],
         "nucleo": ["ra", "ro", "ugh", "zi", "ar", "gha", "ri", "ru", "za", "gor", "gash", "rak", "nak", "ruk", "zar"],
@@ -99,5 +102,9 @@ def generate_creature_name(tipo: str, sexo: Optional[str] = None, data: Optional
 
 def list_creature_types(data: Optional[dict] = None) -> list:
     catalog = data or CREATURE_NAME_DATA
-    return [{"id": k, "label": v.get("label", k.capitalize()), "usa_sexo": v.get("usa_sexo", False)}
-            for k, v in catalog.items()]
+    out = []
+    for k, v in catalog.items():
+        desc = v.get("descripcion_visual") or CREATURE_NAME_DATA.get(k, {}).get("descripcion_visual", "")
+        out.append({"id": k, "label": v.get("label", k.capitalize()),
+                    "usa_sexo": v.get("usa_sexo", False), "descripcion_visual": desc})
+    return out
