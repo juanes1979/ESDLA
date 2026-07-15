@@ -1988,15 +1988,17 @@ export const NpcFichaCard = ({ npc, config, onEdit, onDelete }) => {
   const handlePrint = () => {
     const el = cardRef.current;
     if (!el) return;
-    el.classList.add('npc-print-area');
+    const clone = el.cloneNode(true);
+    clone.classList.add('npc-print-clone');
+    document.body.appendChild(clone);
     document.body.classList.add('npc-printing');
     const cleanup = () => {
-      el.classList.remove('npc-print-area');
       document.body.classList.remove('npc-printing');
+      if (clone.parentNode) clone.parentNode.removeChild(clone);
       window.removeEventListener('afterprint', cleanup);
     };
     window.addEventListener('afterprint', cleanup);
-    setTimeout(() => window.print(), 50);
+    setTimeout(() => window.print(), 100);
   };
 
   return (
@@ -2027,6 +2029,19 @@ export const NpcFichaCard = ({ npc, config, onEdit, onDelete }) => {
               <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={onEdit} data-testid={`npc-edit-${npc._id}`}><Edit className="w-4 h-4" /></Button>
               <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-red-400 hover:text-red-300" onClick={onDelete} data-testid={`npc-delete-${npc._id}`}><Trash2 className="w-4 h-4" /></Button>
             </div>
+          </div>
+          {/* Info suelta a los lados (solo impresión) */}
+          <div className="print-only ficha-print-side" data-testid={`npc-print-side-${npc._id}`}>
+            <p><strong>CA:</strong> {npc.ca ?? 10}</p>
+            <p><strong>PG:</strong> {npc.pg ?? '—'}</p>
+            {npc.velocidad != null && <p><strong>Velocidad:</strong> {npc.velocidad} m</p>}
+            {npc.percepcion_pasiva != null && <p><strong>Percepción pasiva:</strong> {npc.percepcion_pasiva}</p>}
+            {npc.ubicacion && <p><strong>Ubicación:</strong> {npc.ubicacion}</p>}
+            {npc.region && <p><strong>Región:</strong> {npc.region}</p>}
+            {(npc.profesion_comerciante || npc.profesion) && <p><strong>Oficio:</strong> {npc.profesion_comerciante || npc.profesion}</p>}
+            {ABILITIES.map(a => (
+              <p key={a.key}><strong>{a.label}:</strong> {car[a.key] ?? 10} ({fmtMod(abilityMod(car[a.key]))})</p>
+            ))}
           </div>
         </div>
       </div>

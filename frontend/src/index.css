@@ -310,49 +310,59 @@ code {
   background: hsl(var(--gold-dim));
 }
 
+/* Elementos solo visibles al imprimir */
+.print-only { display: none; }
+
 /* ===== Impresión de Ficha de PNJ en A4 vertical ===== */
 @media print {
   @page { size: A4 portrait; margin: 1.2cm; }
-  body.npc-printing * { visibility: hidden !important; }
-  body.npc-printing .npc-print-area,
-  body.npc-printing .npc-print-area * { visibility: visible !important; }
-  body.npc-printing .npc-print-area {
-    position: absolute;
-    left: 0;
-    top: 0;
+  /* Se clona la ficha como hijo directo de <body> (.npc-print-clone) para permitir
+     paginación en varias hojas (position:absolute recortaba a una sola). */
+  body.npc-printing > *:not(.npc-print-clone) { display: none !important; }
+  body.npc-printing .npc-print-clone {
+    display: block !important;
+    position: static !important;
     width: 100%;
     background: #ffffff !important;
-    border: 1px solid #999 !important;
+    border: none !important;
     border-radius: 0 !important;
     box-shadow: none !important;
   }
-  body.npc-printing .npc-print-area * {
+  body.npc-printing .npc-print-clone * {
     color: #111 !important;
+    visibility: visible !important;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }
-  body.npc-printing .npc-print-area .no-print { display: none !important; }
-  body.npc-printing .npc-print-area .line-clamp-3 {
+  body.npc-printing .npc-print-clone .no-print { display: none !important; }
+  body.npc-printing .npc-print-clone .print-only { display: block !important; }
+  body.npc-printing .npc-print-clone .line-clamp-3 {
     -webkit-line-clamp: unset !important;
     display: block !important;
     overflow: visible !important;
   }
-  body.npc-printing .npc-print-area img {
-    border-color: #999 !important;
+  body.npc-printing .npc-print-clone img { border-color: #999 !important; }
+
+  /* Cabecera: retrato grande a la izquierda + info suelta al lado (rellena los laterales) */
+  body.npc-printing .npc-print-clone .ficha-print-header {
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: flex-start !important;
+    gap: 0.7cm !important;
+    page-break-inside: avoid;
   }
-  /* Retrato grande en impresión (≈media página), cabecera apilada y centrada */
-  body.npc-printing .npc-print-area .ficha-print-header {
-    flex-direction: column !important;
-    align-items: center !important;
-    text-align: center !important;
-  }
-  body.npc-printing .npc-print-area img[data-testid^="npc-ficha-portrait"],
-  body.npc-printing .npc-print-area img[data-testid="adversary-ficha-portrait"] {
-    width: 11cm !important;
+  body.npc-printing .npc-print-clone img[data-testid^="npc-ficha-portrait"],
+  body.npc-printing .npc-print-clone img[data-testid="adversary-ficha-portrait"] {
+    width: 9.5cm !important;
     height: auto !important;
     max-height: 13cm !important;
     object-fit: contain !important;
-    display: block !important;
-    margin: 0 auto 0.4cm auto !important;
+    flex: 0 0 auto !important;
+    margin: 0 !important;
+    border: 1px solid #999 !important;
+    border-radius: 4px !important;
   }
+  body.npc-printing .npc-print-clone .ficha-print-side { flex: 1 1 auto !important; }
+  body.npc-printing .npc-print-clone .ficha-print-side p { margin: 0 0 0.15cm 0 !important; font-size: 12pt !important; }
 }
+

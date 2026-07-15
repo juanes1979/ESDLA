@@ -57,15 +57,17 @@ const AdversaryFicha = ({ npc, onEdit, onDelete }) => {
   const handlePrint = () => {
     const el = cardRef.current;
     if (!el) return;
-    el.classList.add('npc-print-area');
+    const clone = el.cloneNode(true);
+    clone.classList.add('npc-print-clone');
+    document.body.appendChild(clone);
     document.body.classList.add('npc-printing');
     const cleanup = () => {
-      el.classList.remove('npc-print-area');
       document.body.classList.remove('npc-printing');
+      if (clone.parentNode) clone.parentNode.removeChild(clone);
       window.removeEventListener('afterprint', cleanup);
     };
     window.addEventListener('afterprint', cleanup);
-    setTimeout(() => window.print(), 50);
+    setTimeout(() => window.print(), 100);
   };
 
   return (
@@ -79,6 +81,18 @@ const AdversaryFicha = ({ npc, onEdit, onDelete }) => {
           <h3 className="font-heading text-2xl text-[hsl(var(--gold))] leading-tight">{npc.nombre}{npc.apodo ? ` "${npc.apodo}"` : ''}</h3>
           <p className="text-sm text-muted-foreground">{npc.tipo_adversario || npc.profesion}</p>
           {npc.tipo && <p className="text-xs italic text-muted-foreground/70">{npc.tipo}</p>}
+          {/* Info suelta a los lados (solo impresión) */}
+          <div className="print-only ficha-print-side" data-testid="adversary-print-side">
+            {ca != null && <p><strong>CA:</strong> {ca}</p>}
+            {pg != null && <p><strong>PG:</strong> {pg}</p>}
+            {npc.velocidad != null && <p><strong>Velocidad:</strong> {npc.velocidad} m</p>}
+            {desafio && <p><strong>Desafío:</strong> {desafio}</p>}
+            {npc.percepcion_pasiva != null && <p><strong>Percepción pasiva:</strong> {npc.percepcion_pasiva}</p>}
+            {npc.ubicacion && <p><strong>Ubicación:</strong> {npc.ubicacion}</p>}
+            {atributos && Object.entries(atributos).map(([k, v]) => (
+              <p key={k}><strong>{k.slice(0, 3).toUpperCase()}:</strong> {v}</p>
+            ))}
+          </div>
         </div>
         <div className="flex gap-1 no-print">
           <button onClick={handlePrint} className="p-2 rounded hover:bg-white/10 text-muted-foreground" title="Imprimir ficha (A4)" data-testid="adversary-ficha-print"><Printer className="w-4 h-4" /></button>

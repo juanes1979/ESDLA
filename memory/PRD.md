@@ -864,3 +864,11 @@ Aplica una transacción YA negociada al personaje (reutiliza endpoints de equipo
 - **Retrato grande al imprimir/PDF**: en `@media print` la cabecera de la ficha se apila y centra y el
   retrato se amplía a ≈11 cm de ancho (media página) sin alterar el resto del diseño. Aplica a
   `NpcFichaCard` y `AdversaryFicha` (imgs `npc-ficha-portrait-*` y `adversary-ficha-portrait`).
+
+## Impresión/PDF — fix multipágina + info lateral (Jul 2026)
+- **Multipágina arreglado**: `handlePrint` ahora CLONA la ficha como hijo directo de `<body>`
+  (`.npc-print-clone`) y el CSS de impresión usa `position: static` (antes `position:absolute`
+  recortaba todo a una sola hoja). El contenido largo pagina correctamente en varias hojas.
+- **Info lateral (rellena los huecos)**: junto al retrato grande (≈9,5 cm, cabecera en fila) se
+  muestra un bloque solo-impresión (`.ficha-print-side`, clase util `.print-only`) con CA, PG,
+  Velocidad, Desafío, Percepción pasiva, ubicación/región/oficio y los atributos.
