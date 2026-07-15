@@ -12,6 +12,7 @@ from datetime import datetime, timezone
 
 # Import routes
 from routes.data_routes import router as data_router
+from routes.travel_data_routes import router as travel_data_router
 from routes.npc_routes import router as npc_router
 from routes.modifiers_routes import router as modifiers_router
 from routes.character import router as character_router
@@ -110,6 +111,7 @@ async def get_status_checks():
 
 # Include sub-routers
 api_router.include_router(data_router)
+api_router.include_router(travel_data_router)
 api_router.include_router(npc_router)
 api_router.include_router(modifiers_router)
 api_router.include_router(character_router)

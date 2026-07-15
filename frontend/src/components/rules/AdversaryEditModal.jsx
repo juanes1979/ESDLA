@@ -12,6 +12,9 @@ import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
 import api from '@/services/api';
 import AdversaryBlockEditor from './AdversaryBlockEditor';
+import { PortraitUploadButton } from './PortraitUploadButton';
+
+const API_URL = process.env.REACT_APP_BACKEND_URL;
 
 const inp = "w-full bg-black/40 rounded px-2 py-1.5 text-sm outline-none border border-border/50";
 
@@ -32,8 +35,18 @@ const AdversaryEditModal = ({ npc, onSave, onClose }) => {
     reacciones: (npc.reacciones || []).map((a) => ({ ...a })),
   });
   const [rasgosTxt, setRasgosTxt] = useState((Array.isArray(npc.rasgos) ? npc.rasgos : []).join('\n'));
+  const [portraitBust, setPortraitBust] = useState(0);
 
   const set = (patch) => setForm((p) => ({ ...p, ...patch }));
+
+  const uploadPortrait = async (file) => {
+    const fd = new FormData();
+    fd.append('file', file);
+    const res = await api.post(`/trading/npcs/${npc._id}/portrait/upload`, fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+    set({ retrato_file_id: res.data.retrato_file_id });
+    setPortraitBust(Date.now());
+  };
+  const portraitSrc = form.retrato_file_id ? `${API_URL}/api/trading/npcs/${npc._id}/portrait?t=${portraitBust}` : null;
 
   useEffect(() => {
     (async () => {
@@ -75,6 +88,18 @@ const AdversaryEditModal = ({ npc, onSave, onClose }) => {
         <div className="flex items-center justify-between">
           <h3 className="font-heading text-xl text-[hsl(var(--gold))]">Editar {esAdv ? 'adversario' : 'PNJ'}</h3>
           <button onClick={onClose} className="p-1.5 rounded hover:bg-white/10" data-testid="adv-edit-close"><X className="w-4 h-4" /></button>
+        </div>
+
+        {/* Retrato: preview + subir imagen */}
+        <div className="flex items-center gap-3">
+          <div className="w-20 h-28 rounded-lg border border-[hsl(var(--gold))]/40 bg-black/40 overflow-hidden flex items-center justify-center shrink-0">
+            {portraitSrc ? <img src={portraitSrc} alt="retrato" className="w-full h-full object-contain" data-testid="adv-edit-portrait-preview" />
+              : <span className="text-[10px] text-muted-foreground text-center px-1">Sin retrato</span>}
+          </div>
+          <div className="space-y-1">
+            <PortraitUploadButton onFile={uploadPortrait} label="Subir JPG/PNG" testid="adv-portrait-upload" />
+            <p className="text-[11px] text-muted-foreground/70">Sustituye o añade el retrato con tu propia imagen (máx. 10 MB).</p>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">

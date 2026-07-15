@@ -16,6 +16,7 @@ import { toast } from 'sonner';
 import TiendaD100 from '@/components/trading/TiendaD100';
 import ConfigCellsEditor from '@/components/trading/ConfigCellsEditor';
 import api from '@/services/api';
+import { PortraitUploadButton } from './PortraitUploadButton';
 
 // ============================================================================
 // CONSTANTS AND HELPERS
@@ -2242,6 +2243,16 @@ export const NpcEditorModal = ({ npc, config, onSave, onClose }) => {
   const [genProfile, setGenProfile] = useState(false);
   const [cuerpoEntero, setCuerpoEntero] = useState(true); // retrato de cuerpo entero (reversible)
   const [imageB64, setImageB64] = useState(null);
+  const [portraitBust, setPortraitBust] = useState(0);
+
+  const uploadNpcPortrait = async (file) => {
+    const fd = new FormData();
+    fd.append('file', file);
+    const res = await api.post(`/trading/npcs/${npc._id}/portrait/upload`, fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+    setImageB64(null);
+    set({ retrato_file_id: res.data.retrato_file_id });
+    setPortraitBust(Date.now());
+  };
 
   const set = (patch) => setFormData(p => ({ ...p, ...patch }));
 
@@ -2386,7 +2397,7 @@ export const NpcEditorModal = ({ npc, config, onSave, onClose }) => {
 
   const portraitSrc = imageB64
     ? `data:image/png;base64,${imageB64}`
-    : (npc?._id && formData.retrato_file_id ? `${API_URL}/api/trading/npcs/${npc._id}/portrait` : null);
+    : (npc?._id && formData.retrato_file_id ? `${API_URL}/api/trading/npcs/${npc._id}/portrait?t=${portraitBust}` : null);
 
   const labelCls = "text-sm text-muted-foreground";
   const selectCls = "w-full bg-black/30 border border-border rounded px-3 py-2";
@@ -2617,12 +2628,15 @@ export const NpcEditorModal = ({ npc, config, onSave, onClose }) => {
           <div>
             <div className="flex items-center justify-between mb-1">
               <label className={labelCls}>Detalles físicos (apariencia)</label>
+            <div className="flex items-center gap-2">
+              {npc?._id && <PortraitUploadButton onFile={uploadNpcPortrait} label="Subir JPG/PNG" testid="npc-portrait-upload" />}
               <Button type="button" size="sm" onClick={handleGenerateProfile} disabled={genProfile}
                 className="bg-[hsl(var(--magic-blue))] hover:bg-[hsl(var(--magic-blue))]/90"
                 data-testid="npc-generate-profile-btn">
                 {genProfile ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Wand2 className="w-4 h-4 mr-1" />}
                 Generar trasfondo + retrato
               </Button>
+            </div>
             </div>
             <textarea className="w-full bg-black/30 border border-border rounded px-3 py-2 h-16"
               value={formData.apariencia} onChange={(e) => set({ apariencia: e.target.value })}

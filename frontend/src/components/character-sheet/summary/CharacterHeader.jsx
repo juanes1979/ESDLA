@@ -15,6 +15,7 @@ import { Loader2, RefreshCw, ImageIcon, Save, X, Lock, Maximize2 } from 'lucide-
 import { LevelUpButton } from '@/components/LevelUpModal';
 import { toast } from 'sonner';
 import api from '@/services/api';
+import { PortraitUploadButton } from '@/components/rules/PortraitUploadButton';
 
 const CharacterHeader = ({ character, onLevelUp, onUpdate }) => {
   const [generating, setGenerating] = useState(false);
@@ -116,6 +117,34 @@ const CharacterHeader = ({ character, onLevelUp, onUpdate }) => {
     toast.info('Borrador descartado.');
   };
 
+  // Sube una imagen propia (JPG/PNG), la normaliza a PNG y la fija como retrato.
+  const fileToPngBase64 = (file) => new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        canvas.width = img.naturalWidth; canvas.height = img.naturalHeight;
+        canvas.getContext('2d').drawImage(img, 0, 0);
+        try { resolve(canvas.toDataURL('image/png').split(',')[1]); }
+        catch (e) { reject(e); }
+      };
+      img.onerror = reject;
+      img.src = reader.result;
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+
+  const uploadPortrait = async (file) => {
+    if (!character?.id) return;
+    const b64 = await fileToPngBase64(file);
+    const patched = await api.patch(`/characters/${character.id}`, { portrait_image: b64, portrait_locked: true });
+    if (onUpdate) onUpdate(patched.data);
+    setDraftPortrait(null);
+    setShowPreview(false);
+  };
+
   return (
     <div className="card-parchment rounded-lg p-6 mb-6">
       <div className="flex items-center gap-6">
@@ -197,6 +226,11 @@ const CharacterHeader = ({ character, onLevelUp, onUpdate }) => {
             <p className="text-[9px] text-muted-foreground italic max-w-[160px] text-center" data-testid="portrait-final-hint">
               Retrato definitivo
             </p>
+          )}
+
+          {/* Subir imagen propia (JPG/PNG) — sustituye o añade el retrato */}
+          {!draftPortrait && !generating && (
+            <PortraitUploadButton onFile={uploadPortrait} label={isLocked ? 'Sustituir por imagen' : 'Subir imagen'} testid="character-portrait-upload" />
           )}
 
           {/* Estado: progreso, error o acciones de borrador */}

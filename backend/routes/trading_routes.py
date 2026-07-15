@@ -2,7 +2,7 @@
 Trading System Routes
 Handles buy/sell transactions, NPC generation, relationships, and merchant profiles
 """
-from fastapi import APIRouter, HTTPException, Body
+from fastapi import APIRouter, HTTPException, Body, UploadFile, File
 from datetime import datetime, timezone
 import random
 import uuid
@@ -1156,10 +1156,50 @@ async def get_npc_portrait(npc_id: str):
         bucket = get_gridfs_bucket(db)
         stream = await bucket.open_download_stream(ObjectId(npc["retrato_file_id"]))
         data = await stream.read()
-        return StreamingResponse(io.BytesIO(data), media_type="image/png")
+        md = getattr(stream, "metadata", None) or {}
+        ctype = md.get("content_type") or "image/png"
+        return StreamingResponse(io.BytesIO(data), media_type=ctype)
     except Exception as e:
         logger.warning("Error sirviendo retrato %s: %s", npc_id, e)
         raise HTTPException(status_code=404, detail="Retrato no disponible")
+
+
+@router.post("/trading/npcs/{npc_id}/portrait/upload")
+async def upload_npc_portrait(npc_id: str, file: UploadFile = File(...)):
+    """Sube una imagen (JPG/PNG) para sustituir/añadir el retrato de un PNJ o adversario."""
+    import io
+    from bson import ObjectId
+    from server import db
+    from routes.storage_routes import get_gridfs_bucket
+    npc = await db.trading_npcs.find_one({"_id": npc_id})
+    if not npc:
+        raise HTTPException(status_code=404, detail="PNJ no encontrado")
+    ct = (file.content_type or "").lower()
+    if not ct.startswith("image/"):
+        raise HTTPException(status_code=400, detail="El archivo debe ser una imagen (JPG o PNG)")
+    contents = await file.read()
+    if not contents:
+        raise HTTPException(status_code=400, detail="Archivo vacío")
+    if len(contents) > 10 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="La imagen supera el máximo de 10 MB")
+    bucket = get_gridfs_bucket(db)
+    ext = "jpg" if ("jpeg" in ct or "jpg" in ct) else ("png" if "png" in ct else "webp" if "webp" in ct else "img")
+    fname = f"npc-portraits/{uuid.uuid4().hex}.{ext}"
+    file_id = await bucket.upload_from_stream(
+        filename=fname, source=io.BytesIO(contents),
+        metadata={"content_type": ct, "folder": "npc-portraits", "tags": ["npc", "portrait", "upload"], "path": fname},
+    )
+    old = npc.get("retrato_file_id")
+    await db.trading_npcs.update_one(
+        {"_id": npc_id},
+        {"$set": {"retrato_file_id": str(file_id), "updated_at": datetime.now(timezone.utc).isoformat()}},
+    )
+    if old:
+        try:
+            await bucket.delete(ObjectId(old))
+        except Exception:
+            pass
+    return {"retrato_file_id": str(file_id)}
 
 
 # ============================================================================

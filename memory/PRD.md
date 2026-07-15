@@ -915,3 +915,30 @@ Aplica una transacción YA negociada al personaje (reutiliza endpoints de equipo
   con «Seleccionar todos (N filtrados)», «Quitar selección», «Borrar N seleccionados» y «Cancelar».
 - **Confirmación con aviso**: `window.confirm` advirtiendo que es DEFINITIVO y NO hay vuelta atrás.
   `bulkDeleteNpcs` borra en paralelo (`Promise.allSettled`), recarga y avisa por toast (éxitos/fallos).
+
+## Subir retrato propio (JPG/PNG) para PJ, PNJ y Adversario (Jul 2026)
+- **Backend (PNJ/Adversario)**: `POST /trading/npcs/{id}/portrait/upload` (multipart) valida imagen,
+  guarda en GridFS (`content_type` en metadata), actualiza `retrato_file_id` y borra el anterior. El
+  GET `/portrait` ahora sirve el `content_type` real (JPG/PNG). Componente reutilizable
+  `PortraitUploadButton`.
+- **UI PNJ/Adversario**: botón «Subir JPG/PNG» + preview en `AdversaryEditModal`; botón «Subir JPG/PNG»
+  junto a «Generar trasfondo + retrato» en `NpcEditorModal` (comerciantes) cuando el PNJ ya existe.
+- **PJ (personaje)**: en `CharacterHeader`, botón «Subir imagen» / «Sustituir por imagen» que convierte
+  el JPG a PNG (canvas) y lo fija vía `PATCH /characters/{id}` (`portrait_image`+`portrait_locked`),
+  permitiendo reemplazar incluso un retrato ya fijado.
+- Verificado por API (upload JPG → GET image/jpeg 200) y por UI (botón + preview en el editor).
+
+## Refactor de data_routes.py → travel_data_routes.py (Jun 2026)
+- **Objetivo**: reducir el tamaño de `data_routes.py` (>4900 líneas) para escalabilidad.
+- **Qué se hizo**: se extrajeron todos los endpoints de viaje/mapa (locations, regions, roads,
+  rivers, barriers, pathfinding, travel, viaje/viajes, clima, distancias, monturas, custom-paths)
+  y sus modelos Pydantic (RegionCreate, RoadCreate, RiverCreate, BarrierCreate, PathfindingRequest,
+  TravelCalculationRequest, TravelConfig, SavedTravel, PathPoint, CustomPath) + helper
+  `get_cardinal_direction` a un nuevo fichero `routes/travel_data_routes.py`.
+- **Compatibilidad total**: el nuevo router mantiene el MISMO prefijo `/data`, así que todas las
+  URLs del frontend siguen igual. Registrado en `server.py` como `travel_data_router`
+  (import + include_router justo tras `data_router`).
+- **Resultado**: `data_routes.py` 4960 → 3413 líneas; `travel_data_routes.py` 1594 líneas.
+  Las 164 rutas `@router` se conservan (111 world + 53 travel), verificado por diff de rutas.
+- **Verificación**: py_compile OK, pyflakes sin nombres indefinidos, y smoke-test por API externa
+  (cultures/races/regions/roads/rivers/barriers/monturas/travel-options → 200).
