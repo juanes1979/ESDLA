@@ -17,6 +17,29 @@ import api from '@/services/api';
 import CreatureNameConfigEditor from './CreatureNameConfigEditor';
 import { NpcEditorModal, NpcFichaCard } from './TradingSystemSection';
 
+// 5e XP → CR: deriva el "Desafío" cuando solo hay experiencia.
+const XP_TO_CR = [
+  [0, '0'], [25, '1/8'], [50, '1/4'], [100, '1/2'], [200, '1'], [450, '2'],
+  [700, '3'], [1100, '4'], [1800, '5'], [2300, '6'], [2900, '7'], [3900, '8'],
+  [5000, '9'], [5900, '10'], [7200, '11'], [8400, '12'], [10000, '13'],
+  [11500, '14'], [13000, '15'], [15000, '16'], [18000, '17'], [20000, '18'],
+];
+const xpToCr = (xp) => {
+  if (xp == null || xp === '') return null;
+  const n = Number(xp);
+  if (!Number.isFinite(n) || n < 0) return null;
+  let cr = '0';
+  for (const [t, c] of XP_TO_CR) { if (n >= t) cr = c; else break; }
+  return cr;
+};
+const formatDesafio = (npc) => {
+  if (!npc) return null;
+  if (npc.desafio && String(npc.desafio).trim()) return String(npc.desafio).trim();
+  const cr = xpToCr(npc.experiencia);
+  if (cr == null) return null;
+  return `${cr} (${npc.experiencia || 0} PX)`;
+};
+
 const PNJForgeSection = () => {
   const [view, setView] = useState('home'); // 'home' | 'adversario' | 'browse'
   const [meta, setMeta] = useState(null);
@@ -144,43 +167,109 @@ const PNJForgeSection = () => {
 
 // ── PNJs existentes (navegador con filtro por ubicación + búsqueda) ───────────
 const NpcBrowser = ({ npcs, config, onEdit, onDelete }) => {
+  const API_URL = process.env.REACT_APP_BACKEND_URL;
   const [q, setQ] = useState('');
+  const [tipo, setTipo] = useState('');       // '' | 'comerciante' | 'adversario'
+  const [raza, setRaza] = useState('');
+  const [sub, setSub] = useState('');
   const [loc, setLoc] = useState('');
-  const ubicaciones = useMemo(
-    () => Array.from(new Set((npcs || []).map((n) => n.ubicacion).filter(Boolean))).sort((a, b) => a.localeCompare(b)),
-    [npcs]
-  );
+  const [prof, setProf] = useState('');
+  const [selected, setSelected] = useState(null);
+
+  const uniq = (fn) => Array.from(new Set((npcs || []).map(fn).filter(Boolean))).sort((a, b) => a.localeCompare(b, 'es'));
+  const razas = uniq((n) => n.raza);
+  const subs = uniq((n) => n.subcultura);
+  const locs = uniq((n) => n.ubicacion);
+  const profs = uniq((n) => n.profesion || n.profesion_comerciante || n.tipo_adversario);
+
   const filtered = useMemo(() => (npcs || []).filter((n) => {
+    const esAdv = !!n.es_adversario;
+    const okTipo = !tipo || (tipo === 'adversario' ? esAdv : !esAdv);
+    const okRaza = !raza || n.raza === raza;
+    const okSub = !sub || n.subcultura === sub;
     const okLoc = !loc || n.ubicacion === loc;
+    const p = n.profesion || n.profesion_comerciante || n.tipo_adversario;
+    const okProf = !prof || p === prof;
     const okQ = !q || `${n.nombre || ''} ${n.apodo || ''}`.toLowerCase().includes(q.toLowerCase());
-    return okLoc && okQ;
-  }), [npcs, loc, q]);
+    return okTipo && okRaza && okSub && okLoc && okProf && okQ;
+  }), [npcs, tipo, raza, sub, loc, prof, q]);
+
+  const selCls = "bg-black/30 border border-border rounded px-2 py-2 text-sm";
 
   return (
     <div className="space-y-3" data-testid="npc-browser">
       <div className="flex flex-wrap gap-2 items-center">
-        <div className="relative flex-1 min-w-[200px]">
+        <div className="relative flex-1 min-w-[180px]">
           <Search className="w-4 h-4 absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground" />
           <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar por nombre…" className="pl-8" data-testid="npc-browser-search" />
         </div>
-        <select value={loc} onChange={(e) => setLoc(e.target.value)} data-testid="npc-browser-loc"
-          className="bg-black/30 border border-border rounded px-3 py-2 text-sm min-w-[180px]">
-          <option value="">— Todas las ubicaciones —</option>
-          {ubicaciones.map((u) => <option key={u} value={u}>{u}</option>)}
+        <select value={tipo} onChange={(e) => setTipo(e.target.value)} className={selCls} data-testid="npc-browser-tipo">
+          <option value="">— Todos —</option>
+          <option value="comerciante">Comerciantes</option>
+          <option value="adversario">Adversarios</option>
+        </select>
+        <select value={raza} onChange={(e) => setRaza(e.target.value)} className={selCls} data-testid="npc-browser-raza">
+          <option value="">— Raza —</option>
+          {razas.map((r) => <option key={r} value={r}>{r}</option>)}
+        </select>
+        <select value={sub} onChange={(e) => setSub(e.target.value)} className={selCls} data-testid="npc-browser-sub">
+          <option value="">— Subcultura —</option>
+          {subs.map((s) => <option key={s} value={s}>{s}</option>)}
+        </select>
+        <select value={loc} onChange={(e) => setLoc(e.target.value)} className={selCls} data-testid="npc-browser-loc">
+          <option value="">— Ubicación —</option>
+          {locs.map((u) => <option key={u} value={u}>{u}</option>)}
+        </select>
+        <select value={prof} onChange={(e) => setProf(e.target.value)} className={selCls} data-testid="npc-browser-prof">
+          <option value="">— Profesión/Tipo —</option>
+          {profs.map((p) => <option key={p} value={p}>{p}</option>)}
         </select>
         <span className="text-xs text-muted-foreground">{filtered.length} PNJ</span>
       </div>
+
       {filtered.length === 0 ? (
         <div className="text-center py-10 text-muted-foreground">
           <Users className="w-10 h-10 mx-auto mb-3 opacity-50" />
           <p>No hay PNJ que coincidan.</p>
         </div>
       ) : (
-        <div className="grid md:grid-cols-2 gap-4">
-          {filtered.map((n) => (
-            <NpcFichaCard key={n._id} npc={n} config={config}
-              onEdit={() => onEdit(n)} onDelete={() => onDelete(n._id)} />
-          ))}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+          {filtered.map((n) => {
+            const portrait = n.retrato_file_id ? `${API_URL}/api/trading/npcs/${n._id}/portrait` : null;
+            const oficio = n.es_adversario ? (n.tipo_adversario || n.profesion) : (n.profesion_comerciante || n.profesion || n.ocupacion);
+            const linea = [n.raza, n.subcultura].filter(Boolean).join(' · ');
+            return (
+              <button key={n._id} onClick={() => setSelected(n)} data-testid={`npc-compact-${n._id}`}
+                className="flex items-center gap-3 text-left rounded-lg border border-border/40 bg-black/20 p-2 hover:border-[hsl(var(--gold))]/60 transition-colors">
+                <div className="shrink-0">
+                  {portrait
+                    ? <img src={portrait} alt={n.nombre} className="w-14 h-14 rounded-md object-cover border border-[hsl(var(--gold))]/40" />
+                    : <div className="w-14 h-14 rounded-md border border-border/40 bg-black/40 flex items-center justify-center">{n.es_adversario ? <Skull className="w-6 h-6 text-muted-foreground/50" /> : <Users className="w-6 h-6 text-muted-foreground/50" />}</div>}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="font-heading text-[hsl(var(--gold))] truncate">{n.nombre}{n.apodo ? ` "${n.apodo}"` : ''}</div>
+                  {oficio && <div className="text-xs text-muted-foreground truncate">{oficio}</div>}
+                  <div className="text-[11px] italic text-muted-foreground/70 truncate">{linea}{n.ubicacion ? `${linea ? ' · ' : ''}${n.ubicacion}` : ''}</div>
+                </div>
+                {n.es_adversario && <span className="text-[10px] text-rose-300/80 border border-rose-800/50 rounded px-1 py-0.5 shrink-0">Adversario</span>}
+              </button>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Ficha completa al pulsar una tarjeta compacta */}
+      {selected && (
+        <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4" data-testid="npc-ficha-modal"
+          onClick={(e) => { if (e.target === e.currentTarget) setSelected(null); }}>
+          <div className="w-full max-w-2xl max-h-[92vh] overflow-y-auto">
+            <NpcFichaCard npc={selected} config={config}
+              onEdit={() => { const n = selected; setSelected(null); onEdit(n); }}
+              onDelete={() => { const id = selected._id; setSelected(null); onDelete(id); }} />
+            <div className="mt-2 flex justify-end">
+              <Button variant="outline" onClick={() => setSelected(null)} data-testid="npc-ficha-close">Cerrar</Button>
+            </div>
+          </div>
         </div>
       )}
     </div>
@@ -194,6 +283,7 @@ const AdversarioForge = ({ adversarios, razas, creatureTypes, activeRuns }) => {
   const [advId, setAdvId] = useState('');
   const [modo, setModo] = useState('sin_raza'); // 'racial' | 'sin_raza'
   const [excluidas, setExcluidas] = useState([]); // razas excluidas (para racial)
+  const [permitidas, setPermitidas] = useState([]); // razas permitidas (definidas en la ficha del Bestiario)
   const [raza, setRaza] = useState('');
   const [sub, setSub] = useState('');
   const [tipoCriatura, setTipoCriatura] = useState('');
@@ -213,18 +303,30 @@ const AdversarioForge = ({ adversarios, razas, creatureTypes, activeRuns }) => {
   const [nivel, setNivel] = useState('');
   const [busyRetrato, setBusyRetrato] = useState(false);
   const [busyStory, setBusyStory] = useState(false);
+  const [ubicaciones, setUbicaciones] = useState([]);
+  const [ubicacionId, setUbicacionId] = useState('');
 
   const adv = adversarios.find((a) => (a._id || a.id) === advId) || null;
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const l = await api.get('/data/locations');
+        setUbicaciones((l.data?.locations || []).slice().sort((a, b) => (a.nombre || '').localeCompare(b.nombre || '', 'es')));
+      } catch { /* noop */ }
+    })();
+  }, []);
 
   // Al elegir adversario, precarga su configuración de raza guardada.
   useEffect(() => {
     if (!adv) return;
     setModo(adv.modo_raza === 'racial' ? 'racial' : (adv.modo_raza === 'sin_raza' ? 'sin_raza' : 'sin_raza'));
     setExcluidas(Array.isArray(adv.razas_excluidas) ? adv.razas_excluidas : []);
+    setPermitidas(Array.isArray(adv.razas_permitidas) ? adv.razas_permitidas : []);
     setAllowedTypes(Array.isArray(adv.tipos_criatura) ? adv.tipos_criatura : []);
     setTipoCriatura('');
     setNombre('');
-    setRetrato(null); setRetratoFileId(null); setHistoria(''); setNivel('');
+    setRetrato(null); setRetratoFileId(null); setHistoria(''); setNivel(formatDesafio(adv) || '');
   }, [advId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const generarRetrato = async () => {
@@ -269,7 +371,9 @@ const AdversarioForge = ({ adversarios, razas, creatureTypes, activeRuns }) => {
       toast.error(e?.response?.data?.detail || 'No se pudo guardar la configuración');
     } finally { setSavingCfg(false); }
   };
-  const razasDisponibles = razasKeys.filter((r) => !excluidas.includes(r));
+  const razasDisponibles = (permitidas && permitidas.length)
+    ? razasKeys.filter((r) => permitidas.includes(r))
+    : razasKeys.filter((r) => !excluidas.includes(r));
   const subs = (razas?.[raza] || []).map((s) => s.nombre);
   const ct = creatureTypes.find((c) => c.id === tipoCriatura);
 
@@ -295,23 +399,43 @@ const AdversarioForge = ({ adversarios, razas, creatureTypes, activeRuns }) => {
   const guardar = async () => {
     if (!adv) { toast.error('Elige un adversario'); return; }
     if (!nombre.trim()) { toast.error('Genera o escribe un nombre'); return; }
+    if (!ubicacionId) { toast.error('Elige la ubicación del PNJ'); return; }
     setBusySave(true);
     try {
       const origen = modo === 'sin_raza'
         ? `${ct?.label || tipoCriatura}`
         : `en vida: ${sub || raza || 'desconocido'}`;
+      const loc = ubicaciones.find((u) => u.id === ubicacionId);
+      const razaFinal = modo === 'racial' ? (raza || '') : '';
+      const subFinal = modo === 'racial' ? (sub || '') : '';
       const { _id, id, ...rest } = adv;
+      // Adversario CONCRETO → se guarda en «PNJs existentes» (trading_npcs),
+      // normalizando el bloque de combate a la forma de la ficha (ca/pg/caracteristicas).
       const payload = {
         ...rest,
+        es_adversario: true,
         nombre: nombre.trim(),
-        categoria: 'malignos',
+        apodo: '',
+        tipo_adversario: adv.nombre,
+        profesion: adv.nombre,
+        profesion_comerciante: adv.nombre,
+        raza: razaFinal || (ct?.label || tipoCriatura || ''),
+        subcultura: subFinal,
+        sexo: sexo === 'M' ? 'Masculino' : 'Femenino',
+        ca: adv.clase_armadura ?? 10,
+        pg: adv.puntos_golpe ?? '',
+        caracteristicas: adv.atributos || {},
+        ubicacion: loc?.nombre || '',
+        ubicacion_id: ubicacionId,
+        region: loc?.region || '',
         descripcion: `${adv.descripcion || ''}${adv.descripcion ? ' · ' : ''}[${adv.nombre} — ${origen}]`.trim(),
+        experiencia: adv.experiencia,
+        desafio: nivel || formatDesafio(adv) || '',
         ...(historia ? { historia } : {}),
-        ...(nivel !== '' ? { nivel: parseInt(nivel, 10) } : {}),
         ...(retratoFileId ? { retrato_file_id: retratoFileId } : {}),
       };
-      const res = await api.post('/data/npcs', payload);
-      toast.success(`«${nombre.trim()}» guardado en el Bestiario`);
+      const res = await api.post('/trading/npcs', payload);
+      toast.success(`«${nombre.trim()}» guardado en PNJs existentes`);
       setNombre('');
       return res.data;
     } catch (e) {
@@ -350,7 +474,7 @@ const AdversarioForge = ({ adversarios, razas, creatureTypes, activeRuns }) => {
           <span className="flex items-center gap-1"><Shield className="w-3.5 h-3.5 text-blue-400" /> CA {adv.clase_armadura ?? '—'}</span>
           <span className="flex items-center gap-1"><Heart className="w-3.5 h-3.5 text-rose-400" /> PG {adv.puntos_golpe ?? '—'}</span>
           <span className="flex items-center gap-1"><Swords className="w-3.5 h-3.5 text-amber-400" /> {(adv.armas || []).length} arma(s)</span>
-          <span>Desafío {adv.desafio || '—'}</span>
+          <span>Desafío {formatDesafio(adv) || '—'}</span>
           {adv.tipo && <span className="text-muted-foreground">{adv.tipo}</span>}
         </div>
       )}
@@ -437,14 +561,22 @@ const AdversarioForge = ({ adversarios, razas, creatureTypes, activeRuns }) => {
         </div>
       )}
 
-      {/* Nombre */}
-      <div className="flex items-end gap-2">
-        <Field label="Nombre" className="flex-1">
-          <Input value={nombre} onChange={(e) => setNombre(e.target.value)} placeholder="Genera o escribe el nombre" data-testid="adv-nombre-input" />
+      {/* Nombre + Ubicación */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div className="flex items-end gap-2">
+          <Field label="Nombre" className="flex-1">
+            <Input value={nombre} onChange={(e) => setNombre(e.target.value)} placeholder="Genera o escribe el nombre" data-testid="adv-nombre-input" />
+          </Field>
+          <Button onClick={generarNombre} disabled={busyName || !adv} variant="outline" className="border-[hsl(var(--gold))/50] text-[hsl(var(--gold))]" data-testid="adv-gen-nombre-btn">
+            {busyName ? <Loader2 className="w-4 h-4 animate-spin" /> : <Wand2 className="w-4 h-4" />}
+          </Button>
+        </div>
+        <Field label="Ubicación *">
+          <select value={ubicacionId} onChange={(e) => setUbicacionId(e.target.value)} className="forge-select" data-testid="adv-ubicacion-select">
+            <option value="">— elige ubicación —</option>
+            {ubicaciones.map((u) => <option key={u.id} value={u.id}>{u.nombre}{u.region ? ` (${u.region})` : ''}</option>)}
+          </select>
         </Field>
-        <Button onClick={generarNombre} disabled={busyName || !adv} variant="outline" className="border-[hsl(var(--gold))/50] text-[hsl(var(--gold))]" data-testid="adv-gen-nombre-btn">
-          {busyName ? <Loader2 className="w-4 h-4 animate-spin" /> : <Wand2 className="w-4 h-4" />}
-        </Button>
       </div>
 
       {/* Retrato IA + Historia IA + Nivel */}
@@ -468,14 +600,14 @@ const AdversarioForge = ({ adversarios, razas, creatureTypes, activeRuns }) => {
           <textarea rows={4} value={historia} onChange={(e) => setHistoria(e.target.value)} placeholder="Trasfondo del PNJ…"
             className="w-full bg-black/40 rounded p-2 text-xs outline-none border border-border/50 resize-y" data-testid="adv-historia-input" />
           <Field label="Nivel / Desafío">
-            <input type="number" value={nivel} onChange={(e) => setNivel(e.target.value)} placeholder={String(adv?.desafio ?? '')}
-              className="forge-select w-24" data-testid="adv-nivel-input" />
+            <input type="text" value={nivel} onChange={(e) => setNivel(e.target.value)} placeholder={formatDesafio(adv) || ''}
+              className="forge-select w-40" data-testid="adv-nivel-input" />
           </Field>
         </div>
       </div>
 
       <Button onClick={guardar} disabled={busySave || !adv} className="bg-[hsl(var(--destructive))] text-white hover:opacity-90" data-testid="adv-guardar-btn">
-        {busySave ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Save className="w-4 h-4 mr-1" />} Guardar en Bestiario
+        {busySave ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Save className="w-4 h-4 mr-1" />} Guardar en PNJs existentes
       </Button>
 
       {/* Soltar en la Pantalla del DJ */}
@@ -500,7 +632,7 @@ const AdversarioForge = ({ adversarios, razas, creatureTypes, activeRuns }) => {
           </div>
         )}
       </div>
-      <p className="text-xs text-muted-foreground">Se copia el bloque completo del adversario con el nuevo nombre. Podrás afinarlo después en el Bestiario.</p>
+      <p className="text-xs text-muted-foreground">Se copia el bloque completo del adversario con el nuevo nombre y aparece en «PNJs existentes». Podrás afinarlo después.</p>
       <style>{`.forge-select{width:100%;background:rgba(0,0,0,.4);border:1px solid hsl(var(--border));border-radius:.375rem;padding:.4rem .5rem;font-size:.875rem;color:inherit}`}</style>
     </div>
   );

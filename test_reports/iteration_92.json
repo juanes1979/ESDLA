@@ -1,0 +1,41 @@
+{
+  "summary": "Iter112 QA — PNJ Forge unificado (Desafío desde XP, Ubicación obligatoria, Bestiario razas permitidas, NpcBrowser con filtros y ficha modal). BACKEND 7/7 pytest PASS (test_pnj_forge_it112.py). FRONTEND 100% de flujos verificados: (A) chip 'Desafío 1/2 (100 PX)' derivado de experiencia + campo Nivel/Desafío autorrellenado con '1/2 (100 PX)' al elegir 'Arquero Trasgo'. (B) NPCEditor en Bestiario → Editar 'Atracador' (categoría Malignos): bloque data-testid=npc-razas-block visible, toggles Racial (4 chips: Elfos/Enanos/Hobbits/Hombres) y Sin raza (3 tipos: Orco/Trol/Huargo) funcionan. (C) POST /trading/npcs con es_adversario=true crea adversario en trading_npcs (verificado por API y UI); toast de error si falta nombre; guardado exitoso con ubicación='Aglarond (Folde Oeste)' → toast 'guardado en PNJs existentes'. (D) NpcBrowser: filtros npc-browser-tipo (Todos/Comerciantes/Adversarios), raza, sub, loc, prof, search → filtrado por 'Adversarios' muestra la tarjeta compacta con retrato skull + nombre + oficio + ubicación + badge 'Adversario'; click abre npc-ficha-modal, cierre con npc-ficha-close funciona. Regresión: crear comerciante desde /trading/npcs sigue funcionando. Cleanup ejecutado: PNJ de prueba borrado.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {
+        "endpoint": "GET /api/data/npcs (list agrupada)",
+        "issue": "La proyección del listado grouped/malignos NO incluye 'razas_permitidas' (solo 'razas_excluidas' del Pydantic legacy). El PATCH persiste correctamente 'razas_permitidas' y el GET individual /data/npcs/{id} sí la devuelve, pero el NPCEditor hidrata desde el listado grouped, por lo que al reabrir la ficha las razas marcadas parecerán vacías. Añadir 'razas_permitidas' al bloque de proyección en npc_routes.get_all_npcs (líneas 152-194). Actualmente el modelo NPCCreate también sólo declara 'razas_excluidas' (línea 124) — considerar renombrar a 'razas_permitidas' para alinearlo con el frontend."
+      }
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_pnj_forge_it112.py",
+    "/app/test_reports/pytest/pnj_forge_it112.xml"
+  ],
+  "action_items": [
+    "Añadir 'razas_permitidas' a la proyección de GET /api/data/npcs (npc_routes.py líneas 152-194) para que el NPCEditor pueda re-hidratar las razas marcadas al reabrir un maligno/pnj. Actualmente sobrevive un mismatch con 'razas_excluidas' del modelo NPCCreate."
+  ],
+  "critical_code_review_comments": [
+    "npc_routes.py: mismatch de nomenclatura entre backend (Pydantic NPCCreate.razas_excluidas) y frontend (NPCEditor.razas_permitidas). PATCH acepta arbitrarios y persiste bien, pero el listado grouped filtra por proyección y omite el campo → al reabrir la ficha parece vacía. Homogeneizar a 'razas_permitidas'.",
+    "trading_routes.create_npc rama es_adversario NO exige get_current_user; cualquier autenticado (o incluso sin token, no hay dependency) puede crear PNJs adversario en trading_npcs. Riesgo bajo (frontend controlado) pero conviene RBAC maestro/DJ.",
+    "PNJForgeSection.jsx sigue >600 líneas (656). AdversarioForge + NpcBrowser podrían extraerse a módulos propios.",
+    "El chip Desafío usa formatDesafio(npc) que prioriza npc.desafio; si el maligno del Bestiario tiene desafio='' pero experiencia>0 la derivación XP→CR funciona. OK."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_pnj_forge_it112.py",
+    "/app/test_reports/iteration_92.json"
+  ],
+  "success_rate": {"backend": "100% (7/7)", "frontend": "100%"},
+  "test_credentials": "Maestro elanillounico_tlotr@proton.me / 123456",
+  "seed_data_creation": "Ninguno persistente: el test pytest y el flujo UI crearon adversarios con prefijo TEST_QA_* que fueron borrados vía DELETE /api/trading/npcs/{id} al finalizar. El PATCH sobre NPC Bestiario se restaura al estado original en el propio test.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Suite reutilizable: /app/backend/tests/test_pnj_forge_it112.py (7 tests, ~2.2s). Selectors clave verificados en UI: forge-tipo-adversario, adv-select, adv-preview (contiene 'Desafío X (Y PX)'), adv-nivel-input (autorrellenado), adv-ubicacion-select (307 opciones), adv-nombre-input, adv-guardar-btn (validación nombre+ubicación); forge-tipo-browse, npc-browser, npc-browser-tipo (Comerciantes/Adversarios), npc-browser-raza/sub/loc/prof/search, npc-compact-<id>, npc-ficha-modal, npc-ficha-close; en NPCEditor (Bestiario/Editar): npc-razas-block, npc-modo-racial, npc-modo-sinraza, npc-raza-perm-<raza>, npc-tipo-crit-<val>. IMPORTANTE: hay un mismatch backend↔frontend (razas_excluidas vs razas_permitidas) que hace que la persistencia parezca perderse al reabrir aunque en BD sí está guardado — revisar proyección de /api/data/npcs.",
+  "rca of the issue": "N/A — no hay bugs bloqueantes. Solo un issue menor: el listado grouped de /api/data/npcs proyecta 'razas_excluidas' (legacy) y omite 'razas_permitidas' que sí se guarda en BD y devuelve el GET individual. Impacto: la UI del Bestiario al reabrir un maligno mostrará las razas 'permitidas' vacías (aunque estén persistidas). Fix: añadir la clave a la proyección en npc_routes.py L152-194."
+}

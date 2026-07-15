@@ -628,6 +628,18 @@ async def create_npc(npc_data: dict = Body(...)):
     from server import db
     cfg = await get_trading_config()
 
+    # --- Adversario CONCRETO creado desde «PNJs» (no es comerciante) ---
+    # Se guarda tal cual en trading_npcs para que aparezca en «PNJs existentes».
+    if npc_data.get("es_adversario"):
+        adv = dict(npc_data)
+        adv["_id"] = str(uuid.uuid4())
+        adv["es_adversario"] = True
+        adv["codigo_npc"] = _generate_codigo_npc(npc_data.get("nombre") or "adversario")
+        adv.setdefault("created_at", now_utc())
+        adv["updated_at"] = now_utc()
+        await db.trading_npcs.insert_one(adv)
+        return {"message": "PNJ adversario creado", "npc_id": adv["_id"], "npc": adv}
+
     raza = npc_data.get("raza", "")
     subcultura = npc_data.get("subcultura", "")
     profesion = npc_data.get("profesion", "") or npc_data.get("profesion_comerciante", "")

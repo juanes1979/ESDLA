@@ -11,6 +11,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
+import api from '@/services/api';
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
 
@@ -60,7 +61,11 @@ const NPCEditor = ({ npc, onSave, onClose }) => {
     reacciones: [],
     acciones_legendarias: [],
     // Story
-    historia: ''
+    historia: '',
+    // Razas / tipos que puede ocupar (para el creador de adversarios en «PNJs»)
+    modo_raza: 'racial',
+    razas_permitidas: [],
+    tipos_criatura: []
   });
 
   const [activeTab, setActiveTab] = useState('basico');
@@ -83,10 +88,29 @@ const NPCEditor = ({ npc, onSave, onClose }) => {
         inmunidades_estados: npc.inmunidades_estados || [],
         vulnerabilidades: npc.vulnerabilidades || [],
         sentidos: Array.isArray(npc.sentidos) ? npc.sentidos : (npc.sentidos ? [npc.sentidos] : []),
-        idiomas: npc.idiomas || []
+        idiomas: npc.idiomas || [],
+        modo_raza: npc.modo_raza || 'racial',
+        razas_permitidas: Array.isArray(npc.razas_permitidas) ? npc.razas_permitidas : [],
+        tipos_criatura: Array.isArray(npc.tipos_criatura) ? npc.tipos_criatura : []
       });
     }
   }, [npc]);
+
+  // Razas y tipos de criatura disponibles para el bloque "Razas que puede ocupar".
+  const [razasDisp, setRazasDisp] = useState([]);
+  const [tiposDisp, setTiposDisp] = useState([]);
+  useEffect(() => {
+    (async () => {
+      try {
+        const [m, ct] = await Promise.all([
+          api.get('/trading/npc-meta'),
+          api.get('/npc-generator/creature-types'),
+        ]);
+        setRazasDisp(Object.keys(m.data?.razas || {}));
+        setTiposDisp(ct.data?.tipos || []);
+      } catch { /* noop */ }
+    })();
+  }, []);
 
   const handleChange = (field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -265,6 +289,48 @@ const NPCEditor = ({ npc, onSave, onClose }) => {
                   </Select>
                 </div>
               </div>
+
+              {(formData.categoria === 'malignos' || formData.categoria === 'pnj') && (
+                <div className="rounded-lg border border-[hsl(var(--gold))]/30 bg-black/20 p-3 space-y-2" data-testid="npc-razas-block">
+                  <Label className="text-[hsl(var(--gold))]">Razas que puede ocupar este tipo</Label>
+                  <p className="text-xs text-muted-foreground">Define qué razas puede tener al crear un adversario/PNJ concreto en «PNJs». Ej.: un frontero hobbit no puede ser elfo.</p>
+                  <div className="flex gap-2">
+                    <button type="button" onClick={() => handleChange('modo_raza', 'racial')} data-testid="npc-modo-racial"
+                      className={`text-xs px-3 py-1 rounded-full border transition-colors ${formData.modo_raza === 'racial' ? 'bg-[hsl(var(--gold))]/20 border-[hsl(var(--gold))] text-[hsl(var(--gold))]' : 'border-border/50 text-muted-foreground'}`}>Racial (elige razas)</button>
+                    <button type="button" onClick={() => handleChange('modo_raza', 'sin_raza')} data-testid="npc-modo-sinraza"
+                      className={`text-xs px-3 py-1 rounded-full border transition-colors ${formData.modo_raza === 'sin_raza' ? 'bg-[hsl(var(--gold))]/20 border-[hsl(var(--gold))] text-[hsl(var(--gold))]' : 'border-border/50 text-muted-foreground'}`}>Sin raza (tipos de criatura)</button>
+                  </div>
+                  {formData.modo_raza === 'racial' ? (
+                    <div className="flex flex-wrap gap-2 pt-1">
+                      {razasDisp.map((r) => {
+                        const on = (formData.razas_permitidas || []).includes(r);
+                        return (
+                          <button key={r} type="button" data-testid={`npc-raza-perm-${r}`}
+                            onClick={() => handleChange('razas_permitidas', on ? formData.razas_permitidas.filter((x) => x !== r) : [...(formData.razas_permitidas || []), r])}
+                            className={`text-xs px-3 py-1 rounded-full border transition-colors ${on ? 'bg-emerald-900/40 border-emerald-700 text-emerald-200' : 'border-border/50 text-muted-foreground'}`}>{r}</button>
+                        );
+                      })}
+                      {razasDisp.length === 0 && <span className="text-xs text-muted-foreground">Cargando razas…</span>}
+                      <span className="text-[11px] text-muted-foreground self-center">{(formData.razas_permitidas || []).length === 0 ? '(ninguna marcada = todas permitidas)' : ''}</span>
+                    </div>
+                  ) : (
+                    <div className="flex flex-wrap gap-2 pt-1">
+                      {tiposDisp.map((t) => {
+                        const val = t.value || t.id || t;
+                        const label = t.label || t.nombre || t;
+                        const on = (formData.tipos_criatura || []).includes(val);
+                        return (
+                          <button key={val} type="button" data-testid={`npc-tipo-crit-${val}`}
+                            onClick={() => handleChange('tipos_criatura', on ? formData.tipos_criatura.filter((x) => x !== val) : [...(formData.tipos_criatura || []), val])}
+                            className={`text-xs px-3 py-1 rounded-full border transition-colors ${on ? 'bg-rose-900/40 border-rose-700 text-rose-200' : 'border-border/50 text-muted-foreground'}`}>{label}</button>
+                        );
+                      })}
+                      {tiposDisp.length === 0 && <span className="text-xs text-muted-foreground">Cargando tipos…</span>}
+                    </div>
+                  )}
+                </div>
+              )}
+
 
               <div>
                 <Label>Descripción</Label>
