@@ -80,6 +80,40 @@ const NPCsSection = ({ data, onRefresh }) => {
   const currentNPCs = filterNPCs(data[activeCategory]);
   const currentCategory = categories.find(c => c.id === activeCategory);
 
+  // Agrupación por raza/tipo para Malignos y PNJ; alfabético para Animales y Especiales.
+  const RACE_GROUPS = [
+    [/orco|uruk|trasgo|snaga|goblin/i, 'Orcos'],
+    [/trol|troll/i, 'Trols'],
+    [/huargo|warg|lobo/i, 'Huargos'],
+    [/espectr|nazg|muerto viviente|no-?muerto|tumular|sombra|apareci|fantasma|esp[ií]ritu/i, 'Espectros y No-muertos'],
+    [/hobbit|mediano peque/i, 'Hobbits'],
+    [/elfo|\belf\b/i, 'Elfos'],
+    [/enano|dwarf/i, 'Enanos'],
+    [/h[oó]mbre|humano|d[uú]nedain|gondor|rohan|\bbree\b|n[uú]menor/i, 'Hombres'],
+  ];
+  const grupoRaza = (npc) => {
+    const paren = (npc.tipo || '').match(/\(([^)]+)\)/);
+    // Prioriza el paréntesis del tipo; si no resuelve, usa tipo + nombre.
+    const basisParen = (paren ? paren[1] : '').toLowerCase();
+    for (const [re, label] of RACE_GROUPS) if (re.test(basisParen)) return label;
+    const basisFull = `${npc.tipo || ''} ${npc.nombre || ''}`.toLowerCase();
+    for (const [re, label] of RACE_GROUPS) if (re.test(basisFull)) return label;
+    const first = (npc.tipo || '').split(/[\s(]/)[0];
+    return first ? (first.charAt(0).toUpperCase() + first.slice(1)) : 'Otros';
+  };
+  const byName = (a, b) => (a.nombre || '').localeCompare(b.nombre || '', 'es');
+  const isGrouped = activeCategory === 'malignos' || activeCategory === 'pnj';
+  let sections;
+  if (isGrouped) {
+    const map = {};
+    currentNPCs.forEach((n) => { const g = grupoRaza(n); (map[g] = map[g] || []).push(n); });
+    sections = Object.entries(map)
+      .map(([g, arr]) => [g, arr.slice().sort(byName)])
+      .sort((a, b) => a[0].localeCompare(b[0], 'es'));
+  } else {
+    sections = [[null, currentNPCs.slice().sort(byName)]];
+  }
+
   const handleCreateNew = () => {
     setEditingNPC(null);
     setShowEditor(true);
@@ -332,7 +366,14 @@ const NPCsSection = ({ data, onRefresh }) => {
         {currentNPCs.length === 0 ? (
           <p className="text-muted-foreground text-center py-8">No se encontraron resultados</p>
         ) : (
-          currentNPCs.map((npc, i) => (
+          sections.map(([grupo, items]) => (
+            <div key={grupo || 'all'} className="space-y-3">
+              {grupo && (
+                <h3 className="text-sm font-heading text-[hsl(var(--gold))]/90 border-b border-[hsl(var(--gold))]/20 pb-1 pt-2" data-testid={`bestiary-group-${grupo}`}>
+                  {grupo} <span className="text-xs text-muted-foreground">({items.length})</span>
+                </h3>
+              )}
+              {items.map((npc, i) => (
             <div
               key={npc.id || i}
               className={`card-parchment rounded-lg border transition-all ${
@@ -564,6 +605,8 @@ const NPCsSection = ({ data, onRefresh }) => {
                   )}
                 </div>
               )}
+            </div>
+              ))}
             </div>
           ))
         )}

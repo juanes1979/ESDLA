@@ -1980,6 +1980,7 @@ export const NpcFichaCard = ({ npc, config, onEdit, onDelete }) => {
   const car = npc.caracteristicas || {};
   const subtitulo = [npc.raza, npc.subcultura].filter(Boolean).join(' · ');
   const cardRef = useRef(null);
+  const [zoom, setZoom] = useState(false);
   const Line = ({ label, children }) => (
     <p className="text-xs"><span className="text-muted-foreground">{label}:</span> {children}</p>
   );
@@ -2005,8 +2006,9 @@ export const NpcFichaCard = ({ npc, config, onEdit, onDelete }) => {
       <div className="flex gap-3 p-3 border-b border-border/30 bg-gradient-to-r from-black/40 to-transparent">
         <div className="shrink-0">
           {portraitSrc ? (
-            <img src={portraitSrc} alt={npc.nombre} className="w-20 h-20 rounded-md object-cover border border-[hsl(var(--gold))]/40"
-              data-testid={`npc-ficha-portrait-${npc._id}`} />
+            <img src={portraitSrc} alt={npc.nombre} onClick={() => setZoom(true)}
+              className="w-20 h-20 rounded-md object-cover border border-[hsl(var(--gold))]/40 cursor-zoom-in hover:border-[hsl(var(--gold))] transition-colors"
+              title="Ampliar retrato" data-testid={`npc-ficha-portrait-${npc._id}`} />
           ) : (
             <div className="w-20 h-20 rounded-md border border-border/40 bg-black/40 flex items-center justify-center">
               <User className="w-8 h-8 text-muted-foreground/50" />
@@ -2068,6 +2070,13 @@ export const NpcFichaCard = ({ npc, config, onEdit, onDelete }) => {
         {npc.historia && <p className="text-xs text-muted-foreground/80 italic pt-1 border-t border-border/20 whitespace-pre-line">{npc.historia}</p>}
         {npc.notas && <p className="text-xs text-muted-foreground/70"><span className="text-[hsl(var(--torch-orange))]/70">Notas DJ:</span> {npc.notas}</p>}
       </div>
+
+      {zoom && portraitSrc && (
+        <div className="fixed inset-0 z-[60] bg-black/90 flex items-center justify-center p-4 no-print" onClick={() => setZoom(false)} data-testid={`npc-portrait-zoom-${npc._id}`}>
+          <img src={portraitSrc} alt={npc.nombre} className="max-h-[90vh] max-w-[90vw] rounded-lg border border-[hsl(var(--gold))]/40 object-contain" />
+          <button className="absolute top-4 right-4 text-white text-3xl leading-none" onClick={() => setZoom(false)} title="Cerrar">×</button>
+        </div>
+      )}
     </div>
   );
 };

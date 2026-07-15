@@ -835,12 +835,14 @@ import unicodedata as _unicodedata
 import time as _time
 
 PORTRAIT_PROMPT_PREFIX = (
-    "Boceto a lápiz de grafito tradicional, estilo fantasía realista, "
-    "sombreado detallado, retrato de personaje sobre fondo blanco roto. "
+    "Dibujo a lápiz de grafito FOTORREALISTA en blanco y negro, hiperdetallado y realista "
+    "(aspecto de fotografía real acabada a lápiz), sombreado fino, enfoque nítido, "
+    "retrato de personaje sobre fondo blanco roto. "
 )
 
 PORTRAIT_PROMPT_PREFIX_FULLBODY = (
-    "Boceto a lápiz de grafito tradicional, estilo fantasía realista, sombreado detallado, "
+    "Dibujo a lápiz de grafito FOTORREALISTA en blanco y negro, hiperdetallado y realista "
+    "(aspecto de fotografía real acabada a lápiz), sombreado fino, enfoque nítido, "
     "ilustración de personaje de CUERPO ENTERO (figura completa de pies a cabeza, postura de pie, "
     "piernas y pies visibles, todos los detalles físicos del cuerpo visibles) sobre fondo blanco roto. "
 )

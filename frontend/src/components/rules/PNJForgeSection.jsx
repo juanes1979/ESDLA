@@ -17,6 +17,7 @@ import api from '@/services/api';
 import CreatureNameConfigEditor from './CreatureNameConfigEditor';
 import { NpcEditorModal, NpcFichaCard } from './TradingSystemSection';
 import AdversaryFicha from './AdversaryFicha';
+import AdversaryBlockEditor from './AdversaryBlockEditor';
 
 // 5e XP → CR: deriva el "Desafío" cuando solo hay experiencia.
 const XP_TO_CR = [
@@ -353,6 +354,8 @@ const AdversarioForge = ({ adversarios, razas, creatureTypes, activeRuns }) => {
   const [modoHablar, setModoHablar] = useState('');
   const [busyRasgos, setBusyRasgos] = useState(false);
   const [espectroOrigen, setEspectroOrigen] = useState(''); // '', 'Hombres','Elfos','Enanos','espiritu'
+  const [bloque, setBloque] = useState(null); // bloque de combate editable
+  const [showBloque, setShowBloque] = useState(true);
 
   const adv = adversarios.find((a) => (a._id || a.id) === advId) || null;
 
@@ -396,6 +399,19 @@ const AdversarioForge = ({ adversarios, razas, creatureTypes, activeRuns }) => {
     setRetrato(null); setRetratoFileId(null); setHistoria(''); setNivel(formatDesafio(adv) || '');
     setApariencia(''); setEdad(''); setNotas(''); setRelacionesDj('');
     setRasgos([]); setModoHablar(''); setEspectroOrigen('');
+    // Copia editable del bloque de combate heredado del Bestiario.
+    setBloque({
+      clase_armadura: adv.clase_armadura ?? 10,
+      puntos_golpe: adv.puntos_golpe ?? 0,
+      velocidad: adv.velocidad ?? 9,
+      percepcion_pasiva: adv.percepcion_pasiva ?? 10,
+      ataque_multiple: adv.ataque_multiple || '',
+      atributos: { ...(adv.atributos || {}) },
+      armas: (adv.armas || []).map((a) => ({ ...a })),
+      especiales: (adv.especiales || []).map((a) => ({ ...a })),
+      acciones: Array.isArray(adv.acciones) ? adv.acciones.map((a) => ({ ...a })) : [],
+      reacciones: (adv.reacciones || []).map((a) => ({ ...a })),
+    });
     // Detecta la familia de rasgos (orcos/trolls/huargos/espectros).
     const idToFam = { orco: 'orcos', trol: 'trolls', troll: 'trolls', huargo: 'huargos' };
     let fam = '';
@@ -524,10 +540,22 @@ const AdversarioForge = ({ adversarios, razas, creatureTypes, activeRuns }) => {
       const razaFinal = esEspiritu ? 'Espíritu' : (modo === 'racial' ? (raza || '') : '');
       const subFinal = modo === 'racial' ? (sub || '') : '';
       const { _id, id, ...rest } = adv;
+      const blk = bloque || {};
       // Adversario CONCRETO → se guarda en «PNJs existentes» (trading_npcs),
       // normalizando el bloque de combate a la forma de la ficha (ca/pg/caracteristicas).
+      // Los campos del bloque editable (armas, especiales, acciones…) sobrescriben lo heredado.
       const payload = {
         ...rest,
+        clase_armadura: blk.clase_armadura ?? adv.clase_armadura ?? 10,
+        puntos_golpe: blk.puntos_golpe ?? adv.puntos_golpe ?? 0,
+        velocidad: blk.velocidad ?? adv.velocidad,
+        percepcion_pasiva: blk.percepcion_pasiva ?? adv.percepcion_pasiva,
+        ataque_multiple: blk.ataque_multiple ?? adv.ataque_multiple ?? '',
+        atributos: blk.atributos || adv.atributos || {},
+        armas: blk.armas || adv.armas || [],
+        especiales: blk.especiales || adv.especiales || [],
+        acciones: blk.acciones || adv.acciones || [],
+        reacciones: blk.reacciones || adv.reacciones || [],
         es_adversario: adv.categoria !== 'pnj',
         bestiario_categoria: adv.categoria || 'malignos',
         nombre: nombre.trim(),
@@ -538,9 +566,9 @@ const AdversarioForge = ({ adversarios, razas, creatureTypes, activeRuns }) => {
         raza: razaFinal || (ct?.label || tipoCriatura || ''),
         subcultura: subFinal,
         sexo: sexo === 'M' ? 'Masculino' : 'Femenino',
-        ca: adv.clase_armadura ?? 10,
-        pg: adv.puntos_golpe ?? '',
-        caracteristicas: adv.atributos || {},
+        ca: blk.clase_armadura ?? adv.clase_armadura ?? 10,
+        pg: blk.puntos_golpe ?? adv.puntos_golpe ?? '',
+        caracteristicas: blk.atributos || adv.atributos || {},
         ubicacion: loc?.nombre || '',
         ubicacion_id: ubicacionId,
         region: loc?.region || '',
@@ -602,6 +630,17 @@ const AdversarioForge = ({ adversarios, razas, creatureTypes, activeRuns }) => {
           <span className="flex items-center gap-1"><Swords className="w-3.5 h-3.5 text-amber-400" /> {(adv.armas || []).length} arma(s)</span>
           <span>Desafío {formatDesafio(adv) || '—'}</span>
           {adv.tipo && <span className="text-muted-foreground">{adv.tipo}</span>}
+        </div>
+      )}
+
+      {/* Bloque de combate editable (armas, especiales, acciones… personalizables) */}
+      {adv && bloque && (
+        <div className="space-y-2">
+          <button type="button" onClick={() => setShowBloque((v) => !v)} data-testid="adv-block-toggle"
+            className="flex items-center gap-1 text-xs text-[hsl(var(--destructive))] hover:opacity-80">
+            <Swords className="w-3.5 h-3.5" /> {showBloque ? 'Ocultar' : 'Ver/editar'} el bloque de combate (armas, habilidades…)
+          </button>
+          {showBloque && <AdversaryBlockEditor bloque={bloque} onChange={setBloque} />}
         </div>
       )}
 

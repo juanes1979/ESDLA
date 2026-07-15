@@ -834,3 +834,23 @@ Aplica una transacción YA negociada al personaje (reutiliza endpoints de equipo
   `npc-cuerpo-entero-toggle`) para comparar y decidir si se mantiene.
 - Verificado por captura: form de adversario sin engranaje/chips/alineamiento + toggle marcado;
   navegador agrupado (ENANOS, HOMBRES, HOMBRES·GONDORIANOS, HOMBRES·HOMBRES DE BREE, ORCO).
+
+## PNJs/Bestiario — Agrupación por raza, bloque editable, retrato fotorrealista y zoom (Jul 2026)
+- **Bestiario agrupado** (NPCsSection): pestañas Malignos y PNJ se agrupan por raza/tipo
+  (Hombres, Elfos, Enanos, Hobbits, Orcos, Trols, Huargos, Espectros y No-muertos, Bestia…) con
+  cabecera y contador. La raza se deriva del paréntesis del `tipo` y, si no, de tipo+nombre.
+  Animales y Especiales se ordenan alfabéticamente (sin grupos).
+- **Bloque de combate EDITABLE al crear un adversario** (`AdversaryBlockEditor`): al elegir el
+  adversario del Bestiario aparece su bloque completo editable (CA/PG/Velocidad/Percepción,
+  atributos, ataque múltiple, armas con +impacto/alcance/daño/tipo/efecto, habilidades especiales,
+  otras acciones y reacciones). Se puede personalizar antes de guardar; los cambios sobrescriben lo
+  heredado en el payload de `/trading/npcs`.
+- **Retrato FOTORREALISTA en B/N a lápiz**: prompts reescritos en `/npc-generator/portrait` y en
+  `/trading/npcs/generate-profile` (bust y cuerpo entero) a «dibujo a lápiz fotorrealista, hiperdetallado,
+  aspecto de fotografía real» para que se aprecien mejor los detalles.
+- **Zoom de retrato + acciones en la ficha**: al pulsar el retrato en `NpcFichaCard` y `AdversaryFicha`
+  se amplía a pantalla completa (modal con ×). `AdversaryFicha` ahora también tiene botón Imprimir
+  (junto a Editar/Borrar); `NpcFichaCard` ya tenía imprimir/editar/borrar.
+- Verificado por captura: Bestiario Malignos agrupado (BESTIA/ENANOS/ESPECTROS Y NO-MUERTOS…),
+  bloque editable del «Jefe de Rufianes» (Gran Clava, Daga, Tácticas de Banda, Aullido de Triunfo),
+  y zoom del retrato de «Barin Toffin».

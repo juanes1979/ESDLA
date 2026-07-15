@@ -663,11 +663,11 @@ async def generate_npc_portrait(payload: PortraitRequest, user: dict = Depends(g
         if payload.full_body else "head and shoulders"
     )
     prompt = (
-        "black and white charcoal sketch on parchment paper, "
-        f"fantasy character portrait, {composicion}, "
-        "Tolkien Middle-earth style, dramatic lighting, "
-        "high contrast, detailed pencil strokes, no color, grayscale only, "
-        "artistic sketch style, cinematic composition. "
+        "photorealistic black and white pencil drawing, hyper-detailed realistic graphite rendering, "
+        f"lifelike fantasy character, {composicion}, "
+        "Tolkien Middle-earth style, dramatic lighting, realistic skin texture, fabrics and materials, "
+        "fine detailed shading, sharp focus, no color, grayscale only, "
+        "looks like a real photograph finished in pencil, cinematic composition. "
         "Subject: " + ", ".join(descriptors) + "."
     )
 

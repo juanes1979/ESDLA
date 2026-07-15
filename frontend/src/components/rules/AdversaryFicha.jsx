@@ -4,7 +4,8 @@
  * especiales, reacciones, defensas, sentidos, idiomas, atributos, desafío)
  * y añade datos propios del PNJ (ubicación, apariencia, historia, relaciones, notas).
  */
-import { Skull, Shield, Heart, Zap, Eye, Swords, Sparkles, BookOpen, MapPin, Users } from 'lucide-react';
+import { useState, useRef } from 'react';
+import { Skull, Shield, Heart, Zap, Eye, Swords, Sparkles, BookOpen, MapPin, Users, Printer, Edit } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
@@ -43,6 +44,8 @@ const Block = ({ title, icon: Icon, color, children }) => (
 );
 
 const AdversaryFicha = ({ npc, onEdit, onDelete }) => {
+  const [zoom, setZoom] = useState(false);
+  const cardRef = useRef(null);
   if (!npc) return null;
   const portrait = npc.retrato_file_id ? `${API_URL}/api/trading/npcs/${npc._id}/portrait` : null;
   const atributos = npc.atributos || npc.caracteristicas || null;
@@ -51,23 +54,45 @@ const AdversaryFicha = ({ npc, onEdit, onDelete }) => {
   const desafio = formatDesafio(npc);
   const rasgos = Array.isArray(npc.rasgos) ? npc.rasgos : (npc.rasgos ? [npc.rasgos] : []);
 
+  const handlePrint = () => {
+    const el = cardRef.current;
+    if (!el) return;
+    el.classList.add('npc-print-area');
+    document.body.classList.add('npc-printing');
+    const cleanup = () => {
+      el.classList.remove('npc-print-area');
+      document.body.classList.remove('npc-printing');
+      window.removeEventListener('afterprint', cleanup);
+    };
+    window.addEventListener('afterprint', cleanup);
+    setTimeout(() => window.print(), 50);
+  };
+
   return (
-    <div className="bg-card border border-[hsl(var(--destructive))]/40 rounded-xl p-4 space-y-4" data-testid="adversary-ficha">
+    <div ref={cardRef} className="bg-card border border-[hsl(var(--destructive))]/40 rounded-xl p-4 space-y-4" data-testid="adversary-ficha">
       {/* Cabecera */}
       <div className="flex items-start gap-3">
         {portrait
-          ? <img src={portrait} alt={npc.nombre} className="w-20 h-20 rounded-lg object-cover border border-[hsl(var(--gold))]/40" data-testid="adversary-ficha-portrait" />
+          ? <img src={portrait} alt={npc.nombre} onClick={() => setZoom(true)} className="w-20 h-20 rounded-lg object-cover border border-[hsl(var(--gold))]/40 cursor-zoom-in hover:border-[hsl(var(--gold))] transition-colors" title="Ampliar retrato" data-testid="adversary-ficha-portrait" />
           : <div className="w-20 h-20 rounded-lg border border-border/40 bg-black/40 flex items-center justify-center"><Skull className="w-8 h-8 text-muted-foreground/50" /></div>}
         <div className="flex-1 min-w-0">
           <h3 className="font-heading text-2xl text-[hsl(var(--gold))] leading-tight">{npc.nombre}{npc.apodo ? ` "${npc.apodo}"` : ''}</h3>
           <p className="text-sm text-muted-foreground">{npc.tipo_adversario || npc.profesion}</p>
           {npc.tipo && <p className="text-xs italic text-muted-foreground/70">{npc.tipo}</p>}
         </div>
-        <div className="flex gap-1">
-          {onEdit && <button onClick={onEdit} className="p-2 rounded hover:bg-white/10 text-muted-foreground" title="Editar" data-testid="adversary-ficha-edit"><Swords className="w-4 h-4" /></button>}
+        <div className="flex gap-1 no-print">
+          <button onClick={handlePrint} className="p-2 rounded hover:bg-white/10 text-muted-foreground" title="Imprimir ficha (A4)" data-testid="adversary-ficha-print"><Printer className="w-4 h-4" /></button>
+          {onEdit && <button onClick={onEdit} className="p-2 rounded hover:bg-white/10 text-muted-foreground" title="Editar" data-testid="adversary-ficha-edit"><Edit className="w-4 h-4" /></button>}
           {onDelete && <button onClick={onDelete} className="p-2 rounded hover:bg-white/10 text-red-400" title="Borrar" data-testid="adversary-ficha-delete"><Skull className="w-4 h-4" /></button>}
         </div>
       </div>
+
+      {zoom && portrait && (
+        <div className="fixed inset-0 z-[60] bg-black/90 flex items-center justify-center p-4 no-print" onClick={() => setZoom(false)} data-testid="adversary-portrait-zoom">
+          <img src={portrait} alt={npc.nombre} className="max-h-[90vh] max-w-[90vw] rounded-lg border border-[hsl(var(--gold))]/40 object-contain" />
+          <button className="absolute top-4 right-4 text-white text-3xl leading-none" onClick={() => setZoom(false)} title="Cerrar">×</button>
+        </div>
+      )}
 
       {/* Datos de PNJ */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm">
