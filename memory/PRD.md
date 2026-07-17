@@ -970,3 +970,22 @@ Aplica una transacción YA negociada al personaje (reutiliza endpoints de equipo
   nombre por sílabas (opcional)» con aviso de que se deja vacía para tipos que usan raza/subcultura;
   la descripción física queda claramente separada y se guarda de forma independiente.
 - Verificado por API: Espectro (solo descripción) → 200; tipo vacío → 400; nombre de Espectro → 400 claro; nombre de Orco → 200.
+
+## Retratos autónomos (sin créditos IA) + PDF con html-to-image (Jun 2026)
+### Objetivo: app 100% autónoma en hosting privado, sin gastar créditos de IA en retratos.
+- **PJ (CharacterSummary.jsx)**: eliminado el botón «Generar Retrato con IA». Ahora:
+  «Copiar prompt para retrato» (POST /api/portraits/prompt, prompt en ESPAÑOL, sin IA) +
+  «Subir retrato (JPG/PNG)» (base64 → PATCH /characters/draft/{id}/portrait). El prompt reúne
+  cultura (prompt_imagen_ia), edad aparente por raza, ojos, pelo, rasgos físicos/faciales y
+  vestimenta según ocupación.
+- **Herrero PNJs/Adversarios (PNJForgeSection.jsx)**: eliminado el retrato IA. Ahora «Copiar prompt»
+  (construido en cliente, español) + «Subir retrato» (POST /api/trading/npcs/portrait/upload-standalone
+  → devuelve retrato_file_id + base64, guardado con el PNJ). El botón grande pasa a «Generar trasfondo (IA)».
+- **Backend nuevo**: `portrait_routes.build_portrait_prompt_es` + `POST /portraits/prompt` (sin IA);
+  `trading_routes` `POST /trading/npcs/portrait/upload-standalone`. El viejo `/portraits/generate`
+  (IA) se conserva pero ya NO se usa desde la UI.
+- **PDF (InteractiveCharacterSheet.jsx)**: cambiado `html2canvas` → `html-to-image` (toJpeg) +
+  `await document.fonts.ready`. Corrige el desfase vertical del texto respecto a la vista web.
+- **Verificado**: testing agent 100% (backend 6/6 pytest; Herrero UI + descarga PDF sin errores).
+- **Pendiente opcional (P2)**: autoalojar la fuente caligráfica «Caveat» (hoy vía Google Fonts) para
+  fidelidad total del texto manuscrito en el PDF y eliminar dependencia externa (autonomía).
