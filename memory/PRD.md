@@ -989,3 +989,15 @@ Aplica una transacción YA negociada al personaje (reutiliza endpoints de equipo
 - **Verificado**: testing agent 100% (backend 6/6 pytest; Herrero UI + descarga PDF sin errores).
 - **Pendiente opcional (P2)**: autoalojar la fuente caligráfica «Caveat» (hoy vía Google Fonts) para
   fidelidad total del texto manuscrito en el PDF y eliminar dependencia externa (autonomía).
+
+## Campo posicionable CODIGOUNICOPJ (código único del PJ) (Jun 2026)
+- **Problema**: el código único del personaje (character.codigo_publico) se salía por el borde
+  derecho de la hoja (se renderizaba en x:1310 width:420 → borde 1730 > 1701 px) y aparecía cortado.
+- **Solución**: nuevo campo posicionable independiente `CODIGOUNICOPJ` (SheetPage1.PAGE1_FIELDS,
+  x:1160 y:55 width:500 fontSize:20 align:right → borde 1660 < 1701), renderizado con
+  `getPos('CODIGOUNICOPJ')` que fusiona la posición guardada en el Editor sobre el default.
+- SheetPage1 ahora recibe `fieldPositions` (page1) desde InteractiveCharacterSheet, de modo que las
+  posiciones del Editor afectan a este campo. Añadido a FIELD_SUGGESTIONS del Editor y sembrado por
+  defecto al cargar si no existe en BD (arrastrable y persistible vía PUT /data/sheet-positions).
+- Verificado por testing agent (frontend 100%): el código 'HOMDUNE2611023' se ve completo dentro de
+  la hoja y CODIGOUNICOPJ aparece/mueve en /sheet-editor, sin errores de consola.
