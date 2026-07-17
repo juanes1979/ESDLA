@@ -274,11 +274,23 @@ async def long_rest(character_id: str):
 
 
 @router.patch("/{character_id}")
-async def update_character(character_id: str, data: dict = Body(...)):
+async def update_character(character_id: str, data: dict = Body(...), user: dict = Depends(get_current_user)):
     """Update character fields (used for level-up, etc.)"""
     character = await db.characters.find_one({"_id": character_id})
     if not character:
         raise HTTPException(status_code=404, detail="Character not found")
+
+    # Regla del retrato del personaje: una vez guardada una imagen, NO se
+    # puede cambiar. Solo el MAESTRO puede sustituirla (el DJ y los jugadores
+    # no). Si aún no hay retrato, se permite subir uno (a cualquiera con acceso).
+    if 'portrait_image' in data and str(data.get('portrait_image') or '').strip():
+        ya_tiene_retrato = bool(str(character.get('portrait_image') or '').strip())
+        es_maestro = (user or {}).get('role') == 'maestro'
+        if ya_tiene_retrato and not es_maestro:
+            raise HTTPException(
+                status_code=403,
+                detail="El retrato ya está guardado y no se puede cambiar. Solo el Maestro puede modificarlo.",
+            )
     
     # Fields allowed to be updated
     allowed_fields = [

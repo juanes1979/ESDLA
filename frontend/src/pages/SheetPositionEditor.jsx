@@ -22,7 +22,7 @@ const SHEET_HEIGHT = 2197;
 // Predefined field suggestions for quick selection
 const FIELD_SUGGESTIONS = [
   // Datos básicos
-  'nombre', 'jugador', 'ocupacion_nivel', 'cultura', 'experiencia', 'senda_sombra', 'sexo',
+  'nombre', 'jugador', 'ocupacion_nivel', 'cultura', 'experiencia', 'senda_sombra', 'sexo', 'CODIGOUNICOPJ',
   
   // Rasgos distintivos (2 con descripción)
   'rasgos_distintivos_1', 'descripcion_rasgos_distintivos_1',
@@ -171,6 +171,16 @@ const SheetPositionEditor = () => {
             });
           });
         });
+        
+        // Garantiza que el campo del código único del PJ (CODIGOUNICOPJ) esté
+        // disponible para moverlo, aunque aún no exista en la BD.
+        if (!loaded.some(p => p.fieldName === 'CODIGOUNICOPJ')) {
+          loaded.push({
+            id: id++, x: 1160, y: 55, page: 1, fieldName: 'CODIGOUNICOPJ',
+            width: 500, fontSize: 20, height: null, multiline: false,
+            previewText: 'HOMBREE2678020', align: 'right',
+          });
+        }
         
         if (loaded.length > 0) {
           setPositions(loaded);

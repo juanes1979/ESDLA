@@ -66,6 +66,9 @@ export const PAGE1_FIELDS = {
   sexo: { x: 376, y: 261, width: 137, fontSize: 40, align: 'center' },
   // Código público RAZSUBCAAXXXXX, esquina superior derecha
   codigo_publico: { x: 1310, y: 45, width: 420, fontSize: 21, align: 'right' },
+  // Código único del PJ — campo posicionable e independiente (movible desde el
+  // Editor de posiciones). Ancho generoso y dentro de la hoja para que salga entero.
+  CODIGOUNICOPJ: { x: 1160, y: 55, width: 500, fontSize: 20, align: 'right' },
   
   // Attributes - Main values
   fuerza_valor: { x: 95, y: 332, width: 107, fontSize: 100, align: 'center' },
@@ -311,7 +314,9 @@ const isWeapon = (itemName) => {
   return WEAPON_NAMES.some(w => normalized.includes(w));
 };
 
-const SheetPage1 = ({ character, scale, weaponCatalog = [], equipmentCatalog = {} }) => {
+const SheetPage1 = ({ character, scale, weaponCatalog = [], equipmentCatalog = {}, fieldPositions = {} }) => {
+  // Posición efectiva: usa la guardada en el Editor (BD) o el valor por defecto.
+  const getPos = (key) => fieldPositions?.[key] || PAGE1_FIELDS[key] || { x: 0, y: 0, width: 100, fontSize: 14, align: 'left' };
   // Get attributes
   const attrs = character.atributos || character.caracteristicas || character.atributos_finales || {};
   const bonificadorCompetencia = character.bonificador_competencia || 2;
@@ -833,7 +838,7 @@ const SheetPage1 = ({ character, scale, weaponCatalog = [], equipmentCatalog = {
       <DisplayField {...PAGE1_FIELDS.nombre} value={character.nombre} scale={scale} />
       <DisplayField {...PAGE1_FIELDS.ocupacion_nivel} value={`${character.ocupacion_nombre || character.vocacion_nombre || ''} ${nivel}`} scale={scale} />
       <DisplayField {...PAGE1_FIELDS.jugador} value={character.jugador || character.nombre_jugador || ''} scale={scale} />
-      <DisplayField {...PAGE1_FIELDS.codigo_publico} value={character.codigo_publico || ''} scale={scale} />
+      <DisplayField {...getPos('CODIGOUNICOPJ')} value={character.codigo_publico || ''} scale={scale} />
       <DisplayField {...PAGE1_FIELDS.cultura} value={character.cultura_nombre || ''} scale={scale} />
       <DisplayField {...PAGE1_FIELDS.senda_sombra} value={character.senda_sombra || ''} scale={scale} />
       

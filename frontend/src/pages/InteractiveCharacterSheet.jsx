@@ -387,6 +387,7 @@ const InteractiveCharacterSheet = () => {
                 scale={scale} 
                 weaponCatalog={weaponCatalog}
                 equipmentCatalog={equipmentCatalog}
+                fieldPositions={fieldPositions.page1}
               />
             )}
 

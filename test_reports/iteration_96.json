@@ -1,0 +1,20 @@
+{
+  "summary": "Verified CODIGOUNICOPJ field renders complete on interactive character sheet and is available/editable in Sheet Position Editor.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A", "frontend": "100%"},
+  "test_credentials": "elanillounico_tlotr@proton.me / 123456",
+  "seed_data_creation": "",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "CODIGOUNICOPJ field verified: on /character/{id}/sheet code 'HOMDUNE2611023' renders at DOM right=1445.7 within sheet image right=1470.3 (overflow hidden guard present but text fits). In /sheet-editor, searching 'CODIGO' finds 1 field 'CODIGOUNICOPJ' at x:1160 y:55 width:500 align:right — draggable and persistable via PUT /api/data/sheet-positions. No JS console errors on either page.",
+  "rca of the issue": "Previous rendering used codigo_publico at x:1310 width:420 (right=1730 > 1701 image width) causing right-edge clipping. Fix: introduced independent positionable field CODIGOUNICOPJ at x:1160 width:500 (right=1660 < 1701) rendered via DisplayField with getPos() merging saved positions. Verified visually and via DOM measurements."
+}
