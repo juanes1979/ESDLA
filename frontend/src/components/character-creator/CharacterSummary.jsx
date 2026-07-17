@@ -2,7 +2,7 @@
  * Character Summary - Final review before creation
  */
 import { useState } from 'react';
-import { Loader2, Edit2, Check, User, Sword, Shield, Heart, Star, Crown, ImageIcon, RefreshCw, Dices, X, Plus } from 'lucide-react';
+import { Loader2, Edit2, Check, User, Sword, Shield, Heart, Star, Crown, ImageIcon, RefreshCw, Dices, X, Plus, Copy, Upload } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { toast } from 'sonner';
@@ -16,10 +16,11 @@ const getModifier = (score) => {
 
 const CharacterSummary = ({ draft, onFinalize, onEdit, loading, draftId }) => {
   const [portraitImage, setPortraitImage] = useState(draft?.portrait_image || null);
-  const [generatingPortrait, setGeneratingPortrait] = useState(false);
-  const [portraitProgress, setPortraitProgress] = useState(0);
   const [portraitError, setPortraitError] = useState(null);
-  // Rasgos faciales aleatorios (uno por zona) para dar variedad a la imagen IA.
+  const [promptText, setPromptText] = useState('');
+  const [loadingPrompt, setLoadingPrompt] = useState(false);
+  const [uploadingPortrait, setUploadingPortrait] = useState(false);
+  // Rasgos faciales aleatorios (uno por zona) para dar variedad a la imagen.
   const [facialTraits, setFacialTraits] = useState(() => pickRandomFacialTraits());
   const updateTrait = (idx, value) =>
     setFacialTraits((prev) => prev.map((t, i) => (i === idx ? { ...t, value } : t)));
@@ -31,92 +32,81 @@ const CharacterSummary = ({ draft, onFinalize, onEdit, loading, draftId }) => {
       { id: `extra-${Date.now()}-${Math.floor(Math.random() * 1000)}`, label: 'Rasgo adicional', value: '' },
     ]);
 
-  // Generate character portrait using AI
-  const generatePortrait = async () => {
+  const portraitPayload = () => ({
+    nombre: draft.nombre || '',
+    cultura: draft.cultura_nombre || '',
+    raza: draft.raza_nombre || draft.cultura_nombre || '',
+    vocacion: draft.vocacion_nombre || draft.ocupacion_nombre || '',
+    trasfondo: draft.trasfondo_nombre || '',
+    edad: draft.edad || null,
+    altura_cm: draft.altura_cm || null,
+    peso_kg: draft.peso_kg || null,
+    color_ojos: draft.color_ojos || draft.ojos || '',
+    color_pelo: draft.color_pelo || draft.pelo || '',
+    rasgos_fisicos: draft.rasgos_fisicos || '',
+    rasgos_faciales: facialTraits.map((t) => t.value).filter(Boolean).join('; '),
+    genero: draft.genero || draft.sexo || 'hombre',
+  });
+
+  // Genera el PROMPT en español (sin IA, sin créditos) y lo copia al portapapeles.
+  const copyPrompt = async () => {
     if (!draft || !draft.nombre) {
-      toast.error('Faltan datos del personaje para generar el retrato.');
+      toast.error('Faltan datos del personaje para generar el prompt.');
+      return;
+    }
+    setLoadingPrompt(true);
+    try {
+      const response = await api.post('/portraits/prompt', portraitPayload());
+      const text = response.data?.prompt || '';
+      setPromptText(text);
+      try {
+        await navigator.clipboard.writeText(text);
+        toast.success('Prompt copiado al portapapeles');
+      } catch {
+        toast.info('Prompt generado. Cópialo del recuadro de abajo.');
+      }
+    } catch (error) {
+      toast.error('No se pudo generar el prompt: ' + (error?.response?.data?.detail || error.message));
+    } finally {
+      setLoadingPrompt(false);
+    }
+  };
+
+  // Sube un retrato propio (JPG/PNG) y lo asocia al personaje (base64, sin IA).
+  const uploadPortrait = async (file) => {
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      toast.error('El archivo debe ser una imagen (JPG o PNG)');
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error('La imagen supera el máximo de 10 MB');
       return;
     }
     setPortraitError(null);
-    setGeneratingPortrait(true);
-    setPortraitProgress(0);
-
-    // Timer visual: la generación con gpt-image-1 tarda 15-30 s.
-    const t0 = Date.now();
-    const progressTimer = setInterval(() => {
-      const elapsed = Math.round((Date.now() - t0) / 1000);
-      setPortraitProgress(elapsed);
-    }, 1000);
-
+    setUploadingPortrait(true);
     try {
-      const response = await api.post('/portraits/generate', {
-        nombre: draft.nombre || '',
-        cultura: draft.cultura_nombre || '',
-        raza: draft.raza_nombre || draft.cultura_nombre || '',
-        vocacion: draft.vocacion_nombre || draft.ocupacion_nombre || '',
-        trasfondo: draft.trasfondo_nombre || '',
-        edad: draft.edad || null,
-        altura_cm: draft.altura_cm || null,
-        peso_kg: draft.peso_kg || null,
-        color_ojos: draft.color_ojos || draft.ojos || '',
-        color_pelo: draft.color_pelo || draft.pelo || '',
-        rasgos_fisicos: draft.rasgos_fisicos || '',
-        rasgos_faciales: facialTraits.map((t) => t.value).filter(Boolean).join('; '),
-        genero: draft.genero || draft.sexo || 'hombre',
-      }, { timeout: 120000 }); // 2 min: gpt-image-1 puede tardar
-
-      clearInterval(progressTimer);
-
-      if (response.data?.success && response.data?.image_base64 &&
-          typeof response.data.image_base64 === 'string' &&
-          response.data.image_base64.length > 100) {
-        const imageBase64 = response.data.image_base64;
-        setPortraitImage(imageBase64);
-
-        // Update draft with the portrait in the backend.
-        // Si el draft ya no existe (porque el personaje se finalizó), no es un
-        // error fatal: la imagen ya está cargada en pantalla.
-        if (draftId) {
-          try {
-            await api.patch(`/characters/draft/${draftId}/portrait`, {
-              portrait_image: imageBase64
-            });
-          } catch (saveError) {
-            console.warn('Draft ya finalizado, no se puede guardar el retrato en el draft:', saveError?.response?.status);
-          }
+      const base64 = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result).split(',')[1] || '');
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+      setPortraitImage(base64);
+      if (draftId) {
+        try {
+          await api.patch(`/characters/draft/${draftId}/portrait`, { portrait_image: base64 });
+        } catch (saveError) {
+          console.warn('No se pudo guardar el retrato en el draft:', saveError?.response?.status);
         }
-
-        // Update draft object locally
-        if (draft) draft.portrait_image = imageBase64;
-        toast.success('Retrato generado con éxito');
-      } else {
-        const detail = response.data?.detail || 'La IA no devolvió ninguna imagen.';
-        setPortraitError(detail);
-        toast.error('Error al generar el retrato: ' + detail);
       }
-    } catch (error) {
-      clearInterval(progressTimer);
-      // El detail de 422 viene como array de objetos Pydantic [{loc, msg, ...}]
-      const rawDetail = error.response?.data?.detail;
-      let detail;
-      if (Array.isArray(rawDetail)) {
-        detail = rawDetail.map(d => `${(d.loc || []).slice(1).join('.')}: ${d.msg}`).join('; ');
-      } else if (rawDetail && typeof rawDetail === 'object') {
-        detail = JSON.stringify(rawDetail);
-      } else {
-        detail = rawDetail || error.message || 'Error desconocido';
-      }
-      const status = error.response?.status;
-      const msg = status === 504 || error.code === 'ECONNABORTED'
-        ? 'La generación tardó demasiado. Inténtalo de nuevo.'
-        : `Error al generar el retrato${status ? ` (HTTP ${status})` : ''}: ${detail}`;
-      console.error('Error generating portrait:', { status, detail, error });
-      setPortraitError(msg);
-      toast.error(msg);
+      if (draft) draft.portrait_image = base64;
+      toast.success('Retrato subido');
+    } catch (e) {
+      setPortraitError('No se pudo subir la imagen.');
+      toast.error('No se pudo subir la imagen.');
     } finally {
-      clearInterval(progressTimer);
-      setGeneratingPortrait(false);
-      setPortraitProgress(0);
+      setUploadingPortrait(false);
     }
   };
 
@@ -144,25 +134,11 @@ const CharacterSummary = ({ draft, onFinalize, onEdit, loading, draftId }) => {
           {/* Portrait Section */}
           <div className="flex flex-col items-center gap-2">
             {portraitImage ? (
-              <div className="relative group">
-                <img 
-                  src={`data:image/png;base64,${portraitImage}`}
-                  alt={`Retrato de ${draft.nombre}`}
-                  className="w-24 h-24 rounded-full object-cover border-2 border-[hsl(var(--gold))]"
-                />
-                <button
-                  onClick={generatePortrait}
-                  disabled={generatingPortrait}
-                  className="absolute inset-0 bg-black/60 rounded-full opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
-                  title="Regenerar retrato"
-                >
-                  {generatingPortrait ? (
-                    <Loader2 className="w-6 h-6 animate-spin text-white" />
-                  ) : (
-                    <RefreshCw className="w-6 h-6 text-white" />
-                  )}
-                </button>
-              </div>
+              <img 
+                src={`data:image/png;base64,${portraitImage}`}
+                alt={`Retrato de ${draft.nombre}`}
+                className="w-24 h-24 rounded-full object-cover border-2 border-[hsl(var(--gold))]"
+              />
             ) : (
               <div className="w-24 h-24 rounded-full bg-gradient-to-br from-[hsl(var(--gold))/30] to-[hsl(var(--gold))/10] flex items-center justify-center border-2 border-[hsl(var(--gold))]">
                 <span className="font-heading text-4xl text-[hsl(var(--gold))]">
@@ -170,43 +146,18 @@ const CharacterSummary = ({ draft, onFinalize, onEdit, loading, draftId }) => {
                 </span>
               </div>
             )}
-            <Button
-              onClick={generatePortrait}
-              disabled={generatingPortrait}
-              size="sm"
-              variant="outline"
-              className="text-xs border-purple-500/50 text-purple-400 hover:bg-purple-500/10"
-              data-testid="generate-portrait-btn"
-            >
-              {generatingPortrait ? (
-                <>
-                  <Loader2 className="w-3 h-3 mr-1 animate-spin" />
-                  Generando...
-                </>
-              ) : portraitImage ? (
-                <>
-                  <RefreshCw className="w-3 h-3 mr-1" />
-                  Regenerar
-                </>
-              ) : (
-                <>
-                  <ImageIcon className="w-3 h-3 mr-1" />
-                  Generar Retrato IA
-                </>
-              )}
-            </Button>
-
-            {/* Feedback visible mientras la IA genera (15-30 s normales). */}
-            {generatingPortrait && (
-              <div
-                className="text-[11px] text-center text-purple-300 bg-purple-500/10 border border-purple-500/30 rounded px-2 py-1 max-w-[180px]"
-                data-testid="portrait-progress"
-              >
-                Generando retrato con IA…<br />
-                <span className="font-mono">{portraitProgress}s</span> · puede tardar 15–30 s
-              </div>
-            )}
-            {portraitError && !generatingPortrait && (
+            <label className="cursor-pointer" data-testid="summary-portrait-upload-label">
+              <input
+                type="file" accept="image/png,image/jpeg,image/webp" className="hidden"
+                onChange={(e) => { uploadPortrait(e.target.files?.[0]); e.target.value = ''; }}
+                data-testid="summary-portrait-upload-input"
+              />
+              <span className="inline-flex items-center text-xs px-3 py-1.5 rounded-md border border-[hsl(var(--gold))]/50 text-[hsl(var(--gold))] hover:bg-[hsl(var(--gold))]/10 transition-colors">
+                {uploadingPortrait ? <Loader2 className="w-3 h-3 mr-1 animate-spin" /> : <Upload className="w-3 h-3 mr-1" />}
+                {portraitImage ? 'Cambiar' : 'Subir retrato'}
+              </span>
+            </label>
+            {portraitError && (
               <div
                 className="text-[10px] text-center text-red-300 bg-red-500/10 border border-red-500/30 rounded px-2 py-1 max-w-[180px]"
                 data-testid="portrait-error"
@@ -238,81 +189,86 @@ const CharacterSummary = ({ draft, onFinalize, onEdit, loading, draftId }) => {
               Retrato del Personaje
             </h3>
             <div className="flex flex-col md:flex-row items-center gap-6">
-              <div className="relative group">
-                <img 
-                  src={`data:image/png;base64,${portraitImage}`}
-                  alt={`Retrato de ${draft.nombre}`}
-                  className="w-64 h-64 md:w-80 md:h-80 object-cover rounded-lg border-2 border-[hsl(var(--gold))] shadow-lg"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent rounded-lg opacity-0 group-hover:opacity-100 transition-opacity" />
-              </div>
+              <img 
+                src={`data:image/png;base64,${portraitImage}`}
+                alt={`Retrato de ${draft.nombre}`}
+                className="w-64 h-64 md:w-80 md:h-80 object-cover rounded-lg border-2 border-[hsl(var(--gold))] shadow-lg"
+              />
               <div className="flex flex-col gap-3 text-center md:text-left">
                 <p className="text-sm text-muted-foreground italic">
-                  Retrato generado con IA basado en las características del personaje
+                  Retrato del personaje (imagen propia subida).
                 </p>
-                <Button
-                  onClick={generatePortrait}
-                  disabled={generatingPortrait}
-                  variant="outline"
-                  className="border-purple-500/50 text-purple-400 hover:bg-purple-500/10"
-                >
-                  {generatingPortrait ? (
-                    <>
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      Generando nuevo retrato...
-                    </>
-                  ) : (
-                    <>
-                      <RefreshCw className="w-4 h-4 mr-2" />
-                      Regenerar Retrato
-                    </>
-                  )}
-                </Button>
-                <p className="text-xs text-muted-foreground">
-                  Si no te gusta el resultado, puedes generar otro
-                </p>
+                <label className="cursor-pointer" data-testid="summary-portrait-change-label">
+                  <input
+                    type="file" accept="image/png,image/jpeg,image/webp" className="hidden"
+                    onChange={(e) => { uploadPortrait(e.target.files?.[0]); e.target.value = ''; }}
+                  />
+                  <span className="inline-flex items-center justify-center px-4 py-2 rounded-md border border-[hsl(var(--gold))]/50 text-[hsl(var(--gold))] hover:bg-[hsl(var(--gold))]/10 transition-colors">
+                    {uploadingPortrait ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Upload className="w-4 h-4 mr-2" />}
+                    Cambiar imagen
+                  </span>
+                </label>
               </div>
             </div>
           </div>
         )}
 
-        {/* Generate Portrait Section - Only shown when NO portrait exists */}
-        {!portraitImage && (
-          <div className="mb-6 pb-6 border-b border-border">
-            <h3 className="font-heading text-lg text-[hsl(var(--gold))] mb-4 flex items-center gap-2">
-              <ImageIcon className="w-5 h-5" />
-              Retrato del Personaje
-            </h3>
-            <div className="bg-purple-900/20 border border-purple-500/30 rounded-lg p-6 text-center">
-              <div className="w-32 h-32 mx-auto mb-4 rounded-lg bg-purple-500/10 border-2 border-dashed border-purple-500/30 flex items-center justify-center">
-                <ImageIcon className="w-12 h-12 text-purple-500/50" />
-              </div>
-              <p className="text-muted-foreground mb-4">
-                Genera un retrato único para tu personaje usando inteligencia artificial
-              </p>
+        {/* Portrait Section - Copy prompt + upload (sin IA, sin créditos) */}
+        <div className="mb-6 pb-6 border-b border-border" data-testid="portrait-prompt-section">
+          <h3 className="font-heading text-lg text-[hsl(var(--gold))] mb-4 flex items-center gap-2">
+            <ImageIcon className="w-5 h-5" />
+            {portraitImage ? 'Regenerar el retrato' : 'Retrato del Personaje'}
+          </h3>
+          <div className="bg-black/20 border border-[hsl(var(--gold))]/20 rounded-lg p-6">
+            <p className="text-muted-foreground mb-4 text-sm">
+              Copia el prompt (reúne cultura, edad, oficio, arma, rasgos faciales…), crea la imagen en
+              tu herramienta favorita y súbela. Así no se gastan créditos de IA. Puedes hacerlo ahora o
+              más tarde desde la ficha del personaje.
+            </p>
+            <div className="flex flex-wrap gap-3">
               <Button
-                onClick={generatePortrait}
-                disabled={generatingPortrait}
-                className="bg-purple-600 hover:bg-purple-700"
+                onClick={copyPrompt}
+                disabled={loadingPrompt}
+                variant="outline"
+                className="border-[hsl(var(--gold))]/50 text-[hsl(var(--gold))] hover:bg-[hsl(var(--gold))]/10"
+                data-testid="copy-prompt-btn"
               >
-                {generatingPortrait ? (
-                  <>
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    Generando retrato...
-                  </>
-                ) : (
-                  <>
-                    <ImageIcon className="w-4 h-4 mr-2" />
-                    Generar Retrato con IA
-                  </>
-                )}
+                {loadingPrompt ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Copy className="w-4 h-4 mr-2" />}
+                Copiar prompt para retrato
               </Button>
-              <p className="text-xs text-muted-foreground mt-3">
-                Dibujo fotorealista en blanco y negro, estilo Tolkien
-              </p>
+              <label className="cursor-pointer" data-testid="summary-portrait-upload2-label">
+                <input
+                  type="file" accept="image/png,image/jpeg,image/webp" className="hidden"
+                  onChange={(e) => { uploadPortrait(e.target.files?.[0]); e.target.value = ''; }}
+                />
+                <span className="inline-flex items-center justify-center px-4 py-2 rounded-md bg-[hsl(var(--gold))] text-black hover:opacity-90 transition-opacity">
+                  {uploadingPortrait ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Upload className="w-4 h-4 mr-2" />}
+                  Subir retrato (JPG/PNG)
+                </span>
+              </label>
             </div>
+            {promptText && (
+              <div className="mt-4">
+                <label className="text-xs text-[hsl(var(--gold))]/80">Prompt (edítalo si quieres antes de copiarlo)</label>
+                <textarea
+                  value={promptText}
+                  onChange={(e) => setPromptText(e.target.value)}
+                  rows={5}
+                  className="w-full mt-1 p-3 rounded bg-black/40 border border-border/50 text-sm resize-y"
+                  data-testid="portrait-prompt-text"
+                />
+                <Button
+                  size="sm" variant="ghost"
+                  onClick={() => { navigator.clipboard?.writeText(promptText); toast.success('Prompt copiado'); }}
+                  className="mt-1 text-xs text-[hsl(var(--gold))]"
+                  data-testid="copy-prompt-again-btn"
+                >
+                  <Copy className="w-3 h-3 mr-1" /> Copiar de nuevo
+                </Button>
+              </div>
+            )}
           </div>
-        )}
+        </div>
 
         {/* Rasgos faciales aleatorios para la IA (editables) */}
         <div className="mb-6 pb-6 border-b border-border" data-testid="facial-traits-box">
@@ -339,7 +295,7 @@ const CharacterSummary = ({ draft, onFinalize, onEdit, loading, draftId }) => {
             </div>
           </div>
           <p className="text-xs text-muted-foreground mb-3">
-            Se incorporan al retrato IA (junto con edad, subcultura, ojos, pelo…) para que los
+            Se incorporan al prompt del retrato (junto con edad, subcultura, ojos, pelo…) para que los
             personajes no se parezcan. Puedes editar o quitar cualquiera.
           </p>
           <div className="space-y-2">

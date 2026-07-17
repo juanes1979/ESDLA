@@ -10,7 +10,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Loader2, ChevronLeft, ChevronRight, Printer, ZoomIn, ZoomOut, Download, FileText, Crown, Package } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
-import html2canvas from 'html2canvas';
+import { toJpeg } from 'html-to-image';
 import { jsPDF } from 'jspdf';
 import { getCharacter } from '@/services/api';
 import api from '@/services/api';
@@ -105,17 +105,24 @@ const InteractiveCharacterSheet = () => {
         
         // Wait for page to render
         await new Promise(resolve => setTimeout(resolve, 500));
-        
-        // Capture the sheet
-        const canvas = await html2canvas(sheetRef.current, {
-          scale: 2,
-          useCORS: true,
-          allowTaint: true,
+
+        // Espera a que TODAS las fuentes (incluida la caligráfica) estén cargadas
+        // para que el texto quede EXACTAMENTE en el mismo sitio que en pantalla.
+        if (document.fonts && document.fonts.ready) {
+          try { await document.fonts.ready; } catch { /* noop */ }
+        }
+
+        // Captura con html-to-image (usa el motor SVG del propio navegador):
+        // reproduce el render real de la pantalla y elimina el desfase del texto
+        // que provocaba html2canvas.
+        const imgData = await toJpeg(sheetRef.current, {
+          quality: 0.95,
+          pixelRatio: 2,
           backgroundColor: '#ffffff',
-          logging: false,
+          cacheBust: true,
+          width: SHEET_WIDTH,
+          height: SHEET_HEIGHT,
         });
-        
-        const imgData = canvas.toDataURL('image/jpeg', 0.95);
 
         if (pageNum > 1) {
           pdf.addPage();
@@ -123,7 +130,7 @@ const InteractiveCharacterSheet = () => {
 
         // Escala la imagen para que quepa ENTERA dentro de la página A4
         // sin desbordar hacia abajo (preserva relación de aspecto y centra).
-        const ratio = canvas.width / canvas.height;
+        const ratio = SHEET_WIDTH / SHEET_HEIGHT;
         let imgWidth = pdfWidth;
         let imgHeight = pdfWidth / ratio;
         if (imgHeight > pdfHeight) {

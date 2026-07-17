@@ -9,7 +9,7 @@
  *  diccionarios de nombres— llegará en la Fase B.)
  */
 import { useEffect, useState, useMemo } from 'react';
-import { Users, Skull, Wand2, Save, Loader2, ChevronLeft, Shield, Heart, Swords, Settings, Swords as SwordsIcon, Search, Trash2, Check } from 'lucide-react';
+import { Users, Skull, Wand2, Save, Loader2, ChevronLeft, Shield, Heart, Swords, Settings, Swords as SwordsIcon, Search, Trash2, Check, Copy, Upload } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
@@ -418,6 +418,7 @@ const AdversarioForge = ({ adversarios, razas, creatureTypes, activeRuns }) => {
   const [cuerpoEntero, setCuerpoEntero] = useState(true); // retrato de cuerpo entero (reversible)
   const [retrato, setRetrato] = useState(null); // base64 preview
   const [retratoFileId, setRetratoFileId] = useState(null);
+  const [promptRetrato, setPromptRetrato] = useState('');
   const [historia, setHistoria] = useState('');
   const [nivel, setNivel] = useState('');
   const [busyRetrato, setBusyRetrato] = useState(false);
@@ -476,7 +477,7 @@ const AdversarioForge = ({ adversarios, razas, creatureTypes, activeRuns }) => {
     setAllowedTypes(Array.isArray(adv.tipos_criatura) ? adv.tipos_criatura : []);
     setTipoCriatura('');
     setNombre('');
-    setRetrato(null); setRetratoFileId(null); setHistoria(''); setNivel(formatDesafio(adv) || '');
+    setRetrato(null); setRetratoFileId(null); setPromptRetrato(''); setHistoria(''); setNivel(formatDesafio(adv) || '');
     setApariencia(''); setEdad(''); setNotas(''); setRelacionesDj('');
     setRasgos([]); setModoHablar(''); setEspectroOrigen('');
     // Copia editable del bloque de combate heredado del Bestiario.
@@ -506,31 +507,58 @@ const AdversarioForge = ({ adversarios, razas, creatureTypes, activeRuns }) => {
     setFamiliaRasgos(fam);
   }, [advId]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const doRetrato = async () => {
-    const familiaLabel = { orcos: 'orc', trolls: 'troll', huargos: 'giant warg wolf', espectros: 'ghostly wraith / undead spectre' }[familiaRasgos] || '';
+  // Construye el PROMPT en español (sin IA, sin créditos) reuniendo todo lo del adversario.
+  const buildPromptEs = () => {
+    const familiaLabel = { orcos: 'un orco', trolls: 'un trol', huargos: 'un enorme lobo huargo', espectros: 'un espectro fantasmal / no-muerto' }[familiaRasgos] || '';
     const criaturaTxt = modo === 'sin_raza' ? (ct?.label || '') : '';
     const razaTxt = modo === 'racial' ? [raza, sub].filter(Boolean).join(' ') : '';
     const armasActuales = (bloque?.armas || adv.armas || []).map((a) => a?.nombre).filter(Boolean);
-    const parts = [];
+    const composicion = cuerpoEntero
+      ? 'plano de cuerpo entero, figura completa de la cabeza a los pies, nada recortado'
+      : 'retrato de cabeza y hombros';
+    const partes = [];
+    partes.push('Dibujo a lápiz hiperrealista en blanco y negro, retrato muy detallado hecho a mano, estilo Tierra Media de Tolkien');
+    partes.push(composicion);
     // Lo MÁS importante: el tipo de criatura (orco, trol, huargo, espectro…)
-    if (familiaLabel) parts.push(`a ${familiaLabel} of Middle-earth, clearly non-human and monstrous`);
-    else if (criaturaTxt) parts.push(`a ${criaturaTxt} of Middle-earth`);
-    // Descripción física general del tipo de criatura (editable en «Bases de creación»)
+    if (familiaLabel) partes.push(`${familiaLabel} de la Tierra Media, claramente no humano y monstruoso`);
+    else if (criaturaTxt) partes.push(`${criaturaTxt} de la Tierra Media`);
+    // Descripción física del tipo de criatura (editable en «Bases de creación»)
     const famRoot = { orcos: 'orco', trolls: 'trol', huargos: 'huargo', espectros: 'espectro' }[familiaRasgos];
     const creatureDesc = ct?.descripcion_visual || creatureTypes.find((c) => c.id === famRoot)?.descripcion_visual || '';
-    if (creatureDesc) parts.push(`physical appearance of this creature type (very important): ${creatureDesc}`);
-    if (razaTxt) parts.push(`race: ${razaTxt}`);
-    if (adv.nombre) parts.push(`role: ${adv.nombre}`);
-    if (apariencia) parts.push(`distinctive physical features: ${apariencia}`);
-    if (armasActuales.length) parts.push(`equipped with ${armasActuales.join(', ')}, the weapons must be held or worn naturally in their correct place (not floating, not oversized)`);
-    if (adv.ubicacion) parts.push(`from ${adv.ubicacion}`);
-    if (edad) parts.push(`aged ${edad}`);
-    const body = modo === 'racial'
-      ? { subculture_name: sub, sex: sexo, occupation: adv.nombre, extra: parts.join('; '), full_body: cuerpoEntero }
-      : { occupation: adv.nombre, sex: sexo, extra: parts.join('; '), full_body: cuerpoEntero };
-    const res = await api.post('/npc-generator/portrait', body);
-    setRetrato(res.data?.image_base64 || null);
-    setRetratoFileId(res.data?.file_id || null);
+    if (creatureDesc) partes.push(`aspecto físico de este tipo de criatura (muy importante): ${creatureDesc}`);
+    if (razaTxt) partes.push(`raza: ${razaTxt}`);
+    if (adv?.nombre) partes.push(`rol: ${adv.nombre}`);
+    if (sexo) partes.push(sexo === 'M' ? 'masculino' : 'femenino');
+    if (apariencia) partes.push(`rasgos físicos distintivos: ${apariencia}`);
+    if (armasActuales.length) partes.push(`equipado con ${armasActuales.join(', ')}, las armas sujetas o portadas de forma natural en su sitio (no flotando, no sobredimensionadas)`);
+    if (adv?.ubicacion) partes.push(`procedente de ${adv.ubicacion}`);
+    if (edad) partes.push(`edad: ${edad}`);
+    partes.push('alto contraste en blanco y negro, trazos de lápiz detallados y sombreado, sin color, escala de grises, sobre papel');
+    return partes.join('. ');
+  };
+
+  const copiarPrompt = async () => {
+    if (!adv) { toast.error('Elige un adversario'); return; }
+    const text = buildPromptEs();
+    setPromptRetrato(text);
+    try { await navigator.clipboard.writeText(text); toast.success('Prompt copiado al portapapeles'); }
+    catch { toast.info('Prompt generado. Cópialo del recuadro de abajo.'); }
+  };
+
+  const subirRetrato = async (file) => {
+    if (!file || !adv) return;
+    if (!file.type.startsWith('image/')) { toast.error('El archivo debe ser una imagen (JPG o PNG)'); return; }
+    if (file.size > 10 * 1024 * 1024) { toast.error('La imagen supera el máximo de 10 MB'); return; }
+    setBusyRetrato(true);
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      const res = await api.post('/trading/npcs/portrait/upload-standalone', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+      setRetrato(res.data?.image_base64 || null);
+      setRetratoFileId(res.data?.retrato_file_id || null);
+      toast.success('Retrato subido');
+    } catch (e) { toast.error(e?.response?.data?.detail || 'No se pudo subir el retrato'); }
+    finally { setBusyRetrato(false); }
   };
 
   const doHistoria = async () => {
@@ -550,14 +578,6 @@ const AdversarioForge = ({ adversarios, razas, creatureTypes, activeRuns }) => {
     ].filter(Boolean).join(' ');
     const res = await api.post('/npc-generator/story', { nombre: nombre || adv.nombre, contexto: partes });
     setHistoria(res.data?.historia || '');
-  };
-
-  const generarRetrato = async () => {
-    if (!adv) return;
-    setBusyRetrato(true);
-    try { await doRetrato(); toast.success('Retrato generado'); }
-    catch (e) { toast.error(e?.response?.data?.detail || 'No se pudo generar el retrato'); }
-    finally { setBusyRetrato(false); }
   };
 
   const generarHistoria = async () => {
@@ -585,9 +605,8 @@ const AdversarioForge = ({ adversarios, razas, creatureTypes, activeRuns }) => {
     setBusyPerfil(true);
     try {
       toast.info('Generando trasfondo…'); await doHistoria();
-      toast.info('Generando retrato…'); await doRetrato();
-      toast.success('Trasfondo y retrato generados');
-    } catch (e) { toast.error(e?.response?.data?.detail || 'No se pudo generar el perfil completo'); }
+      toast.success('Trasfondo generado');
+    } catch (e) { toast.error(e?.response?.data?.detail || 'No se pudo generar el trasfondo'); }
     finally { setBusyPerfil(false); }
   };
 
@@ -903,26 +922,40 @@ const AdversarioForge = ({ adversarios, razas, creatureTypes, activeRuns }) => {
         <Button onClick={generarPerfilCompleto} disabled={busyPerfil || busyStory || busyRetrato || !adv}
           className="bg-[hsl(var(--gold))] text-black hover:opacity-90" data-testid="adv-perfil-completo-btn">
           {busyPerfil ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Wand2 className="w-4 h-4 mr-1" />}
-          Generar trasfondo + retrato
+          Generar trasfondo (IA)
         </Button>
         <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer" data-testid="adv-cuerpo-entero-label">
           <input type="checkbox" checked={cuerpoEntero} onChange={(e) => setCuerpoEntero(e.target.checked)} data-testid="adv-cuerpo-entero-toggle" />
-          Retrato de cuerpo entero (para apreciar piernas, cicatrices, muletas…)
+          Prompt de cuerpo entero (para apreciar piernas, cicatrices, muletas…)
         </label>
       </div>
 
-      {/* Retrato IA + Historia IA + Nivel */}
+      {/* Retrato (copiar prompt + subir) + Historia IA + Nivel */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 items-start">
         <div className="space-y-1.5">
-          <label className="text-xs text-muted-foreground">Retrato IA</label>
+          <label className="text-xs text-muted-foreground">Retrato</label>
           <div className="w-full aspect-[3/4] rounded-lg border border-border/50 bg-black/40 overflow-hidden flex items-center justify-center">
             {retrato ? <img src={`data:image/png;base64,${retrato}`} alt="retrato" className="w-full h-full object-contain" data-testid="adv-retrato-img" /> : <Skull className="w-7 h-7 text-muted-foreground/40" />}
           </div>
-          <Button size="sm" variant="outline" onClick={generarRetrato} disabled={busyRetrato || !adv} className="w-full border-[hsl(var(--gold))/50] text-[hsl(var(--gold))] text-xs" data-testid="adv-retrato-btn">
-            {busyRetrato ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <><Wand2 className="w-3.5 h-3.5 mr-1" /> Retrato</>}
+          <Button size="sm" variant="outline" onClick={copiarPrompt} disabled={!adv} className="w-full border-[hsl(var(--gold))/50] text-[hsl(var(--gold))] text-xs" data-testid="adv-copiar-prompt-btn">
+            <Copy className="w-3.5 h-3.5 mr-1" /> Copiar prompt
           </Button>
+          <label className="cursor-pointer block" data-testid="adv-subir-retrato-label">
+            <input type="file" accept="image/png,image/jpeg,image/webp" className="hidden"
+              onChange={(e) => { subirRetrato(e.target.files?.[0]); e.target.value = ''; }} disabled={!adv} />
+            <span className="w-full inline-flex items-center justify-center text-xs px-2 py-1.5 rounded-md bg-[hsl(var(--gold))] text-black hover:opacity-90 transition-opacity">
+              {busyRetrato ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <><Upload className="w-3.5 h-3.5 mr-1" /> Subir retrato</>}
+            </span>
+          </label>
         </div>
         <div className="sm:col-span-2 space-y-1.5">
+          {promptRetrato && (
+            <div>
+              <label className="text-[11px] text-[hsl(var(--gold))]/80">Prompt del retrato (editable)</label>
+              <textarea rows={3} value={promptRetrato} onChange={(e) => setPromptRetrato(e.target.value)}
+                className="w-full bg-black/40 rounded p-2 text-xs outline-none border border-border/50 resize-y" data-testid="adv-prompt-text" />
+            </div>
+          )}
           <div className="flex items-center justify-between">
             <label className="text-xs text-muted-foreground">Historia (IA, editable)</label>
             <Button size="sm" variant="outline" onClick={generarHistoria} disabled={busyStory || !adv} className="h-6 border-[hsl(var(--gold))/50] text-[hsl(var(--gold))] text-[11px]" data-testid="adv-historia-btn">

@@ -242,6 +242,129 @@ async def generate_portrait(request: PortraitRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+def build_portrait_prompt_es(data: PortraitRequest, custom_culture_prompt: Optional[str] = None) -> str:
+    """Construye un prompt DETALLADO en ESPAÑOL para que el usuario lo copie y
+    genere el retrato en la IA/herramienta que prefiera (sin gastar créditos).
+
+    Reúne todo lo que corresponde al personaje: descripción genérica de la
+    raza/subcultura (definida por el DJ en `culture.prompt_imagen_ia`),
+    apariencia según raza y edad, ojos, pelo, rasgos físicos y faciales,
+    vestimenta acorde a la ocupación y trasfondo.
+    """
+    raza_descripciones = {
+        "hobbit": "un Hobbit de pelo rizado, rostro redondeado, pies grandes y peludos, baja estatura (poco más de 1 metro)",
+        "enano": "un Enano de larga barba trenzada, complexión robusta y musculosa, hombros anchos, estatura media-baja",
+        "elfo": "un Elfo de elegantes orejas puntiagudas, belleza etérea, cuerpo alto y esbelto, rasgos atemporales",
+        "humano": "un Humano de rasgos curtidos por una vida de aventuras",
+        "dúnedain": "un Montaraz Dúnedain, alto y noble, de ojos grises y cabello oscuro, curtido por años en tierras salvajes",
+        "dunadan": "un Montaraz Dúnedain, alto y noble, de ojos grises y cabello oscuro, curtido por años en tierras salvajes",
+        "beornida": "un Beórnida, alto y poderoso, de cabello indómito y fuerza casi de oso en sus facciones",
+        "leñador": "un Leñador del bosque, rústico y natural, con el conocimiento de lo salvaje en la mirada",
+        "bardida": "un descendiente de los Bardos, orgulloso y noble, con el porte de los guerreros de Valle",
+    }
+    ocupacion_estilos = {
+        "guerrero": "vistiendo una armadura desgastada por la batalla, con la mirada severa de un guerrero",
+        "explorador": "con ropas de viaje y capa de montaraz, alerta y vigilante",
+        "erudito": "con túnicas propias de un erudito y ojos sabios y perspicaces",
+        "tesoro": "con ropas finas y la mirada astuta de un comerciante",
+        "comerciante": "con ropas finas y la mirada astuta de un comerciante",
+        "cazador": "con cueros de caza y los ojos agudos de un cazador",
+        "guardian": "con equipo de protección y la postura vigilante de un defensor",
+        "guardián": "con equipo de protección y la postura vigilante de un defensor",
+        "capitán": "con la presencia imponente de un líder y porte noble",
+        "sabio": "con antigua sabiduría en la mirada, rodeado de un aura de conocimiento",
+    }
+
+    raza_lower = ((data.cultura or "") + " " + (data.raza or "")).lower()
+
+    def _apariencia_por_raza(anios: int) -> str:
+        if "elfo" in raza_lower or "elfos" in raza_lower or "noldor" in raza_lower or "sindar" in raza_lower:
+            return "apariencia joven y atemporal, piel tersa y sin arrugas, ojos vivos que delatan una sabiduría antigua pero sin canas ni signos de vejez"
+        if "dúnedain" in raza_lower or "dunedain" in raza_lower or "númenor" in raza_lower or "numenor" in raza_lower:
+            if anios < 80:
+                return "aspecto de adulto joven (equivalente a un humano de unos 30 años), complexión fuerte, sin canas"
+            if anios < 150:
+                return "aspecto maduro (equivalente a un humano de 45-50 años), curtido pero vigoroso, alguna cana en las sienes"
+            return "aspecto venerable pero no frágil, como un anciano humano, largo cabello blanco y rostro surcado"
+        if "enano" in raza_lower or "enanos" in raza_lower:
+            if anios < 40:
+                return "rasgos enanos juveniles, barba corta, ojos brillantes"
+            if anios < 180:
+                return "enano maduro en plenitud, barba espesa y oscura con toques de gris, complexión recia"
+            return "enano anciano de larga barba blanca trenzada y rostro sabio y curtido"
+        if "hobbit" in raza_lower or "hobbits" in raza_lower or "comarca" in raza_lower:
+            if anios < 33:
+                return "aspecto de hobbit adolescente, mejillas redondas y tersas"
+            if anios < 90:
+                return "hobbit adulto robusto, tez rubicunda, pelo rizado sin canas"
+            return "hobbit anciano, cabello blanco, rostro amable y curtido"
+        if anios < 25:
+            return "aspecto juvenil"
+        if anios < 50:
+            return "en la plenitud de la vida, vigoroso"
+        if anios < 70:
+            return "rasgos maduros y experimentados, algunas canas, arrugas finas"
+        return "aspecto anciano pero sabio, cabello blanco, rostro profundamente surcado"
+
+    partes = []
+    partes.append("Dibujo a lápiz hiperrealista en blanco y negro, retrato muy detallado hecho a mano")
+    partes.append("estilo fantasía medieval inspirado en El Señor de los Anillos y la Tierra Media de Tolkien")
+
+    if custom_culture_prompt:
+        partes.append(custom_culture_prompt)
+    elif data.cultura:
+        cultura_lower = data.cultura.lower()
+        for key, desc in raza_descripciones.items():
+            if key in cultura_lower:
+                partes.append(desc)
+                break
+        else:
+            partes.append(f"un personaje de la cultura {data.cultura} de la Tierra Media")
+
+    fisico = []
+    if data.genero:
+        fisico.append(f"{data.genero}")
+    if data.edad is not None:
+        fisico.append(_apariencia_por_raza(int(data.edad)))
+    if data.color_ojos:
+        fisico.append(f"ojos de color {data.color_ojos}")
+    if data.color_pelo:
+        fisico.append(f"cabello {data.color_pelo}")
+    if data.rasgos_fisicos:
+        fisico.append(data.rasgos_fisicos)
+    if data.rasgos_faciales:
+        fisico.append(f"rasgos faciales distintivos: {data.rasgos_faciales}")
+    if fisico:
+        partes.append(", ".join(fisico))
+
+    if data.vocacion:
+        vocacion_lower = data.vocacion.lower()
+        for key, estilo in ocupacion_estilos.items():
+            if key in vocacion_lower:
+                partes.append(estilo)
+                break
+        else:
+            partes.append(f"vestimenta y utillaje acordes a su oficio de {data.vocacion}")
+
+    if data.trasfondo:
+        partes.append(f"contexto de su historia: {data.trasfondo[:150]}")
+
+    partes.append("vista de retrato, cabeza y hombros, iluminación dramática")
+    partes.append("alto contraste en blanco y negro, trazos de lápiz detallados y sombreado")
+    partes.append("sin color, solo escala de grises, estilo boceto artístico sobre papel")
+
+    return ". ".join(partes)
+
+
+@router.post("/prompt")
+async def get_portrait_prompt(request: PortraitRequest):
+    """Devuelve el PROMPT en español (sin generar imagen ni gastar créditos)
+    para que el DJ/jugador lo copie, cree el retrato externamente y lo suba."""
+    custom_culture_prompt = await _resolve_culture_prompt(request.cultura)
+    prompt = build_portrait_prompt_es(request, custom_culture_prompt=custom_culture_prompt)
+    return {"prompt": prompt}
+
+
 @router.get("/test")
 async def test_portrait():
     """Test endpoint to verify portrait generation is working"""

@@ -1164,6 +1164,33 @@ async def get_npc_portrait(npc_id: str):
         raise HTTPException(status_code=404, detail="Retrato no disponible")
 
 
+@router.post("/trading/npcs/portrait/upload-standalone")
+async def upload_npc_portrait_standalone(file: UploadFile = File(...)):
+    """Sube una imagen (JPG/PNG) a GridFS SIN vincularla todavía a un PNJ.
+    Devuelve `retrato_file_id` (para guardar luego con el PNJ) y `image_base64`
+    (para previsualizar). Se usa en el Herrero al crear un adversario antes de
+    guardarlo."""
+    import io, base64
+    from routes.storage_routes import get_gridfs_bucket
+    from server import db
+    ct = (file.content_type or "").lower()
+    if not ct.startswith("image/"):
+        raise HTTPException(status_code=400, detail="El archivo debe ser una imagen (JPG o PNG)")
+    contents = await file.read()
+    if not contents:
+        raise HTTPException(status_code=400, detail="Archivo vacío")
+    if len(contents) > 10 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="La imagen supera el máximo de 10 MB")
+    bucket = get_gridfs_bucket(db)
+    ext = "jpg" if ("jpeg" in ct or "jpg" in ct) else ("png" if "png" in ct else "webp" if "webp" in ct else "img")
+    fname = f"npc-portraits/{uuid.uuid4().hex}.{ext}"
+    file_id = await bucket.upload_from_stream(
+        filename=fname, source=io.BytesIO(contents),
+        metadata={"content_type": ct, "folder": "npc-portraits", "tags": ["npc", "portrait", "upload"], "path": fname},
+    )
+    return {"retrato_file_id": str(file_id), "image_base64": base64.b64encode(contents).decode("utf-8")}
+
+
 @router.post("/trading/npcs/{npc_id}/portrait/upload")
 async def upload_npc_portrait(npc_id: str, file: UploadFile = File(...)):
     """Sube una imagen (JPG/PNG) para sustituir/añadir el retrato de un PNJ o adversario."""
