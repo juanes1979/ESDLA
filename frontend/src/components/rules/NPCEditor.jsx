@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import api from '@/services/api';
+import { ALL_SKILLS } from '@/components/admin/culture-editor-sections/cultureEditorConstants';
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
 
@@ -71,6 +72,15 @@ const NPCEditor = ({ npc, onSave, onClose }) => {
   const [activeTab, setActiveTab] = useState('basico');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
+  // Ataque múltiple es opcional: solo se muestra si el PNJ/animal lo tiene.
+  const [showMulti, setShowMulti] = useState(false);
+  // Fila para añadir una habilidad conocida (desplegable + modificador).
+  const [nuevaHab, setNuevaHab] = useState({ skill: '', mod: '' });
+
+  // Sincroniza el interruptor de ataque múltiple cuando se carga un PNJ existente.
+  useEffect(() => {
+    setShowMulti(!!(npc && npc.ataque_multiple && String(npc.ataque_multiple).trim()));
+  }, [npc]);
 
   // Load NPC data if editing
   useEffect(() => {
@@ -167,6 +177,38 @@ const NPCEditor = ({ npc, onSave, onClose }) => {
       ...prev,
       [field]: prev[field].filter((_, i) => i !== index)
     }));
+  };
+
+  // Habilidades conocidas: objeto { 'Percepción': 3, 'Sigilo': 4 }
+  const habilidadesEntries = Object.entries(formData.habilidades || {});
+  const habilidadesUsadas = habilidadesEntries.map(([k]) => k);
+  const habilidadesDisponibles = ALL_SKILLS.filter((s) => !habilidadesUsadas.includes(s));
+
+  const addHabilidad = () => {
+    const skill = nuevaHab.skill;
+    if (!skill) return;
+    const modNum = parseInt(nuevaHab.mod, 10);
+    setFormData(prev => ({
+      ...prev,
+      habilidades: { ...(prev.habilidades || {}), [skill]: Number.isNaN(modNum) ? 0 : modNum }
+    }));
+    setNuevaHab({ skill: '', mod: '' });
+  };
+
+  const updateHabilidadMod = (skill, value) => {
+    const modNum = parseInt(value, 10);
+    setFormData(prev => ({
+      ...prev,
+      habilidades: { ...(prev.habilidades || {}), [skill]: value === '' || value === '-' ? value : (Number.isNaN(modNum) ? 0 : modNum) }
+    }));
+  };
+
+  const removeHabilidad = (skill) => {
+    setFormData(prev => {
+      const next = { ...(prev.habilidades || {}) };
+      delete next[skill];
+      return { ...prev, habilidades: next };
+    });
   };
 
   const handleSave = async () => {
@@ -593,6 +635,63 @@ const NPCEditor = ({ npc, onSave, onClose }) => {
                   </div>
                 ))}
               </div>
+
+              {/* Habilidades conocidas (Percepción +3, Sigilo +4, …) */}
+              <div className="pt-2 border-t border-border/30">
+                <Label className="text-cyan-400">Habilidades</Label>
+                <p className="text-xs text-muted-foreground mb-2">Añade habilidades con su modificador (p. ej. Percepción +3).</p>
+
+                {habilidadesEntries.map(([skill, mod]) => (
+                  <div key={skill} className="flex gap-2 mb-2 items-center" data-testid={`npc-hab-row-${skill}`}>
+                    <span className="flex-1 text-sm px-2 py-1.5 bg-black/20 rounded border border-border/40">{skill}</span>
+                    <Input
+                      type="number"
+                      value={mod}
+                      onChange={(e) => updateHabilidadMod(skill, e.target.value)}
+                      className="w-20 bg-black/20 text-center"
+                      data-testid={`npc-hab-mod-${skill}`}
+                    />
+                    <Button variant="ghost" size="icon" onClick={() => removeHabilidad(skill)} data-testid={`npc-hab-remove-${skill}`}>
+                      <Trash2 className="w-4 h-4 text-destructive" />
+                    </Button>
+                  </div>
+                ))}
+
+                <div className="flex gap-2 items-end mt-2 p-2 bg-black/10 rounded-lg border border-cyan-500/20">
+                  <div className="flex-1">
+                    <Label className="text-xs text-muted-foreground">Habilidad</Label>
+                    <select
+                      value={nuevaHab.skill}
+                      onChange={(e) => setNuevaHab((p) => ({ ...p, skill: e.target.value }))}
+                      className="w-full bg-black/30 rounded px-2 py-1.5 text-sm outline-none border border-border/50"
+                      data-testid="npc-hab-select"
+                    >
+                      <option value="">— elige —</option>
+                      {habilidadesDisponibles.map((s) => <option key={s} value={s}>{s}</option>)}
+                    </select>
+                  </div>
+                  <div className="w-24">
+                    <Label className="text-xs text-muted-foreground">Modificador</Label>
+                    <Input
+                      type="number"
+                      value={nuevaHab.mod}
+                      onChange={(e) => setNuevaHab((p) => ({ ...p, mod: e.target.value }))}
+                      placeholder="+3"
+                      className="bg-black/30 text-center"
+                      data-testid="npc-hab-new-mod"
+                    />
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={addHabilidad}
+                    disabled={!nuevaHab.skill}
+                    data-testid="npc-hab-add"
+                  >
+                    <Plus className="w-4 h-4 mr-1" /> Añadir habilidad
+                  </Button>
+                </div>
+              </div>
             </TabsContent>
 
             {/* TAB: Especiales */}
@@ -641,14 +740,38 @@ const NPCEditor = ({ npc, onSave, onClose }) => {
               </div>
 
               <div>
-                <Label>Ataque Múltiple</Label>
-                <Textarea 
-                  value={formData.ataque_multiple}
-                  onChange={(e) => handleChange('ataque_multiple', e.target.value)}
-                  placeholder="Descripción del ataque múltiple..."
-                  className="bg-black/20"
-                  rows={2}
-                />
+                {showMulti ? (
+                  <>
+                    <div className="flex items-center justify-between">
+                      <Label>Ataque Múltiple</Label>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => { handleChange('ataque_multiple', ''); setShowMulti(false); }}
+                        data-testid="npc-multi-remove"
+                      >
+                        <Trash2 className="w-4 h-4 mr-1 text-destructive" /> Quitar
+                      </Button>
+                    </div>
+                    <Textarea
+                      value={formData.ataque_multiple}
+                      onChange={(e) => handleChange('ataque_multiple', e.target.value)}
+                      placeholder="Descripción del ataque múltiple..."
+                      className="bg-black/20"
+                      rows={2}
+                      data-testid="npc-multi-text"
+                    />
+                  </>
+                ) : (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowMulti(true)}
+                    data-testid="npc-multi-add"
+                  >
+                    <Plus className="w-4 h-4 mr-1" /> Añadir ataque múltiple
+                  </Button>
+                )}
               </div>
               
               {formData.armas.map((arma, i) => (

@@ -1,0 +1,25 @@
+{
+  "summary": "Verified NPCEditor UI features on /rules → Bestiario → Animales → 'Gato'. Both new features work correctly and persist: (1) Armas tab shows 'Añadir ataque múltiple' button when empty, reveals textarea + 'Quitar' on add, and hides+clears on remove; (2) Defensa 'Habilidades' section allows adding a skill (Percepción +3, Sigilo +4) via the native select + modifier input + 'Añadir habilidad' button. Added skills are removed from the dropdown. Modifier editing and per-row trash button work. Save (PATCH /api/data/npcs/{id}) closes the modal and persists — reopening the creature detail shows the habilidades block (data-testid='npc-detail-habilidades-<id>') with 'Percepción +3, Sigilo +4' (plus a pre-existing legacy key 'percepcion +3' which was already in the record). 'Ataque Múltiple:' is NOT rendered in the detail card because it was left empty.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Detail card Habilidades (Gato)", "issues": ["Existing legacy habilidad key 'percepcion' (lowercase, unaccented) is displayed alongside the new 'Percepción'. Not caused by this feature, but users could end up with duplicates. Consider case-insensitive/normalized keys or a one-off migration to consolidate legacy skill keys."]}
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [
+    "Optional: normalize legacy habilidad keys (e.g. 'percepcion' → 'Percepción') to avoid showing duplicates when a creature already had legacy data."
+  ],
+  "critical_code_review_comments": [
+    "NPCEditor.jsx (line ~89) spreads `formData` inside a useEffect dependent on `npc` only; because formData is not in deps, this is fine, but the shallow merge overwrites any user edits if `npc` reference changes mid-edit. Not blocking.",
+    "updateHabilidadMod allows the string '-' as a value in state which then gets sent to backend as a string, not a number. Consider coercing on save."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A (skipped)", "frontend": "100%"},
+  "seed_data_creation": "None. Used existing 'Gato' creature (id 3ed11f24-d85b-443c-bc19-1898979fb5d7). After the test its habilidades were saved as {percepcion:3 (legacy), Percepción:3, Sigilo:4} and its ataque_multiple was left empty.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "The 'Gato' creature now has two habilidades entries with visually similar names ('percepcion' and 'Percepción') because it already contained a legacy key before the feature was added. New saves via the editor use canonical names from ALL_SKILLS."
+}

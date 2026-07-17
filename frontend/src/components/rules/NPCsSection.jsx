@@ -567,6 +567,23 @@ const NPCsSection = ({ data, onRefresh }) => {
                     </div>
                   )}
 
+                  {/* Habilidades (Percepción +3, Sigilo +4, …) */}
+                  {npc.habilidades && Object.keys(npc.habilidades).length > 0 && (
+                    <div className="flex items-start gap-2 p-2 bg-cyan-500/10 rounded" data-testid={`npc-detail-habilidades-${npc.id}`}>
+                      <Eye className="w-4 h-4 text-cyan-400 mt-0.5" />
+                      <div>
+                        <p className="text-xs text-cyan-400 font-bold">Habilidades</p>
+                        <p className="text-sm text-muted-foreground">
+                          {Object.entries(npc.habilidades).map(([k, v]) => {
+                            const n = parseInt(v, 10);
+                            const mod = Number.isNaN(n) ? v : (n >= 0 ? `+${n}` : `${n}`);
+                            return `${k} ${mod}`;
+                          }).join(', ')}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
                   {/* Defenses */}
                   {renderDefensas(npc)}
 

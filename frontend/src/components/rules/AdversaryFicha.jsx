@@ -150,6 +150,17 @@ const AdversaryFicha = ({ npc, onEdit, onDelete }) => {
       )}
       {npc.idiomas?.length > 0 && <p className="text-sm"><span className="text-[hsl(var(--gold))] text-xs font-bold">Idiomas: </span>{npc.idiomas.join(', ')}</p>}
 
+      {/* Habilidades (Percepción +3, Sigilo +4, …) */}
+      {npc.habilidades && Object.keys(npc.habilidades).length > 0 && (
+        <p className="text-sm" data-testid="adv-ficha-habilidades"><span className="text-cyan-400 text-xs font-bold">Habilidades: </span>
+          {Object.entries(npc.habilidades).map(([k, v], i, arr) => {
+            const n = parseInt(v, 10);
+            const mod = Number.isNaN(n) ? v : (n >= 0 ? `+${n}` : `${n}`);
+            return `${k} ${mod}${i < arr.length - 1 ? ', ' : ''}`;
+          }).join('')}
+        </p>
+      )}
+
       {/* Defensas */}
       {npc.resistencias?.length > 0 && <p className="text-sm"><span className="text-emerald-400 text-xs font-bold">Resistencias: </span>{npc.resistencias.join(', ')}</p>}
       {npc.inmunidades_dano?.length > 0 && <p className="text-sm"><span className="text-emerald-400 text-xs font-bold">Inmunidades al daño: </span>{npc.inmunidades_dano.join(', ')}</p>}
