@@ -774,8 +774,14 @@ async def put_creature_name_config(body: CreatureConfigBody, user: dict = Depend
     if not isinstance(body.data, dict) or not body.data:
         raise HTTPException(status_code=400, detail="Catálogo vacío o inválido")
     for tipo, d in body.data.items():
-        if not d.get("ataque"):
-            raise HTTPException(status_code=400, detail=f"«{tipo}» necesita al menos una sílaba de Ataque")
+        tiene_ataque = bool(d.get("ataque"))
+        tiene_desc = bool((d.get("descripcion_visual") or "").strip())
+        # La descripción física para retratos de IA es independiente de la
+        # generación de nombres: un tipo que NO genera nombre (usa raza/
+        # subcultura, p. ej. «Espectro») puede guardarse solo con su
+        # descripción física, sin sílabas de Ataque.
+        if not tiene_ataque and not tiene_desc:
+            raise HTTPException(status_code=400, detail=f"«{tipo}» necesita al menos una sílaba de Ataque o una descripción física")
     from datetime import datetime, timezone
     await db.npc_creature_name_config.update_one(
         {"_id": "default"},

@@ -142,18 +142,22 @@ const CreatureNameConfigEditor = ({ open, onClose, onSaved }) => {
                     className="w-full bg-black/40 rounded p-2 text-xs outline-none border border-border/50 resize-y" data-testid="cfg-descripcion-visual" />
                   <p className="text-[11px] text-muted-foreground/70 mt-1">Se añade como base al generar el retrato de este tipo de criatura, para que salga más fiel (p. ej. que un orco parezca un orco).</p>
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <ArrayField label="Ataque (sílaba inicial)" field="ataque" />
-                  <ArrayField label="Núcleo (sílaba central, 70%)" field="nucleo" />
-                  {cur.usa_sexo ? (
-                    <>
-                      <ArrayField label="Cierre masculino" field="cierre_m" />
-                      <ArrayField label="Cierre femenino" field="cierre_f" />
-                    </>
-                  ) : (
-                    <ArrayField label="Cierre (universal)" field="cierre_univ" />
-                  )}
-                  <ArrayField label="Epítetos (25%)" field="epitetos" />
+                <div className="pt-2 border-t border-border/30">
+                  <p className="text-xs font-bold text-[hsl(var(--gold))]">Generación de nombre por sílabas <span className="opacity-60 font-normal">(opcional)</span></p>
+                  <p className="text-[11px] text-muted-foreground/70 mb-2">Rellénalo solo si este tipo genera su propio nombre. Déjalo vacío si usa la raza/subcultura (p. ej. «Espectro»): la descripción física de arriba se guarda igualmente.</p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <ArrayField label="Ataque (sílaba inicial)" field="ataque" />
+                    <ArrayField label="Núcleo (sílaba central, 70%)" field="nucleo" />
+                    {cur.usa_sexo ? (
+                      <>
+                        <ArrayField label="Cierre masculino" field="cierre_m" />
+                        <ArrayField label="Cierre femenino" field="cierre_f" />
+                      </>
+                    ) : (
+                      <ArrayField label="Cierre (universal)" field="cierre_univ" />
+                    )}
+                    <ArrayField label="Epítetos (25%)" field="epitetos" />
+                  </div>
                 </div>
               </div>
             )}

@@ -957,3 +957,16 @@ Aplica una transacción YA negociada al personaje (reutiliza endpoints de equipo
 - **Visualización**: las habilidades se muestran en el detalle de NPCsSection (npc-detail-habilidades-<id>)
   y en la ficha de adversario (adv-ficha-habilidades) con formato «Percepción +3, Sigilo +4».
 - Verificado por testing agent (frontend 100%) sobre la criatura «Gato».
+
+## Descripción física de retratos IA independiente del nombre (Jun 2026)
+- **Problema**: en «Bases de creación» → «Nombres / Tipos», el backend exigía al menos una sílaba de
+  «Ataque» para guardar CUALQUIER tipo, así que un tipo que no genera nombre (usa raza/subcultura,
+  p. ej. «Espectro») no se podía guardar y bloqueaba también su «Descripción física (para los retratos de IA)».
+- **Backend** (`npc_generator_routes.py`): la validación de `PUT /creature-name-config` ahora permite
+  guardar un tipo sin sílabas de Ataque siempre que tenga `descripcion_visual`. Solo rechaza tipos
+  totalmente vacíos (ni ataque ni descripción). `generate_creature_name` (`npc_creature_names.py`)
+  lanza un ValueError claro si se pide un nombre silábico de un tipo sin sílabas (evita 500).
+- **Frontend** (`CreatureNameConfigEditor.jsx`): la sección de sílabas se marca como «Generación de
+  nombre por sílabas (opcional)» con aviso de que se deja vacía para tipos que usan raza/subcultura;
+  la descripción física queda claramente separada y se guarda de forma independiente.
+- Verificado por API: Espectro (solo descripción) → 200; tipo vacío → 400; nombre de Espectro → 400 claro; nombre de Orco → 200.

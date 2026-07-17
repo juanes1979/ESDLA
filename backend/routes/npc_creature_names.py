@@ -74,6 +74,8 @@ def generate_creature_name(tipo: str, sexo: Optional[str] = None, data: Optional
         raise ValueError(f"Tipo de criatura no válido: {tipo}")
 
     # 1) Ataque
+    if not d.get("ataque"):
+        raise ValueError(f"El tipo «{tipo}» no genera nombre por sílabas (usa raza/subcultura)")
     name = random.choice(d["ataque"])
     # 2) Núcleo (70%)
     if random.random() < 0.70 and d.get("nucleo"):
