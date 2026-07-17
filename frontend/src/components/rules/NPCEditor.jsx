@@ -214,7 +214,15 @@ const NPCEditor = ({ npc, onSave, onClose }) => {
   const handleSave = async () => {
     setSaving(true);
     setError(null);
-    
+
+    // Normaliza los modificadores de habilidad a enteros antes de guardar.
+    const habilidadesNorm = {};
+    Object.entries(formData.habilidades || {}).forEach(([k, v]) => {
+      const n = parseInt(v, 10);
+      habilidadesNorm[k] = Number.isNaN(n) ? 0 : n;
+    });
+    const payload = { ...formData, habilidades: habilidadesNorm };
+
     try {
       const method = isEditing ? 'PATCH' : 'POST';
       const url = isEditing 
@@ -224,7 +232,7 @@ const NPCEditor = ({ npc, onSave, onClose }) => {
       const response = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData)
+        body: JSON.stringify(payload)
       });
       
       if (!response.ok) {

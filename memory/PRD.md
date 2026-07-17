@@ -942,3 +942,18 @@ Aplica una transacción YA negociada al personaje (reutiliza endpoints de equipo
   Las 164 rutas `@router` se conservan (111 world + 53 travel), verificado por diff de rutas.
 - **Verificación**: py_compile OK, pyflakes sin nombres indefinidos, y smoke-test por API externa
   (cultures/races/regions/roads/rivers/barriers/monturas/travel-options → 200).
+
+## Editor de PNJ/Criaturas (NPCEditor): Ataque Múltiple opcional + Habilidades (Jun 2026)
+- **Ataque Múltiple opcional** (pestaña Armas): ya NO aparece por defecto. Si el bloque está vacío se
+  muestra un botón «Añadir ataque múltiple» (npc-multi-add); al añadirlo aparece el textarea
+  (npc-multi-text) con un botón «Quitar» (npc-multi-remove) que lo limpia y oculta. En PNJs existentes
+  con ataque múltiple, se muestra directamente. La ficha (AdversaryFicha) ya solo lo pintaba si existía.
+- **Habilidades conocidas** (pestaña Defensa): nueva sección para añadir habilidades con su modificador
+  (p. ej. Percepción +3, Sigilo +4). Desplegable con `ALL_SKILLS` (npc-hab-select) + recuadro de
+  modificador (npc-hab-new-mod) + botón «Añadir habilidad» (npc-hab-add). Cada habilidad añadida se
+  lista con su modificador editable (npc-hab-mod-<skill>) y papelera (npc-hab-remove-<skill>). El
+  desplegable oculta las ya añadidas. Se guardan en `formData.habilidades` (objeto {skill: mod}) y los
+  modificadores se normalizan a entero al guardar.
+- **Visualización**: las habilidades se muestran en el detalle de NPCsSection (npc-detail-habilidades-<id>)
+  y en la ficha de adversario (adv-ficha-habilidades) con formato «Percepción +3, Sigilo +4».
+- Verificado por testing agent (frontend 100%) sobre la criatura «Gato».
