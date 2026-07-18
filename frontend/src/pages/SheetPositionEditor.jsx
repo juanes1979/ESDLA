@@ -22,7 +22,7 @@ const SHEET_HEIGHT = 2197;
 // Predefined field suggestions for quick selection
 const FIELD_SUGGESTIONS = [
   // Datos básicos
-  'nombre', 'jugador', 'ocupacion_nivel', 'cultura', 'experiencia', 'senda_sombra', 'sexo', 'CODIGOUNICOPJ',
+  'nombre', 'jugador', 'ocupacion_nivel', 'cultura', 'experiencia', 'senda_sombra', 'sexo', 'CODIGOUNICOPJ', 'RETRATO',
   
   // Rasgos distintivos (2 con descripción)
   'rasgos_distintivos_1', 'descripcion_rasgos_distintivos_1',
@@ -181,6 +181,14 @@ const SheetPositionEditor = () => {
             previewText: 'HOMBREE2678020', align: 'right',
           });
         }
+        // Campo de imagen del retrato (RETRATO): posicionable y redimensionable.
+        if (!loaded.some(p => p.fieldName === 'RETRATO')) {
+          loaded.push({
+            id: id++, x: 70, y: 120, page: 1, fieldName: 'RETRATO',
+            width: 380, fontSize: 14, height: 480, multiline: false,
+            previewText: '', align: 'left',
+          });
+        }
         
         if (loaded.length > 0) {
           setPositions(loaded);
@@ -321,6 +329,27 @@ const SheetPositionEditor = () => {
     setPositions(prev => prev.map(p => 
       p.id === id ? { ...p, [prop]: value } : p
     ));
+  };
+
+  // Redimensiona un campo de imagen (RETRATO) arrastrando su esquina.
+  const startResize = (e, pos) => {
+    e.stopPropagation();
+    e.preventDefault();
+    const startX = e.clientX, startY = e.clientY;
+    const startW = pos.width || 380, startH = pos.height || 480;
+    const onMove = (ev) => {
+      const dw = (ev.clientX - startX) / scale;
+      const dh = (ev.clientY - startY) / scale;
+      const w = Math.max(40, Math.round(startW + dw));
+      const h = Math.max(40, Math.round(startH + dh));
+      setPositions(prev => prev.map(p => p.id === pos.id ? { ...p, width: w, height: h } : p));
+    };
+    const onUp = () => {
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+    };
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
   };
 
   // Copy single position
@@ -561,25 +590,55 @@ const SheetPositionEditor = () => {
 
             {/* Editable text fields at each position */}
             {currentPagePositions.map((pos) => (
-              <input
-                key={`text-${pos.id}`}
-                type="text"
-                value={pos.previewText}
-                onChange={(e) => updatePosition(pos.id, 'previewText', e.target.value)}
-                placeholder={pos.fieldName || '...'}
-                className="sheet-field-text absolute bg-transparent border-none outline-none text-black placeholder:text-gray-400/50"
-                style={{
-                  left: `${pos.x * scale}px`,
-                  top: `${pos.y * scale}px`,
-                  width: `${pos.width * scale}px`,
-                  fontSize: `${pos.fontSize * scale}px`,
-                  textAlign: pos.align || 'left',
-                }}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setEditingId(pos.id);
-                }}
-              />
+              pos.fieldName === 'RETRATO' ? (
+                <div
+                  key={`img-${pos.id}`}
+                  className="absolute"
+                  style={{
+                    left: `${pos.x * scale}px`,
+                    top: `${pos.y * scale}px`,
+                    width: `${pos.width * scale}px`,
+                    height: `${(pos.height || 480) * scale}px`,
+                    zIndex: editingId === pos.id ? 12 : 5,
+                  }}
+                  onClick={(e) => { e.stopPropagation(); setEditingId(pos.id); }}
+                >
+                  <div className={cn(
+                    "w-full h-full flex items-center justify-center text-blue-700 text-xs font-bold select-none",
+                    editingId === pos.id ? "border-2 border-blue-600 bg-blue-500/20" : "border-2 border-dashed border-blue-500/70 bg-blue-500/10"
+                  )}>
+                    RETRATO
+                  </div>
+                  {/* Tirador de redimensionado (esquina inferior derecha) */}
+                  <div
+                    onMouseDown={(e) => startResize(e, pos)}
+                    className="absolute -bottom-1.5 -right-1.5 w-4 h-4 bg-blue-600 border-2 border-white rounded-sm cursor-se-resize"
+                    style={{ zIndex: 15 }}
+                    title="Arrastra para cambiar el tamaño"
+                    data-testid="retrato-resize-handle"
+                  />
+                </div>
+              ) : (
+                <input
+                  key={`text-${pos.id}`}
+                  type="text"
+                  value={pos.previewText}
+                  onChange={(e) => updatePosition(pos.id, 'previewText', e.target.value)}
+                  placeholder={pos.fieldName || '...'}
+                  className="sheet-field-text absolute bg-transparent border-none outline-none text-black placeholder:text-gray-400/50"
+                  style={{
+                    left: `${pos.x * scale}px`,
+                    top: `${pos.y * scale}px`,
+                    width: `${pos.width * scale}px`,
+                    fontSize: `${pos.fontSize * scale}px`,
+                    textAlign: pos.align || 'left',
+                  }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setEditingId(pos.id);
+                  }}
+                />
+              )
             ))}
 
             {/* Position markers (circles with numbers) */}
@@ -800,6 +859,23 @@ const SheetPositionEditor = () => {
                       </select>
                     </div>
                   </div>
+
+                  {/* Alto (solo para el campo de imagen RETRATO) */}
+                  {pos.fieldName === 'RETRATO' && (
+                    <div className="mt-2">
+                      <label className="text-xs text-muted-foreground">Alto (px)</label>
+                      <Input
+                        type="number"
+                        value={pos.height || 480}
+                        onChange={(e) => updatePosition(pos.id, 'height', parseInt(e.target.value) || 100)}
+                        className="h-7 text-xs bg-black/30 border-border/50"
+                        data-testid="retrato-height-input"
+                      />
+                      <p className="text-[10px] text-muted-foreground/70 mt-1">
+                        Ajusta Ancho y Alto (o arrastra la esquina azul del recuadro) para que el retrato se vea bien.
+                      </p>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>

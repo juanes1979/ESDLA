@@ -69,6 +69,9 @@ export const PAGE1_FIELDS = {
   // Código único del PJ — campo posicionable e independiente (movible desde el
   // Editor de posiciones). Ancho generoso y dentro de la hoja para que salga entero.
   CODIGOUNICOPJ: { x: 1160, y: 55, width: 500, fontSize: 20, align: 'right' },
+  // Campo de IMAGEN del retrato del personaje: posicionable y redimensionable
+  // (ancho y alto) desde el Editor de posiciones.
+  RETRATO: { x: 70, y: 120, width: 380, height: 480, fontSize: 14, align: 'left' },
   
   // Attributes - Main values
   fuerza_valor: { x: 95, y: 332, width: 107, fontSize: 100, align: 'center' },
@@ -839,6 +842,27 @@ const SheetPage1 = ({ character, scale, weaponCatalog = [], equipmentCatalog = {
       <DisplayField {...PAGE1_FIELDS.ocupacion_nivel} value={`${character.ocupacion_nombre || character.vocacion_nombre || ''} ${nivel}`} scale={scale} />
       <DisplayField {...PAGE1_FIELDS.jugador} value={character.jugador || character.nombre_jugador || ''} scale={scale} />
       <DisplayField {...getPos('CODIGOUNICOPJ')} value={character.codigo_publico || ''} scale={scale} />
+
+      {/* Imagen del retrato del personaje (posición y tamaño desde el Editor: campo RETRATO) */}
+      {character.portrait_image && (() => {
+        const p = getPos('RETRATO');
+        return (
+          <img
+            src={`data:image/png;base64,${character.portrait_image}`}
+            alt={`Retrato de ${character.nombre || ''}`}
+            style={{
+              position: 'absolute',
+              left: `${(p.x || 0) * scale}px`,
+              top: `${(p.y || 0) * scale}px`,
+              width: `${(p.width || 380) * scale}px`,
+              height: `${(p.height || p.width || 480) * scale}px`,
+              objectFit: 'contain',
+              pointerEvents: 'none',
+            }}
+            data-testid="sheet-retrato-image"
+          />
+        );
+      })()}
       <DisplayField {...PAGE1_FIELDS.cultura} value={character.cultura_nombre || ''} scale={scale} />
       <DisplayField {...PAGE1_FIELDS.senda_sombra} value={character.senda_sombra || ''} scale={scale} />
       
