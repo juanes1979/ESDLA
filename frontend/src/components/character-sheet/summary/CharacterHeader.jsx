@@ -47,6 +47,9 @@ const CharacterHeader = ({ character, onLevelUp, onUpdate }) => {
         color_pelo: character.color_pelo || character.pelo || '',
         rasgos_fisicos: character.rasgos_fisicos || '',
         genero: character.genero || character.sexo || 'hombre',
+        armas: (character.equipo_ocupacion || character.armas || [])
+          .map((it) => (typeof it === 'string' ? it : (it?.nombre || '')))
+          .filter(Boolean),
       });
       const text = res.data?.prompt || '';
       setPromptText(text);

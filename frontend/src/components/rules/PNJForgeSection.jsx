@@ -517,7 +517,7 @@ const AdversarioForge = ({ adversarios, razas, creatureTypes, activeRuns }) => {
       ? 'plano de cuerpo entero, figura completa de la cabeza a los pies, nada recortado'
       : 'retrato de cabeza y hombros';
     const partes = [];
-    partes.push('Dibujo a lápiz hiperrealista en blanco y negro, retrato muy detallado hecho a mano, estilo Tierra Media de Tolkien');
+    partes.push('Dibujo fotorrealista a lápiz de grafito, obra maestra, muy detallado, arte a lápiz crudo dibujado a mano, estilo Tierra Media de Tolkien');
     partes.push(composicion);
     // Lo MÁS importante: el tipo de criatura (orco, trol, huargo, espectro…)
     if (familiaLabel) partes.push(`${familiaLabel} de la Tierra Media, claramente no humano y monstruoso`);

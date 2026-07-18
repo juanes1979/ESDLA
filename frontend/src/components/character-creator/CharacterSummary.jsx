@@ -46,6 +46,9 @@ const CharacterSummary = ({ draft, onFinalize, onEdit, loading, draftId }) => {
     rasgos_fisicos: draft.rasgos_fisicos || '',
     rasgos_faciales: facialTraits.map((t) => t.value).filter(Boolean).join('; '),
     genero: draft.genero || draft.sexo || 'hombre',
+    armas: (draft.equipo_ocupacion || [])
+      .map((it) => (typeof it === 'string' ? it : (it?.nombre || '')))
+      .filter(Boolean),
   });
 
   // Genera el PROMPT en español (sin IA, sin créditos) y lo copia al portapapeles.

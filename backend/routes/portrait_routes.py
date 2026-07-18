@@ -9,7 +9,7 @@ logger = logging.getLogger(__name__)
 import base64
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
-from typing import Optional
+from typing import Optional, List
 from dotenv import load_dotenv
 from motor.motor_asyncio import AsyncIOMotorClient
 
@@ -55,6 +55,7 @@ class PortraitRequest(BaseModel):
     rasgos_fisicos: Optional[str] = None
     rasgos_faciales: Optional[str] = None
     genero: Optional[str] = None
+    armas: Optional[List[str]] = []
 
 
 def build_portrait_prompt(data: PortraitRequest, custom_culture_prompt: Optional[str] = None) -> str:
@@ -307,8 +308,9 @@ def build_portrait_prompt_es(data: PortraitRequest, custom_culture_prompt: Optio
         return "aspecto anciano pero sabio, cabello blanco, rostro profundamente surcado"
 
     partes = []
-    partes.append("Dibujo a lápiz hiperrealista en blanco y negro, retrato muy detallado hecho a mano")
+    partes.append("Dibujo fotorrealista a lápiz de grafito, obra maestra, muy detallado, arte a lápiz crudo dibujado a mano")
     partes.append("estilo fantasía medieval inspirado en El Señor de los Anillos y la Tierra Media de Tolkien")
+    partes.append("plano de CUERPO ENTERO, figura completa de la cabeza a los pies, nada recortado")
 
     if custom_culture_prompt:
         partes.append(custom_culture_prompt)
@@ -346,12 +348,22 @@ def build_portrait_prompt_es(data: PortraitRequest, custom_culture_prompt: Optio
         else:
             partes.append(f"vestimenta y utillaje acordes a su oficio de {data.vocacion}")
 
-    if data.trasfondo:
-        partes.append(f"contexto de su historia: {data.trasfondo[:150]}")
+    # Armas y equipo del personaje (se muestran sujetas/portadas de forma natural).
+    armas = [a for a in (data.armas or []) if a and str(a).strip()]
+    if armas:
+        partes.append(
+            f"equipado con {', '.join(armas)}; las armas y el equipo deben verse claramente, "
+            "sujetos o portados de forma natural en su sitio (no flotando, no sobredimensionados)"
+        )
 
-    partes.append("vista de retrato, cabeza y hombros, iluminación dramática")
-    partes.append("alto contraste en blanco y negro, trazos de lápiz detallados y sombreado")
-    partes.append("sin color, solo escala de grises, estilo boceto artístico sobre papel")
+    # El trasfondo solo se añade si es una descripción con contenido útil para el
+    # dibujo (no un simple nombre como «El Cruce del Norte»).
+    trasfondo = (data.trasfondo or "").strip()
+    if len(trasfondo) >= 60:
+        partes.append(f"contexto de su historia: {trasfondo[:300]}")
+
+    partes.append("cuerpo entero de pies a cabeza, postura natural, iluminación dramática")
+    partes.append("trazos de lápiz de grafito detallados y sombreado, aspecto de dibujo a mano sobre papel")
 
     return ". ".join(partes)
 
