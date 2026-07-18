@@ -71,7 +71,7 @@ export const PAGE1_FIELDS = {
   CODIGOUNICOPJ: { x: 1160, y: 55, width: 500, fontSize: 20, align: 'right' },
   // Campo de IMAGEN del retrato del personaje: posicionable y redimensionable
   // (ancho y alto) desde el Editor de posiciones.
-  RETRATO: { x: 70, y: 120, width: 380, height: 480, fontSize: 14, align: 'left' },
+  RETRATO: { x: 70, y: 120, width: 400, height: 600, fontSize: 14, align: 'left' },
   
   // Attributes - Main values
   fuerza_valor: { x: 95, y: 332, width: 107, fontSize: 100, align: 'center' },

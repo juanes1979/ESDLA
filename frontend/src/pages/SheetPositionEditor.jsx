@@ -185,7 +185,7 @@ const SheetPositionEditor = () => {
         if (!loaded.some(p => p.fieldName === 'RETRATO')) {
           loaded.push({
             id: id++, x: 70, y: 120, page: 1, fieldName: 'RETRATO',
-            width: 380, fontSize: 14, height: 480, multiline: false,
+            width: 400, fontSize: 14, height: 600, multiline: false,
             previewText: '', align: 'left',
           });
         }
