@@ -19,6 +19,7 @@ import RaceEditor from '@/components/admin/RaceEditor';
 import BackgroundEditor from '@/components/admin/BackgroundEditor';
 import OccupationEditor from '@/components/admin/OccupationEditor';
 import EquipmentEditor from '@/components/admin/EquipmentEditor';
+import VirtueEditor from '@/components/admin/VirtueEditor';
 // Refactored rule section components
 import { SombraSection, CombateSection, SalariosSection, VariosSection, ViajeSection, ComunidadSection, NPCsSection, CriaturasSinNombreSection, BackgroundsSection, CharacterCreationSection, TerrainCorrectionTool, TradingSystemSection, VirtuesSection, ArtesSection, RecompensasSection, EquipmentSection, PriceModifiersSection, RegionsSection, CulturesSection, OccupationsSection, TravelRulesSection, ClimateSection, MecenasSection, PNJForgeSection } from '@/components/rules';
 import ObjectInteractionSection from '@/components/rules/sections/ObjectInteractionSection';
@@ -3074,11 +3075,12 @@ const RulesPage = () => {
           isAdmin={isAdmin} 
           searchTerm={searchTerm}
           onRefresh={async () => {
-            const virtuesRes = await api.get('/data/virtues');
-            setData(virtuesRes.data);
+            const virtuesRes = await api.get('/data/virtudes');
+            setData(virtuesRes.data?.virtudes || []);
           }}
-          onEdit={(_virtue) => {
-            // TODO: implement virtue editor
+          onEdit={(virtue) => {
+            setEditingItem(virtue);
+            setShowVirtudEditor(true);
           }}
         />;
       
@@ -4888,6 +4890,17 @@ const RulesPage = () => {
             setData(equipment);
           }}
           onClose={() => setShowEquipmentEditor(false)}
+        />
+      )}
+
+      {showVirtudEditor && (
+        <VirtueEditor
+          virtue={editingItem}
+          onSave={async () => {
+            const virtuesRes = await api.get('/data/virtudes');
+            setData(virtuesRes.data?.virtudes || []);
+          }}
+          onClose={() => { setShowVirtudEditor(false); setEditingItem(null); }}
         />
       )}
       

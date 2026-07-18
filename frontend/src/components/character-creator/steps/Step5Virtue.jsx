@@ -4,7 +4,7 @@
  * Usa el endpoint /api/data/cultures/{id}/virtues para obtener virtudes disponibles
  * según la configuración de la cultura (propias, copiadas, comunes)
  */
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Loader2, ChevronLeft, Star, Sparkles, AlertCircle, Shield, Heart, Swords, Brain } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -18,6 +18,49 @@ const Step5Virtue = ({ draftId, draft, onComplete, onBack }) => {
   const [chosenSkill, setChosenSkill] = useState('');
   const [chosenSave, setChosenSave] = useState('');
   const [chosenTool, setChosenTool] = useState('');
+  // MAESTRÍA: pericia (doble competencia) en una habilidad/herramienta existente
+  const [chosenPericia, setChosenPericia] = useState('');
+  // PERFECCIONAMIENTO: modo (+2 a una | +1 a dos) y características elegidas
+  const [perfMode, setPerfMode] = useState('one'); // 'one' = +2 a una, 'two' = +1 a dos
+  const [perfStats, setPerfStats] = useState([]); // p.ej. ['inteligencia'] o ['fuerza','destreza']
+
+  // Habilidades y herramientas que el personaje YA domina (para la Pericia de Maestría).
+  const existingProficiencies = useMemo(() => {
+    const skills = (draft?.habilidades_competencia || [])
+      .concat(draft?.habilidades_elegidas_ocupacion || [])
+      .concat(draft?.competencias_habilidades_trasfondo || []);
+    const tools = (draft?.herramientas_elegidas_ocupacion || [])
+      .concat(draft?.competencias_trasfondo?.herramientas || []);
+    const all = [...skills, ...tools].filter(Boolean);
+    // Únicos preservando orden
+    const seen = new Set();
+    return all.filter((s) => {
+      const k = String(s).toLowerCase().trim();
+      if (seen.has(k)) return false;
+      seen.add(k);
+      return true;
+    });
+  }, [draft]);
+
+  const STAT_LABELS = [
+    { key: 'fuerza', label: 'FUERZA' },
+    { key: 'destreza', label: 'DESTREZA' },
+    { key: 'constitucion', label: 'CONSTITUCIÓN' },
+    { key: 'inteligencia', label: 'INTELIGENCIA' },
+    { key: 'sabiduria', label: 'SABIDURÍA' },
+    { key: 'carisma', label: 'CARISMA' },
+  ];
+  const baseAttrs = draft?.caracteristicas || draft?.atributos_finales || {};
+
+  const togglePerfStat = (key) => {
+    setPerfStats((prev) => {
+      if (perfMode === 'one') return prev[0] === key ? [] : [key];
+      // modo dos: máximo 2, sin repetir
+      if (prev.includes(key)) return prev.filter((k) => k !== key);
+      if (prev.length >= 2) return prev;
+      return [...prev, key];
+    });
+  };
 
   // Al elegir una virtud: reinicia elecciones y auto-selecciona las que solo
   // tienen una opción (no hay nada que elegir).
@@ -31,6 +74,9 @@ const Step5Virtue = ({ draftId, draft, onComplete, onBack }) => {
     setChosenSkill(skills.length === 1 ? skills[0] : '');
     setChosenSave(saves.length === 1 ? saves[0] : '');
     setChosenTool(tools.length === 1 ? tools[0] : '');
+    setChosenPericia('');
+    setPerfMode('one');
+    setPerfStats([]);
   };
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -85,6 +131,12 @@ const Step5Virtue = ({ draftId, draft, onComplete, onBack }) => {
       virtud_ca_extra: selectedVirtue.clase_armadura_extra || 0,
       virtud_habilidades_elegir: chosenSkill ? [chosenSkill] : [],
       virtud_herramientas_elegir: chosenTool ? [chosenTool] : [],
+      // MAESTRÍA: pericia elegida (habilidad/herramienta existente)
+      virtud_pericia_elegida: selectedVirtue.otorga_pericia && chosenPericia ? chosenPericia : null,
+      // PERFECCIONAMIENTO: {atributo: +N}
+      virtud_perfeccionamiento: selectedVirtue.perfeccionamiento
+        ? perfStats.reduce((acc, k) => { acc[k] = perfMode === 'one' ? 2 : 1; return acc; }, {})
+        : {},
     };
 
     try {
@@ -477,6 +529,90 @@ const Step5Virtue = ({ draftId, draft, onComplete, onBack }) => {
                 </div>
               </div>
             )}
+            {/* MAESTRÍA — Pericia en habilidad/herramienta existente */}
+            {selectedVirtue.otorga_pericia && (
+              <div className="bg-blue-500/10 rounded-lg p-3 md:col-span-2 border border-blue-500/30">
+                <h4 className="text-xs font-heading text-blue-300 mb-2 flex items-center gap-1">
+                  <Star className="w-3 h-3" /> Pericia — elige una habilidad o herramienta que ya domines (doble competencia)
+                </h4>
+                {existingProficiencies.length === 0 ? (
+                  <p className="text-xs text-muted-foreground">
+                    Aún no tienes habilidades/herramientas registradas. Podrás asignar la Pericia más adelante.
+                  </p>
+                ) : (
+                  <div className="flex flex-wrap gap-2" data-testid="virtue-pericia-choices">
+                    {existingProficiencies.map((opt) => (
+                      <button
+                        key={opt}
+                        onClick={() => setChosenPericia(opt)}
+                        className={cn(
+                          'text-sm px-3 py-1.5 rounded border transition-colors',
+                          chosenPericia === opt
+                            ? 'bg-blue-500 text-white border-blue-500 font-bold'
+                            : 'border-blue-400/40 text-blue-300 hover:bg-blue-500/20'
+                        )}
+                        data-testid={`virtue-pericia-${opt}`}
+                      >
+                        {opt}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* PERFECCIONAMIENTO — +2 a una o +1 a dos (máx 20) */}
+            {selectedVirtue.perfeccionamiento && (
+              <div className="bg-[hsl(var(--gold))/10] rounded-lg p-3 md:col-span-2 border border-[hsl(var(--gold))/30]">
+                <h4 className="text-xs font-heading text-[hsl(var(--gold))] mb-2">
+                  Perfeccionamiento — mejora tus características (máx 20)
+                </h4>
+                <div className="flex gap-2 mb-3" data-testid="virtue-perf-mode">
+                  <button
+                    onClick={() => { setPerfMode('one'); setPerfStats([]); }}
+                    className={cn('text-xs px-3 py-1.5 rounded border transition-colors',
+                      perfMode === 'one' ? 'bg-[hsl(var(--gold))] text-black border-[hsl(var(--gold))] font-bold'
+                        : 'border-[hsl(var(--gold))/40] text-[hsl(var(--gold))]')}
+                    data-testid="virtue-perf-mode-one"
+                  >
+                    +2 a una característica
+                  </button>
+                  <button
+                    onClick={() => { setPerfMode('two'); setPerfStats([]); }}
+                    className={cn('text-xs px-3 py-1.5 rounded border transition-colors',
+                      perfMode === 'two' ? 'bg-[hsl(var(--gold))] text-black border-[hsl(var(--gold))] font-bold'
+                        : 'border-[hsl(var(--gold))/40] text-[hsl(var(--gold))]')}
+                    data-testid="virtue-perf-mode-two"
+                  >
+                    +1 a dos características
+                  </button>
+                </div>
+                <div className="flex flex-wrap gap-2" data-testid="virtue-perf-stats">
+                  {STAT_LABELS.map(({ key, label }) => {
+                    const cur = baseAttrs[key] ?? 10;
+                    const inc = perfMode === 'one' ? 2 : 1;
+                    const selected = perfStats.includes(key);
+                    const wouldExceed = cur + inc > 20;
+                    const disabled = (!selected && wouldExceed) ||
+                      (!selected && perfMode === 'two' && perfStats.length >= 2);
+                    return (
+                      <button
+                        key={key}
+                        disabled={disabled}
+                        onClick={() => togglePerfStat(key)}
+                        className={cn('text-sm px-3 py-1.5 rounded border transition-colors',
+                          selected ? 'bg-[hsl(var(--gold))] text-black border-[hsl(var(--gold))] font-bold'
+                            : 'border-[hsl(var(--gold))/40] text-[hsl(var(--gold))] hover:bg-[hsl(var(--gold))/20]',
+                          disabled && 'opacity-40 cursor-not-allowed')}
+                        data-testid={`virtue-perf-${key}`}
+                      >
+                        +{inc} {label} <span className="opacity-60">({cur}→{Math.min(20, cur + inc)})</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -505,7 +641,9 @@ const Step5Virtue = ({ draftId, draft, onComplete, onBack }) => {
             ((selectedVirtue.caracteristicas_elegir?.length || 0) > 1 && !chosenChar) ||
             ((selectedVirtue.salvaciones_elegir?.length || 0) > 1 && !chosenSave) ||
             ((selectedVirtue.competencias_habilidades_elegir?.length || 0) > 1 && !chosenSkill) ||
-            ((selectedVirtue.competencias_herramientas_elegir?.length || 0) > 1 && !chosenTool)
+            ((selectedVirtue.competencias_herramientas_elegir?.length || 0) > 1 && !chosenTool) ||
+            (selectedVirtue.otorga_pericia && existingProficiencies.length > 0 && !chosenPericia) ||
+            (selectedVirtue.perfeccionamiento && (perfMode === 'one' ? perfStats.length !== 1 : perfStats.length !== 2))
           ))}
           className="bg-[hsl(var(--gold))] hover:bg-[hsl(var(--gold-dim))] text-[hsl(var(--primary-foreground))] font-heading px-8"
           data-testid="step-5-next-btn"

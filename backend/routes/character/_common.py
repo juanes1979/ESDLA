@@ -266,6 +266,10 @@ class CharacterCreateStep5(BaseModel):
     # Skill/tool proficiencies to choose
     virtud_habilidades_elegir: Optional[List[str]] = None
     virtud_herramientas_elegir: Optional[List[str]] = None
+    # MAESTRÍA: pericia (doble competencia) en una habilidad/herramienta existente
+    virtud_pericia_elegida: Optional[str] = None
+    # PERFECCIONAMIENTO: {"inteligencia": 2} o {"fuerza": 1, "destreza": 1} (máx 20)
+    virtud_perfeccionamiento: Optional[Dict[str, int]] = None
 
 
 class CharacterCreateStep6(BaseModel):

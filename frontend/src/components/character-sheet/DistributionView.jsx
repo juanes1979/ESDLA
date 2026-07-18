@@ -108,6 +108,8 @@ const buildPortadores = (character, weightSummary, chestsApi) => {
     const det = detalles.find((d) => d.id === m.id) || {};
     const cap = Number(det.capacidad || m.capacidad_carga || 0);
     const cur = Number(det.peso_cargado || 0);
+    const sinJinete = Number(det.peso_sin_jinete ?? cur);
+    const riderLoad = Math.max(0, cur - sinJinete);
     list.push({
       id: `mount:${m.id}`,
       kind: 'mount',
@@ -123,6 +125,8 @@ const buildPortadores = (character, weightSummary, chestsApi) => {
       pct: cap ? (cur / cap) * 100 : 0,
       sobrecargada: !!det.sobrecargada,
       llevaJinete: !!det.lleva_jinete,
+      pesoSinJinete: sinJinete,
+      riderLoad,
       badge: det.lleva_jinete ? 'Montado' : (m.es_jinete_activo ? 'Activa' : null),
     });
   });
@@ -298,6 +302,23 @@ const ColumnCard = ({ portador, items, onItemClick }) => {
           </div>
         )}
       </div>
+
+      {portador.kind === 'mount' && portador.llevaJinete && (
+        <div className="dv-stats" data-testid={`mount-rider-load-${portador.mountId}`}>
+          <div className="dv-stats-row">
+            <span className="dv-stats-k">Carga (sin jinete)</span>
+            <span className="dv-stats-v">{portador.pesoSinJinete.toFixed(1)} kg</span>
+          </div>
+          <div className="dv-stats-row">
+            <span className="dv-stats-k">Carga del jinete</span>
+            <span className="dv-stats-v">+{portador.riderLoad.toFixed(1)} kg</span>
+          </div>
+          <div className="dv-stats-row" style={{ fontWeight: 700 }}>
+            <span className="dv-stats-k">Total sobre la montura</span>
+            <span className="dv-stats-v">{portador.current.toFixed(1)} kg</span>
+          </div>
+        </div>
+      )}
 
       {portador.kind === 'personaje' && portador.capacity > 0 && (
         <div className="dv-stats">

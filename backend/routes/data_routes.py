@@ -366,6 +366,11 @@ async def get_culture_virtues(culture_id: str):
             # Skill/tool proficiencies to choose
             "competencias_habilidades_elegir": v.get("elegir_habilidad"),
             "competencias_herramientas_elegir": v.get("elegir_herramienta"),
+            # Reglas especiales (flags) para el asistente de creación
+            "otorga_pericia": v.get("otorga_pericia", False),
+            "perfeccionamiento": v.get("perfeccionamiento", False),
+            "pg_por_nivel": v.get("pg_por_nivel", False),
+            "bonus_dano_fuerza": v.get("bonus_dano_fuerza") or 0,
         }
     
     mapped_virtues = [map_virtue(v) for v in virtues]

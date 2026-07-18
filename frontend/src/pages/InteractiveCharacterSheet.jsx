@@ -388,6 +388,7 @@ const InteractiveCharacterSheet = () => {
                 weaponCatalog={weaponCatalog}
                 equipmentCatalog={equipmentCatalog}
                 fieldPositions={fieldPositions.page1}
+                retratoFallback={!(fieldPositions.page1?.RETRATO || fieldPositions.page2?.RETRATO || fieldPositions.page3?.RETRATO)}
               />
             )}
 

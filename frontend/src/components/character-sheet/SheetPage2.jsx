@@ -160,6 +160,28 @@ const SheetPage2 = ({ character, scale, fieldPositions = {} }) => {
     <>
       {/* Basic Info */}
       <DisplayField {...getPos('nombre')} value={character.nombre} scale={scale} />
+
+      {/* Imagen del retrato: solo si el usuario lo colocó explícitamente en la Página 2
+          desde el Editor de posiciones (fieldPositions.RETRATO). */}
+      {character.portrait_image && fieldPositions?.RETRATO && (() => {
+        const p = getPos('RETRATO');
+        return (
+          <img
+            src={`data:image/png;base64,${character.portrait_image}`}
+            alt={`Retrato de ${character.nombre || ''}`}
+            style={{
+              position: 'absolute',
+              left: `${(p.x || 0) * scale}px`,
+              top: `${(p.y || 0) * scale}px`,
+              width: `${(p.width || 380) * scale}px`,
+              height: `${(p.height || p.width || 480) * scale}px`,
+              objectFit: 'contain',
+              pointerEvents: 'none',
+            }}
+            data-testid="sheet-retrato-image-p2"
+          />
+        );
+      })()}
       
       {/* Sombra section */}
       <DisplayField {...getPos('sombra')} value={character.senda_sombra || ''} scale={scale} />

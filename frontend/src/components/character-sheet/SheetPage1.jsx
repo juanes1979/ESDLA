@@ -319,7 +319,7 @@ const isWeapon = (itemName) => {
   return WEAPON_NAMES.some(w => normalized.includes(w));
 };
 
-const SheetPage1 = ({ character, scale, weaponCatalog = [], equipmentCatalog = {}, fieldPositions = {} }) => {
+const SheetPage1 = ({ character, scale, weaponCatalog = [], equipmentCatalog = {}, fieldPositions = {}, retratoFallback = true }) => {
   // Posición efectiva: usa la guardada en el Editor (BD) o el valor por defecto.
   const getPos = (key) => fieldPositions?.[key] || PAGE1_FIELDS[key] || { x: 0, y: 0, width: 100, fontSize: 14, align: 'left' };
 
@@ -871,8 +871,12 @@ const SheetPage1 = ({ character, scale, weaponCatalog = [], equipmentCatalog = {
         <DisplayField {...getPos('DescripcionVirtud')} multiline value={buildVirtudTexto()} scale={scale} />
       )}
 
-      {/* Imagen del retrato del personaje (posición y tamaño desde el Editor: campo RETRATO) */}
-      {character.portrait_image && (() => {
+      {/* Imagen del retrato del personaje (posición y tamaño desde el Editor: campo RETRATO).
+          Solo se pinta en la Página 1 si el RETRATO está colocado explícitamente en esta
+          página (fieldPositions.RETRATO) o si NO se ha colocado en ninguna página
+          (retratoFallback → posición por defecto en la Página 1). Si el usuario lo movió a
+          otra página, aquí NO se pinta. */}
+      {character.portrait_image && (fieldPositions?.RETRATO || retratoFallback) && (() => {
         const p = getPos('RETRATO');
         return (
           <img

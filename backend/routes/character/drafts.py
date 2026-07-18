@@ -353,8 +353,15 @@ async def update_draft_step5(draft_id: str, data: CharacterCreateStep5):
     if not draft:
         raise HTTPException(status_code=404, detail="Draft not found")
     
-    # Apply fixed virtue attribute increases
-    atributos = draft.get('atributos_finales', {})
+    # Base attributes for applying virtue bonuses.
+    # IMPORTANT: este asistente asigna los atributos DENTRO del paso de Cultura
+    # (Step1) y los guarda en `caracteristicas` (base + bonos de cultura + Noldor
+    # + mejora libre). El endpoint step4 (`atributos_finales`) NO se ejecuta en
+    # el flujo real, por lo que `atributos_finales` suele estar vacío. Partimos
+    # SIEMPRE de `caracteristicas` (recalculando en fresco para no acumular +1 si
+    # el jugador vuelve a este paso) y solo caemos a `atributos_finales` si aquél
+    # no existiera.
+    atributos = dict(draft.get('caracteristicas') or draft.get('atributos_finales') or {})
     caracteristicas_fijas = data.virtud_caracteristicas_fijas or virtue.get('caracteristicas_fijas', {})
     
     for attr, bonus in caracteristicas_fijas.items():
@@ -373,6 +380,20 @@ async def update_draft_step5(draft_id: str, data: CharacterCreateStep5):
         key = _CHAR_MAP.get(str(ch).strip().upper())
         if key and key in atributos:
             atributos[key] += 1
+
+    # PERFECCIONAMIENTO: +2 a una característica o +1 a dos (tope 20 por atributo).
+    for attr, bonus in (data.virtud_perfeccionamiento or {}).items():
+        key = _CHAR_MAP.get(str(attr).strip().upper()) or (attr if attr in atributos else None)
+        if key and key in atributos and bonus:
+            atributos[key] = min(20, atributos[key] + int(bonus))
+
+    # Tope de seguridad: ninguna característica supera 20 por bonos de virtud.
+    for k in list(atributos.keys()):
+        try:
+            if atributos[k] > 20:
+                atributos[k] = 20
+        except (TypeError, ValueError):
+            pass
     
     # Build the update with all virtue data
     update = {
@@ -392,6 +413,9 @@ async def update_draft_step5(draft_id: str, data: CharacterCreateStep5):
         # Skill/tool proficiencies to choose
         "virtud_habilidades_elegir": data.virtud_habilidades_elegir or virtue.get('competencias_habilidades_elegir', []),
         "virtud_herramientas_elegir": data.virtud_herramientas_elegir or virtue.get('competencias_herramientas_elegir', []),
+        # MAESTRÍA: pericia elegida (doble competencia) y PERFECCIONAMIENTO
+        "virtud_pericia_elegida": data.virtud_pericia_elegida,
+        "virtud_perfeccionamiento": data.virtud_perfeccionamiento or {},
         # Update attributes with fixed bonuses
         "atributos_finales": atributos,
         "paso_actual": 6,  # Continue to skills step
@@ -661,6 +685,9 @@ async def finalize_character(draft_id: str, user: dict = Depends(get_current_use
         "virtud_ca_extra": draft.get('virtud_ca_extra', 0),
         "virtud_habilidades_elegir": draft.get('virtud_habilidades_elegir', []),
         "virtud_herramientas_elegir": draft.get('virtud_herramientas_elegir', []),
+        # MAESTRÍA: pericia (doble competencia) y PERFECCIONAMIENTO elegido
+        "virtud_pericia_elegida": draft.get('virtud_pericia_elegida'),
+        "virtud_perfeccionamiento": draft.get('virtud_perfeccionamiento', {}),
         # Legacy field for backwards compatibility
         "rasgos_virtud": draft.get('virtud_rasgos') or draft.get('rasgos_virtud'),
         # Cultural traits (rasgos culturales from culture)
@@ -913,6 +940,15 @@ async def finalize_character(draft_id: str, user: dict = Depends(get_current_use
         # Característica elegida (ya aplicada a atributos en step5), guardada aparte
         # para mostrarla claramente en la ficha (campo DescripciónVirtud).
         character['virtud_caracteristica_elegida'] = (draft.get('virtud_caracteristicas_elegir') or [None])[0]
+
+        # MAESTRÍA: la pericia elegida se añade a `pericia_elegida` para que la
+        # ficha la marque con "P" y duplique el bonificador por competencia.
+        pericia_virtud = draft.get('virtud_pericia_elegida')
+        if pericia_virtud:
+            per = list(character.get('pericia_elegida') or [])
+            if pericia_virtud not in per:
+                per.append(pericia_virtud)
+            character['pericia_elegida'] = per
     except Exception as exc:
         logger.warning(f"[finalize_character] aviso: no se pudieron aplicar los bonos de la virtud: {exc}")
 

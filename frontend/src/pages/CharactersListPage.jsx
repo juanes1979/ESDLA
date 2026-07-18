@@ -19,6 +19,11 @@ const CharactersListPage = () => {
   const [loading, setLoading] = useState(true);
   // Búsqueda por nombre, jugador, cultura o código público.
   const [searchQuery, setSearchQuery] = useState('');
+  // Filtros por desplegable (Raza, Subcultura, Ocupación, Ubicación).
+  const [filterRaza, setFilterRaza] = useState('');
+  const [filterSubcultura, setFilterSubcultura] = useState('');
+  const [filterOcupacion, setFilterOcupacion] = useState('');
+  const [filterUbicacion, setFilterUbicacion] = useState('');
   
   // Selection state
   const [selectMode, setSelectMode] = useState(false);
@@ -358,22 +363,79 @@ const CharactersListPage = () => {
                   </div>
                 </div>
 
+                {/* Filtros por desplegable: Raza · Subcultura · Ocupación · Ubicación */}
+                {(() => {
+                  const getRaza = (c) => c.raza || '';
+                  const getSub = (c) => c.cultura_nombre || '';
+                  const getOcc = (c) => c.vocacion_nombre || c.ocupacion_nombre || c.ocupacion || '';
+                  const getUbi = (c) => c.ubicacion_actual?.nombre || '';
+                  const uniq = (arr) => Array.from(new Set(arr.filter(Boolean))).sort((a, b) => a.localeCompare(b));
+                  const razas = uniq(characters.map(getRaza));
+                  const subs = uniq(characters.map(getSub));
+                  const occs = uniq(characters.map(getOcc));
+                  const ubis = uniq(characters.map(getUbi));
+                  const selCls = "bg-gray-900/60 border border-orange-500/20 rounded-lg px-3 py-2 text-sm text-gray-100 focus:outline-none focus:border-orange-500/60";
+                  const hasAny = filterRaza || filterSubcultura || filterOcupacion || filterUbicacion;
+                  return (
+                    <div className="mb-4 flex flex-wrap gap-2 items-center" data-testid="character-filters">
+                      <select value={filterRaza} onChange={e => setFilterRaza(e.target.value)} className={selCls} data-testid="filter-raza">
+                        <option value="">Raza (todas)</option>
+                        {razas.map(r => <option key={r} value={r}>{r}</option>)}
+                      </select>
+                      <select value={filterSubcultura} onChange={e => setFilterSubcultura(e.target.value)} className={selCls} data-testid="filter-subcultura">
+                        <option value="">Subcultura (todas)</option>
+                        {subs.map(s => <option key={s} value={s}>{s}</option>)}
+                      </select>
+                      <select value={filterOcupacion} onChange={e => setFilterOcupacion(e.target.value)} className={selCls} data-testid="filter-ocupacion">
+                        <option value="">Ocupación (todas)</option>
+                        {occs.map(o => <option key={o} value={o}>{o}</option>)}
+                      </select>
+                      <select value={filterUbicacion} onChange={e => setFilterUbicacion(e.target.value)} className={selCls} data-testid="filter-ubicacion">
+                        <option value="">Ubicación (todas)</option>
+                        {ubis.map(u => <option key={u} value={u}>{u}</option>)}
+                      </select>
+                      {hasAny && (
+                        <button
+                          type="button"
+                          onClick={() => { setFilterRaza(''); setFilterSubcultura(''); setFilterOcupacion(''); setFilterUbicacion(''); }}
+                          className="text-xs text-orange-400 hover:text-orange-300 underline"
+                          data-testid="filter-clear"
+                        >
+                          Limpiar filtros
+                        </button>
+                      )}
+                    </div>
+                  );
+                })()}
+
                 <div className="grid md:grid-cols-2 gap-4">
                   {(() => {
                     const q = (searchQuery || '').trim().toLowerCase();
-                    const list = q
-                      ? characters.filter(c => {
+                    const getRaza = (c) => c.raza || '';
+                    const getSub = (c) => c.cultura_nombre || '';
+                    const getOcc = (c) => c.vocacion_nombre || c.ocupacion_nombre || c.ocupacion || '';
+                    const getUbi = (c) => c.ubicacion_actual?.nombre || '';
+                    let list = characters.filter(c => {
+                      if (filterRaza && getRaza(c) !== filterRaza) return false;
+                      if (filterSubcultura && getSub(c) !== filterSubcultura) return false;
+                      if (filterOcupacion && getOcc(c) !== filterOcupacion) return false;
+                      if (filterUbicacion && getUbi(c) !== filterUbicacion) return false;
+                      return true;
+                    });
+                    if (q) {
+                      list = list.filter(c => {
                           const fields = [
                             c.nombre, c.jugador, c.nombre_jugador,
                             c.cultura_nombre, c.ocupacion, c.codigo_publico,
                           ].filter(Boolean).map(s => String(s).toLowerCase());
                           return fields.some(f => f.includes(q));
-                        })
-                      : characters;
-                    if (list.length === 0 && q) {
+                        });
+                    }
+                    const anyFilter = q || filterRaza || filterSubcultura || filterOcupacion || filterUbicacion;
+                    if (list.length === 0 && anyFilter) {
                       return (
                         <p className="md:col-span-2 text-center text-sm text-muted-foreground italic py-8" data-testid="search-no-results">
-                          Ningún personaje coincide con "{searchQuery}".
+                          Ningún personaje coincide con los filtros seleccionados.
                         </p>
                       );
                     }

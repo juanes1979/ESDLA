@@ -62,7 +62,7 @@ const VirtuesSection = ({
     if (!window.confirm(`¿Estás seguro de eliminar la virtud "${name}"?`)) return;
     
     try {
-      await api.delete(`/data/virtues/${id}`);
+      await api.delete(`/data/virtudes/${id}`);
       toast.success(`Virtud "${name}" eliminada`);
       onRefresh?.();
     } catch (err) {
@@ -129,11 +129,11 @@ const VirtuesSection = ({
             <div className="p-4 space-y-4">
               {virtudes.map((v, i) => (
                 <VirtueCard
-                  key={v._id || i}
+                  key={v.id || v._id || i}
                   virtue={v}
                   isAdmin={isAdmin}
                   onEdit={() => onEdit?.(v)}
-                  onDelete={() => handleDelete(v._id, v.nombre)}
+                  onDelete={() => handleDelete(v.id || v._id, v.nombre)}
                 />
               ))}
             </div>

@@ -139,10 +139,24 @@ const Step7Equipment = ({ draftId, draft, onComplete, onBack }) => {
 
   const nivelVida = draft?.nivel_vida || 'Común';
   const vocacion = draft?.vocacion_nombre || '';
-  
+
+  // Los Hobbits van descalzos: nunca se les añaden "Botas" al equipo inicial.
+  const esHobbit = useMemo(() => {
+    const src = `${draft?.raza || ''} ${draft?.cultura_nombre || ''} ${draft?.categoria_cultura || ''}`
+      .toLowerCase()
+      .normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    return src.includes('hobbit') || src.includes('mediano');
+  }, [draft]);
+
   const equipoAutomatico = useMemo(() => {
-    return EQUIPO_POR_NIVEL_VIDA[nivelVida] || EQUIPO_POR_NIVEL_VIDA['Común'];
-  }, [nivelVida]);
+    const base = EQUIPO_POR_NIVEL_VIDA[nivelVida] || EQUIPO_POR_NIVEL_VIDA['Común'];
+    if (!esHobbit) return base;
+    // Filtra cualquier calzado ("Botas…") para los Hobbits (van descalzos).
+    return {
+      ...base,
+      items: (base.items || []).filter(it => !(it.nombre || '').toLowerCase().includes('bota')),
+    };
+  }, [nivelVida, esHobbit]);
   
   const dineroOcupacion = useMemo(() => {
     return DINERO_POR_OCUPACION[vocacion] || { mp: 0, mo: 0, me: 0, mc: 0 };
