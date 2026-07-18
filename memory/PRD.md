@@ -1036,3 +1036,37 @@ Aplica una transacción YA negociada al personaje (reutiliza endpoints de equipo
   descripción + rasgos + "Efectos: +1 INT · Competencia: ..."). En FIELD_SUGGESTIONS y sembrado en editor.
 - Verificado: testing agent backend 100% (6/6 incluida persistencia del +1); frontend por revisión de
   código (los selectores y el render coinciden con la spec).
+
+
+## Iter 133 — Fix +1 virtud (raíz) + editor de virtudes + reglas de virtud + filtros + montura (Jun 2026)
+- **BUG RAÍZ +1 virtud (P0) RESUELTO**: el asistente asigna atributos en el Paso 1 (Cultura) y
+  los guarda en `draft['caracteristicas']`; el endpoint `step4` (`atributos_finales`) NUNCA se
+  ejecuta. Por eso `update_draft_step5` leía `atributos_finales` (vacío) y el +1 no se aplicaba a
+  nada. FIX en `drafts.py::update_draft_step5`: `atributos = dict(caracteristicas or atributos_finales or {})`
+  (recalcula en fresco cada vez → idempotente al revisitar el paso). Verificado E2E por curl y por
+  testing agent iter100 (INT 11→12 tras step5+finalize).
+- **PERFECCIONAMIENTO** (virtud común NUEVA): +2 a una característica o +1 a dos (tope 20).
+  Selector en Step5 (`virtue-perf-mode-one/two`, `virtue-perf-<stat>`). Backend aplica con
+  `min(20, x+bonus)`. Script `scripts/update_specific_virtues.py`.
+- **MAESTRÍA**: además del +1, otorga Pericia (doble competencia) en una habilidad/herramienta que
+  ya domines. Selector `virtue-pericia-<opt>` (lee draft.habilidades_competencia/herramientas). Se
+  guarda en `virtud_pericia_elegida` y se añade a `pericia_elegida` en finalize (la hoja la marca 'P').
+- **FIRMEZA** (+1 PG por nivel, flag `pg_por_nivel`) y **MANO IMPERTURBABLE** (+1 daño armas de FUE,
+  flag `bonus_dano_fuerza`): textos/flags actualizados. `map_virtue` expone los 4 flags.
+- **EDITOR DE VIRTUDES** (bug: onEdit era TODO vacío): nuevo `components/admin/VirtueEditor.jsx`
+  (modal con todos los campos). Cableado en RulesPage (Nueva Virtud + Editar). CRUD /data/virtudes.
+  Corregido el borrado en VirtuesSection (endpoint /virtudes y `id` en vez de `_id`).
+- **RETRATO PDF por página**: SheetPage1 solo pinta el retrato si está en page1 o si no está en
+  ninguna (fallback, prop `retratoFallback`); SheetPage2 lo pinta si está en page2. Antes salía
+  siempre en la 1. El PDF reutiliza estos componentes.
+- **Pestaña Trasfondo (BackgroundCard)**: el bloque de Virtud muestra ahora TODOS los aportes
+  (bonos fijos, +1 elegido, PG/CA/Comunidad, habilidad/salvación/herramienta). testid summary-virtud-block.
+- **Filtros MIS PERSONAJES** (CharactersListPage): desplegables Raza/Subcultura/Ocupación/Ubicación
+  + 'Limpiar filtros' (filter-raza/-subcultura/-ocupacion/-ubicacion/-clear), sobre el buscador de texto.
+- **Carga del jinete** (DistributionView): la tarjeta de montura montada muestra 'Carga (sin jinete)',
+  'Carga del jinete' y 'Total sobre la montura' (mount-rider-load-{id}). Datos del backend
+  (peso_sin_jinete / peso_cargado).
+- **Hobbits descalzos** (Step7Equipment): se filtra cualquier 'Botas' del equipo inicial para
+  culturas Hobbit/Mediano.
+- Verificado: testing agent iter100 (backend 4/4 100%, frontend filtros + editor de virtudes 100%).
+  Test file: tests/test_virtue_bugs_iter100.py. Personajes antiguos se dejan como están (decisión del usuario).
