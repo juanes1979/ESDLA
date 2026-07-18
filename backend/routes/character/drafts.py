@@ -612,8 +612,9 @@ async def finalize_character(draft_id: str, user: dict = Depends(get_current_use
         )
     
     # Create final character document
-    # Use 'caracteristicas' or 'atributos_finales' (depending on which exists)
-    final_attributes = draft.get('caracteristicas') or draft.get('atributos_finales', {})
+    # Usa 'atributos_finales' (base + modificadores de cultura + mejora Noldor +
+    # bonos de virtud acumulados) y solo cae a 'caracteristicas' (base) si faltara.
+    final_attributes = draft.get('atributos_finales') or draft.get('caracteristicas', {})
     
     character = {
         "_id": generate_id(),
