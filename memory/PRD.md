@@ -1012,3 +1012,27 @@ Aplica una transacción YA negociada al personaje (reutiliza endpoints de equipo
   cuando el personaje tiene portrait_image; aparece también en el PDF exportado (misma captura).
 - Verificado por testing agent (frontend 100%): editor, redimensionado por inputs, persistencia tras
   recargar (480→600), imagen renderizada en la hoja del personaje, sin regresiones en CODIGOUNICOPJ.
+
+## Prompt de retrato + Sistema de Virtudes con elección (Jun 2026)
+### Prompt del retrato (PJ y PNJ)
+- Nueva frase de estilo: "Dibujo fotorrealista a lápiz de grafito, obra maestra, muy detallado, arte a
+  lápiz crudo dibujado a mano". PJ ahora es CUERPO ENTERO e incluye las ARMAS/equipo del personaje.
+- El trasfondo solo se añade si es una descripción con contenido (>=60 chars), no un simple nombre.
+- Backend build_portrait_prompt_es (+ campo armas en PortraitRequest); payloads de CharacterSummary y
+  CharacterHeader envían armas (equipo_ocupacion). Verificado por API.
+
+### Virtudes: elección real + aplicación completa + ficha
+- Paso 5 (Step5Virtue): selectores para ELEGIR característica (+1), habilidad, salvación y herramienta
+  (data-testid virtue-char-*/virtue-skill-*/virtue-save-*/virtue-tool-*). Continuar deshabilitado hasta
+  elegir cuando hay 2+ opciones. Envía la elección concreta (no todas las opciones).
+- Backend: step5 aplica el +1 de la característica elegida a atributos_finales (map ES→key). finalize
+  aplica PG/CA/Comunidad extra y añade competencias (habilidades_virtud, tiradas_salvacion, herramientas)
+  y guarda virtud_caracteristica_elegida.
+- **BUG CRÍTICO CORREGIDO**: finalize usaba draft['caracteristicas'] (base) en vez de atributos_finales,
+  perdiéndose el +1 de virtud Y los modificadores de cultura y la mejora Noldor. Ahora
+  `final_attributes = atributos_finales or caracteristicas`. (Solo afecta a personajes NUEVOS; los
+  existentes se dejan como están, por decisión del usuario.)
+- Ficha oficial: nuevo campo posicionable multilínea `DescripcionVirtud` (texto completo: nombre +
+  descripción + rasgos + "Efectos: +1 INT · Competencia: ..."). En FIELD_SUGGESTIONS y sembrado en editor.
+- Verificado: testing agent backend 100% (6/6 incluida persistencia del +1); frontend por revisión de
+  código (los selectores y el render coinciden con la spec).
