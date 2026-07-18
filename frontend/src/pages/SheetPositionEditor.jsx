@@ -22,7 +22,7 @@ const SHEET_HEIGHT = 2197;
 // Predefined field suggestions for quick selection
 const FIELD_SUGGESTIONS = [
   // Datos básicos
-  'nombre', 'jugador', 'ocupacion_nivel', 'cultura', 'experiencia', 'senda_sombra', 'sexo', 'CODIGOUNICOPJ', 'RETRATO',
+  'nombre', 'jugador', 'ocupacion_nivel', 'cultura', 'experiencia', 'senda_sombra', 'sexo', 'CODIGOUNICOPJ', 'RETRATO', 'DescripcionVirtud',
   
   // Rasgos distintivos (2 con descripción)
   'rasgos_distintivos_1', 'descripcion_rasgos_distintivos_1',
@@ -187,6 +187,15 @@ const SheetPositionEditor = () => {
             id: id++, x: 70, y: 120, page: 1, fieldName: 'RETRATO',
             width: 400, fontSize: 14, height: 600, multiline: false,
             previewText: '', align: 'left',
+          });
+        }
+        // Campo de descripción de la virtud (texto multilínea, redimensionable).
+        if (!loaded.some(p => p.fieldName === 'DescripcionVirtud')) {
+          loaded.push({
+            id: id++, x: 60, y: 700, page: 1, fieldName: 'DescripcionVirtud',
+            width: 520, fontSize: 15, height: 380, multiline: true,
+            previewText: 'Extraño como Noticias de Bree\nEscuchar historias de viajeros...\nEfectos: +1 INT · Competencia: Investigación',
+            align: 'left',
           });
         }
         

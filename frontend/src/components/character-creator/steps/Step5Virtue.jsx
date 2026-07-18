@@ -14,6 +14,24 @@ import api from '@/services/api';
 const Step5Virtue = ({ draftId, draft, onComplete, onBack }) => {
   const [virtues, setVirtues] = useState([]);
   const [selectedVirtue, setSelectedVirtue] = useState(null);
+  const [chosenChar, setChosenChar] = useState('');
+  const [chosenSkill, setChosenSkill] = useState('');
+  const [chosenSave, setChosenSave] = useState('');
+  const [chosenTool, setChosenTool] = useState('');
+
+  // Al elegir una virtud: reinicia elecciones y auto-selecciona las que solo
+  // tienen una opción (no hay nada que elegir).
+  const selectVirtue = (v) => {
+    setSelectedVirtue(v);
+    const chars = v.caracteristicas_elegir || [];
+    const skills = v.competencias_habilidades_elegir || [];
+    const saves = v.salvaciones_elegir || [];
+    const tools = v.competencias_herramientas_elegir || [];
+    setChosenChar(chars.length === 1 ? chars[0] : '');
+    setChosenSkill(skills.length === 1 ? skills[0] : '');
+    setChosenSave(saves.length === 1 ? saves[0] : '');
+    setChosenTool(tools.length === 1 ? tools[0] : '');
+  };
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
@@ -59,13 +77,14 @@ const Step5Virtue = ({ draftId, draft, onComplete, onBack }) => {
       virtud_descripcion: selectedVirtue.descripcion,
       virtud_rasgos: selectedVirtue.rasgos_virtud || selectedVirtue.competencias_texto,
       virtud_caracteristicas_fijas: selectedVirtue.caracteristicas_fijas || {},
-      virtud_caracteristicas_elegir: selectedVirtue.caracteristicas_elegir || [],
-      virtud_salvaciones_elegir: selectedVirtue.salvaciones_elegir || [],
+      // Enviamos la ELECCIÓN concreta del jugador (no todas las opciones).
+      virtud_caracteristicas_elegir: chosenChar ? [chosenChar] : [],
+      virtud_salvaciones_elegir: chosenSave ? [chosenSave] : [],
       virtud_pg_extra: selectedVirtue.puntos_golpe_extra || 0,
       virtud_comunidad_extra: selectedVirtue.puntos_comunidad_extra || 0,
       virtud_ca_extra: selectedVirtue.clase_armadura_extra || 0,
-      virtud_habilidades_elegir: selectedVirtue.competencias_habilidades_elegir || [],
-      virtud_herramientas_elegir: selectedVirtue.competencias_herramientas_elegir || [],
+      virtud_habilidades_elegir: chosenSkill ? [chosenSkill] : [],
+      virtud_herramientas_elegir: chosenTool ? [chosenTool] : [],
     };
 
     try {
@@ -158,7 +177,7 @@ const Step5Virtue = ({ draftId, draft, onComplete, onBack }) => {
     return (
       <button
         key={virtue.id}
-        onClick={() => setSelectedVirtue(virtue)}
+        onClick={() => selectVirtue(virtue)}
         className={cn(
           'selection-card rounded-lg p-4 text-left h-full transition-all',
           isSelected && 'selected ring-2 ring-[hsl(var(--gold))]'
@@ -319,15 +338,29 @@ const Step5Virtue = ({ draftId, draft, onComplete, onBack }) => {
               </div>
             )}
 
-            {/* Characteristics to Choose */}
+            {/* Characteristics to Choose (selector) */}
             {selectedVirtue.caracteristicas_elegir?.length > 0 && (
               <div className="bg-[hsl(var(--torch-orange))/10] rounded-lg p-3">
                 <h4 className="text-xs font-heading text-[hsl(var(--torch-orange))] mb-2">
-                  Características a Elegir
+                  Característica a Elegir (+1){selectedVirtue.caracteristicas_elegir.length > 1 ? ' — elige una' : ''}
                 </h4>
-                <p className="text-sm text-muted-foreground">
-                  +1 en: {selectedVirtue.caracteristicas_elegir.join(', ')}
-                </p>
+                <div className="flex flex-wrap gap-2" data-testid="virtue-char-choices">
+                  {selectedVirtue.caracteristicas_elegir.map((opt) => (
+                    <button
+                      key={opt}
+                      onClick={() => setChosenChar(opt)}
+                      className={cn(
+                        'text-sm px-3 py-1.5 rounded border transition-colors',
+                        chosenChar === opt
+                          ? 'bg-[hsl(var(--torch-orange))] text-black border-[hsl(var(--torch-orange))] font-bold'
+                          : 'border-[hsl(var(--torch-orange))/40] text-[hsl(var(--torch-orange))] hover:bg-[hsl(var(--torch-orange))/20]'
+                      )}
+                      data-testid={`virtue-char-${opt}`}
+                    >
+                      +1 {opt}
+                    </button>
+                  ))}
+                </div>
               </div>
             )}
 
@@ -367,39 +400,81 @@ const Step5Virtue = ({ draftId, draft, onComplete, onBack }) => {
               </div>
             )}
 
-            {/* Saving Throws to Choose */}
+            {/* Saving Throws to Choose (selector) */}
             {selectedVirtue.salvaciones_elegir?.length > 0 && (
               <div className="bg-purple-500/10 rounded-lg p-3">
                 <h4 className="text-xs font-heading text-purple-400 mb-2">
-                  Salvaciones Adicionales
+                  Competencia en Salvación{selectedVirtue.salvaciones_elegir.length > 1 ? ' — elige una' : ''}
                 </h4>
-                <p className="text-sm text-muted-foreground">
-                  Elegir de: {selectedVirtue.salvaciones_elegir.join(', ')}
-                </p>
+                <div className="flex flex-wrap gap-2" data-testid="virtue-save-choices">
+                  {selectedVirtue.salvaciones_elegir.map((opt) => (
+                    <button
+                      key={opt}
+                      onClick={() => setChosenSave(opt)}
+                      className={cn(
+                        'text-sm px-3 py-1.5 rounded border transition-colors',
+                        chosenSave === opt
+                          ? 'bg-purple-500 text-white border-purple-500 font-bold'
+                          : 'border-purple-400/40 text-purple-300 hover:bg-purple-500/20'
+                      )}
+                      data-testid={`virtue-save-${opt}`}
+                    >
+                      {opt}
+                    </button>
+                  ))}
+                </div>
               </div>
             )}
 
-            {/* Skills to Choose */}
+            {/* Skills to Choose (selector) */}
             {selectedVirtue.competencias_habilidades_elegir?.length > 0 && (
               <div className="bg-cyan-500/10 rounded-lg p-3 md:col-span-2">
                 <h4 className="text-xs font-heading text-cyan-400 mb-2">
-                  Competencias en Habilidades a Elegir
+                  Competencia en Habilidad{selectedVirtue.competencias_habilidades_elegir.length > 1 ? ' — elige una' : ''}
                 </h4>
-                <p className="text-sm text-muted-foreground">
-                  {selectedVirtue.competencias_habilidades_elegir.join(', ')}
-                </p>
+                <div className="flex flex-wrap gap-2" data-testid="virtue-skill-choices">
+                  {selectedVirtue.competencias_habilidades_elegir.map((opt) => (
+                    <button
+                      key={opt}
+                      onClick={() => setChosenSkill(opt)}
+                      className={cn(
+                        'text-sm px-3 py-1.5 rounded border transition-colors',
+                        chosenSkill === opt
+                          ? 'bg-cyan-500 text-white border-cyan-500 font-bold'
+                          : 'border-cyan-400/40 text-cyan-300 hover:bg-cyan-500/20'
+                      )}
+                      data-testid={`virtue-skill-${opt}`}
+                    >
+                      {opt}
+                    </button>
+                  ))}
+                </div>
               </div>
             )}
 
-            {/* Tools to Choose */}
+            {/* Tools to Choose (selector) */}
             {selectedVirtue.competencias_herramientas_elegir?.length > 0 && (
               <div className="bg-amber-500/10 rounded-lg p-3 md:col-span-2">
                 <h4 className="text-xs font-heading text-amber-400 mb-2">
-                  Competencias en Herramientas a Elegir
+                  Competencia en Herramienta{selectedVirtue.competencias_herramientas_elegir.length > 1 ? ' — elige una' : ''}
                 </h4>
-                <p className="text-sm text-muted-foreground">
-                  {selectedVirtue.competencias_herramientas_elegir.join(', ')}
-                </p>
+                <div className="flex flex-wrap gap-2" data-testid="virtue-tool-choices">
+                  {selectedVirtue.competencias_herramientas_elegir.map((opt) => (
+                    <button
+                      key={opt}
+                      onClick={() => setChosenTool(opt)}
+                      className={cn(
+                        'text-sm px-3 py-1.5 rounded border transition-colors',
+                        chosenTool === opt
+                          ? 'bg-amber-500 text-black border-amber-500 font-bold'
+                          : 'border-amber-400/40 text-amber-300 hover:bg-amber-500/20'
+                      )}
+                      data-testid={`virtue-tool-${opt}`}
+                    >
+                      {opt}
+                    </button>
+                  ))}
+                </div>
               </div>
             )}
           </div>
@@ -426,7 +501,12 @@ const Step5Virtue = ({ draftId, draft, onComplete, onBack }) => {
         </Button>
         <Button
           onClick={handleSubmit}
-          disabled={!selectedVirtue || saving}
+          disabled={!selectedVirtue || saving || (selectedVirtue && (
+            ((selectedVirtue.caracteristicas_elegir?.length || 0) > 1 && !chosenChar) ||
+            ((selectedVirtue.salvaciones_elegir?.length || 0) > 1 && !chosenSave) ||
+            ((selectedVirtue.competencias_habilidades_elegir?.length || 0) > 1 && !chosenSkill) ||
+            ((selectedVirtue.competencias_herramientas_elegir?.length || 0) > 1 && !chosenTool)
+          ))}
           className="bg-[hsl(var(--gold))] hover:bg-[hsl(var(--gold-dim))] text-[hsl(var(--primary-foreground))] font-heading px-8"
           data-testid="step-5-next-btn"
         >

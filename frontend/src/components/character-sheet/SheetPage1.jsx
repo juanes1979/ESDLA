@@ -72,6 +72,8 @@ export const PAGE1_FIELDS = {
   // Campo de IMAGEN del retrato del personaje: posicionable y redimensionable
   // (ancho y alto) desde el Editor de posiciones.
   RETRATO: { x: 70, y: 120, width: 400, height: 600, fontSize: 14, align: 'left' },
+  // Descripción de la virtud (texto completo: descripción + rasgos + bonos aplicados).
+  DescripcionVirtud: { x: 60, y: 700, width: 520, height: 380, fontSize: 15, align: 'left' },
   
   // Attributes - Main values
   fuerza_valor: { x: 95, y: 332, width: 107, fontSize: 100, align: 'center' },
@@ -320,6 +322,27 @@ const isWeapon = (itemName) => {
 const SheetPage1 = ({ character, scale, weaponCatalog = [], equipmentCatalog = {}, fieldPositions = {} }) => {
   // Posición efectiva: usa la guardada en el Editor (BD) o el valor por defecto.
   const getPos = (key) => fieldPositions?.[key] || PAGE1_FIELDS[key] || { x: 0, y: 0, width: 100, fontSize: 14, align: 'left' };
+
+  // Texto completo de la virtud para el campo DescripcionVirtud de la ficha.
+  const buildVirtudTexto = () => {
+    if (!character.virtud_nombre) return '';
+    const partes = [character.virtud_nombre];
+    if (character.virtud_descripcion) partes.push(character.virtud_descripcion);
+    if (character.virtud_rasgos) partes.push(character.virtud_rasgos);
+    const bonos = [];
+    const fijas = character.virtud_caracteristicas_fijas || {};
+    Object.entries(fijas).forEach(([k, v]) => { if (v) bonos.push(`+${v} ${String(k).toUpperCase().slice(0, 3)}`); });
+    if (character.virtud_caracteristica_elegida) bonos.push(`+1 ${String(character.virtud_caracteristica_elegida).toUpperCase().slice(0, 3)}`);
+    (character.virtud_habilidades_elegir || []).forEach((h) => h && bonos.push(`Competencia: ${h}`));
+    (character.virtud_salvaciones_elegir || []).forEach((s) => s && bonos.push(`Salvación: ${s}`));
+    (character.virtud_herramientas_elegir || []).forEach((t) => t && bonos.push(`Herramienta: ${t}`));
+    if (character.virtud_pg_extra) bonos.push(`+${character.virtud_pg_extra} PG`);
+    if (character.virtud_ca_extra) bonos.push(`+${character.virtud_ca_extra} CA`);
+    if (character.virtud_comunidad_extra) bonos.push(`+${character.virtud_comunidad_extra} Comunidad`);
+    if (bonos.length) partes.push('Efectos: ' + bonos.join(' · '));
+    return partes.join('\n');
+  };
+
   // Get attributes
   const attrs = character.atributos || character.caracteristicas || character.atributos_finales || {};
   const bonificadorCompetencia = character.bonificador_competencia || 2;
@@ -842,6 +865,11 @@ const SheetPage1 = ({ character, scale, weaponCatalog = [], equipmentCatalog = {
       <DisplayField {...PAGE1_FIELDS.ocupacion_nivel} value={`${character.ocupacion_nombre || character.vocacion_nombre || ''} ${nivel}`} scale={scale} />
       <DisplayField {...PAGE1_FIELDS.jugador} value={character.jugador || character.nombre_jugador || ''} scale={scale} />
       <DisplayField {...getPos('CODIGOUNICOPJ')} value={character.codigo_publico || ''} scale={scale} />
+
+      {/* Descripción completa de la virtud (texto + rasgos + bonos) */}
+      {character.virtud_nombre && (
+        <DisplayField {...getPos('DescripcionVirtud')} multiline value={buildVirtudTexto()} scale={scale} />
+      )}
 
       {/* Imagen del retrato del personaje (posición y tamaño desde el Editor: campo RETRATO) */}
       {character.portrait_image && (() => {

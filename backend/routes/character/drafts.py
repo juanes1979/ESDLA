@@ -360,6 +360,19 @@ async def update_draft_step5(draft_id: str, data: CharacterCreateStep5):
     for attr, bonus in caracteristicas_fijas.items():
         if attr in atributos and bonus:
             atributos[attr] += bonus
+
+    # Apply the CHOSEN characteristic (+1) selected by the player among the options.
+    _CHAR_MAP = {
+        'FUERZA': 'fuerza', 'DESTREZA': 'destreza',
+        'CONSTITUCIÓN': 'constitucion', 'CONSTITUCION': 'constitucion',
+        'INTELIGENCIA': 'inteligencia',
+        'SABIDURÍA': 'sabiduria', 'SABIDURIA': 'sabiduria',
+        'CARISMA': 'carisma',
+    }
+    for ch in (data.virtud_caracteristicas_elegir or []):
+        key = _CHAR_MAP.get(str(ch).strip().upper())
+        if key and key in atributos:
+            atributos[key] += 1
     
     # Build the update with all virtue data
     update = {
@@ -863,6 +876,44 @@ async def finalize_character(draft_id: str, user: dict = Depends(get_current_use
         auto_equip_ropa(character.get("equipo_trasfondo"))
     except Exception as exc:
         logger.warning(f"[finalize_character] aviso: no se pudo enriquecer/auto-equipar el equipo: {exc}")
+
+    # --- Aplicar bonos numéricos y competencias de la VIRTUD al personaje ---
+    try:
+        pg_extra = int(draft.get('virtud_pg_extra') or 0)
+        ca_extra = int(draft.get('virtud_ca_extra') or 0)
+        com_extra = int(draft.get('virtud_comunidad_extra') or 0)
+        if pg_extra:
+            character['puntos_golpe_max'] = (character.get('puntos_golpe_max') or 0) + pg_extra
+            character['puntos_golpe_actual'] = (character.get('puntos_golpe_actual') or 0) + pg_extra
+        if ca_extra:
+            character['clase_armadura'] = (character.get('clase_armadura') or 10) + ca_extra
+        if com_extra:
+            character['puntos_comunidad'] = (character.get('puntos_comunidad') or 0) + com_extra
+
+        comp = character.get('competencias', {}) or {}
+        hab_virtud = [h for h in (draft.get('virtud_habilidades_elegir') or []) if h]
+        sal_virtud = [s for s in (draft.get('virtud_salvaciones_elegir') or []) if s]
+        herr_virtud = [t for t in (draft.get('virtud_herramientas_elegir') or []) if t]
+        if hab_virtud:
+            comp['habilidades_virtud'] = hab_virtud
+        if sal_virtud:
+            ts = list(comp.get('tiradas_salvacion') or [])
+            for s in sal_virtud:
+                if s not in ts:
+                    ts.append(s)
+            comp['tiradas_salvacion'] = ts
+        if herr_virtud:
+            hr = list(comp.get('herramientas') or [])
+            for t in herr_virtud:
+                if t not in hr:
+                    hr.append(t)
+            comp['herramientas'] = hr
+        character['competencias'] = comp
+        # Característica elegida (ya aplicada a atributos en step5), guardada aparte
+        # para mostrarla claramente en la ficha (campo DescripciónVirtud).
+        character['virtud_caracteristica_elegida'] = (draft.get('virtud_caracteristicas_elegir') or [None])[0]
+    except Exception as exc:
+        logger.warning(f"[finalize_character] aviso: no se pudieron aplicar los bonos de la virtud: {exc}")
 
     await db.characters.insert_one(character)
     await db.character_drafts.delete_one({"_id": draft_id})

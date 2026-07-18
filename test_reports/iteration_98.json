@@ -1,0 +1,37 @@
+{
+  "summary": "Backend testing of the new Virtue selection system (Step5Virtue). Verified that step5 correctly applies the chosen +1 to atributos_finales and finalize adds skill/save/tool competencies + virtud_caracteristica_elegida. Found ONE CRITICAL BUG: the +1 characteristic bonus is silently lost when the draft is finalized, because finalize_character prefers draft['caracteristicas'] (base values written at step1) over draft['atributos_finales'] (the value already carrying the +1 from step5).",
+  "backend_issues": {
+    "critical": [
+      {
+        "endpoint": "POST /api/characters/draft/{id}/finalize",
+        "issue": "The +1 to a characteristic granted by the Virtue (Step5) is not persisted on the final character. Step5 correctly stores atributos_finales with the +1 applied (verified via GET draft after step5), but finalize picks up caracteristicas (base values from step1) via `final_attributes = draft.get('caracteristicas') or draft.get('atributos_finales', {})` at drafts.py line ~616. Result: character.atributos.<chosen> equals the pre-virtue base, not base+1. All other virtue effects (habilidades_virtud, tiradas_salvacion virtud, herramientas virtud, virtud_caracteristica_elegida, PG/CA/Comunidad extras) work correctly. Also affects Noldor +1 improvement (mejora_noldor) and the culture bonuses applied during step4 — same code path.",
+        "priority": "CRITICAL"
+      }
+    ],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": ["/app/backend/tests/test_virtue_choices_it105.py"],
+  "action_items": [
+    "Fix drafts.py finalize_character (~line 616): change `final_attributes = draft.get('caracteristicas') or draft.get('atributos_finales', {})` to `final_attributes = draft.get('atributos_finales') or draft.get('caracteristicas', {})`. `atributos_finales` is the derived value with all step1 culture bonuses + step4 constitution + step5 virtue +1 already applied, so it must have precedence. Same reasoning applies to `clase_armadura` calculation in the same block (already uses final_attributes so it will be fixed by the same change).",
+    "After fix, re-run /app/backend/tests/test_virtue_choices_it105.py to verify assertion `character['atributos'][key] == attrs_after[key]` passes."
+  ],
+  "critical_code_review_comments": [
+    "drafts.py finalize_character prefers draft['caracteristicas'] over draft['atributos_finales']. This defeats step4/step5 which write to atributos_finales. Reversing the preference is the fix.",
+    "Step5Virtue.jsx handleSubmit sends the chosen fields correctly (single-item arrays for chosen char/skill/save/tool). Disable-logic for step-5-next-btn correctly checks each 2+ option choice. LGTM.",
+    "data_routes.map_virtue exposes all required fields (caracteristicas_elegir, competencias_habilidades_elegir, salvaciones_elegir, competencias_herramientas_elegir). LGTM.",
+    "SheetPage1.buildVirtudTexto renders the DescripcionVirtud with descripcion + rasgos + Efectos line including +1 chosen char and skill. LGTM.",
+    "SheetPositionEditor: DescripcionVirtud present in FIELD_SUGGESTIONS and auto-seeded on load (line 193 branch). LGTM."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "83% (5/6 assertions in the flow test pass — only the +1-on-final-character check fails)", "frontend": "not fully tested (session cookies not preserved across MCP browser sessions), but static code review of Step5Virtue, SheetPage1 and SheetPositionEditor confirms selectors and rendering logic match the spec"},
+  "seed_data_creation": "Test creates and deletes a TEST_VirtudChoice character each run — no leftover data.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Iteration 98: verified the new virtue-choice flow. Backend Step5 map (FUERZA/DESTREZA/CONSTITUCIÓN/INTELIGENCIA/SABIDURÍA/CARISMA -> lowercase attr keys) works and applies +1 to atributos_finales. Finalize adds habilidades_virtud/tiradas_salvacion/herramientas from draft.virtud_*_elegir arrays. BUT the +1 is LOST at finalize because finalize prefers draft.caracteristicas (step1 base) over draft.atributos_finales. Reproduction is deterministic — see test_virtue_choices_it105.py. Frontend UI not exercised end-to-end due to auth session not persisting between MCP browser runs; code review of Step5Virtue.jsx confirms all data-testid attributes (virtue-char-choices, virtue-char-<opt>, virtue-skill-choices, virtue-save-choices, virtue-tool-choices, step-5-next-btn, step-5-back-btn) are present and disable logic on step-5-next-btn correctly requires a chosen option when >1 available.",
+  "rca of the issue": "Root cause: /app/backend/routes/character/drafts.py finalize_character line ~616: `final_attributes = draft.get('caracteristicas') or draft.get('atributos_finales', {})`. draft['caracteristicas'] is populated during step1 with the RAW base values submitted by the user (before step4 rewrites atributos_finales with culture modifiers, and before step5 applies +1 for the chosen virtue characteristic). Because `caracteristicas` is truthy at step1, `or` short-circuits and returns it, discarding the +1. Reproduction: create draft -> step1 with fuerza=10 -> step5 chooses INTELIGENCIA=+1 -> after step5 GET draft shows atributos_finales.inteligencia=11 but finalized character.atributos.inteligencia=10. Fix: swap order so atributos_finales has precedence."
+}
