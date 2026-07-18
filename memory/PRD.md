@@ -1001,3 +1001,14 @@ Aplica una transacción YA negociada al personaje (reutiliza endpoints de equipo
   defecto al cargar si no existe en BD (arrastrable y persistible vía PUT /data/sheet-positions).
 - Verificado por testing agent (frontend 100%): el código 'HOMDUNE2611023' se ve completo dentro de
   la hoja y CODIGOUNICOPJ aparece/mueve en /sheet-editor, sin errores de consola.
+
+## Campo de imagen RETRATO en la ficha oficial (Jun 2026)
+- Nuevo campo posicionable **y redimensionable** `RETRATO` en el Editor de posiciones (/sheet-editor)
+  que representa la imagen del retrato del personaje (character.portrait_image).
+- Editor: recuadro azul con tirador de esquina (data-testid retrato-resize-handle) para arrastrar y
+  redimensionar, + inputs Ancho y Alto (retrato-height-input). Sembrado por defecto (x:70,y:120,
+  380x480,page1), añadido a FIELD_SUGGESTIONS y persistido (x,y,width,height) vía PUT /data/sheet-positions.
+- Render: SheetPage1 pinta <img data-testid='sheet-retrato-image'> con getPos('RETRATO') (width/height)
+  cuando el personaje tiene portrait_image; aparece también en el PDF exportado (misma captura).
+- Verificado por testing agent (frontend 100%): editor, redimensionado por inputs, persistencia tras
+  recargar (480→600), imagen renderizada en la hoja del personaje, sin regresiones en CODIGOUNICOPJ.
