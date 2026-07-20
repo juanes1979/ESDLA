@@ -155,6 +155,9 @@ const SheetPage2 = ({ character, scale, fieldPositions = {} }) => {
   const getPos = (fieldName) => {
     return fieldPositions?.[fieldName] || PAGE2_FIELDS[fieldName] || { x: 0, y: 0, width: 100, fontSize: 14, align: 'left' };
   };
+  // ¿El campo tiene una posición REAL definida (editor o por defecto)? Evita pintar
+  // campos sin posición en la esquina (0,0), fuera del recuadro de la hoja.
+  const hasPos = (fieldName) => !!(fieldPositions?.[fieldName] || PAGE2_FIELDS[fieldName]);
 
   return (
     <>
@@ -242,17 +245,21 @@ const SheetPage2 = ({ character, scale, fieldPositions = {} }) => {
         scale={scale} 
       />
       
-      {/* Rasgos culturales - Two columns */}
-      <DisplayField 
-        {...getPos('rasgos_culturales_1')} 
-        value={rasgosCulturales.col1} 
-        scale={scale} 
-      />
-      <DisplayField 
-        {...getPos('rasgos_culturales_2')} 
-        value={rasgosCulturales.col2} 
-        scale={scale} 
-      />
+      {/* Rasgos culturales - Two columns (solo si tienen posición definida) */}
+      {hasPos('rasgos_culturales_1') && (
+        <DisplayField 
+          {...getPos('rasgos_culturales_1')} 
+          value={rasgosCulturales.col1} 
+          scale={scale} 
+        />
+      )}
+      {hasPos('rasgos_culturales_2') && (
+        <DisplayField 
+          {...getPos('rasgos_culturales_2')} 
+          value={rasgosCulturales.col2} 
+          scale={scale} 
+        />
+      )}
       
       {/* Equipo 9-28 */}
       {equipmentRows.map((item, i) => {

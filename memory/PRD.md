@@ -1096,3 +1096,9 @@ Aplica una transacción YA negociada al personaje (reutiliza endpoints de equipo
 - Verificado visualmente: personaje HalAnar (~3.700 chars de descripción) → el texto cabe entero
   y formateado en el recuadro (antes se recortaba con fontSize fijo 40).
 
+
+## Iter 136 — Texto fantasma en esquina de Página 2 de la ficha (Jun 2026)
+- Los campos `rasgos_culturales_1/2` se pintaban con `getPos` pero NO estaban en `PAGE2_FIELDS`,
+  así que caían al fallback {x:0,y:0} y su texto (rasgos culturales) salía en la esquina
+  superior izquierda, fuera del recuadro. FIX: helper `hasPos()` en SheetPage2; esos dos campos
+  solo se renderizan si tienen posición definida (editor o PAGE2_FIELDS). Verificado por captura.
