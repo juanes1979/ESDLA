@@ -3,6 +3,7 @@
  * Renders the first page of the character sheet with all stats and skills
  */
 import { cn } from '@/lib/utils';
+import { useRef, useLayoutEffect, useState } from 'react';
 
 // Handwritten style font
 const FONT_STYLE = "'Caveat', 'Ink Free', cursive";
@@ -34,6 +35,67 @@ export const DisplayField = ({ value, x, y, width, scale, fontSize = 14, align =
   }
   
   return <div style={styles}>{value}</div>;
+};
+
+/**
+ * AutoFitField — como DisplayField pero AJUSTA el tamaño de letra automáticamente
+ * para que TODO el texto quepa dentro del recuadro (ancho × alto) definido en el
+ * Editor de posiciones. Reduce el tamaño de fuente hasta que el contenido deja de
+ * desbordar (o hasta un mínimo). Se usa para `descripcion_ocupacion_larga`.
+ */
+export const AutoFitField = ({ value, x, y, width, height, scale, fontSize = 40, align = 'left', minFontSize = 10 }) => {
+  const ref = useRef(null);
+  const [fittedSize, setFittedSize] = useState(fontSize);
+  const [fontsNonce, setFontsNonce] = useState(0);
+
+  // Vuelve a medir cuando la fuente caligráfica (Caveat) termina de cargarse,
+  // para que el ajuste sea exacto también en la exportación a PDF.
+  useLayoutEffect(() => {
+    let cancelled = false;
+    if (document.fonts && document.fonts.ready) {
+      document.fonts.ready.then(() => { if (!cancelled) setFontsNonce((n) => n + 1); }).catch(() => {});
+    }
+    return () => { cancelled = true; };
+  }, []);
+
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el || !height) {
+      setFittedSize(fontSize);
+      return;
+    }
+    const boxH = height * scale;
+    // Empieza por el tamaño máximo y reduce hasta que el contenido cabe en el alto.
+    let size = fontSize * scale;
+    const minPx = minFontSize * scale;
+    el.style.fontSize = `${size}px`;
+    let guard = 0;
+    while (el.scrollHeight > boxH && size > minPx && guard < 400) {
+      size -= 1;
+      el.style.fontSize = `${size}px`;
+      guard += 1;
+    }
+    setFittedSize(size / scale);
+  }, [value, width, height, scale, fontSize, minFontSize, fontsNonce]);
+
+  const styles = {
+    position: 'absolute',
+    left: `${x * scale}px`,
+    top: `${y * scale}px`,
+    width: `${width * scale}px`,
+    height: height ? `${height * scale}px` : 'auto',
+    fontSize: `${fittedSize * scale}px`,
+    textAlign: align,
+    fontFamily: FONT_STYLE,
+    lineHeight: 1.3,
+    color: 'black',
+    whiteSpace: 'pre-line',
+    wordWrap: 'break-word',
+    overflowWrap: 'break-word',
+    overflow: 'hidden',
+  };
+
+  return <div ref={ref} style={styles}>{value}</div>;
 };
 
 // PAGE 1 FIELD POSITIONS

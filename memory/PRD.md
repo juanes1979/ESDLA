@@ -1084,3 +1084,15 @@ Aplica una transacción YA negociada al personaje (reutiliza endpoints de equipo
 - Alcance: SOLO el resumen de creación (lo pedido). La ficha final ya excluye lo marcado
   `portado_por === 'montura'`. Compila OK; verificado por inspección de código + datos del catálogo.
 
+
+## Iter 135 — Auto-ajuste de letra en 'descripcion_ocupacion_larga' (ficha oficial, pág. 3) (Jun 2026)
+- Nuevo componente `AutoFitField` en `SheetPage1.jsx` (exportado): reduce automáticamente el
+  tamaño de letra hasta que TODO el texto cabe dentro del recuadro (width × height) del campo,
+  midiendo `scrollHeight` en `useLayoutEffect` (mín. 12px). Re-mide al cargar la fuente Caveat
+  (document.fonts.ready) para que el PDF quede exacto.
+- `SheetPage3.jsx` usa `AutoFitField` para `descripcion_ocupacion_larga` y ahora respeta las
+  posiciones/tamaños personalizados del Editor (nuevo `getPos` que fusiona fieldPositions sobre
+  PAGE3_FIELDS) — antes SheetPage3 ignoraba las ediciones del Editor de posiciones.
+- Verificado visualmente: personaje HalAnar (~3.700 chars de descripción) → el texto cabe entero
+  y formateado en el recuadro (antes se recortaba con fontSize fijo 40).
+

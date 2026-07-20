@@ -2,7 +2,7 @@
  * Character Sheet Page 3 Component
  * Renders the third page with occupation details and special abilities
  */
-import { DisplayField } from './SheetPage1';
+import { DisplayField, AutoFitField } from './SheetPage1';
 
 // PAGE 3 FIELD POSITIONS
 export const PAGE3_FIELDS = {
@@ -17,6 +17,11 @@ export const PAGE3_FIELDS = {
 };
 
 const SheetPage3 = ({ character, scale, fieldPositions = {} }) => {
+  // Respeta las posiciones/tamaños personalizados guardados en el Editor; si no hay,
+  // usa los valores por defecto de PAGE3_FIELDS.
+  const getPos = (fieldName) => {
+    return fieldPositions?.[fieldName] || PAGE3_FIELDS[fieldName] || { x: 0, y: 0, width: 100, fontSize: 14, align: 'left' };
+  };
   
   // Get combined occupation description with all special abilities and virtue
   // Each block separated by line break (punto y aparte)
@@ -80,41 +85,47 @@ const SheetPage3 = ({ character, scale, fieldPositions = {} }) => {
 
   const nivel = character.nivel || 1;
   const descripcionCompleta = getDescripcionOcupacionCompleta();
+  const nombrePos = getPos('nombre');
+  const nivelPos = getPos('ocupacion_nivel');
+  const descCortaPos = getPos('descripcion_ocupacion');
+  const descLargaPos = getPos('descripcion_ocupacion_larga');
 
   return (
     <>
       {/* Basic Info */}
       <DisplayField 
-        {...PAGE3_FIELDS.nombre} 
+        {...nombrePos} 
         value={character.nombre} 
         scale={scale} 
       />
       <DisplayField 
-        {...PAGE3_FIELDS.ocupacion_nivel} 
+        {...nivelPos} 
         value={`${character.ocupacion_nombre || character.vocacion_nombre || ''} ${nivel}`} 
         scale={scale} 
       />
       <DisplayField 
-        x={PAGE3_FIELDS.descripcion_ocupacion.x}
-        y={PAGE3_FIELDS.descripcion_ocupacion.y}
-        width={PAGE3_FIELDS.descripcion_ocupacion.width}
-        height={PAGE3_FIELDS.descripcion_ocupacion.height}
-        fontSize={PAGE3_FIELDS.descripcion_ocupacion.fontSize}
-        align={PAGE3_FIELDS.descripcion_ocupacion.align}
+        x={descCortaPos.x}
+        y={descCortaPos.y}
+        width={descCortaPos.width}
+        height={descCortaPos.height}
+        fontSize={descCortaPos.fontSize}
+        align={descCortaPos.align}
         multiline={true}
         value={character.descripcion_corta || character.descripcion_ocupacion_corta || ''} 
         scale={scale} 
       />
       
-      {/* Combined occupation description with all special abilities AND VIRTUE at the end */}
-      <DisplayField 
-        x={PAGE3_FIELDS.descripcion_ocupacion_larga.x}
-        y={PAGE3_FIELDS.descripcion_ocupacion_larga.y}
-        width={PAGE3_FIELDS.descripcion_ocupacion_larga.width}
-        height={PAGE3_FIELDS.descripcion_ocupacion_larga.height}
-        fontSize={PAGE3_FIELDS.descripcion_ocupacion_larga.fontSize}
-        align={PAGE3_FIELDS.descripcion_ocupacion_larga.align}
-        multiline={true}
+      {/* Combined occupation description with all special abilities AND VIRTUE at the end.
+          AUTO-AJUSTE: el tamaño de letra se reduce automáticamente para que TODO el texto
+          quepa dentro del recuadro (width × height) del campo tal como se editó. */}
+      <AutoFitField 
+        x={descLargaPos.x}
+        y={descLargaPos.y}
+        width={descLargaPos.width}
+        height={descLargaPos.height}
+        fontSize={descLargaPos.fontSize}
+        align={descLargaPos.align}
+        minFontSize={12}
         value={descripcionCompleta} 
         scale={scale} 
       />
