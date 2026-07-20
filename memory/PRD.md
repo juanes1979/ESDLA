@@ -1109,3 +1109,14 @@ Aplica una transacción YA negociada al personaje (reutiliza endpoints de equipo
   la anchura y el tamaño de letra se reduce para que quepa TODO en el alto disponible, sin
   solaparse con el bloque siguiente. Alto por defecto: el del editor, o hasta el siguiente
   bloque (col1), o un valor razonable (col2). Verificado por captura (personaje Odvin, 7 rasgos).
+
+## Iter 138 — Rasgos culturales unificados en un solo recuadro justificado (Jun 2026)
+- Nuevo campo ÚNICO `rasgos_culturales` (sustituye a rasgos_culturales_1/2). Une TODOS los rasgos
+  en un bloque, con texto JUSTIFICADO (align: justify) y auto-ajuste de letra (AutoFitField) para
+  caber en el recuadro (inicio x,y ; fin x+width, y+height).
+- Editor de posiciones: `rasgos_culturales` añadido a campos disponibles y renderizado como CAJA
+  redimensionable (borde morado + tirador, data-testid rasgos-culturales-resize-handle) para que el
+  usuario defina dónde empieza y termina. Al nombrarlo se marca multiline+justify+alto por defecto.
+- PAGE2_FIELDS.rasgos_culturales default (x900,y1090,w300,h620,justify). SheetPage2 pinta un solo
+  AutoFitField uniendo todos los rasgos. Migración BD: eliminados _1/_2, creado rasgos_culturales.
+- Verificado por captura (Odvin, 7 rasgos): todo junto, justificado y ajustado dentro del recuadro.

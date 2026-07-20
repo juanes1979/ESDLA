@@ -32,6 +32,9 @@ export const PAGE2_FIELDS = {
   // Rasgos de personalidad
   rasgos_personalidad: { x: 1157, y: 1078, width: 435, fontSize: 35, align: 'left' },
   
+  // Rasgos culturales (recuadro ÚNICO, multilínea, texto justificado con auto-ajuste)
+  rasgos_culturales: { x: 900, y: 1090, width: 300, height: 620, fontSize: 20, align: 'justify', multiline: true },
+  
   // Equipo page 2 (equipo_9 to equipo_28)
   equipo_9: { x: 617, y: 1633, width: 465, fontSize: 30, align: 'left' },
   equipo_10: { x: 617, y: 1679, width: 465, fontSize: 30, align: 'left' },
@@ -150,6 +153,8 @@ const SheetPage2 = ({ character, scale, fieldPositions = {} }) => {
 
   const equipmentRows = getEquipmentRowsPage2();
   const rasgosCulturales = getRasgosCulturales();
+  // Texto ÚNICO de rasgos culturales (todos los rasgos unidos), para el recuadro único.
+  const rasgosCulturalesTexto = (character.rasgos_culturales || []).join('\n\n');
   
   // Helper to get field position (from DB or fallback)
   const getPos = (fieldName) => {
@@ -245,32 +250,17 @@ const SheetPage2 = ({ character, scale, fieldPositions = {} }) => {
         scale={scale} 
       />
       
-      {/* Rasgos culturales - dos bloques (col1/col2). Multilínea con AUTO-AJUSTE:
-          el texto se envuelve dentro de la anchura del campo y el tamaño de letra
-          se reduce para que TODO quepa en el alto disponible, sin solaparse con el
-          bloque siguiente ni desbordar. */}
-      {hasPos('rasgos_culturales_1') && (() => {
-        const p1 = getPos('rasgos_culturales_1');
-        const p2 = hasPos('rasgos_culturales_2') ? getPos('rasgos_culturales_2') : null;
-        // Alto disponible: el definido en el editor, o hasta el siguiente bloque,
-        // o un valor por defecto razonable.
-        const h1 = p1.height || (p2 && p2.y > p1.y ? Math.max(80, p2.y - p1.y - 24) : 260);
+      {/* Rasgos culturales - recuadro ÚNICO con auto-ajuste y texto justificado.
+          El texto se envuelve dentro de la anchura, se justifica a ambos márgenes y
+          el tamaño de letra se reduce para que TODO quepa dentro del recuadro
+          (inicio = x,y ; fin = x+width, y+height) definido en el Editor. */}
+      {hasPos('rasgos_culturales') && rasgosCulturalesTexto && (() => {
+        const p = getPos('rasgos_culturales');
         return (
           <AutoFitField
-            x={p1.x} y={p1.y} width={p1.width} height={h1}
-            fontSize={p1.fontSize || 22} align={p1.align || 'left'} minFontSize={9}
-            value={rasgosCulturales.col1} scale={scale}
-          />
-        );
-      })()}
-      {hasPos('rasgos_culturales_2') && (() => {
-        const p2 = getPos('rasgos_culturales_2');
-        const h2 = p2.height || 360;
-        return (
-          <AutoFitField
-            x={p2.x} y={p2.y} width={p2.width} height={h2}
-            fontSize={p2.fontSize || 22} align={p2.align || 'left'} minFontSize={9}
-            value={rasgosCulturales.col2} scale={scale}
+            x={p.x} y={p.y} width={p.width} height={p.height || 620}
+            fontSize={p.fontSize || 20} align={p.align || 'justify'} minFontSize={8}
+            value={rasgosCulturalesTexto} scale={scale}
           />
         );
       })()}

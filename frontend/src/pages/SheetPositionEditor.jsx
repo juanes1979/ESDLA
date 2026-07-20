@@ -125,6 +125,8 @@ const FIELD_SUGGESTIONS = [
   
   // Trasfondo y otros
   'trasfondo', 'descripcion_trasfondo', 'rasgos_personalidad', 'ataques',
+  // Rasgos culturales (recuadro único, redimensionable, texto justificado)
+  'rasgos_culturales',
 ];
 
 const SheetPositionEditor = () => {
@@ -196,6 +198,30 @@ const SheetPositionEditor = () => {
             width: 520, fontSize: 15, height: 380, multiline: true,
             previewText: 'Extraño como Noticias de Bree\nEscuchar historias de viajeros...\nEfectos: +1 INT · Competencia: Investigación',
             align: 'left',
+          });
+        }
+        // Campo ÚNICO de rasgos culturales (recuadro redimensionable, texto justificado).
+        // Sustituye a los antiguos rasgos_culturales_1 / _2.
+        const rcOld = loaded.filter(p => p.fieldName === 'rasgos_culturales_1' || p.fieldName === 'rasgos_culturales_2');
+        if (rcOld.length) {
+          // Elimina los antiguos bloques y deja solo el nuevo campo unificado.
+          for (let i = loaded.length - 1; i >= 0; i--) {
+            if (loaded[i].fieldName === 'rasgos_culturales_1' || loaded[i].fieldName === 'rasgos_culturales_2') {
+              loaded.splice(i, 1);
+            }
+          }
+        }
+        if (!loaded.some(p => p.fieldName === 'rasgos_culturales')) {
+          // Si existía uno antiguo, hereda su posición como punto de partida.
+          const base = rcOld[0];
+          loaded.push({
+            id: id++,
+            x: base ? base.x : 900, y: base ? base.y : 1090, page: 2,
+            fieldName: 'rasgos_culturales',
+            width: base ? Math.max(base.width, 260) : 300, fontSize: base ? base.fontSize : 20,
+            height: 620, multiline: true,
+            previewText: 'Resiliencia Humana: ... · Espíritu Tenaz: ... · Instinto de Supervivencia: ...',
+            align: 'justify',
           });
         }
         
@@ -328,9 +354,18 @@ const SheetPositionEditor = () => {
 
   // Update position field name
   const updateFieldName = (id, name) => {
-    setPositions(prev => prev.map(p => 
-      p.id === id ? { ...p, fieldName: name } : p
-    ));
+    setPositions(prev => prev.map(p => {
+      if (p.id !== id) return p;
+      const next = { ...p, fieldName: name };
+      // Al nombrar el recuadro de rasgos culturales, se comporta como caja de texto
+      // multilínea, redimensionable y justificada.
+      if (name === 'rasgos_culturales') {
+        if (!next.height) next.height = 620;
+        next.multiline = true;
+        next.align = next.align === 'left' ? 'justify' : next.align;
+      }
+      return next;
+    }));
   };
 
   // Update position property
@@ -625,6 +660,38 @@ const SheetPositionEditor = () => {
                     style={{ zIndex: 15 }}
                     title="Arrastra para cambiar el tamaño"
                     data-testid="retrato-resize-handle"
+                  />
+                </div>
+              ) : pos.fieldName === 'rasgos_culturales' ? (
+                <div
+                  key={`box-${pos.id}`}
+                  className="absolute"
+                  style={{
+                    left: `${pos.x * scale}px`,
+                    top: `${pos.y * scale}px`,
+                    width: `${pos.width * scale}px`,
+                    height: `${(pos.height || 620) * scale}px`,
+                    zIndex: editingId === pos.id ? 12 : 5,
+                  }}
+                  onClick={(e) => { e.stopPropagation(); setEditingId(pos.id); }}
+                >
+                  <div
+                    className={cn(
+                      "w-full h-full overflow-hidden p-1 text-purple-800 select-none leading-tight",
+                      editingId === pos.id ? "border-2 border-purple-600 bg-purple-500/15" : "border-2 border-dashed border-purple-500/70 bg-purple-500/10"
+                    )}
+                    style={{ fontSize: `${(pos.fontSize || 20) * scale}px`, textAlign: 'justify' }}
+                  >
+                    <span className="font-bold text-[9px] block mb-0.5">RASGOS CULTURALES (recuadro)</span>
+                    {pos.previewText || 'Resiliencia Humana: ... · Espíritu Tenaz: ... · Instinto de Supervivencia: ...'}
+                  </div>
+                  {/* Tirador de redimensionado (define dónde TERMINA el recuadro) */}
+                  <div
+                    onMouseDown={(e) => startResize(e, pos)}
+                    className="absolute -bottom-1.5 -right-1.5 w-4 h-4 bg-purple-600 border-2 border-white rounded-sm cursor-se-resize"
+                    style={{ zIndex: 15 }}
+                    title="Arrastra para definir dónde termina el recuadro"
+                    data-testid="rasgos-culturales-resize-handle"
                   />
                 </div>
               ) : (
