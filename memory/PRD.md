@@ -1070,3 +1070,17 @@ Aplica una transacción YA negociada al personaje (reutiliza endpoints de equipo
   culturas Hobbit/Mediano.
 - Verificado: testing agent iter100 (backend 4/4 100%, frontend filtros + editor de virtudes 100%).
   Test file: tests/test_virtue_bugs_iter100.py. Personajes antiguos se dejan como están (decisión del usuario).
+
+## Iter 134 — Resumen de creación: pesos de tienda + caballo no cuenta como peso personal (Jun 2026)
+- **Pesos de lo comprado en la tienda** (CharacterSummary, "EQUIPO COMPLETO / PESO TOTAL"): antes se
+  ignoraba el `peso_kg` persistido y se usaba una tabla local que devolvía 0.25 kg por defecto para lo
+  desconocido (accesorios de monta, etc.). Nuevo helper `resolveWeight(item, name, qty)` que prioriza
+  `item.peso_kg` (lo comprado lo trae del catálogo; verificado: Alforjas 3.6, Bocado y bridas 0.5) y
+  cae a la tabla local solo si falta.
+- **Caballo + accesorios de monta NO cuentan como peso personal**: helpers `isMount` (por categoría
+  'monturas' o keywords caballo/poni/mula…) e `isMountAccessory` (silla de monta, bocado/bridas,
+  alforjas, arnés, herradura…). `cargaElCaballo()` los excluye del `totalWeight` (los carga la montura);
+  se siguen listando con marca 🐎 y nota aclaratoria en Equipo General.
+- Alcance: SOLO el resumen de creación (lo pedido). La ficha final ya excluye lo marcado
+  `portado_por === 'montura'`. Compila OK; verificado por inspección de código + datos del catálogo.
+

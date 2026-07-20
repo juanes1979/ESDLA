@@ -664,6 +664,27 @@ const CharacterSummary = ({ draft, onFinalize, onEdit, loading, draftId }) => {
                      lower.includes('botas') || lower.includes('capa') || lower.includes('muda') ||
                      lower.includes('jubón') || lower.includes('loriga');
             };
+
+            // Montura y accesorios de monta: los carga el CABALLO, no cuentan como
+            // peso personal del personaje. También los detecta por categoría.
+            const MOUNT_KEYWORDS = ['caballo', 'poni', 'pony', 'mula', 'burro', 'corcel', 'yegua', 'potro', 'asno'];
+            const MOUNT_ACCESSORY_KEYWORDS = ['silla de mont', 'bocado', 'brida', 'arnés', 'arnes', 'alforja', 'herradura', 'rienda', 'albarda', 'ronzal', 'manta de montura'];
+            const isMount = (name, cat) => (String(cat || '').toLowerCase() === 'monturas') ||
+              MOUNT_KEYWORDS.some(k => String(name || '').toLowerCase().includes(k));
+            const isMountAccessory = (name) => MOUNT_ACCESSORY_KEYWORDS.some(k => String(name || '').toLowerCase().includes(k));
+            const cargaElCaballo = (name, cat) => isMount(name, cat) || isMountAccessory(name);
+
+            // Peso real de un ítem: prioriza el `peso_kg` persistido (p. ej. lo
+            // comprado en la tienda trae su peso del catálogo); si no, usa la
+            // tabla local; y por último el valor por defecto.
+            const resolveWeight = (item, name, qty = 1) => {
+              const isObj = typeof item === 'object' && item;
+              const pk = isObj && item.peso_kg != null && !isNaN(Number(item.peso_kg)) ? Number(item.peso_kg) : null;
+              const base = pk != null ? pk : getItemWeight(name, isArmorOrClothing(name));
+              return base * qty;
+            };
+            // ¿Hay caballo en el equipo? (para la nota informativa)
+            let tieneMontura = false;
             
             // Collect all equipment
             const allEquipment = [];
@@ -673,10 +694,12 @@ const CharacterSummary = ({ draft, onFinalize, onEdit, loading, draftId }) => {
             const occupationItems = draft.equipo_ocupacion || [];
             occupationItems.forEach(item => {
               const name = typeof item === 'string' ? item : (item?.nombre || '');
-              const weight = getItemWeight(name, isArmorOrClothing(name));
+              const cat = typeof item === 'object' ? item?.categoria : null;
+              const weight = resolveWeight(item, name, 1);
               if (name) {
                 allEquipment.push({ name, type: 'ocupacion', weight });
-                totalWeight += weight;
+                if (cargaElCaballo(name, cat)) { tieneMontura = tieneMontura || isMount(name, cat); }
+                else { totalWeight += weight; }
               }
             });
             
@@ -684,7 +707,7 @@ const CharacterSummary = ({ draft, onFinalize, onEdit, loading, draftId }) => {
             const tools = draft.herramientas_elegidas_ocupacion || [];
             tools.forEach(tool => {
               const name = typeof tool === 'string' ? tool : '';
-              const weight = getItemWeight(name, false);
+              const weight = resolveWeight(tool, name, 1);
               if (name) {
                 allEquipment.push({ name, type: 'herramienta', weight });
                 totalWeight += weight;
@@ -695,11 +718,13 @@ const CharacterSummary = ({ draft, onFinalize, onEdit, loading, draftId }) => {
             const inventory = draft.inventario || [];
             inventory.forEach(item => {
               const name = typeof item === 'string' ? item : (item?.nombre || '');
+              const cat = typeof item === 'object' ? item?.categoria : null;
               const qty = item?.cantidad || 1;
-              const weight = getItemWeight(name, isArmorOrClothing(name)) * qty;
+              const weight = resolveWeight(item, name, qty);
               if (name) {
                 allEquipment.push({ name: `${name}${qty > 1 ? ` (x${qty})` : ''}`, type: 'general', weight });
-                totalWeight += weight;
+                if (cargaElCaballo(name, cat)) { tieneMontura = tieneMontura || isMount(name, cat); }
+                else { totalWeight += weight; }
               }
             });
             
@@ -707,10 +732,12 @@ const CharacterSummary = ({ draft, onFinalize, onEdit, loading, draftId }) => {
             const bgEquip = draft.equipo_trasfondo || [];
             bgEquip.forEach(item => {
               const name = typeof item === 'string' ? item : (item?.nombre || '');
-              const weight = getItemWeight(name, isArmorOrClothing(name));
+              const cat = typeof item === 'object' ? item?.categoria : null;
+              const weight = resolveWeight(item, name, 1);
               if (name) {
                 allEquipment.push({ name, type: 'trasfondo', weight });
-                totalWeight += weight;
+                if (cargaElCaballo(name, cat)) { tieneMontura = tieneMontura || isMount(name, cat); }
+                else { totalWeight += weight; }
               }
             });
             
@@ -813,13 +840,26 @@ const CharacterSummary = ({ draft, onFinalize, onEdit, loading, draftId }) => {
                   <div className="bg-secondary rounded-lg p-3">
                     <p className="text-xs text-muted-foreground font-heading mb-2">📦 Equipo General</p>
                     <div className="grid grid-cols-2 gap-2">
-                      {allEquipment.filter(e => e.type === 'general' || e.type === 'trasfondo').map((item, i) => (
-                        <div key={i} className="flex justify-between text-sm">
-                          <span className="text-muted-foreground">{item.name}</span>
-                          <span className="text-muted-foreground">{item.weight.toFixed(2)} kg</span>
-                        </div>
-                      ))}
+                      {allEquipment.filter(e => e.type === 'general' || e.type === 'trasfondo').map((item, i) => {
+                        const enCaballo = cargaElCaballo(item.name);
+                        return (
+                          <div key={i} className="flex justify-between text-sm">
+                            <span className="text-muted-foreground">
+                              {item.name}
+                              {enCaballo && <span className="text-blue-300 ml-1" title="Lo carga el caballo">🐎</span>}
+                            </span>
+                            <span className={enCaballo ? 'text-blue-300/70 italic' : 'text-muted-foreground'}>
+                              {item.weight.toFixed(2)} kg{enCaballo ? '*' : ''}
+                            </span>
+                          </div>
+                        );
+                      })}
                     </div>
+                    {allEquipment.filter(e => (e.type === 'general' || e.type === 'trasfondo') && cargaElCaballo(e.name)).length > 0 && (
+                      <p className="text-[11px] text-blue-300/80 italic mt-2">
+                        🐎 * El caballo y los accesorios de monta los carga la montura; no cuentan en tu peso personal.
+                      </p>
+                    )}
                   </div>
                 )}
                 
