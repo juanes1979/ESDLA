@@ -2,7 +2,7 @@
  * Character Sheet Page 2 Component
  * Renders the second page with background, shadow, patron, and equipment details
  */
-import { DisplayField } from './SheetPage1';
+import { DisplayField, AutoFitField } from './SheetPage1';
 
 // PAGE 2 FIELD POSITIONS - Multiline fields have height defined
 export const PAGE2_FIELDS = {
@@ -245,21 +245,35 @@ const SheetPage2 = ({ character, scale, fieldPositions = {} }) => {
         scale={scale} 
       />
       
-      {/* Rasgos culturales - Two columns (solo si tienen posición definida) */}
-      {hasPos('rasgos_culturales_1') && (
-        <DisplayField 
-          {...getPos('rasgos_culturales_1')} 
-          value={rasgosCulturales.col1} 
-          scale={scale} 
-        />
-      )}
-      {hasPos('rasgos_culturales_2') && (
-        <DisplayField 
-          {...getPos('rasgos_culturales_2')} 
-          value={rasgosCulturales.col2} 
-          scale={scale} 
-        />
-      )}
+      {/* Rasgos culturales - dos bloques (col1/col2). Multilínea con AUTO-AJUSTE:
+          el texto se envuelve dentro de la anchura del campo y el tamaño de letra
+          se reduce para que TODO quepa en el alto disponible, sin solaparse con el
+          bloque siguiente ni desbordar. */}
+      {hasPos('rasgos_culturales_1') && (() => {
+        const p1 = getPos('rasgos_culturales_1');
+        const p2 = hasPos('rasgos_culturales_2') ? getPos('rasgos_culturales_2') : null;
+        // Alto disponible: el definido en el editor, o hasta el siguiente bloque,
+        // o un valor por defecto razonable.
+        const h1 = p1.height || (p2 && p2.y > p1.y ? Math.max(80, p2.y - p1.y - 24) : 260);
+        return (
+          <AutoFitField
+            x={p1.x} y={p1.y} width={p1.width} height={h1}
+            fontSize={p1.fontSize || 22} align={p1.align || 'left'} minFontSize={9}
+            value={rasgosCulturales.col1} scale={scale}
+          />
+        );
+      })()}
+      {hasPos('rasgos_culturales_2') && (() => {
+        const p2 = getPos('rasgos_culturales_2');
+        const h2 = p2.height || 360;
+        return (
+          <AutoFitField
+            x={p2.x} y={p2.y} width={p2.width} height={h2}
+            fontSize={p2.fontSize || 22} align={p2.align || 'left'} minFontSize={9}
+            value={rasgosCulturales.col2} scale={scale}
+          />
+        );
+      })()}
       
       {/* Equipo 9-28 */}
       {equipmentRows.map((item, i) => {

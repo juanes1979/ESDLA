@@ -1102,3 +1102,10 @@ Aplica una transacción YA negociada al personaje (reutiliza endpoints de equipo
   así que caían al fallback {x:0,y:0} y su texto (rasgos culturales) salía en la esquina
   superior izquierda, fuera del recuadro. FIX: helper `hasPos()` en SheetPage2; esos dos campos
   solo se renderizan si tienen posición definida (editor o PAGE2_FIELDS). Verificado por captura.
+
+## Iter 137 — rasgos_culturales_1/2 multilínea con auto-ajuste (Jun 2026)
+- El usuario colocó rasgos_culturales_1/2 en el editor (page2) pero se pintaban en una sola
+  línea (DisplayField sin multiline). Ahora usan `AutoFitField`: el texto se envuelve dentro de
+  la anchura y el tamaño de letra se reduce para que quepa TODO en el alto disponible, sin
+  solaparse con el bloque siguiente. Alto por defecto: el del editor, o hasta el siguiente
+  bloque (col1), o un valor razonable (col2). Verificado por captura (personaje Odvin, 7 rasgos).
