@@ -17,6 +17,7 @@ import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
 import api from '@/services/api';
 import DistributionView from '@/components/character-sheet/DistributionView';
+import { getMountUsageStatus } from '@/utils/mountUsage';
 
 const fmt = (n, moneda = 'mp') => (n === null || n === undefined ? '—' : `${Number(n).toFixed(2)} ${moneda}`);
 
@@ -304,6 +305,26 @@ const TiendaD100 = ({ characters = [], equipment = {}, config }) => {
       setWarnings(warns);
       await refreshCharFull();
       toast.success('Trato cerrado y aplicado al personaje');
+
+      // Aviso al COMPRAR UNA MONTURA: hace falta al menos silla y bridas para
+      // montarla, y alforjas para poder cargarla. Si no las tiene, el DJ podrá
+      // decidir no cargar el equipo ni permitir que sea montable.
+      if (modo === 'compra' && item?._categoria === 'monturas') {
+        const status = getMountUsageStatus(closeRes.data?.character || charFull);
+        if (status.missingForRide.length > 0 && !status.razaPuedeSinSilla) {
+          toast.warning(
+            `🏇 Has comprado una montura. Para montarla necesitas: ${status.missingForRide.join(' y ')}. ` +
+            `Sin ese equipo, el DJ puede decidir que no sea montable.`,
+            { duration: 12000 }
+          );
+        }
+        if (status.missingForLoad.length > 0) {
+          toast.warning(
+            `🐎 Sin ${status.missingForLoad.join(', ')} no podrás cargar equipo en la montura.`,
+            { duration: 9000 }
+          );
+        }
+      }
     } catch (e) {
       const detail = e?.response?.data?.detail || 'Error al cerrar el trato';
       toast.error(detail);

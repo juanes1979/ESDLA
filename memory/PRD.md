@@ -1120,3 +1120,16 @@ Aplica una transacción YA negociada al personaje (reutiliza endpoints de equipo
 - PAGE2_FIELDS.rasgos_culturales default (x900,y1090,w300,h620,justify). SheetPage2 pinta un solo
   AutoFitField uniendo todos los rasgos. Migración BD: eliminados _1/_2, creado rasgos_culturales.
 - Verificado por captura (Odvin, 7 rasgos): todo junto, justificado y ajustado dentro del recuadro.
+
+## Iter 139 — Peso de montura unificado ficha oficial = gestor + avisos de tienda (Jun 2026)
+- BUG (circulado): la ficha oficial mostraba un peso de montura distinto (139) al del Gestor de
+  Equipamiento (124.6) porque recalculaba por su cuenta (y duplicaba accesorios). FIX: InteractiveCharacterSheet
+  carga `/characters/{id}/weight-summary` (misma fuente autoritativa del backend) y lo pasa a SheetPage1;
+  el campo montura_peso usa `peso_cargado`/`capacidad` de monturas_detalle. Verificado: ahora "Poni robusto, 125/130 Kg".
+  (Corregido también un ReferenceError pesoEnMontura al reintroducir la declaración del cálculo de reserva.)
+- Accesorios de monta asignados al caballo en la ficha final: el backend ya los cuenta en peso_sin_jinete/
+  peso_cargado; la ficha ahora refleja ese cálculo autoritativo (no cuentan como peso personal).
+- Avisos de tienda: EquipmentManagerModal YA avisaba (silla+bridas para montar, alforjas para cargar,
+  excepción de razas). Añadido el MISMO aviso en TiendaD100 (tienda de ubicación) al comprar una montura
+  (utils/mountUsage.getMountUsageStatus).
+- Sobrecarga en rojo: DistributionView ya lo hace (getRingColor rojo a >=95%, toast "no puede cargar más peso").

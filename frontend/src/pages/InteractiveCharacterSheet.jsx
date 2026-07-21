@@ -31,6 +31,7 @@ const InteractiveCharacterSheet = () => {
   const [weaponCatalog, setWeaponCatalog] = useState([]);
   const [equipmentCatalog, setEquipmentCatalog] = useState({ equipo_general: [], herramientas: [], armas: [], armaduras: [] });
   const [fieldPositions, setFieldPositions] = useState({ page1: {}, page2: {}, page3: {} });
+  const [weightSummary, setWeightSummary] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
@@ -60,6 +61,11 @@ const InteractiveCharacterSheet = () => {
         setWeaponCatalog(catalog.armas || []);
         setEquipmentCatalog(catalog);
         setFieldPositions(positionsRes.data || { page1: {}, page2: {}, page3: {} });
+        // Resumen de peso AUTORITATIVO (mismo que el Gestor de Equipamiento) para que
+        // el peso de la montura en la ficha oficial coincida exactamente.
+        api.get(`/characters/${characterId}/weight-summary`)
+          .then((r) => setWeightSummary(r.data))
+          .catch(() => setWeightSummary(null));
       } catch (err) {
         console.error('Error loading data:', err);
         setError(err.response?.data?.detail || err.message || 'Error al cargar el personaje');
@@ -388,6 +394,7 @@ const InteractiveCharacterSheet = () => {
                 weaponCatalog={weaponCatalog}
                 equipmentCatalog={equipmentCatalog}
                 fieldPositions={fieldPositions.page1}
+                weightSummary={weightSummary}
                 retratoFallback={!(fieldPositions.page1?.RETRATO || fieldPositions.page2?.RETRATO || fieldPositions.page3?.RETRATO)}
               />
             )}

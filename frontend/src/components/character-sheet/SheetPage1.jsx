@@ -381,7 +381,7 @@ const isWeapon = (itemName) => {
   return WEAPON_NAMES.some(w => normalized.includes(w));
 };
 
-const SheetPage1 = ({ character, scale, weaponCatalog = [], equipmentCatalog = {}, fieldPositions = {}, retratoFallback = true }) => {
+const SheetPage1 = ({ character, scale, weaponCatalog = [], equipmentCatalog = {}, fieldPositions = {}, retratoFallback = true, weightSummary = null }) => {
   // Posición efectiva: usa la guardada en el Editor (BD) o el valor por defecto.
   const getPos = (key) => fieldPositions?.[key] || PAGE1_FIELDS[key] || { x: 0, y: 0, width: 100, fontSize: 14, align: 'left' };
 
@@ -1138,8 +1138,33 @@ const SheetPage1 = ({ character, scale, weaponCatalog = [], equipmentCatalog = {
         }
         
         if (!mountName) return null;
+
+        // FUENTE AUTORITATIVA: si tenemos el resumen de peso del backend (el mismo que
+        // usa el Gestor de Equipamiento), usamos su `peso_cargado` y `capacidad` para
+        // que la ficha oficial muestre EXACTAMENTE el mismo peso que la ficha previa.
+        const detalleMonturas = weightSummary?.monturas_detalle || [];
+        if (detalleMonturas.length > 0) {
+          const norm = (s) => String(s || '').toLowerCase().trim();
+          const det = detalleMonturas.find(d =>
+            norm(d.nombre) === norm(mountName) ||
+            norm(d.nombre_personalizado) === norm(mountName) ||
+            norm(d.nombre_original) === norm(mountName)
+          ) || detalleMonturas[0];
+          if (det) {
+            const cargado = Math.round(Number(det.peso_cargado || 0));
+            const cap = Number(det.capacidad || det.capacidad_carga || mountCapacity || 0);
+            const nombreDet = det.nombre_personalizado || det.nombre || det.nombre_original || mountName;
+            return (
+              <DisplayField
+                {...PAGE1_FIELDS.montura_peso}
+                value={`${nombreDet}, ${cargado}/${cap} Kg`}
+                scale={scale}
+              />
+            );
+          }
+        }
         
-        // Calculate mount weight: items marked as on mount + mount accessories
+        // Cálculo de reserva (solo si NO hay resumen de peso del backend).
         let pesoEnMontura = parseFloat(pesoMontura) || 0;
         
         // Add weight of mount accessories that are always on mount
