@@ -1,0 +1,1 @@
+[{"_id": {"$oid": "6a42d4c764e51cc039375240"}, "user_id": "81fea592-b801-4158-aab5-0a2a2776b237", "character_id": "1cb2834b-bc77-4835-882f-90733da3313e", "id": "f7796f7d-0d96-4a35-9b47-00aa39de3dab", "is_available": true, "preferences_text": null, "preferred_level_max": null, "preferred_level_min": null, "updated_at": "2026-06-29T20:25:43.256245+00:00"}]
