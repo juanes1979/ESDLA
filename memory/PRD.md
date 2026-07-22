@@ -1133,3 +1133,14 @@ Aplica una transacción YA negociada al personaje (reutiliza endpoints de equipo
   excepción de razas). Añadido el MISMO aviso en TiendaD100 (tienda de ubicación) al comprar una montura
   (utils/mountUsage.getMountUsageStatus).
 - Sobrecarga en rojo: DistributionView ya lo hace (getRingColor rojo a >=95%, toast "no puede cargar más peso").
+
+## Iter 140 — FIX 404 al guardar ubicación (paso 9) y en viajes/rutas (Jun 2026)
+- CAUSA RAÍZ: /data/locations serializa `id`=str(_id) (ObjectId), pero las búsquedas hacían
+  find_one({"_id": <string>}) que NUNCA casa con un ObjectId, ni {"id": <string>} (el campo id
+  propio es "loc_002"). Resultado: 404 "Ubicación no encontrada" al guardar el paso 9 y en
+  detalle de ubicación / cálculo de rutas.
+- FIX: nuevo helper utils/locations.find_location(db, id) que prueba `id`, `_id` string y
+  ObjectId(id). Aplicado en: character/drafts.py (step9), character/core.py, character/chests.py,
+  travel_data_routes.py (get_location, calculate-route x2), travel_routes.py (4 sitios).
+- Verificado: PATCH step9 guarda ubicacion_actual OK; GET /data/locations/{oid} 200 (antes 404);
+  calculate-route 200. Backend reinicia limpio.

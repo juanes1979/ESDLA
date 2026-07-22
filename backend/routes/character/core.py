@@ -15,6 +15,7 @@ from ._common import (
     _owner_filter, _ensure_owner,
 )
 from auth import get_current_user
+from utils.locations import find_location
 
 
 # === CHARACTER MANAGEMENT ENDPOINTS ===
@@ -434,8 +435,7 @@ async def update_character_ubicacion(character_id: str, data: UbicacionUpdateReq
         )
 
     # Resolve the target location
-    loc = await db.locations.find_one({"id": data.location_id}) or \
-          await db.locations.find_one({"_id": data.location_id})
+    loc = await find_location(db, data.location_id)
     if not loc:
         raise HTTPException(status_code=404, detail="Ubicación no encontrada")
 

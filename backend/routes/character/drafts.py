@@ -22,6 +22,7 @@ from ._common import (
     _owner_filter, _ensure_owner,
 )
 from auth import get_current_user
+from utils.locations import find_location as _find_location
 
 
 # === CHARACTER CREATION ENDPOINTS ===
@@ -562,9 +563,12 @@ async def update_draft_step9(draft_id: str, data: CharacterCreateStep9):
         "updated_at": now_utc(),
     }
     if data.ubicacion_id:
-        # Resolve and store full ubicacion_actual snapshot
-        loc = await db.locations.find_one({"id": data.ubicacion_id}) or \
-              await db.locations.find_one({"_id": data.ubicacion_id})
+        # Resolve and store full ubicacion_actual snapshot.
+        # La búsqueda es robusta: el endpoint /data/locations devuelve `id`
+        # como str(_id), por lo que aquí probamos: campo `id` propio, `_id` como
+        # string y `_id` convertido a ObjectId (caso normal). Sin esta conversión
+        # el guardado del paso 9 fallaba con 404 "Ubicación no encontrada".
+        loc = await _find_location(db, data.ubicacion_id)
         if not loc:
             raise HTTPException(status_code=404, detail="Ubicación no encontrada")
         update["ubicacion_actual"] = {

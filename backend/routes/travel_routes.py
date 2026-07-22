@@ -13,6 +13,7 @@ from datetime import datetime, timezone
 import os
 import random
 import uuid
+from utils.locations import find_location
 
 router = APIRouter(prefix="/travel", tags=["Travel System"])
 
@@ -1209,9 +1210,9 @@ async def calculate_journey(config: JourneyConfig):
         start_loc = None
         end_loc = None
         if config.origen_id and not str(config.origen_id).startswith("custom:"):
-            start_loc = await db.locations.find_one({"_id": config.origen_id})
+            start_loc = await find_location(db, config.origen_id)
         if config.destino_id and not str(config.destino_id).startswith("custom:"):
-            end_loc = await db.locations.find_one({"_id": config.destino_id})
+            end_loc = await find_location(db, config.destino_id)
 
         # Build virtual locations for free map points based on the closest
         # known location's region/clase_region (used for climate + land type).
@@ -1956,9 +1957,9 @@ async def compare_routes(request: RouteComparisonRequest):
     start_loc = None
     end_loc = None
     if request.origen_id and not str(request.origen_id).startswith("custom:"):
-        start_loc = await db.locations.find_one({"_id": request.origen_id})
+        start_loc = await find_location(db, request.origen_id)
     if request.destino_id and not str(request.destino_id).startswith("custom:"):
-        end_loc = await db.locations.find_one({"_id": request.destino_id})
+        end_loc = await find_location(db, request.destino_id)
 
     async def _virtual_loc(x, y, nombre, fallback_id):
         all_l = await db.locations.find({}).to_list(length=None)
@@ -2736,8 +2737,7 @@ async def complete_journey(journey_id: str):
 
         ubicacion_payload = None
         if destino_id and not str(destino_id).startswith("custom:"):
-            loc = await db.locations.find_one({"_id": destino_id}) or \
-                  await db.locations.find_one({"id": destino_id})
+            loc = await find_location(db, destino_id)
             if loc:
                 ubicacion_payload = {
                     "id": loc.get("id") or loc.get("_id"),
@@ -2815,8 +2815,7 @@ async def register_arrival(req: ArrivalRequest):
 
     ubicacion_payload = None
     if req.destination_id and not str(req.destination_id).startswith("custom:"):
-        loc = await db.locations.find_one({"_id": req.destination_id}) or \
-              await db.locations.find_one({"id": req.destination_id})
+        loc = await find_location(db, req.destination_id)
         if loc:
             ubicacion_payload = {
                 "id": loc.get("id") or loc.get("_id"),

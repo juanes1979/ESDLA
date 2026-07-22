@@ -16,6 +16,7 @@ import uuid
 from datetime import datetime, timezone
 from dotenv import load_dotenv
 from pathlib import Path
+from utils.locations import find_location
 
 ROOT_DIR = Path(__file__).parent.parent
 load_dotenv(ROOT_DIR / '.env')
@@ -123,7 +124,7 @@ async def get_locations_for_travel():
 @router.get("/locations/{location_id}")
 async def get_location(location_id: str):
     """Get a specific location by ID"""
-    location = await db.locations.find_one({"_id": location_id})
+    location = await find_location(db, location_id)
     if not location:
         raise HTTPException(status_code=404, detail="Location not found")
     return serialize_doc(location)
@@ -369,8 +370,8 @@ async def calculate_route(origin_id: str, destination_id: str):
     """Calculate route between two locations including distance, terrain, and estimated travel time"""
     import math
     
-    origin = await db.locations.find_one({"_id": origin_id})
-    destination = await db.locations.find_one({"_id": destination_id})
+    origin = await find_location(db, origin_id)
+    destination = await find_location(db, destination_id)
     
     if not origin:
         raise HTTPException(status_code=404, detail="Origin location not found")
@@ -1438,8 +1439,8 @@ async def find_alternative_route(origin_id: str, destination_id: str):
     Returns mountain passes and suggested waypoints.
     """
     # Get origin and destination
-    origin = await db.locations.find_one({"_id": origin_id})
-    destination = await db.locations.find_one({"_id": destination_id})
+    origin = await find_location(db, origin_id)
+    destination = await find_location(db, destination_id)
     
     if not origin or not destination:
         raise HTTPException(status_code=404, detail="Ubicación no encontrada")

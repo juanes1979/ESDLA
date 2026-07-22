@@ -19,6 +19,7 @@ from fastapi import HTTPException, Body
 from pydantic import BaseModel
 
 from ._common import router, db, now_utc, serialize_doc, convert_to_base, convert_from_base
+from utils.locations import find_location
 
 
 # Coste fijo (en monedas base = 1 céntimo de cobre) por crear un baúl en una ubicación nueva.
@@ -60,8 +61,7 @@ class ChestRetrieveRequest(BaseModel):
 
 
 async def _resolve_location(location_id: str) -> dict:
-    loc = await db.locations.find_one({"id": location_id}) or \
-          await db.locations.find_one({"_id": location_id})
+    loc = await find_location(db, location_id)
     if not loc:
         raise HTTPException(status_code=404, detail="Ubicación no encontrada")
     return loc
