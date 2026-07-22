@@ -1153,3 +1153,13 @@ Aplica una transacción YA negociada al personaje (reutiliza endpoints de equipo
   /data/equipment/{cat}/{nombre} {profesiones:[...]} por cada ítem. Ej: Posadero vende solo
   Caballo de caminos y Poni robusto, no todas las monturas.
 - Verificado por captura: modal renderiza y funciona. Backend endpoint ya existía (merge de campos).
+
+## Iter 142 — FIX: ítems asignados por profesión no aparecían en la tienda (Jun 2026)
+- Causa raíz (deductiva, confirmada por el usuario): la profesión coincidía (PNJ "Posadero" ==
+  item.profesiones ["Posadero"]), pero la SEGUNDA puerta del filtro de TiendaD100 (región) descartaba
+  el ítem en silencio si el _block_regiones de su categoría (p.ej. monturas) no incluía la región del PNJ.
+- FIX (TiendaD100.jsx, filteredItems): si un ítem tiene un override EXPLÍCITO de profesión a nivel de
+  ítem (it.profesiones no vacío) que coincide con el PNJ, es una decisión deliberada del DJ → se vende
+  siempre y se SALTA el filtro de región. La herencia por bloque sigue respetando la región.
+- Verificado con réplica exacta del filtro en Node: Posadero ve el Poni (override) en cualquier región;
+  un Mercader NO ve ese override. Coincidencia de profesión sigue siendo EXACTA (según elección del usuario).

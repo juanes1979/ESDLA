@@ -120,15 +120,20 @@ const TiendaD100 = ({ characters = [], equipment = {}, config }) => {
 
       // Profesión del PNJ: profesiones del objeto > del bloque. Si no hay
       // ninguna asignada, lo vende cualquiera (compatibilidad).
+      // Override explícito: si el DJ asignó profesiones al PROPIO ítem y coincide
+      // con el PNJ, es una decisión deliberada → se vende sí o sí (salta la región).
+      let overrideExplicito = false;
       if (npc?.profesion) {
         const propias = Array.isArray(it.profesiones) ? it.profesiones : [];
         const delBloque = blockProf[it._categoria] || [];
         const efectivas = propias.length > 0 ? propias : delBloque;
         if (efectivas.length > 0 && !efectivas.includes(npc.profesion)) return false;
+        if (propias.length > 0 && propias.includes(npc.profesion)) overrideExplicito = true;
       }
 
       // Región actual del personaje: regiones del objeto > del bloque.
-      if (npcRegion) {
+      // Un override de profesión por ítem prevalece sobre el filtro de región.
+      if (npcRegion && !overrideExplicito) {
         const propias = Array.isArray(it.regiones_disponibles) ? it.regiones_disponibles : [];
         const delBloque = (blockReg[it._categoria] || {}).regiones_disponibles || [];
         const efectivas = propias.length > 0 ? propias : delBloque;
