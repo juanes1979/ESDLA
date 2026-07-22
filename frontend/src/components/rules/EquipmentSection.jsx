@@ -140,6 +140,63 @@ const EquipmentSection = ({
   const [savingBlockProf, setSavingBlockProf] = useState(null);
   const [openBlockProf, setOpenBlockProf] = useState(null);
 
+  // Asignación de profesiones POR ÍTEM (varios ítems a la vez).
+  const [bulkProf, setBulkProf] = useState(null); // { catKey, catName }
+  const [bulkItems, setBulkItems] = useState([]); // nombres de ítems seleccionados
+  const [bulkProfs, setBulkProfs] = useState([]); // profesiones a asignar
+  const [bulkMode, setBulkMode] = useState('replace'); // 'replace' | 'add' | 'inherit'
+  const [bulkSaving, setBulkSaving] = useState(false);
+  const [bulkItemQuery, setBulkItemQuery] = useState('');
+
+  const openBulkProf = (catKey, catName) => {
+    setBulkProf({ catKey, catName });
+    setBulkItems([]);
+    setBulkProfs([]);
+    setBulkMode('replace');
+    setBulkItemQuery('');
+  };
+
+  const toggleBulkItem = (name) =>
+    setBulkItems(prev => prev.includes(name) ? prev.filter(n => n !== name) : [...prev, name]);
+  const toggleBulkProfSel = (prof) =>
+    setBulkProfs(prev => prev.includes(prof) ? prev.filter(p => p !== prof) : [...prev, prof]);
+
+  // Aplica las profesiones elegidas a los ítems seleccionados.
+  const applyBulkProf = async () => {
+    if (!bulkProf) return;
+    const { catKey } = bulkProf;
+    if (bulkItems.length === 0) { toast.error('Selecciona al menos un ítem'); return; }
+    if (bulkMode !== 'inherit' && bulkProfs.length === 0) {
+      toast.error('Selecciona al menos una profesión (o usa "Volver a heredar del bloque")');
+      return;
+    }
+    const items = data[catKey] || [];
+    setBulkSaving(true);
+    let ok = 0;
+    for (const name of bulkItems) {
+      const item = items.find(i => i.nombre === name);
+      if (!item) continue;
+      let next;
+      if (bulkMode === 'inherit') {
+        next = []; // vacío = hereda del bloque
+      } else if (bulkMode === 'add') {
+        const current = (item.profesiones && item.profesiones.length) ? item.profesiones : (blockProf[catKey] || []);
+        next = Array.from(new Set([...current, ...bulkProfs]));
+      } else {
+        next = [...bulkProfs]; // replace
+      }
+      try {
+        await api.put(`/data/equipment/${catKey}/${encodeURIComponent(name)}`, { profesiones: next });
+        ok += 1;
+      } catch (e) { /* continúa */ }
+    }
+    setBulkSaving(false);
+    if (bulkMode === 'inherit') toast.success(`${ok} ítem(s) vuelven a heredar del bloque`);
+    else toast.success(`Asignadas [${bulkProfs.join(', ')}] a ${ok} ítem(s)`);
+    setBulkProf(null);
+    onRefresh?.();
+  };
+
   useEffect(() => {
     api.get('/trading/config')
       .then(r => setNpcProfesiones(r.data?.npc_profesiones || []))
@@ -753,6 +810,19 @@ const EquipmentSection = ({
               <Button
                 variant="outline"
                 size="sm"
+                onClick={() => openBulkProf(cat.key, cat.name)}
+                className="h-7 text-xs border-emerald-500/50 hover:bg-emerald-500/10"
+                title="Asignar profesiones a ítems concretos (varios a la vez)"
+                data-testid={`bulk-prof-toggle-${cat.key}`}
+              >
+                <UserPlus className="w-3 h-3 mr-1 text-emerald-400" />
+                Por ítem
+              </Button>
+            )}
+            {isAdmin && (
+              <Button
+                variant="outline"
+                size="sm"
                 onClick={() => openCategoryEditor(cat.key, cat.name)}
                 className="h-7 text-xs border-[hsl(var(--torch-orange))]/50 hover:bg-[hsl(var(--torch-orange))]/10"
                 title="Editar disponibilidad por región/asentamiento"
@@ -1229,6 +1299,107 @@ const EquipmentSection = ({
           </div>
         </div>
       )}
+
+      {/* Asignación de profesiones POR ÍTEM (varios a la vez) */}
+      {bulkProf && (() => {
+        const items = data[bulkProf.catKey] || [];
+        const q = bulkItemQuery.trim().toLowerCase();
+        const shown = q ? items.filter(it => (it.nombre || '').toLowerCase().includes(q)) : items;
+        return (
+          <div className="fixed inset-0 bg-black/80 z-[70] flex items-center justify-center p-4" data-testid="bulk-prof-modal">
+            <div className="bg-[hsl(var(--background))] border border-emerald-500/40 rounded-lg w-full max-w-3xl max-h-[90vh] overflow-y-auto">
+              <div className="flex justify-between items-center p-4 border-b border-border/30 sticky top-0 bg-[hsl(var(--background))] z-10">
+                <div>
+                  <h3 className="font-heading text-lg text-emerald-400 flex items-center gap-2">
+                    <UserPlus className="w-5 h-5" /> Profesiones por ítem — {bulkProf.catName}
+                  </h3>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Elige qué ítems vende una profesión concreta. Ej.: selecciona "Caballo de caminos" y "Poni robusto" y asígnalos a "Posadero".
+                  </p>
+                </div>
+                <Button size="sm" variant="ghost" onClick={() => setBulkProf(null)} data-testid="bulk-prof-close">
+                  <X className="w-5 h-5" />
+                </Button>
+              </div>
+
+              <div className="p-4 space-y-4">
+                {/* 1. Ítems */}
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-xs font-heading text-emerald-300">1) Ítems ({bulkItems.length} seleccionados)</p>
+                    <div className="flex gap-2">
+                      <button type="button" className="text-[11px] text-emerald-400 underline" onClick={() => setBulkItems(shown.map(i => i.nombre))}>Seleccionar todos</button>
+                      <button type="button" className="text-[11px] text-muted-foreground underline" onClick={() => setBulkItems([])}>Ninguno</button>
+                    </div>
+                  </div>
+                  <input
+                    value={bulkItemQuery}
+                    onChange={(e) => setBulkItemQuery(e.target.value)}
+                    placeholder="Buscar ítem…"
+                    className="w-full mb-2 bg-black/30 border border-border rounded px-2 py-1 text-sm"
+                    data-testid="bulk-prof-search"
+                  />
+                  <div className="grid sm:grid-cols-2 gap-1 max-h-52 overflow-y-auto border border-border/30 rounded p-2">
+                    {shown.map((it) => {
+                      const sel = bulkItems.includes(it.nombre);
+                      const propio = (it.profesiones || []).length > 0;
+                      return (
+                        <label key={it.nombre} className={`flex items-center gap-2 text-sm px-2 py-1 rounded cursor-pointer ${sel ? 'bg-emerald-500/15' : 'hover:bg-black/20'}`}>
+                          <Checkbox checked={sel} onCheckedChange={() => toggleBulkItem(it.nombre)} data-testid={`bulk-prof-item-${it.nombre}`} />
+                          <span className="flex-1">{it.nombre}</span>
+                          {propio && <span className="text-[9px] px-1 rounded bg-[hsl(var(--gold))]/20 text-[hsl(var(--gold))]" title={`Actual: ${it.profesiones.join(', ')}`}>propio</span>}
+                        </label>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* 2. Modo */}
+                <div>
+                  <p className="text-xs font-heading text-emerald-300 mb-2">2) Acción</p>
+                  <div className="flex flex-wrap gap-2">
+                    {[['replace', 'Asignar (reemplaza)'], ['add', 'Añadir a las actuales'], ['inherit', 'Volver a heredar del bloque']].map(([val, label]) => (
+                      <button key={val} type="button" onClick={() => setBulkMode(val)}
+                        className={`text-xs px-3 py-1.5 rounded border transition-colors ${bulkMode === val ? 'bg-emerald-500 text-black border-emerald-500 font-bold' : 'border-emerald-400/40 text-emerald-300'}`}
+                        data-testid={`bulk-prof-mode-${val}`}>
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* 3. Profesiones */}
+                {bulkMode !== 'inherit' && (
+                  <div>
+                    <p className="text-xs font-heading text-emerald-300 mb-2">3) Profesiones a asignar</p>
+                    <div className="flex flex-wrap gap-2">
+                      {npcProfesiones.map((prof) => {
+                        const active = bulkProfs.includes(prof);
+                        return (
+                          <button key={prof} type="button" onClick={() => toggleBulkProfSel(prof)}
+                            className={`text-xs px-2 py-1 rounded border transition-colors ${active ? 'bg-[hsl(var(--gold))]/30 border-[hsl(var(--gold))] text-[hsl(var(--gold))]' : 'bg-black/30 border-border text-muted-foreground hover:border-[hsl(var(--gold))]/50'}`}
+                            data-testid={`bulk-prof-sel-${prof}`}>
+                            {prof}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="flex justify-end gap-2 p-4 border-t border-border/30 sticky bottom-0 bg-[hsl(var(--background))]">
+                <Button variant="ghost" onClick={() => setBulkProf(null)}>Cancelar</Button>
+                <Button onClick={applyBulkProf} disabled={bulkSaving} className="bg-emerald-500 text-black hover:bg-emerald-400" data-testid="bulk-prof-apply">
+                  {bulkSaving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Check className="w-4 h-4 mr-2" />}
+                  Aplicar a {bulkItems.length} ítem(s)
+                </Button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
 
       {/* Item Editor Modal */}
       {showItemEditor && editingItem && (

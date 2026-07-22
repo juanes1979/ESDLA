@@ -1144,3 +1144,12 @@ Aplica una transacción YA negociada al personaje (reutiliza endpoints de equipo
   travel_data_routes.py (get_location, calculate-route x2), travel_routes.py (4 sitios).
 - Verificado: PATCH step9 guarda ubicacion_actual OK; GET /data/locations/{oid} 200 (antes 404);
   calculate-route 200. Backend reinicia limpio.
+
+## Iter 141 — Asignación de profesiones POR ÍTEM (varios a la vez) (Jun 2026)
+- Precios de Equipo: nuevo botón "Por ítem" en cada bloque (data-testid bulk-prof-toggle-{cat}) que abre
+  un modal (bulk-prof-modal) para asignar profesiones a varios ítems concretos a la vez.
+- Flujo: 1) seleccionar ítems (checkbox + buscar + todos/ninguno), 2) acción (Asignar/reemplaza,
+  Añadir a las actuales, Volver a heredar del bloque), 3) elegir profesiones. Aplica con PUT
+  /data/equipment/{cat}/{nombre} {profesiones:[...]} por cada ítem. Ej: Posadero vende solo
+  Caballo de caminos y Poni robusto, no todas las monturas.
+- Verificado por captura: modal renderiza y funciona. Backend endpoint ya existía (merge de campos).
