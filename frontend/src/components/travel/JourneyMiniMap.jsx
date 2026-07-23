@@ -9,14 +9,27 @@ import { Button } from '@/components/ui/button';
 import { Route, Maximize2 } from 'lucide-react';
 import { PLAYER_MAP_URL, MAP_PIXEL_WIDTH, MAP_PIXEL_HEIGHT } from './travelConstants';
 
-// Traza la ruta EXACTA: segmentos rectos que unen cada waypoint real del
-// camino elegido, sin variación "a mano" ni suavizado con curvas. El trazo
-// sigue fielmente los puntos calculados por el motor de rutas.
+// Traza la ruta pasando EXACTAMENTE por cada waypoint real (spline Catmull-Rom
+// convertida a curvas Bézier cúbicas). Suaviza los ángulos SIN desviarse de los
+// puntos ni inventar desvíos: la curva interpola cada punto, no lo aproxima.
+// Es puramente visual; no cambia la ruta, la distancia ni los días.
 const createSmoothPath = (points) => {
   if (points.length < 2) return '';
+  if (points.length === 2) {
+    return `M ${points[0].x} ${points[0].y} L ${points[1].x} ${points[1].y}`;
+  }
   let path = `M ${points[0].x} ${points[0].y}`;
-  for (let i = 1; i < points.length; i++) {
-    path += ` L ${points[i].x} ${points[i].y}`;
+  for (let i = 0; i < points.length - 1; i++) {
+    const p0 = points[i - 1] || points[i];
+    const p1 = points[i];
+    const p2 = points[i + 1];
+    const p3 = points[i + 2] || p2;
+    // Puntos de control Catmull-Rom → Bézier (tensión estándar 1/6).
+    const cp1x = p1.x + (p2.x - p0.x) / 6;
+    const cp1y = p1.y + (p2.y - p0.y) / 6;
+    const cp2x = p2.x - (p3.x - p1.x) / 6;
+    const cp2y = p2.y - (p3.y - p1.y) / 6;
+    path += ` C ${cp1x} ${cp1y} ${cp2x} ${cp2y} ${p2.x} ${p2.y}`;
   }
   return path;
 };
