@@ -9,75 +9,15 @@ import { Button } from '@/components/ui/button';
 import { Route, Maximize2 } from 'lucide-react';
 import { PLAYER_MAP_URL, MAP_PIXEL_WIDTH, MAP_PIXEL_HEIGHT } from './travelConstants';
 
-// Function to add natural variation to a path (makes it look hand-drawn)
-const createNaturalPath = (points, variationAmount = 2) => {
-  if (points.length < 2) return points;
-
-  const result = [points[0]]; // Keep start point
-
-  for (let i = 1; i < points.length - 1; i++) {
-    const prev = points[i - 1];
-    const curr = points[i];
-    const next = points[i + 1];
-
-    // Add slight random variation perpendicular to the path direction
-    const dx = next.x - prev.x;
-    const dy = next.y - prev.y;
-    const len = Math.sqrt(dx * dx + dy * dy);
-
-    if (len > 0) {
-      // Perpendicular direction
-      const px = -dy / len;
-      const py = dx / len;
-
-      // Random variation - more pronounced for a hand-drawn look
-      // Using sine wave for smoother, more natural variations
-      const baseVariation = Math.sin(i * 0.8) * variationAmount * 0.7;
-      const randomVariation = (Math.random() - 0.5) * variationAmount * 0.5;
-      const variation = baseVariation + randomVariation;
-
-      result.push({
-        x: curr.x + px * variation,
-        y: curr.y + py * variation
-      });
-    } else {
-      result.push(curr);
-    }
-  }
-
-  result.push(points[points.length - 1]); // Keep end point
-  return result;
-};
-
-// Create smooth SVG path from points using quadratic curves
+// Traza la ruta EXACTA: segmentos rectos que unen cada waypoint real del
+// camino elegido, sin variación "a mano" ni suavizado con curvas. El trazo
+// sigue fielmente los puntos calculados por el motor de rutas.
 const createSmoothPath = (points) => {
   if (points.length < 2) return '';
-
   let path = `M ${points[0].x} ${points[0].y}`;
-
-  if (points.length === 2) {
-    path += ` L ${points[1].x} ${points[1].y}`;
-    return path;
+  for (let i = 1; i < points.length; i++) {
+    path += ` L ${points[i].x} ${points[i].y}`;
   }
-
-  // Use quadratic bezier curves for smooth transitions
-  for (let i = 1; i < points.length - 1; i++) {
-    const curr = points[i];
-    const next = points[i + 1];
-
-    // Control point is current point
-    // End point is midpoint between current and next
-    const midX = (curr.x + next.x) / 2;
-    const midY = (curr.y + next.y) / 2;
-
-    path += ` Q ${curr.x} ${curr.y} ${midX} ${midY}`;
-  }
-
-  // Last segment - curve to final point
-  const last = points[points.length - 1];
-  const secondLast = points[points.length - 2];
-  path += ` Q ${secondLast.x} ${secondLast.y} ${last.x} ${last.y}`;
-
   return path;
 };
 
@@ -179,8 +119,9 @@ const JourneyMiniMap = ({ origenCoords, destinoCoords, origenNombre, destinoNomb
     pathInPixelCoords = [origen, destino];
   }
 
-  // Add natural variation to make the path look hand-drawn
-  const naturalPath = createNaturalPath(pathInPixelCoords, isDirectLine ? 50 : 25);
+  // Sin distorsión "a mano": el trazado usa los waypoints reales tal cual,
+  // para que el camino siga EXACTAMENTE la ruta elegida.
+  const naturalPath = pathInPixelCoords;
 
   // Pre-compute cumulative distances along `naturalPath` so we can place
   // event markers by ARC-LENGTH (i.e., real progress along the route)
