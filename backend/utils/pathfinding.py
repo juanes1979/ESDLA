@@ -1088,7 +1088,7 @@ class MiddleEarthPathfinder:
         
         return PathResult(
             success=True,
-            path=self._simplify_path(path),  # Simplify the path to remove zigzag
+            path=self._simplify_path(path, tolerance=0.05),  # Conserva los recodos reales (línea más ajustada). NO afecta a distancia/días/casillas.
             segments=segments,
             total_distance_km=round(total_distance, 1),
             total_travel_cost=round(total_cost, 1),
