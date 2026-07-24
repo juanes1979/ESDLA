@@ -432,9 +432,9 @@ class MiddleEarthPathfinder:
     def find_path(self, start: Tuple[float, float], end: Tuple[float, float], max_iterations: int = 80000) -> PathResult:
         warnings = []
         
-        # Nodo de carretera de enganche por TIERRA (mismo lado del río) para inicio y fin
-        start_node, start_off_dist = self._closest_land_road_node(start)
-        end_node, end_off_dist = self._closest_land_road_node(end)
+        # Nodo de carretera más cercano para inicio y fin (mantiene la red conectada)
+        start_node, start_off_dist = self._get_closest_road_node(start)
+        end_node, end_off_dist = self._get_closest_road_node(end)
 
         # Multiplicadores de coste por tipo de camino
         ROAD_SPEED = {
