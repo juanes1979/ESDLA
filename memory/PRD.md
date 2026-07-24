@@ -1163,3 +1163,14 @@ Aplica una transacción YA negociada al personaje (reutiliza endpoints de equipo
   siempre y se SALTA el filtro de región. La herencia por bloque sigue respetando la región.
 - Verificado con réplica exacta del filtro en Node: Posadero ve el Poni (override) en cualquier región;
   un Mercader NO ve ese override. Coincidencia de profesión sigue siendo EXACTA (según elección del usuario).
+
+## Iter 143-150 — Motor de rutas (pathfinder de carreteras) + terreno + tienda (Jun 2026)
+- SUSTITUIDO utils/pathfinding.py por el motor del usuario (A* sobre grafo de carreteras + densificado cada 1 km) → la línea sigue los caminos. Solo se importan MiddleEarthPathfinder y load_terrain_grid_kwargs.
+- Restaurados los `segments` (subdivididos ~1 km) muestreando el terreno real del ráster → PX/días/terreno vuelven a funcionar (son proporcionales a la distancia, no se inflan).
+- FIX bug eje Y: _coord_to_cell usa cy=(100-y)*grid_h/100 (el ráster tiene origen arriba). Antes leía agua donde había tierra → PX/terreno mal.
+- FIX cruce de agua: tramos fuera de camino (origen→camino, camino→destino y campo a través) usan _offroad_leg → _grid_route_around (A* de rejilla que bloquea agua=7/infranqueable=6 y rodea). Roads con puentes sí cruzan.
+- FIX rutas rectas/rodeos: _stitch_components() cose fragmentos de caminos cercanos (<0.5u ~14km) SOLO por tierra a la red principal (hash espacial + Kruskal). _pick_connection_nodes engancha origen/destino en la MISMA componente conexa y accesible por tierra. Confirmado por el usuario: la ruta a Bryn Vorn ahora coincide con el camino esperado, 0 cruces de agua.
+- terrain_grids.json regenerado con datos completos (3.072.000 celdas, difficulty+land+ríos), listo para seed_full_db.py.
+- TiendaD100.jsx: REVERTIDO el bypass de región. La región manda siempre (un ítem regional no se vende fuera de su región aunque esté asignado a la profesión).
+- JourneyMiniMap.jsx: línea con segmentos rectos exactos (sin florituras); con los puntos densos sigue las curvas de los caminos.
+- PENDIENTE/backlog: cruces de agua residuales en destinos costeros/aislados y en comp1 (601 nodos, solo se acerca a la red cruzando agua). Posible mejora: puntos de cruce (puentes/vados) o subir cosido con más cuidado.
