@@ -213,6 +213,69 @@ class MiddleEarthPathfinder:
                 if 0 < d < 0.3:
                     self._add_edge(n1, n2, d, 'senda', 'Cruce')
 
+        # 3. Componentes + coser fragmentos de camino cercanos POR TIERRA a la
+        #    red principal (evita rectas y rodeos por trozos aislados).
+        self._compute_components()
+        self._stitch_components(max_gap=0.5)
+        self._compute_components()
+
+    def _compute_components(self):
+        """Calcula las componentes conexas del grafo de caminos."""
+        self._node_comp = {}
+        self._comps = []
+        for n0 in self.adj:
+            if n0 in self._node_comp:
+                continue
+            cid = len(self._comps)
+            stack = [n0]
+            comp = []
+            while stack:
+                n = stack.pop()
+                if n in self._node_comp:
+                    continue
+                self._node_comp[n] = cid
+                comp.append(n)
+                for e in self.adj[n]:
+                    if e['target'] not in self._node_comp:
+                        stack.append(e['target'])
+            self._comps.append(comp)
+
+    def _stitch_components(self, max_gap: float = 0.5):
+        """Une fragmentos de camino cercanos (< max_gap) SOLO si el enlace no
+        cruza agua/infranqueable. Hash espacial + unión por Kruskal para que
+        caminos que visualmente se juntan queden conectados en el grafo."""
+        from collections import defaultdict
+        cell = max_gap
+        buckets = defaultdict(list)
+        for n in self.adj:
+            buckets[(int(n[0] / cell), int(n[1] / cell))].append(n)
+
+        parent = list(range(len(self._comps)))
+
+        def find(a):
+            while parent[a] != a:
+                parent[a] = parent[parent[a]]
+                a = parent[a]
+            return a
+
+        candidates = []
+        for n in self.adj:
+            bx, by = int(n[0] / cell), int(n[1] / cell)
+            for dx in (-1, 0, 1):
+                for dy in (-1, 0, 1):
+                    for m in buckets.get((bx + dx, by + dy), []):
+                        if m <= n or self._node_comp[n] == self._node_comp[m]:
+                            continue
+                        d = self._distance(n, m)
+                        if 0 < d < max_gap and not self._segment_crosses_water(n, m):
+                            candidates.append((d, n, m))
+        candidates.sort(key=lambda c: c[0])
+        for d, n, m in candidates:
+            cn, cm = find(self._node_comp[n]), find(self._node_comp[m])
+            if cn != cm:
+                self._add_edge(n, m, d, 'senda', 'Enlace')
+                parent[cn] = cm
+
     def _add_edge(self, p1, p2, dist, rtype, rname):
         if p1 not in self.adj: self.adj[p1] = []
         if p2 not in self.adj: self.adj[p2] = []
@@ -429,12 +492,41 @@ class MiddleEarthPathfinder:
                     return n, self._distance(point, n)
         return ordered[0], self._distance(point, ordered[0])
 
+    def _conn_in_comp(self, point, comp):
+        """En una componente, nodo de enganche: el más cercano accesible por
+        tierra; si ninguno de los cercanos lo es, el geométricamente más cercano."""
+        ordered = sorted(comp, key=lambda n: self._distance(point, n))
+        if self._use_grid:
+            for n in ordered[:40]:
+                if not self._segment_crosses_water(point, n):
+                    return n, self._distance(point, n)
+        return ordered[0], self._distance(point, ordered[0])
+
+    def _pick_connection_nodes(self, start, end):
+        """Elige nodos de enganche de inicio y fin que estén en la MISMA
+        componente conexa (para que la ruta llegue por camino) y, dentro de
+        ella, accesibles por tierra. Minimiza la distancia total fuera de camino."""
+        best = None
+        for comp in getattr(self, '_comps', []):
+            sn, sd = self._conn_in_comp(start, comp)
+            en, ed = self._conn_in_comp(end, comp)
+            if sn is None or en is None:
+                continue
+            total = sd + ed
+            if best is None or total < best[0]:
+                best = (total, sn, en, sd, ed)
+        if best is None:
+            sn, sd = self._get_closest_road_node(start)
+            en, ed = self._get_closest_road_node(end)
+            return sn, sd, en, ed
+        return best[1], best[3], best[2], best[4]
+
     def find_path(self, start: Tuple[float, float], end: Tuple[float, float], max_iterations: int = 80000) -> PathResult:
         warnings = []
-        
-        # Nodo de carretera más cercano para inicio y fin (mantiene la red conectada)
-        start_node, start_off_dist = self._get_closest_road_node(start)
-        end_node, end_off_dist = self._get_closest_road_node(end)
+
+        # Nodos de enganche en la misma componente conexa y accesibles por tierra,
+        # para que la ruta llegue por camino al lado correcto del río.
+        start_node, start_off_dist, end_node, end_off_dist = self._pick_connection_nodes(start, end)
 
         # Multiplicadores de coste por tipo de camino
         ROAD_SPEED = {
