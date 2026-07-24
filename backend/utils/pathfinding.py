@@ -264,10 +264,7 @@ class MiddleEarthPathfinder:
         """Lee la dificultad del terreno en (x,y) desde el ráster (coords 0-100)."""
         if not self._use_grid:
             return 'moderado'
-        cx = int(x * self.grid_w / 100.0)
-        cy = int(y * self.grid_h / 100.0)
-        cx = 0 if cx < 0 else (self.grid_w - 1 if cx >= self.grid_w else cx)
-        cy = 0 if cy < 0 else (self.grid_h - 1 if cy >= self.grid_h else cy)
+        cx, cy = self._coord_to_cell(x, y)
         val = self.terrain_grid[cy * self.grid_w + cx]
         return _DIFFICULTY_NAMES.get(val, 'moderado')
 
@@ -329,12 +326,115 @@ class MiddleEarthPathfinder:
 
         return segments, terrain_summary, roads_used
 
+    # --- Enrutado fuera de camino evitando agua/infranqueable ---
+    def _coord_to_cell(self, x: float, y: float):
+        # El ráster tiene el origen arriba: la Y del mapa (0-100) va invertida.
+        cx = int(round(x * self.grid_w / 100.0))
+        cy = int(round((100.0 - y) * self.grid_h / 100.0))
+        cx = 0 if cx < 0 else (self.grid_w - 1 if cx >= self.grid_w else cx)
+        cy = 0 if cy < 0 else (self.grid_h - 1 if cy >= self.grid_h else cy)
+        return cx, cy
+
+    def _cell_blocked(self, cx: int, cy: int) -> bool:
+        if cx < 0 or cy < 0 or cx >= self.grid_w or cy >= self.grid_h:
+            return True
+        # 6 = infranqueable, 7 = agua
+        return self.terrain_grid[cy * self.grid_w + cx] in (6, 7)
+
+    def _segment_crosses_water(self, a, b) -> bool:
+        """True si la recta a→b toca agua o terreno infranqueable."""
+        if not self._use_grid:
+            return False
+        n = max(2, int(self._distance(a, b) / 0.025))  # muestreo fino (~1/2 celda)
+        for i in range(n + 1):
+            t = i / n
+            cx, cy = self._coord_to_cell(a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t)
+            if self._cell_blocked(cx, cy):
+                return True
+        return False
+
+    def _grid_route_around(self, start, end, step: float = 0.1, max_iter: int = 45000):
+        """A* de rejilla (8-dir) que rodea agua/infranqueable. Devuelve la lista
+        de puntos [start,...,end] o None si no encuentra rodeo dentro del margen."""
+        if not self._use_grid:
+            return None
+        margin = max(4.0, self._distance(start, end) * 2.0)
+        min_x, max_x = min(start[0], end[0]) - margin, max(start[0], end[0]) + margin
+        min_y, max_y = min(start[1], end[1]) - margin, max(start[1], end[1]) + margin
+
+        def snap(p):
+            return (round(p[0] / step) * step, round(p[1] / step) * step)
+
+        s = snap(start)
+        open_set = [(0.0, s)]
+        came_from = {}
+        g = {s: 0.0}
+        dirs = [(step, 0), (-step, 0), (0, step), (0, -step),
+                (step, step), (step, -step), (-step, step), (-step, -step)]
+        goal = None
+        it = 0
+        while open_set and it < max_iter:
+            it += 1
+            _, cur = heapq.heappop(open_set)
+            if self._distance(cur, end) <= step * 1.5 and not self._segment_crosses_water(cur, end):
+                goal = cur
+                break
+            for dx, dy in dirs:
+                nb = (round((cur[0] + dx) / step) * step, round((cur[1] + dy) / step) * step)
+                if nb[0] < min_x or nb[0] > max_x or nb[1] < min_y or nb[1] > max_y:
+                    continue
+                cx, cy = self._coord_to_cell(nb[0], nb[1])
+                if self._cell_blocked(cx, cy) or self._segment_crosses_water(cur, nb):
+                    continue
+                terr = self._terrain_at(nb[0], nb[1])
+                tmult = TerrainType.from_string(terr).multiplier
+                if not math.isfinite(tmult):
+                    tmult = 4.0
+                ng = g[cur] + self._distance(cur, nb) * tmult
+                if nb not in g or ng < g[nb]:
+                    g[nb] = ng
+                    came_from[nb] = cur
+                    heapq.heappush(open_set, (ng + self._distance(nb, end), nb))
+        if goal is None:
+            return None
+        chain = [goal]
+        c = goal
+        while c in came_from:
+            c = came_from[c]
+            chain.append(c)
+        chain.reverse()
+        return [start] + chain + [end]
+
+    def _offroad_leg(self, a, b, warnings) -> List[Tuple[float, float]]:
+        """Tramo fuera de camino: recta si está limpia, si no rodea el agua."""
+        if not self._use_grid or not self._segment_crosses_water(a, b):
+            return [a, b]
+        route = self._grid_route_around(a, b)
+        if route and len(route) >= 2:
+            return route
+        warnings.append("Aviso: un tramo fuera de camino cruza agua/terreno infranqueable (sin rodeo posible).")
+        return [a, b]
+
+    def _closest_land_road_node(self, point):
+        """Nodo de carretera más cercano ACCESIBLE POR TIERRA (sin cruzar agua
+        en la recta punto→nodo). Así se entra/sale de la red por el lado
+        correcto y la red de caminos (con puentes) hace los cruces de río."""
+        nodes = list(self.adj.keys())
+        if not nodes:
+            return None, float('inf')
+        ordered = sorted(nodes, key=lambda n: self._distance(point, n))
+        if self._use_grid:
+            for n in ordered[:60]:
+                if not self._segment_crosses_water(point, n):
+                    return n, self._distance(point, n)
+        return ordered[0], self._distance(point, ordered[0])
+
     def find_path(self, start: Tuple[float, float], end: Tuple[float, float], max_iterations: int = 80000) -> PathResult:
         warnings = []
         
-        # Buscar el nodo de carretera más cercano para el inicio y el fin
-        start_node, start_off_dist = self._get_closest_road_node(start)
-        end_node, end_off_dist = self._get_closest_road_node(end)
+        # Nodo de carretera de enganche por TIERRA (mismo lado del río) para inicio y fin
+        start_node, start_off_dist = self._closest_land_road_node(start)
+        end_node, end_off_dist = self._closest_land_road_node(end)
 
         # Multiplicadores de coste por tipo de camino
         ROAD_SPEED = {
@@ -380,16 +480,18 @@ class MiddleEarthPathfinder:
                     road_path.append(curr)
                 road_path.reverse()
 
-                # Añadir tramos inicial y final campo a través si el punto exacto no cae sobre el camino
+                # Añadir tramos inicial y final campo a través (rodeando agua)
                 full_path = []
                 if start_off_dist > 0.1:
-                    full_path.append(start)
+                    leg = self._offroad_leg(start, road_path[0], warnings)
+                    full_path.extend(leg[:-1])
                     warnings.append("Inicio del trayecto realizado campo a través hasta enlazar el camino.")
-                
+
                 full_path.extend(road_path)
 
                 if end_off_dist > 0.1:
-                    full_path.append(end)
+                    leg = self._offroad_leg(road_path[-1], end, warnings)
+                    full_path.extend(leg[1:])
                     warnings.append("Llegada al destino final realizada campo a través.")
 
                 # Generar puntos de paso cada 1 km exacto
@@ -419,11 +521,14 @@ class MiddleEarthPathfinder:
                 )
 
         # Si no hay ninguna carretera cerca o prefer_roads=False, ir campo a través
-        raw_path = [start, end]
+        # (rodeando agua/infranqueable si es necesario).
+        raw_path = self._offroad_leg(start, end, warnings)
         dense_path = self._interpolate_path_by_km(raw_path, step_km=1.0)
-        total_km = self._distance(start, end) * self.COORD_TO_KM
+        total_km = sum(
+            self._distance(raw_path[i], raw_path[i + 1]) for i in range(len(raw_path) - 1)
+        ) * self.COORD_TO_KM
 
-        warnings.append("No hay caminos disponibles. Trayecto realizado campo a través.")
+        warnings.append("Trayecto realizado campo a través.")
 
         # Segmentos finos campo a través con terreno real (para PX y días).
         segments, terrain_summary, _ = self._build_segments(raw_path)
