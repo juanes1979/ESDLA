@@ -13,6 +13,13 @@ from dataclasses import dataclass, field
 from enum import Enum
 
 
+# Mapa id→nombre del ráster de dificultad (espejo de terrain_grid_routes.py).
+_DIFFICULTY_NAMES = {
+    1: "facil", 2: "moderado", 3: "dificil", 4: "muy_dificil",
+    5: "desalentador", 6: "infranqueable", 7: "agua",
+}
+
+
 async def load_terrain_grid_kwargs(db) -> Dict:
     doc = await db.terrain_grids.find_one({"_id": "main"})
     if not doc:
@@ -252,6 +259,76 @@ class MiddleEarthPathfinder:
             dense_path.append(path[-1])
         return dense_path
 
+    # --- Muestreo de terreno y construcción de segmentos (para PX/días/terreno) ---
+    def _terrain_at(self, x: float, y: float) -> str:
+        """Lee la dificultad del terreno en (x,y) desde el ráster (coords 0-100)."""
+        if not self._use_grid:
+            return 'moderado'
+        cx = int(x * self.grid_w / 100.0)
+        cy = int(y * self.grid_h / 100.0)
+        cx = 0 if cx < 0 else (self.grid_w - 1 if cx >= self.grid_w else cx)
+        cy = 0 if cy < 0 else (self.grid_h - 1 if cy >= self.grid_h else cy)
+        val = self.terrain_grid[cy * self.grid_w + cx]
+        return _DIFFICULTY_NAMES.get(val, 'moderado')
+
+    def _road_edge_between(self, a, b) -> Optional[Dict]:
+        for edge in self.adj.get(a, []):
+            if edge['target'] == b:
+                return edge
+        return None
+
+    _ROAD_MULT = {
+        'grande': 0.35, 'mayor': 0.5, 'menor': 0.7, 'senda': 0.85,
+        'real': 0.5, 'secundario': 0.7, 'sendero': 0.85, 'Cruce': 0.6, 'ninguno': 1.0,
+    }
+
+    def _build_segments(self, full_path: List[Tuple[float, float]]):
+        """Construye segmentos finos (~1 km) con terreno/camino reales.
+
+        Devuelve (segments, terrain_summary, roads_used). Los PX y días son
+        proporcionales a la distancia, así que subdividir no altera el total.
+        """
+        segments: List[PathSegment] = []
+        terrain_summary: Dict[str, float] = {}
+        roads_used: List[str] = []
+
+        for i in range(len(full_path) - 1):
+            a, b = full_path[i], full_path[i + 1]
+            edge = self._road_edge_between(a, b)
+            road_type = edge['type'] if edge else 'ninguno'
+            if edge and edge.get('name') and edge['name'] not in ('Cruce', '') \
+                    and edge['name'] not in roads_used:
+                roads_used.append(edge['name'])
+
+            seg_len_km = self._distance(a, b) * self.COORD_TO_KM
+            if seg_len_km <= 0:
+                continue
+
+            n = max(1, int(round(seg_len_km)))  # ~1 km por sub-tramo
+            rmult = self._ROAD_MULT.get(road_type, 1.0)
+            for k in range(n):
+                t0, t1 = k / n, (k + 1) / n
+                s = (a[0] + (b[0] - a[0]) * t0, a[1] + (b[1] - a[1]) * t0)
+                e = (a[0] + (b[0] - a[0]) * t1, a[1] + (b[1] - a[1]) * t1)
+                mx, my = (s[0] + e[0]) / 2, (s[1] + e[1]) / 2
+                terr = self._terrain_at(mx, my)
+                # En camino (puente/vado) no dejamos agua/infranqueable.
+                if road_type != 'ninguno' and terr in ('agua', 'infranqueable'):
+                    terr = 'moderado'
+                sub_km = seg_len_km / n
+                tmult = TerrainType.from_string(terr).multiplier
+                if not math.isfinite(tmult):
+                    tmult = 4.0
+                cost = sub_km * tmult * rmult
+                segments.append(PathSegment(
+                    start=s, end=e, distance_km=round(sub_km, 3),
+                    terrain=terr, road_type=road_type,
+                    river_crossing=None, travel_cost=round(cost, 3),
+                ))
+                terrain_summary[terr] = round(terrain_summary.get(terr, 0.0) + sub_km, 3)
+
+        return segments, terrain_summary, roads_used
+
     def find_path(self, start: Tuple[float, float], end: Tuple[float, float], max_iterations: int = 80000) -> PathResult:
         warnings = []
         
@@ -322,17 +399,23 @@ class MiddleEarthPathfinder:
                 for i in range(len(full_path) - 1):
                     total_km += self._distance(full_path[i], full_path[i+1]) * self.COORD_TO_KM
 
+                # Segmentos finos con terreno/camino reales (para PX y días).
+                segments, terrain_summary, roads_used = self._build_segments(full_path)
+                total_cost = round(sum(s.travel_cost for s in segments), 1) or round(total_km * 0.5, 1)
+                if not roads_used:
+                    roads_used = ["Red Vial"]
+
                 return PathResult(
                     success=True,
                     path=dense_path,
-                    segments=[],
+                    segments=segments,
                     total_distance_km=round(total_km, 1),
-                    total_travel_cost=round(total_km * 0.5, 1),
+                    total_travel_cost=total_cost,
                     estimated_days=round(total_km / self.BASE_SPEED_KM_DAY, 1),
                     warnings=warnings,
                     rivers_crossed=[],
-                    roads_used=["Camino Principal / Red Vial"],
-                    terrain_summary={'moderado': round(total_km, 1)}
+                    roads_used=roads_used,
+                    terrain_summary=terrain_summary or {'moderado': round(total_km, 1)}
                 )
 
         # Si no hay ninguna carretera cerca o prefer_roads=False, ir campo a través
@@ -342,17 +425,21 @@ class MiddleEarthPathfinder:
 
         warnings.append("No hay caminos disponibles. Trayecto realizado campo a través.")
 
+        # Segmentos finos campo a través con terreno real (para PX y días).
+        segments, terrain_summary, _ = self._build_segments(raw_path)
+        total_cost = round(sum(s.travel_cost for s in segments), 1) or round(total_km * 1.5, 1)
+
         return PathResult(
             success=True,
             path=dense_path,
-            segments=[],
+            segments=segments,
             total_distance_km=round(total_km, 1),
-            total_travel_cost=round(total_km * 1.5, 1),
+            total_travel_cost=total_cost,
             estimated_days=round((total_km * 1.5) / self.BASE_SPEED_KM_DAY, 1),
             warnings=warnings,
             rivers_crossed=[],
             roads_used=[],
-            terrain_summary={'dificil': round(total_km, 1)}
+            terrain_summary=terrain_summary or {'dificil': round(total_km, 1)}
         )
 
     def find_path_by_location_ids(self, start_id: str, end_id: str) -> PathResult:
