@@ -13,13 +13,6 @@ from dataclasses import dataclass, field
 from enum import Enum
 
 
-# Mapa id→nombre del ráster de dificultad (espejo de terrain_grid_routes.py).
-_DIFFICULTY_NAMES = {
-    1: "facil", 2: "moderado", 3: "dificil", 4: "muy_dificil",
-    5: "desalentador", 6: "infranqueable", 7: "agua",
-}
-
-
 async def load_terrain_grid_kwargs(db) -> Dict:
     doc = await db.terrain_grids.find_one({"_id": "main"})
     if not doc:
@@ -213,69 +206,6 @@ class MiddleEarthPathfinder:
                 if 0 < d < 0.3:
                     self._add_edge(n1, n2, d, 'senda', 'Cruce')
 
-        # 3. Componentes + coser fragmentos de camino cercanos POR TIERRA a la
-        #    red principal (evita rectas y rodeos por trozos aislados).
-        self._compute_components()
-        self._stitch_components(max_gap=0.5)
-        self._compute_components()
-
-    def _compute_components(self):
-        """Calcula las componentes conexas del grafo de caminos."""
-        self._node_comp = {}
-        self._comps = []
-        for n0 in self.adj:
-            if n0 in self._node_comp:
-                continue
-            cid = len(self._comps)
-            stack = [n0]
-            comp = []
-            while stack:
-                n = stack.pop()
-                if n in self._node_comp:
-                    continue
-                self._node_comp[n] = cid
-                comp.append(n)
-                for e in self.adj[n]:
-                    if e['target'] not in self._node_comp:
-                        stack.append(e['target'])
-            self._comps.append(comp)
-
-    def _stitch_components(self, max_gap: float = 0.5):
-        """Une fragmentos de camino cercanos (< max_gap) SOLO si el enlace no
-        cruza agua/infranqueable. Hash espacial + unión por Kruskal para que
-        caminos que visualmente se juntan queden conectados en el grafo."""
-        from collections import defaultdict
-        cell = max_gap
-        buckets = defaultdict(list)
-        for n in self.adj:
-            buckets[(int(n[0] / cell), int(n[1] / cell))].append(n)
-
-        parent = list(range(len(self._comps)))
-
-        def find(a):
-            while parent[a] != a:
-                parent[a] = parent[parent[a]]
-                a = parent[a]
-            return a
-
-        candidates = []
-        for n in self.adj:
-            bx, by = int(n[0] / cell), int(n[1] / cell)
-            for dx in (-1, 0, 1):
-                for dy in (-1, 0, 1):
-                    for m in buckets.get((bx + dx, by + dy), []):
-                        if m <= n or self._node_comp[n] == self._node_comp[m]:
-                            continue
-                        d = self._distance(n, m)
-                        if 0 < d < max_gap and not self._segment_crosses_water(n, m):
-                            candidates.append((d, n, m))
-        candidates.sort(key=lambda c: c[0])
-        for d, n, m in candidates:
-            cn, cm = find(self._node_comp[n]), find(self._node_comp[m])
-            if cn != cm:
-                self._add_edge(n, m, d, 'senda', 'Enlace')
-                parent[cn] = cm
-
     def _add_edge(self, p1, p2, dist, rtype, rname):
         if p1 not in self.adj: self.adj[p1] = []
         if p2 not in self.adj: self.adj[p2] = []
@@ -322,211 +252,12 @@ class MiddleEarthPathfinder:
             dense_path.append(path[-1])
         return dense_path
 
-    # --- Muestreo de terreno y construcción de segmentos (para PX/días/terreno) ---
-    def _terrain_at(self, x: float, y: float) -> str:
-        """Lee la dificultad del terreno en (x,y) desde el ráster (coords 0-100)."""
-        if not self._use_grid:
-            return 'moderado'
-        cx, cy = self._coord_to_cell(x, y)
-        val = self.terrain_grid[cy * self.grid_w + cx]
-        return _DIFFICULTY_NAMES.get(val, 'moderado')
-
-    def _road_edge_between(self, a, b) -> Optional[Dict]:
-        for edge in self.adj.get(a, []):
-            if edge['target'] == b:
-                return edge
-        return None
-
-    _ROAD_MULT = {
-        'grande': 0.35, 'mayor': 0.5, 'menor': 0.7, 'senda': 0.85,
-        'real': 0.5, 'secundario': 0.7, 'sendero': 0.85, 'Cruce': 0.6, 'ninguno': 1.0,
-    }
-
-    def _build_segments(self, full_path: List[Tuple[float, float]]):
-        """Construye segmentos finos (~1 km) con terreno/camino reales.
-
-        Devuelve (segments, terrain_summary, roads_used). Los PX y días son
-        proporcionales a la distancia, así que subdividir no altera el total.
-        """
-        segments: List[PathSegment] = []
-        terrain_summary: Dict[str, float] = {}
-        roads_used: List[str] = []
-
-        for i in range(len(full_path) - 1):
-            a, b = full_path[i], full_path[i + 1]
-            edge = self._road_edge_between(a, b)
-            road_type = edge['type'] if edge else 'ninguno'
-            if edge and edge.get('name') and edge['name'] not in ('Cruce', '') \
-                    and edge['name'] not in roads_used:
-                roads_used.append(edge['name'])
-
-            seg_len_km = self._distance(a, b) * self.COORD_TO_KM
-            if seg_len_km <= 0:
-                continue
-
-            n = max(1, int(round(seg_len_km)))  # ~1 km por sub-tramo
-            rmult = self._ROAD_MULT.get(road_type, 1.0)
-            for k in range(n):
-                t0, t1 = k / n, (k + 1) / n
-                s = (a[0] + (b[0] - a[0]) * t0, a[1] + (b[1] - a[1]) * t0)
-                e = (a[0] + (b[0] - a[0]) * t1, a[1] + (b[1] - a[1]) * t1)
-                mx, my = (s[0] + e[0]) / 2, (s[1] + e[1]) / 2
-                terr = self._terrain_at(mx, my)
-                # En camino (puente/vado) no dejamos agua/infranqueable.
-                if road_type != 'ninguno' and terr in ('agua', 'infranqueable'):
-                    terr = 'moderado'
-                sub_km = seg_len_km / n
-                tmult = TerrainType.from_string(terr).multiplier
-                if not math.isfinite(tmult):
-                    tmult = 4.0
-                cost = sub_km * tmult * rmult
-                segments.append(PathSegment(
-                    start=s, end=e, distance_km=round(sub_km, 3),
-                    terrain=terr, road_type=road_type,
-                    river_crossing=None, travel_cost=round(cost, 3),
-                ))
-                terrain_summary[terr] = round(terrain_summary.get(terr, 0.0) + sub_km, 3)
-
-        return segments, terrain_summary, roads_used
-
-    # --- Enrutado fuera de camino evitando agua/infranqueable ---
-    def _coord_to_cell(self, x: float, y: float):
-        # El ráster tiene el origen arriba: la Y del mapa (0-100) va invertida.
-        cx = int(round(x * self.grid_w / 100.0))
-        cy = int(round((100.0 - y) * self.grid_h / 100.0))
-        cx = 0 if cx < 0 else (self.grid_w - 1 if cx >= self.grid_w else cx)
-        cy = 0 if cy < 0 else (self.grid_h - 1 if cy >= self.grid_h else cy)
-        return cx, cy
-
-    def _cell_blocked(self, cx: int, cy: int) -> bool:
-        if cx < 0 or cy < 0 or cx >= self.grid_w or cy >= self.grid_h:
-            return True
-        # 6 = infranqueable, 7 = agua
-        return self.terrain_grid[cy * self.grid_w + cx] in (6, 7)
-
-    def _segment_crosses_water(self, a, b) -> bool:
-        """True si la recta a→b toca agua o terreno infranqueable."""
-        if not self._use_grid:
-            return False
-        n = max(2, int(self._distance(a, b) / 0.025))  # muestreo fino (~1/2 celda)
-        for i in range(n + 1):
-            t = i / n
-            cx, cy = self._coord_to_cell(a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t)
-            if self._cell_blocked(cx, cy):
-                return True
-        return False
-
-    def _grid_route_around(self, start, end, step: float = 0.1, max_iter: int = 45000):
-        """A* de rejilla (8-dir) que rodea agua/infranqueable. Devuelve la lista
-        de puntos [start,...,end] o None si no encuentra rodeo dentro del margen."""
-        if not self._use_grid:
-            return None
-        margin = max(4.0, self._distance(start, end) * 2.0)
-        min_x, max_x = min(start[0], end[0]) - margin, max(start[0], end[0]) + margin
-        min_y, max_y = min(start[1], end[1]) - margin, max(start[1], end[1]) + margin
-
-        def snap(p):
-            return (round(p[0] / step) * step, round(p[1] / step) * step)
-
-        s = snap(start)
-        open_set = [(0.0, s)]
-        came_from = {}
-        g = {s: 0.0}
-        dirs = [(step, 0), (-step, 0), (0, step), (0, -step),
-                (step, step), (step, -step), (-step, step), (-step, -step)]
-        goal = None
-        it = 0
-        while open_set and it < max_iter:
-            it += 1
-            _, cur = heapq.heappop(open_set)
-            if self._distance(cur, end) <= step * 1.5 and not self._segment_crosses_water(cur, end):
-                goal = cur
-                break
-            for dx, dy in dirs:
-                nb = (round((cur[0] + dx) / step) * step, round((cur[1] + dy) / step) * step)
-                if nb[0] < min_x or nb[0] > max_x or nb[1] < min_y or nb[1] > max_y:
-                    continue
-                cx, cy = self._coord_to_cell(nb[0], nb[1])
-                if self._cell_blocked(cx, cy) or self._segment_crosses_water(cur, nb):
-                    continue
-                terr = self._terrain_at(nb[0], nb[1])
-                tmult = TerrainType.from_string(terr).multiplier
-                if not math.isfinite(tmult):
-                    tmult = 4.0
-                ng = g[cur] + self._distance(cur, nb) * tmult
-                if nb not in g or ng < g[nb]:
-                    g[nb] = ng
-                    came_from[nb] = cur
-                    heapq.heappush(open_set, (ng + self._distance(nb, end), nb))
-        if goal is None:
-            return None
-        chain = [goal]
-        c = goal
-        while c in came_from:
-            c = came_from[c]
-            chain.append(c)
-        chain.reverse()
-        return [start] + chain + [end]
-
-    def _offroad_leg(self, a, b, warnings) -> List[Tuple[float, float]]:
-        """Tramo fuera de camino: recta si está limpia, si no rodea el agua."""
-        if not self._use_grid or not self._segment_crosses_water(a, b):
-            return [a, b]
-        route = self._grid_route_around(a, b)
-        if route and len(route) >= 2:
-            return route
-        warnings.append("Aviso: un tramo fuera de camino cruza agua/terreno infranqueable (sin rodeo posible).")
-        return [a, b]
-
-    def _closest_land_road_node(self, point):
-        """Nodo de carretera más cercano ACCESIBLE POR TIERRA (sin cruzar agua
-        en la recta punto→nodo). Así se entra/sale de la red por el lado
-        correcto y la red de caminos (con puentes) hace los cruces de río."""
-        nodes = list(self.adj.keys())
-        if not nodes:
-            return None, float('inf')
-        ordered = sorted(nodes, key=lambda n: self._distance(point, n))
-        if self._use_grid:
-            for n in ordered[:60]:
-                if not self._segment_crosses_water(point, n):
-                    return n, self._distance(point, n)
-        return ordered[0], self._distance(point, ordered[0])
-
-    def _conn_in_comp(self, point, comp):
-        """En una componente, nodo de enganche: el más cercano accesible por
-        tierra; si ninguno de los cercanos lo es, el geométricamente más cercano."""
-        ordered = sorted(comp, key=lambda n: self._distance(point, n))
-        if self._use_grid:
-            for n in ordered[:40]:
-                if not self._segment_crosses_water(point, n):
-                    return n, self._distance(point, n)
-        return ordered[0], self._distance(point, ordered[0])
-
-    def _pick_connection_nodes(self, start, end):
-        """Elige nodos de enganche de inicio y fin que estén en la MISMA
-        componente conexa (para que la ruta llegue por camino) y, dentro de
-        ella, accesibles por tierra. Minimiza la distancia total fuera de camino."""
-        best = None
-        for comp in getattr(self, '_comps', []):
-            sn, sd = self._conn_in_comp(start, comp)
-            en, ed = self._conn_in_comp(end, comp)
-            if sn is None or en is None:
-                continue
-            total = sd + ed
-            if best is None or total < best[0]:
-                best = (total, sn, en, sd, ed)
-        if best is None:
-            sn, sd = self._get_closest_road_node(start)
-            en, ed = self._get_closest_road_node(end)
-            return sn, sd, en, ed
-        return best[1], best[3], best[2], best[4]
-
     def find_path(self, start: Tuple[float, float], end: Tuple[float, float], max_iterations: int = 80000) -> PathResult:
         warnings = []
-
-        # Nodos de enganche en la misma componente conexa y accesibles por tierra,
-        # para que la ruta llegue por camino al lado correcto del río.
-        start_node, start_off_dist, end_node, end_off_dist = self._pick_connection_nodes(start, end)
+        
+        # Buscar el nodo de carretera más cercano para el inicio y el fin
+        start_node, start_off_dist = self._get_closest_road_node(start)
+        end_node, end_off_dist = self._get_closest_road_node(end)
 
         # Multiplicadores de coste por tipo de camino
         ROAD_SPEED = {
@@ -572,18 +303,16 @@ class MiddleEarthPathfinder:
                     road_path.append(curr)
                 road_path.reverse()
 
-                # Añadir tramos inicial y final campo a través (rodeando agua)
+                # Añadir tramos inicial y final campo a través si el punto exacto no cae sobre el camino
                 full_path = []
                 if start_off_dist > 0.1:
-                    leg = self._offroad_leg(start, road_path[0], warnings)
-                    full_path.extend(leg[:-1])
+                    full_path.append(start)
                     warnings.append("Inicio del trayecto realizado campo a través hasta enlazar el camino.")
-
+                
                 full_path.extend(road_path)
 
                 if end_off_dist > 0.1:
-                    leg = self._offroad_leg(road_path[-1], end, warnings)
-                    full_path.extend(leg[1:])
+                    full_path.append(end)
                     warnings.append("Llegada al destino final realizada campo a través.")
 
                 # Generar puntos de paso cada 1 km exacto
@@ -593,50 +322,37 @@ class MiddleEarthPathfinder:
                 for i in range(len(full_path) - 1):
                     total_km += self._distance(full_path[i], full_path[i+1]) * self.COORD_TO_KM
 
-                # Segmentos finos con terreno/camino reales (para PX y días).
-                segments, terrain_summary, roads_used = self._build_segments(full_path)
-                total_cost = round(sum(s.travel_cost for s in segments), 1) or round(total_km * 0.5, 1)
-                if not roads_used:
-                    roads_used = ["Red Vial"]
-
                 return PathResult(
                     success=True,
                     path=dense_path,
-                    segments=segments,
+                    segments=[],
                     total_distance_km=round(total_km, 1),
-                    total_travel_cost=total_cost,
+                    total_travel_cost=round(total_km * 0.5, 1),
                     estimated_days=round(total_km / self.BASE_SPEED_KM_DAY, 1),
                     warnings=warnings,
                     rivers_crossed=[],
-                    roads_used=roads_used,
-                    terrain_summary=terrain_summary or {'moderado': round(total_km, 1)}
+                    roads_used=["Camino Principal / Red Vial"],
+                    terrain_summary={'moderado': round(total_km, 1)}
                 )
 
         # Si no hay ninguna carretera cerca o prefer_roads=False, ir campo a través
-        # (rodeando agua/infranqueable si es necesario).
-        raw_path = self._offroad_leg(start, end, warnings)
+        raw_path = [start, end]
         dense_path = self._interpolate_path_by_km(raw_path, step_km=1.0)
-        total_km = sum(
-            self._distance(raw_path[i], raw_path[i + 1]) for i in range(len(raw_path) - 1)
-        ) * self.COORD_TO_KM
+        total_km = self._distance(start, end) * self.COORD_TO_KM
 
-        warnings.append("Trayecto realizado campo a través.")
-
-        # Segmentos finos campo a través con terreno real (para PX y días).
-        segments, terrain_summary, _ = self._build_segments(raw_path)
-        total_cost = round(sum(s.travel_cost for s in segments), 1) or round(total_km * 1.5, 1)
+        warnings.append("No hay caminos disponibles. Trayecto realizado campo a través.")
 
         return PathResult(
             success=True,
             path=dense_path,
-            segments=segments,
+            segments=[],
             total_distance_km=round(total_km, 1),
-            total_travel_cost=total_cost,
+            total_travel_cost=round(total_km * 1.5, 1),
             estimated_days=round((total_km * 1.5) / self.BASE_SPEED_KM_DAY, 1),
             warnings=warnings,
             rivers_crossed=[],
             roads_used=[],
-            terrain_summary=terrain_summary or {'dificil': round(total_km, 1)}
+            terrain_summary={'dificil': round(total_km, 1)}
         )
 
     def find_path_by_location_ids(self, start_id: str, end_id: str) -> PathResult:

@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Interactive Middle-earth Map Component
  * Displays all 182 locations with terrain, land types, and route calculation
  * Supports player/master view modes
@@ -2564,6 +2564,8 @@ const MiddleEarthMap = () => {
               </text>
             </g>
           )}
+	  {/* Route overlay */}
+          {renderRoute()}
         </svg>
         
         {/* Info panels */}

@@ -1,4 +1,4 @@
-/**
+﻿/**
  * JourneyMiniMap
  * Renders a small SVG preview of the journey route over the player map.
  * Extracted from EnhancedTravelSystem.jsx to keep that file manageable.
@@ -9,16 +9,36 @@ import { Button } from '@/components/ui/button';
 import { Route, Maximize2 } from 'lucide-react';
 import { PLAYER_MAP_URL, MAP_PIXEL_WIDTH, MAP_PIXEL_HEIGHT } from './travelConstants';
 
-// Traza la ruta EXACTA: segmentos rectos que unen cada punto real del camino,
-// sin variación "a mano" ni suavizado. Con el pathfinder que densifica cada 1 km,
-// la línea sigue fielmente las curvas de los caminos, sin florituras.
+// Catmull-Rom spline: pasa exactamente por todos los waypoints
 const createSmoothPath = (points) => {
-  if (points.length < 2) return '';
-  let path = `M ${points[0].x} ${points[0].y}`;
-  for (let i = 1; i < points.length; i++) {
-    path += ` L ${points[i].x} ${points[i].y}`;
+  if (!points || points.length === 0) return '';
+  if (points.length === 1) return `M ${points[0].x} ${points[0].y}`;
+  if (points.length === 2) {
+    const dx = points[1].x - points[0].x;
+    const dy = points[1].y - points[0].y;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    const perpX = (-dy / dist) * dist * 0.12;
+    const perpY = (dx / dist) * dist * 0.12;
+    const cp1x = points[0].x + dx / 3 + perpX;
+    const cp1y = points[0].y + dy / 3 + perpY;
+    const cp2x = points[0].x + (dx * 2) / 3 + perpX;
+    const cp2y = points[0].y + (dy * 2) / 3 + perpY;
+    return `M ${points[0].x} ${points[0].y} C ${cp1x} ${cp1y} ${cp2x} ${cp2y} ${points[1].x} ${points[1].y}`;
   }
-  return path;
+  const tension = 0.4;
+  let d = `M ${points[0].x} ${points[0].y}`;
+  for (let i = 0; i < points.length - 1; i++) {
+    const p0 = points[Math.max(0, i - 1)];
+    const p1 = points[i];
+    const p2 = points[i + 1];
+    const p3 = points[Math.min(points.length - 1, i + 2)];
+    const cp1x = p1.x + (p2.x - p0.x) * tension;
+    const cp1y = p1.y + (p2.y - p0.y) * tension;
+    const cp2x = p2.x - (p3.x - p1.x) * tension;
+    const cp2y = p2.y - (p3.y - p1.y) * tension;
+    d += ` C ${cp1x} ${cp1y} ${cp2x} ${cp2y} ${p2.x} ${p2.y}`;
+  }
+  return d;
 };
 
 const JourneyMiniMap = ({ origenCoords, destinoCoords, origenNombre, destinoNombre, pathPoints, isDirectLine, expanded = false, onToggleExpand, events = [], totalCasillas = 0, forPrint = false }) => {
@@ -119,8 +139,8 @@ const JourneyMiniMap = ({ origenCoords, destinoCoords, origenNombre, destinoNomb
     pathInPixelCoords = [origen, destino];
   }
 
-  // Sin distorsión "a mano": el trazado usa los waypoints reales tal cual,
-  // para que el camino siga EXACTAMENTE la ruta elegida.
+  // Add natural variation to make the path look hand-drawn
+  // En vez de 50/25, usa 3/2 (píxeles de desviación máxima)
   const naturalPath = pathInPixelCoords;
 
   // Pre-compute cumulative distances along `naturalPath` so we can place
