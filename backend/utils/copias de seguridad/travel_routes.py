@@ -1389,12 +1389,15 @@ async def calculate_journey(config: JourneyConfig):
             if not route_data:
                 pathfinder_failed = path_result is not None and not path_result.success
                 if pathfinder_failed:
-                    # Extraer el warning real del pathfinder y la bandera del DJ
-                    msg = path_result.warnings[-1] if hasattr(path_result, 'warnings') and path_result.warnings else "No se pudo calcular la ruta."
                     return {
                         "error": True,
-                        "message": msg,
-                        "requires_manual_routing": getattr(path_result, 'requires_manual_routing', True),
+                        "message": (
+                            "No se pudo encontrar una ruta válida entre origen y destino. "
+                            "Es probable que haya barreras infranqueables, ríos sin paso o "
+                            "extensiones de agua que bloquean el camino. Revisa el mapa, "
+                            "añade un puente / paso de montaña, o desactiva 'preferir caminos' "
+                            "y prueba de nuevo."
+                        ),
                         "ruta_alternativa_necesaria": True,
                         "warnings_pathfinder": getattr(path_result, 'warnings', []),
                     }

@@ -547,46 +547,12 @@ const EnhancedTravelSystem = () => {
         })
       };
       
-const res = await api.post('/travel/calculate-journey', payload);
+      const res = await api.post('/travel/calculate-journey', payload);
+      setJourneyCalc(res.data);
       
       if (res.data.error) {
-        // Limpiamos el cálculo anterior para evitar visualizaciones fantasma
-        setJourneyCalc(null); 
-        
-        if (res.data.requires_manual_routing) {
-          // 1. Lanzamos una alerta naranja prolongada para el DJ
-          toast.warning(
-            res.data.message || "Ruta interrumpida: Por favor, marca un punto intermedio en el mapa.", 
-            { duration: 8000 }
-          );
-          
-          // 2. Conectamos con tu sistema oculto de "paradas" para abrir el mapa
-          setConfig(prev => {
-            const paradasActuales = prev.paradas || [];
-            const nuevoIndice = paradasActuales.length;
-            
-            // Preparamos un hueco en el estado para la nueva parada
-            const nuevasParadas = [...paradasActuales, { 
-              location_id: '', 
-              location_name: `Punto de desvío ${nuevoIndice + 1}`,
-              map_x: null, 
-              map_y: null 
-            }];
-            
-            // Retraso mínimo para asegurar que React actualiza el estado antes de abrir el modal
-            setTimeout(() => setMapPickFor(`parada-${nuevoIndice}`), 150);
-            
-            return { ...prev, paradas: nuevasParadas };
-          });
-        } else {
-          // Error estándar (fuera del mapa, etc.)
-          toast.error(res.data.message);
-        }
-      } else {
-        // Cálculo exitoso
-        setJourneyCalc(res.data);
+        toast.error(res.data.message);
       }
-	  
     } catch (err) {
       console.error('Error calculating journey:', err);
       toast.error('Error al calcular viaje');

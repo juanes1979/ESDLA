@@ -202,8 +202,38 @@ async def update_draft_step3(draft_id: str, data: CharacterCreateStep3):
         raise HTTPException(status_code=404, detail="Occupation not found")
     
     # Calculate initial HP
+# Get current draft to consolidate all skill competencies
+    draft = await db.character_drafts.find_one({"_id": draft_id})
+    if not draft:
+        raise HTTPException(status_code=404, detail="Draft not found")
+
+    # Calculate initial HP using occupation base HP and constitution modifier
     dado_golpe = occupation.get('dado_golpe', '1d8')
-    hp_inicial = int(occupation.get('puntos_golpe_nivel1', 8) or 8)
+
+    def get_max_from_die(die):
+        if isinstance(die, int):
+            return die
+        if isinstance(die, str):
+            die = die.strip().lower()
+            if die.startswith('1d'):
+                try:
+                    return int(die[2:])
+                except ValueError:
+                    pass
+        return 8
+
+    hp_base = int(occupation.get('puntos_golpe_base') or get_max_from_die(dado_golpe) or 8)
+
+    # Constitution can only be calculated if attributes already exist
+    final_attributes = draft.get('atributos_finales') or draft.get('caracteristicas') or {}
+    constitucion = final_attributes.get('constitucion', 10)
+    mod_constitucion = (constitucion - 10) // 2
+
+    hp_total = max(1, hp_base + mod_constitucion)
+
+    draft['puntos_golpe_base'] = hp_base
+    draft['puntos_golpe_max'] = hp_total
+    draft['puntos_golpe_actual'] = hp_total
     
     # Get current draft to consolidate all skill competencies
     draft = await db.character_drafts.find_one({"_id": draft_id})
@@ -239,7 +269,9 @@ async def update_draft_step3(draft_id: str, data: CharacterCreateStep3):
         "vocacion_nombre": occupation['vocacion'],
         "ocupacion_nombre": occupation['vocacion'],  # Alias for easier access
         "dado_golpe": dado_golpe,
-        "puntos_golpe_base": hp_inicial,
+        "puntos_golpe_base": hp_base,
+        "puntos_golpe_max": hp_total,
+        "puntos_golpe_actual": hp_total,
         "caracteristicas_principales": occupation.get('caracteristicas_principales', []),
         "competencias_ocupacion": {
             "tiradas_salvacion": occupation.get('tiradas_salvacion', []),
@@ -715,8 +747,8 @@ async def finalize_character(draft_id: str, user: dict = Depends(get_current_use
         "herramientas_elegidas_ocupacion": draft.get('herramientas_elegidas_ocupacion', []),
         "dinero": draft.get('dinero', {"mp": 0, "mo": 0, "me": 0, "mc": 0}),
         # Combat stats
-        "puntos_golpe_max": draft.get('puntos_golpe_base', 8),
-        "puntos_golpe_actual": draft.get('puntos_golpe_base', 8),
+        "puntos_golpe_max": draft.get('puntos_golpe_max', draft.get('puntos_golpe_base', 8)),
+        "puntos_golpe_actual": draft.get('puntos_golpe_actual', draft.get('puntos_golpe_base', 8)),
         "clase_armadura": 10 + ((final_attributes.get('destreza', 10) - 10) // 2),
         # Patron
         "patron_id": draft.get('patron_id'),

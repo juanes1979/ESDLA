@@ -1,0 +1,1376 @@
+﻿
+InputObject                                                                                                            
+-----------                                                                                                            
+        tolerance = 1.2 * self.GRID_RESOLUTION  # Scale tolerance with grid resolution                                 
+        tolerance = 0.4 * self.GRID_RESOLUTION  # Scale tolerance with grid resolution                                 
+def _find_best_nearby_road_point(                                                                                      
+    def _find_best_nearby_road_point(                                                                                  
+    self,                                                                                                              
+        self,                                                                                                          
+    point: Tuple[float, float],                                                                                        
+        point: Tuple[float, float],                                                                                    
+    end: Optional[Tuple[float, float]] = None,                                                                         
+        end: Optional[Tuple[float, float]] = None,                                                                     
+    max_distance: float = 6.0                                                                                          
+        max_distance: float = 3.0                                                                                      
+) -> Optional[Tuple[float, float]]:                                                                                    
+    ) -> Optional[Tuple[float, float]]:                                                                                
+    """                                                                                                                
+        """                                                                                                            
+    Find the best road point near the origin to "snap" the start onto.                                                 
+        Find the best road point near the origin to "snap" the start onto.                                             
+    Improved: larger search radius (max_distance), and prefer road segments                                            
+        Esquema A, Punto 7: the real distance to the DESTINATION weighs MORE                                           
+    aligned towards the destination (directional preference) to avoid                                                  
+        than the snap distance â€” so we never snap onto a road that takes us                                          
+    snapping to a nearby road that points away.                                                                        
+        FARTHER from the destination (this fixes detours like Casa Brandi).                                            
+    """                                                                                                                
+        Road category is only a minor tie-breaker.                                                                     
+    road_type_priority = {                                                                                             
+        """                                                                                                            
+        'grande': 1, 'mayor': 2, 'menor': 3, 'senda': 4,                                                               
+        road_type_priority = {                                                                                         
+        'sendero': 4, 'secundario': 3, 'real': 2,                                                                      
+            'grande': 1, 'mayor': 2, 'menor': 3, 'senda': 4,                                                           
+    }                                                                                                                  
+            'sendero': 4, 'secundario': 3, 'real': 2,                                                                  
+                                                                                                                       
+        }                                                                                                              
+    origin_to_dest = self._distance(point, end) if end else None                                                       
+                                                                                                                       
+                                                                                                                       
+        # Without a destination we fall back to the nearest best road.                                                 
+    best_point = None                                                                                                  
+        origin_to_dest = self._distance(point, end) if end else None                                                   
+    best_score = float('inf')                                                                                          
+                                                                                                                       
+                                                                                                                       
+        best_point = None                                                                                              
+    for segment in self.road_segments:                                                                                 
+        best_score = float('inf')                                                                                      
+        road_type = segment.get('type', 'senda')                                                                       
+                                                                                                                       
+        priority = road_type_priority.get(road_type, 5)                                                                
+        for segment in self.road_segments:                                                                             
+                                                                                                                       
+            road_type = segment.get('type', 'senda')                                                                   
+        closest = self._closest_point_on_segment(point, segment['start'], segment['end'])                              
+            priority = road_type_priority.get(road_type, 5)                                                            
+        snap_dist = self._distance(point, closest)                                                                     
+                                                                                                                       
+        if snap_dist >= max_distance:                                                                                  
+            closest = self._closest_point_on_segment(point, segment['start'], segment['end'])                          
+            continue                                                                                                   
+            snap_dist = self._distance(point, closest)                                                                 
+                                                                                                                       
+            if snap_dist >= max_distance:                                                                              
+        if origin_to_dest is not None:                                                                                 
+                continue                                                                                               
+            dist_to_dest = self._distance(closest, end)                                                                
+                                                                                                                       
+            # Never snap to a road that pushes us away from the destination.                                           
+            if origin_to_dest is not None:                                                                             
+            if dist_to_dest > origin_to_dest + 0.5:                                                                    
+                dist_to_dest = self._distance(closest, end)                                                            
+                continue                                                                                               
+                # Never snap to a road that pushes us away from the destination.                                       
+                                                                                                                       
+                if dist_to_dest > origin_to_dest + 0.5:                                                                
+            # Directional preference: prefer segments that point towards the destination.                              
+                    continue                                                                                           
+            seg_dx = segment['end'][0] - segment['start'][0]                                                           
+                # Among valid (non-backward) roads, snap to the NEAREST one so the                                     
+            seg_dy = segment['end'][1] - segment['start'][1]                                                           
+                # start isn't "teleported" forward. Road category is a minor tie-breaker.                              
+            seg_len = math.hypot(seg_dx, seg_dy) or 1.0                                                                
+                score = snap_dist + priority * 0.01                                                                    
+                                                                                                                       
+            else:                                                                                                      
+            to_dest_dx = end[0] - closest[0]                                                                           
+                score = priority * 1000 + snap_dist                                                                    
+            to_dest_dy = end[1] - closest[1]                                                                           
+                                                                                                                       
+            to_dest_len = math.hypot(to_dest_dx, to_dest_dy) or 1.0                                                    
+            if score < best_score:                                                                                     
+                                                                                                                       
+                best_score = score                                                                                     
+            dot = (seg_dx * to_dest_dx + seg_dy * to_dest_dy) / (seg_len * to_dest_len)                                
+                best_point = closest                                                                                   
+            # dot in [-1,1]; closer to 1 = segment points toward destination                                           
+                                                                                                                       
+            direction_penalty = (1.0 - max(-1.0, min(1.0, dot))) * 0.2                                                 
+        return best_point                                                                                              
+                                                                                                                       
+                                                                                                                       
+            # Score: prefer nearer snap and segments aligned with destination                                          
+    def _closest_point_on_segment(                                                                                     
+            score = snap_dist + priority * 0.01 + direction_penalty                                                    
+        self,                                                                                                          
+        else:                                                                                                          
+        point: Tuple[float, float],                                                                                    
+            score = priority * 1000 + snap_dist                                                                        
+        seg_start: Tuple[float, float],                                                                                
+                                                                                                                       
+        seg_end: Tuple[float, float]                                                                                   
+        if score < best_score:                                                                                         
+    ) -> Tuple[float, float]:                                                                                          
+            best_score = score                                                                                         
+        """Find the closest point on a line segment to a given point"""                                                
+            best_point = closest                                                                                       
+        px, py = point                                                                                                 
+                                                                                                                       
+        x1, y1 = seg_start                                                                                             
+    return best_point                                                                                                  
+        x2, y2 = seg_end                                                                                               
+                                                                                                                       
+                                                                                                                       
+    def _closest_point_on_segment(                                                                                     
+        dx = x2 - x1                                                                                                   
+        self,                                                                                                          
+        dy = y2 - y1                                                                                                   
+        point: Tuple[float, float],                                                                                    
+                                                                                                                       
+        seg_start: Tuple[float, float],                                                                                
+        if dx == 0 and dy == 0:                                                                                        
+        seg_end: Tuple[float, float]                                                                                   
+            return seg_start                                                                                           
+    ) -> Tuple[float, float]:                                                                                          
+                                                                                                                       
+        """Find the closest point on a line segment to a given point"""                                                
+        t = max(0, min(1, ((px - x1) * dx + (py - y1) * dy) / (dx * dx + dy * dy)))                                    
+        px, py = point                                                                                                 
+                                                                                                                       
+        x1, y1 = seg_start                                                                                             
+        return (x1 + t * dx, y1 + t * dy)                                                                              
+        x2, y2 = seg_end                                                                                               
+                                                                                                                       
+                                                                                                                       
+                                                                                                                       
+        dx = x2 - x1                                                                                                   
+    def _get_path_nodes(self, end_node: PathNode):                                                                     
+        dy = y2 - y1                                                                                                   
+        """Generator to iterate through path nodes from end to start"""                                                
+                                                                                                                       
+        current = end_node                                                                                             
+        if dx == 0 and dy == 0:                                                                                        
+        while current is not None:                                                                                     
+            return seg_start                                                                                           
+            yield current                                                                                              
+                                                                                                                       
+            current = current.parent                                                                                   
+        t = max(0, min(1, ((px - x1) * dx + (py - y1) * dy) / (dx * dx + dy * dy)))                                    
+                                                                                                                       
+                                                                                                                       
+                                                                                                                       
+        return (x1 + t * dx, y1 + t * dy)                                                                              
+    def _check_river_crossing(                                                                                         
+                                                                                                                       
+        self,                                                                                                          
+                                                                                                                       
+        p1: Tuple[float, float],                                                                                       
+    def _get_path_nodes(self, end_node: PathNode):                                                                     
+        p2: Tuple[float, float]                                                                                        
+        """Generator to iterate through path nodes from end to start"""                                                
+    ) -> Optional[Dict]:                                                                                               
+        current = end_node                                                                                             
+        """Check if path segment crosses a river"""                                                                    
+        while current is not None:                                                                                     
+        for river_seg in self.river_segments:                                                                          
+            yield current                                                                                              
+            if self._segments_intersect(p1, p2, river_seg['start'], river_seg['end']):                                 
+            current = current.parent                                                                                   
+                return {                                                                                               
+                                                                                                                       
+                    'type': river_seg['type'],                                                                         
+                                                                                                                       
+                    'name': river_seg['name']                                                                          
+    def _check_river_crossing(                                                                                         
+                }                                                                                                      
+        self,                                                                                                          
+        return None                                                                                                    
+        p1: Tuple[float, float],                                                                                       
+                                                                                                                       
+        p2: Tuple[float, float]                                                                                        
+    def _check_barrier_crossing(                                                                                       
+    ) -> Optional[Dict]:                                                                                               
+        self,                                                                                                          
+        """Check if path segment crosses a river"""                                                                    
+        p1: Tuple[float, float],                                                                                       
+        for river_seg in self.river_segments:                                                                          
+        p2: Tuple[float, float]                                                                                        
+            if self._segments_intersect(p1, p2, river_seg['start'], river_seg['end']):                                 
+    ) -> bool:                                                                                                         
+                return {                                                                                               
+        """                                                                                                            
+                    'type': river_seg['type'],                                                                         
+        Check if path segment crosses a barrier (impassable)                                                           
+                    'name': river_seg['name']                                                                          
+        EXCEPTION: If a road crosses the barrier at the same point, it's considered a "pass"                           
+                }                                                                                                      
+        """                                                                                                            
+        return None                                                                                                    
+        for barrier_seg in self.barrier_segments:                                                                      
+                                                                                                                       
+            if self._segments_intersect(p1, p2, barrier_seg['start'], barrier_seg['end']):                             
+    def _check_barrier_crossing(                                                                                       
+                # Check if there's a road that also crosses this barrier at this point                                 
+        self,                                                                                                          
+                # If so, it's a mountain pass and can be traversed                                                     
+        p1: Tuple[float, float],                                                                                       
+                if self._road_crosses_barrier_at_segment(p1, p2, barrier_seg):                                         
+        p2: Tuple[float, float]                                                                                        
+                    continue  # Road creates a pass, barrier is traversable here                                       
+    ) -> bool:                                                                                                         
+                return True                                                                                            
+        """                                                                                                            
+        return False                                                                                                   
+        Check if path segment crosses a barrier (impassable)                                                           
+                                                                                                                       
+        EXCEPTION: If a road crosses the barrier at the same point, it's considered a "pass"                           
+    def _road_crosses_barrier_at_segment(                                                                              
+        """                                                                                                            
+        self,                                                                                                          
+        for barrier_seg in self.barrier_segments:                                                                      
+        path_start: Tuple[float, float],                                                                               
+            if self._segments_intersect(p1, p2, barrier_seg['start'], barrier_seg['end']):                             
+        path_end: Tuple[float, float],                                                                                 
+                # Check if there's a road that also crosses this barrier at this point                                 
+        barrier_seg: Dict                                                                                              
+                # If so, it's a mountain pass and can be traversed                                                     
+    ) -> bool:                                                                                                         
+                if self._road_crosses_barrier_at_segment(p1, p2, barrier_seg):                                         
+        """                                                                                                            
+                    continue  # Road creates a pass, barrier is traversable here                                       
+        Check if any road crosses this barrier segment, creating a traversable pass.                                   
+                return True                                                                                            
+        A road crossing a barrier at a point allows travel through that point.                                         
+        return False                                                                                                   
+        """                                                                                                            
+                                                                                                                       
+        barrier_start = barrier_seg['start']                                                                           
+    def _road_crosses_barrier_at_segment(                                                                              
+        barrier_end = barrier_seg['end']                                                                               
+        self,                                                                                                          
+                                                                                                                       
+        path_start: Tuple[float, float],                                                                               
+        # Check each road segment                                                                                      
+        path_end: Tuple[float, float],                                                                                 
+        for road_seg in self.road_segments:                                                                            
+        barrier_seg: Dict                                                                                              
+            road_start = road_seg['start']                                                                             
+    ) -> bool:                                                                                                         
+            road_end = road_seg['end']                                                                                 
+        """                                                                                                            
+                                                                                                                       
+        Check if any road crosses this barrier segment, creating a traversable pass.                                   
+            # Check if road crosses this specific barrier segment                                                      
+        A road crossing a barrier at a point allows travel through that point.                                         
+            if self._segments_intersect(road_start, road_end, barrier_start, barrier_end):                             
+        """                                                                                                            
+                # Calculate intersection point of road and barrier                                                     
+        barrier_start = barrier_seg['start']                                                                           
+                road_barrier_intersection = self._get_intersection_point(                                              
+        barrier_end = barrier_seg['end']                                                                               
+                    road_start, road_end, barrier_start, barrier_end                                                   
+                                                                                                                       
+                )                                                                                                      
+        # Check each road segment                                                                                      
+                                                                                                                       
+        for road_seg in self.road_segments:                                                                            
+                if road_barrier_intersection:                                                                          
+            road_start = road_seg['start']                                                                             
+                    # Check if our path segment passes near this intersection point                                    
+            road_end = road_seg['end']                                                                                 
+                    dist_to_intersection = self._point_to_segment_distance(                                            
+                                                                                                                       
+                        road_barrier_intersection, path_start, path_end                                                
+            # Check if road crosses this specific barrier segment                                                      
+                    )                                                                                                  
+            if self._segments_intersect(road_start, road_end, barrier_start, barrier_end):                             
+                                                                                                                       
+                # Calculate intersection point of road and barrier                                                     
+                    # If path is close to the road-barrier intersection, it's a valid pass                             
+                road_barrier_intersection = self._get_intersection_point(                                              
+                    if dist_to_intersection < 3.0:  # Within 3 units tolerance                                         
+                    road_start, road_end, barrier_start, barrier_end                                                   
+                        return True                                                                                    
+                )                                                                                                      
+                                                                                                                       
+                                                                                                                       
+        return False                                                                                                   
+                if road_barrier_intersection:                                                                          
+                                                                                                                       
+                    # Check if our path segment passes near this intersection point                                    
+    def _get_intersection_point(                                                                                       
+                    dist_to_intersection = self._point_to_segment_distance(                                            
+        self,                                                                                                          
+                        road_barrier_intersection, path_start, path_end                                                
+        p1: Tuple[float, float],                                                                                       
+                    )                                                                                                  
+        p2: Tuple[float, float],                                                                                       
+                                                                                                                       
+        p3: Tuple[float, float],                                                                                       
+                    # If path is close to the road-barrier intersection, it's a valid pass                             
+        p4: Tuple[float, float]                                                                                        
+                    if dist_to_intersection < 3.0:  # Within 3 units tolerance                                         
+    ) -> Optional[Tuple[float, float]]:                                                                                
+                        return True                                                                                    
+        """Calculate the intersection point of two line segments, if they intersect"""                                 
+                                                                                                                       
+        x1, y1 = p1                                                                                                    
+        return False                                                                                                   
+        x2, y2 = p2                                                                                                    
+                                                                                                                       
+        x3, y3 = p3                                                                                                    
+    def _get_intersection_point(                                                                                       
+        x4, y4 = p4                                                                                                    
+        self,                                                                                                          
+                                                                                                                       
+        p1: Tuple[float, float],                                                                                       
+        denom = (x1 - x2) * (y3 - y4) - (y1 - y2) * (x3 - x4)                                                          
+        p2: Tuple[float, float],                                                                                       
+        if abs(denom) < 1e-10:  # Lines are parallel                                                                   
+        p3: Tuple[float, float],                                                                                       
+            return None                                                                                                
+        p4: Tuple[float, float]                                                                                        
+                                                                                                                       
+    ) -> Optional[Tuple[float, float]]:                                                                                
+        t = ((x1 - x3) * (y3 - y4) - (y1 - y3) * (x3 - x4)) / denom                                                    
+        """Calculate the intersection point of two line segments, if they intersect"""                                 
+                                                                                                                       
+        x1, y1 = p1                                                                                                    
+        # Check if intersection is within segment bounds                                                               
+        x2, y2 = p2                                                                                                    
+        if 0 <= t <= 1:                                                                                                
+        x3, y3 = p3                                                                                                    
+            ix = x1 + t * (x2 - x1)                                                                                    
+        x4, y4 = p4                                                                                                    
+            iy = y1 + t * (y2 - y1)                                                                                    
+                                                                                                                       
+            return (ix, iy)                                                                                            
+        denom = (x1 - x2) * (y3 - y4) - (y1 - y2) * (x3 - x4)                                                          
+                                                                                                                       
+        if abs(denom) < 1e-10:  # Lines are parallel                                                                   
+        return None                                                                                                    
+            return None                                                                                                
+                                                                                                                       
+                                                                                                                       
+    def _get_terrain_at_point(self, x: float, y: float) -> str:                                                        
+        t = ((x1 - x3) * (y3 - y4) - (y1 - y3) * (x3 - x4)) / denom                                                    
+        """Get terrain type at point â€” uses the raster grid (Feb 2026: legacy                                        
+                                                                                                                       
+        polygons removed). Falls back to nearest known location if the grid                                            
+        # Check if intersection is within segment bounds                                                               
+        is unavailable."""                                                                                             
+        if 0 <= t <= 1:                                                                                                
+        # Raster grid is the source of truth                                                                           
+            ix = x1 + t * (x2 - x1)                                                                                    
+        grid_terrain = self.get_terrain_from_polygons(x, y)                                                            
+            iy = y1 + t * (y2 - y1)                                                                                    
+        if grid_terrain != "moderado":                                                                                 
+            return (ix, iy)                                                                                            
+            return grid_terrain                                                                                        
+                                                                                                                       
+                                                                                                                       
+        return None                                                                                                    
+        # Fallback to location-based terrain (only used if grid is empty)                                              
+                                                                                                                       
+        grid_key = (round(x), round(y))                                                                                
+    def _get_terrain_at_point(self, x: float, y: float) -> str:                                                        
+        if grid_key in self.location_map:                                                                              
+        """Get terrain type at point â€” uses the raster grid (Feb 2026: legacy                                        
+            return self.location_map[grid_key]['terrain']                                                              
+        polygons removed). Falls back to nearest known location if the grid                                            
+                                                                                                                       
+        is unavailable."""                                                                                             
+        min_dist = float('inf')                                                                                        
+        # Raster grid is the source of truth                                                                           
+        nearest_terrain = 'moderado'                                                                                   
+        grid_terrain = self.get_terrain_from_polygons(x, y)                                                            
+        for loc in self.locations:                                                                                     
+        if grid_terrain != "moderado":                                                                                 
+            dist = self._distance((x, y), (loc.get('x', 0), loc.get('y', 0)))                                          
+            return grid_terrain                                                                                        
+            if dist < min_dist:                                                                                        
+                                                                                                                       
+                min_dist = dist                                                                                        
+        # Fallback to location-based terrain (only used if grid is empty)                                              
+                nearest_terrain = loc.get('tipo_terreno', 'moderado')                                                  
+        grid_key = (round(x), round(y))                                                                                
+        return nearest_terrain                                                                                         
+        if grid_key in self.location_map:                                                                              
+                                                                                                                       
+            return self.location_map[grid_key]['terrain']                                                              
+    def _calculate_move_cost(                                                                                          
+                                                                                                                       
+        self,                                                                                                          
+        min_dist = float('inf')                                                                                        
+        from_node: PathNode,                                                                                           
+        nearest_terrain = 'moderado'                                                                                   
+        to_x: float,                                                                                                   
+        for loc in self.locations:                                                                                     
+        to_y: float                                                                                                    
+            dist = self._distance((x, y), (loc.get('x', 0), loc.get('y', 0)))                                          
+    ) -> Tuple[float, str, str, str, Optional[str]]:                                                                   
+            if dist < min_dist:                                                                                        
+        """                                                                                                            
+                min_dist = dist                                                                                        
+        Calculate movement cost. The chosen route minimises total cost,                                                
+                nearest_terrain = loc.get('tipo_terreno', 'moderado')                                                  
+        where cost = distance_km Ã— mult_camino Ã— mult_terreno Ã— mult_tierra.                                        
+        return nearest_terrain                                                                                         
+        Esquema A (final):                                                                                             
+                                                                                                                       
+        - Roads:   grande 1.0 Â· mayor 1.1 Â· menor 1.25 Â· senda 1.5 Â· ninguno 2.0                                   
+    def _calculate_move_cost(                                                                                          
+        - Terrain (only OFF-road): facil 0.75 Â· moderado 1.0 Â· dificil 1.5 Â·                                        
+        self,                                                                                                          
+                   muy_dificil 2.0 Â· desalentador 3.0 (a road CANCELS terrain â†’ 1.0)                                
+        from_node: PathNode,                                                                                           
+        - Land:    libres 0.9 Â· fronterizas 1.1 Â· salvajes 1.3 Â· sombra 2.5 Â· oscuras 3.5                          
+        to_x: float,                                                                                                   
+        - No barriers. Only Infranqueable/Agua block, and ONLY off-road                                                
+        to_y: float                                                                                                    
+          (a road/senda crosses anything at the road's own speed).                                                     
+    ) -> Tuple[float, str, str, str, Optional[str]]:                                                                   
+                                                                                                                       
+        """                                                                                                            
+        Returns: (cost, road_type, road_name, terrain_type, river_crossing)                                            
+        Calculate movement cost. The chosen route minimises total cost,                                                
+        """                                                                                                            
+        where cost = distance_km Ã— mult_camino Ã— mult_terreno Ã— mult_tierra.                                        
+        from_pos = (from_node.x, from_node.y)                                                                          
+        Esquema A (final):                                                                                             
+        to_pos = (to_x, to_y)                                                                                          
+        - Roads:   grande 1.0 Â· mayor 1.1 Â· menor 1.25 Â· senda 1.5 Â· ninguno 2.0                                   
+                                                                                                                       
+        - Terrain (only OFF-road): facil 0.75 Â· moderado 1.0 Â· dificil 1.5 Â·                                        
+        # Base distance in km                                                                                          
+                   muy_dificil 2.0 Â· desalentador 3.0 (a road CANCELS terrain â†’ 1.0)                                
+        distance_km = self._distance(from_pos, to_pos) * self.COORD_TO_KM                                              
+        - Land:    libres 0.9 Â· fronterizas 1.1 Â· salvajes 1.3 Â· sombra 2.5 Â· oscuras 3.5                          
+                                                                                                                       
+        - No barriers. Only Infranqueable/Agua block, and ONLY off-road                                                
+        # Road / senda at the destination point. A road/senda CANCELS whatever                                         
+          (a road/senda crosses anything at the road's own speed).                                                     
+        # lies underneath (terrain, river, water, impassable): you move at the                                         
+                                                                                                                       
+        # ROAD's speed and the underlying terrain does not count at all.                                               
+        Returns: (cost, road_type, road_name, terrain_type, river_crossing)                                            
+        to_road_info = self._get_road_at_point(to_x, to_y)                                                             
+        """                                                                                                            
+        on_road = to_road_info is not None                                                                             
+        from_pos = (from_node.x, from_node.y)                                                                          
+        road_type_str = to_road_info['type'] if to_road_info else 'ninguno'                                            
+        to_pos = (to_x, to_y)                                                                                          
+        road_name_str = to_road_info['name'] if to_road_info else ''                                                   
+        # Base distance in km                                                                                          
+        # Terrain + river + land at destination (kept for the breakdown).                                              
+        distance_km = self._distance(from_pos, to_pos) * self.COORD_TO_KM                                              
+        terrain_str = self._get_terrain_at_point(to_x, to_y)                                                           
+                                                                                                                       
+        river_crossing = self._check_river_crossing(from_pos, to_pos)                                                  
+        # Road / senda at the destination point. A road/senda CANCELS whatever                                         
+        river_crossing_str = river_crossing['type'] if river_crossing else None                                        
+        # lies underneath (terrain, river, water, impassable): you move at the                                         
+        land_type = self.get_land_type_from_polygons(to_x, to_y)                                                       
+        # ROAD's speed and the underlying terrain does not count at all.                                               
+                                                                                                                       
+        to_road_info = self._get_road_at_point(to_x, to_y)                                                             
+        # ============ TERRAIN MULTIPLIER ============                                                                 
+        on_road = to_road_info is not None                                                                             
+        TERRAIN_MULT = {                                                                                               
+        road_type_str = to_road_info['type'] if to_road_info else 'ninguno'                                            
+            'facil': 0.75,                                                                                             
+        road_name_str = to_road_info['name'] if to_road_info else ''                                                   
+            'moderado': 1.0,                                                                                           
+                                                                                                                       
+            'dificil': 1.5,                                                                                            
+        # Terrain + river + land at destination (kept for the breakdown).                                              
+            'muy_dificil': 2.0,                                                                                        
+        terrain_str = self._get_terrain_at_point(to_x, to_y)                                                           
+            'desalentador': 3.0,                                                                                       
+        river_crossing = self._check_river_crossing(from_pos, to_pos)                                                  
+            'infranqueable': float('inf'),                                                                             
+        river_crossing_str = river_crossing['type'] if river_crossing else None                                        
+            'agua': float('inf'),                                                                                      
+        land_type = self.get_land_type_from_polygons(to_x, to_y)                                                       
+        }                                                                                                              
+        # ============ TERRAIN MULTIPLIER ============                                                                 
+        if on_road:                                                                                                    
+        TERRAIN_MULT = {                                                                                               
+            # The road bridges / passes everything â†’ terrain & river ignored.                                        
+            'facil': 0.75,                                                                                             
+            terrain_mult = 1.0                                                                                         
+            'moderado': 1.0,                                                                                           
+            river_mult = 1.0                                                                                           
+            'dificil': 1.5,                                                                                            
+        else:                                                                                                          
+            'muy_dificil': 2.0,                                                                                        
+            # Off-road: impassable / water / rivers block the way.                                                     
+            'desalentador': 3.0,                                                                                       
+            if self._segment_crosses_blocking_polygon(from_pos, to_pos):                                               
+            'infranqueable': float('inf'),                                                                             
+                return (float('inf'), 'ninguno', '', 'infranqueable', None)                                            
+            'agua': float('inf'),                                                                                      
+            terrain_mult = TERRAIN_MULT.get(terrain_str, 1.0)                                                          
+        }                                                                                                              
+            if terrain_mult == float('inf'):                                                                           
+                                                                                                                       
+                return (float('inf'), road_type_str, road_name_str, terrain_str, river_crossing_str)                   
+        if on_road:                                                                                                    
+            # Rivers are water â†’ only crossable via a road (handled above).                                          
+            # The road bridges / passes everything â†’ terrain & river ignored.                                        
+            if river_crossing is not None:                                                                             
+            terrain_mult = 1.0                                                                                         
+                return (float('inf'), road_type_str, road_name_str, terrain_str, river_crossing_str)                   
+        else:                                                                                                          
+                                                                                                                       
+            # Off-road: impassable / water / rivers block the way.                                                     
+        # ============ ROAD MULTIPLIER ============                                                                    
+            if self._segment_crosses_blocking_polygon(from_pos, to_pos):                                               
+        ROAD_MULT = {                                                                                                  
+                return (float('inf'), 'ninguno', '', 'infranqueable', None)                                            
+            'grande': 1.0,                                                                                             
+            terrain_mult = TERRAIN_MULT.get(terrain_str, 1.0)                                                          
+            'mayor': 1.1,                                                                                              
+            if terrain_mult == float('inf'):                                                                           
+            'menor': 1.25,                                                                                             
+                return (float('inf'), road_type_str, road_name_str, terrain_str, river_crossing_str)                   
+            'senda': 1.5,                                                                                              
+            # Rivers are water â†’ only crossable via a road (handled above).                                          
+            'sendero': 1.5,    # Legacy: Sendas                                                                        
+            if river_crossing is not None:                                                                             
+            'secundario': 1.25, # Legacy: Menores                                                                      
+                return (float('inf'), road_type_str, road_name_str, terrain_str, river_crossing_str)                   
+            'real': 1.1,       # Legacy: Mayores                                                                       
+            river_mult = 1.0                                                                                           
+            'ninguno': 2.0,    # Campo a travÃ©s                                                                       
+                                                                                                                       
+        }                                                                                                              
+        # ============ ROAD MULTIPLIER ============                                                                    
+        road_mult = ROAD_MULT.get(road_type_str, 2.0)                                                                  
+        ROAD_MULT = {                                                                                                  
+                                                                                                                       
+            'grande': 1.0,                                                                                             
+        # ============ LAND TYPE MULTIPLIER ============                                                               
+            'mayor': 1.1,                                                                                              
+        LAND_MULT = {                                                                                                  
+            'menor': 1.25,                                                                                             
+            'tierras_libres': 0.9,                                                                                     
+            'senda': 1.5,                                                                                              
+            'tierras_fronterizas': 1.1,                                                                                
+            'sendero': 1.5,    # Legacy: Sendas                                                                        
+            'fronterizas': 1.1,                                                                                        
+            'secundario': 1.25, # Legacy: Menores                                                                      
+            'tierras_salvajes': 1.3,                                                                                   
+            'real': 1.1,       # Legacy: Mayores                                                                       
+            'tierras_sombra': 2.5,                                                                                     
+            'ninguno': 2.0,    # Campo a travÃ©s                                                                       
+            'tierras_oscuras': 3.5,                                                                                    
+        road_mult = ROAD_MULT.get(road_type_str, 2.0)                                                                  
+        land_mult = LAND_MULT.get(land_type, 1.3)                                                                      
+        # ============ LAND TYPE MULTIPLIER ============                                                               
+        # ============ AVOID OPTIONS (heavy but FINITE â†’ cross only if no other way) ============                    
+        LAND_MULT = {                                                                                                  
+        AVOID_PENALTY = 100.0                                                                                          
+            'tierras_libres': 0.9,                                                                                     
+        if self.avoid_shadow_lands and land_type == 'tierras_sombra':                                                  
+            'tierras_fronterizas': 1.1,                                                                                
+            land_mult *= AVOID_PENALTY                                                                                 
+            'fronterizas': 1.1,                                                                                        
+        if self.avoid_dark_lands and land_type == 'tierras_oscuras':                                                   
+            'tierras_salvajes': 1.3,                                                                                   
+            land_mult *= AVOID_PENALTY                                                                                 
+            'tierras_sombra': 2.5,                                                                                     
+        # Terrain avoidance only matters off-road (on a road terrain is cancelled).                                    
+            'tierras_oscuras': 3.5,                                                                                    
+        if not on_road:                                                                                                
+        }                                                                                                              
+            if self.avoid_muy_dificil and terrain_str == 'muy_dificil':                                                
+        land_mult = LAND_MULT.get(land_type, 1.3)                                                                      
+                terrain_mult *= AVOID_PENALTY                                                                          
+                                                                                                                       
+            if self.avoid_desalentador and terrain_str == 'desalentador':                                              
+        # ============ AVOID OPTIONS (heavy but FINITE â†’ cross only if no other way) ============                    
+                terrain_mult *= AVOID_PENALTY                                                                          
+        AVOID_PENALTY = 100.0                                                                                          
+                                                                                                                       
+        if self.avoid_shadow_lands and land_type == 'tierras_sombra':                                                  
+        # DIRECT MODE: land danger has much less impact (straighter route).                                            
+            land_mult *= AVOID_PENALTY                                                                                 
+        if self.direct_mode:                                                                                           
+        if self.avoid_dark_lands and land_type == 'tierras_oscuras':                                                   
+            land_mult = max(0.8, land_mult * 0.3)                                                                      
+            land_mult *= AVOID_PENALTY                                                                                 
+                                                                                                                       
+        # Terrain avoidance only matters off-road (on a road terrain is cancelled).                                    
+        # ============ AVOID ROADS MODE (flight / direct) ============                                                 
+        if not on_road:                                                                                                
+        if self.avoid_roads:                                                                                           
+            if self.avoid_muy_dificil and terrain_str == 'muy_dificil':                                                
+            if on_road:                                                                                                
+                terrain_mult *= AVOID_PENALTY                                                                          
+                road_mult *= 5.0   # penalise using roads when fleeing                                                 
+            if self.avoid_desalentador and terrain_str == 'desalentador':                                              
+            else:                                                                                                      
+                terrain_mult *= AVOID_PENALTY                                                                          
+                road_mult = 1.0    # neutral cross-country when fleeing                                                
+        # DIRECT MODE: land danger has much less impact (straighter route).                                            
+        # ============ TOTAL COST ============                                                                         
+        if self.direct_mode:                                                                                           
+        total_cost = distance_km * road_mult * terrain_mult * land_mult * river_mult                                   
+            land_mult = max(0.8, land_mult * 0.3)                                                                      
+                                                                                                                       
+                                                                                                                       
+        return (total_cost, road_type_str, road_name_str, terrain_str, river_crossing_str)                             
+        # ============ AVOID ROADS MODE (flight / direct) ============                                                 
+                                                                                                                       
+        if self.avoid_roads:                                                                                           
+    def _get_neighbors(self, node: PathNode) -> List[Tuple[float, float]]:                                             
+            if on_road:                                                                                                
+        """Get valid neighbor positions for A* expansion"""                                                            
+                road_mult *= 5.0   # penalise using roads when fleeing                                                 
+        neighbors = []                                                                                                 
+            else:                                                                                                      
+                                                                                                                       
+                road_mult = 1.0    # neutral cross-country when fleeing                                                
+        # 8-directional movement                                                                                       
+                                                                                                                       
+        directions = [                                                                                                 
+        # ============ TOTAL COST ============                                                                         
+            (0, self.GRID_RESOLUTION),                                                                                 
+        total_cost = distance_km * road_mult * terrain_mult * land_mult * river_mult                                   
+            (0, -self.GRID_RESOLUTION),                                                                                
+                                                                                                                       
+            (self.GRID_RESOLUTION, 0),                                                                                 
+        return (total_cost, road_type_str, road_name_str, terrain_str, river_crossing_str)                             
+            (-self.GRID_RESOLUTION, 0),                                                                                
+                                                                                                                       
+            (self.GRID_RESOLUTION, self.GRID_RESOLUTION),                                                              
+    def _get_neighbors(self, node: PathNode) -> List[Tuple[float, float]]:                                             
+            (self.GRID_RESOLUTION, -self.GRID_RESOLUTION),                                                             
+        """Get valid neighbor positions for A* expansion"""                                                            
+            (-self.GRID_RESOLUTION, self.GRID_RESOLUTION),                                                             
+        neighbors = []                                                                                                 
+            (-self.GRID_RESOLUTION, -self.GRID_RESOLUTION),                                                            
+                                                                                                                       
+        ]                                                                                                              
+        # 8-directional movement                                                                                       
+                                                                                                                       
+        directions = [                                                                                                 
+        for dx, dy in directions:                                                                                      
+            (0, self.GRID_RESOLUTION),                                                                                 
+            new_x = node.x + dx                                                                                        
+            (0, -self.GRID_RESOLUTION),                                                                                
+            new_y = node.y + dy                                                                                        
+            (self.GRID_RESOLUTION, 0),                                                                                 
+                                                                                                                       
+            (-self.GRID_RESOLUTION, 0),                                                                                
+            # Bounds check (map is roughly 0-100 on both axes)                                                         
+            (self.GRID_RESOLUTION, self.GRID_RESOLUTION),                                                              
+            if 0 <= new_x <= 110 and 0 <= new_y <= 100:                                                                
+            (self.GRID_RESOLUTION, -self.GRID_RESOLUTION),                                                             
+                neighbors.append((new_x, new_y))                                                                       
+            (-self.GRID_RESOLUTION, self.GRID_RESOLUTION),                                                             
+                                                                                                                       
+            (-self.GRID_RESOLUTION, -self.GRID_RESOLUTION),                                                            
+        return neighbors                                                                                               
+        ]                                                                                                              
+                                                                                                                       
+                                                                                                                       
+    def find_path(                                                                                                     
+        for dx, dy in directions:                                                                                      
+        self,                                                                                                          
+            new_x = node.x + dx                                                                                        
+        start: Tuple[float, float],                                                                                    
+            new_y = node.y + dy                                                                                        
+        end: Tuple[float, float],                                                                                      
+                                                                                                                       
+        max_iterations: int = 40000                                                                                    
+            # Bounds check (map is roughly 0-100 on both axes)                                                         
+    ) -> PathResult:                                                                                                   
+            if 0 <= new_x <= 110 and 0 <= new_y <= 100:                                                                
+        """                                                                                                            
+                neighbors.append((new_x, new_y))                                                                       
+        Find optimal path from start to end using A* algorithm                                                         
+                                                                                                                       
+        """                                                                                                            
+        return neighbors                                                                                               
+        warnings: List[str] = []                                                                                       
+                                                                                                                       
+                                                                                                                       
+    def find_path(                                                                                                     
+        # If preferring roads, find the best nearby road connection point                                              
+        self,                                                                                                          
+        actual_start = start                                                                                           
+        start: Tuple[float, float],                                                                                    
+        if self.prefer_roads:                                                                                          
+        end: Tuple[float, float],                                                                                      
+            best_road_point = self._find_best_nearby_road_point(start, end)                                            
+        max_iterations: int = 40000                                                                                    
+            if best_road_point:                                                                                        
+    ) -> PathResult:                                                                                                   
+                actual_start = best_road_point                                                                         
+        """                                                                                                            
+                warnings.append(f"Ruta ajustada para comenzar en el camino mÃ¡s cercano")                              
+        Find optimal path from start to end using A* algorithm                                                         
+                                                                                                                       
+        """                                                                                                            
+        # Find the best nearby road at the start point                                                                 
+        warnings: List[str] = []                                                                                       
+        start_road = self._get_road_at_point(actual_start[0], actual_start[1])                                         
+        # If preferring roads, find the best nearby road connection point                                              
+        # Initialize start node                                                                                        
+        actual_start = start                                                                                           
+        start_node = PathNode(x=actual_start[0], y=actual_start[1])                                                    
+        if self.prefer_roads:                                                                                          
+        # Heuristic: distance * best possible multiplier (0.1 for grande road, 0.2 for free lands, 0.5 for easy terr...
+            best_road_point = self._find_best_nearby_road_point(start, end)                                            
+        # This ensures h_cost is admissible (never overestimates)                                                      
+            if best_road_point:                                                                                        
+        start_node.h_cost = self._distance(actual_start, end) * self.COORD_TO_KM * 0.01  # Minimum possible cost per km
+                actual_start = best_road_point                                                                         
+        if start_road:                                                                                                 
+                warnings.append(f"Ruta ajustada para comenzar en el camino mÃ¡s cercano")                              
+            start_node.road_type = start_road.get('type', 'ninguno')                                                   
+        # Find the best nearby road at the start point                                                                 
+        # Priority queue and visited set                                                                               
+        start_road = self._get_road_at_point(actual_start[0], actual_start[1])                                         
+        open_set: List[PathNode] = [start_node]                                                                        
+                                                                                                                       
+        closed_set: Set[PathNode] = set()                                                                              
+        # Initialize start node                                                                                        
+                                                                                                                       
+        start_node = PathNode(x=actual_start[0], y=actual_start[1])                                                    
+        # A* main loop                                                                                                 
+        # Heuristic: distance * best possible multiplier (0.1 for grande road, 0.2 for free lands, 0.5 for easy terr...
+        iterations = 0                                                                                                 
+        # This ensures h_cost is admissible (never overestimates)                                                      
+        while open_set and iterations < max_iterations:                                                                
+        start_node.h_cost = self._distance(actual_start, end) * self.COORD_TO_KM * 0.01  # Minimum possible cost per km
+            iterations += 1                                                                                            
+        if start_road:                                                                                                 
+                                                                                                                       
+            start_node.road_type = start_road.get('type', 'ninguno')                                                   
+            # Get node with lowest f_cost                                                                              
+                                                                                                                       
+            current = heapq.heappop(open_set)                                                                          
+        # Priority queue and visited set                                                                               
+                                                                                                                       
+        open_set: List[PathNode] = [start_node]                                                                        
+            # Check if we reached the goal                                                                             
+        closed_set: Set[PathNode] = set()                                                                              
+            if self._distance((current.x, current.y), end) < self.GRID_RESOLUTION * 1.5:                               
+                                                                                                                       
+                return self._build_result(current, end, warnings)                                                      
+        # A* main loop                                                                                                 
+                                                                                                                       
+        iterations = 0                                                                                                 
+            closed_set.add(current)                                                                                    
+        while open_set and iterations < max_iterations:                                                                
+                                                                                                                       
+            iterations += 1                                                                                            
+            # Expand neighbors                                                                                         
+                                                                                                                       
+            for nx, ny in self._get_neighbors(current):                                                                
+            # Get node with lowest f_cost                                                                              
+                neighbor = PathNode(x=nx, y=ny)                                                                        
+            current = heapq.heappop(open_set)                                                                          
+                                                                                                                       
+                                                                                                                       
+                if neighbor in closed_set:                                                                             
+            # Check if we reached the goal                                                                             
+                    continue                                                                                           
+            if self._distance((current.x, current.y), end) < self.GRID_RESOLUTION * 1.5:                               
+                                                                                                                       
+                return self._build_result(current, end, warnings)                                                      
+                # Calculate movement cost                                                                              
+                                                                                                                       
+                cost, road_type, road_name, terrain, river = self._calculate_move_cost(current, nx, ny)                
+            closed_set.add(current)                                                                                    
+                                                                                                                       
+                                                                                                                       
+                if cost == float('inf'):                                                                               
+            # Expand neighbors                                                                                         
+                    continue  # Impassable                                                                             
+            for nx, ny in self._get_neighbors(current):                                                                
+                                                                                                                       
+                neighbor = PathNode(x=nx, y=ny)                                                                        
+                tentative_g = current.g_cost + cost                                                                    
+                if neighbor in closed_set:                                                                             
+                # Check if this path is better                                                                         
+                    continue                                                                                           
+                existing = next((n for n in open_set if n == neighbor), None)                                          
+                # Calculate movement cost                                                                              
+                if existing is None or tentative_g < existing.g_cost:                                                  
+                cost, road_type, road_name, terrain, river = self._calculate_move_cost(current, nx, ny)                
+                    neighbor.g_cost = tentative_g                                                                      
+                                                                                                                       
+                    # Heuristic: distance * minimum possible cost multiplier                                           
+                if cost == float('inf'):                                                                               
+                    neighbor.h_cost = self._distance((nx, ny), end) * self.COORD_TO_KM * 0.01                          
+                    continue  # Impassable                                                                             
+                    neighbor.parent = current                                                                          
+                                                                                                                       
+                    neighbor.road_type = road_type                                                                     
+                tentative_g = current.g_cost + cost                                                                    
+                    neighbor.road_name = road_name                                                                     
+                                                                                                                       
+                    neighbor.terrain_type = terrain                                                                    
+                # Check if this path is better                                                                         
+                    neighbor.river_crossing = river                                                                    
+                existing = next((n for n in open_set if n == neighbor), None)                                          
+                                                                                                                       
+                                                                                                                       
+                    if existing is None:                                                                               
+                if existing is None or tentative_g < existing.g_cost:                                                  
+                        heapq.heappush(open_set, neighbor)                                                             
+                    neighbor.g_cost = tentative_g                                                                      
+                    else:                                                                                              
+                    # Heuristic: distance * minimum possible cost multiplier                                           
+                        # Update existing node                                                                         
+                    neighbor.h_cost = self._distance((nx, ny), end) * self.COORD_TO_KM * 0.01                          
+                        existing.g_cost = tentative_g                                                                  
+                    neighbor.parent = current                                                                          
+                        existing.parent = current                                                                      
+                    neighbor.road_type = road_type                                                                     
+                        existing.road_type = road_type                                                                 
+                    neighbor.road_name = road_name                                                                     
+                        existing.road_name = road_name                                                                 
+                    neighbor.terrain_type = terrain                                                                    
+                        existing.terrain_type = terrain                                                                
+                    neighbor.river_crossing = river                                                                    
+                        existing.river_crossing = river                                                                
+                                                                                                                       
+                        heapq.heapify(open_set)                                                                        
+                    if existing is None:                                                                               
+                                                                                                                       
+                        heapq.heappush(open_set, neighbor)                                                             
+        # No path found                                                                                                
+                    else:                                                                                              
+        warnings.append("No se encontrÃ³ ruta vÃ¡lida. Puede haber barreras infranqueables.")                          
+                        # Update existing node                                                                         
+        return PathResult(                                                                                             
+                        existing.g_cost = tentative_g                                                                  
+            success=False,                                                                                             
+                        existing.parent = current                                                                      
+            path=[],                                                                                                   
+                        existing.road_type = road_type                                                                 
+            segments=[],                                                                                               
+                        existing.road_name = road_name                                                                 
+            total_distance_km=0,                                                                                       
+                        existing.terrain_type = terrain                                                                
+            total_travel_cost=0,                                                                                       
+                        existing.river_crossing = river                                                                
+            estimated_days=0,                                                                                          
+                        heapq.heapify(open_set)                                                                        
+            warnings=warnings,                                                                                         
+                                                                                                                       
+            rivers_crossed=[],                                                                                         
+        # No path found                                                                                                
+            roads_used=[],                                                                                             
+        warnings.append("No se encontrÃ³ ruta vÃ¡lida. Puede haber barreras infranqueables.")                          
+            terrain_summary={}                                                                                         
+        return PathResult(                                                                                             
+        )                                                                                                              
+            success=False,                                                                                             
+                                                                                                                       
+            path=[],                                                                                                   
+    def _build_result(                                                                                                 
+            segments=[],                                                                                               
+        self,                                                                                                          
+            total_distance_km=0,                                                                                       
+        end_node: PathNode,                                                                                            
+            total_travel_cost=0,                                                                                       
+        target: Tuple[float, float],                                                                                   
+            estimated_days=0,                                                                                          
+        warnings: List[str]                                                                                            
+            warnings=warnings,                                                                                         
+    ) -> PathResult:                                                                                                   
+            rivers_crossed=[],                                                                                         
+        """Build the path result from the A* search"""                                                                 
+            roads_used=[],                                                                                             
+        # Reconstruct path                                                                                             
+            terrain_summary={}                                                                                         
+        path: List[Tuple[float, float]] = []                                                                           
+        )                                                                                                              
+        segments: List[PathSegment] = []                                                                               
+                                                                                                                       
+        rivers_crossed: List[Dict] = []                                                                                
+    def _build_result(                                                                                                 
+        roads_used_ordered: List[str] = []  # Ordered list of roads (maintains order of traversal)                     
+        self,                                                                                                          
+        roads_distances: Dict[str, float] = {}  # Track distance on each road                                          
+        end_node: PathNode,                                                                                            
+        terrain_distances: Dict[str, float] = {}                                                                       
+        target: Tuple[float, float],                                                                                   
+                                                                                                                       
+        warnings: List[str]                                                                                            
+        current = end_node                                                                                             
+    ) -> PathResult:                                                                                                   
+        prev_node = None                                                                                               
+        """Build the path result from the A* search"""                                                                 
+        total_distance = 0                                                                                             
+        # Reconstruct path                                                                                             
+        total_cost = 0                                                                                                 
+        path: List[Tuple[float, float]] = []                                                                           
+        current_road_streak: Dict[str, float] = {}  # Track consecutive distance on current road                       
+        segments: List[PathSegment] = []                                                                               
+                                                                                                                       
+        rivers_crossed: List[Dict] = []                                                                                
+        while current is not None:                                                                                     
+        roads_used_ordered: List[str] = []  # Ordered list of roads (maintains order of traversal)                     
+            path.append((current.x, current.y))                                                                        
+        roads_distances: Dict[str, float] = {}  # Track distance on each road                                          
+                                                                                                                       
+        terrain_distances: Dict[str, float] = {}                                                                       
+            if prev_node is not None:                                                                                  
+                                                                                                                       
+                dist = self._distance((current.x, current.y), (prev_node.x, prev_node.y))                              
+        current = end_node                                                                                             
+                dist_km = dist * self.COORD_TO_KM                                                                      
+        prev_node = None                                                                                               
+                total_distance += dist_km                                                                              
+        total_distance = 0                                                                                             
+                                                                                                                       
+        total_cost = 0                                                                                                 
+                # Track terrain                                                                                        
+        current_road_streak: Dict[str, float] = {}  # Track consecutive distance on current road                       
+                terrain = prev_node.terrain_type                                                                       
+                                                                                                                       
+                terrain_distances[terrain] = terrain_distances.get(terrain, 0) + dist_km                               
+        while current is not None:                                                                                     
+                                                                                                                       
+            path.append((current.x, current.y))                                                                        
+                # Track roads - only count roads with significant usage                                                
+                                                                                                                       
+                if prev_node.road_type != 'ninguno' and prev_node.road_name:                                           
+            if prev_node is not None:                                                                                  
+                    road_name = prev_node.road_name                                                                    
+                dist = self._distance((current.x, current.y), (prev_node.x, prev_node.y))                              
+                    roads_distances[road_name] = roads_distances.get(road_name, 0) + dist_km                           
+                dist_km = dist * self.COORD_TO_KM                                                                      
+                                                                                                                       
+                total_distance += dist_km                                                                              
+                # Track rivers                                                                                         
+                                                                                                                       
+                if prev_node.river_crossing:                                                                           
+                # Track terrain                                                                                        
+                    rivers_crossed.append({                                                                            
+                terrain = prev_node.terrain_type                                                                       
+                        'type': prev_node.river_crossing,                                                              
+                terrain_distances[terrain] = terrain_distances.get(terrain, 0) + dist_km                               
+                        'position': (prev_node.x, prev_node.y)                                                         
+                                                                                                                       
+                    })                                                                                                 
+                # Track roads - only count roads with significant usage                                                
+                                                                                                                       
+                if prev_node.road_type != 'ninguno' and prev_node.road_name:                                           
+                # Calculate segment cost                                                                               
+                    road_name = prev_node.road_name                                                                    
+                terrain_mult = TerrainType.from_string(terrain).multiplier                                             
+                    roads_distances[road_name] = roads_distances.get(road_name, 0) + dist_km                           
+                road_mult = RoadType.from_string(prev_node.road_type).multiplier                                       
+                                                                                                                       
+                # Roads override impassable terrain (same rule as _calculate_move_cost).                               
+                # Track rivers                                                                                         
+                # If we somehow stored a segment with infranqueable/agua + a road,                                     
+                if prev_node.river_crossing:                                                                           
+                # treat it as a pass/bridge so cost stays finite.                                                      
+                    rivers_crossed.append({                                                                            
+                if terrain_mult == float('inf') and prev_node.road_type != 'ninguno':                                  
+                        'type': prev_node.river_crossing,                                                              
+                    if terrain == 'agua':                                                                              
+                        'position': (prev_node.x, prev_node.y)                                                         
+                        terrain_mult = TerrainType.from_string('dificil').multiplier                                   
+                    })                                                                                                 
+                    else:                                                                                              
+                                                                                                                       
+                        terrain_mult = TerrainType.from_string('muy_dificil').multiplier                               
+                # Calculate segment cost                                                                               
+                river_mult = 1.0                                                                                       
+                terrain_mult = TerrainType.from_string(terrain).multiplier                                             
+                if prev_node.river_crossing:                                                                           
+                road_mult = RoadType.from_string(prev_node.road_type).multiplier                                       
+                    river_mult = RiverType.from_string(prev_node.river_crossing).multiplier                            
+                # Roads override impassable terrain (same rule as _calculate_move_cost).                               
+                                                                                                                       
+                # If we somehow stored a segment with infranqueable/agua + a road,                                     
+                segment_cost = dist_km * terrain_mult * road_mult * river_mult                                         
+                # treat it as a pass/bridge so cost stays finite.                                                      
+                # Final safety: never let a successful path produce an infinite                                        
+                if terrain_mult == float('inf') and prev_node.road_type != 'ninguno':                                  
+                # segment cost (would break JSON serialisation downstream).                                            
+                    if terrain == 'agua':                                                                              
+                if not (segment_cost == segment_cost) or segment_cost == float('inf'):                                 
+                        terrain_mult = TerrainType.from_string('dificil').multiplier                                   
+                    segment_cost = dist_km  # fall back to raw distance                                                
+                    else:                                                                                              
+                total_cost += segment_cost                                                                             
+                        terrain_mult = TerrainType.from_string('muy_dificil').multiplier                               
+                                                                                                                       
+                river_mult = 1.0                                                                                       
+                segments.append(PathSegment(                                                                           
+                if prev_node.river_crossing:                                                                           
+                    start=(current.x, current.y),                                                                      
+                    river_mult = RiverType.from_string(prev_node.river_crossing).multiplier                            
+                    end=(prev_node.x, prev_node.y),                                                                    
+                                                                                                                       
+                    distance_km=dist_km,                                                                               
+                segment_cost = dist_km * terrain_mult * road_mult * river_mult                                         
+                    terrain=terrain,                                                                                   
+                # Final safety: never let a successful path produce an infinite                                        
+                    road_type=prev_node.road_type,                                                                     
+                # segment cost (would break JSON serialisation downstream).                                            
+                    river_crossing=prev_node.river_crossing,                                                           
+                if not (segment_cost == segment_cost) or segment_cost == float('inf'):                                 
+                    travel_cost=segment_cost                                                                           
+                    segment_cost = dist_km  # fall back to raw distance                                                
+                ))                                                                                                     
+                total_cost += segment_cost                                                                             
+                                                                                                                       
+                                                                                                                       
+            prev_node = current                                                                                        
+                segments.append(PathSegment(                                                                           
+            current = current.parent                                                                                   
+                    start=(current.x, current.y),                                                                      
+                                                                                                                       
+                    end=(prev_node.x, prev_node.y),                                                                    
+        # Add the final leg from the last reached node to the TRUE destination.                                        
+                    distance_km=dist_km,                                                                               
+        # A* stops within ~1.5 units of the target, so without this the reported                                       
+                    terrain=terrain,                                                                                   
+        # distance falls short of the real distance to the destination.                                                
+                    road_type=prev_node.road_type,                                                                     
+        final_dist = self._distance((end_node.x, end_node.y), target)                                                  
+                    river_crossing=prev_node.river_crossing,                                                           
+        if final_dist > 0.01:                                                                                          
+                    travel_cost=segment_cost                                                                           
+            final_km = final_dist * self.COORD_TO_KM                                                                   
+                ))                                                                                                     
+            total_distance += final_km                                                                                 
+                                                                                                                       
+            total_cost += final_km  # neutral cost for the short final approach                                        
+            prev_node = current                                                                                        
+            t = end_node.terrain_type or 'moderado'                                                                    
+            current = current.parent                                                                                   
+            terrain_distances[t] = terrain_distances.get(t, 0) + final_km                                              
+        # Add the final leg from the last reached node to the TRUE destination.                                        
+        # Filter roads: only include roads with at least 30km or 5% of total distance                                  
+        # A* stops within ~1.5 units of the target, so without this the reported                                       
+        # This filters out roads that are just briefly crossed                                                         
+        # distance falls short of the real distance to the destination.                                                
+        min_road_distance = max(30, total_distance * 0.05)  # At least 30km or 5%                                      
+        final_dist = self._distance((end_node.x, end_node.y), target)                                                  
+        significant_roads = {name: dist for name, dist in roads_distances.items() if dist >= min_road_distance}        
+        if final_dist > 0.01:                                                                                          
+                                                                                                                       
+            final_km = final_dist * self.COORD_TO_KM                                                                   
+        # Build ordered list of significant roads based on first appearance                                            
+            total_distance += final_km                                                                                 
+        for node in reversed(list(self._get_path_nodes(end_node))):                                                    
+            total_cost += final_km  # neutral cost for the short final approach                                        
+            if node.road_name and node.road_name in significant_roads:                                                 
+            t = end_node.terrain_type or 'moderado'                                                                    
+                if node.road_name not in roads_used_ordered:                                                           
+            terrain_distances[t] = terrain_distances.get(t, 0) + final_km                                              
+                    roads_used_ordered.append(node.road_name)                                                          
+        # Filter roads: only include roads with at least 30km or 5% of total distance                                  
+        # Reverse to get start-to-end order                                                                            
+        # This filters out roads that are just briefly crossed                                                         
+        path.reverse()                                                                                                 
+        min_road_distance = max(30, total_distance * 0.05)  # At least 30km or 5%                                      
+        segments.reverse()                                                                                             
+        significant_roads = {name: dist for name, dist in roads_distances.items() if dist >= min_road_distance}        
+                                                                                                                       
+                                                                                                                       
+        # Calculate estimated days                                                                                     
+        # Build ordered list of significant roads based on first appearance                                            
+        estimated_days = total_cost / self.BASE_SPEED_KM_DAY if total_cost > 0 else 0                                  
+        for node in reversed(list(self._get_path_nodes(end_node))):                                                    
+                                                                                                                       
+            if node.road_name and node.road_name in significant_roads:                                                 
+        # Add warnings for difficult terrain                                                                           
+                if node.road_name not in roads_used_ordered:                                                           
+        # NOTE (Iter 118): the A* only allows crossing 'infranqueable' / 'agua'                                        
+                    roads_used_ordered.append(node.road_name)                                                          
+        # terrain when a road exists on it, so any infranqueable distance in                                           
+                                                                                                                       
+        # the final route is necessarily a mountain pass / bridge segment.                                             
+        # Reverse to get start-to-end order                                                                            
+        if terrain_distances.get('infranqueable', 0) > 0:                                                              
+        path.reverse()                                                                                                 
+            warnings.append("ðŸ›¤ï¸ La ruta atraviesa pasos de montaÃ±a (terreno infranqueable salvable gracias al ...
+        segments.reverse()                                                                                             
+        if terrain_distances.get('agua', 0) > 0:                                                                       
+        # Apply a milder simplification to preserve road geometry (reduces excessive collapsing)                       
+            warnings.append("ðŸŒ‰ La ruta cruza zonas de agua mediante puentes/vados.")                                
+        simpl_tolerance = 0.12                                                                                         
+        if terrain_distances.get('desalentador', 0) > 10:                                                              
+        try:                                                                                                           
+            warnings.append("âš ï¸ Gran parte de la ruta atraviesa terreno desalentador.")                            
+           path = self._simplify_path(path, tolerance=simpl_tolerance)                                                 
+        if len(rivers_crossed) > 0:                                                                                    
+        except Exception:                                                                                              
+            warnings.append(f"ðŸŒŠ La ruta cruza {len(rivers_crossed)} rÃ­o(s).")                                      
+           pass                                                                                                        
+                                                                                                                       
+                                                                                                                       
+        return PathResult(                                                                                             
+        # Calculate estimated days                                                                                     
+            success=True,                                                                                              
+        estimated_days = total_cost / self.BASE_SPEED_KM_DAY if total_cost > 0 else 0                                  
+            path=path,  # Simplify the path to remove zigzag                                                           
+                                                                                                                       
+            segments=segments,                                                                                         
+        # Add warnings for difficult terrain                                                                           
+            total_distance_km=round(total_distance, 1),                                                                
+        # NOTE (Iter 118): the A* only allows crossing 'infranqueable' / 'agua'                                        
+            total_travel_cost=round(total_cost, 1),                                                                    
+        # terrain when a road exists on it, so any infranqueable distance in                                           
+            estimated_days=round(estimated_days, 1),                                                                   
+        # the final route is necessarily a mountain pass / bridge segment.                                             
+            warnings=warnings,                                                                                         
+        if terrain_distances.get('infranqueable', 0) > 0:                                                              
+            rivers_crossed=rivers_crossed,                                                                             
+            warnings.append("ðŸ›¤ï¸ La ruta atraviesa pasos de montaÃ±a (terreno infranqueable salvable gracias al ...
+            roads_used=roads_used_ordered,  # Now ordered by traversal                                                 
+        if terrain_distances.get('agua', 0) > 0:                                                                       
+            terrain_summary={k: round(v, 1) for k, v in terrain_distances.items()}                                     
+            warnings.append("ðŸŒ‰ La ruta cruza zonas de agua mediante puentes/vados.")                                
+        )                                                                                                              
+        if terrain_distances.get('desalentador', 0) > 10:                                                              
+                                                                                                                       
+            warnings.append("âš ï¸ Gran parte de la ruta atraviesa terreno desalentador.")                            
+    def _simplify_path(self, path: List[Tuple[float, float]], tolerance: float = 0.1) -> List[Tuple[float, float]]:    
+        if len(rivers_crossed) > 0:                                                                                    
+        """                                                                                                            
+            warnings.append(f"ðŸŒŠ La ruta cruza {len(rivers_crossed)} rÃ­o(s).")                                      
+        Simplify the path using the Ramer-Douglas-Peucker algorithm.                                                   
+                                                                                                                       
+        This removes unnecessary intermediate points while preserving the shape.                                       
+        return PathResult(                                                                                             
+        """                                                                                                            
+            success=True,                                                                                              
+        if len(path) < 3:                                                                                              
+            path=path,  # Simplify the path to remove zigzag                                                           
+            return path                                                                                                
+            segments=segments,                                                                                         
+                                                                                                                       
+            total_distance_km=round(total_distance, 1),                                                                
+        # Find the point with the maximum distance from the line between start and end                                 
+            total_travel_cost=round(total_cost, 1),                                                                    
+        start = path[0]                                                                                                
+            estimated_days=round(estimated_days, 1),                                                                   
+        end = path[-1]                                                                                                 
+            warnings=warnings,                                                                                         
+        max_dist = 0                                                                                                   
+            rivers_crossed=rivers_crossed,                                                                             
+        max_idx = 0                                                                                                    
+            roads_used=roads_used_ordered,  # Now ordered by traversal                                                 
+                                                                                                                       
+            terrain_summary={k: round(v, 1) for k, v in terrain_distances.items()}                                     
+        for i in range(1, len(path) - 1):                                                                              
+        )                                                                                                              
+            dist = self._perpendicular_distance(path[i], start, end)                                                   
+                                                                                                                       
+            if dist > max_dist:                                                                                        
+    def _simplify_path(self, path: List[Tuple[float, float]], tolerance: float = 0.1) -> List[Tuple[float, float]]:    
+                max_dist = dist                                                                                        
+        """                                                                                                            
+                max_idx = i                                                                                            
+        Simplify the path using the Ramer-Douglas-Peucker algorithm.                                                   
+                                                                                                                       
+        This removes unnecessary intermediate points while preserving the shape.                                       
+        # If max distance is greater than tolerance, recursively simplify                                              
+        """                                                                                                            
+        if max_dist > tolerance:                                                                                       
+        if len(path) < 3:                                                                                              
+            # Recursively simplify                                                                                     
+            return path                                                                                                
+            left_simplified = self._simplify_path(path[:max_idx + 1], tolerance)                                       
+                                                                                                                       
+            right_simplified = self._simplify_path(path[max_idx:], tolerance)                                          
+        # Find the point with the maximum distance from the line between start and end                                 
+                                                                                                                       
+        start = path[0]                                                                                                
+            # Combine results (avoid duplicating the middle point)                                                     
+        end = path[-1]                                                                                                 
+            return left_simplified[:-1] + right_simplified                                                             
+        max_dist = 0                                                                                                   
+        else:                                                                                                          
+        max_idx = 0                                                                                                    
+            # All intermediate points are within tolerance, return just start and end                                  
+                                                                                                                       
+            return [start, end]                                                                                        
+        for i in range(1, len(path) - 1):                                                                              
+                                                                                                                       
+            dist = self._perpendicular_distance(path[i], start, end)                                                   
+    def _perpendicular_distance(                                                                                       
+            if dist > max_dist:                                                                                        
+        self,                                                                                                          
+                max_dist = dist                                                                                        
+        point: Tuple[float, float],                                                                                    
+                max_idx = i                                                                                            
+        line_start: Tuple[float, float],                                                                               
+                                                                                                                       
+        line_end: Tuple[float, float]                                                                                  
+        # If max distance is greater than tolerance, recursively simplify                                              
+    ) -> float:                                                                                                        
+        if max_dist > tolerance:                                                                                       
+        """Calculate perpendicular distance from a point to a line"""                                                  
+            # Recursively simplify                                                                                     
+        px, py = point                                                                                                 
+            left_simplified = self._simplify_path(path[:max_idx + 1], tolerance)                                       
+        x1, y1 = line_start                                                                                            
+            right_simplified = self._simplify_path(path[max_idx:], tolerance)                                          
+        x2, y2 = line_end                                                                                              
+                                                                                                                       
+                                                                                                                       
+            # Combine results (avoid duplicating the middle point)                                                     
+        # Line length squared                                                                                          
+            return left_simplified[:-1] + right_simplified                                                             
+        line_len_sq = (x2 - x1) ** 2 + (y2 - y1) ** 2                                                                  
+        else:                                                                                                          
+                                                                                                                       
+            # All intermediate points are within tolerance, return just start and end                                  
+        if line_len_sq == 0:                                                                                           
+            return [start, end]                                                                                        
+            # Line is a point                                                                                          
+                                                                                                                       
+            return self._distance(point, line_start)                                                                   
+    def _perpendicular_distance(                                                                                       
+                                                                                                                       
+        self,                                                                                                          
+        # Project point onto line                                                                                      
+        point: Tuple[float, float],                                                                                    
+        t = max(0, min(1, ((px - x1) * (x2 - x1) + (py - y1) * (y2 - y1)) / line_len_sq))                              
+        line_start: Tuple[float, float],                                                                               
+                                                                                                                       
+        line_end: Tuple[float, float]                                                                                  
+        # Closest point on line                                                                                        
+    ) -> float:                                                                                                        
+        proj_x = x1 + t * (x2 - x1)                                                                                    
+        """Calculate perpendicular distance from a point to a line"""                                                  
+        proj_y = y1 + t * (y2 - y1)                                                                                    
+        px, py = point                                                                                                 
+                                                                                                                       
+        x1, y1 = line_start                                                                                            
+        return self._distance(point, (proj_x, proj_y))                                                                 
+        x2, y2 = line_end                                                                                              
+                                                                                                                       
+                                                                                                                       
+    def find_path_by_location_ids(                                                                                     
+        # Line length squared                                                                                          
+        self,                                                                                                          
+        line_len_sq = (x2 - x1) ** 2 + (y2 - y1) ** 2                                                                  
+        start_id: str,                                                                                                 
+                                                                                                                       
+        end_id: str                                                                                                    
+        if line_len_sq == 0:                                                                                           
+    ) -> PathResult:                                                                                                   
+            # Line is a point                                                                                          
+        """Find path between two location IDs"""                                                                       
+            return self._distance(point, line_start)                                                                   
+        start_loc = next((loc for loc in self.locations if loc.get('id') == start_id), None)                           
+                                                                                                                       
+        end_loc = next((loc for loc in self.locations if loc.get('id') == end_id), None)                               
+        # Project point onto line                                                                                      
+                                                                                                                       
+        t = max(0, min(1, ((px - x1) * (x2 - x1) + (py - y1) * (y2 - y1)) / line_len_sq))                              
+        if not start_loc:                                                                                              
+                                                                                                                       
+            return PathResult(                                                                                         
+        # Closest point on line                                                                                        
+                success=False,                                                                                         
+        proj_x = x1 + t * (x2 - x1)                                                                                    
+                path=[],                                                                                               
+        proj_y = y1 + t * (y2 - y1)                                                                                    
+                segments=[],                                                                                           
+                                                                                                                       
+                total_distance_km=0,                                                                                   
+        return self._distance(point, (proj_x, proj_y))                                                                 
+                total_travel_cost=0,                                                                                   
+                                                                                                                       
+                estimated_days=0,                                                                                      
+    def find_path_by_location_ids(                                                                                     
+                warnings=[f"UbicaciÃ³n de origen '{start_id}' no encontrada"],                                         
+        self,                                                                                                          
+                rivers_crossed=[],                                                                                     
+        start_id: str,                                                                                                 
+                roads_used=[],                                                                                         
+        end_id: str                                                                                                    
+                terrain_summary={}                                                                                     
+    ) -> PathResult:                                                                                                   
+            )                                                                                                          
+        """Find path between two location IDs"""                                                                       
+                                                                                                                       
+        start_loc = next((loc for loc in self.locations if loc.get('id') == start_id), None)                           
+        if not end_loc:                                                                                                
+        end_loc = next((loc for loc in self.locations if loc.get('id') == end_id), None)                               
+            return PathResult(                                                                                         
+                                                                                                                       
+                success=False,                                                                                         
+        if not start_loc:                                                                                              
+                path=[],                                                                                               
+            return PathResult(                                                                                         
+                segments=[],                                                                                           
+                success=False,                                                                                         
+                total_distance_km=0,                                                                                   
+                path=[],                                                                                               
+                total_travel_cost=0,                                                                                   
+                segments=[],                                                                                           
+                estimated_days=0,                                                                                      
+                total_distance_km=0,                                                                                   
+                warnings=[f"UbicaciÃ³n de destino '{end_id}' no encontrada"],                                          
+                total_travel_cost=0,                                                                                   
+                rivers_crossed=[],                                                                                     
+                estimated_days=0,                                                                                      
+                roads_used=[],                                                                                         
+                warnings=[f"UbicaciÃ³n de origen '{start_id}' no encontrada"],                                         
+                terrain_summary={}                                                                                     
+                rivers_crossed=[],                                                                                     
+            )                                                                                                          
+                roads_used=[],                                                                                         
+                                                                                                                       
+                terrain_summary={}                                                                                     
+        start = (start_loc.get('x', 0), start_loc.get('y', 0))                                                         
+            )                                                                                                          
+        end = (end_loc.get('x', 0), end_loc.get('y', 0))                                                               
+        if not end_loc:                                                                                                
+        result = self.find_path(start, end)                                                                            
+            return PathResult(                                                                                         
+                                                                                                                       
+                success=False,                                                                                         
+        # Add location names to result                                                                                 
+                path=[],                                                                                               
+        if result.success:                                                                                             
+                segments=[],                                                                                           
+            result.warnings.insert(0, f"ðŸ“ {start_loc.get('nombre')} â†’ {end_loc.get('nombre')}")                   
+                total_distance_km=0,                                                                                   
+                                                                                                                       
+                total_travel_cost=0,                                                                                   
+        return result                                                                                                  
+                estimated_days=0,                                                                                      
+                                                                                                                       
+                warnings=[f"UbicaciÃ³n de destino '{end_id}' no encontrada"],                                          
+                rivers_crossed=[],                                                                                     
+                roads_used=[],                                                                                         
+                terrain_summary={}                                                                                     
+            )                                                                                                          
+                                                                                                                       
+        start = (start_loc.get('x', 0), start_loc.get('y', 0))                                                         
+        end = (end_loc.get('x', 0), end_loc.get('y', 0))                                                               
+                                                                                                                       
+        result = self.find_path(start, end)                                                                            
+                                                                                                                       
+        # Add location names to result                                                                                 
+        if result.success:                                                                                             
+            result.warnings.insert(0, f"ðŸ“ {start_loc.get('nombre')} â†’ {end_loc.get('nombre')}")                   
+                                                                                                                       
+        return result                                                                                                  
+                                                                                                                       
+
+

@@ -164,7 +164,6 @@ class PathResult:
     rivers_crossed: List[Dict]
     roads_used: List[str]
     terrain_summary: Dict[str, float]
-    requires_manual_routing: bool = False
 
 
 class MiddleEarthPathfinder:
@@ -858,7 +857,7 @@ class MiddleEarthPathfinder:
         snap_to_roads: bool = True,
         step_km: float = 3.0,
         max_iter: int = 600,
-    ) -> Optional[List[Tuple[float, float]]]:
+    ):
         """
         Campo a través natural con pasos cortos y cierta variación angular.
         Se usa para:
@@ -928,8 +927,11 @@ class MiddleEarthPathfinder:
                     path.extend(route[1:])
                     return self._dedupe_consecutive_points(path)
 
-                warnings.append("Aviso: El camino natural está bloqueado por montañas o agua profunda.")
-                return None
+                warnings.append(
+                    "Aviso: no se pudo generar un tramo natural de campo a través sin cruzar agua/infranqueable."
+                )
+                path.append(end)
+                return self._dedupe_consecutive_points(path)
 
             path.append(best)
             current = best
@@ -945,10 +947,11 @@ class MiddleEarthPathfinder:
                         path.extend(road_route[1:])
                         return self._dedupe_consecutive_points(path)
 
-        warnings.append("Aviso: Ruta de campo a través demasiado compleja.")
-        return None
+        warnings.append("Aviso: se alcanzó el máximo de pasos del tramo natural.")
+        path.append(end)
+        return self._dedupe_consecutive_points(path)
 
-    def _offroad_leg(self, a, b, warnings, snap_to_roads: bool = True) -> Optional[List[Tuple[float, float]]]:
+    def _offroad_leg(self, a, b, warnings, snap_to_roads: bool = True) -> List[Tuple[float, float]]:
         if not self._use_grid:
             return [a, b]
         return self._natural_offroad_route(a, b, warnings, snap_to_roads=snap_to_roads)
@@ -975,18 +978,16 @@ class MiddleEarthPathfinder:
 
             if start_off_dist > 0.1:
                 leg = self._offroad_leg(start, road_path[0], warnings, snap_to_roads=False)
-                if leg is None:
-                    continue
-                full_path.extend(leg[:-1])
+                if leg:
+                    full_path.extend(leg[:-1])
                 warnings.append("Inicio del trayecto realizado campo a través hasta enlazar el camino.")
 
             full_path.extend(road_path)
 
             if end_off_dist > 0.1:
                 leg = self._offroad_leg(road_path[-1], end, warnings, snap_to_roads=False)
-                if leg is None:
-                    continue
-                full_path.extend(leg[1:])
+                if leg:
+                    full_path.extend(leg[1:])
                 warnings.append("Llegada al destino final realizada campo a través.")
 
             full_path = self._dedupe_consecutive_points(full_path)
@@ -1108,7 +1109,6 @@ class MiddleEarthPathfinder:
                 rivers_crossed=[],
                 roads_used=[],
                 terrain_summary={},
-                requires_manual_routing=True
             )
 
         path = self._dedupe_consecutive_points(path)
@@ -1208,7 +1208,6 @@ class MiddleEarthPathfinder:
             rivers_crossed=rivers_crossed,
             roads_used=roads_used_ordered,
             terrain_summary={k: round(v, 1) for k, v in terrain_distances.items()},
-            requires_manual_routing=False
         )
 
     def find_path(
@@ -1220,8 +1219,7 @@ class MiddleEarthPathfinder:
         """
         Prioridad:
         1. intentar ruta por caminos
-        2. si la carretera se corta, pedir ayuda al DJ (evita líneas rectas gigantes)
-        3. si falla el campo a través natural, pedir ayuda al DJ
+        2. si falla, usar campo a través natural
         """
         warnings: List[str] = []
 
@@ -1230,32 +1228,13 @@ class MiddleEarthPathfinder:
             road_route = self._road_route_between_points(start, end, warnings)
             if road_route and len(road_route) >= 2:
                 return self._build_result_from_path(road_route, warnings)
-            
-            # NUEVO: Si la ruta por camino falló, y la distancia es considerable,
-            # no hacemos campo a través a lo loco. Pedimos un waypoint.
-            dist_km = self._distance(start, end) * self.COORD_TO_KM
-            if dist_km > 15.0:
-                warnings.append("La ruta por camino se corta. El DJ debe marcar un punto intermedio (waypoint) para conectar los tramos.")
-                return PathResult(
-                    success=False,
-                    path=[],
-                    segments=[],
-                    total_distance_km=0,
-                    total_travel_cost=0,
-                    estimated_days=0,
-                    warnings=warnings,
-                    rivers_crossed=[],
-                    roads_used=[],
-                    terrain_summary={},
-                    requires_manual_routing=True
-                )
 
-        # 2) Fallback natural (tramos cortos o prefer_roads=False)
+        # 2) Fallback natural.
         natural = self._natural_offroad_route(start, end, warnings, snap_to_roads=False)
         if natural and len(natural) >= 2:
             return self._build_result_from_path(natural, warnings)
 
-        warnings.append("Terreno complejo o infranqueable. Se requiere intervención del DJ para trazar los puntos intermedios (waypoints).")
+        warnings.append("No se pudo calcular la ruta. Verifica origen y destino.")
         return PathResult(
             success=False,
             path=[],
@@ -1267,7 +1246,6 @@ class MiddleEarthPathfinder:
             rivers_crossed=[],
             roads_used=[],
             terrain_summary={},
-            requires_manual_routing=True
         )
 
     def find_path_by_location_ids(self, start_id: str, end_id: str) -> PathResult:
@@ -1286,7 +1264,6 @@ class MiddleEarthPathfinder:
                 rivers_crossed=[],
                 roads_used=[],
                 terrain_summary={},
-                requires_manual_routing=False
             )
 
         if not end_loc:
@@ -1301,7 +1278,6 @@ class MiddleEarthPathfinder:
                 rivers_crossed=[],
                 roads_used=[],
                 terrain_summary={},
-                requires_manual_routing=False
             )
 
         start = (start_loc.get("x", 0), start_loc.get("y", 0))

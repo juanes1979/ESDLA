@@ -106,14 +106,14 @@ const CharacterHeader = ({ character, onLevelUp, onUpdate }) => {
         <div className="flex flex-col items-center gap-2">
           <div className="relative group">
             {displayedImage ? (
-              <img
-                src={`data:image/png;base64,${displayedImage}`}
-                alt={`Retrato de ${character.nombre}`}
-                onClick={() => { if (hasPortrait) setShowFullView(true); }}
-                className="w-24 h-24 rounded-full object-cover ring-1 ring-[hsl(var(--gold))/50] cursor-pointer"
-                style={{ background: 'transparent' }}
-                data-testid="character-portrait-image"
-              />
+				<img
+				  src={`data:image/png;base64,${displayedImage}`}
+				  alt={`Retrato de ${character.nombre}`}
+				  onClick={() => { if (hasPortrait) setShowFullView(true); }}
+				  className="w-24 h-24 rounded-full object-contain ring-1 ring-[hsl(var(--gold))/50] cursor-pointer bg-black/20"
+				  style={{ background: 'transparent' }}
+				  data-testid="character-portrait-image"
+				/>
             ) : (
               <div className="w-24 h-24 rounded-full bg-gradient-to-br from-[hsl(var(--gold))/30] to-[hsl(var(--gold))/10] flex items-center justify-center ring-1 ring-[hsl(var(--gold))/50]">
                 <span className="font-heading text-4xl text-[hsl(var(--gold))]">

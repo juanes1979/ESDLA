@@ -148,19 +148,34 @@ async def create_location(location: dict = Body(...)):
 @router.put("/locations/{location_id}")
 async def update_location(location_id: str, location: dict = Body(...)):
     """Update a location (admin only)"""
-    location["updated_at"] = now_utc()
-    result = await db.locations.update_one({"_id": location_id}, {"$set": location})
+    location_doc = await find_location(db, location_id)
+    if not location_doc:
+        raise HTTPException(status_code=404, detail="Location not found")
+
+    update_data = {k: v for k, v in location.items() if k not in ["id", "_id"]}
+    update_data["updated_at"] = now_utc()
+
+    result = await db.locations.update_one(
+        {"_id": location_doc["_id"]},
+        {"$set": update_data}
+    )
     if result.matched_count == 0:
         raise HTTPException(status_code=404, detail="Location not found")
+
     return {"message": "Location updated successfully"}
 
 
 @router.delete("/locations/{location_id}")
 async def delete_location(location_id: str):
     """Delete a location (admin only)"""
-    result = await db.locations.delete_one({"_id": location_id})
+    location_doc = await find_location(db, location_id)
+    if not location_doc:
+        raise HTTPException(status_code=404, detail="Location not found")
+
+    result = await db.locations.delete_one({"_id": location_doc["_id"]})
     if result.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Location not found")
+
     return {"message": "Location deleted successfully"}
 
 
